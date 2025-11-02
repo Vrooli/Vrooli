@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test dependencies phase - validates scenario dependencies
+# Ensures language and tooling dependencies are available for smart-shopping-assistant.
 
 set -euo pipefail
 
@@ -7,59 +7,53 @@ APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-testing::phase::init --target-time "30s"
+testing::phase::init --target-time "60s"
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-log::info "Testing smart-shopping-assistant dependencies"
-
-# Test required resources
-testing::phase::add_test "Check PostgreSQL dependency"
-if command -v psql &> /dev/null; then
-    log::success "PostgreSQL client available"
+# Client tooling checks (warnings if missing).
+if command -v psql >/dev/null 2>&1; then
+  testing::phase::add_test passed
+  log::success "PostgreSQL client available"
 else
-    testing::phase::add_warning "PostgreSQL client not found"
+  testing::phase::add_warning "psql client not found"
+  testing::phase::add_test skipped
 fi
 
-testing::phase::add_test "Check Redis dependency"
-if command -v redis-cli &> /dev/null; then
-    log::success "Redis client available"
+if command -v redis-cli >/dev/null 2>&1; then
+  testing::phase::add_test passed
+  log::success "redis-cli available"
 else
-    testing::phase::add_warning "Redis client not found"
+  testing::phase::add_warning "redis-cli not found"
+  testing::phase::add_test skipped
 fi
 
-# Test Go dependencies
-testing::phase::add_test "Verify Go module dependencies"
+# Go module verification.
 if [[ -f "api/go.mod" ]]; then
-    cd api
-    if go mod verify; then
-        log::success "Go dependencies verified"
-    else
-        testing::phase::add_error "Go dependency verification failed"
-    fi
-    cd ..
+  testing::phase::check "Go module graph verifies" bash -c 'cd api && go mod verify'
 else
-    testing::phase::add_warning "No Go module file found"
+  testing::phase::add_warning "No Go module file present"
+  testing::phase::add_test skipped
 fi
 
-# Test Node dependencies if UI exists
-testing::phase::add_test "Check Node dependencies"
+# Node dependency sanity (ensure manifest is readable when Node is present).
 if [[ -f "ui/package.json" ]]; then
-    cd ui
-    if [[ -d "node_modules" ]]; then
-        log::success "Node modules installed"
-    else
-        testing::phase::add_warning "Node modules not installed"
-    fi
-    cd ..
-fi
-
-# Check for integration scenarios
-testing::phase::add_test "Check scenario-authenticator integration"
-if [[ -f "../scenario-authenticator/.vrooli/service.json" ]]; then
-    log::success "scenario-authenticator available for integration"
+  if command -v node >/dev/null 2>&1; then
+    testing::phase::check "UI package manifest parses" node -e 'require("./ui/package.json")'
+  else
+    testing::phase::add_warning "Node runtime missing; skipping UI manifest validation"
+    testing::phase::add_test skipped
+  fi
 else
-    log::info "scenario-authenticator not available (optional)"
+  testing::phase::add_warning "UI package.json missing"
+  testing::phase::add_test skipped
 fi
 
-testing::phase::end_with_summary "Dependency tests completed"
+# Optional integration scenarios (informational only).
+for optional in scenario-authenticator deep-research contact-book; do
+  if [[ -f "../${optional}/.vrooli/service.json" ]]; then
+    log::info "Optional integration available: ${optional}"
+  fi
+done
+
+testing::phase::end_with_summary "Dependency validation completed"

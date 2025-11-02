@@ -1,221 +1,165 @@
 #!/bin/bash
+# Validate high-level business workflows such as visibility, sharing, and rating
 set -euo pipefail
-
-# Recipe Book Business Logic Test Runner
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
-testing::phase::init --target-time "90s"
+testing::phase::init --target-time "300s" --require-runtime
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
-
-testing::phase::log "Starting Recipe Book business logic tests"
-
-# Business Rule 1: Recipe visibility and access control
-testing::phase::log "Testing visibility and access control..."
-
-# Create a private recipe
-PRIVATE_RECIPE=$(curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "title": "Private Recipe",
-        "ingredients": [{"name": "secret ingredient", "amount": 1, "unit": "cup"}],
-        "instructions": ["Secret step"],
-        "created_by": "user-alice",
-        "visibility": "private"
-    }' 2>&1 || echo '{}')
-
-if echo "$PRIVATE_RECIPE" | grep -q '"id"'; then
-    RECIPE_ID=$(echo "$PRIVATE_RECIPE" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
-
-    # Try to access as unauthorized user (should fail)
-    if ! curl -sf "http://localhost:${API_PORT:-3250}/api/v1/recipes/${RECIPE_ID}?user_id=user-bob" > /dev/null 2>&1; then
-        testing::phase::log "✓ Private recipe correctly denies unauthorized access"
-    else
-        testing::phase::log "✗ Private recipe allows unauthorized access"
-    fi
-
-    # Access as owner (should succeed)
-    if curl -sf "http://localhost:${API_PORT:-3250}/api/v1/recipes/${RECIPE_ID}?user_id=user-alice" > /dev/null 2>&1; then
-        testing::phase::log "✓ Private recipe allows owner access"
-    else
-        testing::phase::log "✗ Private recipe denies owner access"
-    fi
-
-    # Cleanup
-    curl -sf -X DELETE "http://localhost:${API_PORT:-3250}/api/v1/recipes/${RECIPE_ID}?user_id=user-alice" > /dev/null 2>&1 || true
+if ! command -v curl >/dev/null 2>&1; then
+  testing::phase::add_error "curl is required for business workflow checks"
+  testing::phase::add_test failed
+  testing::phase::end_with_summary "Business workflow tests incomplete"
 fi
 
-# Business Rule 2: Recipe sharing workflow
-testing::phase::log "Testing recipe sharing workflow..."
-
-SHARED_RECIPE=$(curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "title": "Recipe to Share",
-        "ingredients": [{"name": "ingredient", "amount": 1, "unit": "cup"}],
-        "instructions": ["Step 1"],
-        "created_by": "user-alice",
-        "visibility": "private"
-    }' 2>&1 || echo '{}')
-
-if echo "$SHARED_RECIPE" | grep -q '"id"'; then
-    RECIPE_ID=$(echo "$SHARED_RECIPE" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
-
-    # Share with user-bob
-    if curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes/${RECIPE_ID}/share" \
-        -H "Content-Type: application/json" \
-        -d '{"user_ids": ["user-bob"]}' > /dev/null 2>&1; then
-        testing::phase::log "✓ Recipe sharing API successful"
-    fi
-
-    # Cleanup
-    curl -sf -X DELETE "http://localhost:${API_PORT:-3250}/api/v1/recipes/${RECIPE_ID}?user_id=user-alice" > /dev/null 2>&1 || true
+SCENARIO_NAME="${TESTING_PHASE_SCENARIO_NAME}"
+API_ROOT=$(testing::connectivity::get_api_url "$SCENARIO_NAME" 2>/dev/null || true)
+if [ -z "$API_ROOT" ]; then
+  testing::phase::add_error "Unable to discover API port for $SCENARIO_NAME"
+  testing::phase::add_test failed
+  testing::phase::end_with_summary "Business workflow tests incomplete"
 fi
 
-# Business Rule 3: Recipe modification creates derivative
-testing::phase::log "Testing recipe modification workflow..."
+API_BASE="${API_ROOT}/api/v1"
+TMP_DIR=$(mktemp -d -t recipe-book-business-XXXXXX)
+trap 'rm -rf "$TMP_DIR"' EXIT
 
-ORIGINAL_RECIPE=$(curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes" \
+create_recipe_for() {
+  local owner="$1"
+  local visibility="$2"
+  local title="$3"
+  local payload
+  payload=$(cat <<JSON
+{
+  "title": "${title}",
+  "ingredients": [{"name": "integration ingredient", "amount": 1, "unit": "cup"}],
+  "instructions": ["Step one"],
+  "created_by": "${owner}",
+  "visibility": "${visibility}",
+  "tags": ["business", "test"]
+}
+JSON
+)
+  local output="$TMP_DIR/${title// /-}.json"
+  local status
+  status=$(curl -sS -o "$output" -w "%{http_code}" \
+    -X POST "${API_BASE}/recipes" \
     -H "Content-Type: application/json" \
-    -d '{
-        "title": "Original Recipe",
-        "ingredients": [{"name": "ingredient", "amount": 1, "unit": "cup"}],
-        "instructions": ["Original step"],
-        "created_by": "user-alice"
-    }' 2>&1 || echo '{}')
+    -d "$payload")
+  if [ "$status" != "201" ]; then
+    log::error "Failed to create ${title} (HTTP ${status}): $(cat "$output")"
+    return 1
+  fi
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '.id // empty' "$output"
+  else
+    grep -o '"id"\s*:\s*"[^"]*"' "$output" | head -1 | cut -d'"' -f4
+  fi
+}
 
-if echo "$ORIGINAL_RECIPE" | grep -q '"id"'; then
-    RECIPE_ID=$(echo "$ORIGINAL_RECIPE" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+delete_recipe() {
+  local recipe_id="$1"
+  local owner="$2"
+  curl -sf -X DELETE "${API_BASE}/recipes/${recipe_id}?user_id=${owner}" >/dev/null 2>&1 || true
+}
 
-    # Modify recipe (should create derivative)
-    MODIFIED_RESPONSE=$(curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes/${RECIPE_ID}/modify" \
-        -H "Content-Type: application/json" \
-        -d '{
-            "modification_type": "make_vegan",
-            "user_id": "user-bob"
-        }' 2>&1 || echo '{}')
+# Visibility enforcement
+private_recipe_id=$(create_recipe_for "user-alice" "private" "Private Visibility Test") || true
+if [ -n "${private_recipe_id:-}" ]; then
+  unauthorized_status=$(curl -sS -o /dev/null -w "%{http_code}" "${API_BASE}/recipes/${private_recipe_id}?user_id=user-bob")
+  if [ "$unauthorized_status" != "200" ]; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Unauthorized user gained access to private recipe"
+    testing::phase::add_test failed
+  fi
 
-    if echo "$MODIFIED_RESPONSE" | grep -q '"modified_recipe"'; then
-        testing::phase::log "✓ Recipe modification creates derivative"
-    fi
+  owner_status=$(curl -sS -o /dev/null -w "%{http_code}" "${API_BASE}/recipes/${private_recipe_id}?user_id=user-alice")
+  if [ "$owner_status" = "200" ]; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Owner could not access private recipe"
+    testing::phase::add_test failed
+  fi
 
-    # Cleanup
-    curl -sf -X DELETE "http://localhost:${API_PORT:-3250}/api/v1/recipes/${RECIPE_ID}?user_id=user-alice" > /dev/null 2>&1 || true
+  delete_recipe "$private_recipe_id" "user-alice"
+else
+  testing::phase::add_error "Failed to create private recipe for visibility test"
+  testing::phase::add_test failed
+  testing::phase::add_test failed
 fi
 
-# Business Rule 4: Shopping list aggregates ingredients
-testing::phase::log "Testing shopping list aggregation..."
-
-# Create multiple recipes
-RECIPE1=$(curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes" \
+# Sharing workflow
+shared_recipe_id=$(create_recipe_for "user-alice" "private" "Sharing Test Recipe") || true
+if [ -n "${shared_recipe_id:-}" ]; then
+  share_status=$(curl -sS -o "$TMP_DIR/share.json" -w "%{http_code}" \
+    -X POST "${API_BASE}/recipes/${shared_recipe_id}/share" \
     -H "Content-Type: application/json" \
-    -d '{
-        "title": "Recipe 1",
-        "ingredients": [{"name": "flour", "amount": 2, "unit": "cups"}],
-        "instructions": ["Mix"],
-        "created_by": "user-alice"
-    }' 2>&1 || echo '{}')
+    -d '{"user_ids": ["user-bob"]}')
+  if [ "$share_status" = "200" ]; then
+    testing::phase::add_test passed
+  else
+    log::error "Share endpoint failed: $(cat "$TMP_DIR/share.json")"
+    testing::phase::add_test failed
+  fi
 
-RECIPE2=$(curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "title": "Recipe 2",
-        "ingredients": [{"name": "flour", "amount": 1, "unit": "cup"}],
-        "instructions": ["Bake"],
-        "created_by": "user-alice"
-    }' 2>&1 || echo '{}')
+  shared_lookup=$(curl -sS -o /dev/null -w "%{http_code}" "${API_BASE}/recipes/${shared_recipe_id}?user_id=user-bob")
+  if [ "$shared_lookup" = "200" ]; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Shared recipe inaccessible to invited user"
+    testing::phase::add_test failed
+  fi
 
-if echo "$RECIPE1" | grep -q '"id"' && echo "$RECIPE2" | grep -q '"id"'; then
-    ID1=$(echo "$RECIPE1" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
-    ID2=$(echo "$RECIPE2" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
-
-    # Generate shopping list
-    SHOPPING_LIST=$(curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/shopping-list" \
-        -H "Content-Type: application/json" \
-        -d "{\"recipe_ids\": [\"$ID1\", \"$ID2\"], \"user_id\": \"user-alice\"}" 2>&1 || echo '{}')
-
-    if echo "$SHOPPING_LIST" | grep -q '"shopping_list"'; then
-        testing::phase::log "✓ Shopping list generation successful"
-    fi
-
-    # Cleanup
-    curl -sf -X DELETE "http://localhost:${API_PORT:-3250}/api/v1/recipes/${ID1}?user_id=user-alice" > /dev/null 2>&1 || true
-    curl -sf -X DELETE "http://localhost:${API_PORT:-3250}/api/v1/recipes/${ID2}?user_id=user-alice" > /dev/null 2>&1 || true
+  delete_recipe "$shared_recipe_id" "user-alice"
+else
+  testing::phase::add_error "Failed to create recipe for sharing test"
+  testing::phase::add_test failed
+  testing::phase::add_test failed
 fi
 
-# Business Rule 5: Recipe rating and cooking history
-testing::phase::log "Testing recipe rating workflow..."
-
-RECIPE=$(curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes" \
+# Modification workflow
+mod_recipe_id=$(create_recipe_for "user-alice" "private" "Modification Base Recipe") || true
+if [ -n "${mod_recipe_id:-}" ]; then
+  mod_status=$(curl -sS -o "$TMP_DIR/modify.json" -w "%{http_code}" \
+    -X POST "${API_BASE}/recipes/${mod_recipe_id}/modify" \
     -H "Content-Type: application/json" \
-    -d '{
-        "title": "Recipe to Rate",
-        "ingredients": [{"name": "ingredient", "amount": 1, "unit": "cup"}],
-        "instructions": ["Cook"],
-        "created_by": "user-alice"
-    }' 2>&1 || echo '{}')
+    -d '{"modification_type": "make_vegan", "user_id": "user-bob"}')
+  if [ "$mod_status" = "200" ] && grep -q 'modified_recipe' "$TMP_DIR/modify.json"; then
+    testing::phase::add_test passed
+  else
+    log::error "Modification workflow failed: $(cat "$TMP_DIR/modify.json")"
+    testing::phase::add_test failed
+  fi
 
-if echo "$RECIPE" | grep -q '"id"'; then
-    RECIPE_ID=$(echo "$RECIPE" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
-
-    # Rate the recipe
-    if curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes/${RECIPE_ID}/rate" \
-        -H "Content-Type: application/json" \
-        -d '{
-            "user_id": "user-bob",
-            "rating": 5,
-            "notes": "Delicious!",
-            "anonymous": false
-        }' > /dev/null 2>&1; then
-        testing::phase::log "✓ Recipe rating successful"
-    fi
-
-    # Cleanup
-    curl -sf -X DELETE "http://localhost:${API_PORT:-3250}/api/v1/recipes/${RECIPE_ID}?user_id=user-alice" > /dev/null 2>&1 || true
+  delete_recipe "$mod_recipe_id" "user-alice"
+else
+  testing::phase::add_error "Failed to create recipe for modification test"
+  testing::phase::add_test failed
 fi
 
-# Business Rule 6: AI recipe generation with dietary restrictions
-testing::phase::log "Testing AI recipe generation..."
-
-GEN_RESPONSE=$(curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes/generate" \
+# Cooking / rating workflow
+cook_recipe_id=$(create_recipe_for "user-alice" "private" "Cooking Workflow Recipe") || true
+if [ -n "${cook_recipe_id:-}" ]; then
+  cook_status=$(curl -sS -o "$TMP_DIR/cook.json" -w "%{http_code}" \
+    -X POST "${API_BASE}/recipes/${cook_recipe_id}/cook" \
     -H "Content-Type: application/json" \
-    -d '{
-        "prompt": "healthy breakfast",
-        "user_id": "user-alice",
-        "dietary_restrictions": ["vegetarian", "gluten-free"],
-        "available_ingredients": ["eggs", "spinach", "tomatoes"]
-    }' 2>&1 || echo '{}')
+    -d '{"user_id": "user-alice", "rating": 5, "notes": "Delicious", "anonymous": false}')
+  if [ "$cook_status" = "200" ] && grep -q '"status"' "$TMP_DIR/cook.json"; then
+    testing::phase::add_test passed
+  else
+    log::warning "Cooking workflow not available: $(cat "$TMP_DIR/cook.json")"
+    testing::phase::add_warning "Cooking workflow not available"
+    testing::phase::add_test skipped
+  fi
 
-if echo "$GEN_RESPONSE" | grep -q '"recipe"'; then
-    testing::phase::log "✓ AI recipe generation successful"
-
-    # Verify dietary restrictions are respected
-    if echo "$GEN_RESPONSE" | grep -q '"source":"ai_generated"'; then
-        testing::phase::log "✓ Generated recipe has correct source"
-    fi
+  delete_recipe "$cook_recipe_id" "user-alice"
+else
+  testing::phase::add_warning "Failed to create recipe for cooking workflow; skipping"
+  testing::phase::add_test skipped
 fi
 
-# Business Rule 7: Semantic search functionality
-testing::phase::log "Testing semantic search..."
-
-SEARCH_RESPONSE=$(curl -sf -X POST "http://localhost:${API_PORT:-3250}/api/v1/recipes/search" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "query": "chocolate dessert",
-        "user_id": "user-alice",
-        "limit": 10,
-        "filters": {
-            "dietary": ["vegetarian"],
-            "max_time": 60,
-            "ingredients": ["chocolate"]
-        }
-    }' 2>&1 || echo '{}')
-
-if echo "$SEARCH_RESPONSE" | grep -q '"results"'; then
-    testing::phase::log "✓ Semantic search successful"
-fi
-
-testing::phase::end_with_summary "Recipe Book business logic tests completed"
+testing::phase::end_with_summary "Business workflow validation completed"

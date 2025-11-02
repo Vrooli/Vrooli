@@ -3,14 +3,19 @@
  * Main application logic for the scenario-to-extension web interface
  */
 
-const API_PATH = '/api/v1';
-const DEFAULT_API_PORT = 3201;
-const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
+// API resolution is handled by api-resolver.js (loaded before this file)
+// Functions available: resolveApiConfig(), applyApiResolution(), startApiResolutionWatcher()
 
-const apiResolution = resolveApiConfig();
+let apiResolution = window.resolveApiConfig ? window.resolveApiConfig() : {
+    base: 'http://127.0.0.1:3201/api/v1',
+    root: 'http://127.0.0.1:3201',
+    source: 'fallback',
+    notes: 'API resolver not loaded'
+};
 
 if (typeof window !== 'undefined') {
     window.__scenarioToExtensionApi = apiResolution;
+    window.__currentApiResolution = apiResolution;
 }
 
 // Configuration
@@ -18,6 +23,7 @@ const CONFIG = {
     API_BASE: apiResolution.base,
     API_ROOT: apiResolution.root,
     API_SOURCE: apiResolution.source,
+    API_NOTES: apiResolution.notes,
     POLL_INTERVAL: 5000, // 5 seconds
     NOTIFICATION_TIMEOUT: 5000,
     DEBUG: false
@@ -34,7 +40,7 @@ const state = {
 };
 
 // ============================================
-// Utility Functions
+// Debug & Development Utilities
 // ============================================
 
 function log(...args) {
@@ -55,6 +61,10 @@ function debounce(func, wait) {
     };
 }
 
+// ============================================
+// String Formatting Utilities
+// ============================================
+
 function formatDate(dateString) {
     return new Date(dateString).toLocaleString();
 }
@@ -63,11 +73,11 @@ function formatDuration(startTime, endTime) {
     const start = new Date(startTime);
     const end = endTime ? new Date(endTime) : new Date();
     const diff = end - start;
-    
+
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) return `${hours}h ${minutes % 60}m`;
     if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
     return `${seconds}s`;
@@ -86,266 +96,17 @@ function formatStatusLabel(value) {
 }
 
 // ============================================
-// Proxy & API Resolution
+// API Integration (resolution handled by api-resolver.js)
 // ============================================
 
-function resolveApiConfig() {
-    const win = typeof window !== 'undefined' ? window : undefined;
-    const loopbackRoot = buildLoopbackRoot(win);
-    const loopbackBase = ensureApiPath(loopbackRoot);
-
-    const resolution = {
-        base: loopbackBase,
-        root: stripApiSuffix(loopbackBase),
-        source: 'loopback-fallback',
-        notes: 'Using default loopback developer API base'
-    };
-
-    if (!win) {
-        return resolution;
-    }
-
-    const proxyBootstrap = readProxyBootstrap(win);
-    const proxyBase = resolveProxyBase(proxyBootstrap, win);
-    if (proxyBase) {
-        const ensured = ensureApiPath(proxyBase);
-        return {
-            base: ensured,
-            root: stripApiSuffix(ensured),
-            source: 'app-monitor-proxy',
-            notes: 'Resolved via App Monitor proxy metadata'
-        };
-    }
-
-    const derivedFromLocation = deriveProxyBaseFromLocation(win);
-    if (derivedFromLocation) {
-        const ensured = ensureApiPath(derivedFromLocation);
-        return {
-            base: ensured,
-            root: stripApiSuffix(ensured),
-            source: 'location-derived',
-            notes: 'Derived from current location pathname'
-        };
-    }
-
-    const { origin, hostname } = win.location || {};
-    if (origin && hostname && !isLocalHostname(hostname)) {
-        const ensured = ensureApiPath(origin);
-        return {
-            base: ensured,
-            root: stripApiSuffix(ensured),
-            source: 'same-origin',
-            notes: 'Using current origin as API base'
-        };
-    }
-
-    return resolution;
-}
-
-function buildLoopbackRoot(win) {
-    const protocol = win?.location?.protocol || 'http:';
-    return `${protocol}//127.0.0.1:${DEFAULT_API_PORT}`;
-}
-
-function readProxyBootstrap(win) {
-    if (!win) {
-        return undefined;
-    }
-
-    for (const key of PROXY_INFO_KEYS) {
-        if (Object.prototype.hasOwnProperty.call(win, key) && win[key]) {
-            return win[key];
-        }
-    }
-
-    return undefined;
-}
-
-function resolveProxyBase(proxyInfo, win) {
-    if (!proxyInfo || typeof proxyInfo !== 'object') {
-        return undefined;
-    }
-
-    const candidates = collectProxyCandidates(proxyInfo);
-    const derived = deriveProxyBaseFromLocation(win);
-    if (derived) {
-        candidates.unshift(derived);
-    }
-
-    for (const candidate of candidates) {
-        const normalized = normalizeProxyCandidate(candidate, win);
-        if (normalized) {
-            return normalized;
-        }
-    }
-
-    return undefined;
-}
-
-function collectProxyCandidates(source) {
-    const queue = [source];
-    const seen = new Set();
-    const candidates = [];
-    const keys = [
-        'apiBase',
-        'apiUrl',
-        'api',
-        'url',
-        'baseUrl',
-        'publicUrl',
-        'proxyUrl',
-        'origin',
-        'target',
-        'path',
-        'proxyPath',
-        'paths',
-        'endpoint',
-        'endpoints',
-        'service',
-        'services',
-        'host',
-        'hosts',
-        'port',
-        'ports',
-        'httpProxyBase',
-        'http_proxy_base'
-    ];
-
-    while (queue.length > 0) {
-        const value = queue.shift();
-        if (!value) {
-            continue;
-        }
-
-        if (typeof value === 'string') {
-            candidates.push(value);
-            continue;
-        }
-
-        if (Array.isArray(value)) {
-            queue.push(...value);
-            continue;
-        }
-
-        if (typeof value === 'object') {
-            if (seen.has(value)) {
-                continue;
-            }
-            seen.add(value);
-            keys.forEach((key) => {
-                if (Object.prototype.hasOwnProperty.call(value, key)) {
-                    queue.push(value[key]);
-                }
-            });
-        }
-    }
-
-    return candidates;
-}
-
-function normalizeProxyCandidate(candidate, win) {
-    if (typeof candidate !== 'string') {
-        return undefined;
-    }
-
-    const trimmed = candidate.trim();
-    if (!trimmed) {
-        return undefined;
-    }
-
-    if (/^https?:\/\//i.test(trimmed)) {
-        return stripTrailingSlash(trimmed);
-    }
-
-    if (trimmed.startsWith('//')) {
-        const protocol = win?.location?.protocol || 'https:';
-        return stripTrailingSlash(`${protocol}${trimmed}`);
-    }
-
-    if (trimmed.startsWith('/')) {
-        const origin = win?.location?.origin;
-        if (origin) {
-            return stripTrailingSlash(`${origin}${trimmed}`);
-        }
-        return stripTrailingSlash(trimmed);
-    }
-
-    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i.test(trimmed)) {
-        return stripTrailingSlash(`http://${trimmed}`);
-    }
-
-    const origin = win?.location?.origin;
-    if (origin) {
-        return stripTrailingSlash(`${origin}/${trimmed.replace(/^\/+/, '')}`);
-    }
-
-    return stripTrailingSlash(`/${trimmed.replace(/^\/+/, '')}`);
-}
-
-function deriveProxyBaseFromLocation(win) {
-    if (!win?.location) {
-        return undefined;
-    }
-
-    const { origin, pathname } = win.location;
-    if (!origin || !pathname) {
-        return undefined;
-    }
-
-    if (!/\/proxy(\b|\/)/i.test(pathname)) {
-        return undefined;
-    }
-
-    return `${origin}${pathname}`.replace(/\/+$/, '');
-}
-
-function stripTrailingSlash(value) {
-    if (typeof value !== 'string') {
-        return value;
-    }
-    return value.replace(/\/+$/, '');
-}
-
-function ensureApiPath(base) {
-    if (typeof base !== 'string' || !base) {
-        return API_PATH;
-    }
-
-    const normalized = stripTrailingSlash(base);
-    if (normalized.endsWith(API_PATH)) {
-        return normalized;
-    }
-
-    if (normalized.endsWith('/api')) {
-        return `${normalized}${API_PATH.slice(4)}`;
-    }
-
-    return `${normalized}${API_PATH.startsWith('/') ? '' : '/'}${API_PATH}`;
-}
-
-function stripApiSuffix(value) {
-    if (typeof value !== 'string') {
-        return value;
-    }
-
-    const normalized = stripTrailingSlash(value);
-    if (normalized.endsWith(API_PATH)) {
-        return normalized.slice(0, -API_PATH.length) || normalized;
-    }
-
-    return normalized;
-}
-
-function isLocalHostname(value) {
-    if (typeof value !== 'string') {
-        return false;
-    }
-
-    return /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)/i.test(value);
-}
+// Note: The following functions are now provided by api-resolver.js:
+// - resolveApiConfig()
+// - applyApiResolution()
+// - startApiResolutionWatcher()
+// This section only contains app-specific API context functions.
 
 // ============================================
-// Icon Utilities
+// Icon Rendering Utilities
 // ============================================
 
 function createIconMarkup(name, { className = '', size, title } = {}) {
@@ -630,23 +391,49 @@ function updateStatusIndicator(status) {
     renderLucideIcons(indicator);
 }
 
+function syncApiEndpointField(previousRoot) {
+    const apiInput = document.getElementById('api-endpoint');
+    if (!apiInput) {
+        return;
+    }
+
+    const resolvedRoot = (CONFIG.API_ROOT || '').trim();
+    if (!resolvedRoot) {
+        return;
+    }
+
+    const currentValue = (apiInput.value || '').trim();
+    const autoManaged =
+        !currentValue ||
+        currentValue === previousRoot ||
+        apiInput.dataset.prefilled === 'true' ||
+        apiInput.dataset.autoGenerated === 'true';
+
+    if (autoManaged) {
+        apiInput.value = resolvedRoot;
+        apiInput.placeholder = resolvedRoot;
+        apiInput.dataset.prefilled = 'true';
+        apiInput.dataset.autoGenerated = 'true';
+    }
+}
+
 function applyApiContext() {
     const apiSourcePill = document.getElementById('api-source-pill');
     if (apiSourcePill) {
         const label = formatStatusLabel(CONFIG.API_SOURCE || 'configured');
         apiSourcePill.textContent = `API: ${label}`;
-        apiSourcePill.setAttribute('title', CONFIG.API_BASE);
+        const detailParts = [CONFIG.API_BASE, CONFIG.API_NOTES].filter(Boolean);
+        if (detailParts.length > 0) {
+            apiSourcePill.setAttribute('title', detailParts.join('\n'));
+        } else {
+            apiSourcePill.removeAttribute('title');
+        }
     }
 
-    const apiInput = document.getElementById('api-endpoint');
-    if (apiInput && CONFIG.API_ROOT) {
-        apiInput.value = CONFIG.API_ROOT;
-        apiInput.placeholder = CONFIG.API_ROOT;
-        apiInput.dataset.prefilled = 'true';
-    }
+    syncApiEndpointField();
 
     const healthLink = document.getElementById('api-health-link');
-    if (healthLink) {
+    if (healthLink && CONFIG.API_BASE) {
         healthLink.href = `${CONFIG.API_BASE}/health`;
     }
 }
@@ -660,6 +447,8 @@ function initializeGenerator() {
     if (apiEndpointInput && CONFIG.API_ROOT) {
         apiEndpointInput.value = CONFIG.API_ROOT;
         apiEndpointInput.placeholder = CONFIG.API_ROOT;
+        apiEndpointInput.dataset.prefilled = 'true';
+        apiEndpointInput.dataset.autoGenerated = 'true';
     }
 
     // Template selection
@@ -759,7 +548,11 @@ function resetForm() {
     document.getElementById('extension-form').reset();
     const apiInput = document.getElementById('api-endpoint');
     if (apiInput) {
-        apiInput.value = CONFIG.API_ROOT || '';
+        const nextValue = CONFIG.API_ROOT || '';
+        apiInput.value = nextValue;
+        apiInput.placeholder = nextValue;
+        apiInput.dataset.prefilled = 'true';
+        apiInput.dataset.autoGenerated = 'true';
     }
     document.getElementById('version').value = '1.0.0';
     document.getElementById('author').value = 'Vrooli Scenario Generator';
@@ -1190,7 +983,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
-// Global Functions (exposed to HTML)
+// Global Functions (exposed to HTML and api-resolver.js)
 // ============================================
 
 window.refreshStatus = refreshStatus;
@@ -1202,3 +995,13 @@ window.testBuild = testBuild;
 window.downloadBuild = downloadBuild;
 window.viewBuildDetails = viewBuildDetails;
 window.browseExtension = browseExtension;
+window.syncApiEndpointField = syncApiEndpointField;
+window.applyApiContext = applyApiContext;
+
+// Bootstrap API resolution from api-resolver.js
+if (typeof window.applyApiResolution === 'function') {
+    window.applyApiResolution(apiResolution, { force: true, silent: true });
+}
+if (typeof window.startApiResolutionWatcher === 'function') {
+    window.startApiResolutionWatcher();
+}

@@ -624,73 +624,10 @@ discovery:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-# REQUIRED: scenario-test.yaml in scenario root
-version: 1.0
-scenario: text-tools
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/text-tools
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/n8n
-    - initialization/storage
-    - plugins
-    - ui
-
-resources:
-  required: [postgres, minio]
-  optional: [ollama, redis, qdrant]
-  health_timeout: 60
-
-tests:
-  - name: "PostgreSQL is accessible"
-    type: http
-    service: postgres
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "API diff endpoint works"
-    type: http
-    service: api
-    endpoint: /api/v1/text/diff
-    method: POST
-    body:
-      text1: "Hello world"
-      text2: "Hello Vrooli"
-    expect:
-      status: 200
-      body:
-        changes: [{type: "modify"}]
-        
-  - name: "CLI diff command executes"
-    type: exec
-    command: ./cli/text-tools diff --help
-    expect:
-      exit_code: 0
-      output_contains: ["Compare two text files"]
-      
-  - name: "Database schema initialized"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('text_documents', 'text_operations')"
-    expect:
-      rows: 
-        - count: 2
-```
+- **Phased testing**: `test/run-tests.sh` orchestrates structure, dependencies, unit, integration, business, and performance phases through the shared `testing::runner` shell library (runtime management, caching, presets, and artifact handling).
+- **CLI coverage**: `test/cli/run-cli-tests.sh` executes the BATS suite (`cli/text-tools.bats`) via the runner’s `cli` test type, skipping safely when prerequisites such as `bats` or the CLI binary are absent.
+- **Lifecycle integration**: `.vrooli/service.json` maps the test lifecycle to `test/run-tests.sh`; locally run `./test/run-tests.sh comprehensive` or lighter presets like `./test/run-tests.sh quick` for fast feedback.
 
 ## 📝 Implementation Notes
 

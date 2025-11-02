@@ -236,5 +236,15 @@
         }
       ]
     }
+  },
+  "test": {
+    "description": "Comprehensive phased testing using modern testing architecture",
+    "steps": [
+      {
+        "name": "run-phased-tests",
+        "run": "test/run-tests.sh",
+        "description": "Execute phased scenario validation"
+      }
+    ]
   }
 }

@@ -1,51 +1,46 @@
 #!/bin/bash
-# Dependency validation phase for tech-tree-designer
-# Ensures all required resources and dependencies are available
+# Verifies toolchains and module dependencies for tech-tree-designer
+set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-testing::phase::init --target-time "30s"
+testing::phase::init --target-time "45s"
+cd "${TESTING_PHASE_SCENARIO_DIR}"
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
+testing::phase::check "Go toolchain available" bash -c 'command -v go >/dev/null'
 
-# Check PostgreSQL resource availability
-testing::phase::log "Checking PostgreSQL resource..."
-if ! vrooli resource status postgres --json &>/dev/null; then
-    testing::phase::warn "PostgreSQL resource not running (required for tech-tree-designer)"
+testing::phase::check "Node.js available" bash -c 'command -v node >/dev/null'
+
+testing::phase::check "npm or pnpm present" bash -c 'command -v pnpm >/dev/null || command -v npm >/dev/null'
+
+testing::phase::check "jq available" bash -c 'command -v jq >/dev/null'
+
+if [ -f api/go.mod ]; then
+  testing::phase::check "Go module graph verifies" bash -c 'cd api && go mod verify'
+else
+  testing::phase::add_warning "api/go.mod missing; skipping Go dependency verification"
+  testing::phase::add_test skipped
 fi
 
-# Check Ollama resource availability (optional)
-testing::phase::log "Checking Ollama resource..."
-if ! vrooli resource status ollama --json &>/dev/null; then
-    testing::phase::warn "Ollama resource not running (optional for AI analysis)"
+if [ -f ui/package.json ]; then
+  testing::phase::check "UI manifest parses" bash -c 'cd ui && jq -r ".name" package.json >/dev/null'
+  if [ ! -d ui/node_modules ] && [ ! -f ui/pnpm-lock.yaml ] && [ ! -f ui/package-lock.json ]; then
+    testing::phase::add_warning "UI dependencies not installed (run pnpm|npm install)"
+    testing::phase::add_test skipped
+  fi
 fi
 
-# Check Go dependencies
-testing::phase::log "Checking Go dependencies..."
-if [ -d api ] && [ -f api/go.mod ]; then
-    cd api
-    if ! go mod verify &>/dev/null; then
-        testing::phase::error "Go module verification failed"
-        testing::phase::end_with_summary "Go dependencies invalid" 1
-    fi
-    cd ..
+if command -v vrooli >/dev/null 2>&1; then
+  if ! vrooli resource status postgres --json >/dev/null 2>&1; then
+    testing::phase::add_warning "Postgres resource unavailable; integration tests may need it"
+  fi
+  if ! vrooli resource status ollama --json >/dev/null 2>&1; then
+    testing::phase::add_warning "Ollama resource unavailable; AI features may be degraded"
+  fi
+else
+  testing::phase::add_warning "vrooli CLI not on PATH; skipping resource health checks"
 fi
 
-# Check UI dependencies
-testing::phase::log "Checking UI dependencies..."
-if [ -d ui ] && [ -f ui/package.json ]; then
-    if [ ! -d ui/node_modules ]; then
-        testing::phase::warn "UI dependencies not installed (run: cd ui && pnpm install)"
-    fi
-fi
-
-# Check required binaries are built
-testing::phase::log "Checking compiled binaries..."
-if [ ! -f api/tech-tree-designer-api ]; then
-    testing::phase::warn "API binary not built (required for testing)"
-fi
-
-testing::phase::log "All dependency checks passed"
-testing::phase::end_with_summary "Dependencies validated" 0
+testing::phase::end_with_summary "Dependency validation completed"

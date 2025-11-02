@@ -1,42 +1,86 @@
 #!/bin/bash
-# Test: Integration tests
-# Tests the complete system integration
+# Integration phase – exercises core API endpoints against a running instance.
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+testing::phase::init --target-time "180s" --require-runtime
 
-echo "  ✓ Checking if service is running..."
-
-# Get API port - use environment variable first, then check the service status
-if [ -n "$API_PORT" ]; then
-  : # Use provided API_PORT
-elif [ -f "${SCENARIO_DIR}/.vrooli/runtime/ports.json" ]; then
-  API_PORT=$(jq -r '.api // empty' "${SCENARIO_DIR}/.vrooli/runtime/ports.json" 2>/dev/null || echo "")
+if ! command -v curl >/dev/null 2>&1; then
+  testing::phase::add_error "curl is required for integration checks"
+  testing::phase::end_with_summary "Integration tests incomplete"
 fi
 
-# If still not found, check vrooli scenario status output
-if [ -z "$API_PORT" ]; then
-  API_PORT=$(vrooli scenario status image-tools 2>/dev/null | grep -oP 'http://localhost:\K[0-9]+' | head -1 || echo "")
+API_BASE=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME" || true)
+if [ -z "$API_BASE" ]; then
+  testing::phase::add_error "Unable to resolve API endpoint for $TESTING_PHASE_SCENARIO_NAME"
+  testing::phase::end_with_summary "Integration tests incomplete"
 fi
 
-# Verify service is running
-if [ -z "$API_PORT" ] || ! pgrep -f "image-tools-api" > /dev/null; then
-    echo "  ❌ Service is not running. Start with: make start"
-    exit 1
-fi
+TMP_IMAGE=$(mktemp -t image-tools-integration-XXXXXX.jpg)
+cleanup_artifacts() {
+  rm -f "$TMP_IMAGE"
+}
+testing::phase::register_cleanup cleanup_artifacts
 
-echo "  ✓ Testing health endpoint on port $API_PORT..."
-curl -sf "http://localhost:${API_PORT}/health" > /dev/null || {
-    echo "  ❌ Health check failed"
-    exit 1
+echo "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAr/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=" | base64 -d > "$TMP_IMAGE"
+
+check_health() {
+  set -euo pipefail
+  local response
+  response=$(curl -sSf "$API_BASE/health")
+  grep -q '"status"' <<<"$response" && grep -qi healthy <<<"$response"
 }
 
-echo "  ✓ Testing plugin registry..."
-curl -sf "http://localhost:${API_PORT}/api/v1/plugins" | grep -q "jpeg" || {
-    echo "  ❌ Plugin registry test failed"
-    exit 1
+check_plugins() {
+  set -euo pipefail
+  local response
+  response=$(curl -sSf "$API_BASE/api/v1/plugins")
+  grep -q 'jpeg-optimizer' <<<"$response" && grep -q 'png-optimizer' <<<"$response"
 }
 
-echo "  ✓ Integration tests complete"
+check_compress() {
+  set -euo pipefail
+  local status
+  status=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE/api/v1/image/compress" \
+    -F "image=@$TMP_IMAGE" \
+    -F "quality=80")
+  [ "$status" = "200" ]
+}
+
+check_resize() {
+  set -euo pipefail
+  local status
+  status=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE/api/v1/image/resize" \
+    -F "image=@$TMP_IMAGE" \
+    -F "width=50" \
+    -F "height=50" \
+    -F "maintain_aspect=true")
+  [ "$status" = "200" ]
+}
+
+check_metadata() {
+  set -euo pipefail
+  local status
+  status=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE/api/v1/image/metadata" \
+    -F "image=@$TMP_IMAGE" \
+    -F "strip=true")
+  [ "$status" = "200" ]
+}
+
+check_presets() {
+  set -euo pipefail
+  local response
+  response=$(curl -sSf "$API_BASE/api/v1/presets")
+  grep -q 'web-optimized' <<<"$response"
+}
+
+testing::phase::check "API health endpoint responds" check_health
+testing::phase::check "Plugins endpoint lists core plugins" check_plugins
+testing::phase::check "Compression endpoint accepts uploads" check_compress
+testing::phase::check "Resize endpoint processes requests" check_resize
+testing::phase::check "Metadata endpoint strips data" check_metadata
+testing::phase::check "Preset catalogue available" check_presets
+
+testing::phase::end_with_summary "Integration validation completed"

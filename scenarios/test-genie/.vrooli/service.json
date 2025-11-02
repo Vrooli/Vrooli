@@ -281,9 +281,9 @@
           "description": "Test CLI functionality"
         },
         {
-          "name": "run-scenario-tests",
-          "run": "if [ -f scenario-test.yaml ]; then echo 'Scenario-specific tests would run here (currently delegated to phased testing)'; else echo 'Scenario tests not available'; fi",
-          "description": "Run comprehensive scenario test suite"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh --preset comprehensive",
+          "description": "Run phased scenario test suite"
         }
       ]
     },

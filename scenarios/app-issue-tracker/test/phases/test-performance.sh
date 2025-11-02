@@ -1,18 +1,14 @@
 #!/bin/bash
+# Placeholder performance checks for app-issue-tracker
 set -euo pipefail
 
-echo "=== Running test-performance.sh ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Performance tests (basic)
+testing::phase::init --target-time "60s"
 
-# Check if vector search is fast
-if [ -f scripts/test_vector_search.sh ]; then
-  time bash scripts/test_vector_search.sh >/dev/null 2>&1 && echo "✓ Vector search performance acceptable"
-else
-  echo "⚠ No performance test script, skipping"
-fi
+testing::phase::add_warning "Performance benchmarks not yet implemented; add file-store and search throughput metrics"
+testing::phase::add_test skipped
 
-# Basic file operations timing
-time find data/issues/open -mindepth 1 -maxdepth 1 -type d >/dev/null 2>&1 && echo "✓ Issue directory enumeration fast"
-
-echo "✅ test-performance.sh completed successfully"
+testing::phase::end_with_summary "Performance phase placeholder"

@@ -1,28 +1,31 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Structure Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Verify directory structure
-required_dirs=("api" "cli" "ui" "initialization" "data")
-for dir in "${required_dirs[@]}"; do
-    if [[ -d "$dir" ]]; then
-        echo "✓ $dir directory present"
-    else
-        echo "✗ Missing $dir directory"
-        exit 1
-    fi
+testing::phase::init --target-time "30s"
+
+required_dirs=(api cli ui initialization data)
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+required_files=(Makefile README.md .vrooli/service.json)
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+optional_dirs=(tests automation)
+for dir in "${optional_dirs[@]}"; do
+  if [ ! -d "$dir" ]; then
+    testing::phase::add_warning "Optional directory '$dir' not present"
+  fi
 done
 
-required_files=("Makefile" "README.md" ".vrooli/service.json")
-for file in "${required_files[@]}"; do
-    if [[ -f "$file" ]]; then
-        echo "✓ $file present"
-    else
-        echo "✗ Missing $file"
-        exit 1
-    fi
-done
-
-echo "Structure verified"
-exit 0
+testing::phase::end_with_summary "Structure validation completed"

@@ -4,101 +4,91 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
 testing::phase::init --target-time "30s"
-
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-echo "INFO: Checking scenario dependencies..."
+main() {
+    testing::phase::log "INFO" "Checking scenario dependencies..."
 
-# Check Node.js version
-if ! command -v node &> /dev/null; then
-    testing::phase::log "ERROR" "Node.js is not installed"
-    exit 1
-fi
-
-NODE_VERSION=$(node --version)
-testing::phase::log "INFO" "Node.js version: $NODE_VERSION"
-
-# Check npm version
-if ! command -v npm &> /dev/null; then
-    testing::phase::log "ERROR" "npm is not installed"
-    exit 1
-fi
-
-NPM_VERSION=$(npm --version)
-testing::phase::log "INFO" "npm version: $NPM_VERSION"
-
-# Check if package.json exists
-if [ ! -f "api/package.json" ]; then
-    testing::phase::log "ERROR" "api/package.json not found"
-    exit 1
-fi
-
-# Check if node_modules exists
-if [ ! -d "api/node_modules" ]; then
-    testing::phase::log "WARN" "api/node_modules not found, installing dependencies..."
-    cd api && npm install &> /dev/null
-    if [ $? -ne 0 ]; then
-        testing::phase::log "ERROR" "Failed to install dependencies"
-        exit 1
+    if ! command -v node >/dev/null 2>&1; then
+        testing::phase::log "ERROR" "Node.js is not installed"
+        return 1
     fi
-    cd ..
-fi
+    testing::phase::log "INFO" "Node.js version: $(node --version)"
 
-# Verify critical dependencies
-testing::phase::log "INFO" "Verifying critical dependencies..."
-
-CRITICAL_DEPS=("express" "cors" "@faker-js/faker" "uuid" "joi" "csv-writer" "js2xmlparser")
-MISSING_DEPS=()
-
-cd api
-for dep in "${CRITICAL_DEPS[@]}"; do
-    if ! npm list "$dep" &> /dev/null; then
-        MISSING_DEPS+=("$dep")
+    if ! command -v npm >/dev/null 2>&1; then
+        testing::phase::log "ERROR" "npm is not installed"
+        return 1
     fi
-done
-cd ..
+    testing::phase::log "INFO" "npm version: $(npm --version)"
 
-if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
-    testing::phase::log "ERROR" "Missing critical dependencies: ${MISSING_DEPS[*]}"
-    exit 1
-fi
-
-testing::phase::log "INFO" "All critical dependencies are installed"
-
-# Check for security vulnerabilities (audit)
-testing::phase::log "INFO" "Running security audit..."
-cd api
-AUDIT_OUTPUT=$(npm audit --audit-level=high 2>&1)
-AUDIT_EXIT=$?
-
-if [ $AUDIT_EXIT -ne 0 ]; then
-    HIGH_VULNS=$(echo "$AUDIT_OUTPUT" | grep -oP '\d+(?= high)' | head -1)
-    CRITICAL_VULNS=$(echo "$AUDIT_OUTPUT" | grep -oP '\d+(?= critical)' | head -1)
-
-    if [ -n "$HIGH_VULNS" ] && [ "$HIGH_VULNS" -gt 0 ]; then
-        testing::phase::log "WARN" "Found $HIGH_VULNS high severity vulnerabilities"
+    if [ ! -f "api/package.json" ]; then
+        testing::phase::log "ERROR" "api/package.json not found"
+        return 1
     fi
 
-    if [ -n "$CRITICAL_VULNS" ] && [ "$CRITICAL_VULNS" -gt 0 ]; then
-        testing::phase::log "WARN" "Found $CRITICAL_VULNS critical severity vulnerabilities"
+    if [ ! -d "api/node_modules" ]; then
+        testing::phase::log "WARN" "api/node_modules not found, installing dependencies..."
+        if ! (cd api && npm install >/dev/null 2>&1); then
+            testing::phase::log "ERROR" "Failed to install dependencies"
+            return 1
+        fi
     fi
+
+    testing::phase::log "INFO" "Verifying critical dependencies..."
+    local critical_deps=("express" "cors" "@faker-js/faker" "uuid" "joi" "csv-writer" "js2xmlparser")
+    local missing_deps=()
+
+    for dep in "${critical_deps[@]}"; do
+        if ! (cd api && npm list "$dep" >/dev/null 2>&1); then
+            missing_deps+=("$dep")
+        fi
+    done
+
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        testing::phase::log "ERROR" "Missing critical dependencies: ${missing_deps[*]}"
+        return 1
+    fi
+    testing::phase::log "INFO" "All critical dependencies are installed"
+
+    testing::phase::log "INFO" "Running security audit..."
+    local audit_output audit_exit
+    audit_output=$(cd api && npm audit --audit-level=high 2>&1 || true)
+    audit_exit=$?
+    if [ $audit_exit -ne 0 ]; then
+        local high_vulns critical_vulns
+        high_vulns=$(echo "$audit_output" | grep -oP '\d+(?= high)' | head -1)
+        critical_vulns=$(echo "$audit_output" | grep -oP '\d+(?= critical)' | head -1)
+        if [ -n "$high_vulns" ] && [ "$high_vulns" -gt 0 ]; then
+            testing::phase::log "WARN" "Found $high_vulns high severity vulnerabilities"
+        fi
+        if [ -n "$critical_vulns" ] && [ "$critical_vulns" -gt 0 ]; then
+            testing::phase::log "WARN" "Found $critical_vulns critical severity vulnerabilities"
+        fi
+    else
+        testing::phase::log "INFO" "No high/critical security vulnerabilities found"
+    fi
+
+    testing::phase::log "INFO" "Checking for outdated packages..."
+    local outdated_output
+    outdated_output=$(cd api && npm outdated 2>&1 || true)
+    if [ -n "$outdated_output" ]; then
+        local outdated_count
+        outdated_count=$(echo "$outdated_output" | tail -n +2 | wc -l | tr -d ' ')
+        if [ "$outdated_count" -gt 0 ]; then
+            testing::phase::log "WARN" "Found $outdated_count outdated packages"
+        else
+            testing::phase::log "INFO" "All packages are up to date"
+        fi
+    else
+        testing::phase::log "INFO" "All packages are up to date"
+    fi
+
+    return 0
+}
+
+if main; then
+    testing::phase::end_with_summary "Dependency checks completed"
 else
-    testing::phase::log "INFO" "No high/critical security vulnerabilities found"
+    testing::phase::end_with_summary "Dependency checks failed"
+    exit 1
 fi
-cd ..
-
-# Check for outdated packages
-testing::phase::log "INFO" "Checking for outdated packages..."
-cd api
-OUTDATED_OUTPUT=$(npm outdated 2>&1)
-if [ -n "$OUTDATED_OUTPUT" ]; then
-    OUTDATED_COUNT=$(echo "$OUTDATED_OUTPUT" | tail -n +2 | wc -l)
-    if [ "$OUTDATED_COUNT" -gt 0 ]; then
-        testing::phase::log "WARN" "Found $OUTDATED_COUNT outdated packages"
-    fi
-else
-    testing::phase::log "INFO" "All packages are up to date"
-fi
-cd ..
-
-testing::phase::end_with_summary "Dependency checks completed"

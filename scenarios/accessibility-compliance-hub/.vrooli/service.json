@@ -244,7 +244,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo -e '🚀 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  Note: This is a UI prototype, full API not yet implemented'",
+          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  Note: This is a UI prototype, full API not yet implemented'",
           "description": "Display running service URLs"
         }
       ]
@@ -265,12 +265,12 @@
       ]
     },
     "test": {
-      "description": "Run accessibility compliance hub test suite",
+      "description": "Run phased scenario test suite",
       "steps": [
         {
-          "name": "test-api",
-          "run": "cd api && go test -v ./... -race -coverprofile=coverage.out",
-          "description": "Run Go API tests with race detection and coverage"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute accessibility-compliance-hub phased tests"
         }
       ]
     },

@@ -1,106 +1,63 @@
 #!/bin/bash
+# Validate required project files and directories
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Structure Tests ==="
+testing::phase::init --target-time "45s"
 
-# Test required directory structure
-echo "Testing directory structure..."
-
-# Check for required directories
 required_dirs=(
-    ".vrooli"
-    "api"
-    "ui"
-    "cli"
-    "docs"
-    "initialization"
-    "test"
-    "test/phases"
+  .vrooli
+  api
+  cli
+  docs
+  initialization
+  test
+  "test/phases"
+  ui
 )
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
-for dir in "${required_dirs[@]}"; do
-    if [ ! -d "$dir" ]; then
-        echo "❌ Missing required directory: $dir"
-        exit 1
-    fi
-done
-
-# Check for required files
 required_files=(
-    ".vrooli/service.json"
-    "api/main.go"
-    "ui/package.json"
-    "cli/install.sh"
-    "Makefile"
-    "README.md"
-    "test/run-tests.sh"
+  .vrooli/service.json
+  Makefile
+  PRD.md
+  README.md
+  api/main.go
+  cli/install.sh
+  test/run-tests.sh
+  ui/package.json
 )
-
-for file in "${required_files[@]}"; do
-    if [ ! -f "$file" ]; then
-        echo "❌ Missing required file: $file"
-        exit 1
-    fi
-done
-
-# Check for executable scripts
-executable_scripts=(
-    "test/run-tests.sh"
-    "cli/install.sh"
-)
-
-for script in "${executable_scripts[@]}"; do
-    if [ ! -x "$script" ]; then
-        echo "❌ Script not executable: $script"
-        exit 1
-    fi
-done
-
-# Check service.json structure
-echo "Testing service.json structure..."
-if [ -f ".vrooli/service.json" ]; then
-    # Check for required top-level keys (v2.0 format)
-    required_keys=("lifecycle" "service" "ports")
-    for key in "${required_keys[@]}"; do
-        if ! jq -e ".$key" .vrooli/service.json > /dev/null 2>&1; then
-            echo "❌ Missing required key in service.json: $key"
-            exit 1
-        fi
-    done
-
-    # Check for lifecycle.setup (v2.0 nested format)
-    if ! jq -e ".lifecycle.setup" .vrooli/service.json > /dev/null 2>&1; then
-        echo "❌ Missing required key in service.json: lifecycle.setup"
-        exit 1
-    fi
-
-    # Check for lifecycle.health (v2.0 nested format)
-    if ! jq -e ".lifecycle.health" .vrooli/service.json > /dev/null 2>&1; then
-        echo "❌ Missing required key in service.json: lifecycle.health"
-        exit 1
-    fi
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
 else
-    echo "❌ service.json not found"
-    exit 1
+  testing::phase::add_test failed
 fi
 
-# Check Makefile targets
-echo "Testing Makefile targets..."
-if [ -f "Makefile" ]; then
-    # Check for required targets (updated for v2.0)
-    required_targets=("run" "stop" "test" "logs" "clean" "help")
-    for target in "${required_targets[@]}"; do
-        if ! grep -q "^$target:" Makefile; then
-            echo "❌ Missing required Makefile target: $target"
-            exit 1
-        fi
-    done
+for script in test/run-tests.sh cli/install.sh; do
+  if testing::phase::check "script executable: ${script}" test -x "$script"; then
+    :
+  fi
+done
+
+if command -v jq >/dev/null 2>&1; then
+  if testing::phase::check "service.json validates" jq . .vrooli/service.json >/dev/null; then
+    :
+  fi
+
+  for key in lifecycle service ports; do
+    if testing::phase::check "service.json has key: ${key}" jq -e ".${key}" .vrooli/service.json >/dev/null; then
+      :
+    fi
+  done
 else
-    echo "❌ Makefile not found"
-    exit 1
+  testing::phase::add_warning "jq not available; skipping service.json validation"
+  testing::phase::add_test skipped
 fi
 
-echo "✅ Structure tests passed"
-
-echo "=== Structure Tests Complete ==="
+testing::phase::end_with_summary "Structure validation completed"

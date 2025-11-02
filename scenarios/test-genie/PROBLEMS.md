@@ -84,14 +84,11 @@ No template system for custom test patterns:
 ## 🔧 Minor Issues (P2)
 
 ### 1. Legacy Test Format Warning
-**Status**: Technical Debt
-**Impact**: Using deprecated scenario-test.yaml format
-**Source**: Scenario status diagnostics
+**Status**: Resolved (phased runner adopted)
+**Impact**: Phased testing architecture is now the canonical entrypoint
+**Source**: Scenario status diagnostics (updated)
 
-The scenario still uses `scenario-test.yaml` (legacy format) instead of the new phased testing architecture:
-- Recommendation: Migrate to test/phases/ structure
-- Reference: docs/scenarios/PHASED_TESTING_ARCHITECTURE.md
-- Current workaround: Both formats coexist
+The scenario now uses the shared phased testing runner (`test/run-tests.sh`) and writes phase summaries to `coverage/phase-results/`. `scenario-test.yaml` is no longer required for automated testing workflows.
 
 ### 2. Missing CLI Tests
 **Status**: Gap
@@ -197,22 +194,20 @@ Test generation delegated to App Issue Tracker:
 ### Legacy Test Format Migration
 **Priority**: Medium
 **Effort**: 2-4 hours
-**Status**: Recommended but not critical
+**Status**: In progress (runner live; reporting enhancements pending)
 
-Current: `scenario-test.yaml` (legacy)
-Target: `test/phases/` structure (v2.0)
+Current: `test/run-tests.sh` (phased runner)
+Target: Maintain phased test suite instrumentation
 
-Steps:
-1. Create test/run-tests.sh
-2. Migrate test cases to phase scripts
-3. Add test/unit/ directory with language-specific runners
-4. Update service.json test lifecycle
-5. Remove scenario-test.yaml
+Completed steps:
+1. Introduced shared runner in `test/run-tests.sh`
+2. Aligned structure phase and documentation with phased tooling
+3. Updated `.vrooli/service.json` to execute the phased suite
+4. Preserved existing phase scripts for unit/cli/integration/business checks
 
-Benefits:
-- Consistent with modern scenarios
-- Better test organization
-- Improved CI/CD integration
+Next reinforcement:
+- Publish runner outputs to central dashboards
+- Continue expanding phase coverage (performance, automation-report links)
 
 ## 📈 Progress Tracking
 

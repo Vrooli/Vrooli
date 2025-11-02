@@ -23,8 +23,7 @@ required_files=(
     PRD.md
     README.md
     .vrooli/service.json
-    scenario-test.yaml
-    test/run-all-tests.sh
+    test/run-tests.sh
     api/main.go
     cli/test-genie
     ui/server.js

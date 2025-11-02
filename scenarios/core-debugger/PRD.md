@@ -429,7 +429,7 @@ structure:
     - cli/install.sh
     - data/issues/.gitkeep
     - data/health/.gitkeep
-    - scenario-test.yaml
+    - test/run-tests.sh
     
   required_dirs:
     - api

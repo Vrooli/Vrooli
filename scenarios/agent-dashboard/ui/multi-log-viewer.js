@@ -145,8 +145,12 @@ class MultiLogViewer {
         const statsSpan = document.getElementById(`stats-${agentId}`);
         
         try {
-            const apiPort = window.API_PORT || '15000';
-            const response = await fetch(`http://localhost:${apiPort}/api/v1/agents/${agentId}/logs?lines=150`);
+            const builder = typeof window.buildAgentDashboardApiUrl === 'function' ? window.buildAgentDashboardApiUrl : null;
+            const encodedAgentId = encodeURIComponent(agentId);
+            const logsUrl = builder
+                ? builder(`/agents/${encodedAgentId}/logs?lines=150`)
+                : `http://localhost:${window.API_PORT || '15000'}/api/v1/agents/${encodedAgentId}/logs?lines=150`;
+            const response = await fetch(logsUrl);
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch logs: ${response.status}`);

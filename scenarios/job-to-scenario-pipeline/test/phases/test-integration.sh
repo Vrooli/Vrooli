@@ -1,17 +1,27 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Integration Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Test API and CLI integration
-# Example: Import job via CLI and check API
+testing::phase::init --target-time "180s"
 
-if command -v curl >/dev/null; then
-    # Assume API is running or skip
-    echo "Integration tests require running services"
-else
-    echo "curl not available, skipping HTTP tests"
+scenario_name="$TESTING_PHASE_SCENARIO_NAME"
+if ! testing::core::is_scenario_running "$scenario_name"; then
+  testing::phase::add_warning "Scenario '$scenario_name' is not running; skipping integration checks"
+  testing::phase::add_test skipped
+  testing::phase::end_with_summary "Integration tests skipped"
 fi
 
-echo "Integration tests passed (basic check)"
-exit 0
+API_BASE_URL=$(testing::connectivity::get_api_url "$scenario_name")
+
+if testing::phase::check "API health endpoint" curl -sf "$API_BASE_URL/health"; then
+  :
+fi
+
+if testing::phase::check "Jobs listing responds" curl -sf "$API_BASE_URL/api/v1/jobs"; then
+  :
+fi
+
+testing::phase::end_with_summary "Integration checks completed"

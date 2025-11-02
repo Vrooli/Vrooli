@@ -48,7 +48,7 @@ cd api && go build -o video-tools-api ./cmd/server/main.go && cd ..
 make run
 
 # 4. Verify health
-curl http://localhost:15760/health
+curl http://localhost:18125/health
 ```
 
 ### **Using the CLI**
@@ -140,7 +140,7 @@ video-tools/
 
 ### **Base URL**
 ```
-http://localhost:15760/api/v1
+http://localhost:18125/api/v1
 ```
 
 ### **Authentication**
@@ -230,7 +230,7 @@ See [PROBLEMS.md](./PROBLEMS.md) for current issues and workarounds.
 ### **Critical Issue**
 The API may have startup issues through the lifecycle system. If this occurs:
 1. Check logs: `vrooli scenario logs video-tools --step start-api`
-2. Run directly: `VROOLI_LIFECYCLE_MANAGED=true API_PORT=15760 ./api/video-tools-api`
+2. Run directly: `VROOLI_LIFECYCLE_MANAGED=true API_PORT=18125 ./api/video-tools-api`
 
 ## 🤝 **Contributing**
 
@@ -252,7 +252,7 @@ Integrate with Ollama or other AI services in the analyze endpoints.
 
 ```go
 // Use video-tools from another scenario
-resp, _ := http.Post("http://localhost:15760/api/v1/video/upload", ...)
+resp, _ := http.Post("http://localhost:18125/api/v1/video/upload", ...)
 videoID := resp.Data.VideoID
 
 // Convert video
@@ -260,7 +260,7 @@ convertReq := map[string]interface{}{
     "target_format": "mp4",
     "quality": "high",
 }
-http.Post(fmt.Sprintf("http://localhost:15760/api/v1/video/%s/convert", videoID), ...)
+http.Post(fmt.Sprintf("http://localhost:18125/api/v1/video/%s/convert", videoID), ...)
 ```
 
 ### **Workflow Integration**
@@ -268,7 +268,7 @@ http.Post(fmt.Sprintf("http://localhost:15760/api/v1/video/%s/convert", videoID)
 # n8n/Windmill workflow
 - name: Process Video
   type: http
-  url: http://localhost:15760/api/v1/video/{{videoId}}/edit
+  url: http://localhost:18125/api/v1/video/{{videoId}}/edit
   method: POST
   body:
     operations:
@@ -307,7 +307,7 @@ http.Post(fmt.Sprintf("http://localhost:15760/api/v1/video/%s/convert", videoID)
 
 ---
 
-**Version**: 1.0.0  
-**Status**: Beta (Core features complete, UI pending)  
-**License**: MIT  
-**Last Updated**: 2025-09-28
+**Version**: 1.0.0
+**Status**: Production Ready (Core features complete)
+**License**: MIT
+**Last Updated**: 2025-10-28

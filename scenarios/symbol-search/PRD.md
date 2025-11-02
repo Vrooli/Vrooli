@@ -541,91 +541,40 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: symbol-search
+Symbol Search conforms to the phased testing architecture. Each phase owns a
+slice of the original declarative checks that used to live in
+`scenario-test.yaml`:
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/symbol-search
-    - cli/install.sh  
-    - initialization/postgres/schema.sql
-    - initialization/postgres/seed.sql
-    - scenario-test.yaml
-    - ui/package.json
-    
-  required_dirs:
-    - api
-    - cli  
-    - initialization
-    - initialization/postgres
-    - ui
-    - test
+- **Structure** – verifies the presence of `.vrooli/service.json`, `PRD.md`,
+  initialization assets, CLI entrypoints, and UI source directories.
+- **Dependencies** – runs `go list`, validates the CLI installation script, and
+  performs an install dry run using the package manager declared in
+  `ui/package.json`.
+- **Unit** – executes Go unit tests via the shared `testing::unit::run_all_tests`
+  helper with coverage thresholds (`--coverage-error 50`, `--coverage-warn 80`).
+- **Integration** – exercises `/health`, search, category, block, bulk-range,
+  and character endpoints with dynamic port discovery, mirroring the legacy
+  HTTP checks.
+- **Business** – drives the CLI (`search`, `categories`, `bulk-range`) against
+  the running API and asserts parity between CLI JSON output and API responses.
+- **Performance** – measures median latency for core endpoints with `bc`
+  backed timing and enforces the 50–200 ms targets captured in this PRD.
 
-resources:
-  required: [postgres]
-  optional: []
-  health_timeout: 60
-
-tests:
-  - name: "PostgreSQL is accessible and populated"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM characters WHERE codepoint IS NOT NULL"
-    expect:
-      rows:
-        - count: "> 1000"  # Ensure significant character data loaded
-        
-  - name: "API search endpoint responds correctly"
-    type: http
-    service: api
-    endpoint: /api/search?q=heart&limit=10
-    method: GET
-    expect:
-      status: 200
-      body:
-        characters: "Array"
-        total: "> 0"
-        
-  - name: "API character detail endpoint works"  
-    type: http
-    service: api
-    endpoint: /api/character/U+2764
-    method: GET
-    expect:
-      status: 200
-      body:
-        character.name: "HEAVY BLACK HEART"
-        
-  - name: "CLI search command executes"
-    type: exec
-    command: ./cli/symbol-search search "heart" --limit 5 --json
-    expect:
-      exit_code: 0
-      output_contains: ["characters", "total"]
-      
-  - name: "Performance test - search under 50ms"
-    type: exec  
-    command: bash test/performance-test.sh search-latency
-    expect:
-      exit_code: 0
-      output_contains: ["PASS"]
-```
+The entire suite runs under `./test/run-tests.sh`, while individual phases can
+be executed ad hoc with `./test/run-tests.sh <phase>`.
 
 ### Test Execution Gates
 ```bash
-# All tests must pass via:
-./test.sh --scenario symbol-search --validation complete
+# All phases
+./test/run-tests.sh
 
-# Individual test categories:
-./test.sh --structure     # Verify file/directory structure
-./test.sh --resources     # Check PostgreSQL health and data population  
-./test.sh --integration   # Run API and CLI integration tests
-./test.sh --performance   # Validate performance targets under load
+# Targeted feedback loops
+./test/run-tests.sh structure
+./test/run-tests.sh dependencies
+./test/run-tests.sh unit
+./test/run-tests.sh integration
+./test/run-tests.sh business
+./test/run-tests.sh performance
 ```
 
 ### Performance Validation

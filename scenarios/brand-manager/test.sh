@@ -38,7 +38,11 @@ setup_test_environment() {
     exec 2> >(tee -a "$TEST_LOG_FILE" >&2)
     
     log_info "Test log: $TEST_LOG_FILE"
-    log_info "Test configuration: $TEST_CONFIG"
+    if [ -f "$TEST_CONFIG" ]; then
+        log_info "Test configuration: $TEST_CONFIG"
+    else
+        log_warning "Legacy scenario-test.yaml not found; phased testing suite is now authoritative"
+    fi
     log_info "Test timeout: ${TEST_TIMEOUT}s"
 }
 

@@ -520,7 +520,7 @@ discovery:
 | Voice synthesis quality issues | Low | Medium | Multiple TTS backends, quality scoring, fallback to text-only |
 
 ### Operational Risks
-- **Drift Prevention**: PRD serves as single source of truth, validated by scenario-test.yaml
+- **Drift Prevention**: PRD serves as single source of truth, validated by phased tests in `test/run-tests.sh`
 - **Version Compatibility**: Semantic versioning with clear breaking change documentation  
 - **Resource Conflicts**: Resource allocation managed through service.json priorities
 - **Style Drift**: UI components must pass jungle platformer theme validation
@@ -530,7 +530,7 @@ discovery:
 
 ### Declarative Test Specification
 ```yaml
-# REQUIRED: scenario-test.yaml in scenario root
+# REQUIRED: phased test runner in `test/run-tests.sh`
 version: 1.0
 scenario: game-dialog-generator
 
@@ -544,7 +544,7 @@ structure:
     - cli/game-dialog-generator
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
-    - scenario-test.yaml
+    - test/run-tests.sh
     
   required_dirs:
     - api

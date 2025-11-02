@@ -373,7 +373,7 @@ The Game Dialog Generator brings the spirit of classic jungle platformers to mod
 
 For more information, see:
 - [📋 Product Requirements (PRD.md)](./PRD.md)
-- [🧪 Test Scenarios (scenario-test.yaml)](./scenario-test.yaml)
+- [🧪 Phased Tests (test/run-tests.sh)](./test/run-tests.sh)
 - [🔧 API Documentation](./docs/api.md)
 - [💻 CLI Reference](./docs/cli.md)
 

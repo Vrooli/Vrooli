@@ -1,24 +1,34 @@
 #!/bin/bash
-set -euo pipefail
-echo "=== Test Structure ==="
+# Validates required files and directories for Scenario Surfer
+
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+
+testing::phase::init --target-time "30s"
+
 required_files=(
-  "api/main.go"
-  "ui/index.html"
-  "ui/server.js"
-  ".vrooli/service.json"
-  "Makefile"
+  api/main.go
+  cli/install.sh
+  cli/scenario-surfer
+  ui/index.html
+  ui/server.js
+  .vrooli/service.json
+  Makefile
+  PRD.md
+  README.md
 )
-for file in "${required_files[@]}"; do
-  if [ ! -f "$file" ]; then
-    echo "❌ Missing required file: $file"
-    exit 1
-  fi
-done
-required_dirs=( "api" "ui" "cli" )
-for dir in "${required_dirs[@]}"; do
-  if [ ! -d "$dir" ]; then
-    echo "❌ Missing required directory: $dir"
-    exit 1
-  fi
-done
-echo "✅ Structure OK"
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+required_dirs=(api ui cli initialization test)
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+testing::phase::end_with_summary "Structure validation completed"

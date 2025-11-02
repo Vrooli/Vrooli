@@ -545,74 +545,14 @@ discovery:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: saas-landing-manager
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/saas-landing-manager
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - templates/base/b2b-tool.html
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - ui
-    - initialization/storage/postgres
-    - templates/base
-    - templates/industry
-    - templates/components
-
-resources:
-  required: [postgres]
-  optional: [claude-code, ollama, browserless]
-  health_timeout: 60
-
-tests:
-  - name: "API health check"
-    type: http
-    service: api
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "SaaS scenario detection"
-    type: http
-    service: api
-    endpoint: /api/v1/scenarios/scan
-    method: POST
-    body:
-      force_rescan: true
-    expect:
-      status: 200
-      body:
-        total_scenarios: ">0"
-        
-  - name: "Template listing"
-    type: http
-    service: api
-    endpoint: /api/v1/templates
-    method: GET
-    expect:
-      status: 200
-      body:
-        templates: "array"
-        
-  - name: "CLI scan command"
-    type: exec
-    command: ./cli/saas-landing-manager scan --dry-run --json
-    expect:
-      exit_code: 0
-      output_contains: ["saas_scenarios"]
-```
+- **Modern runner** – `.vrooli/service.json` wires the test lifecycle to `test/run-tests.sh`, the shared phased testing orchestrator.
+- **Structure phase** – Verifies required files (service contract, PRD, Go/CLI sources, templates) and directory layout (`api/`, `cli/`, `ui/`, `templates/`, `initialization/`).
+- **Dependencies phase** – Checks Go modules, ensures critical packages are present, validates postgres connectivity when configured, and lint-checks `.vrooli/service.json`.
+- **Unit phase** – Executes Go unit tests through `testing::unit::run_all_tests`, enforcing coverage warning/error thresholds (80% / 50%).
+- **Integration phase** – Runs focused Go integration suites for database services, HTTP handlers, and Claude Code interactions.
+- **Business phase** – Validates SaaS detection heuristics, landing-page generation, deployment workflows, and A/B testing logic.
+- **Performance phase** – Auto-starts the scenario when needed, measures health endpoint latency, exercises repeated health probes, and executes Go performance benchmarks while recording phase metadata under `coverage/phase-results/`.
 
 ## 📝 Implementation Notes
 

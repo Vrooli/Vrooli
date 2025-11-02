@@ -205,32 +205,12 @@
       ]
     },
     "test": {
-      "description": "Test job pipeline functionality",
+      "description": "Comprehensive phased testing",
       "steps": [
         {
-          "name": "test-directory-structure",
-          "run": "test -d data/pending && test -d data/evaluated && test -d data/completed && echo '✓ Directory structure exists' || (echo '✗ Directory structure missing' && exit 1)",
-          "description": "Verify state directories exist"
-        },
-        {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation"
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health && echo '✓ API healthy' || echo '⚠ API not running (expected if not started)'",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-cli",
-          "run": "bash cli/job-to-scenario --help | grep -q 'Import job from source' && echo '✓ CLI working' || echo '⚠ CLI test skipped'",
-          "description": "Test CLI functionality"
-        },
-        {
-          "name": "test-job-import",
-          "run": "echo '{\"title\": \"Test Job\", \"description\": \"Test description\", \"budget\": 1000}' > /tmp/test-job.json && curl -X POST http://localhost:$API_PORT/api/v1/jobs/import -H 'Content-Type: application/json' -d '{\"source\": \"manual\", \"data\": \"Test job\"}' && echo '✓ Job import working' || echo '⚠ Import test skipped'",
-          "description": "Test job import functionality"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario tests"
         }
       ]
     },

@@ -501,70 +501,21 @@ discovery:
 
 ## ✅ Validation Criteria
 
-### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: code-smell
+### Phased Testing (Modern Architecture)
+- **Structure** – Validates required files and directories (`test/phases/test-structure.sh`).
+- **Dependencies** – Confirms Go module graph and npm toolchain health without mutating state (`test/phases/test-dependencies.sh`).
+- **Unit** – Executes Go unit tests with coverage thresholds via the shared runner (`test/phases/test-unit.sh`).
+- **Integration** – Verifies API/UI health endpoints and CLI status while the scenario is running (`test/phases/test-integration.sh`).
+- **Business** – Exercises rule hot-reload, CLI analysis, learning endpoints, and statistics reporting (`test/phases/test-business.sh`).
+- **Performance** – Placeholder phase tracks pending benchmark work (`test/phases/test-performance.sh`).
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/code-smell
-    - cli/install.sh
-    - initialization/rules/default.yaml
-    - initialization/rules/vrooli-specific.yaml
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - lib
-    - initialization/rules
-    - ui
-    - tests
+```bash
+# Run the full phased suite
+cd scenarios/code-smell
+test/run-tests.sh --preset comprehensive
 
-resources:
-  required: [postgres, resource-claude-code]
-  optional: [redis, visited-tracker]
-  health_timeout: 60
-
-tests:
-  - name: "Rules hot-reload works"
-    type: exec
-    command: |
-      echo "test_rule: {pattern: 'TODO', risk: safe}" >> initialization/rules/test.yaml &&
-      ./cli/code-smell rules reload &&
-      ./cli/code-smell rules list | grep test_rule
-    expect:
-      exit_code: 0
-      output_contains: ["test_rule"]
-
-  - name: "Auto-fix safe patterns"
-    type: exec
-    command: ./cli/code-smell analyze tests/fixtures/whitespace.js --auto-fix
-    expect:
-      exit_code: 0
-      output_contains: ["auto_fixed: 1"]
-
-  - name: "Review queue API works"
-    type: http
-    service: api
-    endpoint: /api/v1/code-smell/queue
-    method: GET
-    expect:
-      status: 200
-      body:
-        violations: []
-
-  - name: "Claude-code integration"
-    type: exec
-    command: ./cli/code-smell analyze tests/fixtures/complex.js --rules ai-powered
-    expect:
-      exit_code: 0
-      output_contains: ["AI analysis complete"]
+# Or via lifecycle configuration
+vrooli scenario test code-smell
 ```
 
 ## 📝 Implementation Notes

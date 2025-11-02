@@ -73,6 +73,16 @@
       "range": "15000-19999"
     }
   },
+  "test": {
+    "description": "Comprehensive phased testing",
+    "steps": [
+      {
+        "name": "run-comprehensive-tests",
+        "run": "test/run-tests.sh",
+        "description": "Execute phased testing suite"
+      }
+    ]
+  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -170,35 +180,12 @@
       ]
     },
     "test": {
-      "description": "Test Data Backup Manager API and CLI",
+      "description": "Run phased validation",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "get-running-port",
-          "run": "RUNNING_PORT=$(vrooli scenario status data-backup-manager --json 2>/dev/null | jq -r '.scenario_data.allocated_ports.API_PORT // .raw_response.data.allocated_ports.API_PORT // \"20010\"') && export API_PORT=$RUNNING_PORT && echo \"Using port: $API_PORT\"",
-          "description": "Discover actual running port from scenario status"
-        },
-        {
-          "name": "test-api-health",
-          "run": "RUNNING_PORT=$(vrooli scenario status data-backup-manager --json 2>/dev/null | jq -r '.scenario_data.allocated_ports.API_PORT // .raw_response.data.allocated_ports.API_PORT // \"20010\"') && curl -sf http://localhost:$RUNNING_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-backup-status",
-          "run": "RUNNING_PORT=$(vrooli scenario status data-backup-manager --json 2>/dev/null | jq -r '.scenario_data.allocated_ports.API_PORT // .raw_response.data.allocated_ports.API_PORT // \"20010\"') && curl -sf http://localhost:$RUNNING_PORT/api/v1/backup/status",
-          "description": "Test backup status endpoint"
-        },
-        {
-          "name": "test-cli-status",
-          "run": "RUNNING_PORT=$(vrooli scenario status data-backup-manager --json 2>/dev/null | jq -r '.scenario_data.allocated_ports.API_PORT // .raw_response.data.allocated_ports.API_PORT // \"20010\"') && API_PORT=$RUNNING_PORT data-backup-manager status",
-          "description": "Test CLI status command"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh comprehensive",
+          "description": "Execute full phased testing suite"
         }
       ]
     },

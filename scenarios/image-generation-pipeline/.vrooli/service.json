@@ -156,18 +156,18 @@
       "description": "Initialize Enterprise Image Generation Pipeline",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "image-generation-pipeline-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "image-generation-pipeline"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "image-generation-pipeline-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "image-generation-pipeline"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -220,46 +220,20 @@
           "description": "Start Node.js UI server in background",
           "background": true
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Image Generation Pipeline running:\\n  UI: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:$API_PORT\\n  CLI: image-generation-pipeline --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Image Generation Pipeline running:\\n  UI: http://localhost:$UI_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  API: http://localhost:$API_PORT\\n  CLI: image-generation-pipeline --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
-      "description": "Test image generation pipeline API and CLI",
+      "description": "Comprehensive phased testing",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-campaigns-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/campaigns",
-          "description": "Test API campaigns endpoint"
-        },
-        {
-          "name": "test-generation-endpoint",
-          "run": "bash test/test-generation-endpoint.sh",
-          "description": "Test API image generation endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats image-generation-pipeline.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/image-generation-pipeline.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased testing using shared runner"
         }
       ]
     },

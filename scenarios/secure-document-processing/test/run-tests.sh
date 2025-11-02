@@ -1,47 +1,43 @@
 #!/bin/bash
+# Phased test orchestrator for the Secure Document Processing scenario
 set -euo pipefail
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &amp;&amp; pwd )"
-PHASES_DIR="$SCRIPT_DIR/phases"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-echo "🧪 Running Secure Document Processing Test Suite"
-echo "📁 Working directory: $SCRIPT_DIR"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-if [ ! -d "$PHASES_DIR" ]; then
-    echo "❌ Test phases directory not found: $PHASES_DIR"
-    exit 1
-fi
+ARTIFACT_DIR="$TEST_DIR/artifacts"
 
-failed_phases=()
-passed_phases=()
+# Initialise the shared runner. Enable runtime management so phases that
+# require a running scenario can assume the lifecycle exists.
+testing::runner::init \
+  --scenario-name "secure-document-processing" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$ARTIFACT_DIR" \
+  --default-manage-runtime true
 
-for phase in "$PHASES_DIR"/test-*.sh; do
-    if [ -f "$phase" ]; then
-        phase_name=$(basename "$phase")
-        echo ""
-        echo "=== Running $phase_name ==="
-        if bash "$phase" 2&gt;&amp;1; then
-            echo "✅ $phase_name passed"
-            passed_phases+=("$phase_name")
-        else
-            echo "❌ $phase_name failed"
-            failed_phases+=("$phase_name")
-        fi
-    fi
-done
+PHASES_DIR="$TEST_DIR/phases"
 
-echo ""
-echo "📊 Test Summary:"
-echo "   Passed: ${#passed_phases[@]} phases"
-for phase in "${passed_phases[@]}"; do
-    echo "     ✓ $phase"
-done
-if [ ${#failed_phases[@]} -gt 0 ]; then
-    echo "   Failed: ${#failed_phases[@]} phases"
-    for phase in "${failed_phases[@]}"; do
-        echo "     ✗ $phase"
-    done
-    exit 1
-fi
+# Register the standard phase lineup.
+testing::runner::register_phase --name structure --script "$PHASES_DIR/test-structure.sh" --timeout 45
 
-echo "🎉 All tests passed!"
+testing::runner::register_phase --name dependencies --script "$PHASES_DIR/test-dependencies.sh" --timeout 90
+
+testing::runner::register_phase --name unit --script "$PHASES_DIR/test-unit.sh" --timeout 180
+
+testing::runner::register_phase --name integration --script "$PHASES_DIR/test-integration.sh" --timeout 240 --requires-runtime true
+
+testing::runner::register_phase --name business --script "$PHASES_DIR/test-business.sh" --timeout 120
+
+testing::runner::register_phase --name performance --script "$PHASES_DIR/test-performance.sh" --timeout 60
+
+# Handy presets for local iteration.
+testing::runner::define_preset quick "structure dependencies unit"
+testing::runner::define_preset smoke "structure integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
+
+testing::runner::execute "$@"

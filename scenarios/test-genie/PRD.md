@@ -666,7 +666,7 @@ structure:
     - ui/index.html
     - ui/server.js
     - prompts/test-generation-prompt.md
-    - scenario-test.yaml
+    - test/run-tests.sh
     
   required_dirs:
     - api
@@ -826,4 +826,4 @@ See [PROBLEMS.md](PROBLEMS.md) for detailed tracking of:
 2. Implement P1 visual coverage analysis
 3. Add performance regression detection
 4. Create cross-scenario integration tests
-5. Migrate from legacy scenario-test.yaml to phased architecture
+5. Expand phased testing coverage thresholds and CI reporting

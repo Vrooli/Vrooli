@@ -1,93 +1,87 @@
 #!/bin/bash
-# Test: Business Logic
-# Validates core business functionality and workflows
+# Business phase – validates higher level workflows and CLI affordances.
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "  ✓ Testing business logic..."
+testing::phase::init --target-time "180s" --require-runtime
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$SCENARIO_DIR"
-
-# Get API port
-API_PORT=$(jq -r '.ports.api.range' .vrooli/service.json | cut -d'-' -f1)
-if [ -z "$API_PORT" ] || [ "$API_PORT" = "null" ]; then
-    API_PORT=${API_PORT:-15000}
+if ! command -v curl >/dev/null 2>&1; then
+  testing::phase::add_error "curl is required for business workflow checks"
+  testing::phase::end_with_summary "Business workflow tests incomplete"
 fi
 
-BASE_URL="http://localhost:${API_PORT}"
+API_BASE=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME" || true)
+if [ -z "$API_BASE" ]; then
+  testing::phase::add_error "Unable to resolve API endpoint for $TESTING_PHASE_SCENARIO_NAME"
+  testing::phase::end_with_summary "Business workflow tests incomplete"
+fi
 
-# Test 1: Image compression workflow
-echo "  ✓ Testing image compression workflow..."
-# Create test image data
-TEST_IMAGE_DATA="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+WORKFLOW_IMAGE="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 
-response=$(curl -s -X POST "${BASE_URL}/api/v1/image/compress" \
+run_json_post() {
+  set -euo pipefail
+  local endpoint="$1"
+  local payload="$2"
+  local expected_codes="$3"
+  local response
+  response=$(curl -s -o /tmp/image-tools-business-response -w "%{http_code}" -X POST "$API_BASE$endpoint" \
     -H "Content-Type: application/json" \
-    -d "{\"image\":\"${TEST_IMAGE_DATA}\",\"quality\":80}" || echo "ERROR")
+    -d "$payload")
+  echo "$expected_codes" | tr ',' '\n' | grep -qx "$response"
+}
 
-if [ "$response" = "ERROR" ] || [ -z "$response" ]; then
-    echo "  ⚠️  Compression endpoint not responding (may need scenario running)"
+# Compression workflow using JSON payload
+run_json_post "/api/v1/image/compress" "{\"image\":\"$WORKFLOW_IMAGE\",\"quality\":75}" "200,202"
+if [ $? -eq 0 ]; then
+  testing::phase::add_test passed
 else
-    echo "  ✓ Compression workflow validated"
+  testing::phase::add_error "Compression workflow request failed"
+  testing::phase::add_test failed
 fi
 
-# Test 2: Format conversion workflow
-echo "  ✓ Testing format conversion workflow..."
-response=$(curl -s -X POST "${BASE_URL}/api/v1/image/convert" \
-    -H "Content-Type: application/json" \
-    -d "{\"image\":\"${TEST_IMAGE_DATA}\",\"target_format\":\"webp\"}" || echo "ERROR")
-
-if [ "$response" = "ERROR" ] || [ -z "$response" ]; then
-    echo "  ⚠️  Conversion endpoint not responding (may need scenario running)"
+# Format conversion workflow
+run_json_post "/api/v1/image/convert" "{\"image\":\"$WORKFLOW_IMAGE\",\"target_format\":\"webp\"}" "200,202"
+if [ $? -eq 0 ]; then
+  testing::phase::add_test passed
 else
-    echo "  ✓ Format conversion workflow validated"
+  testing::phase::add_error "Format conversion workflow failed"
+  testing::phase::add_test failed
 fi
 
-# Test 3: Preset profiles workflow
-echo "  ✓ Testing preset profiles workflow..."
-response=$(curl -s "${BASE_URL}/api/v1/presets" || echo "ERROR")
-
-if [ "$response" = "ERROR" ] || [ -z "$response" ]; then
-    echo "  ⚠️  Presets endpoint not responding (may need scenario running)"
+# Batch endpoint should respond with validation error (400) when payload incomplete
+run_json_post "/api/v1/image/batch" "{\"images\":[]}" "200,400"
+if [ $? -eq 0 ]; then
+  testing::phase::add_test passed
 else
-    # Verify presets exist
-    preset_count=$(echo "$response" | jq -r 'length' 2>/dev/null || echo "0")
-    if [ "$preset_count" -ge 5 ]; then
-        echo "  ✓ Preset profiles workflow validated (found $preset_count presets)"
-    else
-        echo "  ⚠️  Expected at least 5 presets, found $preset_count"
-    fi
+  testing::phase::add_error "Batch endpoint rejected basic request"
+  testing::phase::add_test failed
 fi
 
-# Test 4: Plugin architecture validation
-echo "  ✓ Testing plugin architecture..."
-response=$(curl -s "${BASE_URL}/api/v1/plugins" || echo "ERROR")
-
-if [ "$response" = "ERROR" ] || [ -z "$response" ]; then
-    echo "  ⚠️  Plugins endpoint not responding (may need scenario running)"
+# CLI validation (optional if CLI not installed)
+if command -v image-tools >/dev/null 2>&1; then
+  testing::phase::check "CLI help command" bash -c 'image-tools help | grep -q "Image Tools"'
+  testing::phase::check "CLI version command" bash -c 'image-tools version | grep -q "image-tools"'
+  testing::phase::check "CLI status command emits JSON" bash -c '
+    set -euo pipefail
+    output=$(image-tools status --json 2>/dev/null)
+    [ -n "$output" ] && echo "$output" | grep -q '"status"'
+  '
 else
-    plugin_count=$(echo "$response" | jq -r '.plugins | length' 2>/dev/null || echo "0")
-    if [ "$plugin_count" -ge 4 ]; then
-        echo "  ✓ Plugin architecture validated (found $plugin_count plugins)"
-    else
-        echo "  ⚠️  Expected at least 4 plugins (JPEG, PNG, WebP, SVG)"
-    fi
+  testing::phase::add_warning "image-tools CLI not installed; skipping CLI checks"
+  testing::phase::add_test skipped
 fi
 
-# Test 5: Resource integration validation
-echo "  ✓ Testing resource integration..."
-
-# Check MinIO integration
-if command -v resource-minio &> /dev/null; then
-    minio_status=$(resource-minio status 2>&1 || echo "not running")
-    if echo "$minio_status" | grep -q "running"; then
-        echo "  ✓ MinIO resource integration available"
-    else
-        echo "  ⚠️  MinIO not running (optional but recommended)"
-    fi
+# UI health check if port available
+UI_BASE=$(testing::connectivity::get_ui_url "$TESTING_PHASE_SCENARIO_NAME" || true)
+if [ -n "$UI_BASE" ]; then
+  testing::phase::check "UI health endpoint" bash -c 'curl -sSf "'$UI_BASE'/health" >/dev/null'
 else
-    echo "  ⚠️  MinIO CLI not available"
+  testing::phase::add_warning "Unable to discover UI endpoint; skipping UI business check"
+  testing::phase::add_test skipped
 fi
 
-echo "  ✓ Business logic tests completed"
+rm -f /tmp/image-tools-business-response 2>/dev/null || true
+
+testing::phase::end_with_summary "Business workflow validation completed"

@@ -302,7 +302,7 @@ func (s *Server) handleGetProjects(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var projects []Project
+	projects := make([]Project, 0)
 	for rows.Next() {
 		var p Project
 		err := rows.Scan(&p.ID, &p.TenantID, &p.Name, &p.Description, &p.CreatedAt, &p.UpdatedAt)

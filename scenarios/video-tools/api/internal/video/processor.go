@@ -13,18 +13,18 @@ import (
 
 // VideoInfo contains metadata about a video file
 type VideoInfo struct {
-	Format         string        `json:"format"`
-	Duration       float64       `json:"duration"`
-	Width          int           `json:"width"`
-	Height         int           `json:"height"`
-	FrameRate      float64       `json:"frame_rate"`
-	BitRate        int           `json:"bitrate"`
-	Codec          string        `json:"codec"`
-	HasAudio       bool          `json:"has_audio"`
-	AudioCodec     string        `json:"audio_codec,omitempty"`
-	AudioChannels  int           `json:"audio_channels,omitempty"`
-	AudioSampleRate int          `json:"audio_sample_rate,omitempty"`
-	FileSize       int64         `json:"file_size"`
+	Format          string  `json:"format"`
+	Duration        float64 `json:"duration"`
+	Width           int     `json:"width"`
+	Height          int     `json:"height"`
+	FrameRate       float64 `json:"frame_rate"`
+	BitRate         int     `json:"bitrate"`
+	Codec           string  `json:"codec"`
+	HasAudio        bool    `json:"has_audio"`
+	AudioCodec      string  `json:"audio_codec,omitempty"`
+	AudioChannels   int     `json:"audio_channels,omitempty"`
+	AudioSampleRate int     `json:"audio_sample_rate,omitempty"`
+	FileSize        int64   `json:"file_size"`
 }
 
 // EditOperation represents a video editing operation
@@ -144,7 +144,7 @@ func (p *Processor) GetVideoInfo(filePath string) (*VideoInfo, error) {
 				if height, ok := s["height"].(float64); ok {
 					info.Height = int(height)
 				}
-				
+
 				// Calculate frame rate
 				if fpsStr, ok := s["r_frame_rate"].(string); ok {
 					parts := strings.Split(fpsStr, "/")
@@ -226,7 +226,7 @@ func (p *Processor) ConvertFormat(inputPath string, outputPath string, options C
 // Trim cuts a video between start and end times
 func (p *Processor) Trim(inputPath string, outputPath string, startTime, endTime float64) error {
 	duration := endTime - startTime
-	
+
 	args := []string{
 		"-ss", fmt.Sprintf("%.2f", startTime),
 		"-i", inputPath,
@@ -298,7 +298,7 @@ func (p *Processor) ExtractFrames(inputPath string, outputDir string, options Fr
 				"-vframes", "1",
 				"-y", outputPath,
 			}
-			
+
 			cmd := exec.Command(p.ffmpeg, args...)
 			if err := cmd.Run(); err != nil {
 				return framePaths, fmt.Errorf("failed to extract frame at %.3f: %w", timestamp, err)
@@ -314,12 +314,12 @@ func (p *Processor) ExtractFrames(inputPath string, outputDir string, options Fr
 			"-vf", fmt.Sprintf("fps=%.3f", fps),
 			"-y", outputPattern,
 		}
-		
+
 		cmd := exec.Command(p.ffmpeg, args...)
 		if err := cmd.Run(); err != nil {
 			return framePaths, fmt.Errorf("failed to extract frames: %w", err)
 		}
-		
+
 		// Collect generated frame paths
 		files, _ := filepath.Glob(filepath.Join(outputDir, fmt.Sprintf("frame_*.%s", format)))
 		framePaths = files
@@ -373,7 +373,7 @@ func (p *Processor) AddSubtitles(videoPath string, subtitlePath string, outputPa
 			"-c:a", "copy",
 			"-y", outputPath,
 		}
-		
+
 		cmd := exec.Command(p.ffmpeg, args...)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to burn subtitles: %w", err)
@@ -387,7 +387,7 @@ func (p *Processor) AddSubtitles(videoPath string, subtitlePath string, outputPa
 			"-c:s", "mov_text",
 			"-y", outputPath,
 		}
-		
+
 		cmd := exec.Command(p.ffmpeg, args...)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to add subtitle stream: %w", err)

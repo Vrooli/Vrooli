@@ -73,20 +73,22 @@
     },
     "setup": {
       "description": "Initialize Core Debugger with file-based storage",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "core-debugger-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": ["core-debugger"]
-            }
-         ]
-       },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "core-debugger-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "core-debugger"
+            ]
+          }
+        ]
+      },
       "steps": [
         {
           "name": "create-data-structure",
@@ -120,7 +122,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Core Debugger initialized\\n  📊 Status Page: http://localhost:${UI_PORT}\\n  📡 API: http://localhost:${API_PORT}\\n  🎯 CLI: core-debugger --help\\n  📂 Data: ./data/\\n\\n💡 Check core health:\\n  core-debugger check-health\\n  core-debugger list-issues\\n  core-debugger status --verbose'",
+          "run": "echo '\ud83d\udd0d Core Debugger initialized\\n  \ud83d\udcca Status Page: http://localhost:${UI_PORT}\\n  \ud83d\udce1 API: http://localhost:${API_PORT}\\n  \ud83c\udfaf CLI: core-debugger --help\\n  \ud83d\udcc2 Data: ./data/\\n\\n\ud83d\udca1 Check core health:\\n  core-debugger check-health\\n  core-debugger list-issues\\n  core-debugger status --verbose'",
           "description": "Display service information"
         }
       ]
@@ -128,15 +130,15 @@
     "develop": {
       "description": "Start Core Debugger monitoring services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./core-debugger-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/core-debugger-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./core-debugger-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/core-debugger-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && python3 -m http.server $UI_PORT > /dev/null 2>&1",
@@ -157,45 +159,20 @@
           "run": "sleep 1 && ./cli/core-debugger check-health || true",
           "description": "Run initial health check on all components"
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🔍 Core Debugger running:\\n  📊 Status Page: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT/health\\n  🎯 CLI: core-debugger --help\\n\\n🔬 Monitor core components:\\n  core-debugger status\\n  core-debugger check-health --component cli\\n  core-debugger list-issues --severity critical\\n\\n📝 Report issues:\\n  core-debugger report-issue --component orchestrator --description \"Error details\"\\n  core-debugger analyze-issue <issue-id>'",
-           "description": "Display running services and usage"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '\ud83d\udd0d Core Debugger running:\\n  \ud83d\udcca Status Page: http://localhost:$UI_PORT\\n  \ud83d\udce1 API: http://localhost:$API_PORT/health\\n  \ud83c\udfaf CLI: core-debugger --help\\n\\n\ud83d\udd2c Monitor core components:\\n  core-debugger status\\n  core-debugger check-health --component cli\\n  core-debugger list-issues --severity critical\\n\\n\ud83d\udcdd Report issues:\\n  core-debugger report-issue --component orchestrator --description \"Error details\"\\n  core-debugger analyze-issue <issue-id>'",
+          "description": "Display running services and usage"
+        }
       ]
     },
     "test": {
-      "description": "Test Core Debugger functionality",
+      "description": "Phased testing for core-debugger scenario",
       "steps": [
         {
-          "name": "test-data-structure",
-          "run": "test -d data/issues && test -d data/health && test -d data/workarounds && echo '✓ Data structure exists' || (echo '✗ Data structure missing' && exit 1)",
-          "description": "Verify data directories exist"
-        },
-        {
-          "name": "test-component-registry",
-          "run": "test -f data/components.json && jq '.components | length' data/components.json > /dev/null && echo '✓ Component registry valid' || (echo '✗ Component registry invalid' && exit 1)",
-          "description": "Verify component registry"
-        },
-        {
-          "name": "test-cli",
-          "run": "bash cli/core-debugger --help | grep -q 'Core Debugger' && echo '✓ CLI working' || echo '⚠ CLI test failed'",
-          "description": "Test CLI functionality"
-        },
-        {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build && echo '✓ Go compilation successful' || echo '⚠ Go compilation failed'",
-          "description": "Test Go compilation"
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health && echo '✓ API healthy' || echo '⚠ API not running (expected if not started)'",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-health-checks",
-          "run": "./cli/core-debugger check-health --json > /tmp/health.json && test -s /tmp/health.json && echo '✓ Health checks working' || echo '⚠ Health checks not available'",
-          "description": "Test component health checks"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute structured scenario test phases"
         }
       ]
     },

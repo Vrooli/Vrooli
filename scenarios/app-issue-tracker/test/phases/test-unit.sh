@@ -1,33 +1,21 @@
 #!/bin/bash
+# Unit test aggregation for app-issue-tracker
 set -euo pipefail
 
-echo "=== Running test-unit.sh ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Unit tests
+testing::phase::init --target-time "150s"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-if [ -d api ] && command -v go >/dev/null 2>&1; then
-  cd api
-  if go test ./... -short 2>/dev/null | grep -q "FAIL"; then
-    echo "✗ Go unit tests failed"
-    exit 1
-  else
-    echo "✓ Go unit tests passed"
-  fi
-  cd ..
-else
-  echo "⚠ No Go API or go not available, skipping unit tests"
-fi
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-if [ -d ui ] && [ -f ui/package.json ]; then
-  cd ui
-  if npm test >/dev/null 2>&1; then
-    echo "✓ UI unit tests passed"
-  else
-    echo "⚠ UI tests failed or not configured"
-  fi
-  cd ..
-else
-  echo "⚠ No UI tests, skipping"
-fi
+testing::unit::run_all_tests \
+  --go-dir "api" \
+  --node-dir "ui" \
+  --skip-python \
+  --coverage-warn 60 \
+  --coverage-error 45
 
-echo "✅ test-unit.sh completed successfully"
+testing::phase::end_with_summary "Unit tests completed"

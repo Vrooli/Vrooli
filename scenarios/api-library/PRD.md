@@ -743,7 +743,7 @@ structure:
     - cli/api-library
     - cli/install.sh
     - initialization/postgres/schema.sql
-    - scenario-test.yaml
+    - test/run-tests.sh
     
   required_dirs:
     - api

@@ -187,55 +187,12 @@
       ]
     },
     "test": {
-      "description": "Comprehensive testing of dependency analysis capabilities",
+      "description": "Comprehensive phased testing",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go API compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-scenario-analysis",
-          "run": "curl -sf http://localhost:${API_PORT}/api/v1/scenarios/chart-generator/dependencies",
-          "description": "Test scenario dependency analysis endpoint"
-        },
-        {
-          "name": "test-graph-generation",
-          "run": "curl -sf http://localhost:${API_PORT}/api/v1/graph/combined",
-          "description": "Test dependency graph generation endpoint"
-        },
-        {
-          "name": "test-proposed-scenario-analysis",
-          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/analyze/proposed -H 'Content-Type: application/json' -d '{\"name\":\"test-scenario\",\"description\":\"A test scenario for validating prediction\",\"requirements\":[\"postgres\",\"ollama\"]}'",
-          "description": "Test proposed scenario analysis endpoint"
-        },
-        {
-          "name": "test-cli-basic-analysis",
-          "run": "./cli/scenario-dependency-analyzer analyze chart-generator --output json",
-          "description": "Test CLI scenario analysis"
-        },
-        {
-          "name": "test-cli-graph-generation",
-          "run": "./cli/scenario-dependency-analyzer graph resources --format json",
-          "description": "Test CLI graph generation"
-        },
-        {
-          "name": "test-database-schema",
-          "run": "resource-postgres execute 'SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN (\"scenario_dependencies\", \"dependency_graphs\", \"optimization_recommendations\");'",
-          "description": "Verify database schema initialization"
-        },
-        {
-          "name": "test-full-system-analysis",
-          "run": "./cli/scenario-dependency-analyzer analyze all --output json > /tmp/test-full-analysis.json && echo 'Full system analysis test completed'",
-          "description": "Test analysis of all scenarios in the system"
+          "name": "run-phased-tests",
+          "description": "Execute phased scenario test suite",
+          "run": "test/run-tests.sh"
         }
       ]
     },

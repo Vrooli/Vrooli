@@ -1,16 +1,38 @@
 #!/bin/bash
+# Business workflow validation for app-issue-tracker
 set -euo pipefail
 
-echo "=== Running test-business.sh ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Business logic tests would go here
-# For now, verify basic business flow
+testing::phase::init --target-time "240s" --require-runtime
 
-if [ -f data/issues/templates/bug-template.yaml ]; then
-  echo "✓ Business templates exist"
-else
-  echo "✗ Business templates missing"
-  exit 1
+SCENARIO_NAME="$TESTING_PHASE_SCENARIO_NAME"
+
+if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+  testing::phase::add_warning "curl and jq are required for investigation workflow checks"
+  testing::phase::add_test skipped
+  testing::phase::end_with_summary "Business workflow tests skipped"
 fi
 
-echo "✅ test-business.sh completed successfully"
+if [ ! -f "issues/manage.sh" ]; then
+  testing::phase::add_error "issues/manage.sh not found; cannot exercise business workflow"
+  testing::phase::add_test failed
+  testing::phase::end_with_summary "Business workflow tests incomplete"
+fi
+
+API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME" || true)
+if [ -z "$API_URL" ]; then
+  testing::phase::add_error "Unable to resolve API URL for $SCENARIO_NAME"
+  testing::phase::add_test failed
+  testing::phase::end_with_summary "Business workflow tests incomplete"
+fi
+
+API_BASE="${API_URL%/}/api"
+
+if testing::phase::check "Investigation workflow" env ISSUE_TRACKER_API_URL="$API_BASE" bash "$TESTING_PHASE_SCENARIO_DIR/test/test-investigation-workflow.sh"; then
+  :
+fi
+
+testing::phase::end_with_summary "Business workflow validation completed"

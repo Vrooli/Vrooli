@@ -1,135 +1,56 @@
 #!/bin/bash
+# Ensure language runtimes and package manifests are healthy
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+testing::phase::init --target-time "90s"
 
-echo -e "${BLUE}🔍 Testing Dependencies${NC}"
-echo "======================="
+# Core toolchain availability
+for bin in go node npm; do
+  testing::phase::check "binary available: ${bin}" command -v "$bin"
+done
 
-# Track failures
-FAILED=0
-
-# Function to check command availability
-check_command() {
-    local cmd=$1
-    local description=$2
-
-    if command -v "$cmd" &> /dev/null; then
-        echo -e "${GREEN}✅ $description found: $(which $cmd)${NC}"
-        return 0
-    else
-        echo -e "${RED}❌ $description not found${NC}"
-        return 1
-    fi
-}
-
-# Function to check Go module dependencies
-check_go_dependencies() {
-    echo -e "${YELLOW}Checking Go dependencies...${NC}"
-
-    if [ -f "api/go.mod" ]; then
-        cd api
-        if go mod download && go mod verify; then
-            echo -e "${GREEN}✅ Go module dependencies verified${NC}"
-        else
-            echo -e "${RED}❌ Go module dependencies failed${NC}"
-            FAILED=1
-        fi
-        cd ..
-    else
-        echo -e "${YELLOW}⚠️  No Go module found${NC}"
-    fi
-}
-
-# Function to check Node.js dependencies
-check_node_dependencies() {
-    echo -e "${YELLOW}Checking Node.js dependencies...${NC}"
-
-    if [ -f "ui/package.json" ]; then
-        cd ui
-        if npm install --dry-run > /dev/null 2>&1; then
-            echo -e "${GREEN}✅ Node.js dependencies can be installed${NC}"
-        else
-            echo -e "${RED}❌ Node.js dependencies check failed${NC}"
-            FAILED=1
-        fi
-        cd ..
-    else
-        echo -e "${YELLOW}⚠️  No Node.js package.json found${NC}"
-    fi
-}
-
-# Function to check required files
-check_required_files() {
-    echo -e "${YELLOW}Checking required files...${NC}"
-
-    local required_files=(
-        ".vrooli/service.json"
-        "Makefile"
-        "README.md"
-    )
-
-    local missing_files=()
-
-    for file in "${required_files[@]}"; do
-        if [ ! -f "$file" ]; then
-            missing_files+=("$file")
-        fi
-    done
-
-    if [ ${#missing_files[@]} -eq 0 ]; then
-        echo -e "${GREEN}✅ All required files present${NC}"
-    else
-        echo -e "${RED}❌ Missing required files: ${missing_files[*]}${NC}"
-        FAILED=1
-    fi
-}
-
-# Function to check service.json validity
-check_service_json() {
-    echo -e "${YELLOW}Checking service.json validity...${NC}"
-
-    if command -v jq &> /dev/null; then
-        if jq . .vrooli/service.json > /dev/null 2>&1; then
-            echo -e "${GREEN}✅ service.json is valid JSON${NC}"
-        else
-            echo -e "${RED}❌ service.json is invalid JSON${NC}"
-            FAILED=1
-        fi
-    else
-        echo -e "${YELLOW}⚠️  jq not available - skipping JSON validation${NC}"
-    fi
-}
-
-# Main dependency checks
-echo "Checking system dependencies..."
-check_command "go" "Go" || FAILED=1
-check_command "node" "Node.js" || FAILED=1
-check_command "npm" "npm" || FAILED=1
-
-echo ""
-check_go_dependencies
-
-echo ""
-check_node_dependencies
-
-echo ""
-check_required_files
-
-echo ""
-check_service_json
-
-echo ""
-if [ $FAILED -eq 0 ]; then
-    echo -e "${GREEN}🎉 All dependency checks passed!${NC}"
-    exit 0
+# Validate Go module graph without downloading if module exists
+if [ -f "api/go.mod" ]; then
+  if command -v go >/dev/null 2>&1; then
+    testing::phase::check "Go module graph resolves" bash -c 'cd api && go list ./... >/dev/null'
+  else
+    testing::phase::add_warning "Go toolchain missing; skipping Go dependency check"
+    testing::phase::add_test skipped
+  fi
 else
-    echo -e "${RED}💥 Some dependency checks failed${NC}"
-    exit 1
+  testing::phase::add_warning "api/go.mod not found; skipping Go dependency check"
+  testing::phase::add_test skipped
 fi
+
+# Validate UI dependencies via npm dry-run
+if [ -f "ui/package.json" ]; then
+  if command -v npm >/dev/null 2>&1; then
+    testing::phase::check "npm install --dry-run" bash -c 'cd ui && npm install --dry-run >/dev/null'
+  else
+    testing::phase::add_warning "npm CLI unavailable; cannot verify UI dependencies"
+    testing::phase::add_test skipped
+  fi
+else
+  testing::phase::add_warning "ui/package.json not found; skipping Node dependency check"
+  testing::phase::add_test skipped
+fi
+
+# Confirm key manifest files remain present
+if testing::phase::check_files .vrooli/service.json README.md Makefile; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+# Validate service.json structure when jq is available
+if command -v jq >/dev/null 2>&1; then
+  testing::phase::check "service.json parses" jq . .vrooli/service.json >/dev/null
+else
+  testing::phase::add_warning "jq not available; skipping service.json lint"
+  testing::phase::add_test skipped
+fi
+
+testing::phase::end_with_summary "Dependency validation completed"

@@ -579,93 +579,35 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-# File: scenario-test.yaml
-version: 1.0
-scenario: system-monitor
-
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - README.md
-    - api/main.go
-    - api/go.mod
-    - cli/system-monitor
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/storage/questdb/schema.sql
-    - initialization/automation/n8n/threshold-monitor.json
-    - initialization/automation/n8n/anomaly-investigator.json
-    - ui/index.html
-    - ui/matrix.js
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization/storage/postgres
-    - initialization/storage/questdb
-    - initialization/automation/n8n
-    - ui
-
-resources:
-  required: [postgres, questdb, redis, n8n, ollama]
-  optional: [grafana]
-  health_timeout: 60
-
-tests:
-  - name: "QuestDB Metrics Ingestion"
-    type: tcp
-    service: questdb
-    port: 9009
-    send: "metrics,host=test cpu=50.0 1234567890000000000\n"
-    expect:
-      response: ""  # ILP protocol returns empty on success
-      
-  - name: "Current Metrics API"
-    type: http
-    service: api
-    endpoint: /api/v1/metrics/current
-    method: GET
-    expect:
-      status: 200
-      body:
-        cpu: "*"
-        memory: "*"
-        timestamp: "*"
-        
-  - name: "CLI Status Command"
-    type: exec
-    command: ./cli/system-monitor status --json
-    expect:
-      exit_code: 0
-      output_contains: ["healthy", "cpu", "memory"]
-      
-  - name: "Anomaly Detection Workflow"
-    type: n8n
-    workflow: threshold-monitor
-    expect:
-      active: true
-      schedule: "*/1 * * * *"  # Every minute
-      
-  - name: "Matrix Dashboard Loads"
-    type: http
-    service: ui
-    endpoint: /
-    method: GET
-    expect:
-      status: 200
-      body_contains: ["matrix-rain", "metric-grid"]
+```bash
+# test/run-tests.sh (excerpt)
+testing::runner::register_phase --name structure --script "test/phases/test-structure.sh"
+testing::runner::register_phase --name dependencies --script "test/phases/test-dependencies.sh"
+testing::runner::register_phase --name unit --script "test/phases/test-unit.sh"
+testing::runner::register_phase --name integration --script "test/phases/test-integration.sh" --requires-runtime true
+testing::runner::register_phase --name business --script "test/phases/test-business.sh" --requires-runtime true
+testing::runner::register_phase --name performance --script "test/phases/test-performance.sh"
 ```
+- **Structure** validates required files/directories, gofmt cleanliness, and optional UI lint checks.
+- **Dependencies** dry-runs Go module analysis and `npm install` to ensure manifests stay resolvable.
+- **Unit** leverages the shared multi-language runner with scenario-specific coverage thresholds.
+- **Integration** executes `go test -tags=integration` against API services for workflow coverage.
+- **Business** exercises `/health`, `/api/metrics/current`, and report generation while verifying the React dashboard responds.
+- **Performance** runs best-effort Go benchmarks and targeted performance tests, emitting warnings when regressions appear.
 
 ### Test Execution Gates
 ```bash
-./test.sh --scenario system-monitor --validation complete
-./test.sh --metrics      # Verify metric collection
-./test.sh --anomaly      # Test anomaly detection
-./test.sh --performance  # Validate < 100ms latency
-./test.sh --ui           # Check Matrix theme rendering
+# Full suite with managed runtime
+test/run-tests.sh comprehensive
+
+# Quick developer loop (structure + unit)
+test/run-tests.sh quick
+
+# Integration/business when the scenario is already running
+test/run-tests.sh business --allow-skip-missing-runtime
+
+# Lifecycle entrypoint
+vrooli scenario test system-monitor
 ```
 
 ### Performance Validation

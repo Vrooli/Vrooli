@@ -610,99 +610,22 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-# File: scenario-test.yaml
-version: 1.0
-scenario: stream-of-consciousness-analyzer
-
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - README.md
-    - api/main.go
-    - api/go.mod
-    - cli/soc-analyzer
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/automation/n8n/process-stream.json
-    - initialization/automation/n8n/organize-thoughts.json
-    - initialization/automation/n8n/extract-insights.json
-    - ui/index.html
-    - ui/script.js
-    - ui/server.js
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization/storage/postgres
-    - initialization/automation/n8n
-    - ui
-
-resources:
-  required: [postgres, qdrant, n8n, ollama]
-  optional: [redis]
-  health_timeout: 60
-
-tests:
-  - name: "Process Stream API"
-    type: http
-    service: api
-    endpoint: /api/process-stream
-    method: POST
-    body:
-      text: "I just had an amazing idea for improving our onboarding process..."
-      campaign: "work"
-    expect:
-      status: 200
-      body:
-        insights: "*"
-        processing_time: "*"
-        
-  - name: "Semantic Search API"
-    type: http
-    service: api
-    endpoint: /api/search
-    method: GET
-    query:
-      query: "onboarding improvements"
-      limit: 5
-    expect:
-      status: 200
-      body:
-        results: "*"
-        
-  - name: "CLI Process Command"
-    type: exec
-    command: ./cli/soc-analyzer process "Test thought" --campaign test
-    expect:
-      exit_code: 0
-      output_contains: ["processed", "insights"]
-      
-  - name: "N8n Processing Workflow"
-    type: n8n
-    workflow: process-stream
-    expect:
-      active: true
-      nodes: ["Ollama", "Extract Topics", "Store Insights"]
-      
-  - name: "Mindful UI Loads"
-    type: http
-    service: ui
-    endpoint: /
-    expect:
-      status: 200
-      body_contains: ["stream", "campaign", "mindful"]
-```
+- **Phased orchestration**: `test/run-tests.sh` uses the shared `testing::runner` to execute structure, dependencies, unit, integration, business, and performance phases with consistent logging, caching, and JUnit support.
+- **Phase implementations**: Each script under `test/phases/test-*.sh` sources `scripts/scenarios/testing/shell/phase-helpers.sh`, enforcing safe cleanup, runtime checks, and JSON summaries in `coverage/phase-results/` for downstream reporting.
+- **Unit coverage**: `test/phases/test-unit.sh` delegates to `scripts/scenarios/testing/unit/run-all.sh`, enforcing Go coverage thresholds (80% warn / 50% fail) and publishing artifacts in `coverage/stream-of-consciousness-analyzer/go/`.
+- **Runtime validations**: Integration, business, and performance phases run against the managed scenario, exercising campaign workflows, search semantics, and concurrency safeguards before reporting pass/fail to the orchestrator.
+- **Lifecycle integration**: `.vrooli/service.json` registers the phased runner so `vrooli scenario test stream-of-consciousness-analyzer` routes through the same comprehensive suite.
 
 ### Test Execution Gates
 ```bash
-./test.sh --scenario stream-of-consciousness-analyzer --validation complete
-./test.sh --processing   # Test AI processing accuracy
-./test.sh --search       # Verify semantic search quality
-./test.sh --insights     # Validate pattern detection
-./test.sh --ui          # Check mindful aesthetic
+# Run a quick structural + unit smoke pass
+test/run-tests.sh quick
+
+# Full scenario validation (auto-managed runtime for integration/business/performance)
+test/run-tests.sh comprehensive
+
+# Lifecycle entry point
+vrooli scenario test stream-of-consciousness-analyzer
 ```
 
 ### Performance Validation

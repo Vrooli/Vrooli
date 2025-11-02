@@ -1,69 +1,39 @@
 #!/bin/bash
-set -e
+# Integration tests for text-tools using dynamic runtime discovery
+set -euo pipefail
 
-# Integration tests for text-tools scenario
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Initialize test phase
-testing::phase::init --target-time "120s"
+# Require the scenario runtime because we exercise live endpoints
+testing::phase::init --target-time "180s" --require-runtime
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
+if ! command -v jq >/dev/null 2>&1; then
+  testing::phase::add_error "jq is required for integration validation"
+  testing::phase::end_with_summary "Integration tests aborted"
+fi
 
-# Get API port - use actual allocated port for text-tools
-# The scenario's API is running on this port as allocated by the lifecycle system
-export TEXT_TOOLS_API_PORT=16518
+if ! API_BASE_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME"); then
+  testing::phase::add_error "Unable to determine API URL for $TESTING_PHASE_SCENARIO_NAME"
+  testing::phase::end_with_summary "Integration tests aborted"
+fi
 
-echo "=== Integration Tests (Port: ${TEXT_TOOLS_API_PORT}) ==="
+export API_BASE_URL
 
-# Test API health
-echo "Testing API health endpoint..."
-curl -sf "http://localhost:${TEXT_TOOLS_API_PORT}/health" || {
-    echo "❌ API health check failed"
-    exit 1
+echo "Using API base URL: $API_BASE_URL"
+
+run_check() {
+  local description="$1"
+  shift
+  testing::phase::check "$description" "$@"
 }
-echo "✅ API health check passed"
 
-# Test diff endpoint
-echo "Testing diff endpoint..."
-curl -sf -X POST "http://localhost:${TEXT_TOOLS_API_PORT}/api/v1/text/diff" \
-    -H "Content-Type: application/json" \
-    -d '{"text1":"hello world","text2":"hello Vrooli"}' | jq -e '.changes' || {
-    echo "❌ Diff endpoint failed"
-    exit 1
-}
-echo "✅ Diff endpoint passed"
+run_check "API health endpoint" curl -sf "$API_BASE_URL/health"
+run_check "Diff endpoint" bash -c "curl -sf -X POST \"${API_BASE_URL}/api/v1/text/diff\" -H 'Content-Type: application/json' -d '{\"text1\":\"hello world\",\"text2\":\"hello Vrooli\"}' | jq -e '.changes'"
+run_check "Search endpoint" bash -c "curl -sf -X POST \"${API_BASE_URL}/api/v1/text/search\" -H 'Content-Type: application/json' -d '{\"text\":\"The quick brown fox\",\"pattern\":\"quick\"}' | jq -e '.matches'"
+run_check "Transform endpoint" bash -c "curl -sf -X POST \"${API_BASE_URL}/api/v1/text/transform\" -H 'Content-Type: application/json' -d '{\"text\":\"hello\",\"transformations\":[{\"type\":\"case\",\"parameters\":{\"type\":\"upper\"}}]}' | jq -e '.result == \"HELLO\"'"
+run_check "Analyze endpoint" bash -c "curl -sf -X POST \"${API_BASE_URL}/api/v1/text/analyze\" -H 'Content-Type: application/json' -d '{\"text\":\"test@example.com\",\"analyses\":[\"entities\"]}' | jq -e '.entities'"
 
-# Test search endpoint
-echo "Testing search endpoint..."
-curl -sf -X POST "http://localhost:${TEXT_TOOLS_API_PORT}/api/v1/text/search" \
-    -H "Content-Type: application/json" \
-    -d '{"text":"The quick brown fox","pattern":"quick"}' | jq -e '.matches' || {
-    echo "❌ Search endpoint failed"
-    exit 1
-}
-echo "✅ Search endpoint passed"
-
-# Test transform endpoint
-echo "Testing transform endpoint..."
-curl -sf -X POST "http://localhost:${TEXT_TOOLS_API_PORT}/api/v1/text/transform" \
-    -H "Content-Type: application/json" \
-    -d '{"text":"hello","transformations":[{"type":"case","parameters":{"type":"upper"}}]}' | jq -e '.result' || {
-    echo "❌ Transform endpoint failed"
-    exit 1
-}
-echo "✅ Transform endpoint passed"
-
-# Test analyze endpoint
-echo "Testing analyze endpoint..."
-curl -sf -X POST "http://localhost:${TEXT_TOOLS_API_PORT}/api/v1/text/analyze" \
-    -H "Content-Type: application/json" \
-    -d '{"text":"test@example.com","analyses":["entities"]}' | jq -e '.entities' || {
-    echo "❌ Analyze endpoint failed"
-    exit 1
-}
-echo "✅ Analyze endpoint passed"
-
-# End test phase with summary
+# End phase with summary
 testing::phase::end_with_summary "Integration tests completed"

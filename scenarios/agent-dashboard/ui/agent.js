@@ -98,7 +98,9 @@ function renderAgentDetails() {
     const port = currentAgent.port || extractPortFromCommand(currentAgent.command) || 'N/A';
     const endpointEl = document.getElementById('agentEndpoint');
     if (endpointEl) {
-        endpointEl.textContent = port !== 'N/A' ? `http://localhost:${port}` : 'N/A';
+        const builder = typeof window.buildAgentDashboardApiUrl === 'function' ? window.buildAgentDashboardApiUrl : null;
+        const derivedUrl = builder ? builder(`/agents/${encodeURIComponent(currentAgent.id)}`) : (port !== 'N/A' ? `http://localhost:${port}` : null);
+        endpointEl.textContent = derivedUrl || 'N/A';
     }
     
     // Update capabilities
@@ -621,6 +623,13 @@ function renderEnvironmentVariables() {
         'RESOURCE_NAME': currentAgent.type.toUpperCase(),
         'AGENT_ID': currentAgent.id
     };
+
+    const resolvedBase = typeof window.resolveAgentDashboardApiBase === 'function'
+        ? window.resolveAgentDashboardApiBase()
+        : null;
+    if (resolvedBase) {
+        defaultEnvVars.API_BASE_URL = resolvedBase;
+    }
     
     const allEnvVars = { ...defaultEnvVars, ...envVars };
     const envEntries = Object.entries(allEnvVars);

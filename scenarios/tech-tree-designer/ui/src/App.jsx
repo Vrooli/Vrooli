@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Brain,
   GitBranch,
@@ -12,7 +12,10 @@ import {
   Database,
   LayoutDashboard,
   PenSquare,
-  ExternalLink
+  ExternalLink,
+  Maximize2,
+  Minimize2,
+  X
 } from 'lucide-react'
 import ReactFlow, { Background, Controls, MiniMap } from 'react-flow-renderer'
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
@@ -70,6 +73,11 @@ function App() {
   const [selectedSector, setSelectedSector] = useState(null)
   const [viewMode, setViewMode] = useState('overview')
   const [graphNotice, setGraphNotice] = useState(null)
+  const [canFullscreen, setCanFullscreen] = useState(true)
+  const [isNativeFullscreen, setIsNativeFullscreen] = useState(false)
+  const [isLayoutFullscreen, setIsLayoutFullscreen] = useState(false)
+  const techTreeCanvasRef = useRef(null)
+  const isFullscreen = isNativeFullscreen || isLayoutFullscreen
 
   useEffect(() => {
     fetchData()
@@ -344,6 +352,154 @@ function App() {
       return '/apps/graph-studio/proxy/'
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined
+    }
+
+    const fullscreenSupported = Boolean(
+      document.fullscreenEnabled ||
+        document.webkitFullscreenEnabled ||
+        document.mozFullScreenEnabled ||
+        document.msFullscreenEnabled ||
+        document.fullscreenEnabled === undefined
+    )
+
+    const fallbackAvailable = true
+    setCanFullscreen(fullscreenSupported || fallbackAvailable)
+
+    const handleFullscreenChange = () => {
+      const fullscreenElement =
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+
+      const isCanvasFullscreen = Boolean(
+        fullscreenElement &&
+          techTreeCanvasRef.current &&
+          techTreeCanvasRef.current.contains(fullscreenElement)
+      )
+
+      setIsNativeFullscreen(isCanvasFullscreen)
+
+      if (
+        fullscreenElement &&
+        techTreeCanvasRef.current &&
+        !techTreeCanvasRef.current.contains(fullscreenElement)
+      ) {
+        setIsLayoutFullscreen(false)
+      }
+    }
+
+    const events = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
+    events.forEach((event) => document.addEventListener(event, handleFullscreenChange))
+    handleFullscreenChange()
+
+    return () => {
+      events.forEach((event) => document.removeEventListener(event, handleFullscreenChange))
+    }
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (typeof document === 'undefined' || !techTreeCanvasRef.current) {
+      return
+    }
+
+    const element = techTreeCanvasRef.current
+    const requestFullscreen =
+      element.requestFullscreen ||
+      element.webkitRequestFullscreen ||
+      element.mozRequestFullScreen ||
+      element.msRequestFullscreen
+    const exitFullscreen =
+      document.exitFullscreen ||
+      document.webkitExitFullscreen ||
+      document.mozCancelFullScreen ||
+      document.msExitFullscreen
+
+    if (isNativeFullscreen) {
+      if (typeof exitFullscreen === 'function') {
+        exitFullscreen.call(document).catch((error) => {
+          console.warn('Failed to exit fullscreen mode:', error)
+        })
+      } else {
+        console.warn('Fullscreen exit API unavailable; clearing immersive layout state')
+        setIsLayoutFullscreen(false)
+      }
+      return
+    }
+
+    if (isLayoutFullscreen) {
+      setIsLayoutFullscreen(false)
+      return
+    }
+
+    const enterNativeFullscreen = async () => {
+      if (typeof requestFullscreen !== 'function') {
+        throw new Error('Fullscreen API unavailable on element')
+      }
+
+      const existingFullscreenElement =
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+
+      if (
+        existingFullscreenElement &&
+        existingFullscreenElement !== element &&
+        typeof exitFullscreen === 'function'
+      ) {
+        await exitFullscreen.call(document)
+      }
+
+      await requestFullscreen.call(element)
+    }
+
+    enterNativeFullscreen().catch((error) => {
+      console.warn('Native fullscreen unavailable; enabling immersive fallback:', error)
+      setIsLayoutFullscreen(true)
+    })
+  }, [isNativeFullscreen, isLayoutFullscreen])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined
+    }
+
+    const immersiveClass = 'tech-tree-immersive-active'
+    const { body } = document
+
+    if (isLayoutFullscreen) {
+      body.classList.add(immersiveClass)
+    } else {
+      body.classList.remove(immersiveClass)
+    }
+
+    return () => {
+      body.classList.remove(immersiveClass)
+    }
+  }, [isLayoutFullscreen])
+
+  useEffect(() => {
+    if (!isLayoutFullscreen || typeof window === 'undefined') {
+      return undefined
+    }
+
+    const handleKeydown = (event) => {
+      if (event.key === 'Escape' || event.key === 'Esc') {
+        setIsLayoutFullscreen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeydown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeydown)
+    }
+  }, [isLayoutFullscreen])
 
   if (loading) {
     return (
@@ -674,14 +830,30 @@ function App() {
           dependencies={dependencies}
           graphStudioUrl={graphStudioUrl}
           graphNotice={graphNotice}
+          techTreeCanvasRef={techTreeCanvasRef}
+          isFullscreen={isFullscreen}
+          isLayoutFullscreen={isLayoutFullscreen}
+          toggleFullscreen={toggleFullscreen}
+          canFullscreen={canFullscreen}
         />
       )}
     </main>
   )
 }
 
-function TechTreeCanvas({ sectors, dependencies, graphStudioUrl, graphNotice }) {
+function TechTreeCanvas({
+  sectors,
+  dependencies,
+  graphStudioUrl,
+  graphNotice,
+  techTreeCanvasRef,
+  isFullscreen,
+  isLayoutFullscreen,
+  toggleFullscreen,
+  canFullscreen
+}) {
   const [selectedStageId, setSelectedStageId] = useState(null)
+  const [isCompactLayout, setIsCompactLayout] = useState(false)
 
   const { nodes, edges, stageLookup } = useMemo(() => {
     const stageMap = new Map()
@@ -764,10 +936,63 @@ function TechTreeCanvas({ sectors, dependencies, graphStudioUrl, graphNotice }) 
   }, [sectors, dependencies])
 
   const selectedStage = selectedStageId ? stageLookup.get(selectedStageId) : null
+  const stageDetailTitleId = selectedStage
+    ? (() => {
+        const rawId = String(selectedStage.id || selectedStage.name || 'stage')
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+        const normalizedId = rawId.length ? rawId : 'selected-stage'
+        return `stage-detail-${normalizedId}`
+      })()
+    : undefined
+  const shouldShowDialog = Boolean(isFullscreen || isLayoutFullscreen || isCompactLayout)
 
   const handleNodeClick = useCallback((_, node) => {
     setSelectedStageId(node?.id || null)
   }, [])
+
+  const handleCloseStageDetail = useCallback(() => {
+    setSelectedStageId(null)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 1120px)')
+    const handleChange = (event) => {
+      setIsCompactLayout(event.matches)
+    }
+
+    setIsCompactLayout(mediaQuery.matches)
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange)
+      return () => mediaQuery.removeEventListener('change', handleChange)
+    }
+
+    mediaQuery.addListener(handleChange)
+    return () => mediaQuery.removeListener(handleChange)
+  }, [])
+
+  useEffect(() => {
+    if (!shouldShowDialog || !selectedStageId || typeof document === 'undefined') {
+      return undefined
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        handleCloseStageDetail()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [handleCloseStageDetail, selectedStageId, shouldShowDialog])
 
   const renderScenarioMappings = (stage) => {
     const mappings = stage?.scenario_mappings || stage?.scenarioMappings || []
@@ -783,23 +1008,98 @@ function TechTreeCanvas({ sectors, dependencies, graphStudioUrl, graphNotice }) 
     ))
   }
 
+  const renderStageDetailContent = (stage, titleId) => (
+    <div className="stage-detail">
+      <header className="stage-detail__header">
+        <h3 id={titleId}>{stage.name}</h3>
+        <span
+          className="stage-detail__badge"
+          style={{ background: stageTypePalette[stage.stage_type || 'foundation'] }}
+        >
+          {stageTypeLabel[stage.stage_type || 'foundation']}
+        </span>
+      </header>
+      <p className="stage-detail__sector">{stage.sector?.name}</p>
+      <p className="stage-detail__description">{stage.description || 'No description available yet.'}</p>
+
+      <div className="stage-detail__metrics">
+        <div>
+          <span className="stage-detail__metric-label">Progress</span>
+          <span className="stage-detail__metric-value">{stage.progress_percentage ?? 0}%</span>
+        </div>
+        <div>
+          <span className="stage-detail__metric-label">Order</span>
+          <span className="stage-detail__metric-value">{stage.stage_order ?? '—'}</span>
+        </div>
+      </div>
+
+      <div className="stage-detail__stack">
+        <h4>Enabled Scenarios</h4>
+        <ul>{renderScenarioMappings(stage)}</ul>
+      </div>
+
+      {Array.isArray(stage.examples) ? (
+        <div className="stage-detail__stack">
+          <h4>Examples</h4>
+          <ul>
+            {stage.examples.map((example) => (
+              <li key={example}>{example}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  )
+
+  const sidebarClassName = ['tech-tree-sidebar', shouldShowDialog ? 'tech-tree-sidebar--hidden' : null]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <section className="tech-tree-designer" aria-label="Interactive tech tree canvas">
-      <div className="tech-tree-canvas" role="application" aria-label="Tech tree graph">
+      <div
+        ref={techTreeCanvasRef}
+        className={[
+          'tech-tree-canvas',
+          isFullscreen && 'tech-tree-canvas--fullscreen',
+          isLayoutFullscreen && 'tech-tree-canvas--immersive'
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        role="application"
+        aria-label="Tech tree graph"
+      >
         <div className="tech-tree-canvas__header">
           <div>
             <h2>Tech Tree Graph</h2>
             <p>Navigate nodes, inspect dependencies, and hand off to Graph Studio for structural edits.</p>
           </div>
-          <a
-            className="graph-studio-link"
-            href={graphStudioUrl || '#'}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            <ExternalLink className="graph-studio-link__icon" aria-hidden="true" />
-            Open in Graph Studio
-          </a>
+          <div className="tech-tree-actions">
+            <button
+              type="button"
+              className={`canvas-fullscreen-button${isFullscreen ? ' is-active' : ''}`}
+              onClick={toggleFullscreen}
+              aria-pressed={isFullscreen}
+              aria-label={isFullscreen ? 'Exit full screen for tech tree graph' : 'Enter full screen for tech tree graph'}
+              disabled={!canFullscreen}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="canvas-fullscreen-button__icon" aria-hidden="true" />
+              ) : (
+                <Maximize2 className="canvas-fullscreen-button__icon" aria-hidden="true" />
+              )}
+              <span>{isFullscreen ? 'Exit full screen' : 'Full screen'}</span>
+            </button>
+            <a
+              className="graph-studio-link"
+              href={graphStudioUrl || '#'}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              <ExternalLink className="graph-studio-link__icon" aria-hidden="true" />
+              Open in Graph Studio
+            </a>
+          </div>
         </div>
 
         {graphNotice ? (
@@ -814,10 +1114,12 @@ function TechTreeCanvas({ sectors, dependencies, graphStudioUrl, graphNotice }) 
             nodes={nodes}
             edges={edges}
             onNodeClick={handleNodeClick}
+            onPaneClick={handleCloseStageDetail}
             fitView
             fitViewOptions={{ padding: 0.2, minZoom: 0.4, maxZoom: 1.4 }}
           >
             <MiniMap
+              className="tech-tree-minimap"
               nodeColor={(node) => node?.data?.sectorColor || '#1e293b'}
               maskColor="rgba(15, 23, 42, 0.65)"
               pannable
@@ -827,47 +1129,41 @@ function TechTreeCanvas({ sectors, dependencies, graphStudioUrl, graphNotice }) 
             <Background gap={18} color="rgba(30, 41, 59, 0.35)" />
           </ReactFlow>
         </div>
+
+        {shouldShowDialog && selectedStage ? (
+          <div
+            className="stage-dialog-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={stageDetailTitleId}
+            onClick={handleCloseStageDetail}
+          >
+            <div
+              className="stage-dialog"
+              role="document"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="stage-dialog__close"
+                onClick={handleCloseStageDetail}
+                aria-label="Close stage details"
+              >
+                <X className="stage-dialog__close-icon" aria-hidden="true" />
+              </button>
+              {renderStageDetailContent(selectedStage, stageDetailTitleId)}
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      <aside className="tech-tree-sidebar" aria-label="Stage details">
+      <aside
+        className={sidebarClassName}
+        aria-label="Stage details"
+        aria-hidden={shouldShowDialog}
+      >
         {selectedStage ? (
-          <div className="stage-detail">
-            <header className="stage-detail__header">
-              <h3>{selectedStage.name}</h3>
-              <span className="stage-detail__badge" style={{ background: stageTypePalette[selectedStage.stage_type || 'foundation'] }}>
-                {stageTypeLabel[selectedStage.stage_type || 'foundation']}
-              </span>
-            </header>
-            <p className="stage-detail__sector">{selectedStage.sector?.name}</p>
-            <p className="stage-detail__description">{selectedStage.description || 'No description available yet.'}</p>
-
-            <div className="stage-detail__metrics">
-              <div>
-                <span className="stage-detail__metric-label">Progress</span>
-                <span className="stage-detail__metric-value">{selectedStage.progress_percentage ?? 0}%</span>
-              </div>
-              <div>
-                <span className="stage-detail__metric-label">Order</span>
-                <span className="stage-detail__metric-value">{selectedStage.stage_order ?? '—'}</span>
-              </div>
-            </div>
-
-            <div className="stage-detail__stack">
-              <h4>Enabled Scenarios</h4>
-              <ul>{renderScenarioMappings(selectedStage)}</ul>
-            </div>
-
-            {Array.isArray(selectedStage.examples) ? (
-              <div className="stage-detail__stack">
-                <h4>Examples</h4>
-                <ul>
-                  {selectedStage.examples.map((example) => (
-                    <li key={example}>{example}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
+          renderStageDetailContent(selectedStage, stageDetailTitleId)
         ) : (
           <div className="stage-placeholder">
             <p>Select a node in the graph to inspect sector context and linked scenarios.</p>

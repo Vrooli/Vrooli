@@ -1,69 +1,70 @@
 #!/bin/bash
-set -euo pipefail
+# Business-layer validation: ensure core workflows and artefacts remain wired.
 
-echo "💼 Running Secure Document Processing business logic tests"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCENARIO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." &amp;&amp; pwd )"
+testing::phase::init --target-time "120s"
 
-# Business workflow validation
-echo "🔍 Validating core business workflows..."
+SCENARIO_DIR="$TESTING_PHASE_SCENARIO_DIR"
 
-# Check if key business files exist and have content
-business_files=(
-    "PRD.md"
-    "IMPLEMENTATION_PLAN.md"
-    "initialization/automation/n8n/document-intake.json"
-    "initialization/automation/n8n/process-orchestrator.json"
-    "api/main.go"
+key_documents=(
+  PRD.md
+  IMPLEMENTATION_PLAN.md
+  TEST_IMPLEMENTATION_SUMMARY.md
+  TEST_COVERAGE_REPORT.md
 )
-
-for file in "${business_files[@]}"; do
-    if [ -f "$SCENARIO_DIR/$file" ] &amp;&amp; [ -s "$SCENARIO_DIR/$file" ]; then
-        echo "✅ Business file present and non-empty: $file"
-    else
-        echo "❌ Missing or empty business file: $file"
-        exit 1
-    fi
-done
-
-# Validate n8n workflows (basic JSON syntax)
-n8n_workflows=(document-intake process-orchestrator prompt-processor semantic-indexer workflow-executor)
-for workflow in "${n8n_workflows[@]}"; do
-    workflow_file="initialization/automation/n8n/$workflow.json"
-    if [ -f "$SCENARIO_DIR/$workflow_file" ]; then
-        if jq empty "$SCENARIO_DIR/$workflow_file" 2&gt;/dev/null; then
-            echo "✅ n8n workflow valid JSON: $workflow"
-        else
-            echo "❌ Invalid JSON in n8n workflow: $workflow"
-            exit 1
-        fi
-    fi
-done
-
-# Check database schema for business entities
-if [ -f "$SCENARIO_DIR/initialization/storage/postgres/schema.sql" ]; then
-    if grep -q -E "(documents|jobs|workflows|audit_logs)" "$SCENARIO_DIR/initialization/storage/postgres/schema.sql"; then
-        echo "✅ Database schema includes business entities"
-    else
-        echo "⚠️  Database schema may be missing business tables"
-    fi
-fi
-
-# API business endpoints check (assuming service running)
-# For static check, verify API has business routes
-if grep -q -E "(documents|jobs|process|workflow)" "$SCENARIO_DIR/api/main.go"; then
-    echo "✅ API source includes business endpoints"
+if testing::phase::check_files "${key_documents[@]}"; then
+  testing::phase::add_test passed
 else
-    echo "⚠️  API may be missing business route implementations"
+  testing::phase::add_test failed
 fi
 
-# Security and compliance business requirements
-if [ -f "$SCENARIO_DIR/initialization/configuration/encryption-config.json" ]; then
-    echo "✅ Encryption configuration present"
+# Validate that the n8n workflow blueprints remain syntactically correct.
+workflow_files=(
+  initialization/automation/n8n/document-intake.json
+  initialization/automation/n8n/process-orchestrator.json
+  initialization/automation/n8n/prompt-processor.json
+  initialization/automation/n8n/workflow-executor.json
+  initialization/automation/n8n/semantic-indexer.json
+)
+if command -v jq >/dev/null 2>&1; then
+  for workflow in "${workflow_files[@]}"; do
+    testing::phase::check "Workflow JSON valid: $workflow" jq empty "$workflow"
+  done
+else
+  testing::phase::add_warning "jq not available; skipping workflow JSON validation"
+  testing::phase::add_test skipped
 fi
 
-if [ -f "$SCENARIO_DIR/initialization/configuration/compliance-config.json" ]; then
-    echo "✅ Compliance configuration present"
+# Ensure the database schema retains business critical tables.
+if [ -f "$SCENARIO_DIR/initialization/storage/postgres/schema.sql" ]; then
+  testing::phase::check "Schema contains business tables" \
+    bash -c 'grep -E "(documents|jobs|workflows|audit_logs)" initialization/storage/postgres/schema.sql >/dev/null'
+else
+  testing::phase::add_warning "Postgres schema missing; cannot verify business tables"
+  testing::phase::add_test skipped
 fi
 
-echo "✅ All business logic validation passed"
+# Confirm API source still exposes the documented routes.
+if [ -f "$SCENARIO_DIR/api/main.go" ]; then
+  testing::phase::check "API exposes document workflow handlers" \
+    bash -c 'grep -E "(documents|jobs|workflows)" api/main.go >/dev/null'
+else
+  testing::phase::add_warning "API source missing; skipping endpoint signature check"
+  testing::phase::add_test skipped
+fi
+
+optional_configs=(
+  initialization/configuration/encryption-config.json
+  initialization/configuration/security-policies.json
+  initialization/configuration/compliance-config.json
+)
+for cfg in "${optional_configs[@]}"; do
+  if [ ! -f "$SCENARIO_DIR/$cfg" ]; then
+    testing::phase::add_warning "Optional configuration absent: $cfg"
+  fi
+done
+
+testing::phase::end_with_summary "Business logic validation completed"

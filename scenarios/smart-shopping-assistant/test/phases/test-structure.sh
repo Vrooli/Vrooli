@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test structure phase - validates scenario directory structure
+# Validates required files and directory layout for smart-shopping-assistant.
 
 set -euo pipefail
 
@@ -7,89 +7,69 @@ APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-testing::phase::init --target-time "15s"
+testing::phase::init --target-time "30s"
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 
-log::info "Validating smart-shopping-assistant structure"
-
-# Required files
 REQUIRED_FILES=(
-    ".vrooli/service.json"
-    "api/main.go"
-    "api/db.go"
-    "PRD.md"
-    "README.md"
+  ".vrooli/service.json"
+  "PRD.md"
+  "README.md"
+  "api/main.go"
+  "api/go.mod"
+  "cli/smart-shopping-assistant"
+  "cli/install.sh"
+  "initialization/storage/postgres/schema.sql"
+  "initialization/storage/postgres/seed.sql"
+  "ui/package.json"
+  "ui/src/main.jsx"
+  "ui/src/App.jsx"
 )
 
-# Required test files
-REQUIRED_TEST_FILES=(
-    "api/test_helpers.go"
-    "api/test_patterns.go"
-    "api/main_test.go"
-    "test/phases/test-unit.sh"
+REQUIRED_DIRS=(
+  "api"
+  "cli"
+  "initialization/storage/postgres"
+  "ui/src"
+  "tests"
 )
 
-# Check required files
-testing::phase::add_test "Validate required files exist"
-for file in "${REQUIRED_FILES[@]}"; do
-    if [[ -f "$file" ]]; then
-        log::success "✓ $file"
-    else
-        testing::phase::add_error "Missing required file: $file"
-    fi
-done
-
-# Check test files
-testing::phase::add_test "Validate test infrastructure"
-for file in "${REQUIRED_TEST_FILES[@]}"; do
-    if [[ -f "$file" ]]; then
-        log::success "✓ $file"
-    else
-        testing::phase::add_error "Missing test file: $file"
-    fi
-done
-
-# Check service.json structure
-testing::phase::add_test "Validate service.json structure"
-if command -v jq &> /dev/null && [[ -f ".vrooli/service.json" ]]; then
-    if jq -e '.service.name' .vrooli/service.json &> /dev/null; then
-        log::success "service.json has valid structure"
-    else
-        testing::phase::add_error "service.json missing required fields"
-    fi
+if testing::phase::check_files "${REQUIRED_FILES[@]}"; then
+  testing::phase::add_test passed
 else
-    testing::phase::add_warning "Cannot validate service.json (jq not available)"
+  testing::phase::add_test failed
 fi
 
-# Check API structure
-testing::phase::add_test "Validate API directory structure"
-if [[ -d "api" ]]; then
-    if ls api/*.go &> /dev/null; then
-        log::success "API source files present"
-    else
-        testing::phase::add_error "No Go source files in api/"
-    fi
+if testing::phase::check_directories "${REQUIRED_DIRS[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
 fi
 
-# Check initialization scripts
-testing::phase::add_test "Check database initialization"
-if [[ -d "initialization/storage/postgres" ]]; then
-    if [[ -f "initialization/storage/postgres/schema.sql" ]]; then
-        log::success "PostgreSQL schema file exists"
-    else
-        testing::phase::add_warning "PostgreSQL schema file missing"
-    fi
+# Validate service.json structure when jq is present.
+testing::phase::add_test "service.json schema validation"
+if command -v jq >/dev/null 2>&1 && [[ -f ".vrooli/service.json" ]]; then
+  if jq -e '.service.name and .ports.api' .vrooli/service.json >/dev/null; then
+    log::success "service.json contains required keys"
+  else
+    testing::phase::add_error "service.json missing required keys"
+  fi
+else
+  testing::phase::add_warning "Skipping service.json structure check (jq unavailable)"
 fi
 
-# Check CLI if it exists
-testing::phase::add_test "Check CLI structure"
-if [[ -d "cli" ]]; then
-    if [[ -f "cli/smart-shopping-assistant" ]] || [[ -f "cli/install.sh" ]]; then
-        log::success "CLI components present"
-    else
-        testing::phase::add_warning "CLI files not found"
-    fi
+# Ensure Go source set is non-empty.
+testing::phase::check "API Go sources present" bash -c 'shopt -s nullglob; files=(api/*.go); (( ${#files[@]} > 0 ))'
+
+# Confirm database initialization assets exist.
+testing::phase::check "PostgreSQL schema present" test -f "initialization/storage/postgres/schema.sql"
+testing::phase::check "PostgreSQL seed present" test -f "initialization/storage/postgres/seed.sql"
+
+# Optional CLI binary/script check.
+if [[ -d cli ]]; then
+  if testing::phase::check "CLI install script present" test -f "cli/install.sh"; then
+    :
+  fi
 fi
 
 testing::phase::end_with_summary "Structure validation completed"

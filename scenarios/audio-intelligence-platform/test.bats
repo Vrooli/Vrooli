@@ -1,82 +1,43 @@
 #!/usr/bin/env bats
-# Tests for audio-intelligence-platform test script
-# Validates test script functionality
+# Tests for phased testing configuration in audio-intelligence-platform
 
 bats_require_minimum_version 1.5.0
 
-# Source trash module for safe test cleanup
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/scenarios/audio-intelligence-platform"
-# shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+SCENARIO_DIR="${APP_ROOT}/scenarios/audio-intelligence-platform"
+TEST_DIR="${SCENARIO_DIR}/test"
 
-# Load test setup
 # shellcheck disable=SC1091
-load "../../../__test/fixtures/setup.bash"
+source "${APP_ROOT}/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+load "${APP_ROOT}/__test/fixtures/setup.bash"
 
 setup() {
-    vrooli_setup_unit_test
-    
-    # Create test scenario structure
-    export TEST_SCENARIO_DIR="${BATS_TEST_TMPDIR}/test_scenario"
-    mkdir -p "$TEST_SCENARIO_DIR/initialization"
-    
-    # Create mock scenario-test.yaml
-    cat > "$TEST_SCENARIO_DIR/scenario-test.yaml" << 'EOF'
-name: "Audio Intelligence Platform Test"
-version: "1.0.0"
-description: "Test scenario configuration"
-EOF
-    
-    # Override SCENARIO_DIR for testing
-    export SCENARIO_DIR="$TEST_SCENARIO_DIR"
-    
-    # Load the script under test
-    # shellcheck disable=SC1091
-    source "${BATS_TEST_DIRNAME}/test.sh"
+  vrooli_setup_unit_test
 }
 
 teardown() {
-    vrooli_cleanup_test
+  vrooli_cleanup_test
 }
 
-@test "test.sh loads without errors" {
-    # Test that the script can be sourced without errors
-    true
+@test "run-tests.sh uses shared runner" {
+  run grep -q 'testing::runner::init' "$TEST_DIR/run-tests.sh"
+  assert_success
 }
 
-@test "test.sh has required variables" {
-    [[ -n "${SCENARIO_DIR:-}" ]]
-}
-
-@test "test.sh log functions work" {
-    run log::info "test message"
+@test "phase scripts use phase helpers" {
+  for phase in test-structure.sh test-dependencies.sh test-unit.sh test-integration.sh test-business.sh test-performance.sh; do
+    run grep -q 'testing::phase::init' "$TEST_DIR/phases/$phase"
     assert_success
-    
-    run log::success "test success"
-    assert_success
-    
-    run log::error "test error"
-    assert_success
+  done
 }
 
-@test "test.sh validation checks work with valid scenario" {
-    # The test should pass with our mock scenario structure
-    # Note: We don't run the full script as it would exit, just test components work
-    
-    # Test scenario structure validation components
-    [[ -f "$SCENARIO_DIR/scenario-test.yaml" ]]
-    [[ -d "$SCENARIO_DIR/initialization" ]]
+@test "service.json points to phased runner" {
+  run jq -r '.test.steps[0].run' "$SCENARIO_DIR/.vrooli/service.json"
+  assert_success
+  assert_output "test/run-tests.sh"
 }
 
-@test "test.sh validation checks fail with missing files" {
-    # Remove required file and test validation would fail
-    trash::safe_remove "$TEST_SCENARIO_DIR/scenario-test.yaml" --test-cleanup
-    
-    # Test that file is missing (which would cause script to fail)
-    [[ ! -f "$SCENARIO_DIR/scenario-test.yaml" ]]
+@test "legacy scenario-test.yaml removed" {
+  [ ! -f "$SCENARIO_DIR/scenario-test.yaml" ]
 }
-
-# Assertion functions are provided by test fixtures

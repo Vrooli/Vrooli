@@ -1,51 +1,54 @@
 #!/bin/bash
+# Run API and WebSocket integration checks against a live scenario instance
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Integration Tests ==="
+testing::phase::init --target-time "300s" --require-runtime
 
-# Test API integration
-echo "Running API integration tests..."
-cd api
-if [ -f "go.mod" ]; then
-    # Test database connections
-    echo "Testing database integration..."
-    go test -v -run "TestDB" ./... -short 2>/dev/null || echo "⚠️  No database integration tests found"
+SCENARIO_NAME="$TESTING_PHASE_SCENARIO_NAME"
+API_URL=""
 
-    # Test API endpoints
-    echo "Testing API endpoints..."
-    go test -v -run "TestAPI" ./... -short 2>/dev/null || echo "⚠️  No API integration tests found"
-
-    echo "✅ API integration tests completed"
+if API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME"); then
+  :
 else
-    echo "⚠️  No go.mod found, skipping API integration tests"
+  testing::phase::add_warning "Unable to resolve API URL for ${SCENARIO_NAME}; HTTP integration checks will be skipped"
 fi
-cd ..
 
-# Test CLI integration
-echo "Running CLI integration tests..."
-cd cli
-if [ -f "go.mod" ]; then
-    go test -v -run "TestCLI" ./... -short 2>/dev/null || echo "⚠️  No CLI integration tests found"
-    echo "✅ CLI integration tests completed"
+testing::phase::check "API health endpoint responds" testing::connectivity::test_api "$SCENARIO_NAME"
+
+run_script_if_present() {
+  local description=$1
+  local script_path=$2
+  local env_var_name=${3:-}
+  local env_var_value=${4:-}
+
+  if [ ! -f "$script_path" ]; then
+    testing::phase::add_warning "Integration helper missing: ${script_path}"
+    testing::phase::add_test skipped
+    return 0
+  fi
+
+  if [ -n "$env_var_name" ]; then
+    testing::phase::check "$description" env "$env_var_name=$env_var_value" bash "$script_path"
+  else
+    testing::phase::check "$description" bash "$script_path"
+  fi
+}
+
+if [ -n "$API_URL" ]; then
+  run_script_if_present "REST API smoke suite" "$TESTING_PHASE_SCENARIO_DIR/test/test-api-endpoints-improved.sh" API_BASE_URL "$API_URL"
 else
-    echo "⚠️  No go.mod found, skipping CLI integration tests"
+  testing::phase::add_warning "Skipping REST API smoke suite without resolved API URL"
+  testing::phase::add_test skipped
 fi
-cd ..
 
-# Test UI integration
-echo "Running UI integration tests..."
-cd ui
-if [ -f "package.json" ] && [ -d "node_modules" ]; then
-    if npm list --depth=0 | grep -q "cypress\|playwright\|puppeteer"; then
-        npm run test:e2e 2>/dev/null || echo "⚠️  No E2E test script available"
-        echo "✅ UI integration tests completed"
-    else
-        echo "⚠️  No integration testing framework found, skipping UI integration tests"
-    fi
+if [ -n "$API_URL" ]; then
+  run_script_if_present "WebSocket integration suite" "$TESTING_PHASE_SCENARIO_DIR/test/test-websocket-integration.sh" API_BASE_URL "$API_URL"
 else
-    echo "⚠️  UI dependencies not installed, skipping UI integration tests"
+  testing::phase::add_warning "Skipping WebSocket integration without resolved API URL"
+  testing::phase::add_test skipped
 fi
-cd ..
 
-echo "=== Integration Tests Complete ==="
+testing::phase::end_with_summary "Integration validation completed"

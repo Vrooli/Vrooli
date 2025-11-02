@@ -517,7 +517,7 @@ structure:
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
     - initialization/automation/n8n/schema-inspector.json
-    - scenario-test.yaml
+    - test/run-tests.sh
     
   required_dirs:
     - api
@@ -525,6 +525,7 @@ structure:
     - ui
     - initialization/automation/n8n
     - initialization/storage/postgres
+    - test/phases
 
 resources:
   required: [postgres, qdrant, ollama, n8n]

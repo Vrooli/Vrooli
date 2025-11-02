@@ -140,30 +140,12 @@
       ]
     },
     "test": {
-      "description": "Test scenario surfer API and UI",
+      "description": "Comprehensive phased testing",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-ui-health",
-          "run": "curl -sf http://localhost:$UI_PORT/",
-          "description": "Test UI accessibility"
-        },
-        {
-          "name": "test-scenario-discovery",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/scenarios/healthy",
-          "description": "Test scenario discovery endpoint"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased Scenario Surfer test suite"
         }
       ]
     },

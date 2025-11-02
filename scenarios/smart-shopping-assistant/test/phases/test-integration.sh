@@ -1,7 +1,5 @@
 #!/bin/bash
-
-# Integration test phase for smart-shopping-assistant
-# Tests API endpoints with running service
+# Validates smart-shopping-assistant API endpoints when the scenario is running.
 
 set -euo pipefail
 
@@ -9,66 +7,84 @@ APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-testing::phase::init --target-time "120s"
+testing::phase::init --target-time "180s" --require-runtime
 
-SCENARIO_NAME="smart-shopping-assistant"
-API_PORT="${SMART_SHOPPING_ASSISTANT_API_PORT:-3300}"
-API_URL="http://localhost:${API_PORT}"
+SCENARIO_NAME="$TESTING_PHASE_SCENARIO_NAME"
+API_URL=""
 
-echo "Testing integration with smart-shopping-assistant API at ${API_URL}"
-
-# Test health endpoint
-testing::phase::log "Testing health endpoint..."
-health_response=$(curl -s -f "${API_URL}/health" || echo "FAILED")
-if [[ "$health_response" == "FAILED" ]]; then
-    testing::phase::error "Health check failed - service may not be running"
-    exit 1
+if API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME"); then
+  log::info "Using API endpoint at $API_URL"
+else
+  testing::phase::add_error "Unable to discover API port for $SCENARIO_NAME"
+  testing::phase::end_with_summary "Integration tests incomplete"
 fi
 
-echo "✅ Health check passed"
+execute_request() {
+  local description="$1"
+  local method="$2"
+  local path="$3"
+  local payload="${4:-}"
+  local response
 
-# Test shopping research endpoint
-testing::phase::log "Testing shopping research endpoint..."
-research_response=$(curl -s -X POST "${API_URL}/api/v1/shopping/research" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "profile_id": "test-user",
-        "query": "laptop",
-        "budget_max": 1000.00,
-        "include_alternatives": true
-    }' || echo "FAILED")
+  testing::phase::add_test "$description"
 
-if [[ "$research_response" == "FAILED" ]]; then
-    testing::phase::error "Shopping research endpoint failed"
-    exit 1
+  if [[ -n "$payload" ]]; then
+    if response=$(curl -sf -X "$method" "$API_URL$path" \
+      -H "Content-Type: application/json" \
+      -d "$payload"); then
+      log::success "✅ $description"
+      printf '%s' "$response"
+      return 0
+    fi
+  else
+    if response=$(curl -sf -X "$method" "$API_URL$path"); then
+      log::success "✅ $description"
+      printf '%s' "$response"
+      return 0
+    fi
+  fi
+
+  testing::phase::add_error "$description failed"
+  return 1
+}
+
+# Health endpoint must respond with expected keys.
+health_json=""
+if health_json=$(execute_request "API health endpoint" GET "/health"); then
+  if command -v jq >/dev/null 2>&1; then
+    if ! echo "$health_json" | jq -e '.status == "healthy"' >/dev/null; then
+      testing::phase::add_warning "Health payload missing expected status field"
+    fi
+  elif [[ "$health_json" != *"healthy"* ]]; then
+    testing::phase::add_warning "Health response does not mention 'healthy'"
+  fi
 fi
 
-echo "✅ Shopping research endpoint passed"
-
-# Test tracking endpoint
-testing::phase::log "Testing tracking endpoint..."
-tracking_response=$(curl -s -f "${API_URL}/api/v1/shopping/tracking/test-user" || echo "FAILED")
-if [[ "$tracking_response" == "FAILED" ]]; then
-    testing::phase::error "Tracking endpoint failed"
-    exit 1
+# Shopping research endpoint should return product data.
+research_json=""
+if research_json=$(execute_request "POST /api/v1/shopping/research" POST \
+  "/api/v1/shopping/research" \
+  '{"profile_id":"test-user","query":"laptop","budget_max":1000.0,"include_alternatives":true}'); then
+  if [[ "$research_json" != *"products"* ]]; then
+    testing::phase::add_warning "Research response missing products field"
+  fi
+  if [[ "$research_json" != *"alternatives"* ]]; then
+    testing::phase::add_warning "Research response missing alternatives field"
+  fi
 fi
 
-echo "✅ Tracking endpoint passed"
+# Tracking endpoint exposes tracked items.
+execute_request "GET /api/v1/shopping/tracking" GET \
+  "/api/v1/shopping/tracking/test-user"
 
-# Test pattern analysis endpoint
-testing::phase::log "Testing pattern analysis endpoint..."
-pattern_response=$(curl -s -X POST "${API_URL}/api/v1/shopping/pattern-analysis" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "profile_id": "test-user",
-        "timeframe": "30d"
-    }' || echo "FAILED")
-
-if [[ "$pattern_response" == "FAILED" ]]; then
-    testing::phase::error "Pattern analysis endpoint failed"
-    exit 1
+# Pattern analysis endpoint returns insights.
+pattern_json=""
+if pattern_json=$(execute_request "POST /api/v1/shopping/pattern-analysis" POST \
+  "/api/v1/shopping/pattern-analysis" \
+  '{"profile_id":"test-user","timeframe":"30d"}'); then
+  if [[ "$pattern_json" != *"patterns"* ]]; then
+    testing::phase::add_warning "Pattern analysis response missing patterns field"
+  fi
 fi
 
-echo "✅ Pattern analysis endpoint passed"
-
-testing::phase::end_with_summary "Integration tests completed successfully"
+testing::phase::end_with_summary "Integration API tests completed"

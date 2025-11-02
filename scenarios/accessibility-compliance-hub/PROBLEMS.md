@@ -1508,7 +1508,7 @@ Updated port configuration to use proper ranges:
 1. `.vrooli/service.json` - Added proper `ports` section with ranges
 2. `ui/app.js` - Updated hardcoded API URL to use environment variable
 3. `README.md` - Updated documentation to reflect dynamic port assignment
-4. `scenario-test.yaml` - Updated test URLs to use environment variables
+4. `test/run-tests.sh` - Adopted phased testing runner with shared tooling
 5. `PRD.md` - Updated API endpoint documentation
 
 ### Verification

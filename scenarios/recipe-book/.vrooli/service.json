@@ -255,37 +255,12 @@
       ]
     },
     "test": {
-      "description": "Test Recipe Book API and CLI",
+      "description": "Phased scenario tests",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation"
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-recipe-creation",
-          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/recipes -H 'Content-Type: application/json' -d '{\"title\":\"Test Recipe\",\"ingredients\":[\"flour\",\"water\"],\"instructions\":[\"Mix\",\"Bake\"]}'",
-          "description": "Test recipe creation"
-        },
-        {
-          "name": "test-semantic-search",
-          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/recipes/search -H 'Content-Type: application/json' -d '{\"query\":\"chocolate dessert\"}'",
-          "description": "Test semantic search"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "recipe-book list --json && recipe-book search 'pasta dishes'",
-          "description": "Test CLI functionality"
-        },
-        {
-          "name": "run-scenario-tests",
-          "run": "vrooli scenario test recipe-book",
-          "description": "Run full scenario test suite"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute structured scenario test phases"
         }
       ]
     },

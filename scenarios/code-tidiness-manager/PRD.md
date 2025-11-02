@@ -562,7 +562,7 @@ structure:
     - cli/code-tidiness-manager
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
-    - scenario-test.yaml
+    - test/run-tests.sh
     
   required_dirs:
     - api

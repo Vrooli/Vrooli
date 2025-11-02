@@ -51,23 +51,25 @@ dev: ## Start in development mode
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME) --dev
 
-test: ## Run tests for this scenario
+test: ## Run phased tests
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario test $(SCENARIO_NAME)
+	@./test/run-tests.sh
 
-test-smoke: ## Run smoke tests only
+test-smoke: ## Run quick smoke preset
 	@echo "$(BLUE)🔥 Running smoke tests...$(RESET)"
-	@bash test/phases/test-smoke.sh
+	@./test/run-tests.sh smoke
 
-test-unit: ## Run unit tests only
+test-unit: ## Run unit phase only
 	@echo "$(BLUE)🧪 Running unit tests...$(RESET)"
-	@bash test/phases/test-unit.sh
+	@./test/run-tests.sh unit
 
-test-integration: ## Run integration tests only
+test-integration: ## Run integration phase only
 	@echo "$(BLUE)🔗 Running integration tests...$(RESET)"
-	@bash test/phases/test-integration.sh
+	@./test/run-tests.sh integration
 
-test-all: test-smoke test-unit test-integration ## Run all test phases
+test-all: ## Run full comprehensive suite
+	@echo "$(BLUE)🔁 Running comprehensive test suite...$(RESET)"
+	@./test/run-tests.sh comprehensive
 	@echo "$(GREEN)✅ All test phases passed!$(RESET)"
 
 logs: ## Show recent logs for this scenario

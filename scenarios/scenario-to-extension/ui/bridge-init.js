@@ -28,6 +28,19 @@ const BRIDGE_FLAG = '__scenarioToExtensionBridgeInitialized'
     window.initIframeBridgeChild = initIframeBridgeChild
   }
 
-  initIframeBridgeChild({ appId: 'scenario-to-extension-ui', parentOrigin })
+  initIframeBridgeChild({
+    appId: 'scenario-to-extension-ui',
+    parentOrigin,
+    captureLogs: {
+      enabled: true,
+      streaming: true,
+      bufferSize: 500,
+    },
+    captureNetwork: {
+      enabled: true,
+      streaming: true,
+      bufferSize: 250,
+    },
+  })
   window[BRIDGE_FLAG] = true
 })()

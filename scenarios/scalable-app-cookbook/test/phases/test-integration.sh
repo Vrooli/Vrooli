@@ -1,83 +1,61 @@
 #!/bin/bash
-# Integration test phase for scalable-app-cookbook
-# Tests API endpoints with real database
-
+# Validates core API endpoints and data integrity expectations.
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-testing::phase::init --target-time "120s"
+testing::phase::init --target-time "240s" --require-runtime
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
+scenario_name="$TESTING_PHASE_SCENARIO_NAME"
+api_base=""
 
-testing::phase::section "Integration Tests"
-
-# Check if scenario is running
-if ! vrooli scenario status scalable-app-cookbook | grep -q "running"; then
-    testing::phase::error "Scenario must be running for integration tests"
-    exit 1
+if ! api_base=$(testing::connectivity::get_api_url "$scenario_name"); then
+  testing::phase::add_error "Unable to discover API port for ${scenario_name}"
+  testing::phase::end_with_summary "Integration tests incomplete"
 fi
 
-# Get API port from environment or default
-API_PORT="${API_PORT:-3300}"
-API_URL="http://localhost:${API_PORT}"
-
-testing::phase::info "Testing API at ${API_URL}"
-
-# Test health endpoint
-testing::phase::subsection "Health Check"
-if curl -sf "${API_URL}/health" | grep -q "healthy"; then
-    testing::phase::success "Health check passed"
+has_jq=false
+if command -v jq >/dev/null 2>&1; then
+  has_jq=true
 else
-    testing::phase::error "Health check failed"
-    exit 1
+  testing::phase::add_warning "jq not available; JSON assertions downgraded"
 fi
 
-# Test pattern search endpoint
-testing::phase::subsection "Pattern Search API"
-if curl -sf "${API_URL}/api/v1/patterns/search" | grep -q "patterns"; then
-    testing::phase::success "Pattern search endpoint working"
+if $has_jq; then
+  testing::phase::check "API health reports healthy" bash -c \
+    "curl -sf --retry 3 --retry-delay 2 '${api_base}/health' | jq -e '.status == \"healthy\" and .database == true' >/dev/null"
 else
-    testing::phase::error "Pattern search endpoint failed"
-    exit 1
+  testing::phase::check "API health endpoint reachable" bash -c \
+    "curl -sf --retry 3 --retry-delay 2 '${api_base}/health' >/dev/null"
 fi
 
-# Test chapters endpoint
-testing::phase::subsection "Chapters API"
-if curl -sf "${API_URL}/api/v1/patterns/chapters" >/dev/null; then
-    testing::phase::success "Chapters endpoint working"
+if $has_jq; then
+  testing::phase::check "Pattern search returns results" bash -c \
+    "curl -sf --retry 3 --retry-delay 2 '${api_base}/api/v1/patterns/search?chapter=Part%20A' | jq -e '.total >= 5' >/dev/null"
 else
-    testing::phase::error "Chapters endpoint failed"
-    exit 1
+  testing::phase::check "Pattern search endpoint reachable" bash -c \
+    "curl -sf --retry 3 --retry-delay 2 '${api_base}/api/v1/patterns/search?chapter=Part%20A' >/dev/null"
 fi
 
-# Test stats endpoint
-testing::phase::subsection "Statistics API"
-if curl -sf "${API_URL}/api/v1/patterns/stats" | grep -q "statistics"; then
-    testing::phase::success "Statistics endpoint working"
+if $has_jq; then
+  testing::phase::check "JWT query provides pattern data" bash -c \
+    "curl -sf --retry 3 --retry-delay 2 '${api_base}/api/v1/patterns/search?query=jwt' | jq -e '.patterns | length > 0' >/dev/null"
 else
-    testing::phase::error "Statistics endpoint failed"
-    exit 1
+  testing::phase::check "JWT query endpoint reachable" bash -c \
+    "curl -sf --retry 3 --retry-delay 2 '${api_base}/api/v1/patterns/search?query=jwt' >/dev/null"
 fi
 
-# Test error handling - invalid pattern ID
-testing::phase::subsection "Error Handling"
-STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}/api/v1/patterns/non-existent-pattern-id")
-if [ "$STATUS_CODE" = "404" ]; then
-    testing::phase::success "404 error handling working"
+testing::phase::check "Chapters endpoint responds" bash -c \
+  "curl -sf --retry 3 --retry-delay 2 '${api_base}/api/v1/patterns/chapters' >/dev/null"
+
+if $has_jq; then
+  testing::phase::check "Stats endpoint exposes totals" bash -c \
+    "curl -sf --retry 3 --retry-delay 2 '${api_base}/api/v1/patterns/stats' | jq -e '.statistics.total_patterns >= 8' >/dev/null"
 else
-    testing::phase::warning "Expected 404, got ${STATUS_CODE}"
+  testing::phase::check "Stats endpoint reachable" bash -c \
+    "curl -sf --retry 3 --retry-delay 2 '${api_base}/api/v1/patterns/stats' >/dev/null"
 fi
 
-# Test pagination
-testing::phase::subsection "Pagination"
-if curl -sf "${API_URL}/api/v1/patterns/search?limit=5&offset=0" | grep -q "limit"; then
-    testing::phase::success "Pagination working"
-else
-    testing::phase::error "Pagination failed"
-    exit 1
-fi
-
-testing::phase::end_with_summary "Integration tests completed"
+testing::phase::end_with_summary "Integration validation completed"

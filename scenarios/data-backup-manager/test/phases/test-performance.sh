@@ -7,7 +7,7 @@ source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 # Source scenario-specific testing helpers
 SCENARIO_ROOT="$(cd "${BASH_SOURCE[0]%/*}/../.." && pwd)"
 source "${SCENARIO_ROOT}/test/utils/testing-helpers.sh"
-testing::phase::init --target-time "60s"
+testing::phase::init --target-time "60s" --require-runtime
 
 cd "$TESTING_PHASE_SCENARIO_DIR"
 

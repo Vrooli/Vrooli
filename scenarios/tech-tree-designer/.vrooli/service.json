@@ -28,11 +28,11 @@
       "description": "Tech tree analysis and strategic planning API",
       "range": "15000-19999"
     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Interactive tech tree visualization interface",
-       "range": "35000-39999"
-     }
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Interactive tech tree visualization interface",
+      "range": "35000-39999"
+    }
   },
   "resources": {
     "postgres": {
@@ -46,7 +46,7 @@
           "type": "schema"
         },
         {
-          "file": "initialization/postgres/seed.sql", 
+          "file": "initialization/postgres/seed.sql",
           "type": "seed"
         }
       ]
@@ -105,16 +105,18 @@
       "description": "Initialize Tech Tree Designer with complete civilization roadmap",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/tech-tree-designer-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": ["tech-tree-designer"]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/tech-tree-designer-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "tech-tree-designer"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -149,7 +151,7 @@
         },
         {
           "name": "show-urls",
-          "run": "cat <<EOF\n🚀 Tech Tree Designer initialized\n  Strategic Dashboard: http://localhost:${UI_PORT}\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  CLI: tech-tree-designer --help\n\n🎯 Civilization Progress: Ready for strategic intelligence acceleration\nEOF",
+          "run": "cat <<EOF\n\ud83d\ude80 Tech Tree Designer initialized\n  Strategic Dashboard: http://localhost:${UI_PORT}\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  CLI: tech-tree-designer --help\n\n\ud83c\udfaf Civilization Progress: Ready for strategic intelligence acceleration\nEOF",
           "description": "Display tech tree access URLs and strategic overview"
         }
       ]
@@ -157,15 +159,15 @@
     "develop": {
       "description": "Start tech tree designer with API server and visualization interface",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./tech-tree-designer-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/tech-tree-designer-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./tech-tree-designer-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/tech-tree-designer-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && pnpm run dev",
@@ -177,54 +179,18 @@
         },
         {
           "name": "show-urls",
-          "run": "cat <<EOF\n🚀 Strategic Intelligence System Online:\n  📊 Tech Tree Dashboard: http://localhost:${UI_PORT}\n  🧠 Analysis API: http://localhost:${API_PORT}\n  📈 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  🎯 Strategic CLI: tech-tree-designer --help\n\n🌟 Ready to guide Vrooli's evolution toward superintelligence\nEOF",
+          "run": "cat <<EOF\n\ud83d\ude80 Strategic Intelligence System Online:\n  \ud83d\udcca Tech Tree Dashboard: http://localhost:${UI_PORT}\n  \ud83e\udde0 Analysis API: http://localhost:${API_PORT}\n  \ud83d\udcc8 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  \ud83c\udfaf Strategic CLI: tech-tree-designer --help\n\n\ud83c\udf1f Ready to guide Vrooli's evolution toward superintelligence\nEOF",
           "description": "Display all running strategic planning services"
         }
       ]
     },
     "test": {
-      "description": "Test tech tree visualization, analysis, and strategic planning capabilities",
+      "description": "Run phased testing suite",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go API compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-ui-health",
-          "run": "curl -sf http://localhost:$UI_PORT/health", 
-          "description": "Test UI health endpoint"
-        },
-        {
-          "name": "test-tree-endpoints",
-          "run": "bash tests/test-api-endpoints.sh",
-          "description": "Test tech tree data and analysis endpoints"
-        },
-        {
-          "name": "test-progress-tracking",
-          "run": "bash tests/test-database-schema.sh",
-          "description": "Test scenario progress mapping and updates"
-        },
-        {
-          "name": "test-strategic-analysis",
-          "run": "bash tests/test-cli-commands.sh",
-          "description": "Test AI-powered strategic recommendations"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "if [ -f cli/tech-tree-designer.bats ]; then cd cli && bats tech-tree-designer.bats; else echo 'Skipping legacy BATS suite (cli/tech-tree-designer.bats not found)'; fi",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/tech-tree-designer.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario tests"
         }
       ]
     },

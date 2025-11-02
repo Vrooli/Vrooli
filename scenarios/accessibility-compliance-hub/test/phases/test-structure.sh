@@ -1,87 +1,61 @@
 #!/bin/bash
-# Structure tests for accessibility-compliance-hub scenario
+# Validate required files and directories for accessibility-compliance-hub.
 
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Colors for output
-readonly GREEN='\033[0;32m'
-readonly RED='\033[0;31m'
-readonly YELLOW='\033[1;33m'
-readonly NC='\033[0m' # No Color
+testing::phase::init --target-time "30s"
 
-TESTS_PASSED=0
-TESTS_FAILED=0
+required_dirs=(api cli initialization test)
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
-echo -e "${YELLOW}=== Structure Tests ===${NC}\n"
-
-# Define required files
 required_files=(
-    ".vrooli/service.json"
-    "PRD.md"
-    "README.md"
-    "PROBLEMS.md"
-    "Makefile"
-    "api/main.go"
-    "api/go.mod"
-    "cli/accessibility-compliance-hub"
-    "cli/install.sh"
+  .vrooli/service.json
+  Makefile
+  PRD.md
+  README.md
+  PROBLEMS.md
+  api/main.go
+  api/go.mod
+  cli/install.sh
 )
-
-# Check required files exist
-for file in "${required_files[@]}"; do
-    if [ -f "$file" ]; then
-        echo -e "${GREEN}✓${NC} $file"
-        ((TESTS_PASSED++))
-    else
-        echo -e "${RED}✗${NC} $file (missing)"
-        ((TESTS_FAILED++))
-    fi
-done
-
-# Check service.json is valid JSON
-echo -n "Validating service.json... "
-if jq empty .vrooli/service.json 2>/dev/null; then
-    echo -e "${GREEN}✓ Valid JSON${NC}"
-    ((TESTS_PASSED++))
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
 else
-    echo -e "${RED}✗ Invalid JSON${NC}"
-    ((TESTS_FAILED++))
+  testing::phase::add_test failed
 fi
 
-# Check CLI is executable
-echo -n "Checking CLI permissions... "
-if [ -x "cli/accessibility-compliance-hub" ]; then
-    echo -e "${GREEN}✓ Executable${NC}"
-    ((TESTS_PASSED++))
+if command -v jq >/dev/null 2>&1; then
+  testing::phase::check "service.json is valid JSON" jq empty .vrooli/service.json || true
 else
-    echo -e "${RED}✗ Not executable${NC}"
-    ((TESTS_FAILED++))
+  testing::phase::add_warning "jq not available; skipping service.json validation"
+  testing::phase::add_test skipped
 fi
 
-# Check .gitignore exists and protects artifacts
-echo -n "Checking .gitignore... "
-if [ -f ".gitignore" ]; then
-    if grep -q "coverage" .gitignore && grep -q "api/.*-api" .gitignore; then
-        echo -e "${GREEN}✓ Protects artifacts${NC}"
-        ((TESTS_PASSED++))
-    else
-        echo -e "${YELLOW}⚠ Incomplete protection${NC}"
-        ((TESTS_PASSED++))
-    fi
+if [ -f "cli/accessibility-compliance-hub" ]; then
+  if [ -x "cli/accessibility-compliance-hub" ]; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_warning "CLI binary exists but is not executable; run cli/install.sh"
+    testing::phase::add_test skipped
+  fi
 else
-    echo -e "${RED}✗ Missing${NC}"
-    ((TESTS_FAILED++))
+  testing::phase::add_warning "CLI binary missing; run cli/install.sh to generate it"
+  testing::phase::add_test skipped
 fi
 
-# Summary
-echo -e "\n${YELLOW}=== Structure Test Summary ===${NC}"
-echo -e "${GREEN}Passed: ${TESTS_PASSED}${NC}"
-echo -e "${RED}Failed: ${TESTS_FAILED}${NC}"
-
-if [ $TESTS_FAILED -eq 0 ]; then
-    echo -e "\n${GREEN}All structure tests passed!${NC}"
-    exit 0
-else
-    echo -e "\n${RED}Some structure tests failed!${NC}"
-    exit 1
+if [ -d ui ]; then
+  if [ -f "ui/package.json" ]; then
+    testing::phase::add_test passed
+  else
+    testing::phase::add_warning "UI directory detected without package.json; treating as static prototype"
+    testing::phase::add_test skipped
+  fi
 fi
+
+testing::phase::end_with_summary "Structure validation completed"

@@ -1,179 +1,42 @@
 #!/bin/bash
+# Shared phased test orchestrator for the Agent Dashboard scenario
+set -euo pipefail
 
-set -e
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-# Test configuration
-SCENARIO_NAME="agent-dashboard"
-TEST_ARTIFACT_DIR="test/artifacts"
-TIMESTAMP=$(date +%s)
+PHASES_DIR="$TEST_DIR/phases"
+ARTIFACT_DIR="$TEST_DIR/artifacts"
 
-echo -e "${BLUE}🧪 Running Agent Dashboard Test Suite${NC}"
-echo "==============================================="
+# Initialise shared runner so runtime-aware phases can assume lifecycle management
+# and we gain access to caching, parallelism, and standardised logging.
+testing::runner::init \
+  --scenario-name "agent-dashboard" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$ARTIFACT_DIR" \
+  --default-manage-runtime true
 
-# Create artifacts directory
-mkdir -p "$TEST_ARTIFACT_DIR"
+# Register core phase lineup
+testing::runner::register_phase --name structure --script "$PHASES_DIR/test-structure.sh" --timeout 30 --display "phase-structure"
 
-# Test phases to run
-PHASES=(
-    "unit"
-    "integration"
-    "structure"
-    "dependencies"
-    "business"
-    "performance"
-)
+testing::runner::register_phase --name dependencies --script "$PHASES_DIR/test-dependencies.sh" --timeout 90 --display "phase-dependencies"
 
-# Track test results
-PASSED_PHASES=()
-FAILED_PHASES=()
-TOTAL_PHASES=${#PHASES[@]}
+testing::runner::register_phase --name unit --script "$PHASES_DIR/test-unit.sh" --timeout 120 --display "phase-unit"
 
-# Function to run a test phase
-run_phase() {
-    local phase=$1
-    local script="test/phases/test-${phase}.sh"
-    local log_file="${TEST_ARTIFACT_DIR}/${phase}-${TIMESTAMP}.log"
+testing::runner::register_phase --name integration --script "$PHASES_DIR/test-integration.sh" --timeout 240 --requires-runtime true --display "phase-integration"
 
-    echo -e "${YELLOW}Running ${phase} tests...${NC}"
+testing::runner::register_phase --name business --script "$PHASES_DIR/test-business.sh" --timeout 180 --requires-runtime true --display "phase-business"
 
-    if [ -f "$script" ]; then
-        if bash "$script" > "$log_file" 2>&1; then
-            echo -e "${GREEN}✅ ${phase} tests passed${NC}"
-            PASSED_PHASES+=("$phase")
-            return 0
-        else
-            echo -e "${RED}❌ ${phase} tests failed${NC}"
-            echo -e "${RED}   Log: $log_file${NC}"
-            FAILED_PHASES+=("$phase")
-            return 1
-        fi
-    else
-        echo -e "${YELLOW}⚠️  ${phase} test script not found: $script${NC}"
-        return 0
-    fi
-}
+testing::runner::register_phase --name performance --script "$PHASES_DIR/test-performance.sh" --timeout 120 --display "phase-performance"
 
-# Function to check prerequisites
-check_prerequisites() {
-    echo -e "${BLUE}Checking prerequisites...${NC}"
+# Presets for targeted execution
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure dependencies integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
 
-    # Check if Go is installed
-    if ! command -v go &> /dev/null; then
-        echo -e "${RED}❌ Go is not installed${NC}"
-        return 1
-    fi
-
-    # Check if Node.js is installed
-    if ! command -v node &> /dev/null; then
-        echo -e "${RED}❌ Node.js is not installed${NC}"
-        return 1
-    fi
-
-    # Check if scenario structure exists
-    if [ ! -f ".vrooli/service.json" ]; then
-        echo -e "${RED}❌ .vrooli/service.json not found${NC}"
-        return 1
-    fi
-
-    echo -e "${GREEN}✅ Prerequisites check passed${NC}"
-    return 0
-}
-
-# Function to print test summary
-print_summary() {
-    echo ""
-    echo "==============================================="
-    echo -e "${BLUE}📊 Test Summary${NC}"
-    echo "==============================================="
-    echo "Total phases: $TOTAL_PHASES"
-    echo -e "Passed: ${GREEN}${#PASSED_PHASES[@]}${NC}"
-    echo -e "Failed: ${RED}${#FAILED_PHASES[@]}${NC}"
-
-    if [ ${#PASSED_PHASES[@]} -gt 0 ]; then
-        echo -e "\n${GREEN}✅ Passed phases:${NC}"
-        for phase in "${PASSED_PHASES[@]}"; do
-            echo "  - $phase"
-        done
-    fi
-
-    if [ ${#FAILED_PHASES[@]} -gt 0 ]; then
-        echo -e "\n${RED}❌ Failed phases:${NC}"
-        for phase in "${FAILED_PHASES[@]}"; do
-            echo "  - $phase"
-        done
-    fi
-
-    echo ""
-    echo "Artifacts saved in: $TEST_ARTIFACT_DIR"
-    echo "Timestamp: $TIMESTAMP"
-}
-
-# Main execution
-main() {
-    # Check if we should run specific phases
-    if [ $# -gt 0 ]; then
-        PHASES=("$@")
-        echo -e "${YELLOW}Running specific phases: ${PHASES[*]}${NC}"
-    fi
-
-    # Check prerequisites
-    if ! check_prerequisites; then
-        echo -e "${RED}❌ Prerequisites check failed${NC}"
-        exit 1
-    fi
-
-    echo ""
-
-    # Run each test phase
-    for phase in "${PHASES[@]}"; do
-        run_phase "$phase"
-        echo ""
-    done
-
-    # Print summary
-    print_summary
-
-    # Exit with appropriate code
-    if [ ${#FAILED_PHASES[@]} -eq 0 ]; then
-        echo -e "${GREEN}🎉 All tests passed!${NC}"
-        exit 0
-    else
-        echo -e "${RED}💥 Some tests failed${NC}"
-        exit 1
-    fi
-}
-
-# Help function
-show_help() {
-    echo "Usage: $0 [phases...]"
-    echo ""
-    echo "Run agent-dashboard test suite"
-    echo ""
-    echo "Available phases:"
-    for phase in "${PHASES[@]}"; do
-        echo "  - $phase"
-    done
-    echo ""
-    echo "Examples:"
-    echo "  $0                    # Run all phases"
-    echo "  $0 unit integration   # Run specific phases"
-    echo ""
-}
-
-# Parse arguments
-case "${1:-}" in
-    -h|--help|help)
-        show_help
-        exit 0
-        ;;
-    *)
-        main "$@"
-        ;;
-esac
+testing::runner::execute "$@"

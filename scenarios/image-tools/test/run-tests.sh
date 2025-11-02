@@ -1,98 +1,66 @@
 #!/bin/bash
-# Image Tools - Comprehensive Test Runner
-# Runs all test phases in sequence
+# Orchestrates phased testing for the image-tools scenario using the shared runner.
+set -euo pipefail
 
-set -e
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
+
 SCENARIO_NAME="image-tools"
+LOG_DIR="$TEST_DIR/artifacts"
+mkdir -p "$LOG_DIR"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Initialise the shared runner with runtime management so integration-style phases
+# can rely on the scenario being up without bespoke boilerplate.
+testing::runner::init \
+  --scenario-name "$SCENARIO_NAME" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$LOG_DIR" \
+  --default-manage-runtime true
 
-# Test phase tracking
-TOTAL_PHASES=0
-PASSED_PHASES=0
-FAILED_PHASES=0
-SKIPPED_PHASES=0
+PHASES_DIR="$TEST_DIR/phases"
 
-# Function to run a test phase
-run_phase() {
-    local phase_name=$1
-    local phase_script=$2
+# Register standard phases.
+testing::runner::register_phase \
+  --name structure \
+  --script "$PHASES_DIR/test-structure.sh" \
+  --timeout 30
 
-    TOTAL_PHASES=$((TOTAL_PHASES + 1))
+testing::runner::register_phase \
+  --name dependencies \
+  --script "$PHASES_DIR/test-dependencies.sh" \
+  --timeout 60
 
-    echo ""
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}Running Phase: ${phase_name}${NC}"
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+testing::runner::register_phase \
+  --name unit \
+  --script "$PHASES_DIR/test-unit.sh" \
+  --timeout 120
 
-    if [ ! -f "$phase_script" ]; then
-        echo -e "${YELLOW}⚠️  Skipped: ${phase_name} (script not found)${NC}"
-        SKIPPED_PHASES=$((SKIPPED_PHASES + 1))
-        return 0
-    fi
+testing::runner::register_phase \
+  --name integration \
+  --script "$PHASES_DIR/test-integration.sh" \
+  --timeout 180 \
+  --requires-runtime true
 
-    if bash "$phase_script"; then
-        echo -e "${GREEN}✅ Passed: ${phase_name}${NC}"
-        PASSED_PHASES=$((PASSED_PHASES + 1))
-        return 0
-    else
-        echo -e "${RED}❌ Failed: ${phase_name}${NC}"
-        FAILED_PHASES=$((FAILED_PHASES + 1))
-        return 1
-    fi
-}
+testing::runner::register_phase \
+  --name business \
+  --script "$PHASES_DIR/test-business.sh" \
+  --timeout 180 \
+  --requires-runtime true
 
-# Main test execution
-echo -e "${BLUE}╔═══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║         Image Tools - Comprehensive Test Suite           ║${NC}"
-echo -e "${BLUE}╚═══════════════════════════════════════════════════════════╝${NC}"
+testing::runner::register_phase \
+  --name performance \
+  --script "$PHASES_DIR/test-performance.sh" \
+  --timeout 90 \
+  --requires-runtime true
 
-cd "$SCENARIO_DIR"
+# Provide a few presets for quick iteration.
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset smoke "structure dependencies integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
 
-# Phase 1: Dependencies
-run_phase "Dependencies Check" "$SCRIPT_DIR/phases/test-dependencies.sh" || true
-
-# Phase 2: Structure Validation
-run_phase "Structure Validation" "$SCRIPT_DIR/phases/test-structure.sh" || true
-
-# Phase 3: Unit Tests
-run_phase "Unit Tests" "$SCRIPT_DIR/phases/test-unit.sh" || true
-
-# Phase 4: Integration Tests
-run_phase "Integration Tests" "$SCRIPT_DIR/phases/test-integration.sh" || true
-
-# Phase 5: Business Logic Tests
-run_phase "Business Logic Tests" "$SCRIPT_DIR/phases/test-business.sh" || true
-
-# Phase 6: Performance Tests
-run_phase "Performance Tests" "$SCRIPT_DIR/phases/test-performance.sh" || true
-
-# Phase 7: Smoke Tests
-run_phase "Smoke Tests" "$SCRIPT_DIR/phases/test-smoke.sh" || true
-
-# Test Summary
-echo ""
-echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}Test Summary${NC}"
-echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-echo -e "Total Phases:   ${TOTAL_PHASES}"
-echo -e "${GREEN}Passed:         ${PASSED_PHASES}${NC}"
-echo -e "${RED}Failed:         ${FAILED_PHASES}${NC}"
-echo -e "${YELLOW}Skipped:        ${SKIPPED_PHASES}${NC}"
-echo ""
-
-if [ $FAILED_PHASES -eq 0 ]; then
-    echo -e "${GREEN}✅ All tests passed!${NC}"
-    exit 0
-else
-    echo -e "${RED}❌ Some tests failed. See output above for details.${NC}"
-    exit 1
-fi
+testing::runner::execute "$@"

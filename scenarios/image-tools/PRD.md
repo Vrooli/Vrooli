@@ -525,70 +525,18 @@ versioning:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: image-tools
+- **Structure** – `test/phases/test-structure.sh` checks API/CLI/plugin assets, UI files, and required directories.
+- **Dependencies** – `test/phases/test-dependencies.sh` validates Go toolchain availability, CLI install permissions, Node runtime, and MinIO resource health via `vrooli`.
+- **Unit** – `test/phases/test-unit.sh` runs Go unit tests through the shared runner with coverage thresholds (80% warning, 50% failure).
+- **Integration** – `test/phases/test-integration.sh` uploads a sample image through compression/resize/metadata endpoints, ensuring plugin/preset registries stay consistent.
+- **Business** – `test/phases/test-business.sh` executes JSON workflows (compress/convert/batch), exercises CLI commands (`help`, `version`, `status --json`), and probes UI health when discoverable.
+- **Performance** – `test/phases/test-performance.sh` measures request latency (<2s target for health/compress/resize) and monitors API memory usage (<2GB).
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/image-tools
-    - cli/install.sh
-    - plugins/jpeg/handler.go
-    - plugins/png/handler.go
-    - ui/index.html
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - plugins
-    - ui
-    - initialization
-
-resources:
-  required: [minio]
-  optional: [redis, ollama]
-  health_timeout: 60
-
-tests:
-  - name: "API compression endpoint"
-    type: http
-    service: api
-    endpoint: /api/v1/image/compress
-    method: POST
-    body:
-      image: "test-image.jpg"
-      quality: 80
-    expect:
-      status: 200
-      body:
-        savings_percent: ">0"
-        
-  - name: "CLI compress command"
-    type: exec
-    command: ./cli/image-tools compress test.jpg --quality 80
-    expect:
-      exit_code: 0
-      output_contains: ["Compressed", "saved"]
-      
-  - name: "Plugin architecture loads"
-    type: http
-    service: api
-    endpoint: /api/v1/plugins
-    method: GET
-    expect:
-      status: 200
-      body:
-        plugins: ["jpeg", "png", "webp", "svg"]
-```
+All phases are orchestrated by `test/run-tests.sh`, which sources `scripts/scenarios/testing/shell/runner.sh` for lifecycle management, caching, and preset execution.
 
 ### Test Execution Gates
 ```bash
-./test.sh --scenario image-tools --validation complete
+./test/run-tests.sh --preset comprehensive
 ```
 
 ### Performance Validation

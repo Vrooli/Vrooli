@@ -18,6 +18,12 @@
       background-color: #0d1117;
     }
 
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       padding: 0;
@@ -27,6 +33,7 @@
       display: flex;
       justify-content: center;
       align-items: flex-start;
+      overflow-x: hidden;
     }
 
     .app {
@@ -38,6 +45,7 @@
       border-radius: 18px;
       padding: 36px 40px 44px;
       box-shadow: 0 28px 68px rgba(1, 4, 9, 0.55);
+      max-width: 100%;
     }
 
     .panel {
@@ -46,6 +54,7 @@
       background: rgba(13, 17, 23, 0.88);
       border: 1px solid rgba(240, 246, 252, 0.08);
       box-shadow: 0 18px 32px rgba(1, 4, 9, 0.35);
+      max-width: 100%;
     }
 
     .panel:focus-within {
@@ -360,6 +369,7 @@
       color: #ffaba6;
       font-size: 0.9rem;
       line-height: 1.45;
+      word-break: break-word;
     }
 
     .status-message.success {
@@ -380,6 +390,7 @@
       align-items: center;
       gap: 12px;
       margin-bottom: 12px;
+      flex-wrap: wrap;
     }
 
     .file-group-actions h3 {
@@ -390,6 +401,24 @@
     .file-group-actions .group-buttons {
       display: flex;
       gap: 8px;
+    }
+
+    .file-group-actions .group-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .file-group-toggle {
+      text-transform: uppercase;
+    }
+
+    .file-group-body {
+      margin-top: 12px;
+    }
+
+    .file-group-body[hidden] {
+      display: none;
     }
 
     .diff-output {
@@ -477,6 +506,22 @@
       justify-content: space-between;
       align-items: center;
       gap: 12px;
+    }
+
+    .suggestion-item {
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .suggestion-item > span:first-child {
+      flex: 0 0 auto;
+    }
+
+    .suggestion-item > span:not(:first-child) {
+      flex: 1 1 160px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      text-align: right;
     }
 
     .suggestion-item:hover {
@@ -575,11 +620,23 @@
     }
 
     @media (max-width: 640px) {
+      body {
+        padding: 0;
+        min-height: 100vh;
+        display: block;
+      }
+
       .app {
-        padding: 24px 18px 32px;
-        width: min(600px, 100%);
+        padding: 24px 16px 32px;
+        width: 100%;
+        max-width: none;
         margin: 0;
-        border-radius: 14px;
+        border-radius: 0;
+        min-height: 100vh;
+        box-shadow: none;
+        border-left: 0;
+        border-right: 0;
+        overflow-x: hidden;
       }
 
       .file-search-input {
@@ -789,6 +846,11 @@
         untracked: true
       },
       searchIncludeDiff: false,
+      groupCollapse: {
+        staged: false,
+        unstaged: false,
+        untracked: false
+      },
       pendingDiffPrefetch: new Map(),
       lastDiffPrefetchSignature: ''
     };
@@ -1058,16 +1120,27 @@
     }
 
     function renderFileGroup(title, files, group, actions = []) {
-      const buttons = actions
+      if (!Object.prototype.hasOwnProperty.call(state.groupCollapse, group)) {
+        state.groupCollapse[group] = false;
+      }
+      const collapsed = !!state.groupCollapse[group];
+      const bodyId = `file-group-body-${group}`;
+      const actionButtons = actions
         .map((action) => `<button class="button tiny" data-action="${action.action}" data-group="${group}" type="button">${action.label}</button>`)
         .join("");
+      const toggleLabel = collapsed ? 'Expand' : 'Collapse';
       return `
-        <div class="file-group" data-group="${group}">
+        <div class="file-group${collapsed ? ' collapsed' : ''}" data-group="${group}">
           <div class="file-group-actions">
-            <h3>${title}</h3>
-            <div class="group-buttons">${buttons}</div>
+            <div class="group-title">
+              <button class="button tiny ghost file-group-toggle" data-toggle-group="${group}" type="button" aria-expanded="${collapsed ? 'false' : 'true'}" aria-controls="${bodyId}">${toggleLabel}</button>
+              <h3>${title}</h3>
+            </div>
+            <div class="group-buttons">${actionButtons}</div>
           </div>
-          ${buildFileList(files, group)}
+          <div class="file-group-body" id="${bodyId}" ${collapsed ? 'hidden' : ''}>
+            ${buildFileList(files, group)}
+          </div>
         </div>
       `;
     }
@@ -1579,6 +1652,16 @@
       });
 
       document.getElementById('repo-content').addEventListener('click', (event) => {
+        const toggleButton = event.target.closest('[data-toggle-group]');
+        if (toggleButton) {
+          event.preventDefault();
+          const group = toggleButton.dataset.toggleGroup;
+          if (group) {
+            state.groupCollapse[group] = !state.groupCollapse[group];
+            renderRepository(state.status, { skipDiffPrefetch: true });
+          }
+          return;
+        }
         const checkbox = event.target.closest('.file-checkbox');
         if (checkbox) {
           return;

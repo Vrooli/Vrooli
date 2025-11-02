@@ -850,73 +850,12 @@ discovery:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: accessibility-compliance-hub
+- `test/run-tests.sh` orchestrates structure, dependency, unit, integration, business, and performance phases via the shared Vrooli runner.
+- Phase scripts live in `test/phases/` and rely on `testing::phase` helpers for consistent logging, cleanup, and JSON artifacts under `coverage/phase-results/`.
+- `.vrooli/service.json` registers the phased suite in the lifecycle (`lifecycle.test.steps[0].run = "test/run-tests.sh"`) so `make test` and `vrooli scenario test accessibility-compliance-hub` execute the same flow.
+- Unit coverage aggregates into `coverage/accessibility-compliance-hub/` for downstream automation (test-genie, auditors) to consume.
+- Integration/business phases currently guard CLI workflows and configuration JSON; extend with live audit smoke tests once the API is available.
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/accessibility-compliance-hub
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/automation/n8n/accessibility-audit.json
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/automation/n8n
-    - initialization/storage/postgres
-    - ui
-
-resources:
-  required: [postgres, n8n, browserless, ollama]
-  optional: [redis, qdrant]
-  health_timeout: 60
-
-tests:
-  - name: "Accessibility API is responsive"
-    type: http
-    service: api
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Can trigger accessibility audit"
-    type: http
-    service: api
-    endpoint: /api/v1/accessibility/audit
-    method: POST
-    body:
-      scenario_id: "test-scenario"
-      wcag_level: "AA"
-    expect:
-      status: 201
-      body:
-        report_id: "<not_null>"
-        
-  - name: "CLI audit command works"
-    type: exec
-    command: ./cli/accessibility-compliance-hub audit test-scenario --json
-    expect:
-      exit_code: 0
-      output_contains: ["report_id", "score"]
-      
-  - name: "Dashboard loads successfully"
-    type: http
-    service: ui
-    endpoint: /
-    method: GET
-    expect:
-      status: 200
-      content_contains: ["Accessibility Compliance Dashboard"]
-```
 
 ## 📝 Implementation Notes
 

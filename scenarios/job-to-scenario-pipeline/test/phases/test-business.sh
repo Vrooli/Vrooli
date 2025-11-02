@@ -1,11 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Business Logic Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Test business workflows
-# Example: Verify job approval moves to building state
-# Add actual business tests here
+testing::phase::init --target-time "120s"
 
-echo "No business tests implemented yet"
-exit 0
+testing::phase::add_warning "Business workflow tests are not yet implemented"
+testing::phase::add_test skipped
+
+# Placeholder for future validation of job lifecycle transitions
+
+testing::phase::end_with_summary "Business phase placeholder"

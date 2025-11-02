@@ -72,7 +72,7 @@ time-tools format '2024-01-15T10:00:00Z' human --timezone 'America/Los_Angeles'
 
 ```bash
 # Get the dynamic API port
-API_PORT=$(vrooli scenario port time-tools TIME_TOOLS_PORT)
+API_PORT=$(vrooli scenario port time-tools API_PORT)
 API_BASE="http://localhost:${API_PORT}"
 
 # Health check
@@ -130,7 +130,7 @@ curl -X POST $API_BASE/api/v1/schedule/optimal \
 vrooli scenario test time-tools
 
 # Test API endpoints
-API_PORT=$(vrooli scenario port time-tools TIME_TOOLS_PORT)
+API_PORT=$(vrooli scenario port time-tools API_PORT)
 curl http://localhost:${API_PORT}/api/v1/health
 
 # Test CLI commands

@@ -1,65 +1,37 @@
 #!/bin/bash
-# Integration tests for funnel-builder
-# Tests component interactions and dependencies
+# Runtime integration checks for funnel-builder services.
+set -euo pipefail
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
-SCENARIO_NAME="funnel-builder"
+testing::phase::init --target-time "240s" --require-runtime
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+SCENARIO_NAME="$TESTING_PHASE_SCENARIO_NAME"
 
-test_count=0
-pass_count=0
-fail_count=0
-
-run_test() {
-    local test_name="$1"
-    local test_command="$2"
-
-    test_count=$((test_count + 1))
-    echo -n "  Testing $test_name... "
-
-    if eval "$test_command" &>/dev/null; then
-        echo -e "${GREEN}✓${NC}"
-        pass_count=$((pass_count + 1))
-        return 0
-    else
-        echo -e "${RED}✗${NC}"
-        fail_count=$((fail_count + 1))
-        return 1
-    fi
-}
-
-echo "Running integration tests..."
-
-# Check scenario is running
-run_test "Scenario is running" "vrooli scenario status '$SCENARIO_NAME'"
-
-# Check PostgreSQL resource is accessible
-run_test "PostgreSQL resource accessible" "resource-postgres status"
-
-# Check database schema exists
-run_test "Funnel builder schema exists" "docker exec vrooli-postgres-main psql -U vrooli -d vrooli -tAc \"SELECT 1 FROM information_schema.schemata WHERE schema_name = 'funnel_builder'\""
-
-# Check required tables exist
-run_test "Funnels table exists" "docker exec vrooli-postgres-main psql -U vrooli -d vrooli -tAc \"SELECT 1 FROM information_schema.tables WHERE table_schema = 'funnel_builder' AND table_name = 'funnels'\""
-
-run_test "Funnel steps table exists" "docker exec vrooli-postgres-main psql -U vrooli -d vrooli -tAc \"SELECT 1 FROM information_schema.tables WHERE table_schema = 'funnel_builder' AND table_name = 'funnel_steps'\""
-
-run_test "Leads table exists" "docker exec vrooli-postgres-main psql -U vrooli -d vrooli -tAc \"SELECT 1 FROM information_schema.tables WHERE table_schema = 'funnel_builder' AND table_name = 'leads'\""
-
-# Summary
-echo ""
-echo "Integration Tests: $pass_count/$test_count passed"
-
-if [ $fail_count -gt 0 ]; then
-    exit 1
+API_BASE=""
+UI_BASE=""
+if API_BASE=$(testing::connectivity::get_api_url "$SCENARIO_NAME"); then
+  testing::phase::check "API health endpoint" bash -c "curl -sf \"${API_BASE}/health\" || curl -sf \"${API_BASE}/api/v1/health\""
+else
+  testing::phase::add_error "Unable to resolve API URL for $SCENARIO_NAME"
+  testing::phase::add_test failed
 fi
 
-exit 0
+if UI_BASE=$(testing::connectivity::get_ui_url "$SCENARIO_NAME"); then
+  testing::phase::check "UI responds" curl -sf "$UI_BASE"
+else
+  testing::phase::add_warning "Unable to resolve UI URL for $SCENARIO_NAME"
+  testing::phase::add_test skipped
+fi
+
+CLI_PATH="$TESTING_PHASE_SCENARIO_DIR/cli/funnel-builder"
+if [ -x "$CLI_PATH" ]; then
+  testing::phase::check "CLI help command" "$CLI_PATH" --help
+else
+  testing::phase::add_warning "CLI executable missing or not executable"
+  testing::phase::add_test skipped
+fi
+
+testing::phase::end_with_summary "Integration checks completed"

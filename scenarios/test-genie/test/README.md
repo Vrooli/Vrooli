@@ -5,17 +5,22 @@ Comprehensive testing infrastructure for the Test Genie scenario, covering core 
 ## 🚀 Quick Start
 
 ```bash
-# Run all tests (recommended)
-./run-all-tests.sh
+# Run the full phased suite (default preset executes all phases)
+./run-tests.sh
 
-# Run individual test suites
+# Focused runs
+./run-tests.sh quick        # structure + unit
+./run-tests.sh smoke        # structure + dependencies + cli
+./run-tests.sh integration  # single phase
+
+# Run individual phase scripts directly
 ./phases/test-structure.sh
 ./phases/test-integration.sh
 ./phases/test-dependencies.sh
 ./phases/test-business.sh
 ```
 
-> ℹ️ `run-all-tests.sh` automatically discovers scripts in `test/phases` and executes them sequentially. Parallel execution is intentionally disabled to preserve consistent logging and ordering.
+> ℹ️ `run-tests.sh` wraps the shared Vrooli test runner (`scripts/scenarios/testing/shell/runner.sh`), which manages lifecycle hooks, artifacts, caching, and presets. The legacy `run-all-tests.sh` now delegates to `run-tests.sh` for backward compatibility.
 
 ## 📋 Test Suites
 
@@ -24,7 +29,7 @@ Comprehensive testing infrastructure for the Test Genie scenario, covering core 
 
 **Checks**:
 - ✅ Required directories (`api`, `cli`, `ui`, `prompts`, `initialization`, `test/phases`)
-- ✅ Lifecycle contract files (`Makefile`, `.vrooli/service.json`, `scenario-test.yaml`)
+- ✅ Lifecycle contract files (`Makefile`, `.vrooli/service.json`, `test/run-tests.sh`)
 - ✅ Primary entrypoints (`api/main.go`, `cli/test-genie`, `ui/server.js`)
 
 **Prerequisites**:
@@ -80,16 +85,15 @@ Comprehensive testing infrastructure for the Test Genie scenario, covering core 
 - App Issue Tracker scenario running and reachable (`vrooli scenario status app-issue-tracker`)
 - AI service integration configured
 
-### Master Test Runner (`run-all-tests.sh`)
-**Purpose**: Auto-discovers `test/phases` scripts and orchestrates them sequentially with reporting
+### Master Test Runner (`run-tests.sh`)
+**Purpose**: Provides a unified entrypoint for phased testing, presets, and managed runtime orchestration.
 
 **Features**:
-- 📁 Individual test logging with log retention
-- 📊 Comprehensive test reporting and statistics
-- ⚡ Performance timing for each phase
-- 🎯 Success rate calculation and recommendations
-- 🧭 Clear pointers to failing phase logs
-- 🔧 Debugging information and useful commands
+- 📁 Per-phase logs and artifacts under `test/artifacts/`
+- 📊 Structured JSON results (`coverage/phase-results/*.json`)
+- ⚡ Timeout controls per phase with configurable presets
+- 🎯 Quick/smoke/comprehensive presets for iterative workflows
+- 🔧 Automatic lifecycle management for runtime-dependent phases
 
 ## 📊 Understanding Test Results
 
@@ -101,11 +105,12 @@ Comprehensive testing infrastructure for the Test Genie scenario, covering core 
 ```
 
 ### Log Analysis
-Test logs are stored in `/tmp/test-genie-logs-<pid>/`:
-- `structure-test.log` - Structural validation output
-- `integration-test.log` - Core functionality test output
-- `dependencies-test.log` - Database integration test output  
-- `business-test.log` - AI and advanced flow output
+Test logs are stored in `test/artifacts/` by default:
+- `phase-structure.log` - Structural validation output
+- `phase-dependencies.log` - Dependency and resource checks
+- `phase-cli.log` - CLI validation output
+- `phase-integration.log` - Core functionality + API/CLI coverage
+- `phase-business.log` - AI and delegation workflow validation
 
 ### Performance Benchmarks
 - **API Response Time**: < 1000ms for health checks

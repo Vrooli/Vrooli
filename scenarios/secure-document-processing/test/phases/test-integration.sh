@@ -1,48 +1,51 @@
 #!/bin/bash
-set -euo pipefail
+# Executes end-to-end smoke checks against the running scenario services.
 
-echo "🔗 Running Secure Document Processing integration tests"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCENARIO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." &amp;&amp; pwd )"
+testing::phase::init --target-time "240s" --require-runtime
 
-# Start services if not running (for integration tests)
-echo "🚀 Starting services for integration testing..."
-make run &amp;
-sleep 10  # Wait for startup
+SCENARIO_NAME="$TESTING_PHASE_SCENARIO_NAME"
+SCENARIO_DIR="$TESTING_PHASE_SCENARIO_DIR"
 
-# Run custom integration tests
-if [ -f "$SCENARIO_DIR/custom-tests.sh" ]; then
-    echo "📦 Running custom integration tests..."
-    cd "$SCENARIO_DIR"
-    bash custom-tests.sh
-    echo "✅ Custom integration tests passed"
-fi
+source "${APP_ROOT}/scripts/scenarios/testing/shell/resources.sh"
 
-# Run main scenario test
-if [ -f "$SCENARIO_DIR/test.sh" ]; then
-    echo "📦 Running scenario validation tests..."
-    cd "$SCENARIO_DIR"
-    bash test.sh
-    echo "✅ Scenario validation passed"
-fi
-
-# API integration tests (health and basic endpoints)
-API_PORT=$(grep -oP '(?&lt;!UI\_)PORT&quot;\s*:\s*{\s*&quot;env_var&quot;\s*:\s*&quot;\K\d+' "$SCENARIO_DIR/.vrooli/service.json" || echo "15000")
-if curl -f -s "http://localhost:$API_PORT/health" &gt;/dev/null; then
-    echo "✅ API health check passed"
+API_URL=""
+if API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME" 2>/dev/null); then
+  testing::phase::check "API health endpoint" curl -fsS "$API_URL/health"
+  testing::phase::check "Documents API endpoint" curl -fsS "$API_URL/api/documents"
+  testing::phase::check "Jobs API endpoint" curl -fsS "$API_URL/api/jobs"
+  testing::phase::check "Workflows API endpoint" curl -fsS "$API_URL/api/workflows"
 else
-    echo "❌ API health check failed"
-    exit 1
+  testing::phase::add_error "Unable to resolve API URL for $SCENARIO_NAME"
+  testing::phase::add_test failed
 fi
 
-# Test document endpoint if exists
-if curl -f -s -H "Content-Type: application/json" -d '{}' "http://localhost:$API_PORT/api/documents" &gt;/dev/null 2&gt;&amp;1; then
-    echo "✅ API documents endpoint accessible"
+# Validate that the CLI is installed and responsive when available.
+if command -v secure-document-processing >/dev/null 2>&1; then
+  testing::phase::check "CLI status command" secure-document-processing status --format json >/dev/null
 else
-    echo "⚠️  API documents endpoint test skipped (may require auth)"
+  testing::phase::add_warning "CLI binary not on PATH; skipping CLI validation"
+  testing::phase::add_test skipped
 fi
 
-# Stop services
-make stop
+# Execute declarative resource checks using the shared resource helpers.
+if testing::resources::test_all "$SCENARIO_NAME"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_warning "One or more resource integrations could not be verified"
+  testing::phase::add_test failed
+fi
 
-echo "✅ All integration tests completed successfully"
+# Run custom business workflow checks if available.
+CUSTOM_TESTS="$SCENARIO_DIR/custom-tests.sh"
+if [ -f "$CUSTOM_TESTS" ]; then
+  testing::phase::check "Custom workflow validation" bash -c 'source "$1" && { declare -f run_custom_tests >/dev/null && run_custom_tests; }' _ "$CUSTOM_TESTS"
+else
+  testing::phase::add_warning "Custom workflow script missing; skipping custom validation"
+  testing::phase::add_test skipped
+fi
+
+testing::phase::end_with_summary "Integration tests completed"

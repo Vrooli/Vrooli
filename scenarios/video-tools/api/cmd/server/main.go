@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +20,48 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/video-tools/internal/video"
 )
+
+// Logger provides structured logging
+type Logger struct {
+	prefix string
+}
+
+// Info logs an informational message with structured fields
+func (l *Logger) Info(msg string, fields map[string]interface{}) {
+	l.log("INFO", msg, fields)
+}
+
+// Error logs an error message with structured fields
+func (l *Logger) Error(msg string, fields map[string]interface{}) {
+	l.log("ERROR", msg, fields)
+}
+
+// Warn logs a warning message with structured fields
+func (l *Logger) Warn(msg string, fields map[string]interface{}) {
+	l.log("WARN", msg, fields)
+}
+
+func (l *Logger) log(level, msg string, fields map[string]interface{}) {
+	entry := map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"level":     level,
+		"message":   msg,
+	}
+	if l.prefix != "" {
+		entry["service"] = l.prefix
+	}
+	for k, v := range fields {
+		entry[k] = v
+	}
+	data, _ := json.Marshal(entry)
+	log.Println(string(data))
+}
+
+func newLogger(prefix string) *Logger {
+	return &Logger{prefix: prefix}
+}
+
+var logger = newLogger("video-tools-api")
 
 // Config holds application configuration
 type Config struct {
@@ -54,9 +97,9 @@ type VideoUploadRequest struct {
 
 // VideoEditRequest represents video editing operations
 type VideoEditRequest struct {
-	Operations    []video.EditOperation `json:"operations"`
-	OutputFormat  string                `json:"output_format,omitempty"`
-	Quality       string                `json:"quality,omitempty"`
+	Operations   []video.EditOperation `json:"operations"`
+	OutputFormat string                `json:"output_format,omitempty"`
+	Quality      string                `json:"quality,omitempty"`
 }
 
 // VideoConvertRequest represents format conversion request
@@ -78,7 +121,7 @@ type VideoConvertRequest struct {
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
 	config := &Config{
-		Port:        getEnv("API_PORT", "15760"),
+		Port:        getEnv("API_PORT", "18125"),
 		DatabaseURL: getEnv("DATABASE_URL", fmt.Sprintf("postgres://vrooli:%s@localhost:5433/video_tools?sslmode=disable", getEnv("POSTGRES_PASSWORD", ""))),
 		WorkDir:     getEnv("WORK_DIR", "/tmp/video-tools"),
 		APIToken:    getEnv("API_TOKEN", "video-tools-secret-token"),
@@ -164,16 +207,38 @@ func (s *Server) setupRoutes() {
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		log.Printf("[%s] %s %s - %v", r.Method, r.RequestURI, r.RemoteAddr, time.Since(start))
 		next.ServeHTTP(w, r)
+		logger.Info("http_request", map[string]interface{}{
+			"method":      r.Method,
+			"uri":         r.RequestURI,
+			"remote_addr": r.RemoteAddr,
+			"duration_ms": time.Since(start).Milliseconds(),
+		})
 	})
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Get allowed origins from environment, default to localhost for development
+		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+		if allowedOrigins == "" {
+			allowedOrigins = "http://localhost:35000,http://localhost:3000"
+		}
+
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			// Check if origin is in allowed list
+			for _, allowed := range strings.Split(allowedOrigins, ",") {
+				if strings.TrimSpace(allowed) == origin {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					break
+				}
+			}
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -249,10 +314,10 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	`).Scan(&stats.TotalVideos, &stats.TotalJobs, &stats.ActiveStreams)
 
 	status := map[string]interface{}{
-		"status":      "operational",
-		"version":     "1.0.0",
-		"uptime":      time.Now().Unix(),
-		"statistics":  stats,
+		"status":     "operational",
+		"version":    "1.0.0",
+		"uptime":     time.Now().Unix(),
+		"statistics": stats,
 		"capabilities": []string{
 			"video-upload",
 			"format-conversion",
@@ -286,11 +351,11 @@ func (s *Server) handleVideoUpload(w http.ResponseWriter, r *http.Request) {
 
 	// Generate unique ID
 	videoID := uuid.New().String()
-	
+
 	// Save file temporarily
 	tempPath := filepath.Join(s.config.WorkDir, "uploads", videoID+filepath.Ext(header.Filename))
 	os.MkdirAll(filepath.Dir(tempPath), 0755)
-	
+
 	dst, err := os.Create(tempPath)
 	if err != nil {
 		s.sendError(w, http.StatusInternalServerError, "failed to save file")
@@ -343,7 +408,7 @@ func (s *Server) handleVideoUpload(w http.ResponseWriter, r *http.Request) {
 
 	// Return response
 	s.sendJSON(w, http.StatusCreated, map[string]interface{}{
-		"video_id": videoID,
+		"video_id":      videoID,
 		"upload_status": "completed",
 		"metadata": map[string]interface{}{
 			"duration":   info.Duration,
@@ -435,7 +500,7 @@ func (s *Server) handleVideoEdit(w http.ResponseWriter, r *http.Request) {
 	jobID := uuid.New().String()
 	query := `INSERT INTO processing_jobs (id, video_id, job_type, parameters, status) 
 		VALUES ($1, $2, 'edit', $3, 'pending')`
-	
+
 	params, _ := json.Marshal(req)
 	_, err := s.db.Exec(query, jobID, videoID, params)
 	if err != nil {
@@ -446,9 +511,9 @@ func (s *Server) handleVideoEdit(w http.ResponseWriter, r *http.Request) {
 	// TODO: Process edits asynchronously
 	// For now, return job ID
 	s.sendJSON(w, http.StatusAccepted, map[string]interface{}{
-		"job_id": jobID,
+		"job_id":                jobID,
 		"estimated_duration_ms": 5000,
-		"status": "pending",
+		"status":                "pending",
 	})
 }
 
@@ -466,7 +531,7 @@ func (s *Server) handleVideoConvert(w http.ResponseWriter, r *http.Request) {
 	jobID := uuid.New().String()
 	query := `INSERT INTO processing_jobs (id, video_id, job_type, parameters, status) 
 		VALUES ($1, $2, 'convert', $3, 'pending')`
-	
+
 	params, _ := json.Marshal(req)
 	_, err := s.db.Exec(query, jobID, videoID, params)
 	if err != nil {
@@ -547,7 +612,7 @@ func (s *Server) handleGenerateThumbnail(w http.ResponseWriter, r *http.Request)
 	// Generate thumbnail
 	thumbnailPath := filepath.Join(s.config.WorkDir, "thumbnails", videoID+".jpg")
 	os.MkdirAll(filepath.Dir(thumbnailPath), 0755)
-	
+
 	// Get video info for duration
 	info, _ := s.processor.GetVideoInfo(matches[0])
 	timestamp := info.Duration / 2 // Middle of video
@@ -560,7 +625,7 @@ func (s *Server) handleGenerateThumbnail(w http.ResponseWriter, r *http.Request)
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
 		"thumbnail_path": thumbnailPath,
-		"timestamp": timestamp,
+		"timestamp":      timestamp,
 	})
 }
 
@@ -588,7 +653,7 @@ func (s *Server) handleExtractAudio(w http.ResponseWriter, r *http.Request) {
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
 		"audio_path": audioPath,
-		"format": "mp3",
+		"format":     "mp3",
 	})
 }
 
@@ -609,7 +674,7 @@ func (s *Server) handleAddSubtitles(w http.ResponseWriter, r *http.Request) {
 	jobID := uuid.New().String()
 	query := `INSERT INTO processing_jobs (id, video_id, job_type, parameters, status) 
 		VALUES ($1, $2, 'edit', $3, 'pending')`
-	
+
 	params, _ := json.Marshal(req)
 	_, err := s.db.Exec(query, jobID, videoID, params)
 	if err != nil {
@@ -639,7 +704,7 @@ func (s *Server) handleCompress(w http.ResponseWriter, r *http.Request) {
 	jobID := uuid.New().String()
 	query := `INSERT INTO processing_jobs (id, video_id, job_type, parameters, status) 
 		VALUES ($1, $2, 'compress', $3, 'pending')`
-	
+
 	params, _ := json.Marshal(req)
 	_, err := s.db.Exec(query, jobID, videoID, params)
 	if err != nil {
@@ -658,7 +723,7 @@ func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 	videoID := vars["id"]
 
 	var req struct {
-		AnalysisTypes []string `json:"analysis_types"`
+		AnalysisTypes []string               `json:"analysis_types"`
 		Options       map[string]interface{} `json:"options"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -670,7 +735,7 @@ func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 	jobID := uuid.New().String()
 	query := `INSERT INTO processing_jobs (id, video_id, job_type, parameters, status) 
 		VALUES ($1, $2, 'analyze', $3, 'pending')`
-	
+
 	params, _ := json.Marshal(req)
 	_, err := s.db.Exec(query, jobID, videoID, params)
 	if err != nil {
@@ -679,8 +744,8 @@ func (s *Server) handleAnalyze(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.sendJSON(w, http.StatusAccepted, map[string]interface{}{
-		"job_id": jobID,
-		"status": "pending",
+		"job_id":         jobID,
+		"status":         "pending",
 		"analysis_types": req.AnalysisTypes,
 	})
 }
@@ -706,18 +771,18 @@ func (s *Server) handleListJobs(w http.ResponseWriter, r *http.Request) {
 		var createdAt time.Time
 		var startedAt, completedAt sql.NullTime
 
-		if err := rows.Scan(&id, &videoID, &jobType, &status, &progress, 
+		if err := rows.Scan(&id, &videoID, &jobType, &status, &progress,
 			&createdAt, &startedAt, &completedAt); err != nil {
 			continue
 		}
 
 		job := map[string]interface{}{
-			"id":                 id,
-			"video_id":           videoID,
-			"job_type":           jobType,
-			"status":             status,
+			"id":                  id,
+			"video_id":            videoID,
+			"job_type":            jobType,
+			"status":              status,
 			"progress_percentage": progress,
-			"created_at":         createdAt,
+			"created_at":          createdAt,
 		}
 
 		if startedAt.Valid {
@@ -742,17 +807,17 @@ func (s *Server) handleGetJob(w http.ResponseWriter, r *http.Request) {
 		FROM processing_jobs WHERE id = $1`
 
 	var job struct {
-		ID               string          `json:"id"`
-		VideoID          string          `json:"video_id"`
-		JobType          string          `json:"job_type"`
-		Parameters       json.RawMessage `json:"parameters"`
-		Status           string          `json:"status"`
-		Progress         int             `json:"progress_percentage"`
-		OutputPath       *string         `json:"output_path"`
-		ErrorMessage     *string         `json:"error_message"`
-		CreatedAt        time.Time       `json:"created_at"`
-		StartedAt        *time.Time      `json:"started_at"`
-		CompletedAt      *time.Time      `json:"completed_at"`
+		ID           string          `json:"id"`
+		VideoID      string          `json:"video_id"`
+		JobType      string          `json:"job_type"`
+		Parameters   json.RawMessage `json:"parameters"`
+		Status       string          `json:"status"`
+		Progress     int             `json:"progress_percentage"`
+		OutputPath   *string         `json:"output_path"`
+		ErrorMessage *string         `json:"error_message"`
+		CreatedAt    time.Time       `json:"created_at"`
+		StartedAt    *time.Time      `json:"started_at"`
+		CompletedAt  *time.Time      `json:"completed_at"`
 	}
 
 	err := s.db.QueryRow(query, jobID).Scan(
@@ -798,8 +863,8 @@ func (s *Server) handleCancelJob(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCreateStream(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name         string                 `json:"name"`
-		InputSource  map[string]interface{} `json:"input_source"`
+		Name          string                   `json:"name"`
+		InputSource   map[string]interface{}   `json:"input_source"`
 		OutputTargets []map[string]interface{} `json:"output_targets"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -814,9 +879,9 @@ func (s *Server) handleCreateStream(w http.ResponseWriter, r *http.Request) {
 	// Insert into database
 	query := `INSERT INTO streaming_sessions (id, name, input_source, output_targets, stream_key) 
 		VALUES ($1, $2, $3, $4, $5)`
-	
+
 	outputJSON, _ := json.Marshal(req.OutputTargets)
-	
+
 	_, err := s.db.Exec(query, sessionID, req.Name, "rtmp", outputJSON, streamKey)
 	if err != nil {
 		s.sendError(w, http.StatusInternalServerError, "failed to create stream")
@@ -824,9 +889,9 @@ func (s *Server) handleCreateStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.sendJSON(w, http.StatusCreated, map[string]interface{}{
-		"session_id": sessionID,
-		"stream_key": streamKey,
-		"rtmp_url": fmt.Sprintf("rtmp://localhost:1935/live/%s", streamKey),
+		"session_id":  sessionID,
+		"stream_key":  streamKey,
+		"rtmp_url":    fmt.Sprintf("rtmp://localhost:1935/live/%s", streamKey),
 		"preview_url": fmt.Sprintf("http://localhost:%s/stream/%s", s.config.Port, sessionID),
 	})
 }
@@ -845,7 +910,7 @@ func (s *Server) handleStartStream(w http.ResponseWriter, r *http.Request) {
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
 		"session_id": sessionID,
-		"status": "streaming",
+		"status":     "streaming",
 	})
 }
 
@@ -863,7 +928,7 @@ func (s *Server) handleStopStream(w http.ResponseWriter, r *http.Request) {
 
 	s.sendJSON(w, http.StatusOK, map[string]interface{}{
 		"session_id": sessionID,
-		"status": "stopped",
+		"status":     "stopped",
 	})
 }
 
@@ -982,20 +1047,23 @@ func (s *Server) Run() error {
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 		<-sigChan
 
-		log.Println("Shutting down server...")
+		logger.Info("shutting_down_server", nil)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("Server shutdown error: %v", err)
+			logger.Error("server_shutdown_error", map[string]interface{}{"error": err.Error()})
 		}
 
 		s.db.Close()
 	}()
 
-	log.Printf("Server starting on port %s", s.config.Port)
-	log.Printf("API documentation available at http://localhost:%s/docs", s.config.Port)
+	logger.Info("server_starting", map[string]interface{}{
+		"port":     s.config.Port,
+		"api_url":  fmt.Sprintf("http://localhost:%s", s.config.Port),
+		"docs_url": fmt.Sprintf("http://localhost:%s/docs", s.config.Port),
+	})
 
 	return srv.ListenAndServe()
 }
@@ -1013,7 +1081,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Println("Starting video-tools API...")
+	logger.Info("starting_api", map[string]interface{}{"version": "1.0.0"})
 
 	server, err := NewServer()
 	if err != nil {

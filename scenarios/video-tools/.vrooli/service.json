@@ -36,16 +36,11 @@
     }
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "range": "15000-19999",
-       "description": "Main API port"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "range": "35000-39999",
-       "description": "Web UI dashboard port"
-     }
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Main API port"
+    }
   },
   "components": {
     "api": {
@@ -145,7 +140,6 @@
       "description": "Application health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/",
         "metrics": "/api/metrics"
       },
       "checks": [
@@ -164,20 +158,20 @@
     },
     "setup": {
       "description": "Initialize Application",
-         "condition": {
-            "checks": [
-               {
-                  "type": "binaries",
-                  "targets": [
-                     "video-tools-api"
-                  ]
-               },
-                {
-                   "type": "cli",
-                   "targets": [
-                      "video-tools"
-                   ]
-                },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/video-tools-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "targets": [
+              "video-tools"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -244,7 +238,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: video-tools --help'",
+          "run": "echo '🚀 Application initialized\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: video-tools --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -252,34 +246,33 @@
     "develop": {
       "description": "Start application services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./video-tools-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/video-tools-api"
-           }
-         },
-         {
-           "name": "start-ui",
-           "run": "[ -f ui/package.json ] && cd ui && npm run dev || (echo 'UI not present, skipping' && sleep 0.1)",
-           "description": "Start UI development server",
-           "background": true,
-           "condition": {
-             "file_exists": "ui/package.json"
-           }
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: video-tools --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "start-api",
+          "run": "cd api && ./video-tools-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/video-tools-api"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: video-tools --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
       "description": "Test application functionality",
       "steps": [
+        {
+          "name": "test-runner",
+          "run": "test/run-tests.sh",
+          "description": "Run comprehensive test suite",
+          "condition": {
+            "file_exists": "test/run-tests.sh"
+          }
+        },
         {
           "name": "test-go-build",
           "run": "cd api && go build -o test-build ./cmd/server/main.go && rm test-build",
@@ -325,14 +318,6 @@
           "description": "Run CLI test suite",
           "condition": {
             "file_exists": "cli/cli-tests.bats"
-          }
-        },
-        {
-          "name": "test-integration",
-          "run": "bash test.sh",
-          "description": "Run full integration tests",
-          "condition": {
-            "file_exists": "test.sh"
           }
         }
       ]

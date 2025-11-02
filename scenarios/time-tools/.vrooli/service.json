@@ -1,0 +1,142 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "time-tools",
+    "displayName": "Time Tools",
+    "description": "Temporal operations and scheduling platform offering timezone conversions, duration analytics, and intelligent scheduling workflows",
+    "version": "1.0.0",
+    "tags": [
+      "temporal-operations",
+      "scheduling",
+      "timezone-management",
+      "calendar-integration",
+      "go-api",
+      "cli"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Time Tools API port",
+      "range": "15000-19999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "description": "Stores events, schedules, and temporal analytics",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "description": "Caching layer for schedule lookups and async jobs"
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": false,
+      "required": false,
+      "description": "Optional asset storage for exported calendars"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Time Tools health checks",
+      "endpoints": {
+        "api": "/api/v1/health"
+      },
+      "checks": [
+        {
+          "name": "api-health",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/api/v1/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialise CLI and API binaries",
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install the time-tools CLI",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o time-tools-api",
+          "description": "Build the Go API server",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "printf '🚀 Time Tools ready!\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
+          "description": "Display service endpoints"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API in development mode",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && API_PORT=${API_PORT:-18765} TIME_TOOLS_PORT=${API_PORT:-18765} ./time-tools-api",
+          "description": "Start Go API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/time-tools-api"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "printf '🚀 Time Tools running\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
+          "description": "Display runtime endpoints"
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute structure, dependency, unit, and integration phases"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop running services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'time-tools-api' || true; sleep 1; pkill -9 -f 'time-tools-api' 2>/dev/null || true",
+          "description": "Stop Go API server"
+        }
+      ]
+    }
+  }
+}

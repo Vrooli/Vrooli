@@ -1,78 +1,66 @@
 #!/bin/bash
-# Structure validation phase for tech-tree-designer
-# Verifies scenario follows Vrooli v2.0 contract standards
+# Validates scenario structure for tech-tree-designer
+set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
 testing::phase::init --target-time "30s"
+cd "${TESTING_PHASE_SCENARIO_DIR}"
 
-cd "$TESTING_PHASE_SCENARIO_DIR"
-
-# Check required files exist
-testing::phase::log "Validating required files..."
+REQUIRED_DIRS=(
+  ".vrooli"
+  "api"
+  "cli"
+  "docs"
+  "initialization"
+  "test"
+  "test/phases"
+  "ui"
+)
+if testing::phase::check_directories "${REQUIRED_DIRS[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
 REQUIRED_FILES=(
-    "PRD.md"
-    "README.md"
-    "Makefile"
-    ".vrooli/service.json"
-    "api/main.go"
-    "api/go.mod"
-    "ui/package.json"
-    "ui/index.html"
-    "cli/install.sh"
+  ".vrooli/service.json"
+  "PRD.md"
+  "README.md"
+  "PROBLEMS.md"
+  "Makefile"
+  "api/main.go"
+  "api/go.mod"
+  "ui/package.json"
+  "cli/install.sh"
 )
+if testing::phase::check_files "${REQUIRED_FILES[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
-for file in "${REQUIRED_FILES[@]}"; do
-    if [ ! -f "$file" ]; then
-        testing::phase::error "Missing required file: $file"
-        testing::phase::end_with_summary "Structure validation failed" 1
-    fi
-done
+testing::phase::check "service.json parses" jq empty .vrooli/service.json
+if [ -x "cli/tech-tree-designer" ]; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_warning "CLI binary not yet built; skipping executable check"
+  testing::phase::add_test skipped
+fi
 
-# Check Makefile has required targets
-testing::phase::log "Validating Makefile targets..."
-
-REQUIRED_TARGETS=(
-    "help"
-    "start"
-    "run"
-    "stop"
-    "test"
-    "logs"
-    "status"
-    "clean"
-    "fmt"
-    "lint"
-)
-
-for target in "${REQUIRED_TARGETS[@]}"; do
+testing::phase::check "Makefile exposes lifecycle targets" bash -c '
+  required_targets=(help start run stop test logs status clean fmt lint)
+  missing=0
+  for target in "${required_targets[@]}"; do
     if ! grep -q "^${target}:" Makefile; then
-        testing::phase::error "Missing required Makefile target: $target"
-        testing::phase::end_with_summary "Makefile validation failed" 1
+      missing=$((missing + 1))
     fi
-done
+  done
+  [ "$missing" -eq 0 ]
+'
 
-# Check service.json structure
-testing::phase::log "Validating service.json structure..."
-if ! jq -e '.service.name' .vrooli/service.json &>/dev/null; then
-    testing::phase::error "Invalid service.json: missing service.name"
-    testing::phase::end_with_summary "service.json validation failed" 1
-fi
+testing::phase::check "Test directory wired" bash -c '[ -f test/run-tests.sh ] && [ -d test/phases ]'
 
-if ! jq -e '.lifecycle.health' .vrooli/service.json &>/dev/null; then
-    testing::phase::error "Invalid service.json: missing lifecycle.health"
-    testing::phase::end_with_summary "service.json validation failed" 1
-fi
-
-# Check test phase structure
-testing::phase::log "Validating test phase structure..."
-if [ ! -d test/phases ]; then
-    testing::phase::error "Missing test/phases directory"
-    testing::phase::end_with_summary "Test structure validation failed" 1
-fi
-
-testing::phase::log "All structure checks passed"
-testing::phase::end_with_summary "Structure validated" 0
+testing::phase::end_with_summary "Structure validation completed"

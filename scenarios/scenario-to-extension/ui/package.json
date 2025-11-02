@@ -5,30 +5,10 @@
   "type": "module",
   "description": "Web UI for the Browser Extension Generator scenario",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "start": "node server.js"
   },
   "dependencies": {
-    "@radix-ui/react-slot": "^1.0.2",
-    "@radix-ui/react-tabs": "^1.1.2",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.0",
-    "lucide-react": "^0.451.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@types/react": "^18.3.5",
-    "@types/react-dom": "^18.3.2",
-    "@vitejs/plugin-react": "^4.3.3",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.14",
-    "typescript": "^5.4.5",
-    "vite": "^5.3.4"
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "keywords": [
     "browser-extension",

@@ -1,84 +1,57 @@
 #!/bin/bash
-# Main test runner for tech-tree-designer
-# Orchestrates all test phases in the correct order
+# Phased test orchestrator for tech-tree-designer
+set -euo pipefail
 
-set -e
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "${TEST_DIR}/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../.." && pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+LOG_DIR="${TEST_DIR}/artifacts"
+mkdir -p "${LOG_DIR}"
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCENARIO_NAME="$(basename "$SCENARIO_DIR")"
+testing::runner::init \
+  --scenario-name "tech-tree-designer" \
+  --scenario-dir "${SCENARIO_DIR}" \
+  --test-dir "${TEST_DIR}" \
+  --log-dir "${LOG_DIR}"
 
-echo -e "${BLUE}🧪 Running test suite for ${SCENARIO_NAME}${NC}"
-echo ""
+TESTING_PHASES_DIR="${TEST_DIR}/phases"
 
-# Track overall results
-TOTAL_PHASES=0
-PASSED_PHASES=0
-FAILED_PHASES=0
+testing::runner::register_phase \
+  --name structure \
+  --script "${TESTING_PHASES_DIR}/test-structure.sh" \
+  --timeout 30
 
-run_phase() {
-    local phase_name="$1"
-    local phase_script="$SCENARIO_DIR/test/phases/${phase_name}.sh"
+testing::runner::register_phase \
+  --name dependencies \
+  --script "${TESTING_PHASES_DIR}/test-dependencies.sh" \
+  --timeout 45
 
-    TOTAL_PHASES=$((TOTAL_PHASES + 1))
+testing::runner::register_phase \
+  --name unit \
+  --script "${TESTING_PHASES_DIR}/test-unit.sh" \
+  --timeout 120
 
-    echo -e "${BLUE}📋 Running phase: ${phase_name}${NC}"
+testing::runner::register_phase \
+  --name integration \
+  --script "${TESTING_PHASES_DIR}/test-integration.sh" \
+  --timeout 180
 
-    if [ ! -f "$phase_script" ]; then
-        echo -e "${YELLOW}⚠️  Phase script not found: ${phase_script}${NC}"
-        echo ""
-        return 0
-    fi
+testing::runner::register_phase \
+  --name business \
+  --script "${TESTING_PHASES_DIR}/test-business.sh" \
+  --timeout 120
 
-    if bash "$phase_script"; then
-        echo -e "${GREEN}✅ Phase passed: ${phase_name}${NC}"
-        PASSED_PHASES=$((PASSED_PHASES + 1))
-        echo ""
-        return 0
-    else
-        echo -e "${RED}❌ Phase failed: ${phase_name}${NC}"
-        FAILED_PHASES=$((FAILED_PHASES + 1))
-        echo ""
-        return 1
-    fi
-}
+testing::runner::register_phase \
+  --name performance \
+  --script "${TESTING_PHASES_DIR}/test-performance.sh" \
+  --timeout 150
 
-# Run test phases in order
-# Order matters: dependencies -> structure -> unit -> integration -> business -> performance
+testing::runner::define_preset quick "structure dependencies unit"
+testing::runner::define_preset smoke "structure integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
 
-run_phase "test-dependencies" || true
-run_phase "test-structure" || true
-run_phase "test-unit" || true
-run_phase "test-integration" || true
-run_phase "test-business" || true
-run_phase "test-performance" || true
-
-# Print summary
-echo ""
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}📊 Test Summary for ${SCENARIO_NAME}${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-echo -e "  Total phases:  ${TOTAL_PHASES}"
-echo -e "  ${GREEN}Passed:        ${PASSED_PHASES}${NC}"
-echo -e "  ${RED}Failed:        ${FAILED_PHASES}${NC}"
-echo ""
-
-if [ $FAILED_PHASES -eq 0 ]; then
-    echo -e "${GREEN}✅ All tests passed!${NC}"
-    echo ""
-    exit 0
-else
-    echo -e "${RED}❌ Some tests failed${NC}"
-    echo ""
-    exit 1
-fi
+testing::runner::execute "$@"

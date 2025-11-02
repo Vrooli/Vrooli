@@ -285,5 +285,15 @@
       "startup_grace_period": 10000
     },
     "version": "2.0.0"
+  },
+  "test": {
+    "description": "Comprehensive phased testing",
+    "steps": [
+      {
+        "name": "run-phased-tests",
+        "run": "test/run-tests.sh",
+        "description": "Execute phased test suite"
+      }
+    ]
   }
 }

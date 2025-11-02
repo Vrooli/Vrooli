@@ -1,30 +1,49 @@
 #!/bin/bash
-set -euo pipefail
+# Validates project structure and required artifacts for the scenario-dependency-analyzer
 
-echo "🏗️  Testing project structure"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+testing::phase::init --target-time "45s"
 
-required_dirs=( "api" "cli" "ui" ".vrooli" "test" )
-for dir in "${required_dirs[@]}"; do
-  if [ ! -d "$BASE_DIR/$dir" ]; then
-    echo "❌ Missing directory: $dir"
-    exit 1
-  fi
-done
+required_dirs=(
+  api
+  cli
+  initialization
+  initialization/storage/postgres
+  test
+  ui
+  .vrooli
+)
 
-required_files=( "api/main.go" "cli/install.sh" ".vrooli/service.json" )
-for file in "${required_files[@]}"; do
-  if [ ! -f "$BASE_DIR/$file" ]; then
-    echo "❌ Missing file: $file"
-    exit 1
-  fi
-done
+required_files=(
+  PRD.md
+  README.md
+  api/main.go
+  api/go.mod
+  cli/scenario-dependency-analyzer
+  cli/install.sh
+  initialization/storage/postgres/schema.sql
+  initialization/storage/postgres/seed.sql
+  .vrooli/service.json
+)
 
-# Optional lint
-if command -v golangci-lint >/dev/null 2>&1; then
-  cd "$BASE_DIR/api" && golangci-lint run --fast || exit 1
-  cd "$BASE_DIR"
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
 fi
 
-echo "✅ Structure tests passed"
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
+
+# Ensure CLI script is executable so subsequent phases can invoke it safely.
+if [ -f "cli/scenario-dependency-analyzer" ]; then
+  testing::phase::check "CLI wrapper is executable" test -x "cli/scenario-dependency-analyzer"
+fi
+
+testing::phase::end_with_summary "Structure validation completed"

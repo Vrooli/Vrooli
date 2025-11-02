@@ -4,9 +4,9 @@
   "description": "Scalable App Cookbook Web Interface",
   "private": true,
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite --port 3301 --host'",
+    "dev": "bash -c 'PORT=${UI_PORT:-3301}; exec ${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite --port ${PORT} --host'",
     "build": "vite build",
-    "preview": "vite preview --port 3301 --host"
+    "preview": "bash -c 'PORT=${UI_PORT:-3301}; exec vite preview --port ${PORT} --host'"
   },
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",

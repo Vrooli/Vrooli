@@ -288,15 +288,16 @@ func buildIssueTrackerEnhancementPayload(requestID uuid.UUID, req GenerateTestSu
 	description := buildIssueTrackerEnhancementDescription(scenario, testTypes, req)
 
 	metadata := map[string]string{
-		"requested_by": "test-genie",
-		"request_id":   requestID.String(),
-		"request_type": "enhancement",
-		"scenario":     scenario,
+		"requested_by":   "test-genie",
+		"request_id":     requestID.String(),
+		"request_type":   "enhancement",
+		"scenario":       scenario,
+		"target_primary": scenario,
 	}
 
 	environment := map[string]string{
-		"scenario":      scenario,
-		"focus_areas":   strings.Join(testTypes, ","),
+		"scenario":        scenario,
+		"focus_areas":     strings.Join(testTypes, ","),
 		"coverage_target": fmt.Sprintf("%.2f", req.CoverageTarget),
 	}
 
@@ -311,12 +312,17 @@ func buildIssueTrackerEnhancementPayload(requestID uuid.UUID, req GenerateTestSu
 		},
 	}
 
+	targets := buildTestGenieTargets(scenario)
+	if len(targets) == 0 {
+		return nil, errors.New("no valid targets available for enhancement payload")
+	}
+	metadata["target_count"] = strconv.Itoa(len(targets))
+
 	payload := map[string]interface{}{
 		"title":          fmt.Sprintf("Enhance test suite for %s", scenario),
 		"description":    description,
 		"type":           "task",
 		"priority":       "medium",
-		"app_id":         scenario,
 		"status":         "open",
 		"tags":           []string{"test-genie", "test-enhancement", "quality-improvement"},
 		"metadata_extra": metadata,
@@ -324,6 +330,7 @@ func buildIssueTrackerEnhancementPayload(requestID uuid.UUID, req GenerateTestSu
 		"artifacts":      artifacts,
 		"reporter_name":  "Test Genie",
 		"reporter_email": "test-genie@vrooli.local",
+		"targets":        targets,
 	}
 
 	if req.Model != "" {
@@ -368,9 +375,10 @@ func buildIssueTrackerPayload(requestID uuid.UUID, req GenerateTestSuiteRequest)
 	description := buildIssueTrackerDescription(scenario, testTypes, req)
 
 	metadata := map[string]string{
-		"requested_by": "test-genie",
-		"request_id":   requestID.String(),
-		"scenario":     scenario,
+		"requested_by":   "test-genie",
+		"request_id":     requestID.String(),
+		"scenario":       scenario,
+		"target_primary": scenario,
 	}
 
 	environment := map[string]string{
@@ -390,12 +398,17 @@ func buildIssueTrackerPayload(requestID uuid.UUID, req GenerateTestSuiteRequest)
 		},
 	}
 
+	targets := buildTestGenieTargets(scenario)
+	if len(targets) == 0 {
+		return nil, errors.New("no valid targets available for issue payload")
+	}
+	metadata["target_count"] = strconv.Itoa(len(targets))
+
 	payload := map[string]interface{}{
 		"title":          fmt.Sprintf("Generate automated tests for %s", scenario),
 		"description":    description,
 		"type":           "task",
 		"priority":       "high",
-		"app_id":         scenario,
 		"status":         "open",
 		"tags":           []string{"test-genie", "test-generation", "automation"},
 		"metadata_extra": metadata,
@@ -403,6 +416,7 @@ func buildIssueTrackerPayload(requestID uuid.UUID, req GenerateTestSuiteRequest)
 		"artifacts":      artifacts,
 		"reporter_name":  "Test Genie",
 		"reporter_email": "test-genie@vrooli.local",
+		"targets":        targets,
 	}
 
 	if req.Model != "" {
@@ -479,6 +493,21 @@ func buildIssueTrackerEnhancementDescription(scenario string, testTypes []string
 	builder.WriteString("- STOP - do not commit, push, or continue iterating\n\n")
 
 	return builder.String() + buildSharedTestingGuidance(scenario, testTypes, req)
+}
+
+func buildTestGenieTargets(scenario string) []map[string]string {
+	trimmed := strings.TrimSpace(scenario)
+	if trimmed == "" {
+		return nil
+	}
+
+	return []map[string]string{
+		{
+			"type": "scenario",
+			"id":   trimmed,
+			"name": trimmed,
+		},
+	}
 }
 
 func buildIssueTrackerDescription(scenario string, testTypes []string, req GenerateTestSuiteRequest) string {

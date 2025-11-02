@@ -1,49 +1,70 @@
 #!/bin/bash
-set -euo pipefail
+# Ensures language runtimes and package manifests resolve without modifying state.
 
-echo "🔗 Checking Secure Document Processing dependencies"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCENARIO_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." &amp;&amp; pwd )"
+testing::phase::init --target-time "90s"
 
-# Go dependencies
+SCENARIO_DIR="$TESTING_PHASE_SCENARIO_DIR"
+
+# Go module graph validation
 if [ -f "$SCENARIO_DIR/api/go.mod" ]; then
-    echo "📦 Verifying Go dependencies..."
-    cd "$SCENARIO_DIR/api"
-    go mod tidy
-    go mod verify
-    echo "✅ Go dependencies verified"
-    cd "$SCENARIO_DIR"
+  if command -v go >/dev/null 2>&1; then
+    testing::phase::check "Go module graph resolves" bash -c 'cd api && go list ./... >/dev/null'
+  else
+    testing::phase::add_warning "Go toolchain missing; skipping Go dependency check"
+    testing::phase::add_test skipped
+  fi
+else
+  testing::phase::add_warning "Go module file missing; skipping Go dependency check"
+  testing::phase::add_test skipped
 fi
 
-# Node.js dependencies
+# Node.js dependency dry run (supports npm or pnpm based on packageManager field)
 if [ -f "$SCENARIO_DIR/ui/package.json" ]; then
-    echo "📦 Verifying Node.js dependencies..."
-    cd "$SCENARIO_DIR/ui"
-    npm install --dry-run --silent || {
-        echo "❌ Node.js dependency issues detected"
-        exit 1
-    }
-    echo "✅ Node.js dependencies verified"
-    cd "$SCENARIO_DIR"
-fi
-
-# CLI dependencies (basic check)
-if [ -f "$SCENARIO_DIR/cli/install.sh" ]; then
-    echo "🔧 Verifying CLI installation script..."
-    if grep -q "npm install" "$SCENARIO_DIR/cli/install.sh" 2>/dev/null || grep -q "go build" "$SCENARIO_DIR/cli/install.sh" 2>/dev/null; then
-        echo "✅ CLI installation script looks correct"
+  package_manager="$(jq -r '.packageManager // ""' "$SCENARIO_DIR/ui/package.json" 2>/dev/null)"
+  if [[ "$package_manager" == pnpm@* ]]; then
+    if command -v pnpm >/dev/null 2>&1; then
+      testing::phase::check "pnpm install --dry-run" bash -c 'cd ui && pnpm install --lockfile-only >/dev/null'
     else
-        echo "⚠️  CLI installation script may need dependencies check"
+      testing::phase::add_warning "pnpm not available; skipping Node dependency check"
+      testing::phase::add_test skipped
     fi
+  else
+    if command -v npm >/dev/null 2>&1; then
+      testing::phase::check "npm install --dry-run" bash -c 'cd ui && npm install --dry-run >/dev/null'
+    else
+      testing::phase::add_warning "npm CLI missing; skipping Node dependency check"
+      testing::phase::add_test skipped
+    fi
+  fi
+else
+  testing::phase::add_warning "UI package.json not found; skipping Node dependency check"
+  testing::phase::add_test skipped
 fi
 
-# Resource dependencies (from service.json)
+# CLI bats availability (informational)
+if [ -f "$SCENARIO_DIR/cli/secure-document-processing.bats" ]; then
+  if command -v bats >/dev/null 2>&1; then
+    testing::phase::check "BATS CLI available" bats --version >/dev/null
+  else
+    testing::phase::add_warning "BATS CLI missing; CLI tests may be skipped"
+    testing::phase::add_test skipped
+  fi
+fi
+
+# Enumerate enabled resources so integration can verify them later
 if [ -f "$SCENARIO_DIR/.vrooli/service.json" ]; then
-    echo "📋 Checking required resources..."
-    required_resources=$(jq -r '.resources | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null || echo "")
-    for resource in $required_resources; do
-        echo "✅ Required resource declared: $resource"
-    done
+  required_resources=$(jq -r '.resources | to_entries[] | select(.value.required == true or .value.enabled == true) | .key' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null || true)
+  if [ -n "$required_resources" ]; then
+    echo "🔗 Declared resources:" >&2
+    while IFS= read -r resource; do
+      [ -z "$resource" ] && continue
+      echo "   • $resource" >&2
+    done <<< "$required_resources"
+  fi
 fi
 
-echo "✅ All dependency checks passed"
+testing::phase::end_with_summary "Dependency validation completed"

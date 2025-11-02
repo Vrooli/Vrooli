@@ -65,6 +65,7 @@ usage() {
     echo "Options:"
     echo "  --help, -h       Show help for any command"
     echo "  --json           Output in JSON format (most commands)"
+    echo "  --output <fmt>   Alias for --json when fmt=json"
     echo "  --verbose        Show detailed output"
     echo ""
     echo "For more information: scenario-dependency-analyzer <command> --help"
@@ -112,6 +113,7 @@ cmd_analyze() {
     local include_transitive=false
     local json_output=false
     local verbose=false
+    local output_format=""
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -122,6 +124,18 @@ cmd_analyze() {
                 ;;
             --json)
                 json_output=true
+                shift
+                ;;
+            --output)
+                if [[ -z "${2:-}" ]]; then
+                    echo -e "${RED}❌ Option --output requires a value${NC}" >&2
+                    return 1
+                fi
+                output_format="$2"
+                shift 2
+                ;;
+            --output=*)
+                output_format="${1#*=}"
                 shift
                 ;;
             --verbose)
@@ -136,12 +150,21 @@ cmd_analyze() {
                 echo "Options:"
                 echo "  --transitive      Include transitive dependencies"
                 echo "  --json            Output in JSON format"
+                echo "  --output <fmt>    Alias for format selection (supports: json)"
                 echo "  --verbose         Show detailed analysis"
                 echo ""
                 echo "Examples:"
                 echo "  scenario-dependency-analyzer analyze ecosystem-manager"
                 echo "  scenario-dependency-analyzer analyze api-manager --transitive"
                 return 0
+                ;;
+            -o)
+                if [[ -z "${2:-}" ]]; then
+                    echo -e "${RED}❌ Option -o requires a value${NC}" >&2
+                    return 1
+                fi
+                output_format="$2"
+                shift 2
                 ;;
             -*)
                 echo -e "${RED}❌ Unknown option: $1${NC}" >&2
@@ -160,6 +183,22 @@ cmd_analyze() {
         echo -e "${RED}❌ Error: Scenario name required${NC}" >&2
         echo "   Usage: scenario-dependency-analyzer analyze <scenario>" >&2
         return 1
+    fi
+
+    if [[ -n "$output_format" ]]; then
+        case "$output_format" in
+            json)
+                json_output=true
+                ;;
+            pretty|text|human)
+                json_output=false
+                ;;
+            *)
+                echo -e "${RED}❌ Unsupported output format: $output_format${NC}" >&2
+                echo "   Supported formats: json" >&2
+                return 1
+                ;;
+        esac
     fi
     
     echo -e "${BLUE}🔍 Analyzing dependencies for: $scenario${NC}"
@@ -197,6 +236,7 @@ cmd_analyze() {
 # Generate graph command
 cmd_graph() {
     local graph_type="combined"
+    local graph_type_set=false
     local format="json"
     local output_file=""
     local json_output=false
@@ -225,6 +265,7 @@ cmd_graph() {
                 echo "Generate dependency graph visualization"
                 echo ""
                 echo "Options:"
+                echo "  [type]             Optional positional graph type (resource, scenario, combined)"
                 echo "  --type <type>      Graph type (resource, scenario, combined)"
                 echo "  --format <fmt>     Output format (json, dot, mermaid)"
                 echo "  --output <file>    Save output to file"
@@ -237,8 +278,14 @@ cmd_graph() {
                 return 0
                 ;;
             *)
-                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
-                return 1
+                if [[ "$graph_type_set" == false && "$1" != "" ]]; then
+                    graph_type="$1"
+                    graph_type_set=true
+                    shift
+                else
+                    echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                    return 1
+                fi
                 ;;
         esac
     done

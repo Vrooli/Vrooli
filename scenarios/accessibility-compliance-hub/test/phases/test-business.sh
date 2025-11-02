@@ -1,21 +1,42 @@
 #!/bin/bash
-# Business logic tests for accessibility-compliance-hub scenario
-# Note: This is a prototype - no business logic implemented yet
+# Business logic checks for accessibility-compliance-hub.
 
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Colors for output
-readonly YELLOW='\033[1;33m'
-readonly GREEN='\033[0;32m'
-readonly NC='\033[0m' # No Color
+testing::phase::init --target-time "120s"
 
-echo -e "${YELLOW}=== Business Logic Tests ===${NC}"
-echo -e "${YELLOW}Note: Prototype scenario - no business logic to test${NC}\n"
+CLI_BINARY="cli/accessibility-compliance-hub"
 
-echo -e "${GREEN}✓ Verified: Scenario is prototype with mock endpoints only${NC}"
-echo -e "${GREEN}✓ Verified: No WCAG scanning engine implemented yet${NC}"
-echo -e "${GREEN}✓ Verified: No auto-remediation logic present${NC}"
-echo -e "${GREEN}✓ Verified: No database integration active${NC}"
+if [ -x "$CLI_BINARY" ]; then
+  testing::phase::check "CLI help command" "$CLI_BINARY" help
+  testing::phase::check "CLI version command" "$CLI_BINARY" version
+else
+  testing::phase::add_warning "CLI binary unavailable; run cli/install.sh to generate it"
+  testing::phase::add_test skipped
+fi
 
-echo -e "\n${YELLOW}Business logic tests will be added when core functionality is implemented${NC}"
-exit 0
+validate_json() {
+  local label="$1"
+  local path="$2"
+
+  if [ ! -f "$path" ]; then
+    testing::phase::add_warning "$label missing at $path"
+    testing::phase::add_test skipped
+    return
+  fi
+
+  if command -v jq >/dev/null 2>&1; then
+    testing::phase::check "$label is valid JSON" jq empty "$path"
+  else
+    testing::phase::add_warning "jq missing; skipped validation for $label"
+    testing::phase::add_test skipped
+  fi
+}
+
+validate_json "Audit workflow definition" "initialization/n8n/scheduled-reports.json"
+validate_json "Threshold monitor definition" "initialization/n8n/threshold-monitor.json"
+validate_json "Monitoring configuration" "initialization/configuration/monitoring-config.json"
+
+testing::phase::end_with_summary "Business checks completed"

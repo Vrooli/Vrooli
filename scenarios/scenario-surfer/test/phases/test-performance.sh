@@ -1,6 +1,13 @@
 #!/bin/bash
-set -euo pipefail
-echo "=== Test Performance ==="
-# Performance: response times, load handling
-echo "Performance benchmarks for API and UI"
-echo "✅ Performance tests passed"
+# Placeholder for performance baselines
+
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+
+testing::phase::init --target-time "60s"
+
+testing::phase::add_warning "Performance benchmarks not implemented; capture API latency once workloads are defined"
+testing::phase::add_test skipped
+
+testing::phase::end_with_summary "Performance phase pending implementation"

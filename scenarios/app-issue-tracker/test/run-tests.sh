@@ -1,40 +1,41 @@
 #!/bin/bash
+# Shared phased test runner wiring for app-issue-tracker
 set -euo pipefail
 
-# Comprehensive test runner for the scenario
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)"
-cd "$SCENARIO_DIR"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/runner.sh"
 
-echo "=== Running comprehensive tests for App Issue Tracker ==="
+# Enable managed runtime by default so integration/business phases can rely
+# on the API being available when invoked from CI presets.
+testing::runner::init \
+  --scenario-name "app-issue-tracker" \
+  --scenario-dir "$SCENARIO_DIR" \
+  --test-dir "$TEST_DIR" \
+  --log-dir "$TEST_DIR/artifacts" \
+  --default-manage-runtime true
 
-# Run all phase tests
-PHASES_DIR="test/phases"
-if [ -d "$PHASES_DIR" ]; then
-  for phase in "$PHASES_DIR"/test-*.sh; do
-    if [ -f "$phase" ]; then
-      echo ""
-      echo "Running phase: $(basename "$phase")"
-      bash "$phase"
-    fi
-  done
-else
-  echo "✗ Phases directory missing: $PHASES_DIR"
-  exit 1
-fi
+PHASES_DIR="$TEST_DIR/phases"
 
-# Additional scenario-specific tests
-if [ -f test/test-investigation-workflow.sh ]; then
-  echo ""
-  echo "Running investigation workflow test"
-  bash test/test-investigation-workflow.sh
-fi
+testing::runner::register_phase --name structure --script "$PHASES_DIR/test-structure.sh" --timeout 30
 
-if [ -f test/test-search-endpoint.sh ]; then
-  echo ""
-  echo "Running search endpoint test"
-  bash test/test-search-endpoint.sh
-fi
+testing::runner::register_phase --name dependencies --script "$PHASES_DIR/test-dependencies.sh" --timeout 60
 
-echo ""
-echo "✅ All tests completed successfully!"
+testing::runner::register_phase --name unit --script "$PHASES_DIR/test-unit.sh" --timeout 150
+
+testing::runner::register_phase --name integration --script "$PHASES_DIR/test-integration.sh" --timeout 240 --requires-runtime true
+
+testing::runner::register_phase --name business --script "$PHASES_DIR/test-business.sh" --timeout 240 --requires-runtime true
+
+testing::runner::register_phase --name performance --script "$PHASES_DIR/test-performance.sh" --timeout 60
+
+# Presets for common workflows
+testing::runner::define_preset quick "structure unit"
+testing::runner::define_preset api "structure dependencies unit integration"
+testing::runner::define_preset comprehensive "structure dependencies unit integration business performance"
+
+# Execute with any CLI arguments passed through.
+testing::runner::execute "$@"

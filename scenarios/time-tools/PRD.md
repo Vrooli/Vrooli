@@ -772,10 +772,10 @@ discovery:
     category: foundation
     capabilities: [convert, duration, schedule, conflicts, recurring, analytics]
     interfaces:
-      - api: http://localhost:${TIME_TOOLS_PORT}/api/v1
+      - api: http://localhost:${API_PORT}/api/v1
       - cli: time-tools
       - events: time.*
-      - calendar: icalendar://localhost:${TIME_TOOLS_PORT}/calendar
+      - calendar: icalendar://localhost:${API_PORT}/calendar
       
   metadata:
     description: Comprehensive temporal operations and scheduling platform

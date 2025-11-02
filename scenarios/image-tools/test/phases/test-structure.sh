@@ -1,55 +1,52 @@
 #!/bin/bash
-# Test: Structure validation
-# Ensures all required files and directories exist
+# Structure phase – validates required files and directories for image-tools.
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "  ✓ Checking required files..."
+testing::phase::init --target-time "30s"
 
 required_files=(
-    ".vrooli/service.json"
-    "PRD.md"
-    "README.md"
-    "api/main.go"
-    "api/go.mod"
-    "api/storage.go"
-    "cli/image-tools"
-    "cli/install.sh"
-    "ui/index.html"
-    "ui/app.js"
-    "ui/styles.css"
-    "ui/server.js"
-    "Makefile"
-    "test.sh"
+  ".vrooli/service.json"
+  "PRD.md"
+  "README.md"
+  "api/main.go"
+  "api/go.mod"
+  "api/storage.go"
+  "cli/image-tools"
+  "cli/install.sh"
+  "ui/index.html"
+  "ui/app.js"
+  "ui/styles.css"
+  "ui/server.js"
+  "Makefile"
 )
 
-for file in "${required_files[@]}"; do
-    if [ ! -f "$file" ]; then
-        echo "  ❌ Missing required file: $file"
-        exit 1
-    fi
-done
-
-echo "  ✓ Checking required directories..."
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
 required_dirs=(
-    "api"
-    "cli"
-    "ui"
-    "test"
-    "test/phases"
-    "api/plugins"
-    "api/plugins/jpeg"
-    "api/plugins/png"
-    "api/plugins/webp"
-    "api/plugins/svg"
+  "api"
+  "api/plugins"
+  "api/plugins/jpeg"
+  "api/plugins/png"
+  "api/plugins/webp"
+  "api/plugins/svg"
+  "cli"
+  "ui"
+  "initialization"
+  "test"
+  "test/phases"
 )
 
-for dir in "${required_dirs[@]}"; do
-    if [ ! -d "$dir" ]; then
-        echo "  ❌ Missing required directory: $dir"
-        exit 1
-    fi
-done
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+fi
 
-echo "  ✓ Structure validation complete"
+testing::phase::end_with_summary "Structure validation completed"
