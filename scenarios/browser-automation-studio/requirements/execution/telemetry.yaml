@@ -1,0 +1,89 @@
+# Execution telemetry and observability requirements
+
+requirements:
+  - id: BAS-EXEC-TELEMETRY-STREAM
+    category: execution.telemetry
+    prd_ref: "Functional Requirements > Must Have > Real-time screenshot display"
+    title: Telemetry stream includes screenshots, console, and network events
+    description: |
+      Confirms the execution service emits complete telemetry payloads within latency targets and
+      the UI processors consume heartbeat and assertion events correctly.
+    status: complete
+    criticality: P0
+    validation:
+      - type: test
+        ref: api/browserless/client_test.go
+        status: implemented
+        notes: Exercises telemetry persistence, retries, and artifact metadata.
+      - type: test
+        ref: api/browserless/runtime/session_test.go
+        status: implemented
+        notes: Validates Browserless session payloads and error handling.
+      - type: test
+        ref: ui/tests/executionEventProcessor.heartbeat.test.mjs
+        status: implemented
+        notes: Ensures heartbeat events update progress state in the UI store.
+      - type: test
+        ref: ui/tests/executionEventProcessor.assertion.test.mjs
+        status: implemented
+        notes: Confirms assertion payloads render readable log entries.
+      - type: test
+        ref: test/phases/test-unit.sh
+        status: implemented
+        notes: Unit phase captures Node + Go telemetry coverage with enforced thresholds.
+
+  - id: BAS-EXEC-TELEMETRY-AUTOMATION
+    category: execution.telemetry
+    prd_ref: "Functional Requirements > Must Have > Real-time screenshot display"
+    title: Telemetry smoke automation validates live streaming
+    description: |
+      Runs an end-to-end workflow that asserts screenshots, highlight metadata, console, and network
+      events are captured and export packages are generated.
+    status: complete
+    criticality: P0
+    validation:
+      - type: automation
+        ref: test/playbooks/executions/telemetry-smoke.yaml
+        status: implemented
+        notes: Workflow provisions deterministic data URL and verifies replay export metadata.
+      - type: test
+        ref: test/phases/test-integration.sh
+        status: implemented
+        notes: Integration phase invokes the telemetry smoke automation through run_workflow_yaml.
+
+  - id: BAS-EXEC-HEARTBEAT-DETECTION
+    category: execution.telemetry
+    prd_ref: "Functional Requirements > Must Have > Real-time screenshot display"
+    title: Heartbeat stalls trigger operator alerts
+    description: |
+      Ensures the CLI and automation surface stalled heartbeat warnings when telemetry pauses beyond
+      the configured threshold.
+    status: complete
+    criticality: P0
+    validation:
+      - type: automation
+        ref: test/playbooks/executions/heartbeat-stall.yaml
+        status: implemented
+        notes: Disables heartbeats and asserts CLI warning output.
+      - type: test
+        ref: test/phases/test-integration.sh
+        status: implemented
+        notes: Integration phase records requirement state after running heartbeat automation.
+
+  - id: BAS-EXEC-CLI-WATCH
+    category: execution.telemetry
+    prd_ref: "Functional Requirements > Must Have > Execute workflows via API and CLI"
+    title: CLI execution watch surfaces telemetry and heartbeat state
+    description: |
+      Confirms the CLI reflects progress, warning, and recovery events while tailing live executions.
+    status: in_progress
+    criticality: P0
+    validation:
+      - type: manual
+        ref: cli/browser-automation-studio execution watch
+        status: implemented
+        notes: CLI emits heartbeat lag/stall notices during manual verification sessions.
+      - type: automation
+        ref: test/playbooks/executions/telemetry-smoke.yaml
+        status: planned
+        notes: Extend smoke workflow to assert CLI output once scripted checks are in place.

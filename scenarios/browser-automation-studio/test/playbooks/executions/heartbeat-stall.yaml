@@ -1,0 +1,30 @@
+version: "1.0"
+name: browserless-heartbeat-stall
+summary: |
+  Runs a throttled Browserless execution with heartbeats disabled to ensure the
+  CLI watcher surfaces "heartbeat stalled" alerts and the workflow completes
+  successfully.
+labels:
+  - telemetry
+  - resiliency
+  - browserless
+  - ci-smoke
+owner: execution-team@vrooli.dev
+prerequisites:
+  - Browser Automation Studio scenario dependencies installed via `./scripts/manage.sh setup`
+  - Browserless resource available through the lifecycle system
+  - `jq`, `curl`, and `browser-automation-studio` CLI available on PATH
+steps:
+  - name: run-heartbeat-stall-check
+    description: |
+      Stops the scenario if it is running, relaunches it with
+      `BROWSERLESS_HEARTBEAT_INTERVAL=0`, provisions a long-running wait workflow,
+      and validates that `browser-automation-studio execution watch` produces a
+      "heartbeat stalled" message before the run completes.
+    command: ./test/playbooks/executions/heartbeat-stall.sh
+    timeout: 600
+success_criteria:
+  - type: log_scan
+    description: The automation script must emit "Heartbeat stall alert detected".
+    pattern: "Heartbeat stall alert detected"
+    source: stdout

@@ -71,9 +71,9 @@ Default settings in `initialization/configuration/`:
 - `ui-config.json`: Interface customization options
 
 ## Testing
-- `test.sh`: Basic functionality tests
-- `custom-tests.sh`: Audio processing validation
-- `test/test-analysis-endpoint.sh`: API endpoint testing
+- `test/run-tests.sh`: Phased orchestration covering structure, dependencies, unit, integration, business, and performance gates
+- `test/phases/test-integration.sh`: Starts the scenario via the lifecycle and validates core API endpoints
+- `cli/audio-intelligence-platform.bats` & `custom-tests.sh`: CLI contracts and custom workflow checks executed during the business phase
 
 ## Performance Considerations
 - Audio files are processed asynchronously to prevent blocking

@@ -1,0 +1,62 @@
+# Project management UI behaviours
+
+requirements:
+  - id: BAS-PROJECT-DIALOG-OPEN
+    category: projects.ui
+    prd_ref: "Functional Requirements > Must Have > Visual workflow builder"
+    title: New project dialog opens from primary entry points
+    description: |
+      Verifies the modal opens via the "Create Project" button, keyboard shortcuts, and
+      toolbar menu so operators can begin authoring without page reloads.
+    status: pending
+    criticality: P0
+    validation:
+      - type: automation
+        ref: test/playbooks/ui/projects/new-project-dialog-open.yaml
+        status: planned
+        notes: Browser Automation Studio workflow asserting modal visibility for each trigger.
+
+  - id: BAS-PROJECT-DIALOG-CLOSE
+    category: projects.ui
+    prd_ref: "Functional Requirements > Must Have > Visual workflow builder"
+    title: New project dialog closes through all affordances
+    description: |
+      Ensures the modal dismisses through the X button, cancel button, backdrop click,
+      and Escape key, restoring the underlying canvas state.
+    status: pending
+    criticality: P0
+    validation:
+      - type: automation
+        ref: test/playbooks/ui/projects/new-project-dialog-close.yaml
+        status: planned
+        notes: Workflow covers each dismissal path and asserts focus is returned to the canvas.
+
+  - id: BAS-PROJECT-CREATE-SUCCESS
+    category: projects.ui
+    prd_ref: "Functional Requirements > Must Have > Visual workflow builder"
+    title: Operators can create a project from the dialog
+    description: |
+      Confirms validated submissions persist projects, show success toasts, and refresh
+      the project list with the new entry selected.
+    status: pending
+    criticality: P0
+    validation:
+      - type: automation
+        ref: test/playbooks/ui/projects/new-project-create.yaml
+        status: planned
+        notes: Automation seeds a unique project name and checks API + UI consistency.
+
+  - id: BAS-PROJECT-CREATE-VALIDATION
+    category: projects.ui
+    prd_ref: "Functional Requirements > Must Have > Visual workflow builder"
+    title: Project creation enforces inline validation rules
+    description: |
+      Covers empty name, duplicate detection, and invalid characters with accessible
+      error messaging surfaced inside the dialog.
+    status: pending
+    criticality: P0
+    validation:
+      - type: automation
+        ref: test/playbooks/ui/projects/new-project-validation.yaml
+        status: planned
+        notes: Workflow submits failing payloads and asserts inline error copy plus disabled submit.

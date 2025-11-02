@@ -172,7 +172,7 @@ Screenshot customization pipeline:
    - Add failure heuristics (auto-screenshot on error, aggregated error codes) for AI debugging loop.
 
 4. **Replay & Rendering (P1)**
-   - ✅ (2025-11-08) Defined replay JSON schema via `BuildReplayExport` and `/executions/{id}/export`, supplying transition hints, theme presets, and asset manifests for UI/CLI consumers.
+- ✅ (2025-11-08) Defined replay JSON schema via `BuildReplayMovieSpec` and `/executions/{id}/export`, supplying transition hints, theme presets, and asset manifests for UI/CLI consumers.
    - Provide CLI renderer (Node + ffmpeg) to export marketing reels.
 
 5. **Extension & Recording (P2)**
@@ -227,7 +227,7 @@ Screenshot customization pipeline:
 6. Once ingest completes, the API emits `execution.imported` over WebSocket so the UI can surface the new recording instantly.
 
 **Data alignment considerations:**
-- Reuse the existing replay export builder (`BuildReplayExport`) by pointing it at the ingested steps; the exporter only needs to understand `origin` to toggle cursor animation presets (real vs synthetic).
+- Reuse the existing replay export builder (`BuildReplayMovieSpec`) by pointing it at the ingested steps; the exporter only needs to understand `origin` to toggle cursor animation presets (real vs synthetic).
 - Maintain a manifest hash to de-duplicate uploads and allow future delta sync from the extension.
 - Flag imported runs in `executions.trigger_type = 'extension'` so analytics can filter by origin.
 

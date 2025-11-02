@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import clsx from "clsx";
 import ReplayPlayer, {
   type ReplayFrame,
@@ -90,6 +97,9 @@ const DEFAULT_FRAME_DURATION_MS = 1600;
 const PROGRESS_EPSILON = 0.02;
 const DEFAULT_TIMEOUT_MS = 6000;
 const DEFAULT_BODY_BACKGROUND = "#020617";
+const DEFAULT_CANVAS_WIDTH = 1280;
+const DEFAULT_CANVAS_HEIGHT = 720;
+const SPEC_POLL_INTERVAL_MS = 4000;
 const CURSOR_SPEED_PROFILES: CursorSpeedProfile[] = [
   "instant",
   "linear",
@@ -105,16 +115,22 @@ const CURSOR_PATH_STYLES: CursorPathStyle[] = [
   "pseudorandom",
 ];
 
-const asCursorSpeedProfile = (value: string | null | undefined): CursorSpeedProfile | undefined => {
+const asCursorSpeedProfile = (
+  value: string | null | undefined,
+): CursorSpeedProfile | undefined => {
   if (!value) {
     return undefined;
   }
   const lowered = value.trim().toLowerCase();
-  const match = CURSOR_SPEED_PROFILES.find((candidate) => candidate === lowered);
+  const match = CURSOR_SPEED_PROFILES.find(
+    (candidate) => candidate === lowered,
+  );
   return match;
 };
 
-const asCursorPathStyle = (value: string | null | undefined): CursorPathStyle | undefined => {
+const asCursorPathStyle = (
+  value: string | null | undefined,
+): CursorPathStyle | undefined => {
   if (!value) {
     return undefined;
   }
@@ -190,12 +206,18 @@ const decodeExportPayload = (encoded: string): ReplayMovieSpec | null => {
     const json = window.atob(normalized);
     return JSON.parse(json) as ReplayMovieSpec;
   } catch (error) {
-    logger.error("Failed to decode replay export payload", { component: "ReplayExportPage" }, error);
+    logger.error(
+      "Failed to decode replay export payload",
+      { component: "ReplayExportPage" },
+      error,
+    );
     return null;
   }
 };
 
-const decodeJsonSpec = (raw: string | null | undefined): ReplayMovieSpec | null => {
+const decodeJsonSpec = (
+  raw: string | null | undefined,
+): ReplayMovieSpec | null => {
   if (!raw) {
     return null;
   }
@@ -221,24 +243,26 @@ const getBootstrapPayload = (): BootstrapPayload | null => {
   }
   const payload = candidate as BootstrapPayload;
   return {
-    payloadJson: typeof payload.payloadJson === "string" ? payload.payloadJson : undefined,
+    payloadJson:
+      typeof payload.payloadJson === "string" ? payload.payloadJson : undefined,
     payloadBase64:
       typeof payload.payloadBase64 === "string"
         ? payload.payloadBase64
         : undefined,
-    apiBase:
-      typeof payload.apiBase === "string" ? payload.apiBase : undefined,
+    apiBase: typeof payload.apiBase === "string" ? payload.apiBase : undefined,
     executionId:
-      typeof payload.executionId === "string"
-        ? payload.executionId
-        : undefined,
+      typeof payload.executionId === "string" ? payload.executionId : undefined,
   };
 };
 
 const resolveBootstrapSpec = () => {
   const payload = getBootstrapPayload();
   if (!payload) {
-    return { spec: null as ReplayMovieSpec | null, executionId: null as string | null, apiBase: null as string | null };
+    return {
+      spec: null as ReplayMovieSpec | null,
+      executionId: null as string | null,
+      apiBase: null as string | null,
+    };
   }
   let spec = decodeJsonSpec(payload.payloadJson);
   if (!spec && payload.payloadBase64) {
@@ -439,13 +463,12 @@ const defaultStatusMessage = (status: string): string => {
 };
 
 const ReplayExportPage = () => {
-  const [movieSpec, setMovieSpec] = useState<ReplayMovieSpec | null>(
-    null,
-  );
+  const [movieSpec, setMovieSpec] = useState<ReplayMovieSpec | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [statusPayload, setStatusPayload] = useState<
-    { status: string; message: string }
-  >(null);
+  const [statusPayload, setStatusPayload] = useState<{
+    status: string;
+    message: string;
+  } | null>(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [currentProgress, setCurrentProgress] = useState(0);
   const [controllerSignal, setControllerSignal] = useState(0);
@@ -454,26 +477,38 @@ const ReplayExportPage = () => {
   );
   const [isAwaitingSpec, setIsAwaitingSpec] = useState(false);
   const fetchingRef = useRef(false);
+  const pendingRetryRef = useRef<number | null>(null);
   const parentOriginRef = useRef<string | null>(null);
   const executionSourceRef = useRef<string | null>(null);
-  const readySentRef = useRef(false);
+  const readySignalRef = useRef<string | null>(null);
 
   const controllerRef = useRef<ReplayPlayerController | null>(null);
   const waitersRef = useRef<Waiter[]>([]);
   const timelineRef = useRef<FrameTimeline[]>([]);
   const totalDurationRef = useRef(0);
 
-  const reportStatus = useCallback((status: string, message?: string | null) => {
-    const normalized = normalizeStatus(status) || "unavailable";
-    const trimmedMessage =
-      typeof message === "string" && message.trim().length > 0
-        ? message.trim()
-        : defaultStatusMessage(normalized);
-    setStatusPayload({ status: normalized, message: trimmedMessage });
-    setLoadError(trimmedMessage);
-    setIsAwaitingSpec(false);
-    setMovieSpec(null);
+  const clearPendingRetry = useCallback(() => {
+    if (pendingRetryRef.current != null) {
+      window.clearTimeout(pendingRetryRef.current);
+      pendingRetryRef.current = null;
+    }
   }, []);
+
+  const reportStatus = useCallback(
+    (status: string, message?: string | null) => {
+      clearPendingRetry();
+      const normalized = normalizeStatus(status) || "unavailable";
+      const trimmedMessage =
+        typeof message === "string" && message.trim().length > 0
+          ? message.trim()
+          : defaultStatusMessage(normalized);
+      setStatusPayload({ status: normalized, message: trimmedMessage });
+      setLoadError(trimmedMessage);
+      setIsAwaitingSpec(false);
+      setMovieSpec(null);
+    },
+    [clearPendingRetry],
+  );
 
   const fetchMovieSpec = useCallback(
     async (executionId: string) => {
@@ -482,6 +517,7 @@ const ReplayExportPage = () => {
         return;
       }
       fetchingRef.current = true;
+      clearPendingRetry();
       setIsAwaitingSpec(true);
       setLoadError(null);
       setStatusPayload(null);
@@ -490,7 +526,8 @@ const ReplayExportPage = () => {
           typeof window !== "undefined" && window.__BAS_EXPORT_API_BASE__
             ? String(window.__BAS_EXPORT_API_BASE__).trim()
             : "";
-        const origin = base === "" ? window.location.origin : base.replace(/\/$/, "");
+        const origin =
+          base === "" ? window.location.origin : base.replace(/\/$/, "");
         const endpoint = `${origin}/api/v1/executions/${normalizedId}/export`;
         const response = await fetch(endpoint, {
           method: "POST",
@@ -514,6 +551,21 @@ const ReplayExportPage = () => {
           preview.package && Array.isArray(preview.package.frames)
             ? preview.package.frames.length > 0
             : false;
+        if (status === "pending" && !hasFrames) {
+          executionSourceRef.current = normalizedId;
+          const pendingMessage = messageText || defaultStatusMessage("pending");
+          setStatusPayload({ status: "pending", message: pendingMessage });
+          setLoadError(null);
+          setMovieSpec(null);
+          setIsAwaitingSpec(true);
+          if (pendingRetryRef.current == null) {
+            pendingRetryRef.current = window.setTimeout(() => {
+              pendingRetryRef.current = null;
+              void fetchMovieSpec(normalizedId);
+            }, SPEC_POLL_INTERVAL_MS);
+          }
+          return;
+        }
         if (status && status !== "ready" && !hasFrames) {
           executionSourceRef.current = normalizedId;
           reportStatus(status, messageText);
@@ -522,6 +574,7 @@ const ReplayExportPage = () => {
         if (!preview?.package) {
           throw new Error("Replay movie spec missing from export response");
         }
+        clearPendingRetry();
         setMovieSpec(preview.package);
         setStatusPayload(null);
         setLoadError(null);
@@ -530,7 +583,10 @@ const ReplayExportPage = () => {
         setIsAwaitingSpec(false);
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Failed to fetch replay spec";
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch replay spec";
+        clearPendingRetry();
         reportStatus("error", message);
         logger.error(
           "Replay export fetch failed",
@@ -541,7 +597,7 @@ const ReplayExportPage = () => {
         fetchingRef.current = false;
       }
     },
-    [reportStatus],
+    [clearPendingRetry, reportStatus],
   );
 
   useEffect(() => {
@@ -614,6 +670,9 @@ const ReplayExportPage = () => {
   }, [fetchMovieSpec, reportStatus]);
 
   useEffect(() => {
+    if (mode !== "standalone") {
+      return;
+    }
     const originalStyles = {
       backgroundColor: document.body.style.backgroundColor,
       margin: document.body.style.margin,
@@ -639,7 +698,7 @@ const ReplayExportPage = () => {
       document.body.style.alignItems = originalStyles.alignItems;
       document.body.style.padding = originalStyles.padding;
     };
-  }, []);
+  }, [mode]);
 
   const assetMap = useMemo(() => {
     const assets = movieSpec?.assets ?? [];
@@ -661,6 +720,10 @@ const ReplayExportPage = () => {
     );
   }, [assetMap, movieSpec?.frames]);
 
+  const assetCount = Array.isArray(movieSpec?.assets)
+    ? movieSpec.assets.length
+    : 0;
+
   const timeline = useMemo(
     () => buildTimeline(movieSpec?.frames),
     [movieSpec?.frames],
@@ -677,6 +740,42 @@ const ReplayExportPage = () => {
     timelineRef.current = timeline;
     totalDurationRef.current = totalDurationMs;
   }, [timeline, totalDurationMs]);
+
+  useEffect(() => {
+    return () => {
+      clearPendingRetry();
+    };
+  }, [clearPendingRetry]);
+
+  const effectiveCanvasWidth = useMemo(() => {
+    const canvasWidth = movieSpec?.presentation?.canvas?.width;
+    if (canvasWidth && canvasWidth > 0) {
+      return canvasWidth;
+    }
+    const viewportWidth = movieSpec?.presentation?.viewport?.width;
+    if (viewportWidth && viewportWidth > 0) {
+      return viewportWidth;
+    }
+    return DEFAULT_CANVAS_WIDTH;
+  }, [
+    movieSpec?.presentation?.canvas?.width,
+    movieSpec?.presentation?.viewport?.width,
+  ]);
+
+  const effectiveCanvasHeight = useMemo(() => {
+    const canvasHeight = movieSpec?.presentation?.canvas?.height;
+    if (canvasHeight && canvasHeight > 0) {
+      return canvasHeight;
+    }
+    const viewportHeight = movieSpec?.presentation?.viewport?.height;
+    if (viewportHeight && viewportHeight > 0) {
+      return viewportHeight;
+    }
+    return DEFAULT_CANVAS_HEIGHT;
+  }, [
+    movieSpec?.presentation?.canvas?.height,
+    movieSpec?.presentation?.viewport?.height,
+  ]);
 
   const registerWaiter = useCallback(
     (targetIndex: number, targetProgress: number) => {
@@ -772,6 +871,19 @@ const ReplayExportPage = () => {
       const totalDuration = totalDurationRef.current;
       const specId =
         movieSpec?.execution?.execution_id ?? executionSourceRef.current;
+      if (statusPayload.status === "pending") {
+        postToParent({
+          type: "bas:metrics",
+          status: statusPayload.status,
+          message: statusPayload.message,
+          executionId: executionSourceRef.current,
+          frames,
+          assets,
+          totalDurationMs: totalDuration,
+          specId,
+        });
+        return;
+      }
       postToParent({
         type: "bas:error",
         status: statusPayload.status,
@@ -788,7 +900,8 @@ const ReplayExportPage = () => {
       postToParent({
         type: "bas:error-clear",
         executionId: executionSourceRef.current,
-        specId: movieSpec?.execution?.execution_id ?? executionSourceRef.current,
+        specId:
+          movieSpec?.execution?.execution_id ?? executionSourceRef.current,
       });
     }
   }, [statusPayload, mode, postToParent, loadError, movieSpec]);
@@ -831,10 +944,14 @@ const ReplayExportPage = () => {
         case "bas:spec:set": {
           const incoming = payload.spec as ReplayMovieSpec | undefined;
           if (incoming) {
+            clearPendingRetry();
             setMovieSpec(incoming);
             setLoadError(null);
             setStatusPayload(null);
             setIsAwaitingSpec(false);
+            if (typeof payload.apiBase === "string" && payload.apiBase.trim()) {
+              window.__BAS_EXPORT_API_BASE__ = payload.apiBase.trim();
+            }
             if (typeof payload.specId === "string" && payload.specId.trim()) {
               executionSourceRef.current = payload.specId.trim();
             } else if (typeof payload.executionId === "string") {
@@ -847,6 +964,7 @@ const ReplayExportPage = () => {
           if (typeof payload.payload === "string") {
             const decoded = decodeExportPayload(payload.payload);
             if (decoded) {
+              clearPendingRetry();
               setMovieSpec(decoded);
               setLoadError(null);
               setStatusPayload(null);
@@ -869,7 +987,10 @@ const ReplayExportPage = () => {
           break;
         }
         case "bas:control:seek": {
-          if (typeof payload.timeMs === "number" && Number.isFinite(payload.timeMs)) {
+          if (
+            typeof payload.timeMs === "number" &&
+            Number.isFinite(payload.timeMs)
+          ) {
             void seekToTime(payload.timeMs);
           }
           break;
@@ -890,10 +1011,15 @@ const ReplayExportPage = () => {
             Number.isFinite(frameIndex) &&
             controllerRef.current
           ) {
-            const waiterPromise = registerWaiter(frameIndex, Number(progress) || 0);
+            const waiterPromise = registerWaiter(
+              frameIndex,
+              Number(progress) || 0,
+            );
             controllerRef.current.seek({
               frameIndex,
-              progress: Number.isFinite(progress) ? Number(progress) : undefined,
+              progress: Number.isFinite(progress)
+                ? Number(progress)
+                : undefined,
             });
             void waiterPromise.catch((error) => {
               logger.warn(
@@ -913,7 +1039,13 @@ const ReplayExportPage = () => {
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [fetchMovieSpec, registerWaiter, reportStatus, seekToTime]);
+  }, [
+    clearPendingRetry,
+    fetchMovieSpec,
+    registerWaiter,
+    reportStatus,
+    seekToTime,
+  ]);
 
   useEffect(() => {
     if (waitersRef.current.length === 0) {
@@ -973,16 +1105,14 @@ const ReplayExportPage = () => {
         const rect = controllerRef.current
           ?.getViewportElement()
           ?.getBoundingClientRect();
-        const canvas = movieSpec?.presentation?.canvas;
-        const viewportPrefs = movieSpec?.presentation?.viewport;
         const deviceScale = movieSpec?.presentation?.device_scale_factor;
         const assetCount = Array.isArray(movieSpec?.assets)
           ? movieSpec?.assets.length
           : 0;
         const specId =
           movieSpec?.execution?.execution_id ?? executionSourceRef.current;
-        const width = rect ? rect.width : canvas?.width ?? viewportPrefs?.width ?? 0;
-        const height = rect ? rect.height : canvas?.height ?? viewportPrefs?.height ?? 0;
+        const width = rect ? Math.round(rect.width) : effectiveCanvasWidth;
+        const height = rect ? Math.round(rect.height) : effectiveCanvasHeight;
         return {
           totalDurationMs: totalDurationRef.current,
           frameCount: timelineRef.current.length,
@@ -1012,30 +1142,36 @@ const ReplayExportPage = () => {
   ]);
 
   useEffect(() => {
-    const ready =
-      mode !== "capture" &&
-      !loadError &&
-      controllerRef.current &&
-      replayFrames.length > 0;
-    if (ready && !readySentRef.current) {
-      readySentRef.current = true;
-      postToParent({
-        type: "bas:ready",
-        frames: replayFrames.length,
-        totalDurationMs: totalDurationRef.current,
-        executionId: executionSourceRef.current,
-        assets: Array.isArray(movieSpec?.assets) ? movieSpec.assets.length : 0,
-        specId:
-          movieSpec?.execution?.execution_id ?? executionSourceRef.current,
-      });
+    if (mode === "capture" || loadError || !controllerRef.current) {
+      readySignalRef.current = null;
+      return;
     }
-    if (!ready) {
-      readySentRef.current = false;
+
+    const pending = isAwaitingSpec || replayFrames.length === 0;
+    const signalToken = `${pending ? "pending" : "ready"}:${replayFrames.length}`;
+
+    if (readySignalRef.current === signalToken) {
+      return;
     }
+
+    readySignalRef.current = signalToken;
+
+    postToParent({
+      type: "bas:ready",
+      frames: replayFrames.length,
+      totalDurationMs: totalDurationRef.current,
+      executionId: executionSourceRef.current,
+      assets: assetCount,
+      specId: movieSpec?.execution?.execution_id ?? executionSourceRef.current,
+      pending,
+    });
   }, [
     controllerSignal,
+    isAwaitingSpec,
     loadError,
     mode,
+    movieSpec?.execution?.execution_id,
+    assetCount,
     postToParent,
     replayFrames.length,
   ]);
@@ -1054,13 +1190,7 @@ const ReplayExportPage = () => {
       frameId: replayFrames[currentFrameIndex]?.id ?? null,
       executionId: executionSourceRef.current,
     });
-  }, [
-    currentFrameIndex,
-    currentProgress,
-    mode,
-    postToParent,
-    replayFrames,
-  ]);
+  }, [currentFrameIndex, currentProgress, mode, postToParent, replayFrames]);
 
   const decor = movieSpec?.decor ?? {};
   const motion = movieSpec?.cursor_motion;
@@ -1075,10 +1205,8 @@ const ReplayExportPage = () => {
     motion?.click_animation ??
     movieSpec?.cursor?.click_animation ??
     "none") as any;
-  const cursorScale = decor.cursor_scale ??
-    motion?.cursor_scale ??
-    movieSpec?.cursor?.scale ??
-    1;
+  const cursorScale =
+    decor.cursor_scale ?? motion?.cursor_scale ?? movieSpec?.cursor?.scale ?? 1;
   const cursorDefaultSpeedProfile = asCursorSpeedProfile(motion?.speed_profile);
   const cursorDefaultPathStyle = asCursorPathStyle(motion?.path_style);
 
@@ -1110,26 +1238,59 @@ const ReplayExportPage = () => {
     );
   }
 
-  if (!movieSpec || replayFrames.length === 0) {
-    const placeholder = isAwaitingSpec
-      ? "Waiting for replay spec…"
-      : "Preparing replay…";
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-slate-950 text-slate-200">
-        <span className="text-sm uppercase tracking-[0.3em] text-slate-400">
-          {placeholder}
-        </span>
-      </div>
-    );
-  }
+  const showPlaceholder = !movieSpec || replayFrames.length === 0;
+  const placeholderMessage = (() => {
+    if (statusPayload?.status === "pending") {
+      return (
+        statusPayload.message ||
+        "Replay export pending – timeline frames not captured yet"
+      );
+    }
+    if (isAwaitingSpec) {
+      return "Waiting for replay spec…";
+    }
+    return "Preparing replay…";
+  })();
+
+  const containerClassName = clsx(
+    "w-full",
+    mode === "standalone" ? "mx-auto" : "h-full",
+  );
+
+  const containerStyle: CSSProperties = useMemo(() => {
+    if (mode === "capture") {
+      return {
+        width: `${effectiveCanvasWidth}px`,
+        height: `${effectiveCanvasHeight}px`,
+      };
+    }
+    if (mode === "embedded") {
+      return {
+        width: "100%",
+        maxWidth: "100%",
+      };
+    }
+    return {};
+  }, [effectiveCanvasHeight, effectiveCanvasWidth, mode]);
 
   return (
-    <div className="mx-auto w-full max-w-[1440px]">
+    <div
+      className={containerClassName}
+      style={{
+        ...containerStyle,
+        backgroundColor:
+          mode === "standalone" ? undefined : DEFAULT_BODY_BACKGROUND,
+      }}
+    >
       <div
-        className={clsx("transition-all duration-500", {
-          "opacity-100": controllerRef.current,
-          "opacity-0": !controllerRef.current,
-        })}
+        className={clsx(
+          "relative transition-all duration-500",
+          mode === "standalone" ? "w-full" : "h-full w-full",
+          {
+            "opacity-100": mode !== "standalone" || controllerRef.current,
+            "opacity-0": mode === "standalone" && !controllerRef.current,
+          },
+        )}
       >
         <ReplayPlayer
           frames={replayFrames}
@@ -1146,7 +1307,23 @@ const ReplayExportPage = () => {
           onFrameChange={handleFrameChange}
           onFrameProgressChange={handleProgressChange}
           exposeController={handleExposeController}
+          presentationMode={mode === "standalone" ? "default" : "export"}
+          allowPointerEditing={mode === "standalone"}
+          presentationDimensions={{
+            width: effectiveCanvasWidth,
+            height: effectiveCanvasHeight,
+            deviceScaleFactor:
+              movieSpec?.presentation?.device_scale_factor ?? undefined,
+          }}
         />
+
+        {showPlaceholder && mode !== "capture" && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/40">
+            <span className="text-xs uppercase tracking-[0.3em] text-slate-300/80">
+              {placeholderMessage}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

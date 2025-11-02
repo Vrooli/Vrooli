@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services"
@@ -275,6 +276,116 @@ func applyExportOverrides(pkg *services.ReplayMovieSpec, overrides *executionExp
 	}
 	if overrides.Cursor != nil {
 		pkg.Cursor = *overrides.Cursor
+	}
+
+	applyDecorOverrides(pkg, overrides)
+	syncCursorDecor(pkg)
+}
+
+func applyDecorOverrides(pkg *services.ReplayMovieSpec, overrides *executionExportOverrides) {
+	if pkg == nil || overrides == nil {
+		return
+	}
+
+	if preset := overrides.ThemePreset; preset != nil {
+		if chrome := strings.TrimSpace(preset.ChromeTheme); chrome != "" {
+			pkg.Decor.ChromeTheme = chrome
+		}
+		if background := strings.TrimSpace(preset.BackgroundTheme); background != "" {
+			pkg.Decor.BackgroundTheme = background
+		}
+	}
+
+	if cursorPreset := overrides.CursorPreset; cursorPreset != nil {
+		if theme := strings.TrimSpace(cursorPreset.Theme); theme != "" {
+			pkg.Decor.CursorTheme = theme
+		}
+		if initial := strings.TrimSpace(cursorPreset.InitialPosition); initial != "" {
+			pkg.Decor.CursorInitial = initial
+		}
+		if anim := strings.TrimSpace(cursorPreset.ClickAnimation); anim != "" {
+			pkg.Decor.CursorClickAnimation = anim
+		}
+		if cursorPreset.Scale > 0 {
+			pkg.Decor.CursorScale = clampCursorScale(cursorPreset.Scale)
+		}
+	}
+
+	if cursorOverride := overrides.Cursor; cursorOverride != nil {
+		if strings.TrimSpace(cursorOverride.InitialPos) != "" {
+			pkg.Decor.CursorInitial = cursorOverride.InitialPos
+		}
+		if strings.TrimSpace(cursorOverride.ClickAnim) != "" {
+			pkg.Decor.CursorClickAnimation = cursorOverride.ClickAnim
+		}
+		if cursorOverride.Scale > 0 {
+			pkg.Decor.CursorScale = clampCursorScale(cursorOverride.Scale)
+		}
+	}
+}
+
+func syncCursorDecor(pkg *services.ReplayMovieSpec) {
+	if pkg == nil {
+		return
+	}
+
+	if strings.TrimSpace(pkg.Decor.CursorInitial) == "" {
+		pkg.Decor.CursorInitial = strings.TrimSpace(pkg.Cursor.InitialPos)
+	}
+	if strings.TrimSpace(pkg.Decor.CursorClickAnimation) == "" {
+		pkg.Decor.CursorClickAnimation = strings.TrimSpace(pkg.Cursor.ClickAnim)
+	}
+
+	if strings.TrimSpace(pkg.Cursor.InitialPos) == "" {
+		pkg.Cursor.InitialPos = pkg.Decor.CursorInitial
+	}
+	if strings.TrimSpace(pkg.Cursor.ClickAnim) == "" {
+		pkg.Cursor.ClickAnim = pkg.Decor.CursorClickAnimation
+	}
+
+	if pkg.Decor.CursorScale <= 0 {
+		pkg.Decor.CursorScale = pkg.Cursor.Scale
+	}
+	if pkg.Decor.CursorScale <= 0 {
+		pkg.Decor.CursorScale = 1
+	}
+
+	if pkg.Decor.CursorScale > 0 {
+		clamped := clampCursorScale(pkg.Decor.CursorScale)
+		pkg.Decor.CursorScale = clamped
+		if pkg.Cursor.Scale <= 0 {
+			pkg.Cursor.Scale = clamped
+		}
+	}
+
+	if pkg.Cursor.Scale > 0 {
+		pkg.Cursor.Scale = clampCursorScale(pkg.Cursor.Scale)
+	}
+
+	if strings.TrimSpace(pkg.CursorMotion.InitialPosition) == "" {
+		pkg.CursorMotion.InitialPosition = pkg.Decor.CursorInitial
+	}
+	if strings.TrimSpace(pkg.CursorMotion.ClickAnimation) == "" {
+		pkg.CursorMotion.ClickAnimation = pkg.Decor.CursorClickAnimation
+	}
+	if pkg.Decor.CursorScale > 0 {
+		pkg.CursorMotion.CursorScale = clampCursorScale(pkg.Decor.CursorScale)
+	} else if pkg.Cursor.Scale > 0 {
+		pkg.CursorMotion.CursorScale = clampCursorScale(pkg.Cursor.Scale)
+	}
+
+	if pkg.CursorMotion.InitialPosition == "" {
+		pkg.CursorMotion.InitialPosition = "center"
+	}
+	if pkg.CursorMotion.ClickAnimation == "" {
+		pkg.CursorMotion.ClickAnimation = pkg.Cursor.ClickAnim
+	}
+	if pkg.CursorMotion.CursorScale <= 0 {
+		pkg.CursorMotion.CursorScale = clampCursorScale(pkg.Cursor.Scale)
+	}
+
+	if pkg.Decor.CursorScale <= 0 {
+		pkg.Decor.CursorScale = pkg.CursorMotion.CursorScale
 	}
 }
 
@@ -1013,8 +1124,20 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 
 	media, renderErr := h.replayRenderer.Render(renderCtx, spec, services.RenderFormat(format), body.FileName)
 	if renderErr != nil {
-		h.log.WithError(renderErr).WithField("execution_id", executionID).Error("Failed to render replay export")
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "render_export"}))
+		errMsg := strings.TrimSpace(renderErr.Error())
+		if len(errMsg) > 0 && len(errMsg) > 512 {
+			errMsg = errMsg[:512]
+		}
+		fields := logrus.Fields{"execution_id": executionID}
+		if errMsg != "" {
+			fields["renderer_error"] = errMsg
+		}
+		h.log.WithError(renderErr).WithFields(fields).Error("Failed to render replay export")
+		details := map[string]string{"operation": "render_export"}
+		if errMsg != "" {
+			details["error"] = errMsg
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(details))
 		return
 	}
 	defer media.Cleanup()

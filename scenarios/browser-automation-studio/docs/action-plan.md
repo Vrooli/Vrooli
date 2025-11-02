@@ -37,7 +37,7 @@
 | P1 | Replay Artifact Schema | Define `ExecutionArtifact` schema (timeline, steps, metadata, screenshot references, cursor path, viewport). Persist alongside executions, expose via API, and document contract. | Stable artifact format for replay & validation. |
 | P1 | Replay Renderer | Build UI module + (optional) Node rendering utility that consumes the artifact schema to produce interactive replays with fades/zoom/cursor animation. | Executable replays for validation + marketing. |
 | P1 | Screenshot Customization | Deliver Browserless helpers (JS modules or CLI flags) for element highlighting, focal zooms, background dimming, and viewport presets. Integrate with executor so workflow nodes can request specific treatments. | Configurable captures supporting validation + storytelling. |
-| P1 | Requirements Tracking | Introduce `docs/requirements.yaml` mapping PRD → design-level requirements → validation assets. Implement tool/script to compute coverage by joining requirement entries with test/automation results. | Objective completion scoring + visibility. |
+| P1 | Requirements Tracking | Introduce `requirements/index.yaml` mapping PRD → design-level requirements → validation assets. Implement tool/script to compute coverage by joining requirement entries with test/automation results. | Objective completion scoring + visibility. |
 | P2 | Chrome Extension Integration | Adapt scenario-to-extension pipeline to record user sessions into the same artifact schema and reuse replay renderer inside the studio UI. | Unified automation + real-recording playback path. |
 | P2 | Advanced Telemetry | Extend Browserless scripts to collect enriched diagnostics (HAR export, redacted response bodies, Lighthouse-style metrics) and surface them via artifacts and replay overlays. | Deep diagnostics for debugging & audits. |
 
@@ -57,7 +57,7 @@
   - `ui/src/components/ReplayPlayer.tsx` renders highlight overlays, zoom transitions, storyboard navigation, and smoothed cursor positioning, while the CLI `execution render` command stitches export packages into a stylised HTML replay. Automated marketing-grade video exports and richer cursor trails remain on the roadmap.
 - **Testing & tracking**
   - Unit coverage exists for the compiler, repository helpers, and browserless client telemetry persistence, but WebSocket contract and integration tests are still absent.
-  - `docs/requirements.yaml` v0.1.1 + `scripts/requirements/report.js` provide coverage reporting, though CI integration and requirement-tagged automations remain to be built.
+  - `requirements/index.yaml` v0.2.0 + `scripts/requirements/report.js` provide coverage reporting, though CI integration and requirement-tagged automations remain to be built.
 
 
 ## 6. Execution Core Blueprint
@@ -106,10 +106,10 @@
 
 ## 8. Requirements Tracking Strategy
 
-1. ✅ Seed `docs/requirements.yaml` (v0.1, 2025-10-19) capturing top-level PRD items with placeholder validation entries and reporting metadata.
+1. ✅ Seed `requirements/index.yaml` (v0.2.0, 2025-11-10) capturing top-level PRD items with placeholder validation entries and reporting metadata.
 2. Tag tests/automations with `REQ:<id>` annotations (unit tests via comments, workflow YAML via metadata tags under `workflow.metadata.requirements`).
 3. Ensure Browserless validation workflows emit machine-readable result summaries so requirement reports can ingest automation success/failure alongside phase outputs.
-4. ✅ Introduced `scripts/requirements/report.js` skeleton that parses `docs/requirements.yaml` and emits JSON/Markdown summaries; next iteration should join tagged phase outputs + automation logs for full coverage.
+4. ✅ Introduced `scripts/requirements/report.js` skeleton that parses `requirements/index.yaml` and emits JSON/Markdown summaries; next iteration should join tagged phase outputs + automation logs for full coverage.
 5. Update README with a "Requirement Coverage" badge/table produced by the reporting script.
 
 ## 9. Testing Strategy Notes
@@ -131,7 +131,7 @@
 1. ✅ Update README/PRD + publish limitations note (2025-10-18).
 2. ✅ Finalize execution core design doc and break into implementation tasks (see `docs/architecture/execution.md`, 2025-10-19).
 3. ✅ Decide on WebSocket transport (retain native gorilla hub; publish event contract in `docs/architecture/execution.md`).
-4. ✅ Draft `docs/requirements.yaml` skeleton + reporting script interface (reports via `scripts/requirements/report.js`, 2025-10-19).
+4. ✅ Draft modular requirements registry + reporting script interface (reports via `scripts/requirements/report.js`, 2025-10-19). Registry relocated to `requirements/index.yaml` during the modularisation pass (2025-11-10).
 5. ✅ Remove `scenario-test.yaml` once phase scripts + reporting are authoritative (2025-10-20).
 
 ## 12. Progress Update (2025-10-20)
@@ -177,7 +177,7 @@
 *Last updated: 2025-10-31*
 
 ## 18. Progress Update (2025-11-01)
-- Refreshed README, PRD, and `docs/requirements.yaml` (v0.1.1) to reflect the executor/replay milestones, updated coverage dashboard figures, and clarified remaining gaps (branching, streaming CLI, export tooling).
+- Refreshed README, PRD, and `requirements/index.yaml` (v0.2.0) to reflect the executor/replay milestones, updated coverage dashboard figures, and clarified remaining gaps (branching, streaming CLI, export tooling).
 - The UI execution store now consumes `step.telemetry` events so console and network activity surface in real-time logs, complementing the Replay metadata filmstrip.
 - CLI `execution watch` now connects to the WebSocket stream when Node.js is available and still emits a timeline summary derived from `/executions/{id}/timeline`, keeping operators aligned with replay artifacts.
 
@@ -229,7 +229,7 @@
 *Last updated: 2025-11-07*
 
 ## 25. Progress Update (2025-11-08)
-- `/executions/{id}/export` now returns replay-export packages built by `BuildReplayExport`, including transition hints, theme presets, and asset manifests for downstream renderers.
+- `/executions/{id}/export` now returns replay movie specs built by `BuildReplayMovieSpec`, including transition hints, theme presets, and asset manifests for downstream renderers.
 - Added Go coverage (`api/services/exporter_test.go`) validating export package generation and resilience metadata, preventing regression before video exporters land.
 - CLI `execution export` accepts `--output` to save export JSON locally, prints package summary (frames, total duration, theme accent), and surfaces server errors cleanly.
 - README, architecture blueprint, and requirements registry refreshed to reflect the new exporter while keeping video rendering and DOM snapshot gaps visible.
@@ -244,8 +244,8 @@
 *Last updated: 2025-11-09*
 
 ## 27. Progress Update (2025-11-10)
-- Added `automation/executions/telemetry-smoke.sh` + YAML harness to execute a highlight-rich data-URL workflow, asserting timeline frames persist screenshots, highlight metadata, console logs, network events, and assertion payloads before validating replay export packages.
-- Bumped `docs/requirements.yaml` to v0.1.4, marking the telemetry smoke automation as implemented so requirement coverage now reflects executable validation alongside the heartbeat stall check.
+- Added `test/playbooks/executions/telemetry-smoke.sh` + YAML harness to execute a highlight-rich data-URL workflow, asserting timeline frames persist screenshots, highlight metadata, console logs, network events, and assertion payloads before validating replay export packages.
+- Bumped the requirements registry to v0.1.4 originally, and migrated to the modular layout (v0.2.0) so telemetry smoke automation coverage feeds downstream reporting alongside the heartbeat stall check.
 - Refreshed README known limitations to focus on remaining execution/replay/extension gaps rather than legacy Browserless placeholders, keeping public docs aligned with the current implementation.
 
 *Last updated: 2025-11-10*
@@ -261,7 +261,7 @@
 ## 29. Progress Update (2025-11-12)
 - Demo seeding now provisions **Demo Browser Automations** with a concrete workspace under `scenarios/browser-automation-studio/data/projects/demo` (override via `BAS_DEMO_PROJECT_PATH`), ensuring UI launches with an executable workflow and replay exports have a writable destination.
 - README and PRD refreshed to highlight the demo project location, UI run instructions, and the new environment variable for customising the seed path.
-- Authored `automation/projects/demo-sanity.(sh|yaml)` so nightly runs can assert the seeded project + workflow remain accessible via the public API, matching the UI expectations.
+- Authored `test/playbooks/projects/demo-sanity.(sh|yaml)` so nightly runs can assert the seeded project + workflow remain accessible via the public API, matching the UI expectations.
 - Added this note so contributors know the dashboard will always display at least one runnable project after a clean start, aligning with scenario completeness goals.
 
 *Last updated: 2025-11-12*
@@ -284,35 +284,40 @@
 
 ## 32. Progress Update (2025-11-15)
 - Added `api/browserless/runtime/session_test.go` to exercise the Browserless session wrapper, asserting request payloads include the persistent `sessionId`, validating success responses, and covering HTTP/error decoding paths without a live Browserless dependency.
-- Updated `docs/requirements.yaml` (runtime session validation now **implemented**) so requirement coverage reflects the new unit tests alongside existing telemetry automations.
-- Executed `automation/projects/demo-sanity.sh` to verify lifecycle-managed seeding still provisions the **Demo Browser Automations** project and "Demo: Capture Example.com Hero" workflow, reaffirming the UI has a runnable journey immediately after startup.
+- Updated the modular requirements registry (runtime session validation now **implemented**) so requirement coverage reflects the new unit tests alongside existing telemetry automations.
+- Executed `test/playbooks/projects/demo-sanity.sh` to verify lifecycle-managed seeding still provisions the **Demo Browser Automations** project and "Demo: Capture Example.com Hero" workflow, reaffirming the UI has a runnable journey immediately after startup.
 
 *Last updated: 2025-11-15*
 
 ## 33. Progress Update (2025-11-15)
 - Published the loop-aware execution blueprint in `docs/architecture/execution.md`, defining the `LoopSpec` compiler representation, runtime semantics (iteration events, guard rails, break/continue controls), telemetry schema, and phased rollout plan so the engine can add iterative flows without breaking DAG guarantees.
-- Added an experimental replay video renderer: `cli/render-video.js` (Node + ffmpeg) consumes `/executions/{id}/export` metadata, composites highlight/mask overlays, cursor trails, and click markers onto screenshots, and assembles MP4/WEBM slideshows via `execution render-video`. Temporary assets clean up automatically unless `--work-dir` is provided for debugging.
+- Added an experimental replay video renderer: the `execution render-video` CLI command now streams `/executions/{id}/export` directly to the API’s Browserless pipeline, so MP4/WEBM bundles are captured from the same composer iframe that powers the UI. Local ffmpeg/node tooling is no longer required; the server handles per-frame capture and assembly.
 - Updated the CLI help/README to surface the new command and clarified that MP4/WEBM exports are now available (while animated cursor/zoom motions remain on the backlog).
 
 *Last updated: 2025-11-15*
 
 ## 34. Progress Update (2025-11-16)
-- Revalidated demo seeding by walking `api/database/connection.go::seedDemoWorkflow` and the `automation/projects/demo-sanity.(sh|yaml)` harness, confirming every clean database still provisions the **Demo Browser Automations** project and "Demo: Capture Example.com Hero" workflow so the UI/CLI always have a runnable journey.
+- Revalidated demo seeding by walking `api/database/connection.go::seedDemoWorkflow` and the `test/playbooks/projects/demo-sanity.(sh|yaml)` harness, confirming every clean database still provisions the **Demo Browser Automations** project and "Demo: Capture Example.com Hero" workflow so the UI/CLI always have a runnable journey.
 - Enhanced the replay export renderer (`cli/render-export.js`) to embed normalized cursor trails alongside existing highlight/zoom metadata and animate them inside generated HTML packages, delivering smooth pointer motion and reducing the gap between static screenshots and marketing-grade replays.
 - Updated README and this plan to flag the animated cursor capability while keeping advanced motion presets on the radar, ensuring documentation mirrors the current replay experience.
 
 *Last updated: 2025-11-16*
 
 ## 35. Progress Update (2025-11-16)
-- Upgraded `cli/render-video.js` so MP4/WEBM exports reuse timeline cursor trails, interpolating pointer positions across each frame segment to mirror the HTML replay experience (while keeping highlight/mask overlays aligned).
+- Upgraded `execution render-video` so server-side exports reuse timeline cursor trails, interpolating pointer positions across each frame segment to mirror the HTML replay experience (while keeping highlight/mask overlays aligned) without needing a local renderer script.
 - Introduced per-phase result snapshots via `coverage/phase-results/*.json` (written automatically by `testing::phase::end_with_summary`), and extended `scripts/requirements/report.js` to consume them so requirement reports surface live pass/fail data alongside static status fields.
 - README and PRD now call out the live requirements linkage, closing the documentation gap noted in earlier backlog items.
 
 *Last updated: 2025-11-16*
 
 ## 36. Progress Update (2025-11-17)
-- Re-ran `automation/projects/demo-sanity.sh` to reconfirm the lifecycle seed exposes **Demo Browser Automations** and "Demo: Capture Example.com Hero" via the public API, so the UI still ships with a runnable workflow after every clean start.
-- Exercised `node scripts/requirements/report.js --scenario browser-automation-studio` against `docs/requirements.yaml`; the reporter parses successfully but shows `liveStatus: not_run` for every validator because phase outputs are not yet writing JSON under `coverage/phase-results/`.
+- Re-ran `test/playbooks/projects/demo-sanity.sh` to reconfirm the lifecycle seed exposes **Demo Browser Automations** and "Demo: Capture Example.com Hero" via the public API, so the UI still ships with a runnable workflow after every clean start.
+- Exercised `node scripts/requirements/report.js --scenario browser-automation-studio` against `requirements/index.yaml`; the reporter parses successfully but shows `liveStatus: not_run` for every validator because phase outputs are not yet writing JSON under `coverage/phase-results/`.
 - Follow-up: wire `test/phases/*` to emit the expected phase result snapshots, surface them in CI so the reporter gains real pass/fail data, and schedule the demo sanity automation alongside integration checks to catch regressions automatically.
 
-*Last updated: 2025-11-17*
+*Last updated: 2025-11-18*
+
+## 37. Progress Update (2025-11-18)
+- `/executions/{id}/export` now honours a `movie_spec` payload from the UI, validating execution IDs, normalising metadata, and falling back to server-built specs only when necessary. Go handler tests cover both happy-path injection and mismatch rejection.
+- The Replay composer accepts `bas:control:*` play/pause/seek commands and exposes those helpers through `window.basExport`, letting Browserless captures and parent components drive playback without re-implementing player state.
+- Capture bounds now reference the outer chrome container instead of the raw screenshot element, so Browserless frames include the themed browser shell and background gradients shown in the UI preview.

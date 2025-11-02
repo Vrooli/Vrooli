@@ -26,10 +26,10 @@
 | test | api/browserless/runtime/session_test.go | not_implemented | ⚠️ | Session manager unit tests emitting mock telemetry. |
 | test | ui/tests/executionEventProcessor.heartbeat.test.mjs | implemented | ✅ | Node-based unit test ensuring heartbeat events update progress and heartbeat metadata in the UI store; extend with UI heartbeat state rendering snapshot. |
 | test | ui/tests/executionEventProcessor.assertion.test.mjs | implemented | ✅ | Confirms assertion payloads generate readable success/failure logs in the execution stream processor. |
-| automation | automation/executions/telemetry-smoke.yaml | implemented | ✅ | Shell automation provisions a deterministic data-URL workflow, executes it, and asserts timeline frames include screenshots, highlight metadata, console logs, network events, and successful assertion payloads before validating replay export packages. |
+| automation | test/playbooks/executions/telemetry-smoke.yaml | implemented | ✅ | Shell automation provisions a deterministic data-URL workflow, executes it, and asserts timeline frames include screenshots, highlight metadata, console logs, network events, and successful assertion payloads before validating replay export packages. |
 | manual | ui/src/components/ExecutionViewer.tsx | implemented | ✅ | Execution viewer flags heartbeat states (awaiting/delayed/stalled) with contextual messaging. |
 | manual | cli/browser-automation-studio | implemented | ✅ | CLI execution watch emits heartbeat lag/stall warnings and recovery notices. |
-| automation | automation/executions/heartbeat-stall.yaml | implemented | ✅ | Shell harness that relaunches the scenario with heartbeats disabled, executes a 20s wait workflow, and asserts the CLI reports a stalled heartbeat. |
+| automation | test/playbooks/executions/heartbeat-stall.yaml | implemented | ✅ | Shell harness that relaunches the scenario with heartbeats disabled, executes a 20s wait workflow, and asserts the CLI reports a stalled heartbeat. |
 
 ## BAS-FUNC-003 — Persist normalized execution artifacts for replay & video rendering
 
@@ -43,7 +43,7 @@
 | test | api/browserless/client_test.go | implemented | ✅ | Verifies timeline_frame artifact creation, cursor trail metadata propagation, highlight/mask metadata, and retry history fields without live Browserless. |
 | test | api/services/exporter_test.go | implemented | ✅ | Ensures replay export packages include frame/asset metadata, transition hints, and resiliency fields for downstream renderers. |
 | test | api/services/timeline_test.go | implemented | ✅ | Ensures execution timeline aggregation surfaces screenshot/highlight metadata for replay consumers. |
-| automation | automation/replay/render-check.yaml | implemented | ✅ | End-to-end renderer automation that validates `execution render` output bundle. |
+| automation | test/playbooks/replay/render-check.yaml | implemented | ✅ | End-to-end renderer automation that validates `execution render` output bundle. |
 | manual | cli/browser-automation-studio execution render | implemented | ⚠️ | Generates stylised HTML replay packages from export metadata for operator review. |
 
 ## BAS-FUNC-004 — AI-generated workflows validated against the execution plan
@@ -55,5 +55,4 @@
 | Type | Reference | Status | Exists | Notes |
 | --- | --- | --- | --- | --- |
 | test | api/services/workflow_service_ai_test.go | not_implemented | ⚠️ | Add deterministic tests for AI prompt normalization + compiler validation. |
-| automation | automation/ai/generated-smoke.yaml | planned | ⚠️ | Browserless automation executing AI-generated workflow end-to-end. |
-
+| automation | test/playbooks/ai/generated-smoke.yaml | planned | ⚠️ | Browserless automation executing AI-generated workflow end-to-end. |

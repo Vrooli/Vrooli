@@ -1,0 +1,30 @@
+version: "1.0"
+name: demo-project-presence
+summary: |
+  Validates that a clean Browser Automation Studio launch seeds the demo project and
+  workflow so the UI always has an executable journey available without manual setup.
+  Confirms the project directory is created and that the demo workflow is addressable
+  through the public API.
+labels:
+  - demo
+  - seed
+  - readiness
+  - ui
+owner: execution-team@vrooli.dev
+prerequisites:
+  - Browser Automation Studio scenario dependencies installed via `./scripts/manage.sh setup`
+  - Browserless, Postgres, and MinIO resources available through the lifecycle system
+  - `curl`, `jq`, and `vrooli` available on PATH
+steps:
+  - name: verify-demo-project
+    description: |
+      Starts the scenario, waits for the API to become healthy, and asserts that the
+      seeded "Demo Browser Automations" project and "Demo: Capture Example.com Hero"
+      workflow are exposed via the REST API.
+    command: ./test/playbooks/projects/demo-sanity.sh
+    timeout: 420
+success_criteria:
+  - type: log_scan
+    description: Script prints success confirmation when the project/workflow are present.
+    pattern: "Demo project and workflow available"
+    source: stdout

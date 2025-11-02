@@ -1,0 +1,52 @@
+# Replay and artifact persistence requirements
+
+requirements:
+  - id: BAS-REPLAY-TIMELINE-PERSISTENCE
+    category: replay
+    prd_ref: "Functional Requirements > Should Have > Replay & marketing renderer"
+    title: Execution timelines persist artifacts for replay reconstruction
+    description: |
+      Confirms timeline frames include screenshot, highlight, cursor, and DOM snapshot metadata with
+      deterministic keys for downstream renderers.
+    status: complete
+    criticality: P1
+    validation:
+      - type: test
+        ref: api/services/timeline_test.go
+        status: implemented
+        notes: Aggregates timeline artifacts with metadata for replay consumers.
+      - type: test
+        ref: api/services/recording_service_test.go
+        status: implemented
+        notes: Validates Chrome extension ingestion and persistence of recording assets.
+      - type: test
+        ref: api/browserless/client_test.go
+        status: implemented
+        notes: Ensures artifact creation and retry history fields exist without live Browserless.
+      - type: test
+        ref: test/phases/test-unit.sh
+        status: implemented
+        notes: Unit phase captures replay persistence coverage.
+
+  - id: BAS-REPLAY-EXPORT-BUNDLE
+    category: replay
+    prd_ref: "Functional Requirements > Should Have > Replay & marketing renderer"
+    title: Replay export bundles contain complete metadata for renderers
+    description: |
+      Guarantees export packages include frames, transitions, DOM snapshots, and resiliency metadata
+      for rendering marketing reels or debugging timelines.
+    status: complete
+    criticality: P1
+    validation:
+      - type: test
+        ref: api/services/exporter_test.go
+        status: implemented
+        notes: Validates export bundle structure and metadata hints.
+      - type: automation
+        ref: test/playbooks/replay/render-check.yaml
+        status: implemented
+        notes: End-to-end renderer automation that inspects execution render bundles.
+      - type: test
+        ref: test/phases/test-unit.sh
+        status: implemented
+        notes: Unit phase enforces coverage thresholds for export services.

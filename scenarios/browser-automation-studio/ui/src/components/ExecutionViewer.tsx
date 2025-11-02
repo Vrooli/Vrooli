@@ -69,6 +69,23 @@ import ExecutionHistory from "./ExecutionHistory";
 const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 const MOVIE_SPEC_POLL_INTERVAL_MS = 4000;
 
+const stripApiSuffix = (value?: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(value);
+    const cleanedPath = parsed.pathname
+      .replace(/\/api\/v1\/?$/i, "")
+      .replace(/\/+$/, "");
+    return cleanedPath ? `${parsed.origin}${cleanedPath}` : parsed.origin;
+  } catch {
+    const cleaned = value.replace(/\/api\/v1\/?$/i, "").replace(/\/+$/, "");
+    return cleaned.length > 0 ? cleaned : null;
+  }
+};
+
 const withAssetBasePath = (value: string) => {
   if (!value || ABSOLUTE_URL_PATTERN.test(value)) {
     return value;
@@ -195,6 +212,8 @@ interface ExecutionExportPreview {
   package?: ReplayMovieSpec;
 }
 
+type ExportDimensionPreset = "spec" | "1080p" | "720p" | "custom";
+
 interface ExportPreviewMetrics {
   capturedFrames: number;
   assetCount: number;
@@ -206,6 +225,17 @@ const EXPORT_EXTENSIONS: Record<ExportFormat, string> = {
   mp4: "mp4",
   gif: "gif",
 };
+
+const DIMENSION_PRESET_CONFIG: Record<
+  "1080p" | "720p",
+  { width: number; height: number; label: string }
+> = {
+  "1080p": { width: 1920, height: 1080, label: "1080p (Full HD)" },
+  "720p": { width: 1280, height: 720, label: "720p (HD)" },
+};
+
+const DEFAULT_EXPORT_WIDTH = 1280;
+const DEFAULT_EXPORT_HEIGHT = 720;
 
 const EXPORT_FORMAT_OPTIONS: Array<{
   id: ExportFormat;
@@ -863,6 +893,14 @@ function ExecutionViewer({
     () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
   );
   const [useNativeFilePicker, setUseNativeFilePicker] = useState(false);
+  const [dimensionPreset, setDimensionPreset] =
+    useState<ExportDimensionPreset>("spec");
+  const [customWidthInput, setCustomWidthInput] = useState<string>(() =>
+    String(DEFAULT_EXPORT_WIDTH),
+  );
+  const [customHeightInput, setCustomHeightInput] = useState<string>(() =>
+    String(DEFAULT_EXPORT_HEIGHT),
+  );
   const [exportPreview, setExportPreview] =
     useState<ExecutionExportPreview | null>(null);
   const [exportPreviewExecutionId, setExportPreviewExecutionId] = useState<
@@ -872,16 +910,28 @@ function ExecutionViewer({
   const [exportPreviewError, setExportPreviewError] = useState<string | null>(
     null,
   );
-  const [previewMetrics, setPreviewMetrics] =
-    useState<ExportPreviewMetrics>({
-      capturedFrames: 0,
-      assetCount: 0,
-      totalDurationMs: 0,
-    });
+  const [previewMetrics, setPreviewMetrics] = useState<ExportPreviewMetrics>({
+    capturedFrames: 0,
+    assetCount: 0,
+    totalDurationMs: 0,
+  });
   const [activeSpecId, setActiveSpecId] = useState<string | null>(null);
   const [movieSpec, setMovieSpec] = useState<ReplayMovieSpec | null>(null);
   const [isMovieSpecLoading, setIsMovieSpecLoading] = useState(false);
   const [movieSpecError, setMovieSpecError] = useState<string | null>(null);
+  const [composerApiBase, setComposerApiBase] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const existing = (
+      window as typeof window & {
+        __BAS_EXPORT_API_BASE__?: unknown;
+      }
+    ).__BAS_EXPORT_API_BASE__;
+    return typeof existing === "string" && existing.trim().length > 0
+      ? existing.trim()
+      : null;
+  });
   const composerRef = useRef<HTMLIFrameElement | null>(null);
   const composerWindowRef = useRef<Window | null>(null);
   const composerOriginRef = useRef<string | null>(null);
@@ -895,21 +945,75 @@ function ExecutionViewer({
     typeof (window as typeof window & { showSaveFilePicker?: unknown })
       .showSaveFilePicker === "function";
 
+  useEffect(() => {
+    if (composerApiBase) {
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const configData = await getConfig();
+        if (cancelled) {
+          return;
+        }
+        const derived = stripApiSuffix(configData.API_URL);
+        if (derived) {
+          setComposerApiBase((current) =>
+            current && current.length > 0 ? current : derived,
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          logger.warn(
+            "Failed to derive API base for replay composer",
+            { component: "ExecutionViewer", executionId: execution.id },
+            error,
+          );
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [composerApiBase, execution.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !composerApiBase) {
+      return;
+    }
+    (
+      window as typeof window & { __BAS_EXPORT_API_BASE__?: string }
+    ).__BAS_EXPORT_API_BASE__ = composerApiBase;
+  }, [composerApiBase]);
+
+  const specCanvasWidth =
+    movieSpec?.presentation?.canvas?.width ??
+    movieSpec?.presentation?.viewport?.width ??
+    DEFAULT_EXPORT_WIDTH;
+  const specCanvasHeight =
+    movieSpec?.presentation?.canvas?.height ??
+    movieSpec?.presentation?.viewport?.height ??
+    DEFAULT_EXPORT_HEIGHT;
+
   const defaultExportFileStem = useMemo(
     () => `browser-automation-replay-${execution.id.slice(0, 8)}`,
     [execution.id],
   );
 
   const composerUrl = useMemo(() => {
-    if (typeof window === "undefined") {
-      return "/export/composer.html?mode=embedded";
-    }
-    const url = new URL("/export/composer.html", window.location.origin);
+    const embedOrigin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost";
+    const url = new URL("/export/composer.html", embedOrigin);
     url.searchParams.set("mode", "embedded");
     url.searchParams.set("executionId", execution.id);
-    url.searchParams.set("apiBase", window.location.origin);
+    url.searchParams.set("apiBase", composerApiBase ?? embedOrigin);
     return url.toString();
-  }, [execution.id]);
+  }, [composerApiBase, execution.id]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -982,31 +1086,10 @@ function ExecutionViewer({
   }, [defaultExportFileStem]);
 
   useEffect(() => {
-    if (!movieSpec) {
-      return;
-    }
-    setPreviewMetrics((current) => {
-      const frameCount =
-        movieSpec.summary?.frame_count ?? movieSpec.frames?.length ?? current.capturedFrames;
-      const assetCount =
-        Array.isArray(movieSpec.assets) && movieSpec.assets.length >= 0
-          ? movieSpec.assets.length
-          : current.assetCount;
-      const totalDuration =
-        movieSpec.summary?.total_duration_ms ??
-        movieSpec.playback?.duration_ms ??
-        current.totalDurationMs;
-      return {
-        capturedFrames: frameCount,
-        assetCount,
-        totalDurationMs: totalDuration,
-      };
-    });
-    const specIdFromSpec = movieSpec.execution?.execution_id;
-    if (specIdFromSpec && specIdFromSpec !== activeSpecId) {
-      setActiveSpecId(specIdFromSpec);
-    }
-  }, [movieSpec, activeSpecId]);
+    setCustomWidthInput(String(specCanvasWidth));
+    setCustomHeightInput(String(specCanvasHeight));
+    setDimensionPreset("spec");
+  }, [execution.id, specCanvasWidth, specCanvasHeight]);
 
   const clearMovieSpecRetryTimeout = useCallback(() => {
     if (movieSpecRetryTimeoutRef.current != null) {
@@ -1093,7 +1176,11 @@ function ExecutionViewer({
         };
         setPreviewMetrics(metrics);
         setActiveSpecId(specId);
-        const message = describePreviewStatusMessage(status, raw.message, metrics);
+        const message = describePreviewStatusMessage(
+          status,
+          raw.message,
+          metrics,
+        );
         if (status && status !== "ready") {
           setMovieSpec(null);
           setMovieSpecError(message);
@@ -1812,12 +1899,247 @@ function ExecutionViewer({
     });
   }, [timelineForReplay]);
 
+  const decoratedMovieSpec = useMemo<ReplayMovieSpec | null>(() => {
+    if (!movieSpec) {
+      return null;
+    }
+    const cursorSpec = movieSpec.cursor ?? {};
+    const decor = movieSpec.decor ?? {};
+    const motion = movieSpec.cursor_motion ?? {};
+    return {
+      ...movieSpec,
+      cursor: {
+        ...cursorSpec,
+        scale: replayCursorScale,
+        initial_position: replayCursorInitialPosition,
+        click_animation: replayCursorClickAnimation,
+      },
+      decor: {
+        ...decor,
+        chrome_theme: replayChromeTheme,
+        background_theme: replayBackgroundTheme,
+        cursor_theme: replayCursorTheme,
+        cursor_initial_position: replayCursorInitialPosition,
+        cursor_click_animation: replayCursorClickAnimation,
+        cursor_scale: replayCursorScale,
+      },
+      cursor_motion: {
+        ...motion,
+        initial_position: replayCursorInitialPosition,
+        click_animation: replayCursorClickAnimation,
+        cursor_scale: replayCursorScale,
+      },
+    };
+  }, [
+    movieSpec,
+    replayBackgroundTheme,
+    replayChromeTheme,
+    replayCursorTheme,
+    replayCursorInitialPosition,
+    replayCursorClickAnimation,
+    replayCursorScale,
+  ]);
+
+  const dimensionPresetOptions = useMemo(
+    () => [
+      {
+        id: "spec" as ExportDimensionPreset,
+        label: `Scenario (${specCanvasWidth}×${specCanvasHeight})`,
+        width: specCanvasWidth,
+        height: specCanvasHeight,
+        description: "Match recorded canvas",
+      },
+      {
+        id: "1080p" as ExportDimensionPreset,
+        label: DIMENSION_PRESET_CONFIG["1080p"].label,
+        width: DIMENSION_PRESET_CONFIG["1080p"].width,
+        height: DIMENSION_PRESET_CONFIG["1080p"].height,
+        description: "Great for polished exports",
+      },
+      {
+        id: "720p" as ExportDimensionPreset,
+        label: DIMENSION_PRESET_CONFIG["720p"].label,
+        width: DIMENSION_PRESET_CONFIG["720p"].width,
+        height: DIMENSION_PRESET_CONFIG["720p"].height,
+        description: "Smaller file size",
+      },
+      {
+        id: "custom" as ExportDimensionPreset,
+        label: "Custom size",
+        width: Number.parseInt(customWidthInput, 10) || DEFAULT_EXPORT_WIDTH,
+        height: Number.parseInt(customHeightInput, 10) || DEFAULT_EXPORT_HEIGHT,
+        description: "Set explicit pixel dimensions",
+      },
+    ],
+    [customHeightInput, customWidthInput, specCanvasHeight, specCanvasWidth],
+  );
+
+  const selectedDimensions = useMemo(() => {
+    switch (dimensionPreset) {
+      case "custom": {
+        const parsedWidth = Number.parseInt(customWidthInput, 10);
+        const parsedHeight = Number.parseInt(customHeightInput, 10);
+        return {
+          width:
+            Number.isFinite(parsedWidth) && parsedWidth > 0
+              ? parsedWidth
+              : DEFAULT_EXPORT_WIDTH,
+          height:
+            Number.isFinite(parsedHeight) && parsedHeight > 0
+              ? parsedHeight
+              : DEFAULT_EXPORT_HEIGHT,
+        };
+      }
+      case "1080p":
+      case "720p": {
+        const preset = DIMENSION_PRESET_CONFIG[dimensionPreset];
+        return { width: preset.width, height: preset.height };
+      }
+      case "spec":
+      default:
+        return { width: specCanvasWidth, height: specCanvasHeight };
+    }
+  }, [
+    customHeightInput,
+    customWidthInput,
+    dimensionPreset,
+    specCanvasHeight,
+    specCanvasWidth,
+  ]);
+
+  const preparedMovieSpec = useMemo<ReplayMovieSpec | null>(() => {
+    const base = decoratedMovieSpec ?? movieSpec;
+    if (!base) {
+      return null;
+    }
+    const cloned = JSON.parse(JSON.stringify(base)) as ReplayMovieSpec;
+    const width = selectedDimensions.width;
+    const height = selectedDimensions.height;
+    const presentation = cloned.presentation ?? {
+      canvas: { width, height },
+      viewport: { width, height },
+      browser_frame: {
+        x: 0,
+        y: 0,
+        width,
+        height,
+        radius: 24,
+      },
+      device_scale_factor: 1,
+    };
+    presentation.canvas = {
+      ...presentation.canvas,
+      width,
+      height,
+    };
+    presentation.viewport = {
+      ...presentation.viewport,
+      width,
+      height,
+    };
+    presentation.browser_frame = {
+      ...presentation.browser_frame,
+      width,
+      height,
+    };
+    if (
+      !presentation.device_scale_factor ||
+      presentation.device_scale_factor <= 0
+    ) {
+      presentation.device_scale_factor =
+        cloned.presentation?.device_scale_factor || 1;
+    }
+    cloned.presentation = presentation;
+    if (Array.isArray(cloned.frames)) {
+      cloned.frames = cloned.frames.map((frame) => ({
+        ...frame,
+        viewport: {
+          ...frame.viewport,
+          width,
+          height,
+        },
+      }));
+    }
+    return cloned;
+  }, [
+    decoratedMovieSpec,
+    movieSpec,
+    selectedDimensions.height,
+    selectedDimensions.width,
+  ]);
+
+  const activeMovieSpec = preparedMovieSpec ?? decoratedMovieSpec ?? movieSpec;
+
+  useEffect(() => {
+    if (!activeMovieSpec) {
+      return;
+    }
+    setPreviewMetrics((current) => {
+      const frameCount =
+        activeMovieSpec.summary?.frame_count ??
+        activeMovieSpec.frames?.length ??
+        current.capturedFrames;
+      const assetCount =
+        Array.isArray(activeMovieSpec.assets) &&
+        activeMovieSpec.assets.length >= 0
+          ? activeMovieSpec.assets.length
+          : current.assetCount;
+      const totalDuration =
+        activeMovieSpec.summary?.total_duration_ms ??
+        activeMovieSpec.playback?.duration_ms ??
+        current.totalDurationMs;
+      return {
+        capturedFrames: frameCount,
+        assetCount,
+        totalDurationMs: totalDuration,
+      };
+    });
+    const specIdFromSpec = activeMovieSpec.execution?.execution_id;
+    if (specIdFromSpec && specIdFromSpec !== activeSpecId) {
+      setActiveSpecId(specIdFromSpec);
+    }
+  }, [activeMovieSpec, activeSpecId]);
+
+  const firstFramePreviewUrl = useMemo(() => {
+    const frame = replayFrames[0];
+    const screenshotUrl = frame?.screenshot?.url
+      ? (resolveUrl(frame.screenshot.url) ?? frame.screenshot.url)
+      : null;
+    if (screenshotUrl) {
+      return screenshotUrl;
+    }
+    const specFrame = activeMovieSpec?.frames?.[0];
+    if (specFrame?.screenshot_asset_id && activeMovieSpec?.assets) {
+      const asset = activeMovieSpec.assets.find(
+        (candidate) => candidate?.id === specFrame.screenshot_asset_id,
+      );
+      if (asset?.source) {
+        return resolveUrl(asset.source) ?? asset.source;
+      }
+    }
+    return null;
+  }, [activeMovieSpec, replayFrames]);
+
+  const firstFrameLabel = useMemo(() => {
+    const frame = replayFrames[0];
+    if (!frame) {
+      return null;
+    }
+    return (
+      frame.nodeId ||
+      frame.stepType ||
+      (typeof frame.stepIndex === "number"
+        ? `Step ${frame.stepIndex + 1}`
+        : null)
+    );
+  }, [replayFrames]);
+
   const hasTimeline = replayFrames.length > 0;
 
   const exportDialogTitleId = useId();
   const exportDialogDescriptionId = useId();
   const exportSummary =
-    exportPreview?.package?.summary ?? movieSpec?.summary ?? null;
+    exportPreview?.package?.summary ?? activeMovieSpec?.summary ?? null;
   const normalizedExportStatus = exportPreview
     ? normalizePreviewStatus(exportPreview.status)
     : movieSpec
@@ -1845,16 +2167,14 @@ function ExecutionViewer({
     previewMetrics.totalDurationMs || previewMetrics.totalDurationMs === 0
       ? previewMetrics.totalDurationMs
       : undefined;
-  const specDurationMs = movieSpec?.playback?.duration_ms;
+  const specDurationMs = activeMovieSpec?.playback?.duration_ms;
   const estimatedTotalDurationMs =
     exportSummary?.total_duration_ms ??
     specDurationMs ??
     previewDurationMs ??
     null;
   const estimatedDurationSeconds =
-    estimatedTotalDurationMs != null
-      ? estimatedTotalDurationMs / 1000
-      : null;
+    estimatedTotalDurationMs != null ? estimatedTotalDurationMs / 1000 : null;
   const isBinaryExport = exportFormat !== "json";
 
   const timelineScreenshots = useMemo(() => {
@@ -1945,40 +2265,6 @@ function ExecutionViewer({
       );
     }, [replayCursorClickAnimation]);
 
-  const decoratedMovieSpec = useMemo<ReplayMovieSpec | null>(() => {
-    if (!movieSpec) {
-      return null;
-    }
-    const cursorSpec = movieSpec.cursor ?? {};
-    const decor = movieSpec.decor ?? {};
-    return {
-      ...movieSpec,
-      cursor: {
-        ...cursorSpec,
-        scale: replayCursorScale,
-        initial_position: replayCursorInitialPosition,
-        click_animation: replayCursorClickAnimation,
-      },
-      decor: {
-        ...decor,
-        chrome_theme: replayChromeTheme,
-        background_theme: replayBackgroundTheme,
-        cursor_theme: replayCursorTheme,
-        cursor_initial_position: replayCursorInitialPosition,
-        cursor_click_animation: replayCursorClickAnimation,
-        cursor_scale: replayCursorScale,
-      },
-    };
-  }, [
-    movieSpec,
-    replayBackgroundTheme,
-    replayChromeTheme,
-    replayCursorTheme,
-    replayCursorInitialPosition,
-    replayCursorClickAnimation,
-    replayCursorScale,
-  ]);
-
   const postToComposer = useCallback(
     (message: Record<string, unknown>) => {
       if (!composerWindowRef.current) {
@@ -2026,6 +2312,7 @@ function ExecutionViewer({
         spec,
         executionId: execution.id,
         specId,
+        apiBase: composerApiBase ?? undefined,
         summary: {
           frames: summaryFrames,
           totalDurationMs: summaryDuration,
@@ -2033,7 +2320,7 @@ function ExecutionViewer({
         },
       });
     },
-    [activeSpecId, execution.id, postToComposer],
+    [activeSpecId, composerApiBase, execution.id, postToComposer],
   );
 
   useEffect(() => {
@@ -2056,8 +2343,8 @@ function ExecutionViewer({
         setIsComposerReady(true);
         setMovieSpecError(null);
         composerOriginRef.current = event.origin || composerOriginRef.current;
-        if (decoratedMovieSpec) {
-          sendSpecToComposer(decoratedMovieSpec);
+        if (preparedMovieSpec) {
+          sendSpecToComposer(preparedMovieSpec);
         }
       } else if (type === "bas:state") {
         const data = payload as { frameIndex?: unknown; progress?: unknown };
@@ -2184,7 +2471,7 @@ function ExecutionViewer({
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [decoratedMovieSpec, previewMetrics, sendSpecToComposer]);
+  }, [preparedMovieSpec, previewMetrics, sendSpecToComposer]);
 
   useEffect(() => {
     setIsComposerReady(false);
@@ -2192,11 +2479,11 @@ function ExecutionViewer({
   }, [execution.id]);
 
   useEffect(() => {
-    if (!isComposerReady || !decoratedMovieSpec) {
+    if (!isComposerReady || !preparedMovieSpec) {
       return;
     }
-    sendSpecToComposer(decoratedMovieSpec);
-  }, [decoratedMovieSpec, isComposerReady, sendSpecToComposer]);
+    sendSpecToComposer(preparedMovieSpec);
+  }, [isComposerReady, preparedMovieSpec, sendSpecToComposer]);
 
   useEffect(() => {
     if (!isCustomizationCollapsed) {
@@ -2397,8 +2684,8 @@ function ExecutionViewer({
       setIsExporting(true);
       try {
         const { API_URL } = await getConfig();
-        const exportSpec =
-          exportPreview?.package ?? decoratedMovieSpec ?? movieSpec;
+        const baselineSpec = exportPreview?.package ?? movieSpec;
+        const exportSpec = preparedMovieSpec ?? baselineSpec;
         const hasExportFrames =
           exportSpec && Array.isArray(exportSpec.frames)
             ? exportSpec.frames.length > 0
@@ -2477,7 +2764,7 @@ function ExecutionViewer({
 
     setIsExporting(true);
     try {
-      const payload = exportPreview?.package ?? decoratedMovieSpec ?? movieSpec;
+      const payload = preparedMovieSpec ?? exportPreview?.package ?? movieSpec;
       if (!payload) {
         toast.error("Replay not ready to export yet");
         setIsExporting(false);
@@ -2549,7 +2836,7 @@ function ExecutionViewer({
       setIsExporting(false);
     }
   }, [
-    decoratedMovieSpec,
+    preparedMovieSpec,
     exportFormat,
     exportPreview,
     execution.id,
@@ -3304,7 +3591,11 @@ function ExecutionViewer({
                 }}
                 src={composerUrl}
                 title="Replay Composer"
-                className="h-[640px] w-full border-0"
+                className="w-full border-0"
+                style={{
+                  aspectRatio: `${selectedDimensions.width} / ${selectedDimensions.height}`,
+                  minHeight: "360px",
+                }}
                 allow="clipboard-read; clipboard-write"
               />
               {(isMovieSpecLoading || !isComposerReady) && !movieSpecError && (
@@ -3337,7 +3628,9 @@ function ExecutionViewer({
                           </span>
                         )}
                         {previewMetrics.capturedFrames > 0 &&
-                          previewMetrics.totalDurationMs > 0 && <span> • </span>}
+                          previewMetrics.totalDurationMs > 0 && (
+                            <span> • </span>
+                          )}
                         {previewMetrics.totalDurationMs > 0 && (
                           <span>
                             {formatSeconds(
@@ -3582,6 +3875,120 @@ function ExecutionViewer({
                 );
               })}
             </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-white">
+                First frame preview
+              </h3>
+              {firstFrameLabel && (
+                <span className="text-xs text-slate-400">
+                  {firstFrameLabel}
+                </span>
+              )}
+            </div>
+            <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900/60">
+              {firstFramePreviewUrl ? (
+                <img
+                  src={firstFramePreviewUrl}
+                  alt="First frame preview"
+                  className="block w-full object-cover"
+                  style={{
+                    aspectRatio: `${selectedDimensions.width} / ${selectedDimensions.height}`,
+                  }}
+                />
+              ) : (
+                <div className="flex h-40 items-center justify-center text-sm text-slate-400">
+                  Preview unavailable
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t border-white/5 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                <span>
+                  {selectedDimensions.width}×{selectedDimensions.height} px
+                </span>
+                <span>Canvas</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-white">Dimensions</h3>
+              <span className="text-xs text-slate-400">
+                {selectedDimensions.width}×{selectedDimensions.height} px
+              </span>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {dimensionPresetOptions.map((option) => {
+                const isSelected = dimensionPreset === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setDimensionPreset(option.id)}
+                    className={clsx(
+                      "flex flex-col items-start gap-1.5 rounded-xl border px-4 py-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-flow-accent/60 focus:ring-offset-2 focus:ring-offset-slate-900",
+                      isSelected
+                        ? "border-flow-accent/70 bg-flow-accent/20 text-white shadow-[0_18px_40px_rgba(59,130,246,0.25)]"
+                        : "border-white/10 bg-slate-900/60 text-slate-300 hover:border-flow-accent/40 hover:text-white",
+                    )}
+                  >
+                    <span className="text-sm font-semibold">
+                      {option.label}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {option.id === "custom"
+                        ? "Define width & height"
+                        : `${option.width}×${option.height} px`}
+                    </span>
+                    {option.description && (
+                      <span className="text-[11px] text-slate-500">
+                        {option.description}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {dimensionPreset === "custom" && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-400">Width (px)</span>
+                  <input
+                    type="number"
+                    min={320}
+                    step={10}
+                    value={customWidthInput}
+                    onChange={(event) => {
+                      setDimensionPreset("custom");
+                      setCustomWidthInput(
+                        event.target.value.replace(/[^0-9]/g, ""),
+                      );
+                    }}
+                    className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-flow-accent focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
+                    placeholder={String(DEFAULT_EXPORT_WIDTH)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-slate-400">Height (px)</span>
+                  <input
+                    type="number"
+                    min={320}
+                    step={10}
+                    value={customHeightInput}
+                    onChange={(event) => {
+                      setDimensionPreset("custom");
+                      setCustomHeightInput(
+                        event.target.value.replace(/[^0-9]/g, ""),
+                      );
+                    }}
+                    className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-flow-accent focus:outline-none focus:ring-2 focus:ring-flow-accent/40"
+                    placeholder={String(DEFAULT_EXPORT_HEIGHT)}
+                  />
+                </label>
+              </div>
+            )}
           </section>
 
           <section className="space-y-3">

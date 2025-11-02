@@ -63,6 +63,8 @@ const (
 	browserlessFunctionPath         = "/chrome/function"
 	defaultCaptureInterval          = 40
 	defaultCaptureTailMs            = 320
+	defaultPresentationWidth        = 1280
+	defaultPresentationHeight       = 720
 	maxBrowserlessCaptureFrames     = 720
 	browserlessTimeoutBufferMillis  = 120000
 	perFrameBrowserlessBudgetMillis = 220
@@ -289,7 +291,15 @@ func (r *ReplayRenderer) renderWithBrowserless(ctx context.Context, spec *Replay
 	contentType := "video/mp4"
 	if format == RenderFormatGIF {
 		gifPath := filepath.Join(tempRoot, "replay.gif")
-		if err := r.convertToGIF(ctx, baseVideoPath, gifPath); err != nil {
+		gifWidth := capture.Width
+		if gifWidth <= 0 {
+			gifWidth = capture.Height
+		}
+		if gifWidth <= 0 {
+			gifWidth = defaultPresentationWidth
+		}
+		gifFPS := capture.FPS
+		if err := r.convertToGIF(ctx, baseVideoPath, gifPath, gifWidth, gifFPS); err != nil {
 			cleanup()
 			return nil, err
 		}
@@ -405,6 +415,25 @@ func (r *ReplayRenderer) captureFramesWithBrowserless(ctx context.Context, spec 
 	encodedPayload := base64.RawURLEncoding.EncodeToString(payloadBytes)
 	jsonPayload := string(payloadBytes)
 
+	canvasWidth := spec.Presentation.Canvas.Width
+	canvasHeight := spec.Presentation.Canvas.Height
+	if canvasWidth <= 0 {
+		canvasWidth = spec.Presentation.Viewport.Width
+	}
+	if canvasHeight <= 0 {
+		canvasHeight = spec.Presentation.Viewport.Height
+	}
+	if canvasWidth <= 0 {
+		canvasWidth = defaultPresentationWidth
+	}
+	if canvasHeight <= 0 {
+		canvasHeight = defaultPresentationHeight
+	}
+	deviceScale := spec.Presentation.DeviceScaleFactor
+	if deviceScale <= 0 {
+		deviceScale = 1
+	}
+
 	tailDuration := defaultCaptureTailMs
 	if captureInterval > tailDuration {
 		tailDuration = captureInterval
@@ -430,9 +459,9 @@ func (r *ReplayRenderer) captureFramesWithBrowserless(ctx context.Context, spec 
 			"navigationTimeout": 90000,
 			"apiBase":           r.apiBaseURL,
 			"viewport": map[string]any{
-				"width":             1920,
-				"height":            1080,
-				"deviceScaleFactor": 1,
+				"width":             canvasWidth,
+				"height":            canvasHeight,
+				"deviceScaleFactor": deviceScale,
 			},
 		},
 	}
@@ -519,11 +548,17 @@ func (r *ReplayRenderer) assembleVideoFromSequence(ctx context.Context, pattern 
 	return nil
 }
 
-func (r *ReplayRenderer) convertToGIF(ctx context.Context, inputPath, outputPath string) error {
+func (r *ReplayRenderer) convertToGIF(ctx context.Context, inputPath, outputPath string, targetWidth int, fps int) error {
+	if fps <= 0 {
+		fps = 12
+	}
+	if targetWidth <= 0 {
+		targetWidth = defaultPresentationWidth
+	}
 	args := []string{
 		"-y",
 		"-i", inputPath,
-		"-vf", "fps=12,scale=1280:-1:flags=lanczos",
+		"-vf", fmt.Sprintf("fps=%d,scale=%d:-1:flags=lanczos", fps, targetWidth),
 		outputPath,
 	}
 	cmd := exec.CommandContext(ctx, r.ffmpegPath, args...)

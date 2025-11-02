@@ -15,7 +15,16 @@ if (!existsSync(testsDir)) {
 
 const filteredArgs = process.argv
   .slice(2)
-  .filter((arg) => !['--coverage', '--silent', '--watch', '--watchAll'].includes(arg));
+  .filter(
+    (arg) =>
+      ![
+        '--',
+        '--coverage',
+        '--silent',
+        '--watch',
+        '--watchAll',
+      ].includes(arg),
+  );
 
 const coverageDir = join(projectRoot, 'coverage', 'node');
 mkdirSync(coverageDir, { recursive: true });

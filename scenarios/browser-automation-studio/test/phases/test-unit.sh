@@ -14,12 +14,31 @@ cd "$TESTING_PHASE_SCENARIO_DIR"
 # Note: Lower threshold (30%) reflects accurate measurement after including handlers package
 # Individual packages maintain strong coverage (browserless: 69.9%, compiler: 73.7%, events: 89.3%)
 # Many functions require Browserless/Postgres integration which are tested separately
-testing::unit::run_all_tests \
+UNIT_REQUIREMENTS=(
+  BAS-WORKFLOW-PERSIST-CRUD
+  BAS-EXEC-TELEMETRY-STREAM
+  BAS-REPLAY-TIMELINE-PERSISTENCE
+  BAS-REPLAY-EXPORT-BUNDLE
+  BAS-VERSION-AUTOSAVE
+)
+
+if testing::unit::run_all_tests \
     --go-dir "api" \
     --node-dir "ui" \
     --skip-python \
     --coverage-warn 40 \
     --coverage-error 30 \
-    --verbose
+    --verbose; then
+  testing::phase::add_test passed
+  for requirement_id in "${UNIT_REQUIREMENTS[@]}"; do
+    testing::phase::add_requirement --id "$requirement_id" --status passed --evidence "Unit test suites"
+  done
+else
+  testing::phase::add_error "Unit test runner reported failures"
+  testing::phase::add_test failed
+  for requirement_id in "${UNIT_REQUIREMENTS[@]}"; do
+    testing::phase::add_requirement --id "$requirement_id" --status failed --evidence "Unit test suites"
+  done
+fi
 
 testing::phase::end_with_summary "Unit tests completed"

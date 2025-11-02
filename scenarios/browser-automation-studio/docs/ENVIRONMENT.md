@@ -52,6 +52,7 @@ When no CORS variables are provided, the API and UI automatically allow requests
 - `BROWSERLESS_URL` - Full Browserless URL (overrides host/port)
 - `MINIO_ENDPOINT` - Full MinIO endpoint (overrides host/port)
 - `BROWSER_AUTOMATION_API_URL` - Full API URL for CLI (overrides host/port)
+- `BAS_EXPORT_PAGE_URL` - Absolute URL to the replay composer page used by the Browserless renderer. Derived automatically from `BAS_UI_BASE_URL`/`UI_*` when present, but override it when hosting the UI under a custom domain or path.
 
 ## Lifecycle Variables
 

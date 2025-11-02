@@ -8,7 +8,6 @@ source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 testing::phase::init --target-time "240s" --require-runtime
 
 SCENARIO_NAME="${TESTING_PHASE_SCENARIO_NAME}"
-AUTOMATION_SCRIPT="automation/executions/telemetry-smoke.sh"
 SCENARIO_STARTED=false
 
 stop_scenario_if_started() {
@@ -18,11 +17,6 @@ stop_scenario_if_started() {
 }
 
 testing::phase::register_cleanup stop_scenario_if_started
-
-if [ ! -x "$AUTOMATION_SCRIPT" ]; then
-  testing::phase::add_error "Telemetry smoke automation missing at $AUTOMATION_SCRIPT"
-  testing::phase::end_with_summary "Integration tests incomplete"
-fi
 
 if ! command -v vrooli >/dev/null 2>&1; then
   testing::phase::add_error "vrooli CLI not available; cannot manage scenario runtime"
@@ -43,13 +37,24 @@ if ! testing::core::is_scenario_running "$SCENARIO_NAME"; then
   fi
 fi
 
-if BAS_AUTOMATION_STOP_SCENARIO=0 "$AUTOMATION_SCRIPT"; then
-  log::success "✅ Telemetry smoke automation completed"
+if testing::phase::run_workflow_yaml \
+  --file "test/playbooks/executions/telemetry-smoke.yaml" \
+  --label "Telemetry smoke automation" \
+  --requirement BAS-EXEC-TELEMETRY-AUTOMATION; then
   testing::phase::add_test passed
 else
-  testing::phase::add_error "Telemetry smoke automation failed"
   testing::phase::add_test failed
   testing::phase::end_with_summary "Integration automation failed"
+fi
+
+if testing::phase::run_workflow_yaml \
+  --file "test/playbooks/executions/heartbeat-stall.yaml" \
+  --label "Heartbeat stall automation" \
+  --requirement BAS-EXEC-HEARTBEAT-DETECTION; then
+  testing::phase::add_test passed
+else
+  testing::phase::add_test failed
+  testing::phase::add_error "Heartbeat stall automation failed"
 fi
 
 API_PORT_OUTPUT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT 2>/dev/null || true)
@@ -68,13 +73,16 @@ if command -v node >/dev/null 2>&1; then
   if node tests/workflow-version-history.integration.mjs; then
     log::success "✅ Workflow version history contract validated"
     testing::phase::add_test passed
+    testing::phase::add_requirement --id BAS-VERSION-RESTORE --status passed --evidence "Workflow version history integration"
   else
     testing::phase::add_error "Workflow version history integration failed"
     testing::phase::add_test failed
+    testing::phase::add_requirement --id BAS-VERSION-RESTORE --status failed --evidence "Workflow version history integration"
   fi
 else
   testing::phase::add_warning "Node runtime missing; skipping workflow version history integration"
   testing::phase::add_test skipped
+  testing::phase::add_requirement --id BAS-VERSION-RESTORE --status skipped --evidence "Workflow version history integration"
 fi
 
 testing::phase::end_with_summary "Integration tests completed"

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type ReactNode, type CSSProperties, type HTMLAttributes } from 'react';
 import clsx from 'clsx';
 import { ChevronDown, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 
@@ -175,6 +175,14 @@ export interface ReplayPlayerController {
   getFrameCount: () => number;
 }
 
+type ReplayPlayerPresentationMode = 'default' | 'export';
+
+interface ReplayPlayerPresentationDimensions {
+  width?: number;
+  height?: number;
+  deviceScaleFactor?: number;
+}
+
 interface ReplayPlayerProps {
   frames: ReplayFrame[];
   autoPlay?: boolean;
@@ -191,6 +199,9 @@ interface ReplayPlayerProps {
   cursorDefaultSpeedProfile?: CursorSpeedProfile;
   cursorDefaultPathStyle?: CursorPathStyle;
   exposeController?: (controller: ReplayPlayerController | null) => void;
+  presentationMode?: ReplayPlayerPresentationMode;
+  allowPointerEditing?: boolean;
+  presentationDimensions?: ReplayPlayerPresentationDimensions;
 }
 
 const DEFAULT_DURATION = 1600;
@@ -1173,6 +1184,9 @@ export function ReplayPlayer({
   cursorDefaultSpeedProfile,
   cursorDefaultPathStyle,
   exposeController,
+  presentationMode = 'default',
+  allowPointerEditing = true,
+  presentationDimensions,
 }: ReplayPlayerProps) {
   const normalizedFrames = useMemo(() => {
     return frames
@@ -1201,6 +1215,7 @@ export function ReplayPlayer({
   const [activeClickEffect, setActiveClickEffect] = useState<{ frameId: string; key: number } | null>(null);
   const screenshotRef = useRef<HTMLDivElement | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
+  const captureAreaRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<{ frameId: string; pointerId: number } | null>(null);
   const backgroundDecor = useMemo(
     () => buildBackgroundDecor(backgroundTheme ?? 'aurora'),
@@ -1208,6 +1223,9 @@ export function ReplayPlayer({
   );
   const effectiveCursorTheme = cursorTheme ?? 'white';
   const isCursorEnabled = effectiveCursorTheme !== 'disabled';
+  const isExportPresentation = presentationMode === 'export';
+  const showInterfaceChrome = !isExportPresentation;
+  const canEditCursor = allowPointerEditing && !isExportPresentation && isCursorEnabled;
   const cursorDecor = useMemo(() => buildCursorDecor(effectiveCursorTheme), [effectiveCursorTheme]);
   const pointerScale =
     typeof cursorScale === 'number' && !Number.isNaN(cursorScale)
@@ -1548,10 +1566,15 @@ export function ReplayPlayer({
       seek: ({ frameIndex, progress }) => seekToFrame(frameIndex, progress),
       play: () => setIsPlaying(true),
       pause: () => setIsPlaying(false),
-      getViewportElement: () => playerContainerRef.current ?? screenshotRef.current,
+      getViewportElement: () => {
+        if (isExportPresentation) {
+          return captureAreaRef.current ?? screenshotRef.current ?? playerContainerRef.current;
+        }
+        return playerContainerRef.current ?? screenshotRef.current;
+      },
       getFrameCount: () => normalizedFramesRef.current.length,
     };
-  }, [exposeController, seekToFrame]);
+  }, [exposeController, isExportPresentation, seekToFrame]);
 
   useEffect(() => {
     if (!exposeController) {
@@ -1593,8 +1616,14 @@ export function ReplayPlayer({
   }, [currentFrame]);
 
   const dimensions: Dimensions = {
-    width: currentFrame?.screenshot?.width || FALLBACK_DIMENSIONS.width,
-    height: currentFrame?.screenshot?.height || FALLBACK_DIMENSIONS.height,
+    width:
+      presentationDimensions?.width ||
+      currentFrame?.screenshot?.width ||
+      FALLBACK_DIMENSIONS.width,
+    height:
+      presentationDimensions?.height ||
+      currentFrame?.screenshot?.height ||
+      FALLBACK_DIMENSIONS.height,
   };
 
   useEffect(() => {
@@ -1770,7 +1799,7 @@ export function ReplayPlayer({
     : undefined;
 
   const updateDragPosition = (clientX: number, clientY: number) => {
-    if (!screenshotRef.current || !currentFrame || !isCursorEnabled) {
+    if (!screenshotRef.current || !currentFrame || !canEditCursor) {
       return;
     }
     const rect = screenshotRef.current.getBoundingClientRect();
@@ -1796,7 +1825,7 @@ export function ReplayPlayer({
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isCursorEnabled || !currentFrame) {
+    if (!canEditCursor || !currentFrame) {
       return;
     }
     event.preventDefault();
@@ -1809,7 +1838,7 @@ export function ReplayPlayer({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragState || dragState.pointerId !== event.pointerId || dragState.frameId !== currentFrame?.id) {
+    if (!canEditCursor || !dragState || dragState.pointerId !== event.pointerId || dragState.frameId !== currentFrame?.id) {
       return;
     }
     event.preventDefault();
@@ -1817,7 +1846,7 @@ export function ReplayPlayer({
   };
 
   const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragState || dragState.pointerId !== event.pointerId) {
+    if (!canEditCursor || !dragState || dragState.pointerId !== event.pointerId) {
       return;
     }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -1826,7 +1855,31 @@ export function ReplayPlayer({
     setDragState(null);
   };
 
+  const handlePointerLeave = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!canEditCursor || !dragState?.pointerId) {
+      return;
+    }
+    endDrag(event);
+  };
+
+  const pointerEventProps: HTMLAttributes<HTMLDivElement> = canEditCursor
+    ? {
+        onPointerDown: handlePointerDown,
+        onPointerMove: handlePointerMove,
+        onPointerUp: endDrag,
+        onPointerCancel: endDrag,
+        onPointerLeave: handlePointerLeave,
+      }
+    : {};
+
   const isDraggingCursor = dragState?.frameId === currentFrameId;
+
+  const pointerWrapperClassName = clsx(
+    'absolute transition-all duration-500 ease-out select-none relative',
+    cursorDecor.wrapperClass,
+    canEditCursor ? 'pointer-events-auto' : 'pointer-events-none',
+    canEditCursor ? (isDraggingCursor ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default',
+  );
 
   const currentOverride = currentCursorPlan ? cursorOverrides[currentCursorPlan.frameId] : undefined;
   const effectiveSpeedProfile = currentCursorPlan?.speedProfile ?? baseSpeedProfile;
@@ -1916,12 +1969,17 @@ export function ReplayPlayer({
     updateCursorOverride(currentCursorPlan.frameId, () => undefined);
   };
 
+  const screenshotTransition = isExportPresentation
+    ? 'none'
+    : 'transform 600ms ease, transform-origin 600ms ease';
+
   return (
     <div className="flex flex-col gap-4">
       <div
         ref={playerContainerRef}
         className={clsx(
-          'relative overflow-hidden rounded-3xl transition-all duration-500',
+          'relative overflow-hidden rounded-3xl',
+          !isExportPresentation && 'transition-all duration-500',
           backgroundDecor.containerClass,
         )}
         style={backgroundDecor.containerStyle}
@@ -1929,15 +1987,26 @@ export function ReplayPlayer({
         {backgroundDecor.baseLayer}
         {backgroundDecor.overlay}
         <div className={clsx('relative z-[1]', backgroundDecor.contentClass)}>
-          <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-200/80">
-            <span>Replay</span>
-            <span>
-              Step {currentIndex + 1} / {normalizedFrames.length}
-            </span>
-          </div>
+          {showInterfaceChrome && (
+            <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-200/80">
+              <span>Replay</span>
+              <span>
+                Step {currentIndex + 1} / {normalizedFrames.length}
+              </span>
+            </div>
+          )}
 
-          <div className="mt-4 space-y-3">
-            <div className={clsx('overflow-hidden rounded-2xl transition-all duration-300', chromeDecor.frameClass)}>
+          <div
+            ref={captureAreaRef}
+            className={clsx('space-y-3', { 'mt-4': showInterfaceChrome })}
+          >
+            <div
+              className={clsx(
+                'overflow-hidden rounded-2xl',
+                !isExportPresentation && 'transition-all duration-300',
+                chromeDecor.frameClass,
+              )}
+            >
             {chromeDecor.header}
 
             <div className={clsx('relative overflow-hidden', chromeDecor.contentClass)}>
@@ -1953,7 +2022,7 @@ export function ReplayPlayer({
                   style={{
                     transform: `scale(${zoom})`,
                     transformOrigin: anchorStyle,
-                    transition: 'transform 600ms ease, transform-origin 600ms ease',
+                    transition: screenshotTransition,
                   }}
                 >
                   {screenshot?.url ? (
@@ -2012,21 +2081,9 @@ export function ReplayPlayer({
                     {pointerWrapperStyle && cursorDecor.renderBase && (
                       <div
                         role="presentation"
-                        className={clsx(
-                          'absolute transition-all duration-500 ease-out pointer-events-auto select-none relative',
-                          cursorDecor.wrapperClass,
-                          isDraggingCursor ? 'cursor-grabbing' : 'cursor-grab',
-                        )}
+                        className={pointerWrapperClassName}
                         style={pointerWrapperStyle}
-                        onPointerDown={handlePointerDown}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={endDrag}
-                        onPointerCancel={endDrag}
-                        onPointerLeave={(event) => {
-                          if (dragState?.pointerId) {
-                            endDrag(event);
-                          }
-                        }}
+                        {...pointerEventProps}
                       >
                         {clickEffectElement}
                         {cursorDecor.renderBase}
@@ -2038,49 +2095,52 @@ export function ReplayPlayer({
             </div>
           </div>
 
-            <div className="flex items-center gap-4">
-              <button
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10"
-                onClick={handlePrevious}
-                aria-label="Previous frame"
-              >
-              <ChevronLeft size={16} />
-            </button>
+            {showInterfaceChrome && (
+              <div className="flex items-center gap-4">
+                <button
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10"
+                  onClick={handlePrevious}
+                  aria-label="Previous frame"
+                >
+                  <ChevronLeft size={16} />
+                </button>
 
-            <button
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-flow-accent text-white hover:bg-blue-500"
-              onClick={() => setIsPlaying((prev) => !prev)}
-              aria-label={isPlaying ? 'Pause replay' : 'Play replay'}
-            >
-              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-            </button>
+                <button
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-flow-accent text-white hover:bg-blue-500"
+                  onClick={() => setIsPlaying((prev) => !prev)}
+                  aria-label={isPlaying ? 'Pause replay' : 'Play replay'}
+                >
+                  {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                </button>
 
-            <button
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10"
-              onClick={handleNext}
-              aria-label="Next frame"
-            >
-              <ChevronRight size={16} />
-            </button>
+                <button
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10"
+                  onClick={handleNext}
+                  aria-label="Next frame"
+                >
+                  <ChevronRight size={16} />
+                </button>
 
-              <div className="flex-1">
-                <div className="relative h-1 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-flow-accent transition-[width] duration-75"
-                    style={{ width: `${frameProgress * 100}%` }}
-                  />
+                <div className="flex-1">
+                  <div className="relative h-1 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full bg-flow-accent transition-[width] duration-75"
+                      style={{ width: `${frameProgress * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="text-xs uppercase tracking-[0.2em] text-slate-200/80">
+                  {displayDurationMs ? formatDurationSeconds(displayDurationMs) : 'Auto'}
                 </div>
               </div>
-
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-200/80">
-                {displayDurationMs ? formatDurationSeconds(displayDurationMs) : 'Auto'}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-4">
+      {showInterfaceChrome && (
+        <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
           <div className="flex flex-wrap items-center gap-3">
             <span className="uppercase tracking-[0.18em] text-slate-500">Frame Metadata</span>
@@ -2395,9 +2455,10 @@ export function ReplayPlayer({
             ) : null}
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
-      {normalizedFrames.length > 1 && (
+      {showInterfaceChrome && normalizedFrames.length > 1 && (
         <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-3">
           <div className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">Storyboard</div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
@@ -2438,7 +2499,7 @@ export function ReplayPlayer({
         </div>
       )}
 
-      {executionStatus === 'failed' && frames.length > 0 && (
+      {showInterfaceChrome && executionStatus === 'failed' && frames.length > 0 && (
         <div className="mt-6 mx-4 p-6 rounded-lg border border-dashed border-gray-600 bg-gray-900/30 text-center">
           <div className="text-sm text-gray-400 mb-2">
             Workflow execution stopped at step {frames.length}

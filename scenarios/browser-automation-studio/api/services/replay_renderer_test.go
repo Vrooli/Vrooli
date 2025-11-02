@@ -101,6 +101,11 @@ func TestCaptureFramesWithBrowserless(t *testing.T) {
 			PayloadJSON   string `json:"payloadJson"`
 			ExportURL     string `json:"exportUrl"`
 			FrameInterval int    `json:"frameInterval"`
+			Viewport      struct {
+				Width             int     `json:"width"`
+				Height            int     `json:"height"`
+				DeviceScaleFactor float64 `json:"deviceScaleFactor"`
+			} `json:"viewport"`
 		} `json:"context"`
 	}
 
@@ -154,6 +159,12 @@ func TestCaptureFramesWithBrowserless(t *testing.T) {
 	}
 	if received.Context.FrameInterval <= 0 {
 		t.Fatalf("expected frame interval to be positive")
+	}
+	if received.Context.Viewport.Width != 1280 || received.Context.Viewport.Height != 720 {
+		t.Fatalf("expected viewport to match presentation dimensions: %#v", received.Context.Viewport)
+	}
+	if received.Context.Viewport.DeviceScaleFactor <= 0 {
+		t.Fatalf("expected device scale factor to default to positive value, got %f", received.Context.Viewport.DeviceScaleFactor)
 	}
 }
 
