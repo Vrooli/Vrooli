@@ -6,6 +6,7 @@ import {
   useRef,
   useId,
   type CSSProperties,
+  type MutableRefObject,
   type ReactNode,
 } from "react";
 import {
@@ -53,7 +54,11 @@ import { toast } from "react-hot-toast";
 import ResponsiveDialog from "./ResponsiveDialog";
 import { getConfig } from "../config";
 import { logger } from "../utils/logger";
-import type { ReplayMovieSpec } from "../types/export";
+import type {
+  ReplayMovieSpec,
+  ReplayMovieFrameRect,
+  ReplayMoviePresentation,
+} from "../types/export";
 import {
   toNumber,
   toBoundingBox,
@@ -935,7 +940,14 @@ function ExecutionViewer({
   const composerRef = useRef<HTMLIFrameElement | null>(null);
   const composerWindowRef = useRef<Window | null>(null);
   const composerOriginRef = useRef<string | null>(null);
+  const previewComposerRef = useRef<HTMLIFrameElement | null>(null);
+  const composerPreviewWindowRef = useRef<Window | null>(null);
+  const composerPreviewOriginRef = useRef<string | null>(null);
   const [isComposerReady, setIsComposerReady] = useState(false);
+  const [isPreviewComposerReady, setIsPreviewComposerReady] = useState(false);
+  const [previewComposerError, setPreviewComposerError] = useState<string | null>(
+    null,
+  );
   const composerFrameStateRef = useRef({ frameIndex: 0, progress: 0 });
   const movieSpecRetryTimeoutRef = useRef<number | null>(null);
   const movieSpecAbortControllerRef = useRef<AbortController | null>(null);
@@ -1015,6 +1027,19 @@ function ExecutionViewer({
     return url.toString();
   }, [composerApiBase, execution.id]);
 
+  const composerPreviewUrl = useMemo(() => {
+    const embedOrigin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost";
+    const url = new URL("/export/composer.html", embedOrigin);
+    url.searchParams.set("mode", "embedded");
+    url.searchParams.set("executionId", execution.id);
+    url.searchParams.set("apiBase", composerApiBase ?? embedOrigin);
+    url.searchParams.set("context", "preview");
+    return url.toString();
+  }, [composerApiBase, execution.id]);
+
   useEffect(() => {
     if (typeof window === "undefined") {
       composerOriginRef.current = null;
@@ -1034,6 +1059,26 @@ function ExecutionViewer({
       );
     }
   }, [composerUrl, execution.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      composerPreviewOriginRef.current = null;
+      return;
+    }
+    try {
+      composerPreviewOriginRef.current = new URL(
+        composerPreviewUrl,
+        window.location.href,
+      ).origin;
+    } catch (error) {
+      composerPreviewOriginRef.current = null;
+      logger.warn(
+        "Failed to derive preview composer origin",
+        { component: "ExecutionViewer", executionId: execution.id },
+        error,
+      );
+    }
+  }, [composerPreviewUrl, execution.id]);
 
   const getSanitizedFileStem = useCallback(
     () => sanitizeFileStem(exportFileStem, defaultExportFileStem),
@@ -2015,49 +2060,85 @@ function ExecutionViewer({
     const cloned = JSON.parse(JSON.stringify(base)) as ReplayMovieSpec;
     const width = selectedDimensions.width;
     const height = selectedDimensions.height;
-    const presentation = cloned.presentation ?? {
-      canvas: { width, height },
-      viewport: { width, height },
-      browser_frame: {
-        x: 0,
-        y: 0,
+
+    const basePresentation: ReplayMoviePresentation | undefined =
+      cloned.presentation ?? base.presentation;
+
+    const baseCanvasWidth =
+      basePresentation?.canvas?.width && basePresentation.canvas.width > 0
+        ? basePresentation.canvas.width
+        : width;
+    const baseCanvasHeight =
+      basePresentation?.canvas?.height && basePresentation.canvas.height > 0
+        ? basePresentation.canvas.height
+        : height;
+
+    const scaleX = baseCanvasWidth > 0 ? width / baseCanvasWidth : 1;
+    const scaleY = baseCanvasHeight > 0 ? height / baseCanvasHeight : 1;
+
+    const scaleDimensions = (
+      dims?: { width?: number; height?: number },
+      fallback?: { width: number; height: number },
+    ): { width: number; height: number } => {
+      const fallbackWidth = fallback?.width ?? baseCanvasWidth;
+      const fallbackHeight = fallback?.height ?? baseCanvasHeight;
+      const sourceWidth =
+        dims?.width && dims.width > 0 ? dims.width : fallbackWidth;
+      const sourceHeight =
+        dims?.height && dims.height > 0 ? dims.height : fallbackHeight;
+      return {
+        width: Math.round(sourceWidth * scaleX),
+        height: Math.round(sourceHeight * scaleY),
+      };
+    };
+
+    const scaleFrameRect = (
+      rect?: ReplayMovieFrameRect | null,
+    ): ReplayMovieFrameRect => {
+      const source: ReplayMovieFrameRect = rect
+        ? { ...rect }
+        : {
+            x: 0,
+            y: 0,
+            width: basePresentation?.browser_frame?.width ?? baseCanvasWidth,
+            height: basePresentation?.browser_frame?.height ?? baseCanvasHeight,
+            radius: basePresentation?.browser_frame?.radius ?? 24,
+          };
+      return {
+        x: Math.round((source.x ?? 0) * scaleX),
+        y: Math.round((source.y ?? 0) * scaleY),
+        width: Math.round((source.width ?? baseCanvasWidth) * scaleX),
+        height: Math.round((source.height ?? baseCanvasHeight) * scaleY),
+        radius: source.radius ?? basePresentation?.browser_frame?.radius ?? 24,
+      };
+    };
+
+    const presentation: ReplayMoviePresentation = {
+      canvas: {
         width,
         height,
-        radius: 24,
       },
-      device_scale_factor: 1,
+      viewport: scaleDimensions(basePresentation?.viewport, {
+        width: basePresentation?.viewport?.width ?? baseCanvasWidth,
+        height: basePresentation?.viewport?.height ?? baseCanvasHeight,
+      }),
+      browser_frame: scaleFrameRect(basePresentation?.browser_frame),
+      device_scale_factor:
+        (basePresentation?.device_scale_factor &&
+          basePresentation.device_scale_factor > 0
+          ? basePresentation.device_scale_factor
+          : 1),
     };
-    presentation.canvas = {
-      ...presentation.canvas,
-      width,
-      height,
-    };
-    presentation.viewport = {
-      ...presentation.viewport,
-      width,
-      height,
-    };
-    presentation.browser_frame = {
-      ...presentation.browser_frame,
-      width,
-      height,
-    };
-    if (
-      !presentation.device_scale_factor ||
-      presentation.device_scale_factor <= 0
-    ) {
-      presentation.device_scale_factor =
-        cloned.presentation?.device_scale_factor || 1;
-    }
+
     cloned.presentation = presentation;
+
     if (Array.isArray(cloned.frames)) {
       cloned.frames = cloned.frames.map((frame) => ({
         ...frame,
-        viewport: {
-          ...frame.viewport,
-          width,
-          height,
-        },
+        viewport: scaleDimensions(frame.viewport, {
+          width: frame.viewport?.width ?? basePresentation?.viewport?.width ?? baseCanvasWidth,
+          height: frame.viewport?.height ?? basePresentation?.viewport?.height ?? baseCanvasHeight,
+        }),
       }));
     }
     return cloned;
@@ -2267,32 +2348,58 @@ function ExecutionViewer({
 
   const postToComposer = useCallback(
     (message: Record<string, unknown>) => {
-      if (!composerWindowRef.current) {
-        return;
+      const targets: Array<{
+        windowRef: MutableRefObject<Window | null>;
+        originRef: MutableRefObject<string | null>;
+        url: string;
+        label: string;
+      }> = [
+        {
+          windowRef: composerWindowRef,
+          originRef: composerOriginRef,
+          url: composerUrl,
+          label: "composer",
+        },
+      ];
+      if (composerPreviewWindowRef.current) {
+        targets.push({
+          windowRef: composerPreviewWindowRef,
+          originRef: composerPreviewOriginRef,
+          url: composerPreviewUrl,
+          label: "preview-composer",
+        });
       }
-      let targetOrigin = composerOriginRef.current;
-      if (!targetOrigin && typeof window !== "undefined") {
+
+      targets.forEach(({ windowRef, originRef, url, label }) => {
+        const targetWindow = windowRef.current;
+        if (!targetWindow) {
+          return;
+        }
+        let targetOrigin = originRef.current;
+        if (!targetOrigin && typeof window !== "undefined") {
+          try {
+            targetOrigin = new URL(url, window.location.href).origin;
+            originRef.current = targetOrigin;
+          } catch (error) {
+            logger.warn(
+              "Failed to resolve composer origin",
+              { component: "ExecutionViewer", executionId: execution.id, context: label },
+              error,
+            );
+          }
+        }
         try {
-          targetOrigin = new URL(composerUrl, window.location.href).origin;
+          targetWindow.postMessage(message, targetOrigin ?? "*");
         } catch (error) {
           logger.warn(
-            "Failed to resolve composer origin",
-            { component: "ExecutionViewer", executionId: execution.id },
+            "Failed to post message to composer",
+            { component: "ExecutionViewer", context: label },
             error,
           );
         }
-      }
-      try {
-        composerWindowRef.current.postMessage(message, targetOrigin ?? "*");
-      } catch (error) {
-        logger.warn(
-          "Failed to post message to composer",
-          { component: "ExecutionViewer" },
-          error,
-        );
-      }
+      });
     },
-    [composerUrl, execution.id],
+    [composerUrl, composerPreviewUrl, execution.id],
   );
 
   const sendSpecToComposer = useCallback(
@@ -2328,7 +2435,9 @@ function ExecutionViewer({
       return;
     }
     const handleMessage = (event: MessageEvent) => {
-      if (event.source !== composerWindowRef.current) {
+      const fromComposer = event.source === composerWindowRef.current;
+      const fromPreview = event.source === composerPreviewWindowRef.current;
+      if (!fromComposer && !fromPreview) {
         return;
       }
       const payload = event.data;
@@ -2340,18 +2449,28 @@ function ExecutionViewer({
         return;
       }
       if (type === "bas:ready") {
-        setIsComposerReady(true);
-        setMovieSpecError(null);
-        composerOriginRef.current = event.origin || composerOriginRef.current;
+        if (fromComposer) {
+          setIsComposerReady(true);
+          setMovieSpecError(null);
+          composerOriginRef.current = event.origin || composerOriginRef.current;
+        } else {
+          setIsPreviewComposerReady(true);
+          setPreviewComposerError(null);
+          composerPreviewOriginRef.current =
+            event.origin || composerPreviewOriginRef.current;
+        }
         if (preparedMovieSpec) {
           sendSpecToComposer(preparedMovieSpec);
         }
       } else if (type === "bas:state") {
-        const data = payload as { frameIndex?: unknown; progress?: unknown };
-        const frameIndex =
-          typeof data.frameIndex === "number" ? data.frameIndex : 0;
-        const progress = typeof data.progress === "number" ? data.progress : 0;
-        composerFrameStateRef.current = { frameIndex, progress };
+        if (fromComposer) {
+          const data = payload as { frameIndex?: unknown; progress?: unknown };
+          const frameIndex =
+            typeof data.frameIndex === "number" ? data.frameIndex : 0;
+          const progress =
+            typeof data.progress === "number" ? data.progress : 0;
+          composerFrameStateRef.current = { frameIndex, progress };
+        }
       } else if (type === "bas:error") {
         const data = payload as {
           message?: unknown;
@@ -2378,8 +2497,13 @@ function ExecutionViewer({
                 : previewMetrics.assetCount,
           },
         );
-        setIsComposerReady(false);
-        setMovieSpecError(message);
+        if (fromComposer) {
+          setIsComposerReady(false);
+          setMovieSpecError(message);
+        } else {
+          setIsPreviewComposerReady(false);
+          setPreviewComposerError(message);
+        }
         const framesValue =
           typeof data.frames !== "undefined"
             ? coerceMetricNumber(data.frames)
@@ -2419,8 +2543,15 @@ function ExecutionViewer({
           setActiveSpecId(data.specId.trim());
         }
       } else if (type === "bas:error-clear") {
-        setMovieSpecError(null);
+        if (fromComposer) {
+          setMovieSpecError(null);
+        } else {
+          setPreviewComposerError(null);
+        }
       } else if (type === "bas:metrics") {
+        if (!fromComposer) {
+          return;
+        }
         const data = payload as {
           frames?: unknown;
           assets?: unknown;
@@ -3889,7 +4020,46 @@ function ExecutionViewer({
               )}
             </div>
             <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900/60">
-              {firstFramePreviewUrl ? (
+              {preparedMovieSpec ? (
+                <div
+                  className="relative w-full"
+                  style={{
+                    aspectRatio: `${selectedDimensions.width} / ${selectedDimensions.height}`,
+                  }}
+                >
+                  <iframe
+                    key={`${execution.id}-preview`}
+                    ref={(node) => {
+                      previewComposerRef.current = node;
+                      const nextWindow = node?.contentWindow ?? null;
+                      if (composerPreviewWindowRef.current !== nextWindow) {
+                        composerPreviewWindowRef.current = nextWindow;
+                        if (!nextWindow) {
+                          setIsPreviewComposerReady(false);
+                          setPreviewComposerError(null);
+                          composerPreviewOriginRef.current = null;
+                        }
+                      }
+                    }}
+                    src={composerPreviewUrl}
+                    title="Replay preview"
+                    className="absolute inset-0 h-full w-full border-0"
+                    allow="clipboard-read; clipboard-write"
+                  />
+                  {!isPreviewComposerReady && firstFramePreviewUrl && (
+                    <img
+                      src={firstFramePreviewUrl}
+                      alt="First frame snapshot"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  )}
+                  {!isPreviewComposerReady && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 text-xs uppercase tracking-[0.3em] text-slate-300">
+                      {previewComposerError ?? "Loading preview…"}
+                    </div>
+                  )}
+                </div>
+              ) : firstFramePreviewUrl ? (
                 <img
                   src={firstFramePreviewUrl}
                   alt="First frame preview"

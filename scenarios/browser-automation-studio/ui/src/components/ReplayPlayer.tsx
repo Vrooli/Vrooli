@@ -172,6 +172,7 @@ export interface ReplayPlayerController {
   play: () => void;
   pause: () => void;
   getViewportElement: () => HTMLElement | null;
+  getPresentationElement: () => HTMLElement | null;
   getFrameCount: () => number;
 }
 
@@ -1572,6 +1573,7 @@ export function ReplayPlayer({
         }
         return playerContainerRef.current ?? screenshotRef.current;
       },
+      getPresentationElement: () => playerContainerRef.current,
       getFrameCount: () => normalizedFramesRef.current.length,
     };
   }, [exposeController, isExportPresentation, seekToFrame]);

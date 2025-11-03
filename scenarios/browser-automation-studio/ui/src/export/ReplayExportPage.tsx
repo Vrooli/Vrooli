@@ -52,6 +52,15 @@ type ExportMetadata = {
   timeline: FrameTimeline[];
   width: number;
   height: number;
+  canvasWidth: number;
+  canvasHeight: number;
+  browserFrame: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    radius?: number;
+  };
   deviceScaleFactor?: number;
   assetCount: number;
   specId?: string | null;
@@ -170,6 +179,15 @@ const ensureBasExportBootstrap = () => {
           timeline: [],
           width: 0,
           height: 0,
+          canvasWidth: 0,
+          canvasHeight: 0,
+          browserFrame: {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            radius: 0,
+          },
           assetCount: 0,
           specId: null,
           deviceScaleFactor: 1,
@@ -881,6 +899,8 @@ const ReplayExportPage = () => {
           assets,
           totalDurationMs: totalDuration,
           specId,
+          canvasWidth: effectiveCanvasWidth,
+          canvasHeight: effectiveCanvasHeight,
         });
         return;
       }
@@ -893,6 +913,8 @@ const ReplayExportPage = () => {
         assets,
         totalDurationMs: totalDuration,
         specId,
+        canvasWidth: effectiveCanvasWidth,
+        canvasHeight: effectiveCanvasHeight,
       });
       return;
     }
@@ -904,7 +926,15 @@ const ReplayExportPage = () => {
           movieSpec?.execution?.execution_id ?? executionSourceRef.current,
       });
     }
-  }, [statusPayload, mode, postToParent, loadError, movieSpec]);
+  }, [
+    statusPayload,
+    mode,
+    postToParent,
+    loadError,
+    movieSpec,
+    effectiveCanvasWidth,
+    effectiveCanvasHeight,
+  ]);
 
   useEffect(() => {
     if (mode === "capture") {
@@ -1087,7 +1117,9 @@ const ReplayExportPage = () => {
       },
       getViewportRect: () => {
         const controller = controllerRef.current;
-        const element = controller?.getViewportElement();
+        const element =
+          controller?.getPresentationElement?.() ??
+          controller?.getViewportElement();
         if (!element) {
           return { x: 0, y: 0, width: 0, height: 0 };
         }
@@ -1102,23 +1134,62 @@ const ReplayExportPage = () => {
         };
       },
       getMetadata: () => {
-        const rect = controllerRef.current
-          ?.getViewportElement()
-          ?.getBoundingClientRect();
+        const controller = controllerRef.current;
+        const presentationElement = controller?.getPresentationElement?.();
+        const viewportElement = controller?.getViewportElement();
+        const presentationRect = presentationElement
+          ? presentationElement.getBoundingClientRect()
+          : null;
+        const viewportRect = viewportElement
+          ? viewportElement.getBoundingClientRect()
+          : null;
         const deviceScale = movieSpec?.presentation?.device_scale_factor;
         const assetCount = Array.isArray(movieSpec?.assets)
           ? movieSpec?.assets.length
           : 0;
         const specId =
           movieSpec?.execution?.execution_id ?? executionSourceRef.current;
-        const width = rect ? Math.round(rect.width) : effectiveCanvasWidth;
-        const height = rect ? Math.round(rect.height) : effectiveCanvasHeight;
+        const viewportWidth = viewportRect
+          ? Math.max(1, Math.round(viewportRect.width))
+          : effectiveCanvasWidth;
+        const viewportHeight = viewportRect
+          ? Math.max(1, Math.round(viewportRect.height))
+          : effectiveCanvasHeight;
+        const canvasWidth = presentationRect
+          ? Math.max(1, Math.round(presentationRect.width))
+          : effectiveCanvasWidth;
+        const canvasHeight = presentationRect
+          ? Math.max(1, Math.round(presentationRect.height))
+          : effectiveCanvasHeight;
+        const browserFrameRadius =
+          movieSpec?.presentation?.browser_frame?.radius ?? undefined;
+        const browserFrame = (() => {
+          if (presentationRect && viewportRect) {
+            return {
+              x: Math.round(viewportRect.left - presentationRect.left),
+              y: Math.round(viewportRect.top - presentationRect.top),
+              width: viewportWidth,
+              height: viewportHeight,
+              radius: browserFrameRadius,
+            } as ExportMetadata["browserFrame"];
+          }
+          return {
+            x: 0,
+            y: 0,
+            width: viewportWidth,
+            height: viewportHeight,
+            radius: browserFrameRadius,
+          } as ExportMetadata["browserFrame"];
+        })();
         return {
           totalDurationMs: totalDurationRef.current,
           frameCount: timelineRef.current.length,
           timeline: [...timelineRef.current],
-          width,
-          height,
+          width: viewportWidth,
+          height: viewportHeight,
+          canvasWidth,
+          canvasHeight,
+          browserFrame,
           assetCount,
           specId,
           deviceScaleFactor: deviceScale ?? 1,
@@ -1164,6 +1235,8 @@ const ReplayExportPage = () => {
       assets: assetCount,
       specId: movieSpec?.execution?.execution_id ?? executionSourceRef.current,
       pending,
+      canvasWidth: effectiveCanvasWidth,
+      canvasHeight: effectiveCanvasHeight,
     });
   }, [
     controllerSignal,
@@ -1172,6 +1245,8 @@ const ReplayExportPage = () => {
     mode,
     movieSpec?.execution?.execution_id,
     assetCount,
+    effectiveCanvasHeight,
+    effectiveCanvasWidth,
     postToParent,
     replayFrames.length,
   ]);

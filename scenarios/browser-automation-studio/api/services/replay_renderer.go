@@ -695,11 +695,22 @@ const browserlessCaptureScript = `export default async ({ page, context }) => {
   const metadata = await page.evaluate(() => window.basExport.getMetadata());
   const rect = await page.evaluate(() => window.basExport.getViewportRect());
 
+  const canvasWidth = Number(
+    metadata && typeof metadata.canvasWidth === 'number'
+      ? metadata.canvasWidth
+      : rect && rect.width
+  );
+  const canvasHeight = Number(
+    metadata && typeof metadata.canvasHeight === 'number'
+      ? metadata.canvasHeight
+      : rect && rect.height
+  );
+
   const clip = {
     x: Math.max(0, Math.floor((rect && rect.x) || 0)),
     y: Math.max(0, Math.floor((rect && rect.y) || 0)),
-    width: Math.max(1, Math.floor((rect && rect.width) || 0)),
-    height: Math.max(1, Math.floor((rect && rect.height) || 0)),
+    width: Math.max(1, Math.floor(Number.isFinite(canvasWidth) ? canvasWidth : (rect && rect.width) || 0)),
+    height: Math.max(1, Math.floor(Number.isFinite(canvasHeight) ? canvasHeight : (rect && rect.height) || 0)),
   };
 
   if (clip.width <= 0 || clip.height <= 0) {
