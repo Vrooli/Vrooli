@@ -45,6 +45,7 @@ SUBCOMMANDS:
     status [name] [--json]  Show scenario status (includes test infrastructure validation)
     open <name> [options]   Open scenario in browser
     port <name> [port]      Get port number(s) for scenario (use --json for JSON output)
+    requirements <name>     Generate requirements coverage report for a scenario
 
 OPTIONS FOR START:
     --clean-stale           Clean stale port locks before starting
@@ -123,6 +124,9 @@ main() {
             ;;
         open)
             scenario::browser::open "$@"
+            ;;
+        requirements)
+            scenario::requirements::report "$@"
             ;;
         # Removed: convert, convert-all, validate, enable, disable
         *)

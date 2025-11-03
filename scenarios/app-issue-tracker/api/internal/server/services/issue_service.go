@@ -307,6 +307,70 @@ func (s *IssueService) StoreArtifacts(issue *issuespkg.Issue, issueDir string, p
 	return s.artifacts.StoreIssueArtifacts(issue, issueDir, payloads, replaceExisting)
 }
 
+// SetIssueBlockedMetadata sets metadata indicating an issue is blocked by target conflicts
+func (s *IssueService) SetIssueBlockedMetadata(issueID string, blockedByIssues []string) error {
+	issue, issueDir, folder, err := s.store.LoadIssueWithStatus(issueID)
+	if err != nil {
+		return fmt.Errorf("failed to load issue: %w", err)
+	}
+
+	// Initialize metadata if needed
+	if issue.Metadata.Extra == nil {
+		issue.Metadata.Extra = make(map[string]string)
+	}
+
+	// Set blocked metadata
+	issue.Metadata.Extra[metadata.BlockedReasonKey] = "target_conflict"
+	issue.Metadata.Extra[metadata.BlockedByIssuesKey] = strings.Join(blockedByIssues, ",")
+	issue.Metadata.Extra[metadata.BlockedAtKey] = s.now().UTC().Format(time.RFC3339)
+
+	// Save the updated issue
+	if err := s.store.WriteIssueMetadata(issueDir, issue); err != nil {
+		return fmt.Errorf("failed to write blocked metadata: %w", err)
+	}
+
+	logging.LogInfo("Issue blocked metadata set",
+		"issue_id", issueID,
+		"status", folder,
+		"blocked_by", strings.Join(blockedByIssues, ", "))
+
+	return nil
+}
+
+// ClearIssueBlockedMetadata removes blocking metadata from an issue
+func (s *IssueService) ClearIssueBlockedMetadata(issueID string) error {
+	issue, issueDir, folder, err := s.store.LoadIssueWithStatus(issueID)
+	if err != nil {
+		return fmt.Errorf("failed to load issue: %w", err)
+	}
+
+	// Nothing to clear if no metadata exists
+	if issue.Metadata.Extra == nil {
+		return nil
+	}
+
+	// Check if there's actually blocked metadata to clear
+	if _, exists := issue.Metadata.Extra[metadata.BlockedReasonKey]; !exists {
+		return nil // Already clear
+	}
+
+	// Remove blocked metadata keys
+	delete(issue.Metadata.Extra, metadata.BlockedReasonKey)
+	delete(issue.Metadata.Extra, metadata.BlockedByIssuesKey)
+	delete(issue.Metadata.Extra, metadata.BlockedAtKey)
+
+	// Save the updated issue
+	if err := s.store.WriteIssueMetadata(issueDir, issue); err != nil {
+		return fmt.Errorf("failed to clear blocked metadata: %w", err)
+	}
+
+	logging.LogInfo("Issue blocked metadata cleared",
+		"issue_id", issueID,
+		"status", folder)
+
+	return nil
+}
+
 // matchesTarget checks if an issue's targets match the given filters
 func matchesTarget(targets []issuespkg.Target, targetIDFilter, targetTypeFilter string) bool {
 	trimmedID := strings.ToLower(strings.TrimSpace(targetIDFilter))

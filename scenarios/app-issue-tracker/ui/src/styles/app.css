@@ -1489,6 +1489,109 @@
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), 0 20px 40px rgba(0, 0, 0, 0.45);
 }
 
+/* Blocked Indicator Styles */
+.issue-blocked-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 165, 0, 0.08);
+  border: 1px solid rgba(255, 165, 0, 0.2);
+  border-radius: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.dark .issue-blocked-indicator {
+  background: rgba(255, 165, 0, 0.12);
+  border-color: rgba(255, 165, 0, 0.3);
+}
+
+.issue-blocked-icon {
+  color: #ff9800;
+  flex-shrink: 0;
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.issue-blocked-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.issue-blocked-text {
+  color: #ff9800;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dark .issue-blocked-text {
+  color: #ffa726;
+}
+
+.issue-blocked-by {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.issue-blocked-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 165, 0, 0.3);
+  background: rgba(255, 165, 0, 0.08);
+  color: #ff9800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.issue-blocked-info:hover {
+  background: rgba(255, 165, 0, 0.16);
+  border-color: rgba(255, 165, 0, 0.5);
+  transform: scale(1.05);
+}
+
+.issue-blocked-info:active {
+  transform: scale(0.95);
+}
+
+.dark .issue-blocked-info {
+  background: rgba(255, 165, 0, 0.12);
+  border-color: rgba(255, 165, 0, 0.35);
+  color: #ffa726;
+}
+
+.dark .issue-blocked-info:hover {
+  background: rgba(255, 165, 0, 0.2);
+  border-color: rgba(255, 165, 0, 0.55);
+}
+
+.issue-card--blocked {
+  border-left: 3px solid #ff9800;
+  opacity: 0.85;
+}
+
+.dark .issue-card--blocked {
+  border-left-color: #ffa726;
+}
+
 .issue-error-message {
   display: flex;
   align-items: flex-start;

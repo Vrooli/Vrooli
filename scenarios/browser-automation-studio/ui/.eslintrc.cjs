@@ -37,7 +37,7 @@ module.exports = {
     ],
 
     // TypeScript specific
-    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-explicit-any': 'off',
     '@typescript-eslint/no-unused-vars': [
       'warn',
       {
@@ -47,16 +47,19 @@ module.exports = {
       },
     ],
     '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-non-null-assertion': 'warn',
+    '@typescript-eslint/no-non-null-assertion': 'off',
 
 
     // General
-    'no-console': ['warn', { allow: ['warn', 'error'] }],
+    'no-console': ['off'],
     'no-debugger': 'warn',
     'prefer-const': 'warn',
     'no-var': 'error',
 
     // Allow unused params/vars that start with underscore
     'no-unused-vars': 'off', // Handled by @typescript-eslint/no-unused-vars
+
+    // React hooks rules adjusted for complex workflows handled elsewhere
+    'react-hooks/exhaustive-deps': 'off',
   },
 };

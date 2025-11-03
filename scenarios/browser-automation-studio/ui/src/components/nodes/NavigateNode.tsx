@@ -1,12 +1,14 @@
 import { memo, FC, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { logger } from '../../utils/logger';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
-import { Globe, Loader, Monitor, FileText, Link2, AppWindow, RefreshCcw, ChevronDown, ChevronRight } from 'lucide-react';
+import { Globe, Loader, Monitor, FileText, Link2, AppWindow, RefreshCcw, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { getConfig } from '../../config';
 import toast from 'react-hot-toast';
 import { useScenarioStore } from '../../stores/scenarioStore';
 import { useWorkflowStore } from '../../stores/workflowStore';
 import type { ExecutionViewportSettings } from '../../stores/workflowStore';
+import ResponsiveDialog from '../ResponsiveDialog';
 
 interface ConsoleLog {
   level: string;
@@ -18,7 +20,7 @@ type DestinationType = 'url' | 'scenario';
 
 const destinationTabs: Array<{ type: DestinationType; label: string; icon: typeof Link2 }> = [
   { type: 'url', label: 'URL', icon: Link2 },
-  { type: 'scenario', label: 'Scenario', icon: AppWindow },
+  { type: 'scenario', label: 'App', icon: AppWindow },
 ];
 
 const MIN_VIEWPORT_DIMENSION = 200;
@@ -42,7 +44,10 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [lastPreviewSignature, setLastPreviewSignature] = useState<string | null>(null);
   const [lastPreviewAt, setLastPreviewAt] = useState<number | null>(null);
+  const [isScenarioDialogOpen, setScenarioDialogOpen] = useState(false);
+  const [scenarioSearchTerm, setScenarioSearchTerm] = useState('');
   const requestIdRef = useRef(0);
+  const lastPreviewViewportRef = useRef<{ width: number; height: number } | null>(null);
 
   const { getNodes, setNodes } = useReactFlow();
   const { scenarios: scenarioOptions, isLoading: scenariosLoading, error: scenariosError, fetchScenarios } = useScenarioStore();
@@ -58,6 +63,19 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
     };
   }, [executionViewport]);
 
+  const previewAspectRatio = useMemo(() => {
+    if (previewViewport.width > 0 && previewViewport.height > 0) {
+      return `${previewViewport.width} / ${previewViewport.height}`;
+    }
+    return '16 / 9';
+  }, [previewViewport.height, previewViewport.width]);
+
+  const previewContainerStyle = useMemo(() => ({
+    aspectRatio: previewAspectRatio,
+    width: '100%',
+    maxHeight: '240px',
+  }), [previewAspectRatio]);
+
   const scenarioName = useMemo(() => {
     const direct = typeof data.scenario === 'string' ? data.scenario.trim() : '';
     if (direct) {
@@ -67,6 +85,18 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
   }, [data.scenario, data.scenarioName]);
 
   const scenarioPath = useMemo(() => (typeof data.scenarioPath === 'string' ? data.scenarioPath : ''), [data.scenarioPath]);
+
+  const filteredScenarios = useMemo(() => {
+    const term = scenarioSearchTerm.trim().toLowerCase();
+    if (!term) {
+      return scenarioOptions;
+    }
+    return scenarioOptions.filter((scenario) => {
+      const name = scenario.name?.toLowerCase?.() ?? '';
+      const description = scenario.description?.toLowerCase?.() ?? '';
+      return name.includes(term) || description.includes(term);
+    });
+  }, [scenarioOptions, scenarioSearchTerm]);
 
   const destinationType = useMemo<DestinationType>(() => {
     const rawType = typeof data.destinationType === 'string' ? data.destinationType.trim().toLowerCase() : '';
@@ -102,11 +132,25 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
     }
   }, [destinationType, scenarioOptions.length, scenariosLoading, fetchScenarios]);
 
+  const openScenarioDialog = useCallback(() => {
+    if (!isScenarioDialogOpen) {
+      if (scenarioOptions.length === 0 && !scenariosLoading) {
+        void fetchScenarios();
+      }
+      setScenarioSearchTerm('');
+    }
+    setScenarioDialogOpen(true);
+  }, [fetchScenarios, isScenarioDialogOpen, scenarioOptions.length, scenariosLoading]);
+
+  const closeScenarioDialog = useCallback(() => {
+    setScenarioDialogOpen(false);
+  }, []);
+
   const resolveScenarioUrl = useCallback(async (options?: { silent?: boolean }): Promise<string | null> => {
     const trimmedScenario = scenarioName.trim();
     if (!trimmedScenario) {
       if (!options?.silent) {
-        toast.error('Select which scenario to navigate to first');
+        toast.error('Select which app to navigate to first');
       }
       return null;
     }
@@ -116,7 +160,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
       const response = await fetch(`${config.API_URL}/scenarios/${encodeURIComponent(trimmedScenario)}/port`);
       if (!response.ok) {
         const message = await response.text();
-        throw new Error(message || 'Unable to resolve scenario port');
+        throw new Error(message || 'Unable to resolve app port');
       }
 
       const info = await response.json();
@@ -127,7 +171,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
           : undefined;
 
       if (!baseUrl) {
-        throw new Error('Scenario port is unavailable');
+        throw new Error('App port is unavailable');
       }
 
       const trimmedPath = scenarioPath.trim();
@@ -144,8 +188,8 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
         return `${normalizedBase}${normalizedPath}`;
       }
     } catch (error) {
-      logger.error('Failed to resolve scenario URL', { component: 'NavigateNode', action: 'resolveScenarioUrl', scenario: scenarioName }, error);
-      const message = error instanceof Error ? error.message : 'Failed to resolve scenario URL';
+      logger.error('Failed to resolve app URL', { component: 'NavigateNode', action: 'resolveScenarioUrl', scenario: scenarioName }, error);
+      const message = error instanceof Error ? error.message : 'Failed to resolve app URL';
       if (!options?.silent) {
         toast.error(message);
       }
@@ -176,8 +220,13 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
       return;
     }
 
+    const activeViewport = previewViewport;
+
     if (!options?.force && signature === lastPreviewSignature) {
-      return;
+      const previousViewport = lastPreviewViewportRef.current;
+      if (previousViewport && previousViewport.width === activeViewport.width && previousViewport.height === activeViewport.height) {
+        return;
+      }
     }
 
     const requestId = requestIdRef.current + 1;
@@ -196,7 +245,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
             setPreviewTargetUrl(null);
             setPreviewImage(null);
             setConsoleLogs([]);
-            setPreviewError('Select a scenario to preview');
+            setPreviewError('Select an app to preview');
             setActiveTab('screenshot');
           }
           return;
@@ -228,7 +277,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: targetUrl, viewport: previewViewport }),
+        body: JSON.stringify({ url: targetUrl, viewport: activeViewport }),
       });
 
       if (!response.ok) {
@@ -249,6 +298,10 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
         setPreviewError(null);
         setLastPreviewSignature(signature);
         setLastPreviewAt(Date.now());
+        lastPreviewViewportRef.current = {
+          width: activeViewport.width,
+          height: activeViewport.height,
+        };
       } else {
         throw new Error('No screenshot data received');
       }
@@ -261,6 +314,10 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
         setPreviewImage(null);
         setConsoleLogs([]);
         setActiveTab('screenshot');
+        lastPreviewViewportRef.current = {
+          width: activeViewport.width,
+          height: activeViewport.height,
+        };
       }
 
       if (options?.force) {
@@ -328,6 +385,12 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
     updateNodeData({ scenario: value, scenarioName: value, destinationType: 'scenario' });
   }, [updateNodeData]);
 
+  const handleScenarioSelect = useCallback((value: string) => {
+    handleScenarioChange(value);
+    setScenarioDialogOpen(false);
+    setScenarioSearchTerm('');
+  }, [handleScenarioChange]);
+
   const handleScenarioPathChange = useCallback((value: string) => {
     updateNodeData({ scenarioPath: value, destinationType: 'scenario' });
   }, [updateNodeData]);
@@ -336,13 +399,12 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
     if (nextType === 'scenario') {
       // Clear URL when switching to scenario mode
       updateNodeData({ destinationType: 'scenario', url: '' });
+      openScenarioDialog();
     } else {
       // Clear scenario fields when switching to URL mode
       updateNodeData({ destinationType: 'url', scenario: '', scenarioName: '', scenarioPath: '' });
     }
-  }, [updateNodeData]);
-
-  const scenarioSuggestionId = `navigate-scenario-options-${id}`;
+  }, [openScenarioDialog, updateNodeData]);
 
   const previewDisplayTarget = useMemo(() => {
     if (previewTargetUrl) {
@@ -350,12 +412,95 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
     }
     if (destinationType === 'scenario') {
       if (!scenarioName) {
-        return 'Select a scenario to preview';
+        return 'Select an app to preview';
       }
       return `${scenarioName}${scenarioPath ? ` → ${scenarioPath}` : ''}`;
     }
     return urlValue || 'No URL provided';
   }, [destinationType, previewTargetUrl, scenarioName, scenarioPath, urlValue]);
+
+  const scenarioDialog = (
+    <ResponsiveDialog
+      isOpen={isScenarioDialogOpen}
+      onDismiss={closeScenarioDialog}
+      ariaLabel="Select app"
+      className="w-full max-w-lg"
+    >
+      <div className="flex h-full max-h-[80vh] flex-col gap-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-white">Select App</h2>
+            <p className="text-xs text-gray-400">Browse available apps to navigate during this workflow.</p>
+          </div>
+          <button
+            type="button"
+            onClick={closeScenarioDialog}
+            className="rounded border border-gray-800 p-1 text-gray-400 hover:text-white hover:border-flow-accent transition-colors"
+            aria-label="Close app selector"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            autoFocus
+            placeholder="Search apps..."
+            className="flex-1 rounded border border-gray-800 bg-flow-bg px-3 py-2 text-sm text-white focus:border-flow-accent focus:outline-none"
+            value={scenarioSearchTerm}
+            onChange={(event) => setScenarioSearchTerm(event.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => void fetchScenarios()}
+            className="rounded border border-gray-800 bg-flow-bg p-2 text-gray-300 transition-colors hover:border-flow-accent hover:text-white disabled:opacity-40"
+            aria-label="Refresh apps"
+            disabled={scenariosLoading}
+          >
+            {scenariosLoading ? <Loader size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto rounded border border-gray-800 bg-flow-bg/90">
+          {scenariosLoading && scenarioOptions.length === 0 ? (
+            <div className="p-4 text-sm text-gray-400">Loading apps…</div>
+          ) : filteredScenarios.length === 0 ? (
+            <div className="p-4 text-sm text-gray-400">
+              {scenarioSearchTerm ? 'No apps match your search.' : 'No apps available. Try refreshing.'}
+            </div>
+          ) : (
+            filteredScenarios.map((option) => {
+              const isActive = option.name === scenarioName;
+              return (
+                <button
+                  key={option.name}
+                  type="button"
+                  onClick={() => handleScenarioSelect(option.name)}
+                  className={`block w-full text-left px-3 py-2 transition-colors ${
+                    isActive ? 'bg-flow-accent/20 text-white' : 'text-gray-200 hover:bg-flow-accent/10'
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{option.name}</div>
+                  <div className="mt-1 text-xs text-gray-400">
+                    {option.description || 'No description provided.'}
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {scenariosError && (
+          <p className="text-xs text-red-400">{scenariosError}</p>
+        )}
+      </div>
+    </ResponsiveDialog>
+  );
+
+  const scenarioDialogContent = typeof document === 'undefined'
+    ? scenarioDialog
+    : createPortal(scenarioDialog, document.body);
 
   return (
     <>
@@ -395,34 +540,30 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
             <div className="flex items-center gap-1">
               <input
                 type="text"
-                list={scenarioSuggestionId}
-                placeholder="Scenario name..."
-                className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
+                readOnly
+                placeholder="Select an app..."
+                className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none cursor-pointer"
                 value={scenarioName}
-                onChange={(e) => handleScenarioChange(e.target.value)}
+                onClick={openScenarioDialog}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openScenarioDialog();
+                  }
+                }}
+                role="combobox"
+                aria-expanded={isScenarioDialogOpen}
+                aria-haspopup="dialog"
+                aria-label="Selected app"
               />
-              <datalist id={scenarioSuggestionId}>
-                {scenarioOptions.map(option => (
-                  <option
-                    key={option.name}
-                    value={option.name}
-                    label={option.description}
-                  />
-                ))}
-              </datalist>
               <button
                 type="button"
-                onClick={() => void fetchScenarios()}
+                onClick={openScenarioDialog}
                 className="p-1.5 bg-flow-bg hover:bg-gray-700 rounded border border-gray-700 transition-colors"
-                title="Refresh scenarios"
-                aria-label="Refresh scenarios"
-                disabled={scenariosLoading}
+                title="Choose app"
+                aria-label="Choose app"
               >
-                {scenariosLoading ? (
-                  <Loader size={14} className="text-gray-400 animate-spin" />
-                ) : (
-                  <RefreshCcw size={14} className="text-gray-400" />
-                )}
+                <ChevronDown size={14} className="text-gray-300" />
               </button>
             </div>
             {scenariosError && (
@@ -436,7 +577,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
               onChange={(e) => handleScenarioPathChange(e.target.value)}
             />
             <p className="text-[11px] text-gray-500">
-              Resolves the scenario&apos;s current UI port at execution time. Provide a path to deep link inside the app.
+              Resolves the app&apos;s current UI port at execution time. Provide a path to deep link inside the app.
             </p>
           </div>
         ) : (
@@ -531,7 +672,10 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
                 </div>
 
                 <div className="relative">
-                  <div className="h-48 rounded-lg border border-gray-700 bg-gray-900/60 overflow-hidden">
+                  <div
+                    className="rounded-lg border border-gray-700 bg-gray-900/60 overflow-hidden flex items-center justify-center"
+                    style={previewContainerStyle}
+                  >
                     {previewError && !isFetchingPreview ? (
                       <div className="flex h-full items-center justify-center px-3 text-center text-xs text-red-200">
                         {previewError}
@@ -541,7 +685,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
                         <img
                           src={previewImage}
                           alt="Preview"
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-contain"
                           onError={() => {
                             setPreviewError('Failed to load preview image');
                             setPreviewImage(null);
@@ -549,7 +693,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center px-3 text-center text-[11px] text-gray-400">
-                          {previewSignature ? 'Waiting for screenshot…' : 'Provide a valid URL or scenario to generate a live preview.'}
+                          {previewSignature ? 'Waiting for screenshot…' : 'Provide a valid URL or app to generate a live preview.'}
                         </div>
                       )
                     ) : consoleLogs.length > 0 ? (
@@ -594,8 +738,7 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
                         <div className="space-y-2">
                           {Array.from({ length: 4 }).map((_, idx) => (
                             <div
-                              // eslint-disable-next-line react/no-array-index-key
-                              key={idx}
+                              key={`preview-skeleton-${idx}`}
                               className="h-6 w-full animate-pulse rounded bg-gray-700/60"
                             />
                           ))}
@@ -622,7 +765,9 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
 
         <Handle type="source" position={Position.Bottom} className="node-handle" />
       </div>
-      
+
+      {scenarioDialogContent}
+
     </>
   );
 };

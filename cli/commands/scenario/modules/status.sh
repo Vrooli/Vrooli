@@ -151,11 +151,14 @@ scenario::status::format_json_all() {
 scenario::status::format_json_individual() {
     local response="$1"
     local scenario_name="$2"
-    
+
+    SCENARIO_STATUS_REQUIREMENTS_SUMMARY=""
+    SCENARIO_STATUS_EXTRA_RECOMMENDATIONS=""
+
     # Extract status from response
     local status
     status=$(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)
-    
+
     # Collect comprehensive diagnostic data
     local diagnostic_data
     diagnostic_data=$(scenario::health::collect_all_diagnostic_data "$scenario_name" "$response" "$status")
@@ -163,21 +166,29 @@ scenario::status::format_json_individual() {
     local insights_json
     insights_json=$(scenario::insights::collect_data "$scenario_name" 2>/dev/null || echo '{"stack":{},"resources":{},"packages":{},"lifecycle":{}}')
 
+    local scenario_path="${APP_ROOT}/scenarios/${scenario_name}"
+
     # Collect test infrastructure validation data
     local test_validation="{}"
-    local scenario_path="${APP_ROOT}/scenarios/${scenario_name}"
     if [[ -d "$scenario_path" ]] && command -v scenario::test::validate_infrastructure >/dev/null 2>&1; then
         test_validation=$(scenario::test::validate_infrastructure "$scenario_name" "$scenario_path")
     fi
 
+    local requirement_summary='{"status":"unavailable"}'
+    if [[ -d "$scenario_path" ]] && command -v scenario::requirements::quick_check >/dev/null 2>&1; then
+        requirement_summary=$(scenario::requirements::quick_check "$scenario_name")
+    fi
+    SCENARIO_STATUS_REQUIREMENTS_SUMMARY="$requirement_summary"
+
     # Create enhanced JSON response for individual scenario with diagnostics and test validation
-    local enhanced_response=$(echo "$response" | jq --arg scenario_name "$scenario_name" --argjson diagnostics "$diagnostic_data" --argjson test_infrastructure "$test_validation" --argjson insights "$insights_json" '
+    local enhanced_response=$(echo "$response" | jq --arg scenario_name "$scenario_name" --argjson diagnostics "$diagnostic_data" --argjson test_infrastructure "$test_validation" --argjson insights "$insights_json" --argjson requirements "$requirement_summary" '
     {
         "success": .success,
         "scenario_name": $scenario_name,
         "scenario_data": .data,
         "diagnostics": $diagnostics,
         "test_infrastructure": $test_infrastructure,
+        "requirements": $requirements,
         "insights": $insights,
         "raw_response": .,
         "metadata": {
@@ -237,7 +248,10 @@ scenario::status::format_display_all() {
 scenario::status::format_display_individual() {
     local response="$1"
     local scenario_name="$2"
-    
+
+    SCENARIO_STATUS_REQUIREMENTS_SUMMARY=""
+    SCENARIO_STATUS_EXTRA_RECOMMENDATIONS=""
+
     # Parse and display detailed status from native Go API format
     local status pid started_at stopped_at restart_count port_info runtime_formatted
     status=$(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)
@@ -450,8 +464,28 @@ scenario::status::display_diagnostic_data() {
         scenario::status::display_running_diagnostics "$diagnostic_data" "$scenario_name"
     fi
 
+    if command -v scenario::requirements::display_summary >/dev/null 2>&1; then
+        if [[ -z "${SCENARIO_STATUS_REQUIREMENTS_SUMMARY:-}" ]] && command -v scenario::requirements::quick_check >/dev/null 2>&1; then
+            SCENARIO_STATUS_REQUIREMENTS_SUMMARY=$(scenario::requirements::quick_check "$scenario_name")
+        fi
+        if [[ -n "${SCENARIO_STATUS_REQUIREMENTS_SUMMARY:-}" ]]; then
+            echo ""
+            scenario::requirements::display_summary "$SCENARIO_STATUS_REQUIREMENTS_SUMMARY" "$scenario_name"
+        fi
+    fi
+
     # Always display test infrastructure validation (for all statuses)
     scenario::status::display_test_infrastructure "$scenario_name"
+
+    if [[ -n "${SCENARIO_STATUS_EXTRA_RECOMMENDATIONS:-}" ]]; then
+        echo ""
+        echo "💡 Recommendations:"
+        printf '%s' "$SCENARIO_STATUS_EXTRA_RECOMMENDATIONS" | while IFS= read -r line; do
+            [[ -n "$line" ]] && echo "   • $line"
+        done
+        echo ""
+        SCENARIO_STATUS_EXTRA_RECOMMENDATIONS=""
+    fi
 
     # For stopped scenarios, display failure diagnostics after test insights
     if [[ "$status" == "stopped" ]]; then

@@ -398,3 +398,86 @@ test('forceSaveWorkflow uses remote version when overwriting', async () => {
   assert.equal(state.hasVersionConflict, false, 'conflict flag should clear after force save');
   assert.equal(state.conflictWorkflow, null, 'conflict snapshot should clear after force save');
 });
+
+test('transient workflow metadata does not mark workflow dirty', async () => {
+  const now = new Date();
+  installFetchStub(([, options]) => {
+    const body = options?.body ? JSON.parse(options.body) : {};
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'wf-transient',
+        name: 'Transient',
+        folder_path: '/',
+        flow_definition: body.flow_definition ?? { nodes: body.nodes ?? [], edges: body.edges ?? [] },
+        nodes: body.nodes ?? [],
+        edges: body.edges ?? [],
+        version: 2,
+        updated_at: now.toISOString(),
+        created_at: now.toISOString(),
+      }),
+      text: async () => '',
+    };
+  });
+
+  const useWorkflowStore = loadWorkflowStore();
+  const baseNode = {
+    id: 'node-1',
+    type: 'navigate',
+    position: { x: 0, y: 0 },
+    data: { url: 'https://example.com' },
+  };
+  const baseEdge = {
+    id: 'edge-1',
+    source: 'node-1',
+    target: 'node-1',
+    type: 'default',
+  };
+
+  useWorkflowStore.setState((state) => ({
+    ...state,
+    currentWorkflow: {
+      id: 'wf-transient',
+      name: 'Transient',
+      description: '',
+      folderPath: '/',
+      nodes: [baseNode],
+      edges: [baseEdge],
+      tags: [],
+      version: 1,
+      createdAt: now,
+      updatedAt: now,
+    },
+    nodes: [baseNode],
+    edges: [baseEdge],
+    isDirty: true,
+    draftFingerprint: null,
+    lastSavedFingerprint: null,
+  }), true);
+
+  await useWorkflowStore.getState().saveWorkflow({ force: true });
+
+  const mutatedNode = {
+    ...baseNode,
+    selected: true,
+    positionAbsolute: { x: 0, y: 0 },
+  };
+  const mutatedEdge = {
+    ...baseEdge,
+    selected: true,
+    sourceX: 10,
+    sourceY: 20,
+    targetX: 30,
+    targetY: 40,
+  };
+
+  useWorkflowStore.getState().updateWorkflow({
+    nodes: [mutatedNode],
+    edges: [mutatedEdge],
+  });
+
+  const state = useWorkflowStore.getState();
+  assert.equal(state.isDirty, false, 'transient UI metadata should not mark workflow dirty');
+  assert.equal(state.draftFingerprint, state.lastSavedFingerprint, 'fingerprints should remain aligned');
+});

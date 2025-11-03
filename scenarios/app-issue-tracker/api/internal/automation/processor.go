@@ -2,6 +2,7 @@ package automation
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,8 @@ type Host interface {
 	ClearRateLimitMetadata(issueID string)
 	TriggerInvestigation(issueID, agentID string, autoResolve bool) error
 	CleanupOldTranscripts()
+	SetIssueBlockedMetadata(issueID string, blockedByIssues []string) error
+	ClearIssueBlockedMetadata(issueID string) error
 }
 
 // Processor manages automated issue investigations.
@@ -40,6 +43,7 @@ type Processor struct {
 
 type trackedProcess struct {
 	info            *RunningProcess
+	targets         []issuespkg.Target // Cached targets for conflict detection
 	cancel          context.CancelFunc
 	cancelRequested bool
 	cancelReason    string
@@ -107,7 +111,7 @@ func (p *Processor) ProcessedCount() int {
 	return p.processedCount
 }
 
-func (p *Processor) RegisterRunningProcess(issueID, agentID, startTime string, cancel context.CancelFunc) {
+func (p *Processor) RegisterRunningProcess(issueID, agentID, startTime string, targets []issuespkg.Target, cancel context.CancelFunc) {
 	p.runningMu.Lock()
 	defer p.runningMu.Unlock()
 
@@ -119,6 +123,7 @@ func (p *Processor) RegisterRunningProcess(issueID, agentID, startTime string, c
 		existing.info.AgentID = agentID
 		existing.info.StartTime = startTime
 		existing.info.Status = AgentStatusRunning
+		existing.targets = targets
 		if cancel != nil {
 			existing.cancel = cancel
 			existing.cancelRequested = false
@@ -135,7 +140,8 @@ func (p *Processor) RegisterRunningProcess(issueID, agentID, startTime string, c
 			StartTime: startTime,
 			Status:    AgentStatusRunning,
 		},
-		cancel: cancel,
+		targets: targets,
+		cancel:  cancel,
 	}
 	p.updateRunningCountLocked()
 }
@@ -152,6 +158,46 @@ func (p *Processor) IsRunning(issueID string) bool {
 	defer p.runningMu.RUnlock()
 	_, ok := p.running[issueID]
 	return ok
+}
+
+// HasTargetConflict checks if any of the given targets are currently being worked on
+// Returns true if conflict exists, along with list of conflicting issue IDs
+func (p *Processor) HasTargetConflict(targets []issuespkg.Target) (bool, []string) {
+	if len(targets) == 0 {
+		return false, nil
+	}
+
+	p.runningMu.RLock()
+	defer p.runningMu.RUnlock()
+
+	// Build target set for O(1) lookups
+	targetSet := make(map[string]struct{})
+	for _, target := range targets {
+		key := fmt.Sprintf("%s:%s",
+			strings.ToLower(strings.TrimSpace(target.Type)),
+			strings.ToLower(strings.TrimSpace(target.ID)))
+		targetSet[key] = struct{}{}
+	}
+
+	conflictingIssues := make([]string, 0)
+	for issueID, proc := range p.running {
+		if proc == nil || proc.targets == nil {
+			continue
+		}
+
+		// Check for any overlapping targets
+		for _, runningTarget := range proc.targets {
+			key := fmt.Sprintf("%s:%s",
+				strings.ToLower(strings.TrimSpace(runningTarget.Type)),
+				strings.ToLower(strings.TrimSpace(runningTarget.ID)))
+			if _, exists := targetSet[key]; exists {
+				conflictingIssues = append(conflictingIssues, issueID)
+				break // One conflict per issue is enough
+			}
+		}
+	}
+
+	return len(conflictingIssues) > 0, conflictingIssues
 }
 
 func (p *Processor) RunningProcesses() []*RunningProcess {
@@ -352,28 +398,42 @@ func (p *Processor) canProcessMoreIssues() bool {
 }
 
 func (p *Processor) shouldDeferIssue(issue issuespkg.Issue) bool {
-	if issue.Metadata.Extra == nil {
-		return false
+	// Check rate limiting first
+	if issue.Metadata.Extra != nil {
+		deadlineRaw := strings.TrimSpace(issue.Metadata.Extra[metadata.RateLimitUntilKey])
+		if deadlineRaw != "" {
+			deadline, err := time.Parse(time.RFC3339, deadlineRaw)
+			if err != nil {
+				logging.LogWarn("Clearing malformed rate limit metadata", "issue_id", issue.ID, "raw_value", deadlineRaw)
+				p.host.ClearRateLimitMetadata(issue.ID)
+			} else if time.Now().Before(deadline) {
+				return true
+			} else {
+				// Expired window; clean up metadata so the issue can be picked up next tick.
+				p.host.ClearRateLimitMetadata(issue.ID)
+			}
+		}
 	}
 
-	deadlineRaw := strings.TrimSpace(issue.Metadata.Extra[metadata.RateLimitUntilKey])
-	if deadlineRaw == "" {
-		return false
-	}
-
-	deadline, err := time.Parse(time.RFC3339, deadlineRaw)
-	if err != nil {
-		logging.LogWarn("Clearing malformed rate limit metadata", "issue_id", issue.ID, "raw_value", deadlineRaw)
-		p.host.ClearRateLimitMetadata(issue.ID)
-		return false
-	}
-
-	if time.Now().Before(deadline) {
+	// Check target conflicts
+	hasConflict, conflictingIssues := p.HasTargetConflict(issue.Targets)
+	if hasConflict {
+		// Store blocked metadata so UI can show why it's waiting
+		if err := p.host.SetIssueBlockedMetadata(issue.ID, conflictingIssues); err != nil {
+			logging.LogWarn("Failed to set blocked metadata", "issue_id", issue.ID, "error", err.Error())
+		}
+		logging.LogInfo("Issue deferred due to target conflict",
+			"issue_id", issue.ID,
+			"targets", issuespkg.FormatTargets(issue.Targets),
+			"conflicts_with", strings.Join(conflictingIssues, ", "))
 		return true
 	}
 
-	// Expired window; clean up metadata so the issue can be picked up next tick.
-	p.host.ClearRateLimitMetadata(issue.ID)
+	// No conflicts - clear any stale blocked metadata
+	if err := p.host.ClearIssueBlockedMetadata(issue.ID); err != nil {
+		logging.LogWarn("Failed to clear blocked metadata", "issue_id", issue.ID, "error", err.Error())
+	}
+
 	return false
 }
 

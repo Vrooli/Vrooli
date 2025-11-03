@@ -1332,21 +1332,17 @@ const ReplayExportPage = () => {
     mode === "standalone" ? "mx-auto" : "h-full",
   );
 
-  const containerStyle: CSSProperties = useMemo(() => {
-    if (mode === "capture") {
-      return {
+  const containerStyle: CSSProperties = mode === "capture"
+    ? {
         width: `${effectiveCanvasWidth}px`,
         height: `${effectiveCanvasHeight}px`,
-      };
-    }
-    if (mode === "embedded") {
-      return {
-        width: "100%",
-        maxWidth: "100%",
-      };
-    }
-    return {};
-  }, [effectiveCanvasHeight, effectiveCanvasWidth, mode]);
+      }
+    : mode === "embedded"
+      ? {
+          width: "100%",
+          maxWidth: "100%",
+        }
+      : {};
 
   return (
     <div

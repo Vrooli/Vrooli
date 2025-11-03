@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   Copy,
-  Grid,
   Lock,
   Maximize2,
   MonitorSmartphone,
@@ -21,8 +20,6 @@ const COMPACT_WIDTH_THRESHOLD = 560;
 const menuButtonClass = 'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-200 hover:bg-flow-node-hover transition-colors';
 
 interface WorkflowToolbarProps {
-  showGrid: boolean;
-  onToggleGrid: () => void;
   locked: boolean;
   onToggleLock: () => void;
   onUndo: () => void;
@@ -37,8 +34,6 @@ interface WorkflowToolbarProps {
 }
 
 function WorkflowToolbar({
-  showGrid,
-  onToggleGrid,
   locked,
   onToggleLock,
   onUndo,
@@ -134,11 +129,6 @@ function WorkflowToolbar({
     setShowLayoutMenu(false);
   };
 
-  const handleToggleGridClick = () => {
-    onToggleGrid();
-    setShowLayoutMenu(false);
-  };
-
   const handleToggleLockClick = () => {
     onToggleLock();
     setShowLayoutMenu(false);
@@ -219,10 +209,6 @@ function WorkflowToolbar({
                   <span className="mt-1 text-[11px] text-gray-400">Current: {viewportSummary}</span>
                 )}
               </button>
-              <button type="button" className={menuButtonClass} onClick={handleToggleGridClick}>
-                <Grid size={16} className="text-gray-400" />
-                <span>{showGrid ? 'Hide grid' : 'Show grid'}</span>
-              </button>
               <button type="button" className={menuButtonClass} onClick={handleToggleLockClick}>
                 {locked ? <Lock size={16} className="text-gray-400" /> : <Unlock size={16} className="text-gray-400" />}
                 <span>{locked ? 'Unlock editing' : 'Lock editing'}</span>
@@ -252,16 +238,6 @@ function WorkflowToolbar({
             title={`Set execution dimensions${viewportSummary ? ` (${viewportSummary})` : ''}`}
           >
             <MonitorSmartphone size={18} />
-          </button>
-
-          <button
-            type="button"
-            onClick={handleToggleGridClick}
-            className={`toolbar-button ${showGrid ? 'active' : ''}`}
-            title={showGrid ? 'Hide grid' : 'Show grid'}
-            aria-pressed={showGrid}
-          >
-            <Grid size={18} />
           </button>
 
           <button

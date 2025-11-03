@@ -178,7 +178,7 @@ func (s *Server) stopRunningProcessHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (s *Server) registerRunningProcess(issueID, agentID, startTime string, cancel context.CancelFunc) {
+func (s *Server) registerRunningProcess(issueID, agentID, startTime string, targets []Target, cancel context.CancelFunc) {
 	if _, currentFolder, findErr := s.findIssueDirectory(issueID); findErr == nil && currentFolder != StatusActive {
 		if moveErr := s.moveIssue(issueID, StatusActive); moveErr != nil {
 			logging.LogErrorErr("Failed to mark running issue as active", moveErr, "issue_id", issueID)
@@ -187,7 +187,7 @@ func (s *Server) registerRunningProcess(issueID, agentID, startTime string, canc
 		}
 	}
 
-	s.processor.RegisterRunningProcess(issueID, agentID, startTime, cancel)
+	s.processor.RegisterRunningProcess(issueID, agentID, startTime, targets, cancel)
 
 	startTimeParsed, _ := time.Parse(time.RFC3339, startTime)
 	s.hub.Publish(NewEvent(EventAgentStarted, AgentStartedData{

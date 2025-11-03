@@ -188,7 +188,7 @@ func (svc *InvestigationService) TriggerInvestigation(issueID, agentID string, a
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	svc.server.registerRunningProcess(issueID, agentID, startedAt, cancel)
+	svc.server.registerRunningProcess(issueID, agentID, startedAt, issue.Targets, cancel)
 	go svc.executeInvestigation(ctx, cancel, issueID, agentID, startedAt)
 
 	return nil

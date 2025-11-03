@@ -82,12 +82,12 @@ export function usePopoverPosition(
     const computePlacement = (placement: PopoverPlacement) => {
       const [verticalPlacement, horizontalPlacement] = placement.split('-') as ['top' | 'bottom', 'start' | 'end'];
 
-      let top =
+      const top =
         verticalPlacement === 'bottom'
           ? triggerRect.bottom + offset
           : triggerRect.top - effectiveHeight - offset;
 
-      let left =
+      const left =
         horizontalPlacement === 'end'
           ? triggerRect.right - effectiveWidth
           : triggerRect.left;

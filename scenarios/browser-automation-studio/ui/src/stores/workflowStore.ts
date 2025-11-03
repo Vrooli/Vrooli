@@ -141,6 +141,39 @@ const buildFlowDefinition = (
 };
 
 const PREVIEW_DATA_KEYS = ['previewScreenshot', 'previewScreenshotCapturedAt', 'previewScreenshotSourceUrl'];
+const TRANSIENT_NODE_KEYS = new Set([
+  'selected',
+  'dragging',
+  'draggingPosition',
+  'draggingAngle',
+  'positionAbsolute',
+  'widthInitialized',
+  'heightInitialized',
+  'width',
+  'height',
+  'resizing',
+  'measured',
+  'handleBounds',
+  'internalsSymbol',
+  'dataInternals',
+  'z',
+  '__rf',
+  '_rf',
+  'selectedHandles',
+]);
+const TRANSIENT_EDGE_KEYS = new Set([
+  'selected',
+  'dragging',
+  'draggingPosition',
+  'sourceX',
+  'sourceY',
+  'targetX',
+  'targetY',
+  'sourceHandleBounds',
+  'targetHandleBounds',
+  '__rf',
+  '_rf',
+]);
 
 const stripPreviewDataFromNodes = (nodes: Node[] | undefined | null): Node[] => {
   if (!nodes || nodes.length === 0) {
@@ -180,7 +213,97 @@ const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): unknown[
   if (!nodes || nodes.length === 0) {
     return [];
   }
-  return stripPreviewDataFromNodes(nodes).map((node) => JSON.parse(JSON.stringify(node)));
+
+  return stripPreviewDataFromNodes(nodes).map((node) => {
+    if (!node || typeof node !== 'object') {
+      return node;
+    }
+
+    const nodeRecord = node as Node & Record<string, unknown>;
+    const cleaned: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(nodeRecord)) {
+      if (TRANSIENT_NODE_KEYS.has(key)) {
+        continue;
+      }
+      if (typeof value === 'function') {
+        continue;
+      }
+      if (key === 'data' && value && typeof value === 'object') {
+        cleaned[key] = JSON.parse(JSON.stringify(value));
+        continue;
+      }
+      if (key === 'position' && value && typeof value === 'object') {
+        const pos = value as Record<string, unknown>;
+        cleaned[key] = {
+          x: typeof pos.x === 'number' ? pos.x : Number(pos.x ?? 0) || 0,
+          y: typeof pos.y === 'number' ? pos.y : Number(pos.y ?? 0) || 0,
+        };
+        continue;
+      }
+      cleaned[key] = value;
+    }
+
+    if (!('id' in cleaned)) {
+      cleaned.id = nodeRecord.id;
+    }
+    if (!('type' in cleaned) && 'type' in nodeRecord) {
+      cleaned.type = nodeRecord.type;
+    }
+    if (!('data' in cleaned)) {
+      cleaned.data = {};
+    }
+    if (!('position' in cleaned)) {
+      const pos = nodeRecord.position as Record<string, unknown> | undefined;
+      cleaned.position = {
+        x: typeof pos?.x === 'number' ? pos.x : Number(pos?.x ?? 0) || 0,
+        y: typeof pos?.y === 'number' ? pos.y : Number(pos?.y ?? 0) || 0,
+      };
+    }
+
+    return JSON.parse(JSON.stringify(cleaned));
+  });
+};
+
+const sanitizeEdgesForPersistence = (edges: Edge[] | undefined | null): unknown[] => {
+  if (!edges || edges.length === 0) {
+    return [];
+  }
+
+  return edges.map((edge) => {
+    if (!edge || typeof edge !== 'object') {
+      return edge;
+    }
+
+    const edgeRecord = edge as Edge & Record<string, unknown>;
+    const cleaned: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(edgeRecord)) {
+      if (TRANSIENT_EDGE_KEYS.has(key)) {
+        continue;
+      }
+      if (typeof value === 'function') {
+        continue;
+      }
+      if ((key === 'data' || key === 'markerEnd' || key === 'markerStart' || key === 'style') && value && typeof value === 'object') {
+        cleaned[key] = JSON.parse(JSON.stringify(value));
+        continue;
+      }
+      cleaned[key] = value;
+    }
+
+    if (!('id' in cleaned)) {
+      cleaned.id = edgeRecord.id;
+    }
+    if (!('source' in cleaned) && 'source' in edgeRecord) {
+      cleaned.source = edgeRecord.source;
+    }
+    if (!('target' in cleaned) && 'target' in edgeRecord) {
+      cleaned.target = edgeRecord.target;
+    }
+
+    return JSON.parse(JSON.stringify(cleaned));
+  });
 };
 
 const clearAutosaveTimer = () => {
@@ -228,7 +351,7 @@ const computeWorkflowFingerprint = (workflow: Workflow | null, nodes: Node[], ed
   }
 
   const serializableNodes = sanitizeNodesForPersistence(nodes);
-  const serializableEdges = JSON.parse(JSON.stringify(edges ?? []));
+  const serializableEdges = sanitizeEdgesForPersistence(edges ?? []);
   const sanitizedViewport = sanitizeViewportSettings(workflow.executionViewport);
 
   return stableSerialize({
@@ -564,7 +687,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     try {
       const config = await getConfig();
       const serializableNodes = sanitizeNodesForPersistence(nodes ?? []);
-      const serializableEdges = JSON.parse(JSON.stringify(edges ?? []));
+      const serializableEdges = sanitizeEdgesForPersistence(edges ?? []);
       const sanitizedViewport = sanitizeViewportSettings(currentWorkflow.executionViewport);
       const flowDefinition = buildFlowDefinition(
         currentWorkflow.flow_definition ?? currentWorkflow.flowDefinition,
@@ -687,7 +810,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       ?? currentWorkflow.flow_definition
       ?? currentWorkflow.flowDefinition;
     const persistedNodes = sanitizeNodesForPersistence(nextNodes as Node[]);
-    const persistedEdges = JSON.parse(JSON.stringify(nextEdges ?? []));
+    const persistedEdges = sanitizeEdgesForPersistence(nextEdges as Edge[] | undefined);
     const flowDefinition = buildFlowDefinition(baseDefinition, persistedNodes, persistedEdges, sanitizedViewport);
 
     const updatedWorkflow = {

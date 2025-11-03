@@ -19,8 +19,14 @@ function Sidebar({
   const DEFAULT_WIDTH = 256;
 
   const clampWidth = (value: number) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value));
+  const getInitialCollapsed = () => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return window.matchMedia('(max-width: 768px)').matches;
+  };
 
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const [savedWidth, setSavedWidth] = useState(DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);

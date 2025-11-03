@@ -1,11 +1,89 @@
 import { useState, useEffect, useCallback, useId } from 'react';
 import { logger } from '../utils/logger';
-import { X, Target, Settings, Loader, Eye, Monitor, AlertCircle, Brain } from 'lucide-react';
+import { X, Target, Settings, Loader, Eye, Monitor, AlertCircle, Brain, ArrowUp, ArrowDown } from 'lucide-react';
 import { getConfig } from '../config';
 import toast from 'react-hot-toast';
 import BrowserInspectorTab from './BrowserInspectorTab';
-import type { ElementInfo } from '../types/elements';
+import type { ElementInfo, ElementHierarchyEntry, ElementCoordinateResponse } from '../types/elements';
 import ResponsiveDialog from './ResponsiveDialog';
+
+const normalizeHierarchy = (value: unknown): ElementHierarchyEntry[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return null;
+      }
+
+      const candidate = entry as Partial<ElementHierarchyEntry> & { element?: ElementInfo };
+      if (!candidate.element) {
+        return null;
+      }
+
+      const selector = typeof candidate.selector === 'string' && candidate.selector.trim().length > 0
+        ? candidate.selector.trim()
+        : (Array.isArray(candidate.element.selectors) && candidate.element.selectors.length > 0
+            ? candidate.element.selectors[0].selector
+            : '');
+
+      const depth = Number.isFinite(candidate.depth as number)
+        ? Number(candidate.depth)
+        : 0;
+
+      const path = Array.isArray(candidate.path)
+        ? candidate.path.filter((segment): segment is string => typeof segment === 'string')
+        : [];
+
+      const pathSummary = typeof candidate.pathSummary === 'string' && candidate.pathSummary.trim().length > 0
+        ? candidate.pathSummary
+        : path.join(' > ');
+
+      return {
+        element: candidate.element,
+        selector,
+        depth,
+        path,
+        pathSummary,
+      };
+    })
+    .filter((entry): entry is ElementHierarchyEntry => Boolean(entry && entry.element));
+};
+
+const deriveSelector = (entry: ElementHierarchyEntry | null | undefined): string => {
+  if (!entry) {
+    return '';
+  }
+  if (typeof entry.selector === 'string' && entry.selector.trim().length > 0) {
+    return entry.selector.trim();
+  }
+  const selectors = Array.isArray(entry.element?.selectors) ? entry.element.selectors : [];
+  return selectors.length > 0 ? selectors[0].selector : '';
+};
+
+const summarizeCandidate = (entry: ElementHierarchyEntry | null | undefined): string => {
+  if (!entry || !entry.element) {
+    return '';
+  }
+  const tagName = typeof entry.element.tagName === 'string' ? entry.element.tagName.toLowerCase() : '';
+  const id = entry.element.attributes?.id ? `#${entry.element.attributes.id}` : '';
+  const text = typeof entry.element.text === 'string' ? entry.element.text.trim() : '';
+  const textSnippet = text.length > 0 ? ` • ${text.length > 40 ? `${text.slice(0, 40)}…` : text}` : '';
+  const base = `${tagName}${id}`.trim();
+  return (base + textSnippet).trim() || deriveSelector(entry) || 'element';
+};
+
+const stringifyPath = (entry: ElementHierarchyEntry | null | undefined): string => {
+  if (!entry) {
+    return '';
+  }
+  if (typeof entry.pathSummary === 'string' && entry.pathSummary.trim().length > 0) {
+    return entry.pathSummary;
+  }
+  return Array.isArray(entry.path) ? entry.path.filter(Boolean).join(' > ') : '';
+};
 
 
 
@@ -37,7 +115,14 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
   const [aiSuggestions, setAiSuggestions] = useState<ElementInfo[]>([]);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [userIntent, setUserIntent] = useState('');
+  const [hierarchyCandidates, setHierarchyCandidates] = useState<ElementHierarchyEntry[]>([]);
+  const [hierarchyIndex, setHierarchyIndex] = useState<number>(-1);
   const titleId = useId();
+
+  const hasHierarchySelection = hierarchyCandidates.length > 0 && hierarchyIndex >= 0 && hierarchyIndex < hierarchyCandidates.length;
+  const selectedHierarchy = hasHierarchySelection ? hierarchyCandidates[hierarchyIndex] : null;
+  const canSelectParent = hasHierarchySelection && hierarchyIndex < hierarchyCandidates.length - 1;
+  const canSelectChild = hasHierarchySelection && hierarchyIndex > 0;
 
   const takeScreenshot = useCallback(async () => {
     if (!url) return;
@@ -76,6 +161,14 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
     }
   }, [isOpen, url, screenshot, takeScreenshot]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setHierarchyCandidates([]);
+      setHierarchyIndex(-1);
+      setSelectedElement(null);
+    }
+  }, [isOpen]);
+
   const getElementAtCoordinate = useCallback(async (x: number, y: number) => {
     if (!url) return;
 
@@ -94,10 +187,28 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
         throw new Error(`Failed to get element: ${response.status}`);
       }
 
-      const element: ElementInfo = await response.json();
-      setSelectedElement(element);
-      // Use the best selector
-      const bestSelector = element.selectors?.[0]?.selector || '';
+      const payload = await response.json() as ElementCoordinateResponse;
+      const candidates = normalizeHierarchy(payload?.candidates ?? []);
+
+      if (candidates.length === 0) {
+        toast.error('No selector found at that position');
+        return;
+      }
+
+      const preferredIndex = Number.isInteger(payload?.selectedIndex) && payload.selectedIndex >= 0 && payload.selectedIndex < candidates.length
+        ? payload.selectedIndex
+        : 0;
+      const chosen = candidates[preferredIndex] ?? candidates[0];
+      const bestSelector = deriveSelector(chosen);
+
+      if (!bestSelector) {
+        toast.error('No selector found at that position');
+        return;
+      }
+
+      setHierarchyCandidates(candidates);
+      setHierarchyIndex(preferredIndex);
+      setSelectedElement(chosen.element);
       setCustomSelector(bestSelector);
       setActiveTab('custom');
     } catch (error) {
@@ -107,6 +218,33 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
       setIsLoading(false);
     }
   }, [url]);
+
+  const handleHierarchyShift = useCallback((delta: number) => {
+    if (!hasHierarchySelection) {
+      return;
+    }
+
+    const nextIndex = Math.max(0, Math.min(hierarchyIndex + delta, hierarchyCandidates.length - 1));
+    if (nextIndex === hierarchyIndex) {
+      return;
+    }
+
+    const entry = hierarchyCandidates[nextIndex];
+    if (!entry) {
+      return;
+    }
+
+    const nextSelector = deriveSelector(entry);
+    if (!nextSelector) {
+      toast.error('No selector available for that element');
+      return;
+    }
+
+    setHierarchyIndex(nextIndex);
+    setSelectedElement(entry.element);
+    setCustomSelector(nextSelector);
+    setActiveTab('custom');
+  }, [hasHierarchySelection, hierarchyCandidates, hierarchyIndex]);
 
   const handleScreenshotClick = useCallback((e: React.MouseEvent<HTMLImageElement>) => {
     const img = e.target as HTMLImageElement;
@@ -166,6 +304,8 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
 
       const suggestions: ElementInfo[] = await response.json();
       setAiSuggestions(suggestions);
+      setHierarchyCandidates([]);
+      setHierarchyIndex(-1);
       
       if (suggestions.length > 0) {
         // Auto-select the top suggestion
@@ -347,6 +487,51 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
                           />
                         )}
                       </div>
+
+                      {hasHierarchySelection && selectedHierarchy && (
+                        <div className="p-3 bg-flow-bg border border-gray-700 rounded-lg">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">DOM context</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleHierarchyShift(1)}
+                                disabled={!canSelectParent}
+                                className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs transition-colors ${
+                                  canSelectParent
+                                    ? 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white'
+                                    : 'border-gray-800 text-gray-600 cursor-not-allowed'
+                                }`}
+                              >
+                                <ArrowUp size={12} />
+                                Parent
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleHierarchyShift(-1)}
+                                disabled={!canSelectChild}
+                                className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs transition-colors ${
+                                  canSelectChild
+                                    ? 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white'
+                                    : 'border-gray-800 text-gray-600 cursor-not-allowed'
+                                }`}
+                              >
+                                <ArrowDown size={12} />
+                                Child
+                              </button>
+                            </div>
+                          </div>
+                          <div className="mt-1 text-[11px] text-gray-500">
+                            Depth {hierarchyIndex + 1} / {hierarchyCandidates.length}
+                          </div>
+                          <div className="mt-1 text-sm text-gray-200" title={summarizeCandidate(selectedHierarchy)}>
+                            {summarizeCandidate(selectedHierarchy)}
+                          </div>
+                          <div className="mt-1 text-[11px] font-mono text-gray-500 break-words" title={stringifyPath(selectedHierarchy)}>
+                            {stringifyPath(selectedHierarchy)}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Selected Element Info below screenshot */}
                       {selectedElement && (

@@ -39,6 +39,22 @@ type ElementInfo struct {
 	Attributes  map[string]string `json:"attributes"` // relevant attributes like placeholder, aria-label, etc.
 }
 
+// ElementHierarchyEntry represents a DOM element option along the pointer path
+type ElementHierarchyEntry struct {
+	Element     *ElementInfo `json:"element"`
+	Selector    string       `json:"selector"`
+	Depth       int          `json:"depth"`
+	Path        []string     `json:"path"`
+	PathSummary string       `json:"pathSummary,omitempty"`
+}
+
+// ElementSelectionResult represents the resolved element at a coordinate and nearby ancestors
+type ElementSelectionResult struct {
+	Element       *ElementInfo            `json:"element"`
+	Candidates    []ElementHierarchyEntry `json:"candidates"`
+	SelectedIndex int                     `json:"selectedIndex"`
+}
+
 // Rectangle represents a bounding box
 type Rectangle struct {
 	X      float64 `json:"x"`

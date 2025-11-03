@@ -508,12 +508,29 @@ scenario::test::display_validation() {
     esac
     
     # Show recommendations if any
-    local recommendations_count=$(echo "$validation_data" | jq -r '.overall.recommendations | length')
-    if [[ "$recommendations_count" -gt 0 ]]; then
+    local recommendations_count
+    recommendations_count=$(echo "$validation_data" | jq -r '.overall.recommendations | length')
+
+    local extra_recommendations="${SCENARIO_STATUS_EXTRA_RECOMMENDATIONS:-}"
+    local extra_count=0
+    if [[ -n "$extra_recommendations" ]]; then
+        extra_count=$(printf '%s' "$extra_recommendations" | sed '/^$/d' | wc -l | tr -d ' ')
+    fi
+
+    if [[ "$recommendations_count" -gt 0 || "$extra_count" -gt 0 ]]; then
         echo ""
         echo "💡 Recommendations:"
-        echo "$validation_data" | jq -r '.overall.recommendations[] | "   • " + .'
+        if [[ "$recommendations_count" -gt 0 ]]; then
+            echo "$validation_data" | jq -r '.overall.recommendations[] | "   • " + .'
+        fi
+        if [[ "$extra_count" -gt 0 ]]; then
+            printf '%s' "$extra_recommendations" | while IFS= read -r line; do
+                [[ -n "$line" ]] && echo "   • $line"
+            done
+        fi
         echo ""
         echo "📚 See: $phased_docs_path"
     fi
+
+    SCENARIO_STATUS_EXTRA_RECOMMENDATIONS=""
 }

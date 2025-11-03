@@ -63,3 +63,11 @@ func (s *Server) getAllIssues(statusFilter, priorityFilter, typeFilter, targetID
 	// Pass empty string for targetTypeFilter since this helper doesn't filter by type
 	return s.issues.ListIssues(statusFilter, priorityFilter, typeFilter, targetIDFilter, "", limit)
 }
+
+func (s *Server) setIssueBlockedMetadata(issueID string, blockedByIssues []string) error {
+	return s.issues.SetIssueBlockedMetadata(issueID, blockedByIssues)
+}
+
+func (s *Server) clearIssueBlockedMetadata(issueID string) error {
+	return s.issues.ClearIssueBlockedMetadata(issueID)
+}

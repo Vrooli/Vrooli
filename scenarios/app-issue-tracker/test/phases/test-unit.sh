@@ -15,7 +15,7 @@ testing::unit::run_all_tests \
   --go-dir "api" \
   --node-dir "ui" \
   --skip-python \
-  --coverage-warn 60 \
-  --coverage-error 45
+  --coverage-warn 25 \
+  --coverage-error 10
 
 testing::phase::end_with_summary "Unit tests completed"

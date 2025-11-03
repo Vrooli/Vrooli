@@ -28,6 +28,20 @@ export interface ElementInfo {
   attributes: Record<string, string>;
 }
 
+export interface ElementHierarchyEntry {
+  element: ElementInfo;
+  selector: string;
+  depth: number;
+  path: string[];
+  pathSummary?: string;
+}
+
+export interface ElementCoordinateResponse {
+  element: ElementInfo | null;
+  candidates: ElementHierarchyEntry[];
+  selectedIndex: number;
+}
+
 /**
  * Timeline frame data from API
  */

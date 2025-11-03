@@ -1,17 +1,115 @@
 import { memo, FC, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
-import { MousePointer, Globe, Target, ChevronDown, ChevronRight, Loader2, Sparkles, Wand2, Brain } from 'lucide-react';
+import { MousePointer, Globe, Target, ChevronDown, ChevronRight, Loader2, Sparkles, Wand2, Brain, ArrowUp, ArrowDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
 import useUpstreamScreenshot from '../../hooks/useUpstreamScreenshot';
-import type { ElementInfo, BoundingBox } from '../../types/elements';
+import type { ElementInfo, BoundingBox, ElementHierarchyEntry, ElementCoordinateResponse } from '../../types/elements';
 import { getConfig } from '../../config';
 import { logger } from '../../utils/logger';
+import { useWorkflowStore, type ExecutionViewportSettings } from '../../stores/workflowStore';
+
+const DEFAULT_ASPECT_RATIO = '16 / 9';
+
+const normalizeHierarchy = (value: unknown): ElementHierarchyEntry[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return null;
+      }
+
+      const candidate = entry as Partial<ElementHierarchyEntry> & { element?: ElementInfo };
+      if (!candidate.element) {
+        return null;
+      }
+
+      const selector = typeof candidate.selector === 'string' && candidate.selector.trim().length > 0
+        ? candidate.selector.trim()
+        : (Array.isArray(candidate.element.selectors) && candidate.element.selectors.length > 0
+            ? candidate.element.selectors[0].selector
+            : '');
+
+      const depth = Number.isFinite(candidate.depth as number)
+        ? Number(candidate.depth)
+        : 0;
+
+      const path = Array.isArray(candidate.path)
+        ? candidate.path.filter((segment): segment is string => typeof segment === 'string')
+        : [];
+
+      const pathSummary = typeof candidate.pathSummary === 'string' && candidate.pathSummary.trim().length > 0
+        ? candidate.pathSummary
+        : path.join(' > ');
+
+      return {
+        element: candidate.element,
+        selector,
+        depth,
+        path,
+        pathSummary,
+      };
+    })
+    .filter((entry): entry is ElementHierarchyEntry => Boolean(entry && entry.element));
+};
+
+const deriveSelector = (entry: ElementHierarchyEntry | null | undefined): string => {
+  if (!entry) {
+    return '';
+  }
+  if (typeof entry.selector === 'string' && entry.selector.trim().length > 0) {
+    return entry.selector.trim();
+  }
+  const selectors = Array.isArray(entry.element?.selectors) ? entry.element.selectors : [];
+  return selectors.length > 0 ? selectors[0].selector : '';
+};
+
+const summarizeCandidate = (entry: ElementHierarchyEntry | null | undefined): string => {
+  if (!entry || !entry.element) {
+    return '';
+  }
+  const tagName = typeof entry.element.tagName === 'string' ? entry.element.tagName.toLowerCase() : '';
+  const id = entry.element.attributes?.id ? `#${entry.element.attributes.id}` : '';
+  const text = typeof entry.element.text === 'string' ? entry.element.text.trim() : '';
+  const textSnippet = text.length > 0 ? ` • ${text.length > 40 ? `${text.slice(0, 40)}…` : text}` : '';
+  const base = `${tagName}${id}`.trim();
+  return (base + textSnippet).trim() || deriveSelector(entry) || 'element';
+};
+
+const stringifyPath = (entry: ElementHierarchyEntry | null | undefined): string => {
+  if (!entry) {
+    return '';
+  }
+  if (typeof entry.pathSummary === 'string' && entry.pathSummary.trim().length > 0) {
+    return entry.pathSummary;
+  }
+  return Array.isArray(entry.path) ? entry.path.filter(Boolean).join(' > ') : '';
+};
 
 const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
   const upstreamUrl = useUpstreamUrl(id);
   const upstreamScreenshot = useUpstreamScreenshot(id);
   const screenshot = upstreamScreenshot?.dataUrl ?? null;
+  const executionViewport = useWorkflowStore((state) => state.currentWorkflow?.executionViewport as ExecutionViewportSettings | undefined);
+  const rawHierarchyData = (data as Record<string, unknown>)?.elementHierarchy;
+  const rawHierarchyIndex = (data as Record<string, unknown>)?.elementHierarchyIndex;
+
+  const [hierarchyCandidates, setHierarchyCandidates] = useState<ElementHierarchyEntry[]>(() =>
+    normalizeHierarchy(rawHierarchyData)
+  );
+  const [hierarchyIndex, setHierarchyIndex] = useState<number>(() => {
+    const normalized = normalizeHierarchy(rawHierarchyData);
+    if (normalized.length === 0) {
+      return -1;
+    }
+    const storedIndex = typeof rawHierarchyIndex === 'number'
+      ? Number(rawHierarchyIndex)
+      : 0;
+    return normalized[storedIndex] ? storedIndex : 0;
+  });
 
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(() => Boolean(screenshot));
   const [pickerActive, setPickerActive] = useState(false);
@@ -32,6 +130,21 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
   useEffect(() => {
     setSelector(data.selector || '');
   }, [data.selector]);
+
+  useEffect(() => {
+    const normalized = normalizeHierarchy(rawHierarchyData);
+    setHierarchyCandidates(normalized);
+
+    if (normalized.length === 0) {
+      setHierarchyIndex(-1);
+      return;
+    }
+
+    const storedIndex = typeof rawHierarchyIndex === 'number'
+      ? Number(rawHierarchyIndex)
+      : 0;
+    setHierarchyIndex(normalized[storedIndex] ? storedIndex : 0);
+  }, [rawHierarchyData, rawHierarchyIndex]);
 
   useEffect(() => {
     if (screenshot) {
@@ -69,9 +182,33 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
     setNodes(updatedNodes);
   }, [getNodes, id, setNodes]);
 
-  const handleElementSelection = useCallback((nextSelector: string, elementInfo: ElementInfo) => {
+  const handleElementSelection = useCallback((nextSelector: string, elementInfo: ElementInfo, options?: { hierarchy?: ElementHierarchyEntry[]; hierarchyIndex?: number }) => {
     setSelector(nextSelector);
-    updateNodeData({ selector: nextSelector, elementInfo });
+
+    const payload: Record<string, unknown> = {
+      selector: nextSelector,
+      elementInfo,
+    };
+
+    if (options && 'hierarchy' in options) {
+      const normalized = normalizeHierarchy(options.hierarchy);
+      if (normalized.length > 0) {
+        const targetIndex = typeof options.hierarchyIndex === 'number' && normalized[options.hierarchyIndex]
+          ? options.hierarchyIndex
+          : 0;
+        setHierarchyCandidates(normalized);
+        setHierarchyIndex(targetIndex);
+        payload.elementHierarchy = normalized;
+        payload.elementHierarchyIndex = targetIndex;
+      } else {
+        setHierarchyCandidates([]);
+        setHierarchyIndex(-1);
+        payload.elementHierarchy = undefined;
+        payload.elementHierarchyIndex = undefined;
+      }
+    }
+
+    updateNodeData(payload);
   }, [updateNodeData]);
 
   const elementInfo = (data.elementInfo ?? null) as { boundingBox?: BoundingBox; bounding_box?: BoundingBox } | null;
@@ -107,6 +244,51 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
       height: `${(source.height / imgHeight) * 100}%`,
     } as const;
   }, [boundingBox, hoveredSuggestion, imageSize]);
+
+  const previewAspectRatio = useMemo(() => {
+    if (executionViewport && Number.isFinite(executionViewport.width) && Number.isFinite(executionViewport.height) && executionViewport.width > 0 && executionViewport.height > 0) {
+      return `${executionViewport.width} / ${executionViewport.height}`;
+    }
+    if (imageSize && imageSize.width > 0 && imageSize.height > 0) {
+      return `${imageSize.width} / ${imageSize.height}`;
+    }
+    return DEFAULT_ASPECT_RATIO;
+  }, [executionViewport, imageSize]);
+
+  const previewBoxStyle = useMemo(() => ({
+    aspectRatio: previewAspectRatio,
+    width: '100%',
+    maxHeight: '240px',
+  }), [previewAspectRatio]);
+
+  const hasHierarchySelection = hierarchyCandidates.length > 0 && hierarchyIndex >= 0 && hierarchyIndex < hierarchyCandidates.length;
+  const selectedHierarchy = hasHierarchySelection ? hierarchyCandidates[hierarchyIndex] : null;
+  const canSelectParent = hasHierarchySelection && hierarchyIndex < hierarchyCandidates.length - 1;
+  const canSelectChild = hasHierarchySelection && hierarchyIndex > 0;
+
+  const handleHierarchyShift = useCallback((delta: number) => {
+    if (!hasHierarchySelection) {
+      return;
+    }
+
+    const nextIndex = Math.max(0, Math.min(hierarchyIndex + delta, hierarchyCandidates.length - 1));
+    if (nextIndex === hierarchyIndex) {
+      return;
+    }
+
+    const entry = hierarchyCandidates[nextIndex];
+    if (!entry) {
+      return;
+    }
+
+    const nextSelector = deriveSelector(entry);
+    if (!nextSelector) {
+      toast.error('No selector available for that element');
+      return;
+    }
+
+    handleElementSelection(nextSelector, entry.element, { hierarchy: hierarchyCandidates, hierarchyIndex: nextIndex });
+  }, [handleElementSelection, hasHierarchySelection, hierarchyCandidates, hierarchyIndex]);
 
   const togglePicker = useCallback(() => {
     if (!screenshot) {
@@ -152,15 +334,26 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
         throw new Error(message || 'Failed to locate element');
       }
 
-      const element = await response.json() as ElementInfo;
-      const bestSelector = element?.selectors?.[0]?.selector ?? '';
+      const payload = await response.json() as ElementCoordinateResponse;
+      const candidates = normalizeHierarchy(payload?.candidates ?? []);
+
+      if (candidates.length === 0) {
+        toast.error('No selector found at that position');
+        return;
+      }
+
+      const preferredIndex = Number.isInteger(payload?.selectedIndex) && payload.selectedIndex >= 0 && payload.selectedIndex < candidates.length
+        ? payload.selectedIndex
+        : 0;
+      const chosen = candidates[preferredIndex] ?? candidates[0];
+      const bestSelector = deriveSelector(chosen);
 
       if (!bestSelector) {
         toast.error('No selector found at that position');
         return;
       }
 
-      handleElementSelection(bestSelector, element);
+      handleElementSelection(bestSelector, chosen.element, { hierarchy: candidates, hierarchyIndex: preferredIndex });
       toast.success('Element selector updated');
       setPickerActive(false);
     } catch (error) {
@@ -302,6 +495,53 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
           </div>
         </div>
 
+        {hasHierarchySelection && selectedHierarchy && (
+          <div className="mb-3 rounded-md border border-gray-800 bg-flow-bg/70 px-2 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">DOM context</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleHierarchyShift(1)}
+                  disabled={!canSelectParent}
+                  className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] transition-colors ${
+                    canSelectParent
+                      ? 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white'
+                      : 'border-gray-800 text-gray-600 cursor-not-allowed'
+                  }`}
+                  title="Select parent element"
+                >
+                  <ArrowUp size={12} />
+                  Parent
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleHierarchyShift(-1)}
+                  disabled={!canSelectChild}
+                  className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] transition-colors ${
+                    canSelectChild
+                      ? 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white'
+                      : 'border-gray-800 text-gray-600 cursor-not-allowed'
+                  }`}
+                  title="Select child element"
+                >
+                  <ArrowDown size={12} />
+                  Child
+                </button>
+              </div>
+            </div>
+            <div className="mt-1 text-[10px] text-gray-500">
+              Depth {hierarchyIndex + 1} / {hierarchyCandidates.length}
+            </div>
+            <div className="mt-1 text-[12px] text-gray-200 truncate" title={summarizeCandidate(selectedHierarchy)}>
+              {summarizeCandidate(selectedHierarchy)}
+            </div>
+            <div className="mt-1 text-[10px] font-mono text-gray-500 break-words" title={stringifyPath(selectedHierarchy)}>
+              {stringifyPath(selectedHierarchy)}
+            </div>
+          </div>
+        )}
+
         <div className="border border-gray-800 rounded-lg bg-flow-bg/60 mb-3 overflow-hidden">
           <button
             type="button"
@@ -317,12 +557,12 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
 
           {isPreviewOpen && (
             screenshot ? (
-              <div className="relative">
+              <div className="relative w-full overflow-hidden bg-black/40" style={previewBoxStyle}>
                 <img
                   ref={imageRef}
                   src={screenshot}
                   alt="Upstream preview"
-                  className={`w-full h-auto ${pickerActive ? 'cursor-crosshair' : 'cursor-default'}`}
+                  className={`h-full w-full object-contain ${pickerActive ? 'cursor-crosshair' : 'cursor-default'}`}
                   onLoad={handleImageLoad}
                   onClick={handleScreenshotClick}
                   onMouseMove={handleScreenshotMouseMove}

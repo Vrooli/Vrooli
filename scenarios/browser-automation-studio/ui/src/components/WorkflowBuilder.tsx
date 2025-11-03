@@ -179,7 +179,6 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   }, [currentWorkflow?.id, isDirty, hasVersionConflict, scheduleAutosave, cancelAutosave]);
   
   // Toolbar state
-  const [showGrid, setShowGrid] = useState(true);
   const [locked, setLocked] = useState(false);
   
   // Undo/Redo state
@@ -479,8 +478,6 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     <div ref={graphContainerRef} className="flex-1 relative">
       {viewMode === 'visual' && (
         <WorkflowToolbar 
-          showGrid={showGrid} 
-          onToggleGrid={() => setShowGrid(!showGrid)}
           locked={locked}
           onToggleLock={() => setLocked(!locked)}
           onUndo={undo}
@@ -564,7 +561,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
             }}
             nodeBorderRadius={8}
           />
-          {showGrid && <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#1a1d29" />}
+          <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#1a1d29" />
         </ReactFlow>
       ) : (
         <div className="absolute inset-0 flex flex-col bg-[#1e1e1e] border border-gray-800 rounded-lg overflow-hidden">

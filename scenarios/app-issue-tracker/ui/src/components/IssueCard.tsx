@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { DragEvent, KeyboardEventHandler, MouseEvent, PointerEvent, TouchEvent } from 'react';
-import { Archive, Brain, CalendarClock, GripVertical, Hash, Tag, Trash2, AlertCircle, StopCircle } from 'lucide-react';
+import { Archive, Brain, CalendarClock, GripVertical, Hash, Tag, Trash2, AlertCircle, StopCircle, Lock, Info } from 'lucide-react';
 import type { Issue } from '../types/issue';
 import { MANUAL_FAILURE_REASON_LABELS, type ManualFailureReason } from '../types/issue';
 import { formatDistanceToNow } from '../utils/date';
@@ -102,11 +102,29 @@ export function IssueCard({
     (issue.investigation?.report && extractErrorSummary(issue.investigation.report))
   );
 
+  // Check if issue is blocked by target conflicts
+  const isBlocked = issue.status === 'open' && issue.metadata?.extra?.blocked_reason === 'target_conflict';
+  const blockedByIssues = isBlocked && issue.metadata?.extra?.blocked_by_issues
+    ? issue.metadata.extra.blocked_by_issues.split(',').map(id => id.trim())
+    : [];
+
+  // Debug logging for blocked detection
+  if (issue.status === 'open' && issue.metadata?.extra?.blocked_reason) {
+    console.log('[IssueCard] Blocked issue detected:', {
+      id: issue.id,
+      status: issue.status,
+      blocked_reason: issue.metadata.extra.blocked_reason,
+      blocked_by_issues: issue.metadata.extra.blocked_by_issues,
+      isBlocked
+    });
+  }
+
   const className = [
     'issue-card',
     `priority-${issue.priority.toLowerCase()}`,
     isFocused ? 'issue-card--focused' : '',
     isRunning ? 'issue-card--running' : '',
+    isBlocked ? 'issue-card--blocked' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -274,6 +292,32 @@ export function IssueCard({
       <h3 className="issue-title" title={issue.title}>
         {issue.title}
       </h3>
+      {isBlocked && (
+        <div className="issue-blocked-indicator">
+          <Lock size={14} className="issue-blocked-icon" />
+          <div className="issue-blocked-details">
+            <span className="issue-blocked-text">Waiting: targets in use</span>
+            {blockedByIssues.length > 0 && (
+              <span className="issue-blocked-by" title={`Blocked by: ${blockedByIssues.join(', ')}`}>
+                {blockedByIssues.length} active {blockedByIssues.length === 1 ? 'issue' : 'issues'}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            className="issue-blocked-info"
+            aria-label="Show blocking details"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect?.(issue.id);
+            }}
+            onPointerDown={handleActionPointerDown}
+            onTouchStart={handleActionTouchStart}
+          >
+            <Info size={14} />
+          </button>
+        </div>
+      )}
       {isRunning && (
         <div className="issue-running-indicator">
           <Brain size={14} className="issue-running-icon" />
