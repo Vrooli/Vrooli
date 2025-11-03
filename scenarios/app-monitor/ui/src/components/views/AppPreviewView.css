@@ -276,6 +276,105 @@ body.app-preview-immersive {
   white-space: nowrap;
 }
 
+.preview-inspector__ancestor-controls {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.preview-inspector__ancestor-buttons {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+}
+
+.preview-inspector__ancestor-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.15);
+  color: rgba(226, 255, 247, 0.9);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.preview-inspector__ancestor-step:hover:not(:disabled),
+.preview-inspector__ancestor-step:focus-visible:not(:disabled) {
+  background: rgba(59, 130, 246, 0.28);
+  border-color: rgba(96, 165, 250, 0.65);
+  color: rgba(236, 253, 245, 0.95);
+}
+
+.preview-inspector__ancestor-step:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+
+.preview-inspector__ancestor-step:focus-visible {
+  outline: 2px solid rgba(94, 234, 212, 0.45);
+  outline-offset: 2px;
+}
+
+.preview-inspector__ancestor-trail {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding: 0.25rem 0;
+  flex: 1;
+  scrollbar-width: none;
+}
+
+.preview-inspector__ancestor-trail::-webkit-scrollbar {
+  display: none;
+}
+
+.preview-inspector__ancestor-crumb {
+  display: inline-flex;
+  align-items: center;
+  max-width: 12rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  background: rgba(15, 23, 42, 0.55);
+  color: rgba(226, 255, 247, 0.85);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.preview-inspector__ancestor-crumb:hover:not(:disabled),
+.preview-inspector__ancestor-crumb:focus-visible:not(:disabled) {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.45);
+  color: rgba(226, 255, 247, 0.95);
+}
+
+.preview-inspector__ancestor-crumb:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.preview-inspector__ancestor-crumb:focus-visible {
+  outline: 2px solid rgba(94, 234, 212, 0.45);
+  outline-offset: 2px;
+}
+
+.preview-inspector__ancestor-crumb--active {
+  background: rgba(14, 165, 233, 0.24);
+  border-color: rgba(14, 165, 233, 0.5);
+  color: rgba(226, 255, 247, 0.98);
+}
+
 .preview-inspector__section {
   margin-top: 0.9rem;
   padding-top: 0.6rem;

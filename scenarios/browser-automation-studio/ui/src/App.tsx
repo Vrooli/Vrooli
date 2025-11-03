@@ -47,7 +47,8 @@ function App() {
   const { currentProject, setCurrentProject } = useProjectStore();
   const { loadWorkflow } = useWorkflowStore();
   const currentExecution = useExecutionStore((state) => state.currentExecution);
-  const clearCurrentExecution = useExecutionStore((state) => state.clearCurrentExecution);
+  const viewerWorkflowId = useExecutionStore((state) => state.viewerWorkflowId);
+  const closeExecutionViewer = useExecutionStore((state) => state.closeViewer);
   const { fetchScenarios } = useScenarioStore();
   const isLargeScreen = useMediaQuery('(min-width: 1024px)');
 
@@ -97,13 +98,16 @@ function App() {
     void fetchScenarios();
   }, [fetchScenarios]);
 
+  const isExecutionViewerOpen = Boolean(viewerWorkflowId);
+  const activeExecutionWorkflowId = viewerWorkflowId ?? currentExecution?.workflowId ?? selectedWorkflow?.id ?? null;
+
   useEffect(() => {
-    if (!currentExecution) {
+    if (!isExecutionViewerOpen) {
       setIsResizingExecution(false);
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
     }
-  }, [currentExecution]);
+  }, [isExecutionViewerOpen]);
 
   interface RawWorkflow {
     id?: string;
@@ -417,7 +421,7 @@ function App() {
               <WorkflowBuilder projectId={currentProject?.id} />
             </div>
 
-            {currentExecution && isLargeScreen && (
+            {isExecutionViewerOpen && activeExecutionWorkflowId && isLargeScreen && (
               <>
                 <div
                   role="separator"
@@ -433,8 +437,9 @@ function App() {
                   style={{ width: executionPaneWidth, minWidth: EXECUTION_MIN_WIDTH }}
                 >
                   <ExecutionViewer
+                    workflowId={activeExecutionWorkflowId}
                     execution={currentExecution}
-                    onClose={clearCurrentExecution}
+                    onClose={closeExecutionViewer}
                     showExecutionSwitcher
                   />
                 </div>
@@ -443,16 +448,17 @@ function App() {
           </div>
         </div>
 
-        {currentExecution && !isLargeScreen && (
+        {isExecutionViewerOpen && activeExecutionWorkflowId && !isLargeScreen && (
           <ResponsiveDialog
             isOpen={true}
-            onDismiss={clearCurrentExecution}
+            onDismiss={closeExecutionViewer}
             ariaLabel="Execution Viewer"
             size="xl"
           >
             <ExecutionViewer
+              workflowId={activeExecutionWorkflowId}
               execution={currentExecution}
-              onClose={clearCurrentExecution}
+              onClose={closeExecutionViewer}
               showExecutionSwitcher
             />
           </ResponsiveDialog>

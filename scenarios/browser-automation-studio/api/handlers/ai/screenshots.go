@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -252,33 +251,6 @@ func NewScreenshotHandler(log *logrus.Logger) *ScreenshotHandler {
 		httpClient:     client,
 		browserlessURL: resolveBrowserlessURL(),
 	}
-}
-
-func resolveBrowserlessURL() string {
-	candidates := []string{
-		strings.TrimSpace(os.Getenv("BROWSERLESS_URL")),
-		strings.TrimSpace(os.Getenv("BROWSERLESS_BASE_URL")),
-	}
-	for _, candidate := range candidates {
-		if candidate != "" {
-			return strings.TrimRight(candidate, "/")
-		}
-	}
-
-	port := strings.TrimSpace(os.Getenv("BROWSERLESS_PORT"))
-	if port == "" {
-		port = "4110"
-	}
-	host := strings.TrimSpace(os.Getenv("BROWSERLESS_HOST"))
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	scheme := strings.TrimSpace(os.Getenv("BROWSERLESS_SCHEME"))
-	if scheme == "" {
-		scheme = "http"
-	}
-
-	return fmt.Sprintf("%s://%s:%s", scheme, host, port)
 }
 
 func clampPreviewViewport(value int) int {

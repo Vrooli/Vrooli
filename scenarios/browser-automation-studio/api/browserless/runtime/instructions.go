@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/vrooli/browser-automation-studio/browserless/compiler"
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
@@ -23,9 +24,9 @@ type Instruction struct {
 // InstructionParam captures the parameter payload for a Browserless instruction.
 type InstructionParam struct {
 	URL                   string   `json:"url,omitempty"`
-	Scenario              string   `json:"scenario,omitempty"`              // Scenario name for navigate nodes
-	ScenarioPath          string   `json:"scenarioPath,omitempty"`          // Scenario path for navigate nodes
-	DestinationType       string   `json:"destinationType,omitempty"`       // url or scenario
+	Scenario              string   `json:"scenario,omitempty"`        // Scenario name for navigate nodes
+	ScenarioPath          string   `json:"scenarioPath,omitempty"`    // Scenario path for navigate nodes
+	DestinationType       string   `json:"destinationType,omitempty"` // url or scenario
 	WaitUntil             string   `json:"waitUntil,omitempty"`
 	TimeoutMs             int      `json:"timeoutMs,omitempty"`
 	WaitForMs             int      `json:"waitForMs,omitempty"`
@@ -66,6 +67,12 @@ type InstructionParam struct {
 	RetryAttempts         int      `json:"retryAttempts,omitempty"`
 	RetryDelayMs          int      `json:"retryDelayMs,omitempty"`
 	RetryBackoffFactor    float64  `json:"retryBackoffFactor,omitempty"`
+	ProbeX                int      `json:"probeX,omitempty"`
+	ProbeY                int      `json:"probeY,omitempty"`
+	ProbeRadius           int      `json:"probeRadius,omitempty"`
+	ProbeSamples          int      `json:"probeSamples,omitempty"`
+	ShortcutKeys          []string `json:"shortcutKeys,omitempty"`
+	ShortcutDelayMs       int      `json:"shortcutDelayMs,omitempty"`
 }
 
 // InstructionsFromPlan converts a compiled execution plan into Browserless instructions.
@@ -144,6 +151,16 @@ type typeConfig struct {
 	Clear     *bool  `json:"clear"`
 	Submit    *bool  `json:"submit"`
 	TimeoutMs int    `json:"timeoutMs"`
+}
+
+type shortcutConfig struct {
+	Shortcuts     []string `json:"shortcuts"`
+	Shortcut      string   `json:"shortcut"`
+	Sequence      []string `json:"sequence"`
+	Keys          []string `json:"keys"`
+	DelayMs       int      `json:"delayMs"`
+	TimeoutMs     int      `json:"timeoutMs"`
+	FocusSelector string   `json:"focusSelector"`
 }
 
 type extractConfig struct {
@@ -357,6 +374,38 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if cfg.Submit != nil {
 			base.Params.Submit = cfg.Submit
 		}
+	case compiler.StepShortcut:
+		var cfg shortcutConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("shortcut node %s has invalid data: %w", step.NodeID, err)
+		}
+
+		combos := collectShortcutCombos(cfg.Shortcuts, cfg.Sequence, cfg.Keys, cfg.Shortcut)
+		if len(combos) == 0 {
+			return Instruction{}, fmt.Errorf("shortcut node %s missing shortcuts", step.NodeID)
+		}
+
+		normalized := make([]string, 0, len(combos))
+		for _, combo := range combos {
+			if normalizedCombo := normalizeShortcutCombo(combo); normalizedCombo != "" {
+				normalized = append(normalized, normalizedCombo)
+			}
+		}
+
+		if len(normalized) == 0 {
+			return Instruction{}, fmt.Errorf("shortcut node %s produced no valid shortcuts", step.NodeID)
+		}
+
+		base.Params.ShortcutKeys = normalized
+		if cfg.DelayMs > 0 {
+			base.Params.ShortcutDelayMs = cfg.DelayMs
+		}
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if trimmed := strings.TrimSpace(cfg.FocusSelector); trimmed != "" {
+			base.Params.FocusSelector = trimmed
+		}
 	case compiler.StepExtract:
 		var cfg extractConfig
 		if err := decodeParams(step.Params, &cfg); err != nil {
@@ -465,6 +514,154 @@ func normalizeStringSlice(values []string) []string {
 		return nil
 	}
 	return normalized
+}
+
+var shortcutKeyAliases = map[string]string{
+	"ctrl":       "Control",
+	"control":    "Control",
+	"cmd":        "Meta",
+	"command":    "Meta",
+	"meta":       "Meta",
+	"super":      "Meta",
+	"windows":    "Meta",
+	"win":        "Meta",
+	"alt":        "Alt",
+	"option":     "Alt",
+	"shift":      "Shift",
+	"enter":      "Enter",
+	"return":     "Enter",
+	"esc":        "Escape",
+	"escape":     "Escape",
+	"space":      "Space",
+	"spacebar":   "Space",
+	"tab":        "Tab",
+	"backspace":  "Backspace",
+	"delete":     "Delete",
+	"del":        "Delete",
+	"home":       "Home",
+	"end":        "End",
+	"pageup":     "PageUp",
+	"pagedown":   "PageDown",
+	"arrowup":    "ArrowUp",
+	"arrowdown":  "ArrowDown",
+	"arrowleft":  "ArrowLeft",
+	"arrowright": "ArrowRight",
+	"up":         "ArrowUp",
+	"down":       "ArrowDown",
+	"left":       "ArrowLeft",
+	"right":      "ArrowRight",
+	"plus":       "+",
+}
+
+func collectShortcutCombos(shortcuts, sequence, keys []string, single string) []string {
+	combos := make([]string, 0, len(shortcuts)+len(sequence)+len(keys)+1)
+	seen := make(map[string]struct{})
+	add := func(values []string) {
+		for _, value := range values {
+			trimmed := strings.TrimSpace(value)
+			if trimmed == "" {
+				continue
+			}
+			if _, exists := seen[trimmed]; exists {
+				continue
+			}
+			seen[trimmed] = struct{}{}
+			combos = append(combos, trimmed)
+		}
+	}
+
+	add(shortcuts)
+	add(sequence)
+	add(keys)
+
+	if trimmed := strings.TrimSpace(single); trimmed != "" {
+		if _, exists := seen[trimmed]; !exists {
+			combos = append(combos, trimmed)
+		}
+	}
+
+	return combos
+}
+
+func normalizeShortcutCombo(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+
+	segments := strings.Split(trimmed, "+")
+	result := make([]string, 0, len(segments))
+
+	for _, segment := range segments {
+		cleaned := strings.TrimSpace(segment)
+		if cleaned == "" {
+			continue
+		}
+
+		lower := strings.ToLower(cleaned)
+		lower = strings.ReplaceAll(lower, "-", "")
+		if alias, ok := shortcutKeyAliases[lower]; ok {
+			result = append(result, alias)
+			continue
+		}
+
+		if normalizedArrow := normalizeArrowKey(lower); normalizedArrow != "" {
+			result = append(result, normalizedArrow)
+			continue
+		}
+
+		if isFunctionKey(lower) {
+			result = append(result, strings.ToUpper(lower))
+			continue
+		}
+
+		if len(cleaned) == 1 {
+			runeVal := []rune(cleaned)[0]
+			if unicode.IsLetter(runeVal) {
+				result = append(result, strings.ToUpper(cleaned))
+				continue
+			}
+			if unicode.IsDigit(runeVal) || cleaned == "+" || cleaned == "/" || cleaned == "-" {
+				result = append(result, cleaned)
+				continue
+			}
+		}
+
+		result = append(result, strings.ToUpper(lower[:1])+lower[1:])
+	}
+
+	if len(result) == 0 {
+		return ""
+	}
+
+	return strings.Join(result, "+")
+}
+
+func normalizeArrowKey(value string) string {
+	switch value {
+	case "arrowup", "up":
+		return "ArrowUp"
+	case "arrowdown", "down":
+		return "ArrowDown"
+	case "arrowleft", "left":
+		return "ArrowLeft"
+	case "arrowright", "right":
+		return "ArrowRight"
+	default:
+		return ""
+	}
+}
+
+func isFunctionKey(value string) bool {
+	if len(value) < 2 || value[0] != 'f' {
+		return false
+	}
+	for _, r := range value[1:] {
+		if !unicode.IsDigit(r) {
+			return false
+		}
+	}
+	return true
 }
 
 func getIntParam(params map[string]any, keys ...string) (int, bool) {

@@ -1,6 +1,8 @@
 import express from 'express';
 import path from 'path';
 import http from 'http';
+import net from 'net';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -8,6 +10,8 @@ const __dirname = path.dirname(__filename);
 
 const DEFAULT_VERSION = '1.0.0';
 const SERVICE_NAME = 'browser-automation-studio';
+const API_HOST = process.env.API_HOST || 'localhost';
+const WS_HOST = process.env.WS_HOST || API_HOST;
 
 const parsePort = (value, label) => {
     if (value === undefined || value === null || value === '') {
@@ -24,6 +28,7 @@ const parsePort = (value, label) => {
 };
 
 let cachedApiPort = null;
+let cachedWsPort = null;
 
 const MONITOR_ORIGIN = 'https://app-monitor.itsagitime.com';
 
@@ -78,7 +83,7 @@ const buildHealthPayload = (apiPort) => ({
     readiness: true,
     api_connectivity: {
         connected: false,
-        api_url: apiPort ? `http://localhost:${apiPort}/api/v1` : null,
+        api_url: apiPort ? `http://${API_HOST}:${apiPort}/api/v1` : null,
         last_check: new Date().toISOString(),
         error: null,
         latency_ms: null,
@@ -87,7 +92,7 @@ const buildHealthPayload = (apiPort) => ({
 });
 
 function proxyToApi(req, res, upstreamPath, options = {}) {
-    const { collectResponse = false, body, methodOverride, timeout = 5000, port } = options;
+    const { collectResponse = false, body, methodOverride, timeout = 15000, port } = options;
     const targetPort = port ?? cachedApiPort ?? parsePort(process.env.API_PORT, 'API_PORT');
 
     if (!targetPort) {
@@ -106,8 +111,8 @@ function proxyToApi(req, res, upstreamPath, options = {}) {
     const method = methodOverride ?? (req ? req.method : 'GET');
     const requestPath = upstreamPath ?? (req ? req.url : '/');
     const headers = req
-        ? { ...req.headers, host: `localhost:${targetPort}` }
-        : { host: `localhost:${targetPort}` };
+        ? { ...req.headers, host: `${API_HOST}:${targetPort}` }
+        : { host: `${API_HOST}:${targetPort}` };
 
     if (!headers.accept) {
         headers.accept = 'application/json';
@@ -118,7 +123,7 @@ function proxyToApi(req, res, upstreamPath, options = {}) {
     return new Promise((resolve, reject) => {
         const proxyReq = http.request(
             {
-                hostname: 'localhost',
+                hostname: API_HOST,
                 port: targetPort,
                 path: requestPath,
                 method,
@@ -186,9 +191,116 @@ function proxyToApi(req, res, upstreamPath, options = {}) {
     });
 }
 
-function createApp({ apiPort } = {}) {
+function proxyWebSocket(req, clientSocket, head) {
+    console.log('WS proxy: incoming upgrade request', {
+        url: req.url,
+        headers: req.headers,
+    });
+
+    const targetPort = cachedWsPort ?? cachedApiPort ?? parsePort(process.env.WS_PORT, 'WS_PORT') ?? parsePort(process.env.API_PORT, 'API_PORT');
+    if (!targetPort) {
+        console.error('WS proxy: no upstream port configured, closing connection');
+        clientSocket.destroy();
+        return;
+    }
+
+    const upstream = net.connect(targetPort, WS_HOST, () => {
+        console.log('WS proxy: connected to upstream', {
+            host: WS_HOST,
+            port: targetPort,
+        });
+        upstream.setNoDelay(true);
+        clientSocket.setNoDelay(true);
+        upstream.setTimeout(0);
+        clientSocket.setTimeout(0);
+        if (typeof upstream.setKeepAlive === 'function') {
+            upstream.setKeepAlive(true, 0);
+        }
+        if (typeof clientSocket.setKeepAlive === 'function') {
+            clientSocket.setKeepAlive(true, 0);
+        }
+
+        const headers = { ...req.headers, host: `${WS_HOST}:${targetPort}` };
+        headers.connection = 'Upgrade';
+        headers.upgrade = 'websocket';
+        headers.Connection = 'Upgrade';
+        headers.Upgrade = 'websocket';
+
+        const requestLine = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`;
+        const headerLines = Object.entries(headers)
+            .flatMap(([key, value]) => {
+                if (Array.isArray(value)) {
+                    return value.map((entry) => `${key}: ${entry}`);
+                }
+                if (typeof value === 'string' && value.length > 0) {
+                    return [`${key}: ${value}`];
+                }
+                return [];
+            })
+            .join('\r\n');
+
+        console.log('WS proxy: forwarding upgrade request', {
+            requestLine,
+            headerLines,
+        });
+
+        upstream.write(`${requestLine}${headerLines}\r\n\r\n`);
+        if (head && head.length > 0) {
+            console.log('WS proxy: forwarding initial head bytes', { length: head.length });
+            upstream.write(head);
+        }
+
+        upstream.pipe(clientSocket);
+        clientSocket.pipe(upstream);
+    });
+
+    const teardown = (reason) => {
+        if (reason) {
+            console.error('WS proxy: tearing down sockets', { reason, url: req.url });
+        }
+        try {
+            clientSocket.destroy();
+        } catch (err) {
+            console.error('WebSocket proxy client destroy error:', err);
+        }
+        try {
+            upstream.destroy();
+        } catch (err) {
+            console.error('WebSocket proxy upstream destroy error:', err);
+        }
+    };
+
+    upstream.on('error', (error) => {
+        teardown({ stage: 'upstream-error', message: error.message, host: WS_HOST, port: targetPort });
+    });
+
+    clientSocket.on('error', (error) => {
+        teardown({ stage: 'client-error', message: error.message });
+    });
+
+    clientSocket.on('close', (hadError) => {
+        console.log('WS proxy: client socket closed', { hadError, url: req.url });
+        upstream.end();
+    });
+    upstream.on('close', (hadError) => {
+        console.log('WS proxy: upstream socket closed', { hadError, url: req.url });
+        clientSocket.end();
+    });
+}
+
+function createApp({ apiPort, uiPort, wsPort } = {}) {
     const resolvedApiPort = parsePort(apiPort ?? process.env.API_PORT, 'API_PORT');
     cachedApiPort = resolvedApiPort;
+    const resolvedWsPort = parsePort(wsPort ?? process.env.WS_PORT, 'WS_PORT');
+    let effectiveWsPort = resolvedApiPort;
+    if (resolvedWsPort && resolvedWsPort !== resolvedApiPort) {
+        console.warn('[WS] Ignoring separate WS port; API handles WebSockets on API_PORT', {
+            configuredWsPort: resolvedWsPort,
+            apiPort: resolvedApiPort,
+        });
+    }
+    cachedWsPort = effectiveWsPort;
+    const resolvedUiPort = parsePort(uiPort ?? process.env.UI_PORT ?? process.env.PORT, 'UI_PORT');
 
     const app = express();
 
@@ -242,7 +354,11 @@ function createApp({ apiPort } = {}) {
 
     app.get('/config', (_req, res) => {
         res.json({
-            apiUrl: resolvedApiPort ? `http://localhost:${resolvedApiPort}/api/v1` : null,
+            apiUrl: resolvedApiPort ? `http://${API_HOST}:${resolvedApiPort}/api/v1` : null,
+            apiPort: resolvedApiPort ? String(resolvedApiPort) : null,
+            wsUrl: resolvedApiPort ? `ws://${API_HOST}:${resolvedApiPort}/ws` : null,
+            wsPort: resolvedApiPort ? String(resolvedApiPort) : null,
+            uiPort: resolvedUiPort ? String(resolvedUiPort) : null,
             version: DEFAULT_VERSION,
             service: SERVICE_NAME
         });
@@ -265,7 +381,7 @@ function createApp({ apiPort } = {}) {
         const startTime = Date.now();
 
         try {
-            const apiResult = await proxyToApi(null, null, '/health', { collectResponse: true });
+            const apiResult = await proxyToApi(null, null, '/health', { collectResponse: true, timeout: 5000 });
             healthResponse.api_connectivity.latency_ms = Date.now() - startTime;
             healthResponse.api_connectivity.last_check = new Date().toISOString();
             healthResponse.api_connectivity.connected = apiResult.statusCode >= 200 && apiResult.statusCode < 300;
@@ -301,7 +417,16 @@ function createApp({ apiPort } = {}) {
     });
 
     app.get('/export/composer.html', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'dist', 'export', 'composer.html'));
+        const candidates = [
+            path.join(__dirname, 'dist', 'export', 'composer.html'),
+            path.join(__dirname, 'dist', 'src', 'export', 'composer.html')
+        ];
+        const available = candidates.find((candidate) => fs.existsSync(candidate));
+        if (!available) {
+            res.status(500).send('composer.html bundle not found. Ensure UI build completed successfully.');
+            return;
+        }
+        res.sendFile(available);
     });
 
     app.get('/', (_req, res) => {
@@ -317,11 +442,20 @@ function createApp({ apiPort } = {}) {
 
 function startServer() {
     const port = process.env.UI_PORT || process.env.PORT || 3000;
-    const app = createApp();
+    const app = createApp({ uiPort: port, wsPort: process.env.WS_PORT, apiPort: process.env.API_PORT });
+    const server = http.createServer(app);
+
+    server.on('upgrade', (req, socket, head) => {
+        if (!req.url || !req.url.startsWith('/ws')) {
+            socket.destroy();
+            return;
+        }
+        proxyWebSocket(req, socket, head);
+    });
 
     // AUDITOR NOTE: 0.0.0.0 binding is intentional and correct for Node.js servers.
     // This is the standard practice to accept connections on all network interfaces.
-    const server = app.listen(port, '0.0.0.0', () => {
+    server.listen(port, '0.0.0.0', () => {
         console.log(`Browser Automation Studio UI server listening on port ${port}`);
         console.log(`Health endpoint: http://localhost:${port}/health`);
         console.log(`UI available at: http://localhost:${port}`);

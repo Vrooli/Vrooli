@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { BoxSelect, ChevronDown, Download, Image, Inspect, Loader2, PlusCircle, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, BoxSelect, ChevronDown, Download, Image, Inspect, Loader2, PlusCircle, X } from 'lucide-react';
 import type { BridgeInspectState } from '@/hooks/useIframeBridge';
 import type { PreviewInspectorState } from './usePreviewInspector';
 
@@ -46,6 +46,12 @@ const PreviewInspectorPanel = ({
     inspectAriaDescription,
     inspectTitleValue,
     inspectMethodLabel,
+    inspectAncestors,
+    inspectAncestorIndex,
+    inspectAncestorCanStepParent,
+    inspectAncestorCanStepChild,
+    handleInspectorAncestorStep,
+    handleInspectorAncestorSelect,
     inspectorScreenshot,
     isInspectorScreenshotCapturing,
     inspectorScreenshotExpanded,
@@ -74,6 +80,34 @@ const PreviewInspectorPanel = ({
   const showDetailsSection = !inspectState.active && Boolean(inspectTarget);
   const showScreenshotSection = !inspectState.active;
   const activeChipLabel = inspectActiveChipLabel ?? 'Move finger to highlight an element';
+  const ancestorTrail = Array.isArray(inspectAncestors) ? inspectAncestors : [];
+  const ancestorTrailCount = ancestorTrail.length;
+  const ancestorsInteractive = inspectState.active && ancestorTrailCount > 1;
+
+  const formatAncestorLabel = (ancestor: typeof ancestorTrail[number], index: number) => {
+    const preferred = [ancestor.label, ancestor.ariaLabel, ancestor.title].find(value => value && value.trim().length > 0);
+    if (preferred) {
+      return preferred.trim();
+    }
+    const textValue = ancestor.text?.trim();
+    if (textValue) {
+      return textValue.length > 60 ? `${textValue.slice(0, 60)}…` : textValue;
+    }
+    const tokens: string[] = [];
+    if (ancestor.tag) {
+      tokens.push(ancestor.tag.toLowerCase());
+    }
+    if (ancestor.id) {
+      tokens.push(`#${ancestor.id}`);
+    }
+    if (Array.isArray(ancestor.classes) && ancestor.classes.length > 0) {
+      tokens.push(`.${ancestor.classes[0]}`);
+    }
+    if (tokens.length > 0) {
+      return tokens.join('');
+    }
+    return ancestor.selector ?? `ancestor-${index + 1}`;
+  };
 
   return (
     <div
@@ -151,6 +185,58 @@ const PreviewInspectorPanel = ({
             <span className="preview-inspector__active-chip-label" title={activeChipLabel}>
               {activeChipLabel}
             </span>
+          </div>
+        )}
+        {ancestorTrailCount > 1 && (
+          <div className="preview-inspector__ancestor-controls" role="group" aria-label="Element hierarchy controls">
+            <div className="preview-inspector__ancestor-buttons">
+              <button
+                type="button"
+                className="preview-inspector__ancestor-step"
+                onClick={() => handleInspectorAncestorStep(1)}
+                disabled={!inspectAncestorCanStepParent}
+                aria-label="Select parent element"
+                title="Select parent element (Alt+ArrowUp)"
+              >
+                <ArrowUp aria-hidden size={14} />
+              </button>
+              <button
+                type="button"
+                className="preview-inspector__ancestor-step"
+                onClick={() => handleInspectorAncestorStep(-1)}
+                disabled={!inspectAncestorCanStepChild}
+                aria-label="Select child element"
+                title="Select child element (Alt+ArrowDown)"
+              >
+                <ArrowDown aria-hidden size={14} />
+              </button>
+            </div>
+            <div className="preview-inspector__ancestor-trail" role="list" aria-label="Element hierarchy trail">
+              {ancestorTrail.map((ancestor, index) => {
+                const label = formatAncestorLabel(ancestor, index);
+                const isActive = index === inspectAncestorIndex;
+                const displayLabel = label.length > 28 ? `${label.slice(0, 28)}…` : label;
+                const key = `${ancestor.selector ?? ancestor.tag ?? 'ancestor'}-${index}`;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={clsx(
+                      'preview-inspector__ancestor-crumb',
+                      isActive && 'preview-inspector__ancestor-crumb--active',
+                    )}
+                    onClick={() => handleInspectorAncestorSelect(index)}
+                    disabled={!ancestorsInteractive || isActive}
+                    title={label}
+                    aria-label={isActive ? `${label} (current element)` : `Select ${label}`}
+                    aria-current={isActive ? 'true' : undefined}
+                    role="listitem"
+                  >
+                    {displayLabel}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
         {showDetailsSection && (

@@ -1103,7 +1103,11 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
             </div>
             {isExecutionViewerOpen && currentExecution && (
               <div className="w-full md:w-1/2 flex-1 flex flex-col min-h-0">
-                <ExecutionViewer execution={currentExecution} onClose={handleCloseExecutionViewer} />
+                <ExecutionViewer
+                  workflowId={currentExecution.workflowId}
+                  execution={currentExecution}
+                  onClose={handleCloseExecutionViewer}
+                />
               </div>
             )}
           </div>

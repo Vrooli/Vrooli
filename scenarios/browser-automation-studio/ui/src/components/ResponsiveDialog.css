@@ -18,9 +18,13 @@
   max-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   border-radius: 18px;
   min-height: 0;
+  background: rgba(17, 24, 39, 0.96);
+  border: 1px solid rgba(75, 85, 99, 0.6);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
 }
 
 .responsive-dialog__content--wide {

@@ -177,11 +177,14 @@ export interface Execution {
 interface ExecutionStore {
   executions: Execution[];
   currentExecution: Execution | null;
+  viewerWorkflowId: string | null;
   socket: WebSocket | null;
   socketListeners: Map<string, EventListener>;
   websocketStatus: 'idle' | 'connecting' | 'connected' | 'error';
   websocketAttempts: number;
 
+  openViewer: (workflowId: string) => void;
+  closeViewer: () => void;
   startExecution: (workflowId: string, saveWorkflowFn?: () => Promise<void>) => Promise<void>;
   stopExecution: (executionId: string) => Promise<void>;
   loadExecutions: (workflowId?: string) => Promise<void>;
@@ -226,10 +229,25 @@ const normalizeExecution = (raw: unknown): Execution => {
 export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   executions: [],
   currentExecution: null,
+  viewerWorkflowId: null,
   socket: null,
   socketListeners: new Map(),
   websocketStatus: 'idle',
   websocketAttempts: 0,
+
+  openViewer: (workflowId: string) => {
+    const state = get();
+    if (state.currentExecution && state.currentExecution.workflowId !== workflowId) {
+      state.disconnectWebSocket();
+      set({ currentExecution: null });
+    }
+    set({ viewerWorkflowId: workflowId });
+  },
+
+  closeViewer: () => {
+    get().disconnectWebSocket();
+    set({ currentExecution: null, viewerWorkflowId: null });
+  },
 
   startExecution: async (workflowId: string, saveWorkflowFn?: () => Promise<void>) => {
     try {
@@ -237,6 +255,12 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       if (saveWorkflowFn) {
         await saveWorkflowFn();
       }
+
+      const state = get();
+      if (state.viewerWorkflowId && state.viewerWorkflowId !== workflowId) {
+        state.disconnectWebSocket();
+      }
+      set({ viewerWorkflowId: workflowId });
 
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/workflows/${workflowId}/execute`, {
@@ -310,9 +334,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     try {
       const config = await getConfig();
       const url = workflowId
-        ? `${config.API_URL}/workflows/${workflowId}/executions`
+        ? `${config.API_URL}/executions?workflow_id=${encodeURIComponent(workflowId)}`
         : `${config.API_URL}/executions`;
       const response = await fetch(url);
+
+      if (response.status === 404) {
+        set({ executions: [] });
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(`Failed to load executions: ${response.status}`);
@@ -336,7 +365,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
       const data = await response.json();
       const execution = normalizeExecution(data);
-      set({ currentExecution: execution });
+      set({ currentExecution: execution, viewerWorkflowId: execution.workflowId });
       void get().refreshTimeline(executionId);
     } catch (error) {
       logger.error('Failed to load execution', { component: 'ExecutionStore', action: 'loadExecution', executionId }, error);
@@ -764,7 +793,6 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   },
 
   clearCurrentExecution: () => {
-    get().disconnectWebSocket();
     set({ currentExecution: null });
   },
 }));

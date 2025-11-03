@@ -26,6 +26,7 @@ import BrowserActionNode from './nodes/BrowserActionNode';
 import NavigateNode from './nodes/NavigateNode';
 import ClickNode from './nodes/ClickNode';
 import TypeNode from './nodes/TypeNode';
+import ShortcutNode from './nodes/ShortcutNode';
 import ScreenshotNode from './nodes/ScreenshotNode';
 import WaitNode from './nodes/WaitNode';
 import ExtractNode from './nodes/ExtractNode';
@@ -43,6 +44,7 @@ const nodeTypes: NodeTypes = {
   navigate: NavigateNode,
   click: ClickNode,
   type: TypeNode,
+  shortcut: ShortcutNode,
   screenshot: ScreenshotNode,
   wait: WaitNode,
   extract: ExtractNode,
@@ -540,6 +542,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                 case 'navigate': return '#3b82f6';
                 case 'click': return '#10b981';
                 case 'type': return '#f59e0b';
+                case 'shortcut': return '#6366f1';
                 case 'screenshot': return '#8b5cf6';
                 case 'extract': return '#ec4899';
                 case 'wait': return '#6b7280';
@@ -552,6 +555,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                 case 'navigate': return '#1e40af';
                 case 'click': return '#065f46';
                 case 'type': return '#92400e';
+                case 'shortcut': return '#312e81';
                 case 'screenshot': return '#5b21b6';
                 case 'extract': return '#9f1239';
                 case 'wait': return '#374151';

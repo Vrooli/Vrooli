@@ -65,6 +65,9 @@ export interface ReportCaptureMetadata {
   title?: string | null;
   role?: string | null;
   text?: string | null;
+  ancestorIndex?: number | null;
+  ancestorCount?: number | null;
+  ancestorTrail?: Array<string | null>;
   boundingBox?: { x: number; y: number; width: number; height: number } | null;
 }
 

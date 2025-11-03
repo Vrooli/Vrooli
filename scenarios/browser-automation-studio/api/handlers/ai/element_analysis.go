@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/browserless/runtime"
+	"github.com/vrooli/browser-automation-studio/constants"
 )
 
 // ElementAnalysisHandler handles element analysis and coordinate-based operations
@@ -119,270 +121,89 @@ func (h *ElementAnalysisHandler) GetElementAtCoordinate(w http.ResponseWriter, r
 
 // getElementAtCoordinate uses browserless to get element candidates at specific coordinates
 func (h *ElementAnalysisHandler) getElementAtCoordinate(ctx context.Context, url string, x, y int) (*ElementSelectionResult, error) {
-	// Create temporary file for results
-	tmpFile, err := os.CreateTemp("", "element-at-coord-*.json")
+	browserlessURL := resolveBrowserlessURL()
+	if browserlessURL == "" {
+		return nil, fmt.Errorf("browserless URL not configured")
+	}
+
+	httpClient := &http.Client{Timeout: constants.AIRequestTimeout}
+	session := runtime.NewSession(browserlessURL, httpClient, h.log)
+
+	navigateInstruction := runtime.Instruction{
+		Index:  0,
+		NodeID: "probe.navigate",
+		Type:   "navigate",
+		Params: runtime.InstructionParam{
+			URL:       url,
+			WaitUntil: "networkidle2",
+			TimeoutMs: 45000,
+		},
+	}
+
+	navResponse, err := session.ExecuteInstruction(ctx, navigateInstruction)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
-
-	// JavaScript script to get element candidates at coordinates
-	script := fmt.Sprintf(`
-const pointerElements = Array.from(document.elementsFromPoint(%d, %d) || []);
-const uniqueElements = [];
-const seen = new Set();
-
-for (const element of pointerElements) {
-  if (!element || element.nodeType !== Node.ELEMENT_NODE) {
-    continue;
-  }
-  if (seen.has(element)) {
-    continue;
-  }
-  seen.add(element);
-  uniqueElements.push(element);
-}
-
-const lastElement = uniqueElements.length > 0 ? uniqueElements[uniqueElements.length - 1] : null;
-let current = lastElement ? lastElement.parentElement : null;
-let guard = 0;
-while (current && guard < 12) {
-  if (current.nodeType === Node.ELEMENT_NODE && !seen.has(current)) {
-    seen.add(current);
-    uniqueElements.push(current);
-  }
-  current = current.parentElement;
-  guard += 1;
-}
-
-if (uniqueElements.length === 0) {
-  return { error: "No element found at coordinates" };
-}
-
-function calculateConfidence(element) {
-  let confidence = 0.1;
-  const rect = element.getBoundingClientRect();
-  if (rect.width > 0 && rect.height > 0) confidence += 0.3;
-  if (element.textContent && element.textContent.trim()) confidence += 0.2;
-  const tagName = element.tagName.toLowerCase();
-  if (["button", "input", "select", "textarea"].includes(tagName)) confidence += 0.3;
-  if (tagName === "a" && typeof element.href === "string" && element.href) confidence += 0.2;
-  if (element.getAttribute("role") === "button") confidence += 0.2;
-  return Math.min(confidence, 1.0);
-}
-
-function generateSelectors(element) {
-  const selectors = [];
-
-  if (element.id) {
-    selectors.push({
-      selector: '#' + element.id,
-      type: 'id',
-      robustness: 0.9,
-      fallback: false
-    });
-  }
-
-  for (const attr of element.attributes) {
-    if (attr.name && attr.name.startsWith('data-')) {
-      selectors.push({
-        selector: '[' + attr.name + '="' + attr.value + '"]',
-        type: 'data-attr',
-        robustness: 0.8,
-        fallback: false
-      });
-    }
-  }
-
-  const className = typeof element.className === 'string' ? element.className : '';
-  if (className) {
-    const classes = className.split(/\s+/).filter(Boolean);
-    const semanticClasses = classes.filter(cls =>
-      /^(btn|button|link|nav|menu|form|input|submit|login|search)/.test(cls)
-    );
-    if (semanticClasses.length > 0) {
-      selectors.push({
-        selector: '.' + semanticClasses[0],
-        type: 'class',
-        robustness: 0.6,
-        fallback: false
-      });
-    }
-  }
-
-  let cssSelector = element.tagName.toLowerCase();
-  if (element.type) cssSelector += '[type="' + element.type + '"]';
-  if (element.name) cssSelector += '[name="' + element.name + '"]';
-
-  selectors.push({
-    selector: cssSelector,
-    type: 'css',
-    robustness: 0.4,
-    fallback: true
-  });
-
-  return selectors.sort((a, b) => b.robustness - a.robustness);
-}
-
-function categorizeElement(element) {
-  const text = element.textContent?.toLowerCase() || '';
-  const type = element.type?.toLowerCase() || '';
-  const tagName = element.tagName.toLowerCase();
-
-  if (type === 'password' || text.includes('password') || text.includes('login') || text.includes('sign in')) {
-    return 'authentication';
-  }
-  if (type === 'search' || text.includes('search') || (typeof element.name === 'string' && element.name.includes('search'))) {
-    return 'data-entry';
-  }
-  if (tagName === 'a' || text.includes('menu') || text.includes('nav')) {
-    return 'navigation';
-  }
-  if (type === 'submit' || text.includes('submit') || text.includes('save') || text.includes('send')) {
-    return 'actions';
-  }
-  if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
-    return 'data-entry';
-  }
-
-  return 'general';
-}
-
-function describePathSegment(element) {
-  if (!element || element.nodeType !== Node.ELEMENT_NODE) {
-    return '';
-  }
-  const tag = element.tagName.toLowerCase();
-  const idPart = element.id ? '#' + element.id : '';
-  const classList = typeof element.className === 'string' ? element.className.split(/\s+/).filter(Boolean) : [];
-  const classPart = classList.length > 0 ? '.' + classList.slice(0, 2).join('.') : '';
-  return tag + idPart + classPart;
-}
-
-function buildDomPath(element) {
-  const segments = [];
-  let current = element;
-  let safety = 0;
-  while (current && current.nodeType === Node.ELEMENT_NODE && safety < 15) {
-    segments.push(describePathSegment(current));
-    current = current.parentElement;
-    safety += 1;
-  }
-  return segments;
-}
-
-function buildElementInfo(element) {
-  if (!element || element.nodeType !== Node.ELEMENT_NODE) {
-    return null;
-  }
-  const rect = element.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) {
-    return null;
-  }
-  const textContent = element.textContent?.trim() || element.value || element.placeholder || '';
-  return {
-    text: textContent.substring(0, 100),
-    tagName: element.tagName,
-    type: element.type || element.tagName.toLowerCase(),
-    selectors: generateSelectors(element),
-    boundingBox: {
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height
-    },
-    confidence: calculateConfidence(element),
-    category: categorizeElement(element),
-    attributes: {
-      id: element.id || '',
-      className: typeof element.className === 'string' ? element.className : '',
-      name: element.name || '',
-      placeholder: element.placeholder || '',
-      'aria-label': element.getAttribute('aria-label') || '',
-      title: element.title || ''
-    }
-  };
-}
-
-const candidates = uniqueElements.map((element, index) => {
-  const info = buildElementInfo(element);
-  if (!info) {
-    return null;
-  }
-  const selectors = Array.isArray(info.selectors) ? info.selectors : [];
-  const selector = selectors.length > 0 ? selectors[0].selector : '';
-  const path = buildDomPath(element);
-  return {
-    element: info,
-    selector,
-    depth: index,
-    path,
-    pathSummary: path.join(' > ')
-  };
-}).filter(Boolean);
-
-let selectedIndex = -1;
-for (let i = 0; i < candidates.length; i++) {
-  const tag = (candidates[i].element?.tagName || '').toLowerCase();
-  if (tag && tag !== 'html' && tag !== 'body') {
-    selectedIndex = i;
-    break;
-  }
-}
-
-if (selectedIndex === -1 && candidates.length > 0) {
-  selectedIndex = 0;
-}
-
-return {
-  element: selectedIndex >= 0 ? candidates[selectedIndex]?.element || null : null,
-  candidates,
-  selectedIndex
-};`, x, y)
-
-	// Try using navigate + extract approach to avoid bot detection
-	// First navigate to the page
-	navigateCmd := exec.CommandContext(ctx, "resource-browserless", "navigate", url)
-	navigateOutput, err := navigateCmd.CombinedOutput()
-	if err != nil {
-		h.log.WithError(err).WithField("output", string(navigateOutput)).Error("Failed to navigate to URL")
-	} else {
-		h.log.Info("Successfully navigated to URL")
+		return nil, fmt.Errorf("failed to navigate to URL: %w", err)
 	}
 
-	// Then try extract with script
-	extractCmd := exec.CommandContext(ctx, "resource-browserless", "extract", url,
-		"--script", script,
-		"--output", tmpFile.Name())
-
-	output, err := extractCmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract element: %w, output: %s", err, string(output))
-	}
-
-	// Read and parse result
-	data, err := os.ReadFile(tmpFile.Name())
-	if err != nil {
-		return nil, fmt.Errorf("failed to read result: %w", err)
-	}
-
-	var scriptError struct {
-		Error string `json:"error"`
-	}
-	if err := json.Unmarshal(data, &scriptError); err == nil {
-		if strings.TrimSpace(scriptError.Error) != "" {
-			return nil, fmt.Errorf(scriptError.Error)
+	if navResponse == nil || len(navResponse.Steps) == 0 || !navResponse.Steps[0].Success {
+		errMsg := "navigation failed"
+		if navResponse != nil && len(navResponse.Steps) > 0 {
+			if trimmed := strings.TrimSpace(navResponse.Steps[0].Error); trimmed != "" {
+				errMsg = trimmed
+			}
 		}
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	probeInstruction := runtime.Instruction{
+		Index:  1,
+		NodeID: "probe.element",
+		Type:   "probeElements",
+		Params: runtime.InstructionParam{
+			ProbeX:       x,
+			ProbeY:       y,
+			ProbeRadius:  8,
+			ProbeSamples: 36,
+		},
+	}
+
+	probeResponse, err := session.ExecuteInstruction(ctx, probeInstruction)
+	if err != nil {
+		return nil, fmt.Errorf("element probe failed: %w", err)
+	}
+
+	if probeResponse == nil || len(probeResponse.Steps) == 0 {
+		return nil, fmt.Errorf("element probe returned no results")
+	}
+
+	probeStep := probeResponse.Steps[0]
+	if !probeStep.Success {
+		if trimmed := strings.TrimSpace(probeStep.Error); trimmed != "" {
+			return nil, fmt.Errorf(trimmed)
+		}
+		return nil, fmt.Errorf("element probe unsuccessful")
+	}
+
+	if probeStep.ProbeResult == nil {
+		return nil, fmt.Errorf("element probe did not return data")
+	}
+
+	data, err := json.Marshal(probeStep.ProbeResult)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal probe result: %w", err)
 	}
 
 	var selection ElementSelectionResult
 	if err := json.Unmarshal(data, &selection); err != nil {
-		return nil, fmt.Errorf("failed to parse element JSON: %w", err)
+		return nil, fmt.Errorf("failed to decode probe result: %w", err)
 	}
 
-	if len(selection.Candidates) == 0 || selection.SelectedIndex < 0 || selection.SelectedIndex >= len(selection.Candidates) {
+	if len(selection.Candidates) == 0 {
 		return nil, fmt.Errorf("no qualifying elements found at coordinates")
+	}
+
+	if selection.SelectedIndex < 0 || selection.SelectedIndex >= len(selection.Candidates) {
+		selection.SelectedIndex = 0
 	}
 
 	if selection.Element == nil {

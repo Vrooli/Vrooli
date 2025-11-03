@@ -1,4 +1,5 @@
 import { memo, FC, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import type { KeyboardEvent } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { MousePointer, Globe, Target, ChevronDown, ChevronRight, Loader2, Sparkles, Wand2, Brain, ArrowUp, ArrowDown } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -16,44 +17,46 @@ const normalizeHierarchy = (value: unknown): ElementHierarchyEntry[] => {
     return [];
   }
 
-  return value
-    .map((entry) => {
-      if (!entry || typeof entry !== 'object') {
-        return null;
-      }
+  const results: ElementHierarchyEntry[] = [];
 
-      const candidate = entry as Partial<ElementHierarchyEntry> & { element?: ElementInfo };
-      if (!candidate.element) {
-        return null;
-      }
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') {
+      continue;
+    }
 
-      const selector = typeof candidate.selector === 'string' && candidate.selector.trim().length > 0
-        ? candidate.selector.trim()
-        : (Array.isArray(candidate.element.selectors) && candidate.element.selectors.length > 0
-            ? candidate.element.selectors[0].selector
-            : '');
+    const candidate = entry as Partial<ElementHierarchyEntry> & { element?: ElementInfo };
+    if (!candidate.element) {
+      continue;
+    }
 
-      const depth = Number.isFinite(candidate.depth as number)
-        ? Number(candidate.depth)
-        : 0;
+    const selector = typeof candidate.selector === 'string' && candidate.selector.trim().length > 0
+      ? candidate.selector.trim()
+      : (Array.isArray(candidate.element.selectors) && candidate.element.selectors.length > 0
+          ? candidate.element.selectors[0].selector
+          : '');
 
-      const path = Array.isArray(candidate.path)
-        ? candidate.path.filter((segment): segment is string => typeof segment === 'string')
-        : [];
+    const depth = Number.isFinite(candidate.depth as number)
+      ? Number(candidate.depth)
+      : 0;
 
-      const pathSummary = typeof candidate.pathSummary === 'string' && candidate.pathSummary.trim().length > 0
-        ? candidate.pathSummary
-        : path.join(' > ');
+    const path = Array.isArray(candidate.path)
+      ? candidate.path.filter((segment): segment is string => typeof segment === 'string')
+      : [];
 
-      return {
-        element: candidate.element,
-        selector,
-        depth,
-        path,
-        pathSummary,
-      };
-    })
-    .filter((entry): entry is ElementHierarchyEntry => Boolean(entry && entry.element));
+    const summary = typeof candidate.pathSummary === 'string' && candidate.pathSummary.trim().length > 0
+      ? candidate.pathSummary.trim()
+      : path.join(' > ');
+
+    results.push({
+      element: candidate.element,
+      selector,
+      depth,
+      path,
+      pathSummary: summary || undefined,
+    });
+  }
+
+  return results;
 };
 
 const deriveSelector = (entry: ElementHierarchyEntry | null | undefined): string => {
@@ -96,6 +99,24 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
   const executionViewport = useWorkflowStore((state) => state.currentWorkflow?.executionViewport as ExecutionViewportSettings | undefined);
   const rawHierarchyData = (data as Record<string, unknown>)?.elementHierarchy;
   const rawHierarchyIndex = (data as Record<string, unknown>)?.elementHierarchyIndex;
+
+  const nodeData = data as Record<string, unknown> | undefined;
+  const storedUrl = typeof nodeData?.url === 'string' ? nodeData.url : '';
+  const [urlDraft, setUrlDraft] = useState<string>(storedUrl);
+
+  useEffect(() => {
+    setUrlDraft(storedUrl);
+  }, [storedUrl]);
+
+  const trimmedStoredUrl = useMemo(() => storedUrl.trim(), [storedUrl]);
+  const effectiveUrl = useMemo(() => {
+    if (trimmedStoredUrl.length > 0) {
+      return trimmedStoredUrl;
+    }
+    return upstreamUrl ?? null;
+  }, [trimmedStoredUrl, upstreamUrl]);
+
+  const hasCustomUrl = trimmedStoredUrl.length > 0;
 
   const [hierarchyCandidates, setHierarchyCandidates] = useState<ElementHierarchyEntry[]>(() =>
     normalizeHierarchy(rawHierarchyData)
@@ -171,16 +192,58 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
       if (node.id !== id) {
         return node;
       }
+
+      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (key === 'url') {
+          const trimmed = typeof value === 'string' ? value.trim() : '';
+          if (trimmed) {
+            nextData.url = trimmed;
+          } else {
+            delete nextData.url;
+          }
+          continue;
+        }
+
+        if (value === undefined || value === null) {
+          delete nextData[key];
+        } else {
+          nextData[key] = value;
+        }
+      }
+
       return {
         ...node,
-        data: {
-          ...node.data,
-          ...updates,
-        },
+        data: nextData,
       };
     });
     setNodes(updatedNodes);
   }, [getNodes, id, setNodes]);
+
+  const commitUrl = useCallback((raw: string) => {
+    const trimmed = raw.trim();
+    updateNodeData({ url: trimmed.length > 0 ? trimmed : null });
+  }, [updateNodeData]);
+
+  const handleUrlCommit = useCallback(() => {
+    commitUrl(urlDraft);
+  }, [commitUrl, urlDraft]);
+
+  const handleUrlKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commitUrl(urlDraft);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setUrlDraft(storedUrl);
+    }
+  }, [commitUrl, storedUrl, urlDraft]);
+
+  const resetUrl = useCallback(() => {
+    setUrlDraft('');
+    updateNodeData({ url: null });
+  }, [updateNodeData]);
 
   const handleElementSelection = useCallback((nextSelector: string, elementInfo: ElementInfo, options?: { hierarchy?: ElementHierarchyEntry[]; hierarchyIndex?: number }) => {
     setSelector(nextSelector);
@@ -295,26 +358,48 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
       toast.error('Connect a screenshot-producing node before picking elements');
       return;
     }
-    if (!upstreamUrl) {
-      toast.error('Connect to a Navigate node to pick elements from the page');
+    if (!effectiveUrl) {
+      toast.error('Set a page URL before picking elements');
       return;
     }
     setPickerActive((prev) => !prev);
     setHoverPosition(null);
     setClickPosition(null);
     setIsPreviewOpen(true);
-  }, [screenshot, upstreamUrl]);
+  }, [effectiveUrl, screenshot]);
+
+  const getImageCoordinates = useCallback((event: React.MouseEvent<HTMLImageElement>) => {
+    const img = event.currentTarget;
+    const rect = img.getBoundingClientRect();
+    if (!img.naturalWidth || !img.naturalHeight || rect.width <= 0 || rect.height <= 0) {
+      return null;
+    }
+
+    const relativeX = event.clientX - rect.left;
+    const relativeY = event.clientY - rect.top;
+    const clampedX = Math.max(0, Math.min(relativeX, rect.width));
+    const clampedY = Math.max(0, Math.min(relativeY, rect.height));
+    const scaleX = img.naturalWidth / rect.width;
+    const scaleY = img.naturalHeight / rect.height;
+
+    return {
+      x: Math.round(clampedX * scaleX),
+      y: Math.round(clampedY * scaleY),
+    };
+  }, []);
 
   const handleScreenshotClick = useCallback(async (event: React.MouseEvent<HTMLImageElement>) => {
-    if (!pickerActive || !imageSize || !upstreamUrl) {
+    if (!pickerActive || !imageSize || !effectiveUrl) {
       return;
     }
 
-    const img = event.currentTarget;
-    const { offsetX, offsetY } = event.nativeEvent;
+    const coordinates = getImageCoordinates(event);
+    if (!coordinates) {
+      toast.error('Unable to determine click position on the screenshot');
+      return;
+    }
 
-    const x = Math.round(offsetX * (img.naturalWidth / img.offsetWidth));
-    const y = Math.round(offsetY * (img.naturalHeight / img.offsetHeight));
+    const { x, y } = coordinates;
 
     setClickPosition({ x, y });
     setIsSelecting(true);
@@ -326,7 +411,7 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: upstreamUrl, x, y }),
+        body: JSON.stringify({ url: effectiveUrl, x, y }),
       });
 
       if (!response.ok) {
@@ -357,23 +442,24 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
       toast.success('Element selector updated');
       setPickerActive(false);
     } catch (error) {
-      logger.error('Failed to pick element from screenshot', { component: 'ClickNode', action: 'handleScreenshotClick', nodeId: id, url: upstreamUrl }, error);
+      logger.error('Failed to pick element from screenshot', { component: 'ClickNode', action: 'handleScreenshotClick', nodeId: id, url: effectiveUrl ?? upstreamUrl ?? null }, error);
       toast.error('Failed to pick element from screenshot');
     } finally {
       setIsSelecting(false);
     }
-  }, [handleElementSelection, id, imageSize, pickerActive, upstreamUrl]);
+  }, [effectiveUrl, getImageCoordinates, handleElementSelection, id, imageSize, pickerActive, upstreamUrl]);
 
   const handleScreenshotMouseMove = useCallback((event: React.MouseEvent<HTMLImageElement>) => {
     if (!pickerActive || !imageSize) {
       return;
     }
-    const img = event.currentTarget;
-    const { offsetX, offsetY } = event.nativeEvent;
-    const x = Math.round(offsetX * (img.naturalWidth / img.offsetWidth));
-    const y = Math.round(offsetY * (img.naturalHeight / img.offsetHeight));
-    setHoverPosition({ x, y });
-  }, [imageSize, pickerActive]);
+    const coordinates = getImageCoordinates(event);
+    if (!coordinates) {
+      setHoverPosition(null);
+      return;
+    }
+    setHoverPosition(coordinates);
+  }, [getImageCoordinates, imageSize, pickerActive]);
 
   const handleScreenshotMouseLeave = useCallback(() => {
     setHoverPosition(null);
@@ -387,8 +473,8 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
   }, []);
 
   const runAiSuggestions = useCallback(async () => {
-    if (!upstreamUrl) {
-      toast.error('Connect to a Navigate node before requesting AI suggestions');
+    if (!effectiveUrl) {
+      toast.error('Set a page URL before requesting AI suggestions');
       return;
     }
 
@@ -408,7 +494,7 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: upstreamUrl, intent: trimmedIntent }),
+        body: JSON.stringify({ url: effectiveUrl, intent: trimmedIntent }),
       });
 
       if (!response.ok) {
@@ -426,15 +512,15 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
         toast.success(`Found ${normalized.length} suggestion${normalized.length > 1 ? 's' : ''}`);
       }
     } catch (error) {
-      logger.error('Failed to fetch AI suggestions', { component: 'ClickNode', action: 'runAiSuggestions', nodeId: id, url: upstreamUrl }, error);
+      logger.error('Failed to fetch AI suggestions', { component: 'ClickNode', action: 'runAiSuggestions', nodeId: id, url: effectiveUrl ?? upstreamUrl ?? null }, error);
       const message = error instanceof Error ? error.message : 'AI suggestions failed';
       toast.error(message);
     } finally {
       setAiLoading(false);
     }
-  }, [aiIntent, id, upstreamUrl]);
+  }, [aiIntent, effectiveUrl, id, upstreamUrl]);
 
-  const canUsePicker = Boolean(screenshot && upstreamUrl);
+  const canUsePicker = Boolean(screenshot && effectiveUrl);
 
   const screenshotSourceLabel = useMemo(() => {
     if (!upstreamScreenshot) {
@@ -456,14 +542,40 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
           <span className="font-semibold text-sm">Click</span>
         </div>
 
-        {upstreamUrl && (
-          <div className="flex items-center gap-1 mb-2 p-1 bg-flow-bg/50 rounded text-xs border border-gray-700">
-            <Globe size={12} className="text-blue-400 flex-shrink-0" />
-            <span className="text-gray-400 truncate" title={upstreamUrl}>
-              {upstreamUrl}
-            </span>
+        <div className="mb-2">
+          <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+            <Globe size={12} className="text-blue-400" />
+            Page URL
+          </label>
+          <div className="mt-1 flex items-center gap-2">
+            <input
+              type="text"
+              placeholder={upstreamUrl ?? 'https://example.com'}
+              className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
+              value={urlDraft}
+              onChange={(event) => setUrlDraft(event.target.value)}
+              onBlur={handleUrlCommit}
+              onKeyDown={handleUrlKeyDown}
+            />
+            {hasCustomUrl && (
+              <button
+                type="button"
+                className="px-2 py-1 text-[11px] rounded border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
+                onClick={resetUrl}
+              >
+                Reset
+              </button>
+            )}
           </div>
-        )}
+          {!hasCustomUrl && upstreamUrl && (
+            <p className="mt-1 text-[10px] text-gray-500 truncate" title={upstreamUrl}>
+              Inherits {upstreamUrl}
+            </p>
+          )}
+          {!effectiveUrl && !upstreamUrl && (
+            <p className="mt-1 text-[10px] text-red-400">Provide a URL to target this click.</p>
+          )}
+        </div>
 
         <div className="flex items-center gap-1 mb-2">
           <input
@@ -476,7 +588,7 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
           />
           <div
             className="inline-block"
-            title={!canUsePicker ? 'Connect to a Navigate or Screenshot node with preview to pick elements' : ''}
+            title={!canUsePicker ? 'Provide a screenshot and page URL to pick elements' : ''}
           >
             <button
               onClick={togglePicker}
@@ -629,14 +741,14 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
               <button
                 type="button"
                 className={`inline-flex items-center gap-1 text-[11px] transition-colors ${
-                  upstreamUrl
+                  effectiveUrl
                     ? 'text-gray-300 hover:text-white'
                     : 'text-gray-500 cursor-not-allowed'
                 }`}
-                disabled={!upstreamUrl}
+                disabled={!effectiveUrl}
                 onClick={() => {
-                  if (!upstreamUrl) {
-                    toast.error('Connect to a Navigate node to use AI suggestions');
+                  if (!effectiveUrl) {
+                    toast.error('Set a page URL to use AI suggestions');
                     return;
                   }
                   setShowAiPanel((prev) => !prev);

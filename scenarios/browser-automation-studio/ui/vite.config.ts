@@ -211,13 +211,9 @@ export default defineConfig({
         },
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
-        // Manual chunk splitting to reduce large bundle sizes
-        // Splits 609KB bootstrap.js into smaller, cacheable chunks
+        // Manual chunk splitting to reduce large bundle sizes while
+        // avoiding circular dependencies between vendor bundles.
         manualChunks: (id) => {
-          // React core dependencies
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
-            return 'react-vendor';
-          }
           // ReactFlow and related packages (largest dependency)
           if (id.includes('node_modules/reactflow') ||
               id.includes('node_modules/@reactflow') ||

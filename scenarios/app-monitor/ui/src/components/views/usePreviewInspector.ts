@@ -5,7 +5,7 @@ import { ensureDataUrl } from '@/utils/dataUrl';
 import { logger } from '@/services/logger';
 import type { ReportElementCapture } from '../report/reportTypes';
 import type { BridgeInspectState, UseIframeBridgeReturn } from '@/hooks/useIframeBridge';
-import type { BridgeInspectHoverPayload, BridgeInspectResultPayload, BridgeInspectRect } from '@vrooli/iframe-bridge';
+import type { BridgeInspectHoverPayload, BridgeInspectResultPayload, BridgeInspectRect, BridgeInspectAncestorMeta } from '@vrooli/iframe-bridge';
 
 const INSPECTOR_FLOATING_MARGIN = 12;
 type InspectorPosition = { x: number; y: number };
@@ -27,6 +27,8 @@ type UsePreviewInspectorParams = {
   inspectState: BridgeInspectState;
   startInspect: () => boolean;
   stopInspect: () => boolean;
+  setInspectTargetIndex: (index: number) => boolean;
+  shiftInspectTarget: (delta: number) => boolean;
   requestScreenshot: UseIframeBridgeReturn['requestScreenshot'];
   previewUrl: string | null;
   currentAppIdentifier: string | null;
@@ -90,6 +92,12 @@ export type PreviewInspectorState = {
   inspectAriaDescription: string | null;
   inspectTitleValue: string | null;
   inspectMethodLabel: string | null;
+  inspectAncestors: BridgeInspectAncestorMeta[];
+  inspectAncestorIndex: number;
+  inspectAncestorCanStepParent: boolean;
+  inspectAncestorCanStepChild: boolean;
+  handleInspectorAncestorStep: (delta: number) => void;
+  handleInspectorAncestorSelect: (index: number) => void;
   inspectorScreenshot: InspectorScreenshot | null;
   isInspectorScreenshotCapturing: boolean;
   inspectorScreenshotExpanded: boolean;
@@ -115,6 +123,8 @@ export const usePreviewInspector = ({
   inspectState,
   startInspect,
   stopInspect,
+  setInspectTargetIndex,
+  shiftInspectTarget,
   requestScreenshot,
   previewUrl,
   currentAppIdentifier,
@@ -135,6 +145,7 @@ export const usePreviewInspector = ({
   const [isInspectorDragging, setIsInspectorDragging] = useState(false);
   const [inspectorCaptureNote, setInspectorCaptureNote] = useState('');
   const [inspectorReportStatus, setInspectorReportStatus] = useState<InspectorReportStatus | null>(null);
+  const [inspectorAncestorIndex, setInspectorAncestorIndex] = useState(0);
 
   const inspectorDialogRef = useRef<HTMLDivElement | null>(null);
   const inspectorDefaultPositionAppliedRef = useRef(false);
@@ -146,6 +157,8 @@ export const usePreviewInspector = ({
   const inspectMessageLockRef = useRef<InspectMessageLock>({ locked: false, timer: null });
   const inspectorAutoOpenSuppressedRef = useRef(false);
   const lastInspectorScreenshotAtRef = useRef<number | null>(null);
+  const inspectorAncestorSignatureRef = useRef<string | null>(null);
+  const previousAncestorIndexRef = useRef<number>(0);
 
   const inspectorDialogTitleId = useId();
   const inspectorDetailsSectionId = useId();
@@ -190,10 +203,67 @@ export const usePreviewInspector = ({
   }, [isInspectorDialogOpen]);
 
   const inspectTarget = useMemo(() => inspectState.hover ?? inspectState.result, [inspectState.hover, inspectState.result]);
-  const inspectActiveTarget = inspectState.active ? inspectState.hover : null;
-  const inspectActiveMeta = inspectActiveTarget?.meta ?? null;
-  const inspectMeta = inspectTarget?.meta ?? null;
-  const inspectRect = inspectTarget?.documentRect ?? null;
+
+  const inspectAncestors = useMemo<BridgeInspectAncestorMeta[]>(() => {
+    if (!Array.isArray(inspectTarget?.ancestors) || inspectTarget.ancestors.length === 0) {
+      return [];
+    }
+    return inspectTarget.ancestors
+      .filter((ancestor): ancestor is BridgeInspectAncestorMeta => Boolean(ancestor))
+      .map((ancestor, depth) => ({
+        ...ancestor,
+        depth: typeof ancestor.depth === 'number' ? ancestor.depth : depth,
+      }));
+  }, [inspectTarget?.ancestors]);
+
+  const inspectAncestorSignature = useMemo(() => {
+    if (inspectAncestors.length === 0) {
+      return null;
+    }
+    return inspectAncestors.map((ancestor, index) => {
+      const selector = ancestor.selector ?? ancestor.tag ?? `node-${index}`;
+      const rect = ancestor.documentRect ?? ancestor.rect ?? null;
+      const rectPart = rect
+        ? `${Math.round(rect.x)}:${Math.round(rect.y)}:${Math.round(rect.width)}:${Math.round(rect.height)}`
+        : '0:0:0:0';
+      return `${selector}@${rectPart}`;
+    }).join('|');
+  }, [inspectAncestors]);
+
+  useEffect(() => {
+    if (inspectAncestors.length === 0) {
+      inspectorAncestorSignatureRef.current = null;
+      if (inspectorAncestorIndex !== 0) {
+        setInspectorAncestorIndex(0);
+      }
+      return;
+    }
+
+    const payloadIndex = inspectTarget?.selectedAncestorIndex ?? 0;
+    const clamped = Math.min(Math.max(payloadIndex, 0), inspectAncestors.length - 1);
+    const signature = inspectAncestorSignature;
+    const signatureChanged = inspectorAncestorSignatureRef.current !== signature;
+    inspectorAncestorSignatureRef.current = signature;
+
+    if (signatureChanged || inspectorAncestorIndex !== clamped) {
+      setInspectorAncestorIndex(clamped);
+    }
+  }, [inspectAncestors, inspectorAncestorIndex, inspectAncestorSignature, inspectTarget?.selectedAncestorIndex]);
+
+  const effectiveAncestorIndex = inspectAncestors.length > 0
+    ? Math.min(Math.max(inspectorAncestorIndex, 0), inspectAncestors.length - 1)
+    : 0;
+
+  const selectedAncestor = inspectAncestors.length > 0
+    ? inspectAncestors[effectiveAncestorIndex]
+    : null;
+
+  const inspectMeta = selectedAncestor ?? inspectTarget?.meta ?? null;
+
+  const inspectRect = selectedAncestor?.documentRect
+    ?? inspectTarget?.documentRect
+    ?? null;
+
   const inspectSizeLabel = inspectRect
     ? `${Math.round(inspectRect.width)} × ${Math.round(inspectRect.height)} px`
     : null;
@@ -226,40 +296,40 @@ export const usePreviewInspector = ({
     if (!inspectState.active) {
       return null;
     }
-    if (!inspectActiveMeta) {
+    if (!inspectMeta) {
       return 'Move finger to highlight an element';
     }
     const preferred = [
-      inspectActiveMeta.label,
-      inspectActiveMeta.ariaLabel,
-      inspectActiveMeta.title,
+      inspectMeta.label,
+      inspectMeta.ariaLabel,
+      inspectMeta.title,
     ].find(value => value && value.trim().length > 0);
     if (preferred) {
       return preferred.trim();
     }
-    const textValue = inspectActiveMeta.text?.trim();
+    const textValue = inspectMeta.text?.trim();
     if (textValue) {
       return textValue.length > 160 ? `${textValue.slice(0, 160)}…` : textValue;
     }
-    const selector = inspectActiveMeta.selector?.trim();
+    const selector = inspectMeta.selector?.trim();
     if (selector) {
       return selector.length > 160 ? `${selector.slice(0, 160)}…` : selector;
     }
     const tokens: string[] = [];
-    if (inspectActiveMeta.tag) {
-      tokens.push(inspectActiveMeta.tag.toLowerCase());
+    if (inspectMeta.tag) {
+      tokens.push(inspectMeta.tag.toLowerCase());
     }
-    if (inspectActiveMeta.id) {
-      tokens.push(`#${inspectActiveMeta.id}`);
+    if (inspectMeta.id) {
+      tokens.push(`#${inspectMeta.id}`);
     }
-    if (Array.isArray(inspectActiveMeta.classes) && inspectActiveMeta.classes.length > 0) {
-      tokens.push(`.${inspectActiveMeta.classes[0]}`);
+    if (Array.isArray(inspectMeta.classes) && inspectMeta.classes.length > 0) {
+      tokens.push(`.${inspectMeta.classes[0]}`);
     }
     if (tokens.length > 0) {
       return tokens.join('');
     }
     return 'Element';
-  }, [inspectActiveMeta, inspectState.active]);
+  }, [inspectMeta, inspectState.active]);
 
   const resolvePreviewBackgroundColor = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -351,6 +421,82 @@ export const usePreviewInspector = ({
     }, durationMs);
   }, [clearInspectMessageLock]);
 
+  const hasAncestorNavigation = inspectAncestors.length > 1;
+
+  const inspectAncestorCanStepParent = inspectState.active
+    && hasAncestorNavigation
+    && effectiveAncestorIndex < inspectAncestors.length - 1;
+
+  const inspectAncestorCanStepChild = inspectState.active
+    && hasAncestorNavigation
+    && effectiveAncestorIndex > 0;
+
+  const handleInspectorAncestorSelect = useCallback((index: number) => {
+    if (!inspectState.active) {
+      setLockedInspectMessage('Start element inspection to adjust the selection.', 3200);
+      return;
+    }
+    if (!Number.isFinite(index) || inspectAncestors.length === 0) {
+      return;
+    }
+    if (!hasAncestorNavigation) {
+      setLockedInspectMessage('Ancestor navigation is unavailable for this element.', 3200);
+      return;
+    }
+    const clamped = Math.min(Math.max(Math.floor(index), 0), inspectAncestors.length - 1);
+    if (clamped === effectiveAncestorIndex) {
+      return;
+    }
+    setInspectorAncestorIndex(clamped);
+    const ok = setInspectTargetIndex(clamped);
+    if (!ok) {
+      setInspectorAncestorIndex(effectiveAncestorIndex);
+      setLockedInspectMessage('Unable to adjust selection.', 3200);
+    }
+  }, [
+    effectiveAncestorIndex,
+    hasAncestorNavigation,
+    inspectAncestors.length,
+    inspectState.active,
+    setInspectTargetIndex,
+    setLockedInspectMessage,
+  ]);
+
+  const handleInspectorAncestorStep = useCallback((delta: number) => {
+    if (!inspectState.active) {
+      setLockedInspectMessage('Start element inspection to adjust the selection.', 3200);
+      return;
+    }
+    if (!Number.isFinite(delta) || delta === 0 || inspectAncestors.length === 0) {
+      return;
+    }
+    if (!hasAncestorNavigation) {
+      setLockedInspectMessage('Ancestor navigation is unavailable for this element.', 3200);
+      return;
+    }
+    const normalized = delta > 0 ? 1 : -1;
+    const nextIndex = Math.min(
+      Math.max(effectiveAncestorIndex + normalized, 0),
+      inspectAncestors.length - 1,
+    );
+    if (nextIndex === effectiveAncestorIndex) {
+      return;
+    }
+    setInspectorAncestorIndex(nextIndex);
+    const ok = shiftInspectTarget(normalized);
+    if (!ok) {
+      setInspectorAncestorIndex(effectiveAncestorIndex);
+      setLockedInspectMessage('Unable to adjust selection.', 3200);
+    }
+  }, [
+    effectiveAncestorIndex,
+    hasAncestorNavigation,
+    inspectAncestors.length,
+    inspectState.active,
+    setLockedInspectMessage,
+    shiftInspectTarget,
+  ]);
+
   const handleInspectorCaptureNoteChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setInspectorCaptureNote(event.target.value);
   }, []);
@@ -401,6 +547,13 @@ export const usePreviewInspector = ({
         title: inspectTitleValue,
         role: inspectMeta?.role ?? null,
         text: inspectTextValue ?? null,
+        ...(inspectAncestors.length > 0
+          ? {
+              ancestorIndex: effectiveAncestorIndex,
+              ancestorCount: inspectAncestors.length,
+              ancestorTrail: inspectAncestors.map(ancestor => ancestor.selector ?? ancestor.tag ?? null),
+            }
+          : {}),
         boundingBox: inspectRect
           ? {
               x: inspectRect.x,
@@ -429,6 +582,8 @@ export const usePreviewInspector = ({
     inspectTitleValue,
     inspectTextValue,
     inspectRect,
+    inspectAncestors,
+    effectiveAncestorIndex,
     onCaptureAdd,
     setLockedInspectMessage,
     setInspectorReportStatus,
@@ -532,7 +687,8 @@ export const usePreviewInspector = ({
     clearInspectMessageLock();
     setInspectorReportStatus(null);
     setInspectorCaptureNote('');
-  }, [clearInspectMessageLock, stopInspect]);
+    setInspectorAncestorIndex(0);
+  }, [clearInspectMessageLock, stopInspect, setInspectorAncestorIndex]);
 
   const handleInspectorInspectAnother = useCallback(() => {
     setInspectorReportStatus(null);
@@ -549,6 +705,7 @@ export const usePreviewInspector = ({
       return;
     }
     inspectorAutoOpenSuppressedRef.current = false;
+    setInspectorAncestorIndex(0);
     const started = startInspect();
     if (!started) {
       setLockedInspectMessage('Element inspector is unavailable for this preview.', 3600);
@@ -556,8 +713,8 @@ export const usePreviewInspector = ({
     }
     clearInspectMessageLock();
     setInspectStatusMessage(prefersCoarsePointer
-      ? 'Drag on the preview to target an element and lift your finger to capture. Press Esc to cancel.'
-      : 'Select an element in the preview. Press Esc to cancel.');
+      ? 'Drag on the preview to target an element and lift your finger to capture. Press Esc to cancel. Use Alt+↑/↓ to adjust the selection when available.'
+      : 'Select an element in the preview. Press Esc to cancel. Use Alt+↑/↓ to adjust the selection when available.');
   }, [
     clearInspectMessageLock,
     inspectState.active,
@@ -565,6 +722,7 @@ export const usePreviewInspector = ({
     prefersCoarsePointer,
     previewUrl,
     setLockedInspectMessage,
+    setInspectorAncestorIndex,
     startInspect,
   ]);
 
@@ -700,6 +858,20 @@ export const usePreviewInspector = ({
   }, [handleCaptureElementScreenshot]);
 
   useEffect(() => {
+    if (inspectAncestors.length === 0) {
+      previousAncestorIndexRef.current = 0;
+      return;
+    }
+    const clamped = Math.min(Math.max(inspectorAncestorIndex, 0), inspectAncestors.length - 1);
+    if (previousAncestorIndexRef.current !== clamped) {
+      previousAncestorIndexRef.current = clamped;
+      if (inspectorScreenshot) {
+        setInspectorScreenshot(null);
+      }
+    }
+  }, [inspectAncestors.length, inspectorAncestorIndex, inspectorScreenshot]);
+
+  useEffect(() => {
     const capturedAt = inspectorScreenshot?.capturedAt ?? null;
     if (capturedAt === lastInspectorScreenshotAtRef.current) {
       return;
@@ -717,10 +889,49 @@ export const usePreviewInspector = ({
   }, [inspectState.active]);
 
   useEffect(() => {
+    if (!isInspectorDialogOpen || !inspectState.active) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      if (event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          handleInspectorAncestorStep(1);
+        } else if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          handleInspectorAncestorStep(-1);
+        }
+        return;
+      }
+
+      if (!event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (event.key === '[') {
+          event.preventDefault();
+          handleInspectorAncestorStep(1);
+        } else if (event.key === ']') {
+          event.preventDefault();
+          handleInspectorAncestorStep(-1);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleInspectorAncestorStep, inspectState.active, isInspectorDialogOpen]);
+
+  useEffect(() => {
     if (!inspectState.result || inspectState.lastReason !== 'complete') {
       return;
     }
-    const { meta, documentRect, method } = inspectState.result;
+    const { meta, documentRect, method, selectedAncestorIndex } = inspectState.result;
     const signatureParts = [
       meta?.selector ?? '',
       meta?.id ?? '',
@@ -730,6 +941,7 @@ export const usePreviewInspector = ({
       documentRect ? Math.round(documentRect.width) : 0,
       documentRect ? Math.round(documentRect.height) : 0,
       method ?? '',
+      typeof selectedAncestorIndex === 'number' ? selectedAncestorIndex.toString(10) : '',
     ];
     const signature = signatureParts.join('|');
     if (lastCapturedResultSignatureRef.current === signature) {
@@ -962,6 +1174,12 @@ export const usePreviewInspector = ({
     inspectAriaDescription,
     inspectTitleValue,
     inspectMethodLabel,
+    inspectAncestors,
+    inspectAncestorIndex: effectiveAncestorIndex,
+    inspectAncestorCanStepParent,
+    inspectAncestorCanStepChild,
+    handleInspectorAncestorStep,
+    handleInspectorAncestorSelect,
     inspectorScreenshot,
     isInspectorScreenshotCapturing,
     inspectorScreenshotExpanded,

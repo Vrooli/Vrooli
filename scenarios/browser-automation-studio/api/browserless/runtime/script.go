@@ -842,6 +842,645 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
         }
         break;
       }
+      case 'shortcut': {
+        const rawKeys = Array.isArray(params.shortcutKeys)
+          ? params.shortcutKeys.filter((value) => typeof value === 'string').map((value) => value.trim()).filter(Boolean)
+          : [];
+        if (!rawKeys.length) {
+          throw new Error('shortcut step missing shortcuts');
+        }
+
+        const normalizeShortcut = (value) => {
+          if (typeof value !== 'string') {
+            return '';
+          }
+          const segments = value.split('+').map((segment) => segment.trim()).filter(Boolean);
+          return segments.length ? segments.join('+') : '';
+        };
+
+        const normalizedKeys = rawKeys
+          .map((combo) => normalizeShortcut(combo))
+          .filter((combo, index, array) => combo && array.indexOf(combo) === index);
+
+        if (!normalizedKeys.length) {
+          throw new Error('shortcut step has no valid shortcuts');
+        }
+
+        const timeout = Number.isFinite(params.timeoutMs) ? params.timeoutMs : __DEFAULT_TIMEOUT__;
+        let elementHandle = null;
+        if (typeof params.focusSelector === 'string' && params.focusSelector.trim().length > 0) {
+          elementHandle = await page.waitForSelector(params.focusSelector, { timeout, state: 'attached' }).catch(() => null);
+          if (!elementHandle) {
+            throw new Error('shortcut focus selector not found');
+          }
+          try {
+            if (typeof elementHandle.scrollIntoViewIfNeeded === 'function') {
+              await elementHandle.scrollIntoViewIfNeeded();
+            } else {
+              await elementHandle.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }));
+            }
+            if (typeof elementHandle.focus === 'function') {
+              await elementHandle.focus();
+            } else if (typeof params.focusSelector === 'string' && params.focusSelector.trim().length > 0) {
+              await page.focus(params.focusSelector).catch(() => {});
+            }
+          } catch (_) {}
+        }
+
+        const delay = Number.isFinite(params.shortcutDelayMs) ? Math.max(params.shortcutDelayMs, 0) : 0;
+        for (const combo of normalizedKeys) {
+          if (!combo) {
+            continue;
+          }
+          if (delay > 0) {
+            await page.keyboard.press(combo, { delay });
+          } else {
+            await page.keyboard.press(combo);
+          }
+        }
+
+        if (params.waitForMs) {
+          await waitForTime(params.waitForMs);
+        }
+
+        extras = { shortcuts: normalizedKeys };
+        if (elementHandle) {
+          const boundingBox = await elementHandle.boundingBox().catch(() => null);
+          if (boundingBox) {
+            extras.elementBoundingBox = {
+              x: boundingBox.x,
+              y: boundingBox.y,
+              width: boundingBox.width,
+              height: boundingBox.height,
+            };
+          }
+          if (typeof elementHandle.dispose === 'function') {
+            await elementHandle.dispose();
+          }
+        }
+        break;
+      }
+      case 'probeElements': {
+        const rawX = Number.isFinite(params.probeX) ? params.probeX : 0;
+        const rawY = Number.isFinite(params.probeY) ? params.probeY : 0;
+        const probeRadius = Number.isFinite(params.probeRadius) ? Math.max(1, Math.min(params.probeRadius, 48)) : 6;
+        const probeSamples = Number.isFinite(params.probeSamples) ? Math.max(4, Math.min(params.probeSamples, 64)) : 24;
+
+        await ensureDocumentHydrated();
+
+        const probeResult = await page.evaluate(async (payload) => {
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+          const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+          const waitForReady = async () => {
+            const deadline = Date.now() + 5000;
+            while (Date.now() < deadline) {
+              const ready = document.readyState;
+              const hasBody = document.body && document.body.children && document.body.children.length > 0;
+              if ((ready === 'interactive' || ready === 'complete') && hasBody) {
+                return true;
+              }
+              await sleep(120);
+            }
+            return false;
+          };
+
+          await waitForReady();
+
+          const devicePixelRatio = Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+          const baseX = payload.rawX / devicePixelRatio;
+          const baseY = payload.rawY / devicePixelRatio;
+
+          const getViewport = () => ({
+            width: window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth || 0,
+            height: window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight || 0,
+            scrollWidth: document.documentElement.scrollWidth || document.body.scrollWidth || 0,
+            scrollHeight: document.documentElement.scrollHeight || document.body.scrollHeight || 0,
+          });
+
+          const getScroll = () => ({
+            x: window.scrollX || window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0,
+            y: window.scrollY || window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0,
+          });
+
+          const ensurePointVisible = () => {
+            const viewport = getViewport();
+            const scroll = getScroll();
+            if (viewport.width <= 0 || viewport.height <= 0) {
+              return;
+            }
+
+            let nextX = scroll.x;
+            let nextY = scroll.y;
+
+            if (baseX < scroll.x || baseX > scroll.x + viewport.width) {
+              const maxX = Math.max(viewport.scrollWidth - viewport.width, 0);
+              nextX = clamp(baseX - viewport.width / 2, 0, maxX);
+            }
+
+            if (baseY < scroll.y || baseY > scroll.y + viewport.height) {
+              const maxY = Math.max(viewport.scrollHeight - viewport.height, 0);
+              nextY = clamp(baseY - viewport.height / 2, 0, maxY);
+            }
+
+            if (nextX !== scroll.x || nextY !== scroll.y) {
+              window.scrollTo(nextX, nextY);
+            }
+          };
+
+          ensurePointVisible();
+          await sleep(50);
+
+          const viewportMetrics = getViewport();
+          const scrollMetrics = getScroll();
+          const viewportX = viewportMetrics.width > 0
+            ? clamp(baseX - scrollMetrics.x, 0, Math.max(viewportMetrics.width - 1, 0))
+            : baseX - scrollMetrics.x;
+          const viewportY = viewportMetrics.height > 0
+            ? clamp(baseY - scrollMetrics.y, 0, Math.max(viewportMetrics.height - 1, 0))
+            : baseY - scrollMetrics.y;
+
+          const ordered = [];
+          const seen = new Set();
+
+          const push = (element) => {
+            if (!element || element.nodeType !== Node.ELEMENT_NODE || seen.has(element)) {
+              return;
+            }
+            seen.add(element);
+            ordered.push(element);
+          };
+
+          const addParents = (element) => {
+            let current = element ? element.parentElement : null;
+            let guard = 0;
+            while (current && guard < 25) {
+              push(current);
+              current = current.parentElement;
+              guard += 1;
+            }
+          };
+
+          const addShadowContents = (element, pointX, pointY) => {
+            if (!element || !element.shadowRoot) {
+              return;
+            }
+            const shadowElements = Array.from(element.shadowRoot.elementsFromPoint(pointX, pointY) || []);
+            for (const nested of shadowElements) {
+              push(nested);
+              addShadowContents(nested, pointX, pointY);
+              addParents(nested);
+            }
+          };
+
+          const gatherFromPoint = (pointX, pointY) => {
+            const elements = Array.from(document.elementsFromPoint(pointX, pointY) || []);
+            for (const element of elements) {
+              push(element);
+              addShadowContents(element, pointX, pointY);
+              addParents(element);
+            }
+          };
+
+          gatherFromPoint(viewportX, viewportY);
+
+          const isMeaningful = (element) => {
+            if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+              return false;
+            }
+            const tag = element.tagName ? element.tagName.toLowerCase() : '';
+            return tag && tag !== 'html' && tag !== 'body';
+          };
+
+          const buildOffsets = () => {
+            const offsets = [{ dx: 0, dy: 0 }];
+            const sampleLimit = Math.max(1, Math.min(64, payload.samples || 24));
+            const maxDistance = Math.max(1, Math.min(16, payload.radius || 6));
+            for (let dist = 1; dist <= maxDistance && offsets.length < sampleLimit; dist += 1) {
+              const combos = [
+                { dx: dist, dy: 0 },
+                { dx: -dist, dy: 0 },
+                { dx: 0, dy: dist },
+                { dx: 0, dy: -dist },
+                { dx: dist, dy: dist },
+                { dx: dist, dy: -dist },
+                { dx: -dist, dy: dist },
+                { dx: -dist, dy: -dist },
+              ];
+              for (const combo of combos) {
+                offsets.push(combo);
+                if (offsets.length >= sampleLimit) {
+                  break;
+                }
+              }
+            }
+            return offsets;
+          };
+
+          if (!ordered.some(isMeaningful)) {
+            const offsets = buildOffsets();
+            const clampX = (value) => viewportMetrics.width > 0 ? clamp(value, 0, Math.max(viewportMetrics.width - 1, 0)) : value;
+            const clampY = (value) => viewportMetrics.height > 0 ? clamp(value, 0, Math.max(viewportMetrics.height - 1, 0)) : value;
+            for (const offset of offsets) {
+              const sampleX = clampX(viewportX + offset.dx);
+              const sampleY = clampY(viewportY + offset.dy);
+              gatherFromPoint(sampleX, sampleY);
+              if (ordered.some(isMeaningful)) {
+                break;
+              }
+            }
+          }
+
+          const getScrollAwareBox = (element) => {
+            const rect = element.getBoundingClientRect();
+            if (!rect || rect.width <= 0 || rect.height <= 0) {
+              return null;
+            }
+            const scroll = getScroll();
+            return {
+              x: rect.x + scroll.x,
+              y: rect.y + scroll.y,
+              width: rect.width,
+              height: rect.height,
+            };
+          };
+
+          const collectBoundingMatches = () => {
+            const results = [];
+            const stack = [{ element: document.documentElement, depth: 0 }];
+            const visited = new Set();
+            let scanned = 0;
+            const maxScanned = 6000;
+            while (stack.length > 0 && scanned < maxScanned) {
+              const current = stack.pop();
+              scanned += 1;
+              if (!current || !current.element || current.element.nodeType !== Node.ELEMENT_NODE) {
+                continue;
+              }
+              const element = current.element;
+              if (visited.has(element)) {
+                continue;
+              }
+              visited.add(element);
+
+              const rect = getScrollAwareBox(element);
+              if (rect) {
+                if (baseX >= rect.x && baseX <= rect.x + rect.width && baseY >= rect.y && baseY <= rect.y + rect.height) {
+                  results.push({ element, rect, depth: current.depth });
+                }
+              }
+
+              const children = element.children;
+              if (children && children.length > 0) {
+                for (let i = children.length - 1; i >= 0; i -= 1) {
+                  stack.push({ element: children[i], depth: current.depth + 1 });
+                }
+              }
+
+              if (element.shadowRoot && element.shadowRoot.children) {
+                const shadowChildren = element.shadowRoot.children;
+                for (let i = shadowChildren.length - 1; i >= 0; i -= 1) {
+                  stack.push({ element: shadowChildren[i], depth: current.depth + 1 });
+                }
+              }
+            }
+
+            results.sort((a, b) => {
+              if (b.depth !== a.depth) {
+                return b.depth - a.depth;
+              }
+              const areaA = a.rect.width * a.rect.height;
+              const areaB = b.rect.width * b.rect.height;
+              return areaA - areaB;
+            });
+
+            return results.slice(0, 80);
+          };
+
+          if (!ordered.length || ordered.every((element) => !isMeaningful(element))) {
+            const boundingHits = collectBoundingMatches();
+            for (const hit of boundingHits) {
+              if (!hit || !hit.element) {
+                continue;
+              }
+              push(hit.element);
+              addParents(hit.element);
+            }
+          }
+
+          if (!ordered.length) {
+            const fallback = document.body || document.documentElement;
+            if (fallback) {
+              push(fallback);
+              addParents(fallback);
+            }
+          }
+
+          const calculateConfidence = (element) => {
+            let confidence = 0.1;
+            const rect = element.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) confidence += 0.3;
+            if (element.textContent && element.textContent.trim()) confidence += 0.2;
+            const tagName = element.tagName.toLowerCase();
+            if ([ 'button', 'input', 'select', 'textarea' ].includes(tagName)) confidence += 0.3;
+            if (tagName === 'a' && typeof element.href === 'string' && element.href) confidence += 0.2;
+            if (element.getAttribute('role') === 'button') confidence += 0.2;
+            return Math.min(confidence, 1.0);
+          };
+
+          const generateSelectors = (element) => {
+            const selectors = [];
+            if (element.id) {
+              selectors.push({ selector: '#' + element.id, type: 'id', robustness: 0.9, fallback: false });
+            }
+            for (const attr of element.attributes || []) {
+              if (attr.name && attr.name.startsWith('data-')) {
+                selectors.push({ selector: '[' + attr.name + '="' + attr.value + '"]', type: 'data-attr', robustness: 0.8, fallback: false });
+              }
+            }
+            const className = typeof element.className === 'string' ? element.className : '';
+            if (className) {
+              const classes = className.split(/\s+/).filter(Boolean);
+              const semanticClasses = classes.filter((cls) => /^(btn|button|link|nav|menu|form|input|submit|login|search)/.test(cls));
+              if (semanticClasses.length > 0) {
+                selectors.push({ selector: '.' + semanticClasses[0], type: 'class', robustness: 0.6, fallback: false });
+              }
+            }
+            let cssSelector = element.tagName.toLowerCase();
+            if (element.type) cssSelector += '[type="' + element.type + '"]';
+            if (element.name) cssSelector += '[name="' + element.name + '"]';
+            selectors.push({ selector: cssSelector, type: 'css', robustness: 0.4, fallback: true });
+            selectors.sort((a, b) => b.robustness - a.robustness);
+            return selectors;
+          };
+
+          const categorizeElement = (element) => {
+            const text = element.textContent?.toLowerCase() || '';
+            const type = element.type?.toLowerCase() || '';
+            const tagName = element.tagName.toLowerCase();
+            if (type === 'password' || text.includes('password') || text.includes('login') || text.includes('sign in')) {
+              return 'authentication';
+            }
+            if (type === 'search' || text.includes('search') || (typeof element.name === 'string' && element.name.includes('search'))) {
+              return 'data-entry';
+            }
+            if (tagName === 'a' || text.includes('menu') || text.includes('nav')) {
+              return 'navigation';
+            }
+            if (type === 'submit' || text.includes('submit') || text.includes('save') || text.includes('send')) {
+              return 'actions';
+            }
+            if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+              return 'data-entry';
+            }
+            return 'general';
+          };
+
+          const describePathSegment = (element) => {
+            if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+              return '';
+            }
+            const tag = element.tagName.toLowerCase();
+            if (element.id) {
+              return tag + '#' + element.id;
+            }
+            const classList = typeof element.className === 'string'
+              ? element.className.split(/\s+/).filter(Boolean).slice(0, 2)
+              : [];
+            let descriptor = tag;
+            if (classList.length > 0) {
+              descriptor += '.' + classList.join('.');
+            }
+            const parent = element.parentElement;
+            if (parent) {
+              const siblings = Array.from(parent.children).filter((sibling) => sibling.tagName === element.tagName);
+              if (siblings.length > 1) {
+                const index = siblings.indexOf(element);
+                if (index >= 0) {
+                  descriptor += ':nth-of-type(' + (index + 1) + ')';
+                }
+              }
+            }
+            return descriptor;
+          };
+
+          const buildDomPath = (element) => {
+            const segments = [];
+            let current = element;
+            let safety = 0;
+            while (current && current.nodeType === Node.ELEMENT_NODE && safety < 25) {
+              segments.push(describePathSegment(current));
+              current = current.parentElement;
+              safety += 1;
+            }
+            return segments;
+          };
+
+          const buildFallbackSelector = (element) => {
+            if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+              return '';
+            }
+            if (element.id) {
+              return '#' + element.id;
+            }
+            const segments = [];
+            let current = element;
+            let guard = 0;
+            while (current && current.nodeType === Node.ELEMENT_NODE && guard < 25) {
+              if (current.id) {
+                segments.unshift('#' + current.id);
+                break;
+              }
+              const tag = current.tagName.toLowerCase();
+              const parent = current.parentElement;
+              if (!parent) {
+                segments.unshift(tag);
+                break;
+              }
+              const siblings = Array.from(parent.children).filter((sibling) => sibling.tagName === current.tagName);
+              if (siblings.length > 1) {
+                const index = siblings.indexOf(current);
+                segments.unshift(tag + ':nth-of-type(' + (index + 1) + ')');
+              } else {
+                segments.unshift(tag);
+              }
+              current = parent;
+              guard += 1;
+            }
+            return segments.join(' > ');
+          };
+
+          const buildElementInfo = (element) => {
+            if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+              return null;
+            }
+            const rect = element.getBoundingClientRect();
+            if (!rect || rect.width <= 0 || rect.height <= 0) {
+              return null;
+            }
+            const textContent = element.textContent?.trim() || element.value || element.placeholder || '';
+            return {
+              text: textContent.substring(0, 100),
+              tagName: element.tagName,
+              type: element.type || element.tagName.toLowerCase(),
+              selectors: generateSelectors(element),
+              boundingBox: {
+                x: rect.x,
+                y: rect.y,
+                width: rect.width,
+                height: rect.height,
+              },
+              confidence: calculateConfidence(element),
+              category: categorizeElement(element),
+              attributes: {
+                id: element.id || '',
+                className: typeof element.className === 'string' ? element.className : '',
+                name: element.name || '',
+                placeholder: element.placeholder || '',
+                'aria-label': element.getAttribute('aria-label') || '',
+                title: element.title || '',
+              },
+            };
+          };
+
+          const rawCandidates = ordered.map((element) => {
+            const info = buildElementInfo(element);
+            if (!info) {
+              return null;
+            }
+            const selectors = Array.isArray(info.selectors) ? info.selectors : [];
+            const fallbackSelector = buildFallbackSelector(element);
+            const selector = selectors.length > 0 && typeof selectors[0].selector === 'string'
+              ? selectors[0].selector
+              : fallbackSelector;
+            const path = buildDomPath(element);
+            const pathSummary = path.length > 0 ? path.slice().reverse().join(' > ') : fallbackSelector;
+            return {
+              element: info,
+              selector: selector || fallbackSelector || '',
+              depth: path.length,
+              path,
+              pathSummary,
+            };
+          }).filter(Boolean);
+
+          if (!rawCandidates.length && ordered.length) {
+            const fallbackElement = ordered[0];
+            const info = buildElementInfo(fallbackElement);
+            if (info) {
+              const selectors = Array.isArray(info.selectors) ? info.selectors : [];
+              const fallbackSelector = buildFallbackSelector(fallbackElement);
+              const selector = selectors.length > 0 && typeof selectors[0].selector === 'string'
+                ? selectors[0].selector
+                : fallbackSelector;
+              const path = buildDomPath(fallbackElement);
+              rawCandidates.push({
+                element: info,
+                selector: selector || fallbackSelector || '',
+                depth: path.length,
+                path,
+                pathSummary: path.length > 0 ? path.slice().reverse().join(' > ') : selector,
+              });
+            }
+          }
+
+          const scoreCandidate = (candidate) => {
+            if (!candidate || !candidate.element) {
+              return -1000;
+            }
+            const element = candidate.element;
+            const tag = (element.tagName || '').toLowerCase();
+            const isRoot = tag === 'html' || tag === 'body';
+            const interactiveTags = ['button', 'a', 'input', 'select', 'textarea', 'label', 'option'];
+            const interactiveScore = interactiveTags.includes(tag) ? 30 : 0;
+            const hasId = !!(element.attributes && typeof element.attributes.id === 'string' && element.attributes.id.trim().length > 0);
+            const hasReliableSelector = Array.isArray(element.selectors)
+              ? element.selectors.some((entry) => entry && entry.fallback === false && typeof entry.selector === 'string' && entry.selector.trim().length > 0)
+              : false;
+            const textScore = element.text && element.text.trim().length > 0 ? 2 : 0;
+            const box = element.boundingBox;
+            const area = box && box.width > 0 && box.height > 0 ? box.width * box.height : 0;
+            let score = 0;
+            score += Number.isFinite(candidate.depth) ? candidate.depth * 10 : 0;
+            score += interactiveScore;
+            if (hasId) {
+              score += 8;
+            }
+            if (hasReliableSelector) {
+              score += 5;
+            }
+            score += textScore;
+            if (area > 0) {
+              score -= Math.min(Math.log(area + 1), 8);
+            }
+            if (isRoot) {
+              score -= 50;
+            }
+            return score;
+          };
+
+          const candidates = rawCandidates.length > 1
+            ? rawCandidates.slice().sort((a, b) => scoreCandidate(b) - scoreCandidate(a))
+            : rawCandidates.slice();
+
+          let selectedIndex = candidates.findIndex((candidate) => {
+            if (!candidate || !candidate.element) {
+              return false;
+            }
+            const tag = (candidate.element.tagName || '').toLowerCase();
+            if (!tag || tag === 'html' || tag === 'body') {
+              return false;
+            }
+            const box = candidate.element.boundingBox;
+            return box && box.width > 0 && box.height > 0;
+          });
+
+          if (selectedIndex === -1) {
+            selectedIndex = candidates.findIndex((candidate) => {
+              if (!candidate || !candidate.element) {
+                return false;
+              }
+              const tag = (candidate.element.tagName || '').toLowerCase();
+              return tag && tag !== 'html' && tag !== 'body';
+            });
+          }
+
+          if (selectedIndex === -1 && candidates.length > 0) {
+            selectedIndex = 0;
+          }
+
+          const chosen = selectedIndex >= 0 ? candidates[selectedIndex] : null;
+          const clickPosition = chosen && chosen.element && chosen.element.boundingBox
+            ? {
+                x: chosen.element.boundingBox.x + (chosen.element.boundingBox.width / 2),
+                y: chosen.element.boundingBox.y + (chosen.element.boundingBox.height / 2),
+              }
+            : null;
+
+          return {
+            element: chosen ? chosen.element : null,
+            candidates,
+            selectedIndex: selectedIndex >= 0 ? selectedIndex : 0,
+            clickPosition,
+          };
+        }, {
+          rawX,
+          rawY,
+          radius: probeRadius,
+          samples: probeSamples,
+        });
+
+        if (!probeResult || (probeResult.error && probeResult.error.length)) {
+          const message = probeResult && probeResult.error ? probeResult.error : 'Element probe failed';
+          throw new Error(message);
+        }
+
+        extras = { probeResult };
+        if (probeResult && probeResult.clickPosition) {
+          extras.clickPosition = probeResult.clickPosition;
+        }
+        break;
+      }
       case 'extract': {
         if (!params.selector) {
           throw new Error('extract step missing selector');

@@ -7,6 +7,7 @@ export interface ConfigResponse {
   wsUrl?: string;
   apiPort?: string;
   wsPort?: string;
+  uiPort?: string;
 }
 
 export interface Config {

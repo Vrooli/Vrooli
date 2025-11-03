@@ -12,44 +12,46 @@ const normalizeHierarchy = (value: unknown): ElementHierarchyEntry[] => {
     return [];
   }
 
-  return value
-    .map((entry) => {
-      if (!entry || typeof entry !== 'object') {
-        return null;
-      }
+  const results: ElementHierarchyEntry[] = [];
 
-      const candidate = entry as Partial<ElementHierarchyEntry> & { element?: ElementInfo };
-      if (!candidate.element) {
-        return null;
-      }
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') {
+      continue;
+    }
 
-      const selector = typeof candidate.selector === 'string' && candidate.selector.trim().length > 0
-        ? candidate.selector.trim()
-        : (Array.isArray(candidate.element.selectors) && candidate.element.selectors.length > 0
-            ? candidate.element.selectors[0].selector
-            : '');
+    const candidate = entry as Partial<ElementHierarchyEntry> & { element?: ElementInfo };
+    if (!candidate.element) {
+      continue;
+    }
 
-      const depth = Number.isFinite(candidate.depth as number)
-        ? Number(candidate.depth)
-        : 0;
+    const selector = typeof candidate.selector === 'string' && candidate.selector.trim().length > 0
+      ? candidate.selector.trim()
+      : (Array.isArray(candidate.element.selectors) && candidate.element.selectors.length > 0
+          ? candidate.element.selectors[0].selector
+          : '');
 
-      const path = Array.isArray(candidate.path)
-        ? candidate.path.filter((segment): segment is string => typeof segment === 'string')
-        : [];
+    const depth = Number.isFinite(candidate.depth as number)
+      ? Number(candidate.depth)
+      : 0;
 
-      const pathSummary = typeof candidate.pathSummary === 'string' && candidate.pathSummary.trim().length > 0
-        ? candidate.pathSummary
-        : path.join(' > ');
+    const path = Array.isArray(candidate.path)
+      ? candidate.path.filter((segment): segment is string => typeof segment === 'string')
+      : [];
 
-      return {
-        element: candidate.element,
-        selector,
-        depth,
-        path,
-        pathSummary,
-      };
-    })
-    .filter((entry): entry is ElementHierarchyEntry => Boolean(entry && entry.element));
+    const summary = typeof candidate.pathSummary === 'string' && candidate.pathSummary.trim().length > 0
+      ? candidate.pathSummary.trim()
+      : path.join(' > ');
+
+    results.push({
+      element: candidate.element,
+      selector,
+      depth,
+      path,
+      pathSummary: summary || undefined,
+    });
+  }
+
+  return results;
 };
 
 const deriveSelector = (entry: ElementHierarchyEntry | null | undefined): string => {

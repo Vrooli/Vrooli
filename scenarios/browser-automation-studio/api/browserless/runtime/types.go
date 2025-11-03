@@ -20,14 +20,16 @@ type StepResult struct {
 	DurationMs         int               `json:"durationMs,omitempty"`
 	ScreenshotBase64   string            `json:"screenshotBase64,omitempty"`
 	FinalURL           string            `json:"finalUrl,omitempty"`
-	Scenario           string            `json:"scenario,omitempty"`           // Scenario name for navigate nodes
-	ScenarioPath       string            `json:"scenarioPath,omitempty"`       // Scenario path for navigate nodes
-	DestinationType    string            `json:"destinationType,omitempty"`    // url or scenario
+	Scenario           string            `json:"scenario,omitempty"`        // Scenario name for navigate nodes
+	ScenarioPath       string            `json:"scenarioPath,omitempty"`    // Scenario path for navigate nodes
+	DestinationType    string            `json:"destinationType,omitempty"` // url or scenario
 	ConsoleLogs        []ConsoleLog      `json:"consoleLogs,omitempty"`
 	NetworkEvents      []NetworkEvent    `json:"networkEvents,omitempty"`
 	ElementBoundingBox *BoundingBox      `json:"elementBoundingBox,omitempty"`
 	ClickPosition      *Point            `json:"clickPosition,omitempty"`
 	ExtractedData      any               `json:"extractedData,omitempty"`
+	Shortcuts          []string          `json:"shortcuts,omitempty"`
+	ProbeResult        map[string]any    `json:"probeResult,omitempty"`
 	FocusedElement     *ElementFocus     `json:"focusedElement,omitempty"`
 	HighlightRegions   []HighlightRegion `json:"highlightRegions,omitempty"`
 	MaskRegions        []MaskRegion      `json:"maskRegions,omitempty"`

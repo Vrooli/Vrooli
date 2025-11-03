@@ -49,6 +49,7 @@ import type {
   TimelineFrame,
   TimelineArtifact,
 } from "../stores/executionStore";
+import { useWorkflowStore } from "../stores/workflowStore";
 import type { Screenshot, LogEntry } from "../stores/executionEventProcessor";
 import { toast } from "react-hot-toast";
 import ResponsiveDialog from "./ResponsiveDialog";
@@ -151,7 +152,7 @@ const geometricMosaicUrl = resolveBackgroundAsset(
   "../assets/replay-backgrounds/geometric-mosaic.jpg",
 );
 
-interface ExecutionProps {
+interface ActiveExecutionProps {
   execution: Execution;
   onClose?: () => void;
   showExecutionSwitcher?: boolean;
@@ -789,11 +790,11 @@ const isReplayCursorClickAnimation = (
       ),
   );
 
-function ExecutionViewer({
+function ActiveExecutionViewer({
   execution,
   onClose,
   showExecutionSwitcher = false,
-}: ExecutionProps) {
+}: ActiveExecutionProps) {
   const refreshTimeline = useExecutionStore((state) => state.refreshTimeline);
   const stopExecution = useExecutionStore((state) => state.stopExecution);
   const startExecution = useExecutionStore((state) => state.startExecution);
@@ -4348,6 +4349,270 @@ function ExecutionViewer({
         </div>
       </ResponsiveDialog>
     </div>
+  );
+}
+
+interface EmptyExecutionViewerProps {
+  workflowId: string;
+  onClose?: () => void;
+  showExecutionSwitcher?: boolean;
+}
+
+interface ExecutionViewerProps {
+  workflowId: string;
+  execution: Execution | null;
+  onClose?: () => void;
+  showExecutionSwitcher?: boolean;
+}
+
+const useCurrentWorkflowName = () =>
+  useWorkflowStore((state) => state.currentWorkflow?.name ?? "Workflow");
+
+const useWorkflowSave = () => useWorkflowStore((state) => state.saveWorkflow);
+
+function EmptyExecutionViewer({
+  workflowId,
+  onClose,
+  showExecutionSwitcher = false,
+}: EmptyExecutionViewerProps) {
+  const [activeTab, setActiveTab] = useState<ViewerTab>("replay");
+  const [isStarting, setIsStarting] = useState(false);
+  const startExecution = useExecutionStore((state) => state.startExecution);
+  const loadExecution = useExecutionStore((state) => state.loadExecution);
+  const workflowName = useCurrentWorkflowName();
+  const saveWorkflow = useWorkflowSave();
+
+  const handleStart = useCallback(async () => {
+    if (!workflowId) {
+      toast.error("Unable to determine workflow to execute");
+      return;
+    }
+
+    setIsStarting(true);
+    try {
+      await startExecution(workflowId, () =>
+        saveWorkflow({
+          source: "execution-run",
+          changeDescription: "Autosave before execution",
+        }),
+      );
+      toast.success("Workflow execution started");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to start workflow";
+      toast.error(message);
+    } finally {
+      setIsStarting(false);
+    }
+  }, [startExecution, workflowId, saveWorkflow]);
+
+  const handleHistorySelect = useCallback(
+    async (candidate: { id: string }) => {
+      if (!candidate?.id) {
+        return;
+      }
+      try {
+        await loadExecution(candidate.id);
+        setActiveTab("replay");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to load execution";
+        toast.error(message);
+      }
+    },
+    [loadExecution],
+  );
+
+  const renderStartButton = (options?: { variant?: "compact" | "large" }) => {
+    const variant = options?.variant ?? "compact";
+    const baseClasses =
+      "inline-flex items-center gap-2 rounded-md font-medium transition focus:outline-none focus:ring-2 focus:ring-flow-accent/70 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-60";
+    const palette =
+      variant === "large"
+        ? "bg-flow-accent px-5 py-2.5 text-base text-white shadow-lg shadow-flow-accent/30 hover:bg-flow-accent/90"
+        : "bg-flow-accent px-3 py-1.5 text-sm text-white shadow-md shadow-flow-accent/30 hover:bg-flow-accent/85";
+
+    return (
+      <button
+        type="button"
+        onClick={handleStart}
+        disabled={isStarting}
+        className={`${baseClasses} ${palette}`}
+      >
+        {isStarting ? (
+          <Loader size={16} className="animate-spin" />
+        ) : (
+          <PlayCircle size={16} />
+        )}
+        <span>{isStarting ? "Starting…" : "Start workflow"}</span>
+      </button>
+    );
+  };
+
+  const renderEmptyTab = (title: string, description: string) => (
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+      <div className="max-w-md space-y-2">
+        <h3 className="text-lg font-semibold text-white">{title}</h3>
+        <p className="text-sm text-slate-400">{description}</p>
+      </div>
+      {renderStartButton({ variant: "large" })}
+    </div>
+  );
+
+  return (
+    <div className="h-full flex flex-col bg-flow-node min-h-0">
+      <div className="flex items-center justify-between p-3 border-b border-gray-800">
+        <div className="flex items-center gap-3">
+          <PlayCircle size={20} className="text-flow-accent" />
+          <div>
+            <div className="text-sm font-medium text-white">{workflowName}</div>
+            <div className="text-xs text-gray-500">
+              Execution viewer ready — no runs started yet
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {renderStartButton()}
+          {onClose && (
+            <button
+              className="toolbar-button p-1.5 ml-2 border-l border-gray-700 pl-3"
+              title="Close"
+              onClick={onClose}
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="h-2 bg-flow-bg">
+        <div
+          className="h-full bg-flow-accent transition-all duration-300"
+          style={{ width: "0%" }}
+        />
+      </div>
+
+      <div className="flex border-b border-gray-800">
+        <button
+          className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+            activeTab === "replay"
+              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
+              : "text-gray-400 hover:text-white"
+          }`}
+          onClick={() => setActiveTab("replay")}
+        >
+          <PlayCircle size={14} />
+          Replay (0)
+        </button>
+        <button
+          className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+            activeTab === "screenshots"
+              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
+              : "text-gray-400 hover:text-white"
+          }`}
+          onClick={() => setActiveTab("screenshots")}
+        >
+          <Image size={14} />
+          Screenshots (0)
+        </button>
+        <button
+          className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+            activeTab === "logs"
+              ? "bg-flow-bg text-white border-b-2 border-flow-accent"
+              : "text-gray-400 hover:text-white"
+          }`}
+          onClick={() => setActiveTab("logs")}
+        >
+          <Terminal size={14} />
+          Logs (0)
+        </button>
+        {showExecutionSwitcher && (
+          <button
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+              activeTab === "executions"
+                ? "bg-flow-bg text-white border-b-2 border-flow-accent"
+                : "text-gray-400 hover:text-white"
+            }`}
+            onClick={() => setActiveTab("executions")}
+          >
+            <ListTree size={14} />
+            Executions
+          </button>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+        {activeTab === "replay"
+          ? renderEmptyTab(
+              "No execution in progress",
+              "Start the workflow to capture a replay of each automation step.",
+            )
+          : activeTab === "screenshots"
+            ? renderEmptyTab(
+                "Screenshots will appear here",
+                "As the workflow runs, screenshots from each step are collected for review.",
+              )
+            : activeTab === "logs"
+              ? renderEmptyTab(
+                  "Execution logs are empty",
+                  "Run the workflow to stream live log output, retries, and console messages.",
+                )
+              : showExecutionSwitcher && workflowId
+                ? (
+                    <div className="flex-1 overflow-auto p-4 space-y-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-medium text-white">
+                            Execution history
+                          </h3>
+                          <p className="text-xs text-slate-400">
+                            Select a past execution to inspect its replay, screenshots, and logs.
+                          </p>
+                        </div>
+                        {renderStartButton()}
+                      </div>
+                      <ExecutionHistory
+                        workflowId={workflowId}
+                        onSelectExecution={handleHistorySelect}
+                      />
+                    </div>
+                  )
+                : renderEmptyTab(
+                    "Execution history unavailable",
+                    "Enable execution history to review previous workflow runs.",
+                  )}
+      </div>
+    </div>
+  );
+}
+
+function ExecutionViewer({
+  workflowId,
+  execution,
+  onClose,
+  showExecutionSwitcher,
+}: ExecutionViewerProps) {
+  if (!workflowId) {
+    return null;
+  }
+
+  if (execution && execution.id) {
+    return (
+      <ActiveExecutionViewer
+        execution={execution}
+        onClose={onClose}
+        showExecutionSwitcher={showExecutionSwitcher}
+      />
+    );
+  }
+
+  return (
+    <EmptyExecutionViewer
+      workflowId={workflowId}
+      onClose={onClose}
+      showExecutionSwitcher={showExecutionSwitcher}
+    />
   );
 }
 

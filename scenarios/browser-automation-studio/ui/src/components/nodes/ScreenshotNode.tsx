@@ -1,4 +1,5 @@
-import { memo, FC, useCallback, useEffect, useState } from 'react';
+import { memo, FC, useCallback, useEffect, useMemo, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import {
   Camera,
@@ -16,6 +17,22 @@ import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
 const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
   const upstreamUrl = useUpstreamUrl(id);
   const { getNodes, setNodes } = useReactFlow();
+  const nodeData = data as Record<string, unknown> | undefined;
+  const storedUrl = typeof nodeData?.url === 'string' ? nodeData.url : '';
+  const [urlDraft, setUrlDraft] = useState<string>(storedUrl);
+
+  useEffect(() => {
+    setUrlDraft(storedUrl);
+  }, [storedUrl]);
+
+  const trimmedStoredUrl = useMemo(() => storedUrl.trim(), [storedUrl]);
+  const effectiveUrl = useMemo(() => {
+    if (trimmedStoredUrl.length > 0) {
+      return trimmedStoredUrl;
+    }
+    return upstreamUrl ?? null;
+  }, [trimmedStoredUrl, upstreamUrl]);
+  const hasCustomUrl = trimmedStoredUrl.length > 0;
   const [highlightInput, setHighlightInput] = useState<string>(() =>
     Array.isArray(data.highlightSelectors) ? data.highlightSelectors.join(', ') : ''
   );
@@ -42,8 +59,25 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
         }
         const nextData = { ...node.data } as Record<string, any>;
         Object.entries(updates).forEach(([key, value]) => {
+          if (key === 'url') {
+            if (typeof value === 'string') {
+              const trimmed = value.trim();
+              if (trimmed.length > 0) {
+                nextData[key] = trimmed;
+              } else {
+                delete nextData[key];
+              }
+              return;
+            }
+            if (value === null || value === undefined) {
+              delete nextData[key];
+              return;
+            }
+          }
+
           const shouldRemove =
             value === undefined ||
+            value === null ||
             (Array.isArray(value) && value.length === 0) ||
             (typeof value === 'string' && value.trim() === '');
           if (shouldRemove) {
@@ -61,6 +95,30 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
     },
     [getNodes, setNodes, id]
   );
+
+  const commitUrl = useCallback((raw: string) => {
+    const trimmed = raw.trim();
+    updateNodeData({ url: trimmed.length > 0 ? trimmed : null });
+  }, [updateNodeData]);
+
+  const handleUrlCommit = useCallback(() => {
+    commitUrl(urlDraft);
+  }, [commitUrl, urlDraft]);
+
+  const handleUrlKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commitUrl(urlDraft);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setUrlDraft(storedUrl);
+    }
+  }, [commitUrl, storedUrl, urlDraft]);
+
+  const resetUrl = useCallback(() => {
+    setUrlDraft('');
+    updateNodeData({ url: null });
+  }, [updateNodeData]);
 
   const handleSelectorListChange = useCallback(
     (rawValue: string, key: 'highlightSelectors' | 'maskSelectors') => {
@@ -82,14 +140,40 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
         <span className="font-semibold text-sm">Screenshot</span>
       </div>
       
-      {upstreamUrl && (
-        <div className="flex items-center gap-1 mb-2 p-1 bg-flow-bg/50 rounded text-xs border border-gray-700">
-          <Globe size={12} className="text-blue-400 flex-shrink-0" />
-          <span className="text-gray-400 truncate" title={upstreamUrl}>
-            {upstreamUrl}
-          </span>
+      <div className="mb-2">
+        <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+          <Globe size={12} className="text-blue-400" />
+          Page URL
+        </label>
+        <div className="mt-1 flex items-center gap-2">
+          <input
+            type="text"
+            placeholder={upstreamUrl ?? 'https://example.com'}
+            className="flex-1 px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
+            value={urlDraft}
+            onChange={(event) => setUrlDraft(event.target.value)}
+            onBlur={handleUrlCommit}
+            onKeyDown={handleUrlKeyDown}
+          />
+          {hasCustomUrl && (
+            <button
+              type="button"
+              className="px-2 py-1 text-[11px] rounded border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors"
+              onClick={resetUrl}
+            >
+              Reset
+            </button>
+          )}
         </div>
-      )}
+        {!hasCustomUrl && upstreamUrl && (
+          <p className="mt-1 text-[10px] text-gray-500 truncate" title={upstreamUrl}>
+            Inherits {upstreamUrl}
+          </p>
+        )}
+        {!effectiveUrl && !upstreamUrl && (
+          <p className="mt-1 text-[10px] text-red-400">Provide a URL to capture screenshots from.</p>
+        )}
+      </div>
       
       <input
         type="text"

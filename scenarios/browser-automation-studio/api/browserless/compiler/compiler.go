@@ -19,6 +19,7 @@ const (
 	StepNavigate     StepType = "navigate"
 	StepClick        StepType = "click"
 	StepTypeInput    StepType = "type"
+	StepShortcut     StepType = "shortcut"
 	StepWait         StepType = "wait"
 	StepScreenshot   StepType = "screenshot"
 	StepExtract      StepType = "extract"
@@ -31,6 +32,7 @@ var supportedStepTypes = map[StepType]struct{}{
 	StepNavigate:     {},
 	StepClick:        {},
 	StepTypeInput:    {},
+	StepShortcut:     {},
 	StepWait:         {},
 	StepScreenshot:   {},
 	StepExtract:      {},
@@ -124,9 +126,9 @@ func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
 
 // flowDefinition mirrors the React Flow payload persisted with workflows.
 type flowDefinition struct {
-	Nodes    []rawNode          `json:"nodes"`
-	Edges    []rawEdge          `json:"edges"`
-	Settings map[string]any     `json:"settings"`
+	Nodes    []rawNode      `json:"nodes"`
+	Edges    []rawEdge      `json:"edges"`
+	Settings map[string]any `json:"settings"`
 }
 
 type rawNode struct {

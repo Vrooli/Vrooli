@@ -61,7 +61,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
   const versionHistoryError = useWorkflowStore((state) => state.versionHistoryError);
   const restoreWorkflowVersion = useWorkflowStore((state) => state.restoreWorkflowVersion);
   const restoringVersion = useWorkflowStore((state) => state.restoringVersion);
-  const { startExecution } = useExecutionStore();
+  const { openViewer } = useExecutionStore();
   const { isConnected, error } = useProjectStore();
   const [showAIEditModal, setShowAIEditModal] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -71,7 +71,6 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
   const infoPopoverRef = useRef<HTMLDivElement | null>(null);
   const [showWorkflowInfo, setShowWorkflowInfo] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
-  const [showConflictDetails, setShowConflictDetails] = useState(false);
   const [showSaveErrorDetails, setShowSaveErrorDetails] = useState(false);
 
   const { floatingStyles: workflowInfoStyles } = usePopoverPosition(infoButtonRef, infoPopoverRef, {
@@ -80,14 +79,10 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
   });
 
   useEffect(() => {
-    if (hasVersionConflict) {
-      if (!conflictMetadata && currentWorkflow) {
-        refreshConflictWorkflow().catch(() => {});
-      }
-    } else if (showConflictDetails) {
-      setShowConflictDetails(false);
+    if (hasVersionConflict && !conflictMetadata && currentWorkflow) {
+      refreshConflictWorkflow().catch(() => {});
     }
-  }, [hasVersionConflict, conflictMetadata, currentWorkflow?.id, refreshConflictWorkflow, showConflictDetails]);
+  }, [hasVersionConflict, conflictMetadata, currentWorkflow?.id, refreshConflictWorkflow]);
 
   useEffect(() => {
     if (!lastSaveError && showSaveErrorDetails) {
@@ -187,7 +182,6 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
       } else {
         await loadWorkflow(currentWorkflow.id);
       }
-      setShowConflictDetails(false);
       toast.success('Workflow reloaded');
     } catch (error) {
       toast.error('Failed to reload workflow');
@@ -200,7 +194,6 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
     }
     try {
       await forceSaveWorkflow({ changeDescription: 'Force save after conflict', source: 'manual-force-save' });
-      setShowConflictDetails(false);
       toast.success('Local changes saved');
     } catch (error) {
       toast.error('Failed to force save workflow');
@@ -234,6 +227,9 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
   const baseIndicatorClass =
     'flex flex-wrap items-center gap-2 rounded-lg border px-3 py-1.5 text-xs shadow-sm backdrop-blur-sm';
   const historyButtonDisabled = !currentWorkflow || isSaving || restoringVersion !== null;
+  const remoteVersionLabel = conflictMetadata ? `v${conflictMetadata.remoteVersion}` : 'server version';
+  const remoteSavedLabel = conflictMetadata ? formatDistanceToNow(conflictMetadata.remoteUpdatedAt, { addSuffix: true }) : null;
+  const remoteSourceLabel = conflictMetadata?.changeSource ?? conflictWorkflow?.lastChangeSource ?? '';
 
   let saveStatusNode: React.ReactNode;
   if (!currentWorkflow) {
@@ -251,9 +247,6 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
       </div>
     );
   } else if (hasVersionConflict) {
-    const remoteVersionLabel = conflictMetadata ? `v${conflictMetadata.remoteVersion}` : 'server version';
-    const remoteSavedLabel = conflictMetadata ? formatDistanceToNow(conflictMetadata.remoteUpdatedAt, { addSuffix: true }) : null;
-    const remoteSourceLabel = conflictMetadata?.changeSource ?? conflictWorkflow?.lastChangeSource ?? 'unknown source';
     saveStatusNode = (
       <div
         className={`${baseIndicatorClass} border-amber-500/50 bg-amber-500/10 text-amber-100`}
@@ -269,51 +262,15 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              setShowConflictDetails(true);
-            }}
-            className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 hover:bg-amber-500/20"
-          >
-            Details
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              void handleRefreshConflict();
-            }}
-            className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 hover:bg-amber-500/20"
-          >
-            Refresh
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              void handleReloadWorkflow();
-            }}
-            className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 hover:bg-amber-500/20"
-          >
-            Reload
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
+              if (historyButtonDisabled) {
+                return;
+              }
               void openVersionHistory();
             }}
-            className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 hover:bg-amber-500/20"
+            disabled={historyButtonDisabled}
+            className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            History
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              void handleForceSave();
-            }}
-            className="rounded border border-amber-400/40 bg-amber-500/20 px-2 py-1 font-medium text-amber-50 hover:bg-amber-500/30"
-          >
-            Force save
+            Details
           </button>
         </div>
       </div>
@@ -443,20 +400,12 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
     </div>
   );
 
-  const handleExecute = async () => {
+  const handleExecute = () => {
     if (!currentWorkflow) {
       toast.error('No workflow to execute');
       return;
     }
-    try {
-      // Auto-save workflow before execution to ensure latest changes are used
-      await startExecution(currentWorkflow.id, () =>
-        saveWorkflow({ source: 'execution-run', changeDescription: 'Autosave before execution' })
-      );
-      toast.success('Workflow execution started');
-    } catch (error) {
-      toast.error('Failed to start execution');
-    }
+    openViewer(currentWorkflow.id);
   };
 
   const handleDebug = () => {
@@ -749,78 +698,6 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
     )}
 
       <ResponsiveDialog
-        isOpen={showConflictDetails && hasVersionConflict}
-        onDismiss={() => setShowConflictDetails(false)}
-        ariaLabel="Resolve Version Conflict"
-        size="wide"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Resolve Version Conflict</h2>
-          <button
-            type="button"
-            onClick={() => setShowConflictDetails(false)}
-            className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <p className="text-sm text-gray-300 mb-4">
-          The server copy changed before your latest save. Review the differences and choose whether to reload the
-          remote version or keep your local draft.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="rounded-lg border border-gray-800 bg-gray-900/70 p-4">
-            <h3 className="text-sm font-semibold text-white">Local Draft</h3>
-            <ul className="mt-2 space-y-1 text-xs text-gray-400">
-              <li>Version {currentWorkflow?.version ?? '—'}</li>
-              <li>Nodes: {displayWorkflow?.nodes?.length ?? 0}</li>
-              <li>Edges: {displayWorkflow?.edges?.length ?? 0}</li>
-              {currentWorkflow?.lastChangeDescription && (
-                <li>Last change: {currentWorkflow.lastChangeDescription}</li>
-              )}
-            </ul>
-          </div>
-          <div className="rounded-lg border border-amber-500/40 bg-gray-900/70 p-4">
-            <h3 className="text-sm font-semibold text-amber-100">Remote {conflictMetadata ? `v${conflictMetadata.remoteVersion}` : ''}</h3>
-            <ul className="mt-2 space-y-1 text-xs text-amber-200">
-              <li>
-                Saved {conflictMetadata ? formatDistanceToNow(conflictMetadata.remoteUpdatedAt, { addSuffix: true }) : 'recently'}
-              </li>
-              <li>Source: {conflictMetadata?.changeSource ?? conflictWorkflow?.lastChangeSource ?? 'unknown'}</li>
-              <li>Nodes: {conflictMetadata?.nodeCount ?? conflictWorkflow?.nodes?.length ?? 0}</li>
-              <li>Edges: {conflictMetadata?.edgeCount ?? conflictWorkflow?.edges?.length ?? 0}</li>
-              {conflictMetadata?.changeDescription && (
-                <li>Change: {conflictMetadata.changeDescription}</li>
-              )}
-            </ul>
-          </div>
-        </div>
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setShowConflictDetails(false)}
-            className="rounded border border-gray-700 px-3 py-1.5 text-xs text-gray-200 hover:bg-gray-800"
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            onClick={handleReloadWorkflow}
-            className="rounded border border-amber-500/60 px-3 py-1.5 text-xs text-amber-100 hover:bg-amber-500/20"
-          >
-            Reload remote
-          </button>
-          <button
-            type="button"
-            onClick={handleForceSave}
-            className="rounded bg-amber-500/20 px-3 py-1.5 text-xs text-amber-50 hover:bg-amber-500/30"
-          >
-            Force save local
-          </button>
-        </div>
-      </ResponsiveDialog>
-
-      <ResponsiveDialog
         isOpen={showSaveErrorDetails && Boolean(lastSaveError)}
         onDismiss={() => setShowSaveErrorDetails(false)}
         ariaLabel="Autosave error details"
@@ -862,6 +739,67 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
             <X size={16} />
           </button>
         </div>
+
+        {hasVersionConflict && currentWorkflow && (
+          <div className="mb-5 space-y-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+            <div>
+              <h3 className="text-sm font-semibold text-amber-100">Resolve version conflict</h3>
+              <p className="mt-1 text-xs text-amber-200">
+                The server copy ({remoteVersionLabel}) differs from your draft. Review both snapshots and choose how to proceed.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-gray-800 bg-gray-900/70 p-3">
+                <h4 className="text-sm font-semibold text-white">Local draft</h4>
+                <ul className="mt-2 space-y-1 text-xs text-gray-300">
+                  <li>Version {currentWorkflow.version}</li>
+                  <li>Nodes: {currentWorkflow.nodes?.length ?? 0}</li>
+                  <li>Edges: {currentWorkflow.edges?.length ?? 0}</li>
+                  {currentWorkflow.lastChangeDescription && (
+                    <li>Change: {currentWorkflow.lastChangeDescription}</li>
+                  )}
+                </ul>
+              </div>
+              <div className="rounded-lg border border-amber-500/60 bg-gray-900/70 p-3">
+                <h4 className="text-sm font-semibold text-amber-100">Server snapshot</h4>
+                <ul className="mt-2 space-y-1 text-xs text-amber-200">
+                  <li>{remoteVersionLabel}</li>
+                  {remoteSavedLabel && <li>Saved {remoteSavedLabel}</li>}
+                  <li>Source: {remoteSourceLabel}</li>
+                  <li>Nodes: {conflictMetadata?.nodeCount ?? conflictWorkflow?.nodes?.length ?? 0}</li>
+                  <li>Edges: {conflictMetadata?.edgeCount ?? conflictWorkflow?.edges?.length ?? 0}</li>
+                  {conflictMetadata?.changeDescription && (
+                    <li>Change: {conflictMetadata.changeDescription}</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleRefreshConflict()}
+                className="rounded border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 transition-colors hover:bg-amber-500/20"
+              >
+                Refresh snapshot
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleReloadWorkflow()}
+                className="rounded border border-amber-400/60 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 transition-colors hover:bg-amber-500/25"
+              >
+                Reload remote
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleForceSave()}
+                disabled={isSaving}
+                className="rounded bg-amber-500/20 px-3 py-1.5 text-xs text-amber-50 transition-colors hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Force save local
+              </button>
+            </div>
+          </div>
+        )}
 
         {!currentWorkflow ? (
           <div className="text-sm text-gray-400">Load a workflow to view version history.</div>

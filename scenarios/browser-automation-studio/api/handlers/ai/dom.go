@@ -30,51 +30,154 @@ func (h *DOMHandler) ExtractDOMTree(ctx context.Context, url string) (string, er
 		url = "https://" + url
 	}
 
-	// JavaScript to extract DOM tree with selectors - simplified and robust
+	// JavaScript to extract DOM tree with selectors - explore meaningful nodes
 	script := `
-	try {
-		// Wait a bit for React to render
-		await new Promise(resolve => setTimeout(resolve, 2000));
+try {
+  const MAX_DEPTH = 6;
+  const MAX_CHILDREN_PER_NODE = 12;
+  const MAX_TOTAL_NODES = 800;
+  const TEXT_LIMIT = 120;
 
-		const body = document.body || document.documentElement;
-		const result = {
-			tagName: "BODY",
-			id: null,
-			className: null,
-			text: null,
-			selector: "body",
-			children: []
-		};
+  await new Promise((resolve) => setTimeout(resolve, 750));
 
-		if (!body) {
-			return result;
-		}
+  let nodeCount = 0;
 
-		// Simple extraction - just get immediate children
-		const children = Array.from(body.children || []);
-		for (let i = 0; i < Math.min(children.length, 10); i++) {
-			const child = children[i];
-			if (child && child.tagName && !['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(child.tagName)) {
-				const childData = {
-					tagName: child.tagName,
-					id: child.id || null,
-					className: child.className || null,
-					text: (child.textContent || "").substring(0, 50).trim() || null,
-					selector: child.id ? "#" + child.id : child.tagName.toLowerCase()
-				};
-				result.children.push(childData);
-			}
-		}
+  const trimText = (value) => {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const normalized = value.replace(/\s+/g, ' ').trim();
+    if (!normalized) {
+      return null;
+    }
+    if (normalized.length > TEXT_LIMIT) {
+      return normalized.slice(0, TEXT_LIMIT - 1) + '…';
+    }
+    return normalized;
+  };
 
-		return result;
-	} catch (e) {
-		return {
-			tagName: "ERROR",
-			selector: "error",
-			text: e.message,
-			children: []
-		};
-	}`
+  const shouldSkip = (element) => {
+    const tag = element.tagName ? element.tagName.toLowerCase() : '';
+    return ['script', 'style', 'noscript', 'template', 'meta', 'link'].includes(tag);
+  };
+
+  const buildSelector = (element) => {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+      return '';
+    }
+    if (element.id) {
+      return '#' + element.id;
+    }
+    const segments = [];
+    let current = element;
+    let guard = 0;
+    while (current && current.nodeType === Node.ELEMENT_NODE && guard < 25) {
+      if (current.id) {
+        segments.unshift('#' + current.id);
+        break;
+      }
+      const tag = current.tagName.toLowerCase();
+      const parent = current.parentElement;
+      if (!parent) {
+        segments.unshift(tag);
+        break;
+      }
+      const siblings = Array.from(parent.children).filter((sibling) => sibling.tagName === current.tagName);
+      if (siblings.length > 1) {
+        const index = siblings.indexOf(current);
+        segments.unshift(tag + ':nth-of-type(' + (index + 1) + ')');
+      } else {
+        segments.unshift(tag);
+      }
+      current = parent;
+      guard += 1;
+    }
+    return segments.join(' > ');
+  };
+
+  const buildNode = (element, depth) => {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+      return null;
+    }
+    if (shouldSkip(element)) {
+      return null;
+    }
+    if (nodeCount >= MAX_TOTAL_NODES) {
+      return null;
+    }
+    nodeCount += 1;
+
+    const tagName = element.tagName || 'UNKNOWN';
+    const text = trimText(element.textContent || '');
+    const selector = buildSelector(element) || tagName.toLowerCase();
+
+    const node = {
+      tagName,
+      id: element.id || null,
+      className: typeof element.className === 'string' && element.className ? element.className : null,
+      text,
+      type: element.type || null,
+      href: typeof element.href === 'string' ? element.href : null,
+      ariaLabel: element.getAttribute('aria-label') || null,
+      placeholder: element.placeholder || null,
+      value: typeof element.value === 'string' && element.value !== '' ? element.value : null,
+      selector,
+      children: [],
+    };
+
+    if (depth >= MAX_DEPTH) {
+      return node;
+    }
+
+    const childElements = Array.from(element.children || []);
+    let included = 0;
+    for (const child of childElements) {
+      if (included >= MAX_CHILDREN_PER_NODE) {
+        break;
+      }
+      const childNode = buildNode(child, depth + 1);
+      if (childNode) {
+        node.children.push(childNode);
+        included += 1;
+      }
+    }
+
+    return node;
+  };
+
+  const root = document.documentElement || document.body;
+  const tree = buildNode(root, 0);
+
+  if (tree) {
+    return tree;
+  }
+
+  const fallback = document.body || document.documentElement;
+  if (fallback) {
+    return buildNode(fallback, 0);
+  }
+
+  return {
+    tagName: 'BODY',
+    id: null,
+    className: null,
+    text: null,
+    type: null,
+    href: null,
+    ariaLabel: null,
+    placeholder: null,
+    value: null,
+    selector: 'body',
+    children: [],
+  };
+} catch (error) {
+  return {
+    tagName: 'ERROR',
+    selector: 'error',
+    text: error && error.message ? String(error.message) : 'Failed to extract DOM',
+    children: [],
+  };
+}`
 
 	// Create temp file for output
 	tmpFile, err := os.CreateTemp("", "dom-extract-*.json")

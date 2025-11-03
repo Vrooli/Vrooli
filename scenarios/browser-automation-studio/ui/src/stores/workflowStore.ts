@@ -254,7 +254,7 @@ const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): unknown[
       cleaned.data = {};
     }
     if (!('position' in cleaned)) {
-      const pos = nodeRecord.position as Record<string, unknown> | undefined;
+      const pos = nodeRecord.position as unknown as Record<string, unknown> | undefined;
       cleaned.position = {
         x: typeof pos?.x === 'number' ? pos.x : Number(pos?.x ?? 0) || 0,
         y: typeof pos?.y === 'number' ? pos.y : Number(pos?.y ?? 0) || 0,
@@ -411,6 +411,7 @@ type SaveWorkflowOptions = {
   source?: string;
   changeDescription?: string;
   force?: boolean;
+  skipConflictRetry?: boolean;
 };
 
 const parseDate = (value: unknown): Date => {
@@ -657,6 +658,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   },
   
   saveWorkflow: async (options: SaveWorkflowOptions = {}) => {
+    const { skipConflictRetry = false, ...effectiveOptions } = options;
     const state = get();
     const {
       currentWorkflow,
@@ -675,14 +677,14 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       return;
     }
 
-    if (!options.force && (!isDirty || fingerprint === lastSavedFingerprint)) {
+    if (!effectiveOptions.force && (!isDirty || fingerprint === lastSavedFingerprint)) {
       return;
     }
 
     clearAutosaveTimer();
 
-    const source = options.source?.trim() || (options.force ? 'manual-force-save' : 'manual');
-    set({ isSaving: true, lastSaveError: null, hasVersionConflict: options.force ? false : state.hasVersionConflict });
+    const source = effectiveOptions.source?.trim() || (effectiveOptions.force ? 'manual-force-save' : 'manual');
+    set({ isSaving: true, lastSaveError: null, hasVersionConflict: effectiveOptions.force ? false : state.hasVersionConflict });
 
     try {
       const config = await getConfig();
@@ -695,7 +697,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         serializableEdges,
         sanitizedViewport,
       );
-      const expectedVersion = options.force && conflictWorkflow
+      const expectedVersion = effectiveOptions.force && conflictWorkflow
         ? conflictWorkflow.version
         : currentWorkflow.version;
       const payload: Record<string, unknown> = {
@@ -713,7 +715,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         payload.tags = currentWorkflow.tags;
       }
 
-      const changeDescription = options.changeDescription?.trim() || (options.force ? 'Force save after conflict' : '');
+      const changeDescription = effectiveOptions.changeDescription?.trim() || (effectiveOptions.force ? 'Force save after conflict' : '');
       if (changeDescription) {
         payload.change_description = changeDescription;
       }
@@ -764,12 +766,110 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           ? 'server'
           : 'network';
 
+      let conflictSnapshot: Workflow | null = null;
+      let autoResolved = false;
+
+      if (errorType === 'conflict') {
+        try {
+          conflictSnapshot = await get().refreshConflictWorkflow();
+        } catch (refreshError) {
+          logger.warn('Failed to refresh conflict workflow snapshot', {
+            component: 'WorkflowStore',
+            action: 'saveWorkflow',
+            workflowId: currentWorkflow.id,
+          }, refreshError);
+        }
+
+        if (conflictSnapshot) {
+          const remoteFingerprint = computeWorkflowFingerprint(conflictSnapshot, conflictSnapshot.nodes ?? [], conflictSnapshot.edges ?? []);
+          if (remoteFingerprint === fingerprint) {
+            logger.info('Resolved workflow save conflict by adopting server revision', {
+              component: 'WorkflowStore',
+              action: 'saveWorkflow',
+              workflowId: currentWorkflow.id,
+              source,
+              status,
+            });
+
+            const resolvedSnapshot = conflictSnapshot;
+
+            set((prevState) => ({
+              currentWorkflow: resolvedSnapshot,
+              nodes: resolvedSnapshot.nodes,
+              edges: resolvedSnapshot.edges,
+              workflows: prevState.workflows.map((workflow) =>
+                workflow.id === resolvedSnapshot.id ? { ...workflow, ...resolvedSnapshot } : workflow
+              ),
+              isSaving: false,
+              isDirty: false,
+              lastSavedAt: resolvedSnapshot.updatedAt instanceof Date ? resolvedSnapshot.updatedAt : new Date(),
+              lastSavedFingerprint: remoteFingerprint,
+              draftFingerprint: remoteFingerprint,
+              lastSaveError: null,
+              hasVersionConflict: false,
+              conflictWorkflow: null,
+              conflictMetadata: null,
+            }));
+
+            autoResolved = true;
+          }
+        }
+      }
+
+      if (autoResolved) {
+        return;
+      }
+
+      let attemptedAutoRetry = false;
+
+      if (
+        errorType === 'conflict' &&
+        conflictSnapshot &&
+        !skipConflictRetry &&
+        !effectiveOptions.force
+      ) {
+        const conflictSource = (conflictSnapshot.lastChangeSource ?? '').toString().toLowerCase();
+        const conflictDescription = (conflictSnapshot.lastChangeDescription ?? '').toString().toLowerCase();
+        const isFileSyncConflict = conflictSource === 'file-sync' || conflictDescription.includes('workflow file');
+        const isAutosaveLoop = conflictSource === 'autosave' && source.toLowerCase() === 'autosave';
+
+        if (isFileSyncConflict || isAutosaveLoop) {
+          attemptedAutoRetry = true;
+          // Allow a follow-up save attempt with the updated server version.
+          set((prevState) => ({ ...prevState, isSaving: false }));
+
+          try {
+            await get().saveWorkflow({
+              ...effectiveOptions,
+              force: true,
+              skipConflictRetry: true,
+              source: effectiveOptions.source ?? source,
+              changeDescription:
+                effectiveOptions.changeDescription ??
+                (source.toLowerCase() === 'autosave'
+                  ? 'Autosave after conflict retry'
+                  : 'Retry after conflict'),
+            });
+            return;
+          } catch (retryError) {
+            logger.warn('Workflow conflict auto-retry failed', {
+              component: 'WorkflowStore',
+              action: 'saveWorkflow',
+              workflowId: currentWorkflow.id,
+              source,
+              status,
+            }, retryError);
+          }
+        }
+      }
+
       logger.error('Failed to save workflow', {
         component: 'WorkflowStore',
         action: 'saveWorkflow',
         workflowId: currentWorkflow.id,
         source,
         status,
+        attemptedAutoRetry,
       }, error);
 
       set((prevState) => ({
@@ -778,18 +878,6 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         lastSaveError: { type: errorType, message, status },
         hasVersionConflict: errorType === 'conflict' ? true : prevState.hasVersionConflict,
       }));
-
-      if (errorType === 'conflict') {
-        try {
-          await get().refreshConflictWorkflow();
-        } catch (refreshError) {
-          logger.warn('Failed to refresh conflict workflow snapshot', {
-            component: 'WorkflowStore',
-            action: 'saveWorkflow',
-            workflowId: currentWorkflow.id,
-          }, refreshError);
-        }
-      }
 
       if (error instanceof Error) {
         throw error;

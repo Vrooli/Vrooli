@@ -1,5 +1,6 @@
-import React, { ReactNode } from 'react';
-import ReactDOM from 'react-dom/client';
+import * as React from 'react';
+import type { ReactNode } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from 'react-hot-toast';
@@ -27,6 +28,11 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+if (typeof window !== 'undefined') {
+  // Expose React for libraries that expect it on the global scope in embedded contexts
+  (window as typeof window & { React?: typeof React }).React = React;
+}
 
 let bridgeInitialized = false;
 
@@ -80,13 +86,13 @@ function renderTree(): ReactNode {
   return content;
 }
 
-export function mountApp(target: HTMLElement, options: MountOptions = {}): ReactDOM.Root {
+export function mountApp(target: HTMLElement, options: MountOptions = {}): Root {
   ensureBridge();
 
   const { strictMode = false } = options;
   const tree = strictMode ? <React.StrictMode>{renderTree()}</React.StrictMode> : renderTree();
 
-  const root = ReactDOM.createRoot(target);
+  const root = createRoot(target);
   root.render(tree);
   return root;
 }

@@ -195,15 +195,7 @@ const AppPreviewView = () => {
       config: currentApp.config,
       environment: currentApp.environment,
     };
-  }, [
-    currentApp?.id,
-    currentApp?.is_partial,
-    currentApp?.status,
-    currentApp?.port,
-    currentApp?.port_mappings,
-    currentApp?.config,
-    currentApp?.environment,
-  ]);
+  }, [currentApp]);
 
   const previewIdentifier = useMemo(() => {
     if (currentApp) {
@@ -576,6 +568,8 @@ const AppPreviewView = () => {
     inspectState,
     startInspect,
     stopInspect,
+    setInspectTargetIndex,
+    shiftInspectTarget,
   } = useIframeBridge({
     iframeRef,
     previewUrl,
@@ -800,6 +794,8 @@ const AppPreviewView = () => {
     inspectState,
     startInspect,
     stopInspect,
+    setInspectTargetIndex,
+    shiftInspectTarget,
     requestScreenshot,
     previewUrl,
     currentAppIdentifier,
@@ -1361,7 +1357,7 @@ const AppPreviewView = () => {
         };
       });
     })();
-  }, [appId, matchesAppIdentifier, setAppsState, setCurrentApp]);
+  }, [appId, setAppsState, setCurrentApp]);
 
   useEffect(() => {
     if (!bridgeState.isSupported || !bridgeState.isReady || !bridgeState.href) {

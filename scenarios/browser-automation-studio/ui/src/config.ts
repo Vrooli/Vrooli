@@ -11,15 +11,14 @@ function isLoopbackHost(value?: string | null): boolean {
   return value ? LOOPBACK_HOSTS.has(value.toLowerCase()) : false;
 }
 
-function coerceString(value: unknown, fallback: string): string {
+function optionalString(value: unknown): string | null {
   if (typeof value !== 'string') {
-    return fallback;
+    return null;
   }
   const trimmed = value.trim();
-  if (!trimmed || trimmed.toLowerCase() === 'undefined' || trimmed.toLowerCase() === 'null') {
-    return fallback;
-  }
-  return trimmed;
+  return trimmed.length > 0 && trimmed.toLowerCase() !== 'undefined' && trimmed.toLowerCase() !== 'null'
+    ? trimmed
+    : null;
 }
 
 function extractPort(urlString: string, fallback: string): string {
@@ -136,6 +135,60 @@ function resolveWebSocketUrl(explicitWs?: string, apiUrl?: string): string {
   return '';
 }
 
+function combineProxyPath(proxyPath: string | null, path: string): string {
+  const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
+  if (!proxyPath) {
+    return `/${normalizedPath}`;
+  }
+
+  const trimmedProxy = proxyPath.endsWith('/') ? proxyPath.slice(0, -1) : proxyPath;
+  const combined = `${trimmedProxy}/${normalizedPath}`.replace(/\/+/gu, '/');
+  return combined.startsWith('/') ? combined : `/${combined}`;
+}
+
+function normalizeUrlForBrowser(rawUrl: string, portHint?: string): string {
+  if (typeof window === 'undefined') {
+    return rawUrl;
+  }
+
+  const parsed = createUrlFromString(rawUrl);
+  if (!parsed) {
+    return rawUrl;
+  }
+
+  const location = window.location;
+  const windowHost = location.hostname ?? '';
+  const sameHost = parsed.hostname === windowHost;
+  const bothLoopback = isLoopbackHost(parsed.hostname) && isLoopbackHost(windowHost);
+  const proxyPath = resolveProxyPathForPort(parsed.port || portHint);
+
+  if (!proxyPath && !sameHost && !bothLoopback) {
+    return parsed.toString();
+  }
+
+  const baseOrigin = location.origin;
+  const combinedPath = combineProxyPath(proxyPath, parsed.pathname || '/');
+  const search = parsed.search ?? '';
+  const hash = parsed.hash ?? '';
+
+  return `${baseOrigin}${combinedPath}${search}${hash}`;
+}
+
+function normalizeWsUrlForBrowser(rawUrl: string, portHint?: string): string {
+  if (typeof window === 'undefined') {
+    return rawUrl;
+  }
+
+  try {
+    const httpEquivalent = normalizeUrlForBrowser(rawUrl, portHint);
+    const url = new URL(httpEquivalent);
+    url.protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return url.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
 /**
  * Builds config object from environment variables (shared between sync and async)
  */
@@ -145,17 +198,22 @@ function buildConfigFromEnv(): Config | null {
   }
 
   const apiUrl = import.meta.env.VITE_API_URL;
-  const wsBase = resolveWebSocketUrl(import.meta.env.VITE_WS_URL, apiUrl);
-  const apiPortFallback = coerceString(import.meta.env.VITE_API_PORT, '24785');
-  const uiPortFallback = coerceString(import.meta.env.VITE_UI_PORT, '42969');
-  const wsPortFallback = coerceString(import.meta.env.VITE_WS_PORT, extractPort(wsBase, '29031'));
+  const parsedApiUrl = createUrlFromString(apiUrl);
+  const explicitApiPort = parsedApiUrl?.port ?? optionalString(import.meta.env.VITE_API_PORT) ?? '';
+  const alignedApiUrl = normalizeUrlForBrowser(apiUrl, explicitApiPort);
+
+  const wsBaseRaw = resolveWebSocketUrl(import.meta.env.VITE_WS_URL, apiUrl);
+  const explicitWsPort = optionalString(import.meta.env.VITE_WS_PORT) ?? extractPort(wsBaseRaw, '');
+  const alignedWsUrl = normalizeWsUrlForBrowser(wsBaseRaw, explicitWsPort);
+  const resolvedUiPort = optionalString(import.meta.env.VITE_UI_PORT)
+    ?? (typeof window !== 'undefined' && window.location ? window.location.port || '' : '');
 
   return {
-    API_URL: apiUrl,
-    WS_URL: wsBase,
-    API_PORT: extractPort(apiUrl, apiPortFallback),
-    UI_PORT: uiPortFallback,
-    WS_PORT: extractPort(wsBase, wsPortFallback),
+    API_URL: alignedApiUrl,
+    WS_URL: alignedWsUrl,
+    API_PORT: explicitApiPort,
+    UI_PORT: resolvedUiPort,
+    WS_PORT: explicitWsPort,
   };
 }
 
@@ -201,11 +259,16 @@ async function getConfig(): Promise<Config> {
       throw new Error('API URL not configured');
     }
 
-    const apiUrl = String(data.apiUrl);
-    const wsBase = resolveWebSocketUrl(data.wsUrl, apiUrl);
-    const apiPort = extractPort(apiUrl, coerceString(data.apiPort, '24785'));
-    const wsPort = extractPort(wsBase, coerceString(data.wsPort, '29031'));
-    const uiPort = typeof window !== 'undefined' && window.location && window.location.port ? window.location.port : '42969';
+    const apiUrlRaw = String(data.apiUrl);
+    const parsedApiUrl = createUrlFromString(apiUrlRaw);
+    const apiPortHint = parsedApiUrl?.port ?? optionalString(data.apiPort) ?? '';
+    const apiUrl = normalizeUrlForBrowser(apiUrlRaw, apiPortHint);
+    const wsBaseRaw = resolveWebSocketUrl(data.wsUrl, apiUrl);
+    const apiPort = parsedApiUrl?.port ?? apiPortHint;
+    const wsPort = optionalString(data.wsPort) ?? extractPort(wsBaseRaw, '');
+    const wsBase = normalizeWsUrlForBrowser(wsBaseRaw, wsPort);
+    const uiPort = optionalString(data.uiPort)
+      ?? (typeof window !== 'undefined' && window.location ? window.location.port || '' : '');
 
     cachedConfig = {
       API_URL: apiUrl,

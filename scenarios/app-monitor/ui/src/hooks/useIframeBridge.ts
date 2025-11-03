@@ -189,7 +189,9 @@ type BridgeParentToChildMessage =
   | { v: 1; t: 'NETWORK'; cmd: 'PULL'; requestId: string; options?: BridgeSnapshotRequestOptions }
   | { v: 1; t: 'NETWORK'; cmd: 'SET'; enable?: boolean; streaming?: boolean; bufferSize?: number }
   | { v: 1; t: 'INSPECT'; cmd: 'START' }
-  | { v: 1; t: 'INSPECT'; cmd: 'STOP' };
+  | { v: 1; t: 'INSPECT'; cmd: 'STOP' }
+  | { v: 1; t: 'INSPECT'; cmd: 'SET_TARGET'; index: number }
+  | { v: 1; t: 'INSPECT'; cmd: 'SHIFT_TARGET'; delta: number };
 
 export interface BridgeComplianceResult {
   ok: boolean;
@@ -259,6 +261,8 @@ export interface UseIframeBridgeReturn {
   inspectState: BridgeInspectState;
   startInspect: () => boolean;
   stopInspect: () => boolean;
+  setInspectTargetIndex: (index: number) => boolean;
+  shiftInspectTarget: (delta: number) => boolean;
 }
 
 const deriveOrigin = (url: string | null): string | null => {
@@ -558,6 +562,7 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
               : (message.active ? 'start' : prev.lastReason),
             error: message.active ? null : prev.error,
             hover: message.active ? null : prev.hover,
+            result: message.active ? null : prev.result,
           }));
           break;
         }
@@ -669,6 +674,28 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
       return false;
     }
     return postMessage({ v: 1, t: 'INSPECT', cmd: 'STOP' });
+  }, [postMessage]);
+
+  const setInspectTargetIndex = useCallback((index: number) => {
+    if (!capsRef.current.includes('inspect')) {
+      return false;
+    }
+    if (!Number.isFinite(index)) {
+      return false;
+    }
+    const normalized = Math.max(0, Math.floor(index));
+    return postMessage({ v: 1, t: 'INSPECT', cmd: 'SET_TARGET', index: normalized });
+  }, [postMessage]);
+
+  const shiftInspectTarget = useCallback((delta: number) => {
+    if (!capsRef.current.includes('inspect')) {
+      return false;
+    }
+    if (!Number.isFinite(delta) || delta === 0) {
+      return false;
+    }
+    const normalized = delta > 0 ? Math.ceil(delta) : Math.floor(delta);
+    return postMessage({ v: 1, t: 'INSPECT', cmd: 'SHIFT_TARGET', delta: normalized });
   }, [postMessage]);
 
   const requestScreenshot = useCallback(
@@ -956,6 +983,8 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     inspectState,
     startInspect,
     stopInspect,
+    setInspectTargetIndex,
+    shiftInspectTarget,
   };
 };
 
