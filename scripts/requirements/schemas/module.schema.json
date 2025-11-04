@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scenario Requirement Module",
+  "type": "object",
+  "required": ["requirements"],
+  "properties": {
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/requirement" }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "requirement": {
+      "type": "object",
+      "required": ["id", "title", "status", "criticality"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "category": { "type": "string" },
+        "prd_ref": { "type": "string" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "status": { "type": "string", "minLength": 1 },
+        "criticality": { "type": "string", "minLength": 1 },
+        "children": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "validation": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/validation" }
+        },
+        "validations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/validation" }
+        },
+        "metadata": { "type": "object" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "validation": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "status": { "type": "string" },
+        "phase": { "type": "string" },
+        "scenario": { "type": "string" },
+        "folder": { "type": "string" },
+        "workflow_id": { "type": "string" },
+        "manage_runtime": { "type": "string" },
+        "keep_workflow": { "type": "boolean" },
+        "timeout_seconds": { "type": "integer", "minimum": 1 },
+        "allow_missing": { "type": "boolean" },
+        "notes": { "type": "string" },
+        "metadata": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

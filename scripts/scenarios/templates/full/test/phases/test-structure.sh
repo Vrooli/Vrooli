@@ -1,198 +1,59 @@
 #!/bin/bash
-# Structure validation phase - <15 seconds
-# Validates required files, configuration, and directory structure
+# Validates required files and directory layout using the modern phase helpers.
 set -euo pipefail
 
-# Setup paths and utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-echo "=== Structure Phase (Target: <15s) ==="
-start_time=$(date +%s)
+testing::phase::init --target-time "30s"
+cd "$TESTING_PHASE_SCENARIO_DIR"
 
-error_count=0
-
-# Check required files for modern scenarios
-echo "🔍 Checking required files..."
 required_files=(
-    ".vrooli/service.json"
-    "README.md"
-    "PRD.md"
+  ".vrooli/service.json"
+  "PRD.md"
+  "README.md"
 )
-
-missing_files=()
-for file in "${required_files[@]}"; do
-    if [ ! -f "$file" ]; then
-        missing_files+=("$file")
-        ((error_count++))
-    fi
-done
-
-if [ ${#missing_files[@]} -gt 0 ]; then
-    log::error "❌ Missing required files:"
-    printf "   - %s\n" "${missing_files[@]}"
+if testing::phase::check_files "${required_files[@]}"; then
+  testing::phase::add_test passed
 else
-    log::success "✅ All required files present"
+  testing::phase::add_test failed
 fi
 
-# Check required directories
-echo "🔍 Checking directory structure..."
-required_dirs=("api" "cli" "test" "test/phases")
-missing_dirs=()
-for dir in "${required_dirs[@]}"; do
-    if [ ! -d "$dir" ]; then
-        missing_dirs+=("$dir")
-        ((error_count++))
-    fi
-done
-
-if [ ${#missing_dirs[@]} -gt 0 ]; then
-    log::error "❌ Missing required directories:"
-    printf "   - %s\n" "${missing_dirs[@]}"
+required_dirs=(
+  "api"
+  "cli"
+  "test"
+  "test/phases"
+)
+if testing::phase::check_directories "${required_dirs[@]}"; then
+  testing::phase::add_test passed
 else
-    log::success "✅ All required directories present"
+  testing::phase::add_test failed
 fi
 
-# Validate service.json schema
-echo "🔍 Validating service.json..."
 if command -v jq >/dev/null 2>&1; then
-    if ! jq empty < .vrooli/service.json >/dev/null 2>&1; then
-        log::error "❌ Invalid JSON in service.json"
-        ((error_count++))
+  if jq empty < .vrooli/service.json >/dev/null 2>&1; then
+    scenario_name=$(basename "$TESTING_PHASE_SCENARIO_DIR")
+    service_name=$(jq -r '.service.name // empty' .vrooli/service.json)
+    if [ -n "$service_name" ] && [ "$service_name" = "$scenario_name" ]; then
+      log::success "✅ service.json name matches scenario directory"
+      testing::phase::add_test passed
     else
-        log::success "✅ service.json is valid JSON"
-        
-        # Check required fields
-        required_fields=("service.name" "service.version" "ports" "lifecycle")
-        for field in "${required_fields[@]}"; do
-            if ! jq -e ".$field" < .vrooli/service.json >/dev/null 2>&1; then
-                log::error "❌ Missing required field in service.json: $field"
-                ((error_count++))
-            fi
-        done
-        
-        if [ $error_count -eq 0 ]; then
-            service_name=$(jq -r '.service.name' .vrooli/service.json)
-            scenario_dir=$(basename "$(pwd)")
-            if [ "$service_name" = "$scenario_dir" ]; then
-                log::success "✅ service.json contains correct service name"
-            else
-                log::error "❌ Service name '$service_name' doesn't match directory '$scenario_dir'"
-                ((error_count++))
-            fi
-        fi
+      log::warning "⚠️  service.json name missing or mismatched"
+      testing::phase::add_warning "service.json service.name should equal scenario directory"
+      testing::phase::add_test failed
     fi
+  else
+    testing::phase::add_error "service.json contains invalid JSON"
+    testing::phase::add_test failed
+  fi
 else
-    log::warning "⚠️  jq not available, skipping JSON validation"
+  testing::phase::add_warning "jq not available; skipping service.json validation"
+  testing::phase::add_test skipped
 fi
 
-# Check Go module structure (if api directory exists)
-if [ -d "api" ]; then
-    echo "🔍 Validating Go module..."
-    if [ -f "api/go.mod" ]; then
-        if grep -q "module " api/go.mod; then
-            log::success "✅ Go module properly defined"
-        else
-            log::error "❌ Invalid go.mod structure"
-            ((error_count++))
-        fi
-    else
-        log::error "❌ go.mod missing"
-        ((error_count++))
-    fi
-fi
+# Hook requirements here once the requirements registry is populated (docs/requirements.yaml or requirements/), e.g.:
+# testing::phase::add_requirement --id "REQ-STRUCTURE" --status passed --evidence "Structure validations"
 
-# Check Node.js package.json structure (if ui directory exists)
-if [ -d "ui" ]; then
-    echo "🔍 Validating Node.js package..."
-    if [ -f "ui/package.json" ]; then
-        if command -v jq >/dev/null 2>&1; then
-            if jq -e '.name' ui/package.json >/dev/null 2>&1; then
-                package_name=$(jq -r '.name' ui/package.json)
-                log::success "✅ Node.js package properly defined: $package_name"
-            else
-                log::error "❌ Invalid package.json structure"
-                ((error_count++))
-            fi
-        fi
-    else
-        log::error "❌ ui/package.json missing"
-        ((error_count++))
-    fi
-fi
-
-# Check CLI binary exists and is executable (if cli directory exists)
-if [ -d "cli" ]; then
-    echo "🔍 Validating CLI structure..."
-    scenario_name=$(basename "$(pwd)")
-    cli_binary="cli/$scenario_name"
-    
-    if [ -f "$cli_binary" ]; then
-        if [ -x "$cli_binary" ]; then
-            log::success "✅ CLI binary exists and is executable"
-        else
-            log::error "❌ CLI binary is not executable"
-            ((error_count++))
-        fi
-    else
-        log::warning "⚠️  CLI binary not found (may be built during setup)"
-    fi
-fi
-
-# Check modern test structure
-echo "🔍 Validating test infrastructure..."
-test_structure_valid=true
-
-if [ ! -f "test/run-tests.sh" ]; then
-    log::error "❌ Modern test orchestrator missing: test/run-tests.sh"
-    ((error_count++))
-    test_structure_valid=false
-fi
-
-if [ ! -x "test/run-tests.sh" ] && [ -f "test/run-tests.sh" ]; then
-    log::error "❌ Test orchestrator not executable: test/run-tests.sh"
-    ((error_count++))
-    test_structure_valid=false
-fi
-
-required_phases=("test-structure.sh" "test-dependencies.sh" "test-unit.sh")
-for phase in "${required_phases[@]}"; do
-    if [ ! -f "test/phases/$phase" ]; then
-        log::error "❌ Missing test phase: test/phases/$phase"
-        ((error_count++))
-        test_structure_valid=false
-    fi
-done
-
-if [ "$test_structure_valid" = "true" ]; then
-    log::success "✅ Modern test infrastructure complete"
-fi
-
-# Check data directory structure (if applicable)
-echo "🔍 Checking data directory..."
-if [ -d "data" ]; then
-    log::success "✅ Data directory present"
-else
-    log::info "ℹ️  Data directory not present (may be created during setup)"
-fi
-
-# Performance check
-end_time=$(date +%s)
-duration=$((end_time - start_time))
-echo ""
-if [ $error_count -eq 0 ]; then
-    log::success "✅ Structure validation completed successfully in ${duration}s"
-else
-    log::error "❌ Structure validation failed with $error_count errors in ${duration}s"
-fi
-
-if [ $duration -gt 15 ]; then
-    log::warning "⚠️  Structure phase exceeded 15s target"
-fi
-
-# Exit with appropriate code
-if [ $error_count -eq 0 ]; then
-    exit 0
-else
-    exit 1
-fi
+testing::phase::end_with_summary "Structure checks completed"

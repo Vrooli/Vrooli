@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "description": "Ensures the demo project and default workflow remain available after boot.",
+    "requirement": "BAS-WORKFLOW-DEMO-SEED",
+    "version": 2
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": { "x": 0, "y": 0 },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 60000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "capture-dashboard",
+      "type": "screenshot",
+      "position": { "x": 220, "y": -120 },
+      "data": {
+        "label": "Capture dashboard",
+        "fullPage": true,
+        "captureDomSnapshot": true,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "assert-demo-project",
+      "type": "assert",
+      "position": { "x": 420, "y": -40 },
+      "data": {
+        "label": "Demo project card exists",
+        "selector": "h3[title=\"Demo Browser Automations\"]",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Demo Browser Automations project should be listed on dashboard"
+      }
+    },
+    {
+      "id": "click-demo-card",
+      "type": "click",
+      "position": { "x": 640, "y": 20 },
+      "data": {
+        "label": "Open demo project",
+        "selector": "h3[title=\"Demo Browser Automations\"]",
+        "waitForSelector": "h3[title=\"Demo Browser Automations\"]",
+        "timeoutMs": 20000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "wait-project",
+      "type": "wait",
+      "position": { "x": 820, "y": 80 },
+      "data": {
+        "label": "Wait for project detail",
+        "durationMs": 1500
+      }
+    },
+    {
+      "id": "assert-demo-workflow",
+      "type": "assert",
+      "position": { "x": 1020, "y": 120 },
+      "data": {
+        "label": "Demo workflow visible",
+        "selector": "div[data-workflow-header] h3[title=\"Demo: Capture Example.com Hero\"]",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Expected demo workflow card to appear inside project detail"
+      }
+    }
+  ],
+  "edges": [
+    { "id": "edge-nav-capture", "source": "navigate-dashboard", "target": "capture-dashboard", "type": "smoothstep" },
+    { "id": "edge-capture-assert", "source": "capture-dashboard", "target": "assert-demo-project", "type": "smoothstep" },
+    { "id": "edge-assert-click", "source": "assert-demo-project", "target": "click-demo-card", "type": "smoothstep" },
+    { "id": "edge-click-wait", "source": "click-demo-card", "target": "wait-project", "type": "smoothstep" },
+    { "id": "edge-wait-assert", "source": "wait-project", "target": "assert-demo-workflow", "type": "smoothstep" }
+  ]
+}

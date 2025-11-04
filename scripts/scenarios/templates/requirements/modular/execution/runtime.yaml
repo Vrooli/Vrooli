@@ -1,0 +1,38 @@
+# Execution + telemetry requirement placeholders.
+
+requirements:
+  - id: __SCENARIO_NAME__-EXEC-TELEMETRY
+    category: execution.telemetry
+    prd_ref: "Functional Requirements > P1"
+    title: Runtime telemetry streams screenshots/logs/heartbeats
+    description: |
+      Tie runtime observability promises to integration tests and BAS workflows.
+    status: pending
+    criticality: P1
+    validation:
+      - type: test
+        phase: unit
+        ref: api/telemetry/processor_test.go
+        status: planned
+        notes: Example Go/Vitest test file; update path when real tests exist.
+      - type: automation
+        phase: integration
+        ref: test/playbooks/executions/telemetry-smoke.json
+        scenario: browser-automation-studio
+        status: planned
+        notes: BAS workflow that asserts live telemetry updates.
+
+  - id: __SCENARIO_NAME__-EXEC-CLI-SMOKE
+    category: execution.cli
+    prd_ref: "Functional Requirements > P1"
+    title: CLI watch command surfaces runtime progress
+    description: |
+      Demonstrates linking CLI behavior to automated validations.
+    status: pending
+    criticality: P1
+    validation:
+      - type: test
+        phase: business
+        ref: cli/tests/watch.bats
+        status: planned
+        notes: Replace with CLI/BATS coverage for your scenario.

@@ -75,20 +75,58 @@ scenario::run() {
         # Check if scenario is already running and healthy
         if lifecycle::is_scenario_running "$scenario_name"; then
             if lifecycle::is_scenario_healthy "$scenario_name"; then
-                log::success "✓ Scenario '$scenario_name' is already running and healthy"
-                
-                # Show ports for user convenience
-                local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
-                if [[ -f "$scenario_dir/start-api.json" ]]; then
-                    local api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
-                    [[ -n "$api_port" && "$api_port" != "null" ]] && echo "  API: http://localhost:$api_port"
+                # Even if running and healthy, check if setup is needed (stale code)
+                # This ensures code changes trigger rebuild even when scenario is running
+                cd "$scenario_path" || return 1
+
+                # Source setup utilities for staleness detection
+                source "${SCRIPT_DIR}/../utils/setup.sh" 2>/dev/null || true
+
+                local force_setup="${FORCE_SETUP:-false}"
+                if command -v setup::is_needed >/dev/null 2>&1; then
+                    if setup::is_needed "$scenario_path"; then
+                        log::warning "⚠️  Scenario running but code is stale (${SETUP_REASONS[*]:-binaries/bundles outdated}), restarting..."
+                        lifecycle::stop_scenario_processes "$scenario_name"
+                        sleep 2
+                        # Continue to normal execution below
+                    elif [[ "$force_setup" == "true" ]]; then
+                        log::info "🔄 Forced restart requested, stopping and rebuilding..."
+                        lifecycle::stop_scenario_processes "$scenario_name"
+                        sleep 2
+                        # Continue to normal execution below
+                    else
+                        log::success "✓ Scenario '$scenario_name' is already running and healthy"
+
+                        # Show ports for user convenience
+                        local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+                        if [[ -f "$scenario_dir/start-api.json" ]]; then
+                            local api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
+                            [[ -n "$api_port" && "$api_port" != "null" ]] && echo "  API: http://localhost:$api_port"
+                        fi
+                        if [[ -f "$scenario_dir/start-ui.json" ]]; then
+                            local ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
+                            [[ -n "$ui_port" && "$ui_port" != "null" ]] && echo "  UI: http://localhost:$ui_port"
+                        fi
+
+                        return 0  # Already running, healthy, and code is current
+                    fi
+                else
+                    # setup::is_needed not available, fall back to old behavior
+                    log::success "✓ Scenario '$scenario_name' is already running and healthy"
+
+                    # Show ports for user convenience
+                    local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+                    if [[ -f "$scenario_dir/start-api.json" ]]; then
+                        local api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
+                        [[ -n "$api_port" && "$api_port" != "null" ]] && echo "  API: http://localhost:$api_port"
+                    fi
+                    if [[ -f "$scenario_dir/start-ui.json" ]]; then
+                        local ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
+                        [[ -n "$ui_port" && "$ui_port" != "null" ]] && echo "  UI: http://localhost:$ui_port"
+                    fi
+
+                    return 0  # Already running and healthy
                 fi
-                if [[ -f "$scenario_dir/start-ui.json" ]]; then
-                    local ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
-                    [[ -n "$ui_port" && "$ui_port" != "null" ]] && echo "  UI: http://localhost:$ui_port"
-                fi
-                
-                return 0  # Already running and healthy, nothing to do
             else
                 log::warning "⚠ Scenario '$scenario_name' is running but unhealthy, restarting..."
                 lifecycle::stop_scenario_processes "$scenario_name"

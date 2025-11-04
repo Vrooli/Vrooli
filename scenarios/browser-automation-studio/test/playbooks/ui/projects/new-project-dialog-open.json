@@ -1,0 +1,94 @@
+{
+  "metadata": {
+    "description": "Opens the dashboard and verifies that the New Project modal becomes visible.",
+    "requirement": "BAS-PROJECT-DIALOG-OPEN",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": { "x": 0, "y": 0 },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "capture-dashboard",
+      "type": "screenshot",
+      "position": { "x": 200, "y": -60 },
+      "data": {
+        "label": "Capture dashboard state",
+        "fullPage": true,
+        "waitForMs": 1500,
+        "captureDomSnapshot": true
+      }
+    },
+    {
+      "id": "click-new-project",
+      "type": "click",
+      "position": { "x": 320, "y": 40 },
+      "data": {
+        "label": "Click New Project button",
+        "selector": ".sticky button:has(svg[data-lucide=\"plus\"])",
+        "timeoutMs": 20000,
+        "waitForSelector": ".sticky button:has(svg[data-lucide=\"plus\"])",
+        "waitForMs": 800
+      }
+    },
+    {
+      "id": "assert-modal-visible",
+      "type": "assert",
+      "position": { "x": 640, "y": 80 },
+      "data": {
+        "label": "Project modal appears",
+        "selector": ".responsive-dialog__content",
+        "assertMode": "exists",
+        "timeoutMs": 12000,
+        "failureMessage": "Project modal should be visible after clicking the New Project button"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-nav-capture",
+      "source": "navigate-dashboard",
+      "target": "capture-dashboard",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-capture-click",
+      "source": "capture-dashboard",
+      "target": "click-new-project",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-click-assert",
+      "source": "click-new-project",
+      "target": "assert-modal-visible",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    }
+  ]
+}

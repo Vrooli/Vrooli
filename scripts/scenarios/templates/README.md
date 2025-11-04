@@ -7,7 +7,8 @@
 ```
 templates/
 ├── full/          # Comprehensive template for deployable applications  
-└── basic/         # Minimal template for simple integration testing
+├── basic/         # Minimal template for simple integration testing
+└── requirements/  # Shared requirement registry scaffolds (used by `vrooli scenario requirements init`)
 ```
 
 ## 🚀 **Which Template Should I Use?**
@@ -33,10 +34,14 @@ templates/
 cp -r templates/full/ scenarios/my-business-app/
 cd scenarios/my-business-app/
 
+# Scaffold modular requirements registry (maps PRD → implementation)
+vrooli scenario requirements init my-business-app
+
 # Edit for your use case
 # - service.json: Business model, resource requirements, and deployment orchestration
 # - initialization/: Database, workflows, UI, configuration
 # - deployment/: Startup, validation, monitoring scripts
+# - requirements/: Map PRD items to technical requirements + BAS workflows
 
 # Run as live application
 vrooli scenario run my-business-app
@@ -95,11 +100,11 @@ The PRD serves as the **central source of truth** for each scenario, preventing 
 - `service.json` - Complete configuration with AI patterns, business models, and deployment orchestration
 - `deployment/` - startup.sh, monitor.sh
 - `initialization/` - database/, workflows/, ui/, configuration/
-- `test.sh` - Integration testing (optional)
+- `test/` - Phased testing harness (`run-tests.sh` + `phases/`) wired to the shared runner and requirement hooks
 
 ### **`templates/basic/` Contents:**
 - `service.json` - Simple resource requirements and test configuration  
-- `test.sh` - Integration testing (optional)
+- `test.sh` - Lightweight integration smoke script (customise per resource)
 
 **📝 Documentation Policy**: README.md files are now **optional** and only needed for scenarios with complex setup requirements. All essential information (business model, resources, deployment) is stored in service.json.
 

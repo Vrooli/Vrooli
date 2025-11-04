@@ -528,7 +528,7 @@ Tests: `bats cli/web-scraper-manager.bats` (10/10 passing)
 ### Documentation
 - [README.md](./README.md) - User-facing documentation and quick start
 - [PROBLEMS.md](./PROBLEMS.md) - Known issues, improvements, technical debt
-- [Phased Testing Architecture](../../docs/scenarios/PHASED_TESTING_ARCHITECTURE.md)
+- [Phased Testing Architecture](../../docs/testing/architecture/PHASED_TESTING.md)
 
 ### Resources
 - PostgreSQL schema: `initialization/storage/postgres/schema.sql`

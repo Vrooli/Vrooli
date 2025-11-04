@@ -211,39 +211,6 @@ n8n returning HTTP 500 internal server errors when executing workflows with >100
 - **Improvements:** 95% reduction in workflow execution failures
 <!-- EMBED:RESOLVEDPROBLEM:END -->
 
-<!-- EMBED:RESOLVEDPROBLEM:START -->
-### Port 5678 Already in Use Conflicts
-**Resolved:** 2025-08-20
-**Duration:** 1 week active
-**Resolution:** [process]
-**Resolved By:** [app-debugger]
-
-#### Problem Summary
-n8n failing to start due to port conflicts when other services (like VS Code server) were using port 5678.
-
-#### Root Cause
-- **Technical Cause:** No port conflict detection in installation script
-- **Process Cause:** Missing pre-installation port availability check
-- **Knowledge Cause:** Default port not documented as configurable
-
-#### Solution Implemented
-- **Changes Made:** Added automatic port detection, fallback to 5679-5683 if needed
-- **Validation:** Tested with multiple services running on common ports
-- **Rollback Plan:** Manual port specification in configuration
-- **Documentation:** Added port configuration examples and conflict resolution guide
-
-#### Lessons Learned
-- **Prevention:** Always check resource availability before installation
-- **Detection:** Include port scanning in installation health checks
-- **Response:** Provide automatic fallback options for resource conflicts
-- **Knowledge Gaps:** Need better resource conflict documentation
-
-#### Success Metrics
-- **Resolution Time:** 2 days from report to fix
-- **Effectiveness:** Zero port conflicts in 9 days post-fix
-- **Improvements:** Installation success rate increased from 85% to 98%
-<!-- EMBED:RESOLVEDPROBLEM:END -->
-
 ## Problem Patterns
 
 <!-- EMBED:PROBLEMPATTERN:START -->

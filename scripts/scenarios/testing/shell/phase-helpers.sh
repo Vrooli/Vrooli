@@ -631,6 +631,36 @@ testing::phase::run_bas_automation_validations() {
                 folder=""
             fi
 
+            local workflow_id
+            workflow_id=$(printf '%s\n' "$entry" | jq -r '.workflow_id // ""')
+            if [ "$workflow_id" = "null" ]; then
+                workflow_id=""
+            fi
+
+            local validation_timeout
+            validation_timeout=$(printf '%s\n' "$entry" | jq -r '.timeout_seconds // ""')
+            if [ "$validation_timeout" = "null" ]; then
+                validation_timeout=""
+            fi
+
+            local validation_manage_runtime
+            validation_manage_runtime=$(printf '%s\n' "$entry" | jq -r '.manage_runtime // ""')
+            if [ "$validation_manage_runtime" = "null" ]; then
+                validation_manage_runtime=""
+            fi
+
+            local validation_keep_workflow
+            validation_keep_workflow=$(printf '%s\n' "$entry" | jq -r '.keep_workflow // ""')
+            if [ "$validation_keep_workflow" = "null" ]; then
+                validation_keep_workflow=""
+            fi
+
+            local validation_allow_missing
+            validation_allow_missing=$(printf '%s\n' "$entry" | jq -r '.allow_missing // ""')
+            if [ "$validation_allow_missing" = "null" ]; then
+                validation_allow_missing=""
+            fi
+
             if [ "$bas_cli_available" = false ]; then
                 testing::phase::add_warning "BAS CLI unavailable; skipping $workflow_label"
                 testing::phase::add_test skipped
@@ -638,20 +668,55 @@ testing::phase::run_bas_automation_validations() {
                 continue
             fi
 
-            local args=(--file "$ref" --scenario "$target_scenario" --manage-runtime "$manage_runtime")
-            if [ "$allow_missing" = true ]; then
-                args+=(--allow-missing)
+            local args=(--scenario "$target_scenario")
+            local runtime_mode="$manage_runtime"
+            if [ -n "$validation_manage_runtime" ]; then
+                runtime_mode="$validation_manage_runtime"
             fi
+            args+=(--manage-runtime "$runtime_mode")
+
+            local effective_allow_missing="$allow_missing"
+            if [ -n "$validation_allow_missing" ]; then
+                if [[ "$validation_allow_missing" =~ ^(true|1)$ ]]; then
+                    effective_allow_missing=true
+                else
+                    effective_allow_missing=false
+                fi
+            fi
+
+            if [ -n "$workflow_id" ]; then
+                args+=(--workflow-id "$workflow_id")
+                workflow_label="${workflow_label:-$workflow_id}"
+            elif [ -n "$ref" ]; then
+                args+=(--file "$ref")
+                if [ "$effective_allow_missing" = true ]; then
+                    args+=(--allow-missing)
+                fi
+            fi
+
             if [ -n "$folder" ]; then
                 args+=(--folder "$folder")
+            fi
+            if [ -n "$validation_timeout" ]; then
+                args+=(--timeout "$validation_timeout")
+            fi
+            if [[ "$validation_keep_workflow" =~ ^(true|1)$ ]]; then
+                args+=(--keep-workflow)
             fi
 
             if testing::playbooks::bas::run_workflow "${args[@]}"; then
                 testing::phase::add_test passed
-                testing::phase::add_requirement --id "$req_id" --status passed --evidence "Workflow ${workflow_label} executed"
+                local evidence="Workflow ${workflow_label} executed"
+                if [ -n "${TESTING_PLAYBOOKS_BAS_LAST_EXECUTION_ID:-}" ]; then
+                    evidence+=" (execution ${TESTING_PLAYBOOKS_BAS_LAST_EXECUTION_ID})"
+                fi
+                if [ -n "${TESTING_PLAYBOOKS_BAS_LAST_SCENARIO:-}" ]; then
+                    evidence+=" via ${TESTING_PLAYBOOKS_BAS_LAST_SCENARIO}"
+                fi
+                testing::phase::add_requirement --id "$req_id" --status passed --evidence "$evidence"
             else
                 local rc=$?
-                if [ "$allow_missing" = true ] && [ "$rc" -eq 210 ]; then
+                if [ "$effective_allow_missing" = true ] && [ "$rc" -eq 210 ]; then
                     testing::phase::add_warning "Workflow ${workflow_label} not found; export pending"
                     testing::phase::add_test skipped
                     testing::phase::add_requirement --id "$req_id" --status skipped --evidence "Workflow ${workflow_label} missing"

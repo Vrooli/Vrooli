@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scenario Requirement Index",
+  "type": "object",
+  "required": ["requirements"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "properties": {
+        "scenario": { "type": "string" },
+        "version": { "type": ["string", "number"] },
+        "generated": { "type": "string" },
+        "owners": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "platform": { "type": "string" },
+              "contact": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "imports": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "requirements": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/requirement" }
+    },
+    "reporting": {
+      "type": "object",
+      "properties": {
+        "script": { "type": "string" },
+        "entrypoint": { "type": "string" },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "format": { "type": "string" },
+              "description": { "type": "string" }
+            },
+            "required": ["format"],
+            "additionalProperties": true
+          }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "description": { "type": "string" }
+            },
+            "required": ["path"],
+            "additionalProperties": true
+          }
+        },
+        "cli_options": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "aggregates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "metric": { "type": "string" },
+              "formula": { "type": "string" }
+            },
+            "required": ["metric"],
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "requirement": {
+      "type": "object",
+      "required": ["id", "title", "status", "criticality"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "category": { "type": "string" },
+        "prd_ref": { "type": "string" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "status": { "type": "string", "minLength": 1 },
+        "criticality": { "type": "string", "minLength": 1 },
+        "children": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "validation": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/validation" }
+        },
+        "validations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/validation" }
+        },
+        "metadata": { "type": "object" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "validation": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "status": { "type": "string" },
+        "phase": { "type": "string" },
+        "scenario": { "type": "string" },
+        "folder": { "type": "string" },
+        "workflow_id": { "type": "string" },
+        "manage_runtime": { "type": "string" },
+        "keep_workflow": { "type": "boolean" },
+        "timeout_seconds": { "type": "integer", "minimum": 1 },
+        "allow_missing": { "type": "boolean" },
+        "notes": { "type": "string" },
+        "metadata": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

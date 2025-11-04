@@ -85,6 +85,10 @@ source "${var_LIB_DEPS_DIR}/shellcheck.sh"
 source "${var_LIB_DEPS_DIR}/lychee.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_DEPS_DIR}/ast-grep.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_DEPS_DIR}/js-yaml.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_DEPS_DIR}/ajv.sh"
 
 ################################################################################
 # Main Setup Logic
@@ -246,6 +250,13 @@ setup::generic_main() {
     # Node.js (commonly needed)
     log::info "Installing Node.js..."
     nodejs::ensure_installed || log::warning "Node.js installation failed (not critical)"
+
+    if system::is_command node; then
+        js_yaml::install || log::warning "js-yaml CLI installation skipped"
+        ajv_cli::install || log::warning "ajv CLI installation skipped"
+    else
+        log::warning "Skipping js-yaml/ajv CLI install because Node.js is unavailable"
+    fi
     
     # Python (commonly needed - with venv support)
     log::info "Installing Python..."

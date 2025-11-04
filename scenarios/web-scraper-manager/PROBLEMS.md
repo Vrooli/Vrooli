@@ -533,4 +533,4 @@ When working on this scenario:
 - [PRD.md](./PRD.md) - Product requirements and progress tracking
 - [README.md](./README.md) - User-facing documentation
 - [CLAUDE.md](/CLAUDE.md) - Development guidelines
-- [Phased Testing](../../docs/scenarios/PHASED_TESTING_ARCHITECTURE.md) - Testing architecture
+- [Phased Testing](../../docs/testing/architecture/PHASED_TESTING.md) - Testing architecture

@@ -290,7 +290,7 @@
           }
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: CLI_NAME_PLACEHOLDER --help'",
           "description": "Display all running service URLs"
         }
