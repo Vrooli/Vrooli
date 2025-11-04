@@ -84,6 +84,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     canCaptureScreenshot,
     appId,
     app,
+    activePreviewUrl,
     elementCaptures,
     onElementCaptureNoteChange,
     onElementCaptureRemove,
@@ -113,6 +114,24 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
   );
 
   const existingIssuesLoading = existingIssues.status === 'loading';
+
+  // Track loading states for all data sources that will be included in the report
+  const dataLoadingSources = [
+    { name: 'app logs', loading: logs.includeAppLogs && logs.loading },
+    {
+      name: consoleLogs.fromFallback ? 'console logs (fallback)' : 'console logs',
+      loading: consoleLogs.includeConsoleLogs && consoleLogs.loading
+    },
+    {
+      name: network.fromFallback ? 'network requests (fallback)' : 'network requests',
+      loading: network.includeNetworkRequests && network.loading
+    },
+    { name: 'health checks', loading: health.includeHealthChecks && health.loading },
+    { name: 'app status', loading: status.includeAppStatus && status.loading },
+  ].filter(source => source.loading);
+
+  const dataLoadingCount = dataLoadingSources.length;
+  const hasIncompleteData = dataLoadingCount > 0;
   const existingIssuesError = existingIssues.status === 'error';
   const existingIssuesShouldWarn = existingIssues.status === 'ready'
     && (existingIssues.openCount > 0 || existingIssues.activeCount > 0);
@@ -129,13 +148,16 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     : relevantIssues.slice(0, 3);
   const issueSummaryLabel = `Active issues exist for this app`;
 
-  let existingIssuesCheckedLabel: string | null = null;
-  if (existingIssues.lastFetched) {
-    const parsed = new Date(existingIssues.lastFetched);
-    if (!Number.isNaN(parsed.getTime())) {
-      existingIssuesCheckedLabel = parsed.toLocaleTimeString();
-    }
-  }
+  const existingIssuesCheckedLabel = existingIssues.lastFetched
+    ? (() => {
+        try {
+          const parsed = new Date(existingIssues.lastFetched);
+          return Number.isNaN(parsed.getTime()) ? null : parsed.toLocaleTimeString();
+        } catch {
+          return null;
+        }
+      })()
+    : null;
 
   const existingIssuesMeta = existingIssues.stale
     ? 'Snapshot may be out of date.'
@@ -164,21 +186,10 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
   const handleToggleIssuesCollapse = () => {
     setIssuesCollapsed(prev => !prev);
   };
-  const existingIssuesMetaLabel = useMemo(() => {
-    if (!existingIssuesShouldWarn) {
-      return existingIssuesMeta ?? null;
-    }
-
-    const parts: string[] = [];
-    if (existingIssuesMeta) {
-      parts.push(existingIssuesMeta);
-    }
-
-    return parts.join(' • ');
-  }, [
-    existingIssuesShouldWarn,
-    existingIssuesMeta,
-  ]);
+  const existingIssuesMetaLabel = useMemo(
+    () => existingIssuesMeta ?? null,
+    [existingIssuesMeta],
+  );
 
   const issueDisplayName = useMemo(() => {
     const candidates = [
@@ -390,6 +401,9 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                   includeSummary={diagnosticsSummaryIncluded}
                   onIncludeSummaryChange={setIncludeDiagnosticsSummary}
                   disabled={form.submitting}
+                  pageStatus={consoleLogs.pageStatus}
+                  activePreviewUrl={activePreviewUrl}
+                  app={app}
                 />
               </div>
 
@@ -423,6 +437,22 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
             <p className="report-dialog__error" role="alert">
               {form.error}
             </p>
+          )}
+
+          {hasIncompleteData && !form.submitting && (
+            <div className="report-dialog__data-loading-notice" role="status">
+              <div className="report-dialog__data-loading-content">
+                <Loader2 aria-hidden size={14} className="spinning" />
+                <span>
+                  {dataLoadingCount === 1
+                    ? `${dataLoadingSources[0].name} still loading…`
+                    : `${dataLoadingCount} data sources still loading…`}
+                </span>
+              </div>
+              <span className="report-dialog__data-loading-hint">
+                You can send now or wait for complete diagnostics
+              </span>
+            </div>
           )}
 
           <div className="report-dialog__actions">

@@ -2,10 +2,11 @@ import { logger } from '@/services/logger';
 import { create } from 'zustand';
 import { appService, type ScenarioIssuesSummary } from '@/services/api';
 import { normalizeIdentifier } from '@/utils/appPreview';
+import type { FetchStatus } from '@/components/report/reportTypes';
 
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
-export type ScenarioIssuesStatus = 'idle' | 'loading' | 'ready' | 'error';
+export type ScenarioIssuesStatus = FetchStatus;
 
 export interface ScenarioIssuesEntry {
   status: ScenarioIssuesStatus;

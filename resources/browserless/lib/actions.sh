@@ -109,6 +109,16 @@ actions::parse_universal_options() {
                 VIEWPORT_HEIGHT="844"
                 shift
                 ;;
+            --viewport)
+                if [[ "$2" =~ ^([0-9]{2,5})x([0-9]{2,5})$ ]]; then
+                    VIEWPORT_WIDTH="${BASH_REMATCH[1]}"
+                    VIEWPORT_HEIGHT="${BASH_REMATCH[2]}"
+                else
+                    echo "Error: --viewport expects WIDTHxHEIGHT (e.g., 1280x720)" >&2
+                    return 1
+                fi
+                shift 2
+                ;;
             *)
                 # Collect non-option arguments
                 remaining_args+=("$1")
@@ -206,6 +216,16 @@ actions::screenshot() {
                 VIEWPORT_HEIGHT="844"
                 shift
                 ;;
+            --viewport)
+                if [[ "$2" =~ ^([0-9]{2,5})x([0-9]{2,5})$ ]]; then
+                    VIEWPORT_WIDTH="${BASH_REMATCH[1]}"
+                    VIEWPORT_HEIGHT="${BASH_REMATCH[2]}"
+                else
+                    echo "Error: --viewport expects WIDTHxHEIGHT (e.g., 1280x720)" >&2
+                    return 1
+                fi
+                shift 2
+                ;;
             --help|-h)
                 echo "Usage: browserless screenshot [URL] [OPTIONS]"
                 echo ""
@@ -217,6 +237,7 @@ actions::screenshot() {
                 echo "  --output FILE          Output file path (default: screenshot-TIMESTAMP.png)"
                 echo "  --fullpage             Capture full page instead of viewport"
                 echo "  --mobile               Use mobile viewport (390x844)"
+                echo "  --viewport WxH         Use custom viewport dimensions (e.g., 1280x720)"
                 echo "  --timeout MS           Timeout in milliseconds (default: 30000)"
                 echo "  --wait-ms MS           Wait time after load (default: 2000)"
                 echo "  --session NAME         Use persistent session"
@@ -355,6 +376,16 @@ EOF
             '. + {"viewport": {"width": $width, "height": $height}}')
     fi
     
+    # Clamp viewport to sane bounds (avoid invalid browserless requests)
+    if [[ -n "$VIEWPORT_WIDTH" ]]; then
+        if (( VIEWPORT_WIDTH < 200 )); then VIEWPORT_WIDTH=200; fi
+        if (( VIEWPORT_WIDTH > 10000 )); then VIEWPORT_WIDTH=10000; fi
+    fi
+    if [[ -n "$VIEWPORT_HEIGHT" ]]; then
+        if (( VIEWPORT_HEIGHT < 200 )); then VIEWPORT_HEIGHT=200; fi
+        if (( VIEWPORT_HEIGHT > 10000 )); then VIEWPORT_HEIGHT=10000; fi
+    fi
+
     # Make the API call
     local http_status
     http_status=$(curl -s -X POST \
@@ -656,19 +687,16 @@ actions::health_check() {
 # Usage: browserless element-exists <url> --selector "button.login" [options]
 #######################################
 actions::element_exists() {
-    # Reset defaults
     OUTPUT_PATH=""
     TIMEOUT_MS="30000"
     WAIT_MS="2000"
-    SESSION_NAME=""
     FULL_PAGE="false"
     VIEWPORT_WIDTH="1920"
     VIEWPORT_HEIGHT="1080"
-    
+
     local selector=""
     local remaining_args_array=()
-    
-    # Parse options directly
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --selector)
@@ -697,10 +725,6 @@ actions::element_exists() {
                 fi
                 shift 2
                 ;;
-            --session)
-                SESSION_NAME="$2"
-                shift 2
-                ;;
             --fullpage)
                 FULL_PAGE="true"
                 shift
@@ -716,193 +740,64 @@ actions::element_exists() {
                 ;;
         esac
     done
-    
+
     local url="${remaining_args_array[0]:-}"
-    
+
     if [[ -z "$url" ]] || [[ -z "$selector" ]]; then
         echo "Error: URL and selector required" >&2
         echo "Usage: browserless element-exists <url> --selector \"button.login\" [--timeout 5000]" >&2
         return 1
     fi
-    
-    local session_id
-    session_id=$(actions::create_temp_session)
-    
+
     log::info "🔍 Checking if element exists: $selector"
-    
-    # Navigate first
-    local nav_result
-    if nav_result=$(browser::navigate "$url" "$session_id"); then
-        local nav_success=$(echo "$nav_result" | jq -r '.success // false')
-        if [[ "$nav_success" == "true" ]]; then
-            # Wait for page to stabilize
-            browser::wait "$WAIT_MS" "$session_id"
-            
-            # Check if element exists
-            local exists
-            if exists=$(browser::element_exists "$selector" "$session_id"); then
-                if [[ "$exists" == "true" ]]; then
-                    echo "✅ Element exists: $selector"
-                    actions::cleanup_temp_session "$session_id"
-                    return 0
-                else
-                    echo "❌ Element not found: $selector" >&2
-                    actions::cleanup_temp_session "$session_id"
-                    return 1
-                fi
-            else
-                echo "❌ Error checking element: $selector" >&2
-                actions::cleanup_temp_session "$session_id"
-                return 1
-            fi
-        else
-            local error=$(echo "$nav_result" | jq -r '.error // "Unknown error"')
-            echo "Error: Navigation failed - $error" >&2
-            actions::cleanup_temp_session "$session_id"
-            return 1
-        fi
+
+    local script
+    script=$(URL="$url" SELECTOR="$selector" TIMEOUT="$TIMEOUT_MS" WAIT_MS="$WAIT_MS" WIDTH="$VIEWPORT_WIDTH" HEIGHT="$VIEWPORT_HEIGHT" python3 - <<'PY'
+import os, json
+url = os.environ['URL']
+selector = os.environ['SELECTOR']
+timeout = int(os.environ['TIMEOUT'])
+wait_ms = int(os.environ['WAIT_MS'])
+width = int(os.environ['WIDTH'])
+height = int(os.environ['HEIGHT'])
+print(f"""
+const targetUrl = {json.dumps(url)};
+const selector = {json.dumps(selector)};
+const timeoutMs = {timeout};
+const waitMs = {wait_ms};
+const viewport = {{ width: {width}, height: {height} }};
+await page.setViewport(viewport);
+await page.goto(targetUrl, {{ waitUntil: 'networkidle2', timeout: timeoutMs }});
+await new Promise(resolve => setTimeout(resolve, waitMs));
+const element = await page.$(selector);
+return {{ success: true, exists: !!element }};
+""")
+PY
+)
+
+    local response
+    response=$(browser::execute_js "$script") || return 1
+    local exists=$(echo "$response" | jq -r '.exists // false')
+
+    if [[ "$exists" == "true" ]]; then
+        echo "✅ Element exists: $selector"
+        return 0
     else
-        echo "Error: Could not navigate to URL" >&2
-        actions::cleanup_temp_session "$session_id"
+        echo "❌ Element not found: $selector" >&2
         return 1
     fi
 }
-
-#######################################
-# Extract text content from a page
-# Usage: browserless extract-text <url> --selector "h1" [options]
-#######################################
-actions::extract_text() {
-    # Reset defaults
-    OUTPUT_PATH=""
-    TIMEOUT_MS="30000"
-    WAIT_MS="2000"
-    SESSION_NAME=""
-    FULL_PAGE="false"
-    VIEWPORT_WIDTH="1920"
-    VIEWPORT_HEIGHT="1080"
-    
-    local selector=""
-    local remaining_args_array=()
-    
-    # Parse options directly
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --selector)
-                selector="$2"
-                shift 2
-                ;;
-            --output)
-                OUTPUT_PATH="$2"
-                shift 2
-                ;;
-            --timeout)
-                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
-                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
-                    TIMEOUT_MS="30000"
-                else
-                    TIMEOUT_MS="$2"
-                fi
-                shift 2
-                ;;
-            --wait-ms)
-                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
-                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
-                    WAIT_MS="2000"
-                else
-                    WAIT_MS="$2"
-                fi
-                shift 2
-                ;;
-            --session)
-                SESSION_NAME="$2"
-                shift 2
-                ;;
-            --fullpage)
-                FULL_PAGE="true"
-                shift
-                ;;
-            --mobile)
-                VIEWPORT_WIDTH="390"
-                VIEWPORT_HEIGHT="844"
-                shift
-                ;;
-            *)
-                remaining_args_array+=("$1")
-                shift
-                ;;
-        esac
-    done
-    
-    local url="${remaining_args_array[0]:-}"
-    
-    if [[ -z "$url" ]] || [[ -z "$selector" ]]; then
-        echo "Error: URL and selector required" >&2
-        echo "Usage: browserless extract-text <url> --selector \"h1\" [--output title.txt]" >&2
-        return 1
-    fi
-    
-    local session_id
-    session_id=$(actions::create_temp_session)
-    
-    log::info "📄 Extracting text from: $selector"
-    
-    # Navigate first
-    local nav_result
-    if nav_result=$(browser::navigate "$url" "$session_id"); then
-        local nav_success=$(echo "$nav_result" | jq -r '.success // false')
-        if [[ "$nav_success" == "true" ]]; then
-            # Wait for page to stabilize
-            browser::wait "$WAIT_MS" "$session_id"
-            
-            # Extract text
-            local text
-            if text=$(browser::get_text "$selector" "$session_id"); then
-                if [[ -n "$OUTPUT_PATH" ]]; then
-                    mkdir -p "${OUTPUT_PATH%/*}"
-                    echo "$text" > "$OUTPUT_PATH"
-                    echo "Text saved: $OUTPUT_PATH"
-                fi
-                
-                echo "Extracted text: $text"
-                actions::cleanup_temp_session "$session_id"
-                return 0
-            else
-                echo "Error: Could not extract text from selector: $selector" >&2
-                actions::cleanup_temp_session "$session_id"
-                return 1
-            fi
-        else
-            local error=$(echo "$nav_result" | jq -r '.error // "Unknown error"')
-            echo "Error: Navigation failed - $error" >&2
-            actions::cleanup_temp_session "$session_id"
-            return 1
-        fi
-    else
-        echo "Error: Could not navigate to URL" >&2
-        actions::cleanup_temp_session "$session_id"
-        return 1
-    fi
-}
-
-#######################################
-# Extract structured data using custom JavaScript
-# Usage: browserless extract <url> --script "return {title: document.title}" [options]
-#######################################
 actions::extract() {
-    # Reset defaults
     OUTPUT_PATH=""
     TIMEOUT_MS="30000"
     WAIT_MS="2000"
-    SESSION_NAME=""
     FULL_PAGE="false"
     VIEWPORT_WIDTH="1920"
     VIEWPORT_HEIGHT="1080"
-    
+
     local script=""
     local remaining_args_array=()
-    
-    # Parse options directly
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --script)
@@ -931,10 +826,6 @@ actions::extract() {
                 fi
                 shift 2
                 ;;
-            --session)
-                SESSION_NAME="$2"
-                shift 2
-                ;;
             --fullpage)
                 FULL_PAGE="true"
                 shift
@@ -950,68 +841,64 @@ actions::extract() {
                 ;;
         esac
     done
-    
+
     local url="${remaining_args_array[0]:-}"
-    
+
     if [[ -z "$url" ]] || [[ -z "$script" ]]; then
         echo "Error: URL and script required" >&2
         echo "Usage: browserless extract <url> --script \"return {title: document.title}\" [--output data.json]" >&2
         return 1
     fi
-    
-    local session_id
-    session_id=$(actions::create_temp_session)
-    
+
     log::info "⚙️  Extracting data with custom script"
-    
-    # Navigate first
-    local nav_result
-    if nav_result=$(browser::navigate "$url" "$session_id"); then
-        local nav_success=$(echo "$nav_result" | jq -r '.success // false')
-        if [[ "$nav_success" == "true" ]]; then
-            # Wait for page to stabilize
-            browser::wait "$WAIT_MS" "$session_id"
-            
-            # Execute custom script
-            local result
-            if result=$(browser::evaluate "$script" "$session_id"); then
-                local eval_success=$(echo "$result" | jq -r '.success // false')
-                if [[ "$eval_success" == "true" ]]; then
-                    local extracted_data=$(echo "$result" | jq -r '.result')
-                    
-                    if [[ -n "$OUTPUT_PATH" ]]; then
-                        mkdir -p "${OUTPUT_PATH%/*}"
-                        echo "$extracted_data" > "$OUTPUT_PATH"
-                        echo "Data saved: $OUTPUT_PATH"
-                    fi
-                    
-                    echo "Extracted data:"
-                    echo "$extracted_data"
-                    actions::cleanup_temp_session "$session_id"
-                    return 0
-                else
-                    local error
-            error=$(echo "$result" | jq -r '.error // "Unknown error"')
-                    echo "Error: Script execution failed - $error" >&2
-                    actions::cleanup_temp_session "$session_id"
-                    return 1
-                fi
-            else
-                echo "Error: Could not execute script" >&2
-                actions::cleanup_temp_session "$session_id"
-                return 1
-            fi
-        else
-            local error=$(echo "$nav_result" | jq -r '.error // "Unknown error"')
-            echo "Error: Navigation failed - $error" >&2
-            actions::cleanup_temp_session "$session_id"
-            return 1
-        fi
-    else
-        echo "Error: Could not navigate to URL" >&2
-        actions::cleanup_temp_session "$session_id"
+
+    local wrapped_script
+    wrapped_script=$(URL="$url" USER_SCRIPT="$script" TIMEOUT="$TIMEOUT_MS" WAIT_MS="$WAIT_MS" WIDTH="$VIEWPORT_WIDTH" HEIGHT="$VIEWPORT_HEIGHT" python3 - <<'PY'
+import os, json
+url = os.environ['URL']
+user_script = os.environ['USER_SCRIPT']
+timeout = int(os.environ['TIMEOUT'])
+wait_ms = int(os.environ['WAIT_MS'])
+width = int(os.environ['WIDTH'])
+height = int(os.environ['HEIGHT'])
+print(f"""
+const targetUrl = {json.dumps(url)};
+const timeoutMs = {timeout};
+const waitMs = {wait_ms};
+const viewport = {{ width: {width}, height: {height} }};
+const userScript = {json.dumps(user_script)};
+
+await page.setViewport(viewport);
+await page.goto(targetUrl, {{ waitUntil: 'networkidle2', timeout: timeoutMs }});
+await new Promise(resolve => setTimeout(resolve, waitMs));
+
+const fn = new Function(userScript);
+const result = await page.evaluate(fn);
+return {{ success: true, result }};
+""")
+PY
+)
+
+    local response
+    response=$(browser::execute_js "$wrapped_script") || return 1
+
+    local success=$(echo "$response" | jq -r '.success // false')
+    if [[ "$success" != "true" ]]; then
+        local error=$(echo "$response" | jq -r '.error // "Unknown error"')
+        echo "Error: Script execution failed - $error" >&2
         return 1
     fi
+
+    local extracted_data=$(echo "$response" | jq -c '.result')
+
+    if [[ -n "$OUTPUT_PATH" ]]; then
+        mkdir -p "${OUTPUT_PATH%/*}"
+        echo "$extracted_data" > "$OUTPUT_PATH"
+        echo "Data saved: $OUTPUT_PATH"
+    fi
+
+    echo "Extracted data:"
+    echo "$extracted_data"
 }
 
 #######################################

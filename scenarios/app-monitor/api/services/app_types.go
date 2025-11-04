@@ -177,16 +177,17 @@ type issueCacheEntry struct {
 
 // AppService handles business logic for application management
 type AppService struct {
-	repo          repository.AppRepository
-	httpClient    HTTPClient
-	timeNow       TimeProvider
-	cache         *orchestratorCache
-	viewStatsMu   sync.RWMutex
-	viewStats     map[string]*viewStatsEntry
-	issueCacheMu  sync.RWMutex
-	issueCache    map[string]*issueCacheEntry
-	issueCacheTTL time.Duration
-	repoRoot      string
+	repo               repository.AppRepository
+	httpClient         HTTPClient
+	timeNow            TimeProvider
+	cache              *orchestratorCache
+	viewStatsMu        sync.RWMutex
+	viewStats          map[string]*viewStatsEntry
+	issueCacheMu       sync.RWMutex
+	issueCache         map[string]*issueCacheEntry
+	issueCacheTTL      time.Duration
+	repoRoot           string
+	browserlessService *BrowserlessService
 }
 
 // =============================================================================

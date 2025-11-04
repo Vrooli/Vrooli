@@ -29,14 +29,15 @@ func NewAppServiceWithOptions(repo repository.AppRepository, httpClient HTTPClie
 
 	repoRoot, _ := findRepoRoot()
 	return &AppService{
-		repo:          repo,
-		httpClient:    httpClient,
-		timeNow:       timeProvider,
-		cache:         &orchestratorCache{},
-		viewStats:     make(map[string]*viewStatsEntry),
-		issueCache:    make(map[string]*issueCacheEntry),
-		issueCacheTTL: issueTrackerCacheTTL,
-		repoRoot:      repoRoot,
+		repo:               repo,
+		httpClient:         httpClient,
+		timeNow:            timeProvider,
+		cache:              &orchestratorCache{},
+		viewStats:          make(map[string]*viewStatsEntry),
+		issueCache:         make(map[string]*issueCacheEntry),
+		issueCacheTTL:      issueTrackerCacheTTL,
+		repoRoot:           repoRoot,
+		browserlessService: NewBrowserlessService(),
 	}
 }
 

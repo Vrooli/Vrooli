@@ -8,6 +8,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+import type { App, BridgeRuleReport, BridgeRuleViolation } from '@/types';
+import type { BrowserlessFallbackPageStatus } from '@/services/api';
 import type { ReportDiagnosticsState } from './useReportIssueState';
 
 interface ReportDiagnosticsPanelProps {
@@ -15,6 +17,9 @@ interface ReportDiagnosticsPanelProps {
   includeSummary: boolean;
   onIncludeSummaryChange: (value: boolean) => void;
   disabled?: boolean;
+  pageStatus?: BrowserlessFallbackPageStatus | null;
+  activePreviewUrl?: string | null;
+  app?: App | null;
 }
 
 const ReportDiagnosticsPanel = ({
@@ -22,6 +27,9 @@ const ReportDiagnosticsPanel = ({
   includeSummary,
   onIncludeSummaryChange,
   disabled = false,
+  pageStatus = null,
+  activePreviewUrl = null,
+  app = null,
 }: ReportDiagnosticsPanelProps) => {
   const {
     diagnosticsState,
@@ -44,35 +52,6 @@ const ReportDiagnosticsPanel = ({
     setIsCollapsed(prev => !prev);
   };
 
-  const statusIcon = useMemo(() => {
-    if (diagnosticsState === 'pass') {
-      return <CheckCircle2 aria-hidden size={18} />;
-    }
-    if (diagnosticsState === 'loading') {
-      return <Loader2 aria-hidden size={18} className="spinning" />;
-    }
-    if (diagnosticsState === 'fail' || diagnosticsState === 'error') {
-      return <AlertTriangle aria-hidden size={18} />;
-    }
-    return null;
-  }, [diagnosticsState]);
-
-  const statusLabel = useMemo(() => {
-    switch (diagnosticsState) {
-      case 'loading':
-        return 'Running diagnostics…';
-      case 'pass':
-        return 'Diagnostics passed';
-      case 'fail':
-        return 'Diagnostics reported findings';
-      case 'error':
-        return 'Unable to run diagnostics';
-      case 'idle':
-      default:
-        return 'Diagnostics not run';
-    }
-  }, [diagnosticsState]);
-
   const globalCards = useMemo(() => {
     const cards: Array<{
       key: string;
@@ -92,6 +71,30 @@ const ReportDiagnosticsPanel = ({
       return cards;
     }
 
+    // Check if scenario exists but has no UI port
+    // Show this diagnostic regardless of scenario state (running, stopped, etc.)
+    // because the lack of UI port is a configuration issue that should be surfaced
+    const hasNoPreviewUrl = !activePreviewUrl || activePreviewUrl.trim() === '';
+
+    // Debug logging
+    if (typeof window !== 'undefined' && (window as any).__DEBUG_NO_UI_PORT) {
+      console.log('[ReportDiagnosticsPanel] No UI Port check:', {
+        app: app ? { id: app.id, status: app.status, port_mappings: app.port_mappings } : null,
+        activePreviewUrl,
+        hasNoPreviewUrl,
+        willAddCard: app && hasNoPreviewUrl,
+      });
+    }
+
+    if (app && hasNoPreviewUrl) {
+      cards.push({
+        key: 'no-ui-port',
+        status: 'warning',
+        title: 'No UI port detected',
+        summary: 'This scenario does not expose a web interface. The preview is unavailable, but logs and diagnostics can still be captured from the backend.',
+      });
+    }
+
     if (hasScanFailure) {
       cards.push({
         key: 'scan-missing',
@@ -101,7 +104,7 @@ const ReportDiagnosticsPanel = ({
       });
     }
 
-    diagnosticsWarnings.forEach((message, index) => {
+    diagnosticsWarnings.forEach((message: string, index: number) => {
       cards.push({
         key: `global-warning-${index}`,
         status: 'warning',
@@ -119,10 +122,58 @@ const ReportDiagnosticsPanel = ({
       });
     }
 
-    return cards;
-  }, [diagnosticsError, diagnosticsState, diagnosticsWarning, diagnosticsWarnings, hasScanFailure]);
+    // Add page status analysis from browserless fallback
+    if (pageStatus) {
+      if (pageStatus.whiteScreen) {
+        cards.push({
+          key: 'page-white-screen',
+          status: 'error',
+          title: 'White screen detected',
+          summary: 'Page loaded but rendered no visible content. This typically indicates a bundling error or runtime exception before the UI initialized.',
+        });
+      }
 
-  const ruleCards = useMemo(() => diagnosticsRuleResults.map((rule, index) => {
+      if (pageStatus.moduleError) {
+        cards.push({
+          key: 'page-module-error',
+          status: 'error',
+          title: 'Module loading error',
+          summary: pageStatus.moduleError,
+        });
+      }
+
+      if (pageStatus.loadError) {
+        cards.push({
+          key: 'page-load-error',
+          status: 'error',
+          title: 'Resource loading error',
+          summary: pageStatus.loadError,
+        });
+      }
+
+      if (pageStatus.httpError) {
+        cards.push({
+          key: 'page-http-error',
+          status: 'error',
+          title: `HTTP ${pageStatus.httpError.status} error`,
+          summary: pageStatus.httpError.message,
+        });
+      }
+
+      if (pageStatus.resourceCount === 0 && !pageStatus.whiteScreen) {
+        cards.push({
+          key: 'page-no-resources',
+          status: 'warning',
+          title: 'No resources loaded',
+          summary: 'The page HTML loaded but no JavaScript or CSS resources were fetched. Possible bundling or server configuration issue.',
+        });
+      }
+    }
+
+    return cards;
+  }, [diagnosticsError, diagnosticsState, diagnosticsWarning, diagnosticsWarnings, hasScanFailure, pageStatus, app, activePreviewUrl]);
+
+  const ruleCards = useMemo(() => diagnosticsRuleResults.map((rule: BridgeRuleReport, index: number) => {
     const combinedWarnings = Array.from(new Set(
       [rule.warning, ...(rule.warnings ?? [])]
         .filter((value): value is string => Boolean(value && value.trim()))
@@ -152,7 +203,7 @@ const ReportDiagnosticsPanel = ({
         <>
           {hasViolations && (
             <ul className="report-dialog__bridge-inline-list">
-              {rule.violations.map(violation => (
+              {rule.violations.map((violation: BridgeRuleViolation) => (
                 <li key={`${rule.rule_id}:${violation.file_path}:${violation.line}:${violation.title}`}>
                   <strong>{violation.title}</strong>
                   {violation.file_path && (
@@ -180,8 +231,6 @@ const ReportDiagnosticsPanel = ({
     };
   }), [diagnosticsRuleResults]);
 
-  const runtimeCard = useMemo(() => null, []);
-
   const cards = useMemo(() => {
     const entries: Array<{
       key: string;
@@ -192,27 +241,58 @@ const ReportDiagnosticsPanel = ({
       body?: ReactNode;
     }> = [];
 
-    globalCards.forEach(card => entries.push(card));
-    ruleCards.forEach(card => entries.push(card));
-    if (runtimeCard) {
-      entries.push(runtimeCard);
-    }
+    globalCards.forEach((card: typeof globalCards[number]) => entries.push(card));
+    ruleCards.forEach((card: typeof ruleCards[number]) => entries.push(card));
 
     return entries;
-  }, [globalCards, ruleCards, runtimeCard]);
+  }, [globalCards, ruleCards]);
+
+  // Compute effective state considering both diagnostics and global cards
+  const hasGlobalWarningsOrErrors = globalCards.length > 0;
+  const effectiveHasWarnings = diagnosticsState === 'fail' || diagnosticsState === 'error' || hasGlobalWarningsOrErrors;
+  const effectiveIsOk = diagnosticsState === 'pass' && !hasGlobalWarningsOrErrors;
+
+  // Compute status icon and label based on effective state
+  const effectiveStatusIcon = useMemo(() => {
+    if (diagnosticsState === 'loading') {
+      return <Loader2 aria-hidden size={18} className="spinning" />;
+    }
+    if (effectiveHasWarnings) {
+      return <AlertTriangle aria-hidden size={18} />;
+    }
+    if (effectiveIsOk) {
+      return <CheckCircle2 aria-hidden size={18} />;
+    }
+    return null;
+  }, [diagnosticsState, effectiveHasWarnings, effectiveIsOk]);
+
+  const effectiveStatusLabel = useMemo(() => {
+    if (diagnosticsState === 'loading') {
+      return 'Running diagnostics…';
+    }
+    if (diagnosticsState === 'error') {
+      return 'Unable to run diagnostics';
+    }
+    if (effectiveHasWarnings) {
+      return 'Diagnostics reported findings';
+    }
+    if (effectiveIsOk) {
+      return 'Diagnostics passed';
+    }
+    return 'Diagnostics not run';
+  }, [diagnosticsState, effectiveHasWarnings, effectiveIsOk]);
 
   return (
     <div
       className={clsx(
         'report-dialog__bridge',
-        diagnosticsState === 'fail' && 'report-dialog__bridge--warning',
-        diagnosticsState === 'pass' && 'report-dialog__bridge--ok',
-        diagnosticsState === 'error' && 'report-dialog__bridge--warning',
+        effectiveHasWarnings && 'report-dialog__bridge--warning',
+        effectiveIsOk && 'report-dialog__bridge--ok',
       )}
     >
       <div className="report-dialog__bridge-head">
-        {statusIcon}
-        <span>{statusLabel}</span>
+        {effectiveStatusIcon}
+        <span>{effectiveStatusLabel}</span>
         <div className="report-dialog__bridge-head-actions">
           <button
             type="button"

@@ -93,6 +93,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
   return (
     <ResponsiveDialog
       isOpen
+      data-testid="project-modal"
       onDismiss={onClose}
       ariaLabelledBy={titleId}
       size="default"
@@ -109,6 +110,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
           </h2>
         </div>
         <button
+          data-testid="project-modal-close"
           onClick={onClose}
           className="text-gray-400 hover:text-white transition-colors"
           aria-label="Close project modal"
@@ -118,7 +120,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="p-6">
+      <form data-testid="project-modal-form" onSubmit={handleSubmit} className="p-6">
           {/* Error Message */}
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2">

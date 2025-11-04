@@ -4,11 +4,26 @@ import type {
 } from '@vrooli/iframe-bridge';
 
 import type { ReportConsoleEntry, ReportNetworkEntry, ConsoleSeverity } from './reportTypes';
+import {
+  MAX_CONSOLE_TEXT_LENGTH,
+  MAX_NETWORK_URL_LENGTH,
+  MAX_NETWORK_ERROR_LENGTH,
+  MAX_NETWORK_REQUEST_ID_LENGTH,
+} from './reportConstants';
 
-export const MAX_CONSOLE_TEXT_LENGTH = 2000;
-export const MAX_NETWORK_URL_LENGTH = 2048;
-export const MAX_NETWORK_ERROR_LENGTH = 1500;
-export const MAX_NETWORK_REQUEST_ID_LENGTH = 128;
+/**
+ * Formats a timestamp to locale time string, with safe handling for null/undefined/invalid values
+ */
+export const formatOptionalTimestamp = (timestamp: string | number | null | undefined): string | null => {
+  if (!timestamp) {
+    return null;
+  }
+  try {
+    return new Date(timestamp).toLocaleTimeString();
+  } catch {
+    return null;
+  }
+};
 
 export const trimForPayload = (value: string, max: number): string => {
   if (typeof value !== 'string' || value.length === 0) {
@@ -76,13 +91,7 @@ export const buildConsoleEventBody = (event: BridgeLogEvent): string => {
 };
 
 export const formatBridgeLogEvent = (event: BridgeLogEvent): string => {
-  const timestamp = (() => {
-    try {
-      return new Date(event.ts).toLocaleTimeString();
-    } catch {
-      return String(event.ts);
-    }
-  })();
+  const timestamp = formatOptionalTimestamp(event.ts) ?? String(event.ts);
   const level = event.level.toUpperCase();
   const source = event.source;
   const body = buildConsoleEventBody(event);
@@ -90,13 +99,7 @@ export const formatBridgeLogEvent = (event: BridgeLogEvent): string => {
 };
 
 export const toConsoleEntry = (event: BridgeLogEvent): ReportConsoleEntry => {
-  const timestamp = (() => {
-    try {
-      return new Date(event.ts).toLocaleTimeString();
-    } catch {
-      return String(event.ts);
-    }
-  })();
+  const timestamp = formatOptionalTimestamp(event.ts) ?? String(event.ts);
   const body = trimForPayload(buildConsoleEventBody(event), MAX_CONSOLE_TEXT_LENGTH);
   return {
     display: formatBridgeLogEvent(event),
@@ -114,14 +117,7 @@ export const toConsoleEntry = (event: BridgeLogEvent): ReportConsoleEntry => {
 };
 
 export const formatBridgeNetworkEvent = (event: BridgeNetworkEvent): string => {
-  const timestamp = (() => {
-    try {
-      return new Date(event.ts).toLocaleTimeString();
-    } catch {
-      return String(event.ts);
-    }
-  })();
-
+  const timestamp = formatOptionalTimestamp(event.ts) ?? String(event.ts);
   const method = event.method?.toUpperCase() ?? 'GET';
   const url = event.url ?? '(unknown URL)';
   const statusLabel = typeof event.status === 'number' ? ` [${event.status}]` : '';
@@ -145,13 +141,7 @@ export const toNetworkEntry = (event: BridgeNetworkEvent): ReportNetworkEntry =>
       ? (event.ok ? 'OK' : 'Error')
       : '—';
   const durationLabel = typeof normalizedDuration === 'number' ? `${normalizedDuration} ms` : null;
-  const timestamp = (() => {
-    try {
-      return new Date(event.ts).toLocaleTimeString();
-    } catch {
-      return String(event.ts);
-    }
-  })();
+  const timestamp = formatOptionalTimestamp(event.ts) ?? String(event.ts);
 
   return {
     display: formatBridgeNetworkEvent({

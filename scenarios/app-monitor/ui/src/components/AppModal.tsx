@@ -145,23 +145,43 @@ export default function AppModal({
   const { apiPort, otherPorts, primaryPortLabel, primaryPortValue, proxyRoutes } = useMemo(() => {
     const portEntries = Object.entries(app.port_mappings || {});
     const portsMap = Object.fromEntries(portEntries);
-    const primaryFallback = portEntries[0] ? portEntries[0][0] : 'PORT';
     const hasUIPort = portsMap['UI_PORT'] !== undefined;
+
+    // Determine primary port label and value
     const resolvedPrimaryLabel = (
-      (app.config?.primary_port_label as string | undefined) || (hasUIPort ? 'UI_PORT' : primaryFallback)
+      (app.config?.primary_port_label as string | undefined) || (hasUIPort ? 'UI_PORT' : 'PORT')
     ).toUpperCase();
 
     const resolvedPrimaryValue = (() => {
       if (app.config?.primary_port) return String(app.config.primary_port);
       if (hasUIPort) return String(portsMap['UI_PORT']);
-      if (portEntries[0]) return String(portEntries[0][1]);
       return 'N/A';
     })();
 
     const resolvedApiPort = portsMap['API_PORT'] !== undefined ? String(portsMap['API_PORT']) : null;
+
+    // Filter out ports that are already shown as primary or API port
+    const shownPorts = new Set<string>();
+    if (hasUIPort) shownPorts.add('UI_PORT');
+    if (resolvedApiPort) shownPorts.add('API_PORT');
+
     const resolvedOtherPorts = portEntries
-      .filter(([label]) => label !== 'UI_PORT' && label !== 'API_PORT')
+      .filter(([label]) => !shownPorts.has(label))
       .map(([label, value]) => ({ label: label.toUpperCase(), value: String(value) }));
+
+    // Debug logging
+    if (typeof window !== 'undefined' && (window as any).__DEBUG_APP_MODAL_PORTS) {
+      console.log('[AppModal] Port computation:', {
+        appId: app.id,
+        portEntries,
+        hasUIPort,
+        resolvedPrimaryLabel,
+        resolvedPrimaryValue,
+        resolvedApiPort,
+        shownPorts: Array.from(shownPorts),
+        resolvedOtherPorts,
+      });
+    }
 
     const resolvedProxyRoutes: AppProxyPortInfo[] = proxyMetadata?.ports
       ? [...proxyMetadata.ports].sort((a, b) => {

@@ -12,6 +12,7 @@ import {
 import ReportLogsSection, { type ReportLogsSectionProps } from './ReportLogsSection';
 import type { ReportElementCapture } from './reportTypes';
 import type { ReportScreenshotState } from './useReportIssueState';
+import { formatOptionalTimestamp } from './reportFormatters';
 
 const PRIMARY_TAB_ID = 'page';
 const LOGS_TAB_ID = 'logs';
@@ -51,7 +52,7 @@ const ReportScreenshotPanel = ({
     reportScreenshotClip,
     reportScreenshotInfo,
     reportScreenshotCountdown,
-    assignScreenshotContainerRef,
+    reportScreenshotContainerRef,
     reportScreenshotContainerHandlers,
     selectionDimensionLabel,
     handleReportIncludeScreenshotChange,
@@ -164,7 +165,7 @@ const ReportScreenshotPanel = ({
                   'report-dialog__preview-image',
                   'report-dialog__preview-image--selectable',
                 )}
-                ref={assignScreenshotContainerRef}
+                ref={reportScreenshotContainerRef}
                 {...reportScreenshotContainerHandlers}
               >
                 <img
@@ -283,9 +284,7 @@ const ReportScreenshotPanel = ({
       : textValue;
     const boundingBox = capture.metadata.boundingBox ?? null;
     const dimensionLabel = `${capture.width} × ${capture.height} px`;
-    const createdAtLabel = Number.isFinite(capture.createdAt)
-      ? new Date(capture.createdAt).toLocaleString()
-      : null;
+    const createdAtLabel = formatOptionalTimestamp(capture.createdAt);
     const noteFieldId = `report-element-note-${capture.id}`;
     const imageSrc = capture.data.startsWith('data:')
       ? capture.data

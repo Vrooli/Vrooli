@@ -1157,3 +1157,54 @@ func formatTestStatusIndicator(status string) (string, ScenarioStatusSeverity) {
 		return "[WARN]", ScenarioStatusSeverityWarn
 	}
 }
+
+// =============================================================================
+// Fallback Diagnostics via Browserless
+// =============================================================================
+
+// GetFallbackDiagnostics retrieves diagnostic information using browserless when the iframe bridge fails
+func (s *AppService) GetFallbackDiagnostics(ctx context.Context, appID string, url string) (*BrowserlessFallbackResult, error) {
+	if s.browserlessService == nil {
+		return nil, errors.New("browserless service not initialized")
+	}
+
+	id := strings.TrimSpace(appID)
+	if id == "" {
+		return nil, ErrAppIdentifierRequired
+	}
+
+	// Validate that the app exists
+	_, err := s.GetApp(ctx, id)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, fmt.Errorf("%w: %v", ErrAppNotFound, err)
+		}
+		return nil, err
+	}
+
+	// Use browserless to collect diagnostics
+	result, err := s.browserlessService.GetFallbackDiagnostics(ctx, url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect browserless diagnostics: %w", err)
+	}
+
+	// Analyze console logs for common errors
+	if result.PageStatus != nil && len(result.ConsoleLogs) > 0 {
+		for _, log := range result.ConsoleLogs {
+			if log.Level == "error" {
+				// Check for module loading errors
+				if strings.Contains(log.Message, "Failed to load module script") ||
+					strings.Contains(log.Message, "MIME type") {
+					result.PageStatus.ModuleError = log.Message
+				}
+				// Check for other load errors
+				if strings.Contains(log.Message, "Failed to fetch") ||
+					strings.Contains(log.Message, "net::ERR") {
+					result.PageStatus.LoadError = log.Message
+				}
+			}
+		}
+	}
+
+	return result, nil
+}

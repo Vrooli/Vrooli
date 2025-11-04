@@ -115,6 +115,11 @@
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
             "command": "app-monitor"
           },
@@ -174,7 +179,7 @@
       ]
     },
     "develop": {
-      "description": "Start app monitor with Go API server",
+      "description": "Start app monitor with Go API server and production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -184,11 +189,6 @@
           "condition": {
             "file_exists": "api/app-monitor-api"
           }
-        },
-        {
-          "name": "ensure-ui-bundle",
-          "run": "cd ui && if [ ! -f dist/index.html ]; then echo 'UI bundle missing; running npm run build'; npm run build; elif find src -type f -newer dist/index.html -print -quit | grep -q .; then echo 'UI sources changed; rebuilding'; npm run build; elif [ -d public ] && find public -type f -newer dist/index.html -print -quit | grep -q .; then echo 'UI static assets changed; rebuilding'; npm run build; elif [ index.html -nt dist/index.html ] || [ vite.config.ts -nt dist/index.html ]; then echo 'UI configuration changed; rebuilding'; npm run build; else echo 'UI bundle up to date'; fi",
-          "description": "Ensure production UI bundle is current before starting server"
         },
         {
           "name": "start-ui",

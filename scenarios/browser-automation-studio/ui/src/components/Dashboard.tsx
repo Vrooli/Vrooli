@@ -110,6 +110,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
               <p className="text-gray-400 text-sm sm:text-base">Manage your automation projects and workflows</p>
             </div>
             <button
+              data-testid="dashboard-new-project-button"
               onClick={onCreateProject}
               className="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
@@ -168,6 +169,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
               </p>
               {!error && (
                 <button
+                  data-testid="dashboard-new-project-button"
                   onClick={onCreateProject}
                   className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >

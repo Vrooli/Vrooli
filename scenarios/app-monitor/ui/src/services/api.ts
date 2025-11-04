@@ -145,6 +145,52 @@ export interface ReportIssueHealthCheckEntry {
   response?: string | null;
 }
 
+export interface BrowserlessFallbackConsoleLog {
+  level: string;
+  message: string;
+  timestamp: string;
+}
+
+export interface BrowserlessFallbackNetworkRequest {
+  requestId: string;
+  url: string;
+  method: string;
+  resourceType: string;
+  status?: number;
+  ok?: boolean;
+  statusText?: string;
+  duration?: number;
+  headers?: Record<string, string>;
+  contentType?: string;
+  failed?: boolean;
+  error?: string;
+  timestamp: string;
+}
+
+export interface BrowserlessFallbackPageStatus {
+  whiteScreen: boolean;
+  httpError?: {
+    status: number;
+    message: string;
+  } | null;
+  loadError?: string | null;
+  moduleError?: string | null;
+  resourceCount: number;
+  loadTimeMs: number;
+  performanceMetrics?: Record<string, any>;
+}
+
+export interface BrowserlessFallbackDiagnostics {
+  consoleLogs: BrowserlessFallbackConsoleLog[];
+  networkRequests: BrowserlessFallbackNetworkRequest[];
+  pageStatus: BrowserlessFallbackPageStatus | null;
+  screenshot?: string;
+  source: string;
+  capturedAt: string;
+  url: string;
+  title?: string;
+}
+
 export interface ReportIssueCapturePayload {
   id: string;
   type: 'page' | 'element';
@@ -328,7 +374,7 @@ export const appService = {
     payload: ReportIssuePayload,
   ): Promise<ApiResponse<{ issue_id?: string; issue_url?: string }>> {
     try {
-      const { data } = await api.post<ApiResponse<{ issue_id?: string; issue_url?: string }>>(
+      const { data} = await api.post<ApiResponse<{ issue_id?: string; issue_url?: string }>>(
         `/apps/${encodeURIComponent(appId)}/report`,
         payload,
       );
@@ -336,6 +382,26 @@ export const appService = {
     } catch (error) {
       logger.error(`Failed to report issue for app ${appId}`, error);
       throw error;
+    }
+  },
+
+  async getFallbackDiagnostics(
+    appId: string,
+    url: string,
+  ): Promise<BrowserlessFallbackDiagnostics | null> {
+    try {
+      const { data } = await api.post<ApiResponse<BrowserlessFallbackDiagnostics>>(
+        `/apps/${encodeURIComponent(appId)}/fallback-diagnostics`,
+        { url },
+      );
+      if (data?.success === false) {
+        logger.warn(`Fallback diagnostics for ${appId} failed`, data?.error || data?.message);
+        return null;
+      }
+      return data?.data ?? null;
+    } catch (error) {
+      logger.warn(`Failed to fetch fallback diagnostics for ${appId}`, error);
+      return null;
     }
   },
 

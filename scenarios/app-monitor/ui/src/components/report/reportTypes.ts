@@ -97,4 +97,13 @@ export type ReportCapture = ReportPageCapture | ReportElementCapture;
 
 type ConsoleSeverity = 'error' | 'warn' | 'info' | 'log' | 'debug' | 'trace';
 
+export type FetchStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+/**
+ * Checks if a collection has been truncated based on total count vs. items length
+ */
+export const isTruncated = (total: number | null | undefined, itemsLength: number): boolean => {
+  return typeof total === 'number' && total > itemsLength;
+};
+
 export type { ConsoleSeverity };

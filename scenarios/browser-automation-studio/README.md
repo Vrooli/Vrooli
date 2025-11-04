@@ -141,7 +141,7 @@ On first run (or whenever the database is empty) the API seeds a ready-to-run wo
   ```
 
   The `execute` command prints the execution ID so you can feed it directly into `execution watch`, `execution export`, or `execution render` to pull telemetry and marketing-ready assets.
-- **Playbook sanity check:** `./test/playbooks/projects/demo-sanity.sh` boots the scenario and verifies the demo project/workflow are exposed via the API—handy for CI keep-alive jobs or local smoke checks.
+- **Playbook sanity check:** `testing::playbooks::bas::run_workflow --file test/playbooks/projects/demo-sanity.json` boots the scenario and verifies the demo project/workflow are exposed via the API—handy for CI keep-alive jobs or local smoke checks.
 
 ## 🏗️ Architecture
 
@@ -256,7 +256,7 @@ cd api && go test ./...
 cd ../ui && npm test
 
 # Run replay renderer automation
-node test/playbooks/replay/render-check.js
+testing::playbooks::bas::run_workflow --file test/playbooks/replay/render-check.json --folder /regression
 ```
 
 ## 📊 Metrics

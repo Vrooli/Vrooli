@@ -215,9 +215,18 @@ const AppPreviewView = () => {
     return null;
   }, [appId, currentApp]);
 
-  const deterministicProxyUrl = useMemo(() => (
-    previewIdentifier ? buildProxyPreviewUrl(previewIdentifier) : null
-  ), [previewIdentifier]);
+  // Only create a deterministic proxy URL if the app actually has a UI port
+  // Otherwise we'd create a URL pointing to a non-existent UI
+  const deterministicProxyUrl = useMemo(() => {
+    if (!previewIdentifier) return null;
+    if (!currentApp) return null;
+
+    // Check if this app actually has a UI port
+    const previewUrl = buildPreviewUrl(currentApp);
+    if (!previewUrl) return null;  // No UI port, don't create proxy URL
+
+    return buildProxyPreviewUrl(previewIdentifier);
+  }, [previewIdentifier, currentApp]);
 
   const previousPreviewIdentifierRef = useRef<string | null>(null);
   const previousReportScenarioRef = useRef<string | null>(null);
@@ -1188,6 +1197,16 @@ const AppPreviewView = () => {
     }
 
     if (!hasPreviewCandidate) {
+      // Debug logging
+      if (typeof window !== 'undefined' && (window as any).__DEBUG_NO_UI_PORT) {
+        console.log('[AppPreviewView] No preview candidate detected:', {
+          appId: currentAppForPreview.id,
+          is_partial: currentAppForPreview.is_partial,
+          port_mappings: currentAppForPreview.port_mappings,
+          willShowNoUI: !currentAppForPreview.is_partial,
+        });
+      }
+
       if (currentAppForPreview.is_partial) {
         setStatusMessage('Loading application details...');
         setLoading(true);

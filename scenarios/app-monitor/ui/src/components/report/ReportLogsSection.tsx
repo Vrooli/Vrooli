@@ -4,11 +4,18 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Info,
   Loader2,
   RefreshCw,
   XCircle,
 } from 'lucide-react';
 
+import type {
+  ReportAppLogStream,
+  ReportConsoleEntry,
+  ReportNetworkEntry,
+  ReportHealthCheckEntry,
+} from './reportTypes';
 import type {
   ReportConsoleLogsState,
   ReportLogsState,
@@ -44,8 +51,8 @@ const ReportLogsSection = ({
   healthPanelId,
   statusPanelId,
 }: ReportLogsSectionProps) => {
-  const missingLogsCapability = !bridgeCaps.includes('logs');
-  const missingNetworkCapability = !bridgeCaps.includes('network');
+  const hasLogsCapability = bridgeCaps.includes('logs');
+  const hasNetworkCapability = bridgeCaps.includes('network');
 
   const renderHealthStatusIcon = (status: 'pass' | 'warn' | 'fail') => {
     switch (status) {
@@ -110,7 +117,7 @@ const ReportLogsSection = ({
       </div>
       {logs.streams.length > 0 && (
         <div className="report-dialog__logs-streams">
-          {logs.streams.map(stream => (
+          {logs.streams.map((stream: ReportAppLogStream) => (
             <label key={stream.key} className="report-dialog__logs-stream">
               <input
                 type="checkbox"
@@ -153,7 +160,7 @@ const ReportLogsSection = ({
           <button
             type="button"
             className="report-dialog__logs-refresh"
-            onClick={logs.fetch}
+            onClick={() => logs.fetch()}
             disabled={logs.loading}
           >
             {logs.loading ? (
@@ -175,7 +182,7 @@ const ReportLogsSection = ({
             <button
               type="button"
               className="report-dialog__button report-dialog__button--ghost"
-              onClick={logs.fetch}
+              onClick={() => logs.fetch()}
               disabled={logs.loading}
             >
               Retry
@@ -195,7 +202,7 @@ const ReportLogsSection = ({
           className={clsx(
             'report-dialog__logs-include',
             !consoleLogs.includeConsoleLogs && 'report-dialog__logs-include--off',
-            !bridgeCaps.includes('logs') && 'report-dialog__logs-include--disabled',
+            !hasLogsCapability && 'report-dialog__logs-include--disabled',
           )}
         >
           <input
@@ -203,7 +210,7 @@ const ReportLogsSection = ({
             checked={consoleLogs.includeConsoleLogs}
             onChange={(event) => consoleLogs.setIncludeConsoleLogs(event.target.checked)}
             aria-label="Include console logs in report"
-            disabled={!bridgeCaps.includes('logs')}
+            disabled={!hasLogsCapability}
           />
           <span className="report-dialog__logs-title">Console logs</span>
         </label>
@@ -213,7 +220,7 @@ const ReportLogsSection = ({
           onClick={consoleLogs.toggleExpanded}
           aria-expanded={consoleLogs.expanded}
           aria-controls={consoleLogsPanelId}
-          disabled={!bridgeCaps.includes('logs')}
+          disabled={!hasLogsCapability}
           aria-label={consoleLogs.expanded ? 'Hide console logs' : 'Show console logs'}
         >
           {consoleLogs.expanded ? (
@@ -223,13 +230,24 @@ const ReportLogsSection = ({
           )}
         </button>
       </div>
-      {missingLogsCapability && (
+      {!hasLogsCapability && !consoleLogs.fromFallback && (
         <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
           <AlertTriangle aria-hidden size={18} />
           <div>
             <p className="report-dialog__logs-alert-title">Console capture unavailable</p>
             <p>
               Runtime diagnostics flagged that this preview&apos;s iframe bridge did not advertise log support. Restart the scenario to refresh the UI bundle, or include diagnostics in the issue so follow-up agents are notified.
+            </p>
+          </div>
+        </div>
+      )}
+      {consoleLogs.fromFallback && (
+        <div className="report-dialog__logs-alert report-dialog__logs-alert--info" role="alert">
+          <Info aria-hidden size={18} />
+          <div>
+            <p className="report-dialog__logs-alert-title">Retrieved via fallback diagnostics</p>
+            <p>
+              The iframe bridge didn&apos;t respond, so these logs were captured directly from the browser using Chrome DevTools Protocol. This works even when the page fails to load.
             </p>
           </div>
         </div>
@@ -253,8 +271,8 @@ const ReportLogsSection = ({
           <button
             type="button"
             className="report-dialog__logs-refresh"
-            onClick={consoleLogs.fetch}
-            disabled={consoleLogs.loading || !bridgeCaps.includes('logs')}
+            onClick={() => consoleLogs.fetch()}
+            disabled={consoleLogs.loading || !hasLogsCapability}
           >
             {consoleLogs.loading ? (
               <Loader2 aria-hidden size={14} className="spinning" />
@@ -275,7 +293,7 @@ const ReportLogsSection = ({
             <button
               type="button"
               className="report-dialog__button report-dialog__button--ghost"
-              onClick={consoleLogs.fetch}
+              onClick={() => consoleLogs.fetch()}
               disabled={consoleLogs.loading}
             >
               Retry
@@ -285,7 +303,7 @@ const ReportLogsSection = ({
           <p className="report-dialog__logs-empty">No console output captured yet.</p>
         ) : (
           <div className="report-dialog__logs-content report-dialog__logs-content--console">
-            {consoleLogs.entries.map((entry, index) => (
+            {consoleLogs.entries.map((entry: ReportConsoleEntry, index: number) => (
               <div
                 key={`${entry.payload.ts}-${index}`}
                 className={clsx(
@@ -312,7 +330,7 @@ const ReportLogsSection = ({
           className={clsx(
             'report-dialog__logs-include',
             !network.includeNetworkRequests && 'report-dialog__logs-include--off',
-            !bridgeCaps.includes('network') && 'report-dialog__logs-include--disabled',
+            !hasNetworkCapability && 'report-dialog__logs-include--disabled',
           )}
         >
           <input
@@ -320,7 +338,7 @@ const ReportLogsSection = ({
             checked={network.includeNetworkRequests}
             onChange={(event) => network.setIncludeNetworkRequests(event.target.checked)}
             aria-label="Include network activity in report"
-            disabled={!bridgeCaps.includes('network')}
+            disabled={!hasNetworkCapability}
           />
           <span className="report-dialog__logs-title">Network requests</span>
         </label>
@@ -330,7 +348,7 @@ const ReportLogsSection = ({
           onClick={network.toggleExpanded}
           aria-expanded={network.expanded}
           aria-controls={networkPanelId}
-          disabled={!bridgeCaps.includes('network')}
+          disabled={!hasNetworkCapability}
           aria-label={network.expanded ? 'Hide network requests' : 'Show network requests'}
         >
           {network.expanded ? (
@@ -340,13 +358,24 @@ const ReportLogsSection = ({
           )}
         </button>
       </div>
-      {missingNetworkCapability && (
+      {!hasNetworkCapability && !network.fromFallback && (
         <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
           <AlertTriangle aria-hidden size={18} />
           <div>
             <p className="report-dialog__logs-alert-title">Network capture unavailable</p>
             <p>
               Runtime diagnostics flagged that this preview&apos;s iframe bridge did not advertise network request support. Restart the scenario to refresh the UI bundle, or include diagnostics in the issue so follow-up agents are notified.
+            </p>
+          </div>
+        </div>
+      )}
+      {network.fromFallback && (
+        <div className="report-dialog__logs-alert report-dialog__logs-alert--info" role="alert">
+          <Info aria-hidden size={18} />
+          <div>
+            <p className="report-dialog__logs-alert-title">Retrieved via fallback diagnostics</p>
+            <p>
+              The iframe bridge didn&apos;t respond, so these network requests were captured directly from the browser using Chrome DevTools Protocol. This works even when the page fails to load.
             </p>
           </div>
         </div>
@@ -370,8 +399,8 @@ const ReportLogsSection = ({
           <button
             type="button"
             className="report-dialog__logs-refresh"
-            onClick={network.fetch}
-            disabled={network.loading || !bridgeCaps.includes('network')}
+            onClick={() => network.fetch()}
+            disabled={network.loading || !hasNetworkCapability}
           >
             {network.loading ? (
               <Loader2 aria-hidden size={14} className="spinning" />
@@ -392,7 +421,7 @@ const ReportLogsSection = ({
             <button
               type="button"
               className="report-dialog__button report-dialog__button--ghost"
-              onClick={network.fetch}
+              onClick={() => network.fetch()}
               disabled={network.loading}
             >
               Retry
@@ -402,7 +431,7 @@ const ReportLogsSection = ({
           <p className="report-dialog__logs-empty">No network requests captured.</p>
         ) : (
           <div className="report-dialog__logs-content report-dialog__logs-content--network">
-            {network.events.map((entry, index) => {
+            {network.events.map((entry: ReportNetworkEntry, index: number) => {
               const statusClass = entry.payload.status && entry.payload.status >= 400
                 ? 'report-dialog__network-status--error'
                 : entry.payload.ok === false
@@ -483,7 +512,7 @@ const ReportLogsSection = ({
           <button
             type="button"
             className="report-dialog__logs-refresh"
-            onClick={health.fetch}
+            onClick={() => health.fetch()}
             disabled={health.loading}
           >
             {health.loading ? (
@@ -505,7 +534,7 @@ const ReportLogsSection = ({
             <button
               type="button"
               className="report-dialog__button report-dialog__button--ghost"
-              onClick={health.fetch}
+              onClick={() => health.fetch()}
               disabled={health.loading}
             >
               Retry
@@ -515,7 +544,7 @@ const ReportLogsSection = ({
           <p className="report-dialog__logs-empty">No health checks available.</p>
         ) : (
           <div className="report-dialog__health-list">
-            {health.entries.map(entry => {
+            {health.entries.map((entry: ReportHealthCheckEntry) => {
               const formattedResponse = formatHealthResponse(entry.response);
 
               return (
@@ -616,7 +645,7 @@ const ReportLogsSection = ({
           <button
             type="button"
             className="report-dialog__logs-refresh"
-            onClick={status.fetch}
+            onClick={() => status.fetch()}
             disabled={status.loading}
           >
             {status.loading ? (
@@ -638,7 +667,7 @@ const ReportLogsSection = ({
             <button
               type="button"
               className="report-dialog__button report-dialog__button--ghost"
-              onClick={status.fetch}
+              onClick={() => status.fetch()}
               disabled={status.loading}
             >
               Retry
