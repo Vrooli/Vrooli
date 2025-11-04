@@ -448,9 +448,21 @@
     },
     "redis": {
       "enabled": true,
-      "version": "7",
       "required": true,
-      "description": "Event bus and caching layer"
+      "version": "7",
+      "description": "Event bus and caching layer",
+      "healthCheck": {
+        "intervalMs": 60000,
+        "timeoutMs": 5000
+      },
+      "instances": {
+        "default": {
+          "port": 6380,
+          "maxMemory": "2gb",
+          "persistence": "rdb",
+          "password": ""
+        }
+      }
     },
     "restic": {
       "enabled": true

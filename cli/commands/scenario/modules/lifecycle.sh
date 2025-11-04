@@ -126,23 +126,27 @@ scenario::lifecycle::start_all() {
 # Restart a scenario (stop then start)
 scenario::lifecycle::restart() {
     local scenario_name="${1:-}"
-    [[ -z "$scenario_name" ]] && { 
+    [[ -z "$scenario_name" ]] && {
         log::error "Scenario name required"
         log::info "Usage: vrooli scenario restart <name>"
         return 1
     }
     shift
-    
+
     log::info "Restarting scenario: $scenario_name"
-    
+
     # Stop if running (ignore errors - scenario might not be running)
     scenario::lifecycle::stop "$scenario_name" 2>/dev/null || true
-    
+
     # Brief pause
     sleep 1
-    
-    # Start with any additional options passed through
-    scenario::lifecycle::start "$scenario_name" "$@"
+
+    # Start with FORCE_SETUP to ensure setup checks run even if scenario was healthy
+    # This is critical for detecting stale code after agent modifications
+    (
+        export FORCE_SETUP=true
+        scenario::lifecycle::start "$scenario_name" "$@"
+    )
 }
 
 # Stop a specific scenario

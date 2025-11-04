@@ -140,6 +140,7 @@ scenario::requirements::quick_check() {
     local scenario_name="$1"
     local scenario_dir="${APP_ROOT}/scenarios/${scenario_name}"
     local reporter="${APP_ROOT}/scripts/requirements/report.js"
+    local validator="${APP_ROOT}/scripts/requirements/validate.js"
 
     if [ ! -d "$scenario_dir" ]; then
         printf '%s\n' '{"status":"not_found","message":"Scenario directory not found"}'
@@ -208,12 +209,28 @@ scenario::requirements::quick_check() {
             ;;
     esac
 
+    local schema_status="unavailable"
+    local schema_message=""
+    if [ -f "$validator" ]; then
+        local validator_output=""
+        if validator_output=$(cd "$scenario_dir" && node "$validator" --scenario "$scenario_name" --quiet 2>&1); then
+            schema_status="valid"
+        else
+            schema_status="invalid"
+            schema_message=$(printf '%s' "$validator_output" | tail -n 5 | tr '\n' ' ' | sed 's/  */ /g')
+        fi
+    else
+        schema_message="Schema validator not installed"
+    fi
+
     jq -n \
         --arg status "$status" \
         --arg message "$message" \
         --arg recommendation "$recommendation" \
+        --arg schema_status "$schema_status" \
+        --arg schema_message "$schema_message" \
         --argjson summary "$(echo "$metrics" | jq '{total,complete,in_progress,pending,criticality_gap,coverage_ratio}')" \
-        '{status:$status,message:$message,recommendation:$recommendation,summary:$summary}'
+        '{status:$status,message:$message,recommendation:$recommendation,summary:$summary,schema:{status:$schema_status,message:$schema_message}}'
 }
 
 scenario::requirements::display_summary() {
@@ -287,9 +304,37 @@ scenario::requirements::display_summary() {
             ;;
     esac
 
+    if [ "$status" != "complete" ] && [ "$status" != "missing" ] && [ "$status" != "not_found" ] && [ "$status" != "empty" ]; then
+        echo "  • Coverage: ${coverage_percent}% (${complete}/${total} complete)"
+        [ "$critical_gap" != "0" ] && echo "  • Critical gap (open P0/P1): ${critical_gap}"
+    fi
+
     if [ -n "$recommendation" ]; then
         printf -v SCENARIO_STATUS_EXTRA_RECOMMENDATIONS "%s%s\n" "${SCENARIO_STATUS_EXTRA_RECOMMENDATIONS}" "$recommendation"
     elif [ "$status" = "complete" ]; then
         log::info "  ↳ View details with: vrooli scenario requirements ${scenario_name}"
     fi
+
+    local schema_status
+    schema_status=$(echo "$summary_json" | jq -r '.schema.status // "unavailable"')
+    local schema_message
+    schema_message=$(echo "$summary_json" | jq -r '.schema.message // empty')
+
+    case "$schema_status" in
+        valid)
+            :
+            ;;
+        invalid)
+            log::warning "Requirements: ⚠️  Schema validation failed"
+            if [ -n "$schema_message" ]; then
+                echo "  • ${schema_message}"
+            fi
+            echo "  • Run: node scripts/requirements/validate.js --scenario ${scenario_name}"
+            ;;
+        unavailable)
+            if [ -n "$schema_message" ]; then
+                log::info "Requirements: ℹ️  ${schema_message}"
+            fi
+            ;;
+    esac
 }

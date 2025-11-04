@@ -3,6 +3,9 @@
 # Can be sourced and used by any scenario's test suite
 set -euo pipefail
 
+declare -gA TESTING_NODE_REQUIREMENT_STATUS=()
+declare -gA TESTING_NODE_REQUIREMENT_EVIDENCE=()
+
 # Run Node.js unit tests for a scenario
 # Usage: testing::unit::run_node_tests [options]
 # Options:
@@ -24,6 +27,8 @@ testing::unit::run_node_tests() {
     unset -v TESTING_NODE_COVERAGE_COLLECTED TESTING_NODE_COVERAGE_PERCENT \
         TESTING_NODE_COVERAGE_TOTALS_JSON TESTING_NODE_COVERAGE_SUMMARY_PATH \
         TESTING_NODE_COVERAGE_LCOV_PATH 2>/dev/null || true
+    TESTING_NODE_REQUIREMENT_STATUS=()
+    TESTING_NODE_REQUIREMENT_EVIDENCE=()
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -101,20 +106,71 @@ testing::unit::run_node_tests() {
         return 0
     fi
     
-    # Install dependencies if node_modules doesn't exist
+    # Detect preferred package manager (pnpm/yarn/npm)
+    local package_manager="npm"
+    if [ -f "pnpm-lock.yaml" ] || grep -q '"packageManager"\s*:\s*"pnpm@' package.json 2>/dev/null; then
+        package_manager="pnpm"
+    elif [ -f "yarn.lock" ]; then
+        package_manager="yarn"
+    fi
+
+    # Install dependencies if node_modules doesn't exist (or validate lockfiles)
     if [ ! -d "node_modules" ]; then
-        echo "📦 Installing Node.js dependencies..."
-        if command -v npm >/dev/null 2>&1; then
-            if ! npm install --silent; then
-                echo "❌ Failed to install Node.js dependencies"
-                cd "$original_dir"
-                return 1
-            fi
-        else
-            echo "❌ npm is not installed"
-            cd "$original_dir"
-            return 1
-        fi
+        echo "📦 Installing Node.js dependencies ($package_manager)..."
+        case "$package_manager" in
+            pnpm)
+                if ! command -v pnpm >/dev/null 2>&1; then
+                    echo "❌ pnpm is not installed"
+                    cd "$original_dir"
+                    return 1
+                fi
+                if ! pnpm install --frozen-lockfile --ignore-scripts --silent; then
+                    echo "❌ Failed to install dependencies with pnpm"
+                    cd "$original_dir"
+                    return 1
+                fi
+                ;;
+            yarn)
+                if ! command -v yarn >/dev/null 2>&1; then
+                    echo "❌ yarn is not installed"
+                    cd "$original_dir"
+                    return 1
+                fi
+                if ! yarn install --silent --frozen-lockfile >/dev/null 2>&1; then
+                    echo "❌ Failed to install dependencies with yarn"
+                    cd "$original_dir"
+                    return 1
+                fi
+                ;;
+            *)
+                if ! command -v npm >/dev/null 2>&1; then
+                    echo "❌ npm is not installed"
+                    cd "$original_dir"
+                    return 1
+                fi
+                if ! npm install --silent; then
+                    echo "❌ Failed to install Node.js dependencies"
+                    cd "$original_dir"
+                    return 1
+                fi
+                ;;
+        esac
+    else
+        case "$package_manager" in
+            pnpm)
+                if command -v pnpm >/dev/null 2>&1; then
+                    pnpm install --frozen-lockfile --ignore-scripts --silent --offline >/dev/null 2>&1 || true
+                fi
+                ;;
+            yarn)
+                if command -v yarn >/dev/null 2>&1; then
+                    yarn install --silent --frozen-lockfile >/dev/null 2>&1 || true
+                fi
+                ;;
+            *)
+                :
+                ;;
+        esac
     fi
     
     echo "🧪 Running Node.js tests..."
@@ -129,29 +185,49 @@ testing::unit::run_node_tests() {
     local test_success=false
     
     if [ "$verbose" = true ]; then
-        # Run tests with coverage enabled and capture output
-        if test_output=$(npm test -- --coverage 2>&1); then
-            test_success=true
-            echo "$test_output"
-        else
-            echo "$test_output"
-            echo "❌ Node.js unit tests failed"
-            cd "$original_dir"
-            return 1
-        fi
+        case "$package_manager" in
+            pnpm)
+                test_output=$(pnpm test -- --coverage 2>&1)
+                ;;
+            yarn)
+                test_output=$(yarn test --coverage 2>&1)
+                ;;
+            *)
+                test_output=$(npm test -- --coverage 2>&1)
+                ;;
+        esac
     else
-        # Run tests with coverage enabled and capture output
-        if test_output=$(npm test -- --coverage --silent 2>&1); then
-            test_success=true
-            echo "$test_output"
-        else
-            echo "$test_output"
-            echo "❌ Node.js unit tests failed"
-            cd "$original_dir"
-            return 1
-        fi
+        case "$package_manager" in
+            pnpm)
+                test_output=$(pnpm test -- --coverage --silent 2>&1)
+                ;;
+            yarn)
+                test_output=$(yarn test --coverage --silent 2>&1)
+                ;;
+            *)
+                test_output=$(npm test -- --coverage --silent 2>&1)
+                ;;
+        esac
     fi
-    
+
+    local node_exit=$?
+    testing::unit::_node_collect_requirement_tags "$test_output"
+
+    local enforce_requirements="${TESTING_REQUIREMENTS_ENFORCE:-${VROOLI_REQUIREMENTS_ENFORCE:-0}}"
+    if [ "$enforce_requirements" = "1" ] && [ ${#TESTING_NODE_REQUIREMENT_STATUS[@]} -eq 0 ]; then
+        echo "⚠️  No REQ:<ID> tags detected in Node test output; add requirement tags to attribute coverage."
+    fi
+
+    if [ $node_exit -ne 0 ]; then
+        echo "$test_output"
+        echo "❌ Node.js unit tests failed"
+        cd "$original_dir"
+        return 1
+    fi
+
+    test_success=true
+    echo "$test_output"
+
     if [ "$test_success" = true ]; then
         echo "✅ Node.js unit tests completed successfully"
 
@@ -219,3 +295,89 @@ testing::unit::run_node_tests() {
 
 # Export function for use by sourcing scripts
 export -f testing::unit::run_node_tests
+
+testing::unit::_node_status_rank() {
+    case "$1" in
+        failed) echo 3 ;;
+        skipped) echo 2 ;;
+        passed) echo 1 ;;
+        *) echo 0 ;;
+    esac
+}
+
+testing::unit::_node_store_requirement_result() {
+    local requirement_id="$1"
+    local status="$2"
+    local detail="$3"
+
+    if [ -z "$requirement_id" ] || [ -z "$status" ]; then
+        return
+    fi
+
+    local current_status="${TESTING_NODE_REQUIREMENT_STATUS["$requirement_id"]:-}"
+    if [ -z "$current_status" ]; then
+        TESTING_NODE_REQUIREMENT_STATUS["$requirement_id"]="$status"
+        TESTING_NODE_REQUIREMENT_EVIDENCE["$requirement_id"]="$detail"
+        return
+    fi
+
+    local new_rank
+    local current_rank
+    new_rank=$(testing::unit::_node_status_rank "$status")
+    current_rank=$(testing::unit::_node_status_rank "$current_status")
+
+    if [ "$new_rank" -gt "$current_rank" ]; then
+        TESTING_NODE_REQUIREMENT_STATUS["$requirement_id"]="$status"
+        TESTING_NODE_REQUIREMENT_EVIDENCE["$requirement_id"]="$detail"
+    elif [ "$new_rank" -eq "$current_rank" ]; then
+        local existing_detail="${TESTING_NODE_REQUIREMENT_EVIDENCE["$requirement_id"]:-}"
+        if [ -n "$existing_detail" ]; then
+            TESTING_NODE_REQUIREMENT_EVIDENCE["$requirement_id"]="${existing_detail}; ${detail}"
+        else
+            TESTING_NODE_REQUIREMENT_EVIDENCE["$requirement_id"]="$detail"
+        fi
+    fi
+}
+
+testing::unit::_node_collect_requirement_tags() {
+    local raw_output="$1"
+    if [ -z "$raw_output" ]; then
+        return
+    fi
+
+    # Strip ANSI escape sequences for reliable parsing
+    local cleaned_output
+    cleaned_output=$(printf '%s\n' "$raw_output" | sed -E $'s/\x1B\[[0-9;]*[A-Za-z]//g')
+
+    while IFS= read -r line; do
+        [[ "$line" == *"REQ:"* ]] || continue
+
+        local normalized_status=""
+        if [[ "$line" =~ (FAIL|✗|✘|✕|×) ]]; then
+            normalized_status="failed"
+        elif [[ "$line" =~ (SKIP|skip|PENDING|pending|○|⧗) ]]; then
+            normalized_status="skipped"
+        elif [[ "$line" =~ (PASS|✓|✔|√|SUCCESS) ]]; then
+            normalized_status="passed"
+        fi
+
+        if [ -z "$normalized_status" ]; then
+            continue
+        fi
+
+        local tokens
+        tokens=$(printf '%s\n' "$line" | grep -o 'REQ:[A-Za-z0-9_-]\+' || true)
+        if [ -z "$tokens" ]; then
+            continue
+        fi
+
+        local trimmed_line
+        trimmed_line=$(echo "$line" | sed 's/^\s\+//')
+
+        local token
+        for token in $tokens; do
+            local requirement_id="${token#REQ:}"
+            testing::unit::_node_store_requirement_result "$requirement_id" "$normalized_status" "Node test ${trimmed_line}"
+        done
+    done <<< "$cleaned_output"
+}

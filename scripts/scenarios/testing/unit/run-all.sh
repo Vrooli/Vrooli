@@ -11,6 +11,116 @@ source "$UNIT_TEST_DIR/go.sh"
 source "$UNIT_TEST_DIR/node.sh"
 source "$UNIT_TEST_DIR/python.sh"
 
+declare -gA TESTING_UNIT_REQUIREMENT_STATUS=()
+declare -gA TESTING_UNIT_REQUIREMENT_EVIDENCE=()
+declare -gA TESTING_UNIT_REQUIREMENT_SOURCE=()
+
+testing::unit::_status_rank() {
+    case "$1" in
+        failed) echo 3 ;;
+        skipped) echo 2 ;;
+        passed) echo 1 ;;
+        *) echo 0 ;;
+    esac
+}
+
+testing::unit::_record_requirement() {
+    local requirement_id="$1"
+    local status="$2"
+    local source="$3"
+    local evidence="$4"
+
+    if [ -z "$requirement_id" ] || [ -z "$status" ]; then
+        return
+    fi
+
+    local current_status="${TESTING_UNIT_REQUIREMENT_STATUS["$requirement_id"]:-}"
+    local new_rank
+    local current_rank
+    new_rank=$(testing::unit::_status_rank "$status")
+    current_rank=$(testing::unit::_status_rank "$current_status")
+
+    local formatted_evidence="$evidence"
+    if [ -z "$formatted_evidence" ]; then
+        formatted_evidence="${source} tests"
+    fi
+
+    if [ -z "$current_status" ] || [ "$new_rank" -gt "$current_rank" ]; then
+        TESTING_UNIT_REQUIREMENT_STATUS["$requirement_id"]="$status"
+        TESTING_UNIT_REQUIREMENT_EVIDENCE["$requirement_id"]="$formatted_evidence"
+        TESTING_UNIT_REQUIREMENT_SOURCE["$requirement_id"]="$source"
+    elif [ "$new_rank" -eq "$current_rank" ]; then
+        local existing_detail="${TESTING_UNIT_REQUIREMENT_EVIDENCE["$requirement_id"]:-}"
+        if [ -n "$existing_detail" ]; then
+            TESTING_UNIT_REQUIREMENT_EVIDENCE["$requirement_id"]="${existing_detail}; ${formatted_evidence}"
+        else
+            TESTING_UNIT_REQUIREMENT_EVIDENCE["$requirement_id"]="$formatted_evidence"
+        fi
+    fi
+}
+
+testing::unit::_merge_language_requirements() {
+    local language="$1"
+    local status_var=""
+    local evidence_var=""
+
+    case "$language" in
+        go)
+            status_var="TESTING_GO_REQUIREMENT_STATUS"
+            evidence_var="TESTING_GO_REQUIREMENT_EVIDENCE"
+            ;;
+        node)
+            status_var="TESTING_NODE_REQUIREMENT_STATUS"
+            evidence_var="TESTING_NODE_REQUIREMENT_EVIDENCE"
+            ;;
+        python)
+            status_var="TESTING_PYTHON_REQUIREMENT_STATUS"
+            evidence_var="TESTING_PYTHON_REQUIREMENT_EVIDENCE"
+            ;;
+        *)
+            return
+            ;;
+    esac
+
+    if ! declare -p "$status_var" >/dev/null 2>&1; then
+        return
+    fi
+
+    local -n status_map="$status_var"
+    local -n evidence_map="$evidence_var"
+
+    local requirement_id
+    for requirement_id in "${!status_map[@]}"; do
+        testing::unit::_record_requirement "$requirement_id" "${status_map[$requirement_id]}" "$language" "${evidence_map[$requirement_id]:-}"
+    done
+}
+
+testing::unit::_register_phase_requirements() {
+    if ! declare -F testing::phase::add_requirement >/dev/null 2>&1; then
+        return
+    fi
+
+    if ! declare -p TESTING_PHASE_REQUIREMENT_STATUS >/dev/null 2>&1; then
+        return
+    fi
+
+    local requirement_id
+    for requirement_id in "${!TESTING_UNIT_REQUIREMENT_STATUS[@]}"; do
+        if [ -z "${TESTING_UNIT_REQUIREMENT_STATUS[$requirement_id]}" ]; then
+            continue
+        fi
+
+        if [ -n "${TESTING_PHASE_REQUIREMENT_STATUS[$requirement_id]+x}" ]; then
+            continue
+        fi
+
+        testing::phase::add_requirement \
+            --id "$requirement_id" \
+            --status "${TESTING_UNIT_REQUIREMENT_STATUS[$requirement_id]}" \
+            --evidence "${TESTING_UNIT_REQUIREMENT_EVIDENCE[$requirement_id]}"
+    done
+}
+
 # Run all unit tests for a scenario
 # Usage: testing::unit::run_all_tests [options]
 # Options:
@@ -35,6 +145,7 @@ testing::unit::run_all_tests() {
     local fail_fast=false
     local coverage_warn_threshold=80
     local coverage_error_threshold=50
+    local scenario_name=""
     
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -79,6 +190,10 @@ testing::unit::run_all_tests() {
                 coverage_error_threshold="$2"
                 shift 2
                 ;;
+            --scenario)
+                scenario_name="$2"
+                shift 2
+                ;;
             *)
                 echo "Unknown option: $1"
                 return 1
@@ -91,12 +206,20 @@ testing::unit::run_all_tests() {
     local skipped_count=0
 
     local scenario_root=$(pwd)
-    local coverage_root_dir="$scenario_root/coverage/test-genie"
+    if [ -z "$scenario_name" ]; then
+        scenario_name=$(basename "$scenario_root")
+    fi
+
+    local coverage_root_dir="$scenario_root/coverage/${scenario_name}"
     local coverage_entries=()
     local jq_available=true
 
     # Ensure previous aggregated output is cleared without touching other coverage assets
     rm -rf "$coverage_root_dir"
+
+    TESTING_UNIT_REQUIREMENT_STATUS=()
+    TESTING_UNIT_REQUIREMENT_EVIDENCE=()
+    TESTING_UNIT_REQUIREMENT_SOURCE=()
 
     if ! command -v jq >/dev/null 2>&1; then
         jq_available=false
@@ -123,13 +246,13 @@ testing::unit::run_all_tests() {
                 local go_profile_rel=""
                 if [ -n "${TESTING_GO_COVERAGE_PROFILE:-}" ] && [ -f "${TESTING_GO_COVERAGE_PROFILE}" ]; then
                     cp "${TESTING_GO_COVERAGE_PROFILE}" "$go_dest_dir/coverage.out"
-                    go_profile_rel="coverage/test-genie/go/coverage.out"
+                    go_profile_rel="coverage/${scenario_name}/go/coverage.out"
                 fi
 
                 local go_html_rel=""
                 if [ -n "${TESTING_GO_COVERAGE_HTML:-}" ] && [ -f "${TESTING_GO_COVERAGE_HTML}" ]; then
                     cp "${TESTING_GO_COVERAGE_HTML}" "$go_dest_dir/coverage.html"
-                    go_html_rel="coverage/test-genie/go/coverage.html"
+                    go_html_rel="coverage/${scenario_name}/go/coverage.html"
                 fi
 
                 if [ "$jq_available" = true ]; then
@@ -159,6 +282,7 @@ testing::unit::run_all_tests() {
                 return 1
             fi
         fi
+        testing::unit::_merge_language_requirements "go"
         echo ""
     else
         ((skipped_count++)) || true
@@ -181,13 +305,13 @@ testing::unit::run_all_tests() {
                 local node_summary_rel=""
                 if [ -n "${TESTING_NODE_COVERAGE_SUMMARY_PATH:-}" ] && [ -f "${TESTING_NODE_COVERAGE_SUMMARY_PATH}" ]; then
                     cp "${TESTING_NODE_COVERAGE_SUMMARY_PATH}" "$node_dest_dir/coverage-summary.json"
-                    node_summary_rel="coverage/test-genie/node/coverage-summary.json"
+                    node_summary_rel="coverage/${scenario_name}/node/coverage-summary.json"
                 fi
 
                 local node_lcov_rel=""
                 if [ -n "${TESTING_NODE_COVERAGE_LCOV_PATH:-}" ] && [ -f "${TESTING_NODE_COVERAGE_LCOV_PATH}" ]; then
                     cp "${TESTING_NODE_COVERAGE_LCOV_PATH}" "$node_dest_dir/lcov.info"
-                    node_lcov_rel="coverage/test-genie/node/lcov.info"
+                    node_lcov_rel="coverage/${scenario_name}/node/lcov.info"
                 fi
 
                 if [ "$jq_available" = true ]; then
@@ -223,6 +347,7 @@ testing::unit::run_all_tests() {
                 return 1
             fi
         fi
+        testing::unit::_merge_language_requirements "node"
         echo ""
     else
         ((skipped_count++)) || true
@@ -249,7 +374,7 @@ testing::unit::run_all_tests() {
     else
         ((skipped_count++)) || true
     fi
-    
+
     if [ "$jq_available" = true ] && [ ${#coverage_entries[@]} -gt 0 ]; then
         mkdir -p "$coverage_root_dir"
         local languages_json
@@ -266,7 +391,9 @@ testing::unit::run_all_tests() {
         local aggregate_rel="${aggregate_path#$scenario_root/}"
         echo "ℹ️  Coverage aggregate written to ${aggregate_rel:-$aggregate_path}"
     fi
-    
+
+    testing::unit::_register_phase_requirements
+
     # Summary
     echo "📊 Unit Test Summary:"
     echo "   Tests passed: $test_count"

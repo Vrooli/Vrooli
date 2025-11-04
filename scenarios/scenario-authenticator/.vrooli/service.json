@@ -123,8 +123,13 @@
            {
              "type": "binaries",
              "targets": [
-               "scenario-authenticator-api"
+               "api/scenario-authenticator-api"
              ]
+           },
+           {
+             "type": "ui-bundle",
+             "bundle_path": "ui/dist/index.html",
+             "source_dir": "ui/src"
            },
             {
               "type": "cli",

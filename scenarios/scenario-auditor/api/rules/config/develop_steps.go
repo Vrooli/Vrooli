@@ -75,7 +75,7 @@ Targets: service_json
 }
   ]]></input>
   <expected-violations>2</expected-violations>
-  <expected-message>must execute "./demo-api"</expected-message>
+  <expected-message>start-api step must execute "cd api && ./demo-api" or "./api/demo-api"</expected-message>
 </test-case>
 
 <test-case id="missing-start-ui" should-fail="true">
@@ -182,6 +182,35 @@ Targets: service_json
           "name": "start-api",
           "run": "export DATABASE_URL=$(./lib/get-db-url.sh) && cd api && ENVIRONMENT=dev ./demo-api",
           "description": "Start Go API server with prepared environment",
+          "background": true,
+          "condition": {"file_exists": "api/demo-api"}
+        },
+        {
+          "name": "show-urls",
+          "run": "echo done"
+        }
+      ]
+    }
+  }
+}
+  ]]></input>
+</test-case>
+
+<test-case id="start-api-direct-binary" should-fail="false">
+  <description>start-api can execute the binary directly via ./api/&lt;name&gt;</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "demo"},
+  "ports": {
+    "api": {"env_var": "API_PORT"}
+  },
+  "lifecycle": {
+    "develop": {
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "ENV=dev ./api/demo-api",
+          "description": "Start Go API server",
           "background": true,
           "condition": {"file_exists": "api/demo-api"}
         },
@@ -312,9 +341,6 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 		} else {
 			runVal := strings.TrimSpace(getString(startAPIStep, "run"))
 			lineRun := findJSONLineDevelop(source, "\"start-api\"", "\"run\"")
-			if !strings.Contains(runVal, "cd api") {
-				violations = append(violations, newDevelopViolation(filePath, lineRun, "start-api run command must change into the api directory (e.g. `cd api && ...`)"))
-			}
 
 			binaryName := extractBinaryName(runVal)
 			expectedBinary := ""
@@ -322,10 +348,8 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 				expectedBinary = fmt.Sprintf("%s-api", scenarioName)
 			}
 
-			if expectedBinary != "" && binaryName != expectedBinary {
-				violations = append(violations, newDevelopViolation(filePath, lineRun, fmt.Sprintf("start-api must execute \"./%s\"", expectedBinary)))
-			} else if expectedBinary == "" && binaryName == "" {
-				violations = append(violations, newDevelopViolation(filePath, lineRun, "start-api run command must execute the scenario API binary (e.g. ./<scenario>-api)"))
+			if !isAllowedAPIRun(runVal, expectedBinary, binaryName) {
+				violations = append(violations, newDevelopViolation(filePath, lineRun, buildAPIStartMessage(expectedBinary, scenarioName)))
 			}
 
 			if desc := strings.TrimSpace(getString(startAPIStep, "description")); desc == "" {
@@ -494,17 +518,105 @@ func hasPort(payload map[string]any, name string) bool {
 }
 
 func extractBinaryName(run string) string {
-	idx := strings.LastIndex(run, "cd api")
-	search := run
-	if idx != -1 {
-		search = run[idx:]
+	run = strings.TrimSpace(run)
+	if run == "" {
+		return ""
 	}
+
+	relevant := run
+	if idx := strings.LastIndex(run, "cd api"); idx != -1 {
+		relevant = run[idx:]
+	}
+
+	if last := strings.LastIndex(relevant, "./"); last != -1 {
+		candidate := relevant[last+2:]
+		candidate = trimCommandToken(candidate)
+		if slash := strings.LastIndex(candidate, "/"); slash != -1 {
+			candidate = candidate[slash+1:]
+		}
+		candidate = strings.Trim(candidate, `"'`)
+		if isBinaryToken(candidate) {
+			return candidate
+		}
+	}
+
 	re := regexp.MustCompile(`\./([A-Za-z0-9._-]+)`)
-	match := re.FindStringSubmatch(search)
-	if len(match) >= 2 {
-		return match[1]
+	matches := re.FindAllStringSubmatch(relevant, -1)
+	if len(matches) > 0 {
+		candidate := matches[len(matches)-1][1]
+		if candidate != "" {
+			return candidate
+		}
 	}
+
 	return ""
+}
+
+func trimCommandToken(value string) string {
+	end := len(value)
+	for i, r := range value {
+		switch r {
+		case ' ', '\t', '\n', '\r', '&', '|', ';':
+			end = i
+			return value[:end]
+		}
+	}
+	return value
+}
+
+func isBinaryToken(token string) bool {
+	if token == "" {
+		return false
+	}
+	for _, r := range token {
+		if r == '.' || r == '-' || r == '_' || (r >= '0' && r <= '9') || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func isAllowedAPIRun(runValue, expectedBinary, binaryName string) bool {
+	trimmed := strings.TrimSpace(runValue)
+	if trimmed == "" {
+		return false
+	}
+
+	hasCdApi := strings.Contains(trimmed, "cd api")
+
+	if expectedBinary == "" {
+		if binaryName == "" {
+			return false
+		}
+		if hasCdApi {
+			return true
+		}
+		return strings.Contains(trimmed, "./api/"+binaryName)
+	}
+
+	if hasCdApi && binaryName == expectedBinary {
+		return true
+	}
+
+	directInvocation := fmt.Sprintf("./api/%s", expectedBinary)
+	if strings.Contains(trimmed, directInvocation) {
+		return true
+	}
+
+	return false
+}
+
+func buildAPIStartMessage(expectedBinary, scenarioName string) string {
+	if expectedBinary != "" && scenarioName != "" {
+		return fmt.Sprintf(
+			"start-api step must execute \"cd api && ./%[1]s\" or \"./api/%[1]s\". `<scenario-name>-api` is the standard Go binary file name so the Vrooli lifecycle can guarantee idempotent restarts, inject environment variables for declared resources, and keep orchestration reliable. Launching the API through alternate names or wrapper scripts bypasses that lifecycle logic and usually indicates a misunderstanding of the Vrooli lifecycle process.",
+			expectedBinary,
+			scenarioName,
+		)
+	}
+
+	return "start-api step must execute the scenario API binary directly (e.g. \"cd api && ./<scenario>-api\" or \"./api/<scenario>-api\"). That naming keeps the Vrooli lifecycle responsible for idempotent restarts, resource environment setup, and dependable orchestration—do not wrap the API in custom scripts or rename the binary."
 }
 
 func shouldCheckDevelopServiceJSON(path string) bool {

@@ -30,7 +30,7 @@ scenario::insights::collect_data() {
     local service_json
     service_json=$(scenario::insights::find_service_json "$scenario_path")
 
-    local stack_json resources_json packages_json lifecycle_json metadata_json documentation_json health_config_json
+    local stack_json resources_json packages_json lifecycle_json metadata_json documentation_json health_config_json production_bundle_json
     stack_json=$(scenario::insights::collect_stack_data "$scenario_path" "$service_json")
     resources_json=$(scenario::insights::collect_resource_data "$scenario_name" "$service_json")
     packages_json=$(scenario::insights::collect_workspace_packages "$scenario_path")
@@ -38,6 +38,7 @@ scenario::insights::collect_data() {
     metadata_json=$(scenario::insights::collect_metadata "$scenario_name" "$service_json")
     documentation_json=$(scenario::insights::collect_documentation "$scenario_name")
     health_config_json=$(scenario::insights::collect_health_config "$service_json")
+    production_bundle_json=$(scenario::insights::check_production_bundle "$service_json")
 
     jq -n \
         --argjson stack "$stack_json" \
@@ -47,7 +48,8 @@ scenario::insights::collect_data() {
         --argjson metadata "$metadata_json" \
         --argjson documentation "$documentation_json" \
         --argjson health_config "$health_config_json" \
-        '{stack: $stack, resources: $resources, packages: $packages, lifecycle: $lifecycle, metadata: $metadata, documentation: $documentation, health_config: $health_config}'
+        --argjson production_bundle "$production_bundle_json" \
+        '{stack: $stack, resources: $resources, packages: $packages, lifecycle: $lifecycle, metadata: $metadata, documentation: $documentation, health_config: $health_config, production_bundle: $production_bundle}'
 }
 
 # Collect high-level metadata (display name, description, tags)
@@ -487,6 +489,49 @@ scenario::insights::collect_lifecycle_data() {
             }
           }
     '
+}
+
+# Check if a web scenario is using dev server instead of production bundles
+scenario::insights::check_production_bundle() {
+    local service_json="$1"
+
+    if [[ -z "$service_json" ]] || [[ ! -f "$service_json" ]]; then
+        echo '{"needs_conversion":false,"reason":"no_service_json"}'
+        return 0
+    fi
+
+    # Check if scenario has UI component
+    local has_ui
+    has_ui=$(jq -r '(.components.ui.enabled // false) or (.lifecycle.develop.steps[]? | select(.name == "start-ui") | true) // false' "$service_json" 2>/dev/null)
+
+    if [[ "$has_ui" != "true" ]]; then
+        echo '{"needs_conversion":false,"reason":"no_ui"}'
+        return 0
+    fi
+
+    # Check if develop phase uses dev server patterns
+    local uses_dev_server
+    uses_dev_server=$(jq -r '
+        .lifecycle.develop.steps[]?
+        | select(.name == "start-ui")
+        | .run
+        | test("npm run (dev|start)|vite(?! build)|webpack-dev-server|react-scripts start"; "i")
+    ' "$service_json" 2>/dev/null || echo "false")
+
+    if [[ "$uses_dev_server" != "true" ]]; then
+        echo '{"needs_conversion":false,"reason":"already_using_production"}'
+        return 0
+    fi
+
+    # Check if ui-bundle condition exists
+    local has_bundle_check
+    has_bundle_check=$(jq -r '.lifecycle.setup.condition.checks[]? | select(.type == "ui-bundle") | true' "$service_json" 2>/dev/null)
+
+    if [[ -z "$has_bundle_check" ]] || [[ "$has_bundle_check" == "null" ]]; then
+        has_bundle_check="false"
+    fi
+
+    echo "{\"needs_conversion\":true,\"reason\":\"dev_server_detected\",\"has_bundle_check\":$has_bundle_check}"
 }
 
 # Display helpers ------------------------------------------------------------

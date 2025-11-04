@@ -129,7 +129,7 @@ func newStandardsScanManager() *StandardsScanManager {
 	}
 }
 
-func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string) (StandardsScanStatus, error) {
+func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string, forceDisabled bool) (StandardsScanStatus, error) {
 	targets, err := buildStandardsScanTargets(scenarioName)
 	if err != nil {
 		return StandardsScanStatus{}, err
@@ -160,7 +160,7 @@ func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standard
 	m.jobs[jobID] = job
 	m.mu.Unlock()
 
-	go job.run(ctx, targets, scenarioName, scanType, standards)
+	go job.run(ctx, targets, scenarioName, scanType, standards, forceDisabled)
 
 	return job.snapshot(), nil
 }
@@ -263,7 +263,7 @@ func (job *StandardsScanJob) markCompleted(result StandardsCheckResult, processe
 	})
 }
 
-func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTarget, scenarioName, scanType string, specificStandards []string) {
+func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTarget, scenarioName, scanType string, specificStandards []string, forceDisabled bool) {
 	jobSnapshot := job.snapshot()
 	start := jobSnapshot.StartedAt
 	if start.IsZero() {
@@ -302,7 +302,7 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 			})
 		}
 
-		violations, filesScanned, err := performStandardsCheck(ctx, target.Path, scanType, specificStandards, onFile)
+		violations, filesScanned, err := performStandardsCheck(ctx, target.Path, scanType, specificStandards, forceDisabled, onFile)
 		if err != nil {
 			if errors.Is(err, errStandardsScanCancelled) || errors.Is(err, context.Canceled) {
 				job.markCancelled()
@@ -448,12 +448,12 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		scenarioName = "all"
 	}
 
-
 	w.Header().Set("Content-Type", "application/json")
 
 	var checkRequest struct {
-		Type      string   `json:"type"`
-		Standards []string `json:"standards"`
+		Type          string   `json:"type"`
+		Standards     []string `json:"standards"`
+		ForceDisabled bool     `json:"force_disabled"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&checkRequest); err != nil {
 		checkRequest.Type = "full"
@@ -463,7 +463,19 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		checkRequest.Type = "full"
 	}
 
-	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards)
+	if len(checkRequest.Standards) > 0 {
+		if err := validateTargetedStandards(checkRequest.Standards, checkRequest.ForceDisabled); err != nil {
+			var selectionErr *ruleSelectionError
+			if errors.As(err, &selectionErr) {
+				HTTPError(w, selectionErr.ClientMessage(), http.StatusUnprocessableEntity, nil)
+				return
+			}
+			HTTPError(w, "Failed to validate requested rules", http.StatusInternalServerError, err)
+			return
+		}
+	}
+
+	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards, checkRequest.ForceDisabled)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			HTTPError(w, "Scenario not found", http.StatusNotFound, err)
@@ -483,14 +495,20 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStandards []string, onFile func(string, string)) ([]StandardsViolation, int, error) {
+func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStandards []string, forceDisabled bool, onFile func(string, string)) ([]StandardsViolation, int, error) {
 
 	ruleInfos, err := LoadRulesFromFiles()
 	if err != nil {
 		return nil, 0, err
 	}
 
-	ruleBuckets, activeRules := buildRuleBuckets(ruleInfos, specificStandards)
+	ruleBuckets, activeRules, disabledRequested, missingRequested := buildRuleBuckets(ruleInfos, specificStandards, forceDisabled)
+	if len(missingRequested) > 0 {
+		return nil, 0, fmt.Errorf("requested rules not found: %s", strings.Join(missingRequested, ", "))
+	}
+	if len(disabledRequested) > 0 && !forceDisabled {
+		return nil, 0, fmt.Errorf("requested rules are disabled: %s", strings.Join(disabledRequested, ", "))
+	}
 	if len(activeRules) == 0 {
 		return nil, 0, nil
 	}
@@ -827,54 +845,90 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 	return violations, filesScanned, targets, nil
 }
 
-func buildRuleBuckets(ruleInfos map[string]RuleInfo, specific []string) (map[string][]RuleInfo, map[string]RuleInfo) {
+func buildRuleBuckets(ruleInfos map[string]RuleInfo, specific []string, includeDisabled bool) (map[string][]RuleInfo, map[string]RuleInfo, []string, []string) {
 	allowed := make(map[string]struct{})
-	for _, item := range specific {
-		id := strings.TrimSpace(item)
-		if id != "" {
-			allowed[id] = struct{}{}
-		}
+	for _, id := range normalizeRuleIDs(specific) {
+		allowed[id] = struct{}{}
 	}
 
 	buckets := make(map[string][]RuleInfo)
 	active := make(map[string]RuleInfo)
 	states := ruleStateStore.GetAllStates()
+	var disabledRequested []string
+	var missingRequested []string
+	seenRequested := make(map[string]struct{})
 
-	for id, info := range ruleInfos {
-		if len(allowed) > 0 {
-			if _, ok := allowed[id]; !ok {
-				continue
-			}
-		}
-
-		if enabled, ok := states[id]; ok {
-			info.Enabled = enabled
-		}
-		if !info.Enabled {
-			continue
-		}
-
+	addRule := func(id string, info RuleInfo) {
 		targets := info.Targets
 		if len(targets) == 0 {
 			targets = defaultTargetsForRule(info)
 		} else {
 			targets = normalizeTargets(targets)
 		}
-
 		if len(targets) == 0 {
-			continue
+			return
 		}
-
 		info.Targets = targets
 		ruleInfos[id] = info
 		active[id] = info
-
 		for _, target := range targets {
 			buckets[target] = append(buckets[target], info)
 		}
 	}
 
-	return buckets, active
+	if len(allowed) > 0 {
+		for id := range allowed {
+			if _, seen := seenRequested[id]; seen {
+				continue
+			}
+			seenRequested[id] = struct{}{}
+			info, ok := ruleInfos[id]
+			if !ok {
+				missingRequested = append(missingRequested, id)
+				continue
+			}
+			enabled := info.Enabled
+			if state, ok := states[id]; ok {
+				enabled = state
+			}
+			if !enabled && !includeDisabled {
+				disabledRequested = append(disabledRequested, id)
+				continue
+			}
+			info.Enabled = true
+			addRule(id, info)
+		}
+	} else {
+		for id, info := range ruleInfos {
+			enabled := info.Enabled
+			if state, ok := states[id]; ok {
+				enabled = state
+			}
+			if !enabled {
+				continue
+			}
+			addRule(id, info)
+		}
+	}
+
+	return buckets, active, disabledRequested, missingRequested
+}
+
+func normalizeRuleIDs(ids []string) []string {
+	seen := make(map[string]struct{})
+	var result []string
+	for _, raw := range ids {
+		id := strings.TrimSpace(raw)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	return result
 }
 
 func normalizeTargets(targets []string) []string {
@@ -923,6 +977,51 @@ func collectRulesForTargets(targets []string, buckets map[string][]RuleInfo) map
 		}
 	}
 	return result
+}
+
+type ruleSelectionError struct {
+	MissingRules  []string
+	DisabledRules []string
+}
+
+func (e *ruleSelectionError) Error() string {
+	return e.ClientMessage()
+}
+
+func (e *ruleSelectionError) ClientMessage() string {
+	var parts []string
+	if len(e.MissingRules) > 0 {
+		parts = append(parts, fmt.Sprintf("Requested rules not found: %s", strings.Join(e.MissingRules, ", ")))
+	}
+	if len(e.DisabledRules) > 0 {
+		parts = append(parts, fmt.Sprintf("Requested rules are disabled: %s. Re-enable them or re-run with force_disabled=true.", strings.Join(e.DisabledRules, ", ")))
+	}
+	if len(parts) == 0 {
+		return "No active rules matched the request"
+	}
+	return strings.Join(parts, ". ")
+}
+
+func validateTargetedStandards(ruleIDs []string, forceDisabled bool) error {
+	normalized := normalizeRuleIDs(ruleIDs)
+	if len(normalized) == 0 {
+		return nil
+	}
+	ruleInfos, err := LoadRulesFromFiles()
+	if err != nil {
+		return err
+	}
+	_, activeRules, disabledRequested, missingRequested := buildRuleBuckets(ruleInfos, normalized, forceDisabled)
+	if len(missingRequested) > 0 {
+		return &ruleSelectionError{MissingRules: missingRequested}
+	}
+	if len(disabledRequested) > 0 && !forceDisabled {
+		return &ruleSelectionError{DisabledRules: disabledRequested}
+	}
+	if len(activeRules) == 0 {
+		return &ruleSelectionError{}
+	}
+	return nil
 }
 
 func classifyFileTargets(fullPath string) (string, string, []string) {

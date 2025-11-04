@@ -3,6 +3,9 @@
 # Can be sourced and used by any scenario's test suite
 set -euo pipefail
 
+declare -gA TESTING_GO_REQUIREMENT_STATUS=()
+declare -gA TESTING_GO_REQUIREMENT_EVIDENCE=()
+
 # Run Go unit tests for a scenario
 # Usage: testing::unit::run_go_tests [options]
 # Options:
@@ -23,6 +26,8 @@ testing::unit::run_go_tests() {
     # Reset any previously exported coverage metadata
     unset -v TESTING_GO_COVERAGE_COLLECTED TESTING_GO_COVERAGE_PERCENT \
         TESTING_GO_COVERAGE_PROFILE TESTING_GO_COVERAGE_HTML 2>/dev/null || true
+    TESTING_GO_REQUIREMENT_STATUS=()
+    TESTING_GO_REQUIREMENT_EVIDENCE=()
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -107,11 +112,26 @@ testing::unit::run_go_tests() {
     fi
     
     echo "🧪 Running Go tests..."
-    
-    # Run tests
-    if eval "$test_cmd"; then
+
+    local go_output_file
+    go_output_file=$(mktemp)
+    local go_exit=0
+
+    set +e
+    eval "$test_cmd" | tee "$go_output_file"
+    go_exit=${PIPESTATUS[0]}
+    set -e
+
+    testing::unit::_go_collect_requirement_tags "$go_output_file"
+
+    local enforce_requirements="${TESTING_REQUIREMENTS_ENFORCE:-${VROOLI_REQUIREMENTS_ENFORCE:-0}}"
+    if [ "$enforce_requirements" = "1" ] && [ ${#TESTING_GO_REQUIREMENT_STATUS[@]} -eq 0 ]; then
+        echo "⚠️  No REQ:<ID> tags detected in Go test output; add requirement tags to tie unit tests to coverage."
+    fi
+
+    if [ "$go_exit" -eq 0 ]; then
         echo "✅ Go unit tests completed successfully"
-        
+
         # Display coverage summary if coverage file exists
         if [ "$coverage" = true ] && [ -f "coverage.out" ]; then
             echo ""
@@ -129,6 +149,7 @@ testing::unit::run_go_tests() {
                 if [ "$coverage_num" -lt "$coverage_error_threshold" ]; then
                     echo "❌ ERROR: Go test coverage ($coverage_percent%) is below error threshold ($coverage_error_threshold%)"
                     echo "   This indicates insufficient test coverage. Please add more comprehensive tests."
+                    rm -f "$go_output_file"
                     cd "$original_dir"
                     return 1
                 elif [ "$coverage_num" -lt "$coverage_warn_threshold" ]; then
@@ -156,13 +177,96 @@ testing::unit::run_go_tests() {
             fi
         fi
 
+        rm -f "$go_output_file"
         cd "$original_dir"
         return 0
     else
         echo "❌ Go unit tests failed"
+        rm -f "$go_output_file"
         cd "$original_dir"
         return 1
     fi
+}
+
+testing::unit::_go_status_rank() {
+    case "$1" in
+        failed) echo 3 ;;
+        skipped) echo 2 ;;
+        passed) echo 1 ;;
+        *) echo 0 ;;
+    esac
+}
+
+testing::unit::_go_store_requirement_result() {
+    local requirement_id="$1"
+    local status="$2"
+    local detail="$3"
+
+    if [ -z "$requirement_id" ] || [ -z "$status" ]; then
+        return
+    fi
+
+    local current_status="${TESTING_GO_REQUIREMENT_STATUS["$requirement_id"]:-}"
+    if [ -z "$current_status" ]; then
+        TESTING_GO_REQUIREMENT_STATUS["$requirement_id"]="$status"
+        TESTING_GO_REQUIREMENT_EVIDENCE["$requirement_id"]="$detail"
+        return
+    fi
+
+    local new_rank
+    local current_rank
+    new_rank=$(testing::unit::_go_status_rank "$status")
+    current_rank=$(testing::unit::_go_status_rank "$current_status")
+
+    if [ "$new_rank" -gt "$current_rank" ]; then
+        TESTING_GO_REQUIREMENT_STATUS["$requirement_id"]="$status"
+        TESTING_GO_REQUIREMENT_EVIDENCE["$requirement_id"]="$detail"
+    elif [ "$new_rank" -eq "$current_rank" ]; then
+        local existing_detail="${TESTING_GO_REQUIREMENT_EVIDENCE["$requirement_id"]:-}"
+        if [ -n "$existing_detail" ]; then
+            TESTING_GO_REQUIREMENT_EVIDENCE["$requirement_id"]="${existing_detail}; ${detail}"
+        else
+            TESTING_GO_REQUIREMENT_EVIDENCE["$requirement_id"]="$detail"
+        fi
+    fi
+}
+
+testing::unit::_go_collect_requirement_tags() {
+    local output_path="$1"
+    if [ -z "$output_path" ] || [ ! -f "$output_path" ]; then
+        return
+    fi
+
+    while IFS= read -r line; do
+        [[ "$line" =~ ---\ (PASS|FAIL|SKIP):\ (.*)$ ]] || continue
+        local raw_status="${BASH_REMATCH[1]}"
+        local test_name="${BASH_REMATCH[2]}"
+        local normalized_status
+        case "$raw_status" in
+            PASS) normalized_status="passed" ;;
+            FAIL) normalized_status="failed" ;;
+            SKIP) normalized_status="skipped" ;;
+            *) normalized_status="" ;;
+        esac
+        if [ -z "$normalized_status" ]; then
+            continue
+        fi
+
+        # Trim trailing timing information
+        test_name="${test_name%% (*}"
+
+        local tokens
+        tokens=$(printf '%s\n' "$test_name" | grep -o 'REQ:[A-Za-z0-9_-]\+' || true)
+        if [ -z "$tokens" ]; then
+            continue
+        fi
+
+        local token
+        for token in $tokens; do
+            local requirement_id="${token#REQ:}"
+            testing::unit::_go_store_requirement_result "$requirement_id" "$normalized_status" "Go test ${test_name}"
+        done
+    done < "$output_path"
 }
 
 # Export function for use by sourcing scripts

@@ -8,6 +8,16 @@ import (
 	"strings"
 )
 
+const (
+	installCLIRecommendation    = "Add an install-cli step (e.g., \"cd cli && ./install.sh\") so lifecycle.setup.condition's CLI check and CLI users can find the scenario binary before develop runs."
+	installUIDepsRecommendation = "Add install-ui-deps (npm|pnpm|yarn|bun install inside ui/) before build-ui so PRODUCTION_BUNDLES staleness detection can recreate ui/dist when ui/src changes."
+	buildUIRecommendation       = "Run build-ui (npm|pnpm|yarn|bun build inside ui/) before show-urls so develop serves the ui/dist production bundle per docs/scenarios/PRODUCTION_BUNDLES.md."
+)
+
+func buildAPIRecommendation(serviceName string) string {
+	return fmt.Sprintf("Emit %s-api directly inside the api directory so lifecycle.setup.condition binaries checks and start-api reuse the same binary.", serviceName)
+}
+
 /*
 Rule: Setup Steps Configuration
 Description: Ensure lifecycle.setup.steps include consistent initialization tasks
@@ -231,6 +241,48 @@ Targets: service_json
   ]]></input>
 </test-case>
 
+<test-case id="install-cli-symlink-without-cd" should-fail="false">
+  <description>install-cli may operate directly on cli/<service> paths without changing directories</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "core-debugger"},
+  "ports": {"ui": {"env_var": "UI_PORT"}},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/core-debugger && ln -sf $(pwd)/cli/core-debugger ~/.local/bin/core-debugger",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o core-debugger-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {"file_exists": "ui/package.json"}
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build UI bundle",
+          "condition": {"file_exists": "ui/package.json"}
+        },
+        {
+          "name": "show-urls",
+          "run": "echo done"
+        }
+      ]
+    }
+  }
+}
+  ]]></input>
+</test-case>
+
 <test-case id="missing-go-build" should-fail="true">
   <description>build-api step must run go build</description>
   <input language="json"><![CDATA[
@@ -271,6 +323,26 @@ Targets: service_json
   <expected-message>output must be file-tools-api</expected-message>
 </test-case>
 
+<test-case id="build-api-nested-output" should-fail="true">
+  <description>build-api must not prefix the output with api/ when already running inside the api directory</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "file-tools"},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally"},
+        {"name": "build-api", "run": "cd api && go build -o api/file-tools-api .", "description": "Build Go API"},
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>api directory</expected-message>
+</test-case>
+
 <test-case id="install-cli-no-install" should-fail="true">
   <description>install-cli must perform an installation action</description>
   <input language="json"><![CDATA[
@@ -308,6 +380,48 @@ Targets: service_json
   ]]></input>
   <expected-violations>1</expected-violations>
   <expected-message>final show-urls step</expected-message>
+</test-case>
+
+<test-case id="ui-missing-build-step" should-fail="true">
+  <description>UI scenarios must build production bundles before develop shows URLs</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "app-issue-tracker"},
+  "ports": {"ui": {"env_var": "UI_PORT"}},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
+        {"name": "build-api", "run": "cd api && go build -o app-issue-tracker-api .", "description": "Build API"},
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>2</expected-violations>
+  <expected-message>install-ui-deps</expected-message>
+</test-case>
+
+<test-case id="ui-valid-setup" should-fail="false">
+  <description>install-ui-deps and build-ui steps prepare the production bundle ahead of show-urls</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "system-monitor"},
+  "ports": {"ui": {"env_var": "UI_PORT"}},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
+        {"name": "build-api", "run": "cd api && go build -o system-monitor-api .", "description": "Build API"},
+        {"name": "install-ui-deps", "run": "cd ui && npm install", "description": "Install UI dependencies"},
+        {"name": "build-ui", "run": "cd ui && npm run build", "description": "Build production UI"},
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
 </test-case>
 */
 
@@ -371,11 +485,15 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 	}
 
 	var (
-		installStep   map[string]any
-		buildStep     map[string]any
-		lastStep      map[string]any
-		showStepIndex = -1
-		showStepLine  = findSetupJSONLine(source, "\"show-urls\"")
+		installStep    map[string]any
+		buildStep      map[string]any
+		uiInstallStep  map[string]any
+		uiBuildStep    map[string]any
+		lastStep       map[string]any
+		showStepIndex  = -1
+		showStepLine   = findSetupJSONLine(source, "\"show-urls\"")
+		uiInstallIndex = -1
+		uiBuildIndex   = -1
 	)
 
 	lastStepRaw := stepsSlice[len(stepsSlice)-1]
@@ -395,6 +513,12 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		case "show-urls":
 			showStepIndex = idx
 			showStepLine = findSetupJSONLine(source, "\"name\": \"show-urls\"")
+		case "install-ui-deps":
+			uiInstallStep = stepMap
+			uiInstallIndex = idx
+		case "build-ui":
+			uiBuildStep = stepMap
+			uiBuildIndex = idx
 		}
 	}
 
@@ -402,14 +526,14 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 
 	if installStep == nil {
 		line := findSetupJSONLine(source, "\"install-cli\"")
-		violations = append(violations, newSetupStepsViolation(filePath, line, "lifecycle.setup.steps must include an install-cli step"))
+		violations = append(violations, newSetupStepsViolation(filePath, line, "lifecycle.setup.steps must include an install-cli step", installCLIRecommendation))
 	} else {
 		violations = append(violations, validateInstallCLI(filePath, source, installStep)...)
 	}
 
 	if buildStep == nil {
 		line := findSetupJSONLine(source, "\"build-api\"")
-		violations = append(violations, newSetupStepsViolation(filePath, line, "lifecycle.setup.steps must include a build-api step"))
+		violations = append(violations, newSetupStepsViolation(filePath, line, "lifecycle.setup.steps must include a build-api step", buildAPIRecommendation(serviceName)))
 	} else {
 		violations = append(violations, validateBuildAPI(filePath, source, buildStep, serviceName)...)
 	}
@@ -429,6 +553,11 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		}
 	}
 
+	if setupScenarioHasUI(payload, stepsSlice) {
+		violations = append(violations, validateUIInstallStep(filePath, source, uiInstallStep)...)
+		violations = append(violations, validateUIBuildStep(filePath, source, uiBuildStep, uiInstallIndex, uiBuildIndex, showStepIndex)...)
+	}
+
 	return dedupeSetupStepsViolations(violations)
 }
 
@@ -440,9 +569,10 @@ func validateInstallCLI(filePath, source string, step map[string]any) []Violatio
 	run := strings.TrimSpace(toStringOrDefault(step["run"]))
 	runLower := strings.ToLower(run)
 	hasCdCli := strings.Contains(runLower, "cd cli")
+	touchesCliBinary := strings.Contains(runLower, "cli/")
 	invokesInstallScript := strings.Contains(runLower, "cli/install.sh")
-	if !hasCdCli && !invokesInstallScript {
-		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli step must change into the cli directory"))
+	if !hasCdCli && !touchesCliBinary && !invokesInstallScript {
+		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli step must either change into the cli directory or operate on cli/<service> binaries", installCLIRecommendation))
 	}
 
 	installIndicators := []string{"cli/install.sh", "install.sh", "ln -sf", "cp ", "install-cli"}
@@ -454,14 +584,73 @@ func validateInstallCLI(filePath, source string, step map[string]any) []Violatio
 		}
 	}
 	if !indicatorFound {
-		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli step must install the CLI binary (expected install.sh, symlink, or copy command)"))
+		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli step must install the CLI binary (expected install.sh, symlink, or copy command)", installCLIRecommendation))
 		return violations
 	}
 
 	desc := strings.TrimSpace(toStringOrDefault(step["description"]))
 	descLower := strings.ToLower(desc)
 	if !(strings.Contains(descLower, "install") && strings.Contains(descLower, "cli")) {
-		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli description must mention installing the CLI"))
+		violations = append(violations, newSetupStepsViolation(filePath, line, "install-cli description must mention installing the CLI", installCLIRecommendation))
+	}
+
+	return violations
+}
+
+func validateUIInstallStep(filePath, source string, step map[string]any) []Violation {
+	var violations []Violation
+	line := findSetupJSONLine(source, "\"install-ui-deps\"")
+	if step == nil {
+		msg := "UI scenarios must include an install-ui-deps step that installs front-end dependencies before builds (see docs/scenarios/PRODUCTION_BUNDLES.md)"
+		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installUIDepsRecommendation))
+		return violations
+	}
+
+	run := strings.TrimSpace(toStringOrDefault(step["run"]))
+	runLower := strings.ToLower(run)
+	hitsUIDir := strings.Contains(runLower, "cd ui") || strings.Contains(runLower, " ui &&") || strings.Contains(runLower, "ui &&") || strings.Contains(runLower, "--prefix ui") || strings.Contains(runLower, "ui/")
+	if !hitsUIDir {
+		msg := "install-ui-deps must run inside the ui workspace so node_modules stays scoped to the frontend"
+		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installUIDepsRecommendation))
+	}
+
+	installTokens := []string{"npm install", "pnpm install", "yarn install", "bun install"}
+	if !containsAny(runLower, installTokens) {
+		msg := "install-ui-deps must install frontend dependencies (npm/pnpm/yarn/bun install) before production builds"
+		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installUIDepsRecommendation))
+	}
+
+	return violations
+}
+
+func validateUIBuildStep(filePath, source string, step map[string]any, installIndex, buildIndex, showIndex int) []Violation {
+	var violations []Violation
+	line := findSetupJSONLine(source, "\"build-ui\"")
+	if step == nil {
+		msg := "UI scenarios must include a build-ui step that produces ui/dist production bundles (see docs/scenarios/PRODUCTION_BUNDLES.md)"
+		violations = append(violations, newSetupStepsViolation(filePath, line, msg, buildUIRecommendation))
+		return violations
+	}
+
+	run := strings.TrimSpace(toStringOrDefault(step["run"]))
+	runLower := strings.ToLower(run)
+	hitsUIDir := strings.Contains(runLower, "cd ui") || strings.Contains(runLower, " ui &&") || strings.Contains(runLower, "ui &&") || strings.Contains(runLower, "--prefix ui") || strings.Contains(runLower, "ui/")
+	if !hitsUIDir {
+		msg := "build-ui must execute from the ui workspace so the bundle lands under ui/dist"
+		violations = append(violations, newSetupStepsViolation(filePath, line, msg, buildUIRecommendation))
+	}
+
+	buildTokens := []string{"npm run build", "pnpm run build", "pnpm build", "yarn build", "bun run build", "bun build"}
+	if !containsAny(runLower, buildTokens) {
+		msg := "build-ui must run the production build command (npm|pnpm|yarn|bun build) to create ui/dist"
+		violations = append(violations, newSetupStepsViolation(filePath, line, msg, buildUIRecommendation))
+	}
+
+	if installIndex != -1 && buildIndex != -1 && installIndex > buildIndex {
+		violations = append(violations, newSetupStepsViolation(filePath, line, "install-ui-deps must run before build-ui so dependencies are ready", buildUIRecommendation))
+	}
+	if showIndex != -1 && buildIndex != -1 && buildIndex > showIndex {
+		violations = append(violations, newSetupStepsViolation(filePath, line, "build-ui must complete before show-urls so restart output reflects the built bundle", buildUIRecommendation))
 	}
 
 	return violations
@@ -471,38 +660,43 @@ func validateBuildAPI(filePath, source string, step map[string]any, serviceName 
 	var violations []Violation
 
 	line := findSetupJSONLine(source, "\"build-api\"")
+	rec := buildAPIRecommendation(serviceName)
 
 	run := strings.TrimSpace(toStringOrDefault(step["run"]))
 	runLower := strings.ToLower(run)
 	if !strings.Contains(runLower, "cd api") {
-		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api step must change into the api directory"))
+		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api step must change into the api directory", rec))
 	}
 	if !strings.Contains(runLower, "go build") {
-		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api step must invoke 'go build'"))
+		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api step must invoke 'go build'", rec))
 		return violations
 	}
 
 	outputMatch := buildOutputArgument(run)
 	if outputMatch == "" {
-		violations = append(violations, newSetupStepsViolation(filePath, line, fmt.Sprintf("build-api run must specify '-o %s-api'", serviceName)))
+		violations = append(violations, newSetupStepsViolation(filePath, line, fmt.Sprintf("build-api run must specify '-o %s-api'", serviceName), rec))
 	} else {
 		expectedBinary := fmt.Sprintf("%s-api", serviceName)
 		trimmed := strings.Trim(outputMatch, "\"'")
-		if filepath.Base(trimmed) != expectedBinary {
-			violations = append(violations, newSetupStepsViolation(filePath, line, fmt.Sprintf("build-api output must be %s", expectedBinary)))
+		cleaned := strings.TrimPrefix(strings.TrimPrefix(trimmed, "./"), ".\\")
+		cleaned = strings.TrimPrefix(cleaned, "../")
+		if strings.Contains(cleaned, "/") || strings.Contains(cleaned, "\\") {
+			violations = append(violations, newSetupStepsViolation(filePath, line, fmt.Sprintf("build-api output must drop %s directly in the api directory (no additional path segments)", expectedBinary), rec))
+		} else if filepath.Base(trimmed) != expectedBinary {
+			violations = append(violations, newSetupStepsViolation(filePath, line, fmt.Sprintf("build-api output must be %s", expectedBinary), rec))
 		}
 	}
 
 	desc := strings.TrimSpace(toStringOrDefault(step["description"]))
 	descLower := strings.ToLower(desc)
 	if !(strings.Contains(descLower, "build") && strings.Contains(descLower, "api")) {
-		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api description must describe building the Go API"))
+		violations = append(violations, newSetupStepsViolation(filePath, line, "build-api description must describe building the Go API", rec))
 	}
 
 	if cond, ok := step["condition"].(map[string]any); ok {
 		fileExists := strings.TrimSpace(toStringOrDefault(cond["file_exists"]))
 		if fileExists != "" && fileExists != "api/go.mod" {
-			violations = append(violations, newSetupStepsViolation(filePath, line, "build-api condition.file_exists should reference 'api/go.mod'"))
+			violations = append(violations, newSetupStepsViolation(filePath, line, "build-api condition.file_exists should reference 'api/go.mod'", rec))
 		}
 	}
 
@@ -519,9 +713,15 @@ func buildOutputArgument(run string) string {
 	return match[1]
 }
 
-func newSetupStepsViolation(filePath string, line int, message string) Violation {
+func newSetupStepsViolation(filePath string, line int, message string, recommendation ...string) Violation {
 	if line <= 0 {
 		line = 1
+	}
+	rec := "Ensure lifecycle.setup.steps include install-cli, scenario-specific build-api, and show-urls as the final step"
+	if len(recommendation) > 0 {
+		if custom := strings.TrimSpace(recommendation[0]); custom != "" {
+			rec = custom
+		}
 	}
 	return Violation{
 		Type:           "config_setup_steps",
@@ -530,7 +730,7 @@ func newSetupStepsViolation(filePath string, line int, message string) Violation
 		Description:    message,
 		FilePath:       filePath,
 		LineNumber:     line,
-		Recommendation: "Ensure lifecycle.setup.steps include install-cli, scenario-specific build-api, and show-urls as the final step",
+		Recommendation: rec,
 		Standard:       "configuration-v1",
 	}
 }
@@ -601,4 +801,107 @@ func dedupeSetupStepsViolations(list []Violation) []Violation {
 		deduped = append(deduped, v)
 	}
 	return deduped
+}
+
+func setupScenarioHasUI(payload map[string]any, steps []any) bool {
+	if scenarioPortsSuggestUI(payload) {
+		return true
+	}
+	if scenarioComponentsSuggestUI(payload) {
+		return true
+	}
+	return stepsSuggestUI(steps)
+}
+
+func scenarioPortsSuggestUI(payload map[string]any) bool {
+	portsRaw, ok := payload["ports"].(map[string]any)
+	if !ok {
+		return false
+	}
+	for key, entry := range portsRaw {
+		if setupIsUIPortKey(key) && setupEntryEnabled(entry) {
+			return true
+		}
+	}
+	return false
+}
+
+func scenarioComponentsSuggestUI(payload map[string]any) bool {
+	componentsRaw, ok := payload["components"].(map[string]any)
+	if !ok {
+		return false
+	}
+	for key, entry := range componentsRaw {
+		if setupIsUIPortKey(key) && setupEntryEnabled(entry) {
+			return true
+		}
+	}
+	return false
+}
+
+func stepsSuggestUI(steps []any) bool {
+	for _, step := range steps {
+		stepMap, ok := step.(map[string]any)
+		if !ok {
+			continue
+		}
+		if setupUIStepIndicator(toStringOrDefault(stepMap["name"])) || setupUIStepIndicator(toStringOrDefault(stepMap["run"])) {
+			return true
+		}
+	}
+	return false
+}
+
+func setupIsUIPortKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	lower := strings.ToLower(strings.TrimSpace(key))
+	tokens := []string{"ui", "web", "frontend", "dashboard", "client", "spa"}
+	for _, token := range tokens {
+		if strings.Contains(lower, token) {
+			return true
+		}
+	}
+	return false
+}
+
+func setupUIStepIndicator(value string) bool {
+	if value == "" {
+		return false
+	}
+	lower := strings.ToLower(value)
+	tokens := []string{"install-ui", "build-ui", "start-ui", "start-frontend", "ui server", "frontend", "vite", "next dev", "react", "node server"}
+	for _, token := range tokens {
+		if strings.Contains(lower, token) {
+			return true
+		}
+	}
+	return false
+}
+
+func setupEntryEnabled(entry any) bool {
+	if entry == nil {
+		return true
+	}
+	if m, ok := entry.(map[string]any); ok {
+		if enabledRaw, ok := m["enabled"]; ok {
+			switch v := enabledRaw.(type) {
+			case bool:
+				return v
+			case string:
+				return strings.EqualFold(v, "true")
+			}
+		}
+	}
+	return true
+}
+
+func containsAny(haystack string, needles []string) bool {
+	for _, needle := range needles {
+		if strings.Contains(haystack, needle) {
+			return true
+		}
+	}
+	return false
 }

@@ -21,38 +21,51 @@ SETUP_REASONS=()
 setup::is_needed() {
     # Accept optional path parameter for service.json location
     local check_path="${1:-$APP_ROOT}"
-    
+
     # Reset global array for setup reasons
     SETUP_REASONS=()
-    
+
+    # Track if force setup is active
+    local force_setup="${FORCE_SETUP:-false}"
+    if [[ "$force_setup" == "true" ]]; then
+        log::debug "FORCE_SETUP=true, forcing setup verification"
+        SETUP_REASONS+=("Forced rebuild (restart)")
+    fi
+
     # Get service.json path
     local service_json="${check_path}/.vrooli/service.json"
-    
+
     if [[ ! -f "$service_json" ]]; then
         log::debug "No service.json found at $check_path, assuming setup not needed"
+        # Unless FORCE_SETUP is true
+        [[ "$force_setup" == "true" ]] && return 0
         return 1
     fi
-    
+
     # Check if setup has a condition defined
     local has_condition
     has_condition=$(jq -r '.lifecycle.setup.condition // empty' "$service_json" 2>/dev/null)
-    
+
     if [[ -z "$has_condition" ]]; then
         log::debug "No setup condition defined, setup not needed"
+        # Unless FORCE_SETUP is true
+        [[ "$force_setup" == "true" ]] && return 0
         return 1
     fi
-    
+
     # Check for checks array
     local checks
     checks=$(jq -c '.lifecycle.setup.condition.checks // []' "$service_json" 2>/dev/null)
-    
+
     if [[ "$checks" == "[]" ]]; then
         log::debug "No setup checks defined, setup not needed"
+        # Unless FORCE_SETUP is true
+        [[ "$force_setup" == "true" ]] && return 0
         return 1
     fi
-    
+
     # Run each check
-    local setup_needed=false
+    local setup_needed="$force_setup"  # Initialize to force_setup value
     local check_count=0
     
     while IFS= read -r check; do
@@ -74,6 +87,9 @@ setup::is_needed() {
                 ;;
             cli)
                 checker_script="scripts/lib/setup-conditions/cli-check.sh"
+                ;;
+            ui-bundle)
+                checker_script="scripts/lib/setup-conditions/ui-bundle-check.sh"
                 ;;
             resources)
                 checker_script="scripts/lib/setup-conditions/resources-check.sh"
@@ -122,6 +138,11 @@ setup::is_needed() {
                     local cmd
                     cmd=$(echo "$check" | jq -r '.command // "unknown"')
                     SETUP_REASONS+=("CLI not installed: $cmd")
+                    ;;
+                ui-bundle)
+                    local bundle_path
+                    bundle_path=$(echo "$check" | jq -r '.bundle_path // "ui/dist/index.html"')
+                    SETUP_REASONS+=("UI bundle outdated: $bundle_path")
                     ;;
                 resources)
                     SETUP_REASONS+=("Resources not populated")

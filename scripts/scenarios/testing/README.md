@@ -27,6 +27,8 @@ scripts/scenarios/testing/
 └── README.md                # This file
 ```
 
+> UI integration workflows should live alongside each scenario's tests (for example `scenarios/<name>/test/playbooks/<flow>.json`). Use the helpers in `scripts/scenarios/testing/playbooks/browser-automation-studio.sh` or call `testing::phase::run_bas_automation_validations` to import and execute those workflows through the BAS CLI.
+
 ## 🚀 Quick Start
 
 ### Using Shell Libraries

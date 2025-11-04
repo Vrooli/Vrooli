@@ -47,7 +47,10 @@ func TestBuildRuleBucketsRespectsDisabledStates(t *testing.T) {
 		t.Fatalf("SetState returned error: %v", err)
 	}
 
-	buckets, active := buildRuleBuckets(rules, nil)
+	buckets, active, disabledRequested, missingRequested := buildRuleBuckets(rules, nil, false)
+	if len(disabledRequested) != 0 || len(missingRequested) != 0 {
+		t.Fatalf("expected no disabled/missing results for broad scan, got disabled=%v missing=%v", disabledRequested, missingRequested)
+	}
 
 	if _, ok := active["disabled_rule"]; ok {
 		t.Fatalf("expected disabled_rule to be filtered out when disabled via state store")
@@ -65,9 +68,23 @@ func TestBuildRuleBucketsRespectsDisabledStates(t *testing.T) {
 		t.Fatalf("expected enabled_rule to remain active, got %s", apiBucket[0].ID)
 	}
 
-	_, targetedActive := buildRuleBuckets(rules, []string{"disabled_rule"})
+	_, targetedActive, targetedDisabled, targetedMissing := buildRuleBuckets(rules, []string{"disabled_rule"}, false)
+	if len(targetedMissing) != 0 {
+		t.Fatalf("did not expect missing rules, got %v", targetedMissing)
+	}
+	if len(targetedDisabled) != 1 || targetedDisabled[0] != "disabled_rule" {
+		t.Fatalf("expected disabled_rule to be reported as disabled, got %v", targetedDisabled)
+	}
 	if len(targetedActive) != 0 {
 		t.Fatalf("expected no active targeted rules when the requested rule is disabled, got %d", len(targetedActive))
+	}
+
+	_, forcedActive, forcedDisabled, forcedMissing := buildRuleBuckets(rules, []string{"disabled_rule"}, true)
+	if len(forcedMissing) != 0 || len(forcedDisabled) != 0 {
+		t.Fatalf("did not expect disabled or missing results when forcing, got disabled=%v missing=%v", forcedDisabled, forcedMissing)
+	}
+	if len(forcedActive) != 1 {
+		t.Fatalf("expected forced run to include disabled_rule, got %d active rules", len(forcedActive))
 	}
 }
 
@@ -209,7 +226,7 @@ func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
 
 	t.Setenv("VROOLI_ROOT", root)
 
-	violations, _, err := performStandardsCheck(context.Background(), scenarioPath, "", nil, nil)
+	violations, _, err := performStandardsCheck(context.Background(), scenarioPath, "", nil, false, nil)
 	if err != nil {
 		t.Fatalf("performStandardsCheck returned error: %v", err)
 	}
