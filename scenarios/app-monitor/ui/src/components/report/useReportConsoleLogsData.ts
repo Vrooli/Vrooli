@@ -98,7 +98,7 @@ export function useReportConsoleLogsData({
         try {
           const fallbackData = await appService.getFallbackDiagnostics(identifier, activePreviewUrl);
 
-          if (fallbackData && fallbackData.consoleLogs) {
+          if (fallbackData && fallbackData.consoleLogs && fallbackData.consoleLogs.length > 0) {
             const entries: ReportConsoleEntry[] = fallbackData.consoleLogs.map(log => {
               const ts = new Date(log.timestamp).getTime();
               const timestamp = new Date(log.timestamp).toLocaleTimeString();
@@ -134,9 +134,25 @@ export function useReportConsoleLogsData({
             fetchedForRef.current = normalizedIdentifier;
             logger.info(`Successfully retrieved ${entries.length} console logs via browserless fallback`);
             return;
+          } else if (fallbackData && fallbackData.consoleLogs && fallbackData.consoleLogs.length === 0) {
+            // Fallback succeeded but no console logs were captured
+            dispatch({
+              type: 'FETCH_SUCCESS',
+              payload: {
+                entries: [],
+                total: 0,
+                fetchedAt: new Date(fallbackData.capturedAt).getTime(),
+              },
+            });
+
+            fromFallbackRef.current = true;
+            pageStatusRef.current = fallbackData.pageStatus;
+            fetchedForRef.current = normalizedIdentifier;
+            logger.info('Browserless fallback succeeded but captured no console logs');
+            return;
           }
         } catch (error) {
-          logger.warn('Browserless fallback failed', error);
+          logger.warn('Browserless fallback failed for console logs', error);
         }
       }
 

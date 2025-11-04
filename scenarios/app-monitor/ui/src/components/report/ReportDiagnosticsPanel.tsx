@@ -124,7 +124,47 @@ const ReportDiagnosticsPanel = ({
 
     // Add page status analysis from browserless fallback
     if (pageStatus) {
-      if (pageStatus.whiteScreen) {
+      // Show detected issues as a summary if available
+      if (pageStatus.detectedIssues && pageStatus.detectedIssues.length > 0) {
+        pageStatus.detectedIssues.forEach((issue, idx) => {
+          cards.push({
+            key: `page-detected-issue-${idx}`,
+            status: 'error',
+            title: 'Page issue detected',
+            summary: issue,
+          });
+        });
+      }
+
+      // Individual checks for specific errors (only if not already in detectedIssues)
+      if (pageStatus.notFoundError && !pageStatus.detectedIssues?.some(i => i.includes('404'))) {
+        cards.push({
+          key: 'page-not-found',
+          status: 'error',
+          title: '404 Not Found',
+          summary: 'The page returned a 404 error. The URL may be incorrect or the route handler is missing.',
+        });
+      }
+
+      if (pageStatus.cloudflareError && !pageStatus.detectedIssues?.some(i => i.toLowerCase().includes('cloudflare'))) {
+        cards.push({
+          key: 'page-cloudflare-error',
+          status: 'error',
+          title: 'Cloudflare Gateway Error',
+          summary: 'Cloudflare reported a gateway error (502/503/520-522). The backend service may be down or unreachable.',
+        });
+      }
+
+      if (pageStatus.emptyBody && !pageStatus.detectedIssues?.some(i => i.toLowerCase().includes('empty') || i.toLowerCase().includes('white screen'))) {
+        cards.push({
+          key: 'page-empty-body',
+          status: 'error',
+          title: 'Empty page content',
+          summary: 'The page body is empty or has minimal content. This often indicates a critical rendering error or failed bundle loading.',
+        });
+      }
+
+      if (pageStatus.whiteScreen && !pageStatus.detectedIssues?.some(i => i.toLowerCase().includes('white screen'))) {
         cards.push({
           key: 'page-white-screen',
           status: 'error',
@@ -133,7 +173,7 @@ const ReportDiagnosticsPanel = ({
         });
       }
 
-      if (pageStatus.moduleError) {
+      if (pageStatus.moduleError && !pageStatus.detectedIssues?.some(i => i.toLowerCase().includes('module'))) {
         cards.push({
           key: 'page-module-error',
           status: 'error',
@@ -142,7 +182,7 @@ const ReportDiagnosticsPanel = ({
         });
       }
 
-      if (pageStatus.loadError) {
+      if (pageStatus.loadError && !pageStatus.detectedIssues?.some(i => i.toLowerCase().includes('load') || i.toLowerCase().includes('network'))) {
         cards.push({
           key: 'page-load-error',
           status: 'error',
@@ -160,7 +200,7 @@ const ReportDiagnosticsPanel = ({
         });
       }
 
-      if (pageStatus.resourceCount === 0 && !pageStatus.whiteScreen) {
+      if (pageStatus.resourceCount === 0 && !pageStatus.whiteScreen && !pageStatus.emptyBody) {
         cards.push({
           key: 'page-no-resources',
           status: 'warning',

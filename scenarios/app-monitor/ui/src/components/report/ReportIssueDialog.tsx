@@ -401,7 +401,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                   includeSummary={diagnosticsSummaryIncluded}
                   onIncludeSummaryChange={setIncludeDiagnosticsSummary}
                   disabled={form.submitting}
-                  pageStatus={consoleLogs.pageStatus}
+                  pageStatus={consoleLogs.fromFallback ? consoleLogs.pageStatus : null}
                   activePreviewUrl={activePreviewUrl}
                   app={app}
                 />

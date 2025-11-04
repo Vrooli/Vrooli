@@ -1173,8 +1173,8 @@ func (s *AppService) GetFallbackDiagnostics(ctx context.Context, appID string, u
 		return nil, ErrAppIdentifierRequired
 	}
 
-	// Validate that the app exists
-	_, err := s.GetApp(ctx, id)
+	// Validate that the app exists and get app details
+	app, err := s.GetApp(ctx, id)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "not found") {
 			return nil, fmt.Errorf("%w: %v", ErrAppNotFound, err)
@@ -1182,11 +1182,20 @@ func (s *AppService) GetFallbackDiagnostics(ctx context.Context, appID string, u
 		return nil, err
 	}
 
+	// Resolve the actual URL to use with browserless
+	resolvedURL, err := s.resolveFallbackURL(app, url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve URL for browserless: %w", err)
+	}
+
 	// Use browserless to collect diagnostics
-	result, err := s.browserlessService.GetFallbackDiagnostics(ctx, url)
+	result, err := s.browserlessService.GetFallbackDiagnostics(ctx, resolvedURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect browserless diagnostics: %w", err)
 	}
+
+	// Store the original URL that was requested
+	result.URL = url
 
 	// Analyze console logs for common errors
 	if result.PageStatus != nil && len(result.ConsoleLogs) > 0 {
@@ -1207,4 +1216,41 @@ func (s *AppService) GetFallbackDiagnostics(ctx context.Context, appID string, u
 	}
 
 	return result, nil
+}
+
+// resolveFallbackURL converts a relative preview URL to an absolute URL that browserless can access.
+// It handles several cases:
+// - Absolute URLs with protocol -> returned as-is
+// - Relative proxy paths (e.g., /apps/qr-code-generator/proxy/) -> converted to app's direct UI port
+// - Already localhost URLs -> returned as-is
+func (s *AppService) resolveFallbackURL(app *repository.App, url string) (string, error) {
+	trimmedURL := strings.TrimSpace(url)
+	if trimmedURL == "" {
+		return "", errors.New("URL cannot be empty")
+	}
+
+	// If URL already has http:// or https://, use it as-is
+	if strings.HasPrefix(trimmedURL, "http://") || strings.HasPrefix(trimmedURL, "https://") {
+		return trimmedURL, nil
+	}
+
+	// For relative paths (like /apps/qr-code-generator/proxy/), we need to construct
+	// an absolute URL using the app's UI port
+	if strings.HasPrefix(trimmedURL, "/") {
+		// Try to find the UI port for this app
+		uiPort := resolveAppPort(app, []string{"ui", "ui_port", "frontend", "web", "UI", "UI_PORT", "WEB", "WEB_PORT"})
+		if uiPort <= 0 {
+			// If no UI port found, this app might not have a web interface
+			return "", fmt.Errorf("no UI port found for app %s (status: %s)", app.ID, app.Status)
+		}
+
+		// Construct absolute URL pointing directly to the app's UI port
+		// We use the direct port instead of the proxy path because:
+		// 1. Browserless needs to access the actual running service
+		// 2. Proxy paths may not work if the app itself has issues
+		return fmt.Sprintf("http://localhost:%d", uiPort), nil
+	}
+
+	// For any other format, assume it's meant to be an http URL
+	return "http://" + trimmedURL, nil
 }

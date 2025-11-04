@@ -95,7 +95,7 @@ export function useReportNetworkData({
         try {
           const fallbackData = await appService.getFallbackDiagnostics(identifier, activePreviewUrl);
 
-          if (fallbackData && fallbackData.networkRequests) {
+          if (fallbackData && fallbackData.networkRequests && fallbackData.networkRequests.length > 0) {
             const entries: ReportNetworkEntry[] = fallbackData.networkRequests.map(req => {
               const ts = new Date(req.timestamp).getTime();
               const timestamp = new Date(req.timestamp).toLocaleTimeString();
@@ -138,9 +138,24 @@ export function useReportNetworkData({
             fetchedForRef.current = normalizedIdentifier;
             logger.info(`Successfully retrieved ${entries.length} network requests via browserless fallback`);
             return;
+          } else if (fallbackData && fallbackData.networkRequests && fallbackData.networkRequests.length === 0) {
+            // Fallback succeeded but no network requests were captured
+            dispatch({
+              type: 'FETCH_SUCCESS',
+              payload: {
+                events: [],
+                total: 0,
+                fetchedAt: new Date(fallbackData.capturedAt).getTime(),
+              },
+            });
+
+            fromFallbackRef.current = true;
+            fetchedForRef.current = normalizedIdentifier;
+            logger.info('Browserless fallback succeeded but captured no network requests');
+            return;
           }
         } catch (error) {
-          logger.warn('Browserless fallback failed', error);
+          logger.warn('Browserless fallback failed for network requests', error);
         }
       }
 

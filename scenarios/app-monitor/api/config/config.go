@@ -76,7 +76,7 @@ func LoadConfig() (*Config, error) {
 		API: APIConfig{
 			Port:            os.Getenv("API_PORT"),
 			ReadTimeout:     getDurationEnv("API_READ_TIMEOUT", 30*time.Second),
-			WriteTimeout:    getDurationEnv("API_WRITE_TIMEOUT", 30*time.Second),
+			WriteTimeout:    getDurationEnv("API_WRITE_TIMEOUT", 90*time.Second),
 			ShutdownTimeout: getDurationEnv("API_SHUTDOWN_TIMEOUT", 10*time.Second),
 		},
 		Database: DatabaseConfig{

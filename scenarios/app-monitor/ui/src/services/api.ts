@@ -58,7 +58,7 @@ export const buildApiUrlWithBase = (path: string) => buildApiUrl(path, { baseUrl
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 35000, // 35s to accommodate 30s backend timeout for resource checks
+  timeout: 75000, // 75s to accommodate 90s backend write timeout for browserless fallback diagnostics
   headers: {
     'Content-Type': 'application/json',
   },
@@ -175,9 +175,13 @@ export interface BrowserlessFallbackPageStatus {
   } | null;
   loadError?: string | null;
   moduleError?: string | null;
+  cloudflareError: boolean;
+  notFoundError: boolean;
+  emptyBody: boolean;
   resourceCount: number;
   loadTimeMs: number;
   performanceMetrics?: Record<string, any>;
+  detectedIssues?: string[];
 }
 
 export interface BrowserlessFallbackDiagnostics {
@@ -185,6 +189,7 @@ export interface BrowserlessFallbackDiagnostics {
   networkRequests: BrowserlessFallbackNetworkRequest[];
   pageStatus: BrowserlessFallbackPageStatus | null;
   screenshot?: string;
+  html?: string;
   source: string;
   capturedAt: string;
   url: string;

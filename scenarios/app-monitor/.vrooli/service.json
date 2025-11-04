@@ -72,6 +72,12 @@
         "llama3.2"
       ],
       "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
+    },
+    "browserless": {
+      "type": "browserless",
+      "enabled": true,
+      "required": false,
+      "purpose": "Headless browser for capturing diagnostics when iframe bridge fails (console logs, network requests, screenshots, page HTML)"
     }
   },
   "lifecycle": {
@@ -200,7 +206,7 @@
           }
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display all running service URLs"
         }
