@@ -312,6 +312,19 @@ scenario::status::format_display_individual() {
     scenario::insights::display_lifecycle "$insights_json"
     scenario::insights::display_health_config "$insights_json"
 
+    # Check for production bundle requirement
+    local production_bundle_check
+    production_bundle_check=$(echo "$insights_json" | jq -r '.production_bundle' 2>/dev/null || echo '{}')
+    local needs_conversion
+    needs_conversion=$(echo "$production_bundle_check" | jq -r '.needs_conversion // false')
+
+    if [[ "$needs_conversion" == "true" ]]; then
+        if [[ -z "${SCENARIO_STATUS_EXTRA_RECOMMENDATIONS:-}" ]]; then
+            SCENARIO_STATUS_EXTRA_RECOMMENDATIONS=""
+        fi
+        SCENARIO_STATUS_EXTRA_RECOMMENDATIONS="${SCENARIO_STATUS_EXTRA_RECOMMENDATIONS}Convert UI from dev server to production bundles for auto-rebuild support"$'\n'
+    fi
+
     # Enhanced Health Checks and Diagnostics using unified data collection
     local diagnostic_data
     diagnostic_data=$(scenario::health::collect_all_diagnostic_data "$scenario_name" "$response" "$status")
@@ -474,8 +487,23 @@ scenario::status::display_diagnostic_data() {
         fi
     fi
 
+    # Display production bundle warning if needed
+    if [[ "$needs_conversion" == "true" ]]; then
+        echo ""
+        echo -e "\033[1;33m[WARNING]\033[0m UI Build: ⚠️  Using dev server instead of production bundles"
+        echo "   • Production bundles enable cache-busting and consistent behavior"
+        echo "   • Production bundles make behavior more predictable and closer to real-world behavior"
+        echo "   • Production bundles make integration testing true to production behavior"
+
+        # Set env var so test validator can add documentation link
+        export SCENARIO_STATUS_NEEDS_PRODUCTION_BUNDLE="true"
+    fi
+
     # Always display test infrastructure validation (for all statuses)
     scenario::status::display_test_infrastructure "$scenario_name"
+
+    # Clean up env var
+    unset SCENARIO_STATUS_NEEDS_PRODUCTION_BUNDLE
 
     if [[ -n "${SCENARIO_STATUS_EXTRA_RECOMMENDATIONS:-}" ]]; then
         echo ""

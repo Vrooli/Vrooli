@@ -184,6 +184,27 @@ Tests CLI with input/output validation.
 testing::cli::test_with_input "my-cli" "process" "input.txt" "expected output"
 ```
 
+### phase-helpers.sh
+Phase lifecycle helpers used across all test phases.
+
+```bash
+source "$APP_ROOT/scripts/scenarios/testing/shell/phase-helpers.sh"
+```
+
+#### Functions
+
+##### `testing::phase::init()`
+Initialises phase context, loads the scenario requirements registry (`docs/requirements.yaml` or `requirements/`), and prepares cleanup hooks.
+
+##### `testing::phase::add_requirement()`
+Associates requirement IDs with pass/fail/skipped outcomes and supporting evidence.
+
+##### `testing::phase::run_workflow_yaml()`
+Runs YAML-defined automations (with optional timeouts and success patterns) and updates requirement status automatically.
+
+##### `testing::phase::end_with_summary()`
+Writes JSON summaries to `coverage/phase-results/<phase>.json` for downstream reporting.
+
 ### orchestration.sh
 Comprehensive test suite execution.
 

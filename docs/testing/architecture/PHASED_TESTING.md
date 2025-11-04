@@ -184,6 +184,14 @@ lib/testing/
 - Configurable thresholds
 - Verbose mode support
 
+### 3. Requirement Traceability
+- `testing::phase::init` reads the scenario requirement registry (`docs/requirements.yaml` or modular `requirements/`) to determine which requirement IDs each phase is responsible for. Missing coverage triggers warnings by default and can be promoted to hard failures by exporting `TESTING_REQUIREMENTS_ENFORCE=1` (or `VROOLI_REQUIREMENTS_ENFORCE=1`).
+- Unit and integration phases write per-phase summaries to `coverage/phase-results/<phase>.json`, enabling downstream tooling (like `scripts/requirements/report.js`) to surface live requirement coverage.
+- `testing::phase::run_workflow_yaml` executes YAML-defined automations (documents stored under `automation/`) and automatically updates requirement state. Workflows declare CLI commands, optional timeouts, and success patterns in a human-readable manifest.
+- The Go and Node.js unit runners now recognize `REQ:<ID>` markers in test names/output (`t.Run("... [REQ:ABC-123]", ...)`, `it('...', { /* ... */ })`) and record pass/fail/skipped statuses for each tagged requirement.
+- Validate the registry schema with `node scripts/requirements/validate.js --scenario <name>` (invoked automatically by `vrooli scenario status <name>`). This command ensures every requirement/validation entry matches the JSON schema before phases attempt to load coverage expectations.
+- Bootstrap modular registries with `vrooli scenario requirements init <scenario>`, which copies the shared `requirements/` scaffold (parents, child modules, BAS workflow hooks) so PRD-level requirements are traceable from day one.
+
 ### 3. Modern Service Configuration
 **Migration**: `scenario-test.yaml` → `.vrooli/service.json`
 
@@ -516,6 +524,14 @@ For comprehensive safety guidelines, see [Safety Guidelines](../safety/GUIDELINE
    - Each scenario must implement specific business logic tests
    - Use provided templates as starting points
    - Follow established patterns for consistency
+
+## Requirement Reporting
+
+- Maintain a requirements registry (`docs/requirements.yaml` or `requirements/`) within each scenario to map PRD items to validation assets (phases, unit tests, workflows, automations).
+- `testing::phase::init` automatically inspects this file and warns when a phase omits expected requirement updates; export `TESTING_REQUIREMENTS_ENFORCE=1` (or `VROOLI_REQUIREMENTS_ENFORCE=1`) to treat missing coverage as a failure.
+- Use `REQ:<ID>` markers in Go/Vitest test names to have the unit runners automatically register requirement outcomes.
+- Execute YAML-defined automations through `testing::phase::run_workflow_yaml --file automation/...` to keep requirement evidence aligned with phase results.
+- Run `vrooli scenario requirements report <name> --fail-on-critical-gap` to generate Markdown/JSON/trace reports and enforce critical requirement completion in CI pipelines.
 
 ## Future Enhancements
 

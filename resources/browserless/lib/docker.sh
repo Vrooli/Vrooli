@@ -30,12 +30,15 @@ browserless::docker::create_container() {
         "CONCURRENT=${max_browsers}"
         "TIMEOUT=${timeout}"
         "ENABLE_DEBUGGER=false"
-        "PREBOOT_CHROME=true"
-        "KEEP_ALIVE=true"
+        "PREBOOT_CHROME=false"
+        "KEEP_ALIVE=false"
         "PRE_REQUEST_HEALTH_CHECK=false"
         "FUNCTION_ENABLE_INCOGNITO_MODE=true"
         "WORKSPACE_DELETE_EXPIRED=true"
         "WORKSPACE_EXPIRE_DAYS=7"
+        "EXIT_ON_HEALTH_FAILURE=true"
+        "HEALTH_CHECK_INTERVAL=10000"
+        "MAX_QUEUE_LENGTH=10"
     )
     
     # Browserless-specific Docker options for browser isolation

@@ -1164,9 +1164,10 @@ actions::console() {
             });
             
             // Navigate to the URL
-            await page.goto('$url', { 
-                waitUntil: 'networkidle2',
-                timeout: 30000 
+            // Use 'domcontentloaded' instead of 'networkidle2' for faster failure on broken pages
+            await page.goto('$url', {
+                waitUntil: 'domcontentloaded',
+                timeout: $TIMEOUT_MS
             });
             
             // Wait for any additional console activity
@@ -1226,6 +1227,214 @@ actions::console() {
         return 1
     fi
     
+    actions::cleanup_temp_session "$session_id"
+    return 0
+}
+
+#######################################
+# Capture network requests from a page
+# Usage: browserless network <url> [options]
+#######################################
+actions::network() {
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
+
+    local remaining_args_array=()
+
+    # Parse options directly
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
+                shift 2
+                ;;
+            --wait-ms)
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    local url="${remaining_args_array[0]:-}"
+
+    if [[ -z "$url" ]]; then
+        echo "Error: URL required" >&2
+        echo "Usage: browserless network <url> [--output network.json]" >&2
+        return 1
+    fi
+
+    local session_id
+    session_id=$(actions::create_temp_session)
+
+    log::info "📡 Capturing network requests from $url"
+
+    # Use browserless function API with CDP network event handling
+    local browserless_port="${BROWSERLESS_PORT:-4110}"
+
+    # Create the JavaScript function for network capture using ES6 export default format
+    local wrapped_code="export default async ({ page, context }) => {
+        try {
+            const requests = [];
+            const requestMap = new Map();
+
+            // Set up network event listeners before navigation
+            page.on('request', req => {
+                const startTime = Date.now();
+                const requestId = req._requestId || Math.random().toString(36);
+
+                const entry = {
+                    requestId: requestId,
+                    url: req.url(),
+                    method: req.method(),
+                    resourceType: req.resourceType(),
+                    timestamp: new Date().toISOString(),
+                    startTime: startTime
+                };
+
+                requestMap.set(requestId, entry);
+                requests.push(entry);
+            });
+
+            page.on('response', async resp => {
+                const req = resp.request();
+                const requestId = req._requestId || Math.random().toString(36);
+                const entry = requestMap.get(requestId);
+
+                if (entry) {
+                    entry.status = resp.status();
+                    entry.ok = resp.ok();
+                    entry.statusText = resp.statusText();
+                    entry.duration = Date.now() - entry.startTime;
+
+                    // Get response headers
+                    try {
+                        entry.headers = resp.headers();
+                    } catch (e) {
+                        entry.headers = {};
+                    }
+
+                    // Get content type
+                    try {
+                        const contentType = resp.headers()['content-type'];
+                        if (contentType) {
+                            entry.contentType = contentType;
+                        }
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
+            });
+
+            page.on('requestfailed', req => {
+                const requestId = req._requestId || Math.random().toString(36);
+                const entry = requestMap.get(requestId);
+
+                if (entry) {
+                    entry.failed = true;
+                    entry.ok = false;
+                    const failure = req.failure();
+                    if (failure) {
+                        entry.error = failure.errorText;
+                    }
+                }
+            });
+
+            // Navigate to the URL
+            await page.goto('$url', {
+                waitUntil: 'networkidle2',
+                timeout: $TIMEOUT_MS
+            });
+
+            // Wait for any additional network activity
+            await new Promise(resolve => setTimeout(resolve, $WAIT_MS));
+
+            return {
+                success: true,
+                requests: requests,
+                url: page.url(),
+                title: await page.title(),
+                total: requests.length,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.message,
+                stack: error.stack
+            };
+        }
+    };"
+
+    # Execute via browserless v2 API
+    local result
+    result=$(curl -s -X POST \
+        -H "Content-Type: application/javascript" \
+        -d "$wrapped_code" \
+        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+
+    local success
+    success=$(echo "$result" | jq -r '.success // false')
+    if [[ "$success" == "true" ]]; then
+        local requests=$(echo "$result" | jq '.requests')
+
+        if [[ -n "$OUTPUT_PATH" ]]; then
+            mkdir -p "${OUTPUT_PATH%/*}"
+            echo "$result" > "$OUTPUT_PATH"
+            echo "Network requests saved: $OUTPUT_PATH"
+        fi
+
+        local request_count=$(echo "$requests" | jq 'length')
+        local failed_count=$(echo "$requests" | jq '[.[] | select(.failed == true)] | length')
+
+        echo "Captured $request_count network requests"
+        if [[ "$failed_count" -gt 0 ]]; then
+            echo "Failed requests: $failed_count"
+        fi
+        echo "$requests" | jq '.'
+    else
+        local error=$(echo "$result" | jq -r '.error // "Unknown error"')
+        echo "Error: Network capture failed - $error" >&2
+        actions::cleanup_temp_session "$session_id"
+        return 1
+    fi
+
     actions::cleanup_temp_session "$session_id"
     return 0
 }
@@ -2033,6 +2242,180 @@ actions::extract_elements() {
 }
 
 #######################################
+# Combined diagnostics - Collect console, network, performance, and HTML in ONE browser session
+# This prevents multiple parallel browser launches that can crash browserless
+# Usage: browserless diagnostics <url> [--timeout 6000] [--wait-ms 1000]
+#######################################
+actions::diagnostics() {
+    # Reset defaults
+    OUTPUT_PATH=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="2000"
+
+    local remaining_args_array=()
+
+    # Parse options
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --timeout)
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
+                shift 2
+                ;;
+            --wait-ms)
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
+                shift 2
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    local url="${remaining_args_array[0]:-}"
+
+    if [[ -z "$url" ]]; then
+        echo "Error: URL required" >&2
+        echo "Usage: browserless diagnostics <url> [--timeout 6000] [--wait-ms 1000]" >&2
+        return 1
+    fi
+
+    local session_id
+    session_id=$(actions::create_temp_session)
+
+    log::info "🔍 Collecting combined diagnostics from $url"
+
+    local browserless_port="${BROWSERLESS_PORT:-4110}"
+
+    # Create a single JavaScript function that collects ALL diagnostics in one browser session
+    local wrapped_code="export default async ({ page, context }) => {
+        try {
+            const diagnostics = {
+                consoleLogs: [],
+                networkRequests: [],
+                performance: {},
+                html: '',
+                title: '',
+                url: ''
+            };
+
+            // Set up console event listener
+            page.on('console', msg => {
+                diagnostics.consoleLogs.push({
+                    level: msg.type(),
+                    message: msg.text(),
+                    timestamp: new Date().toISOString()
+                });
+            });
+
+            // Set up network request listener
+            page.on('request', request => {
+                diagnostics.networkRequests.push({
+                    url: request.url(),
+                    method: request.method(),
+                    resourceType: request.resourceType(),
+                    timestamp: new Date().toISOString()
+                });
+            });
+
+            const startTime = Date.now();
+
+            // Navigate to the URL
+            await page.goto('$url', {
+                waitUntil: 'domcontentloaded',
+                timeout: $TIMEOUT_MS
+            });
+
+            const loadTime = Date.now() - startTime;
+
+            // Wait for additional activity
+            await new Promise(resolve => setTimeout(resolve, $WAIT_MS));
+
+            // Collect performance metrics
+            const performanceMetrics = await page.evaluate(() => {
+                const perf = window.performance;
+                const timing = perf.timing;
+                const navigation = perf.getEntriesByType('navigation')[0] || {};
+
+                return {
+                    loadTime: navigation.loadEventEnd - navigation.fetchStart || 0,
+                    domInteractive: timing.domInteractive - timing.navigationStart || 0,
+                    domComplete: timing.domComplete - timing.navigationStart || 0,
+                    resourceCount: performance.getEntriesByType('resource').length || 0
+                };
+            });
+
+            diagnostics.performance = performanceMetrics;
+            diagnostics.performance.totalLoadTime = loadTime;
+
+            // Get HTML, title, and URL
+            diagnostics.html = await page.content();
+            diagnostics.title = await page.title();
+            diagnostics.url = page.url();
+
+            return {
+                success: true,
+                diagnostics: diagnostics
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.message,
+                stack: error.stack
+            };
+        }
+    };"
+
+    # Execute via browserless v2 API
+    local result
+    result=$(curl -s -X POST \
+        -H "Content-Type: application/javascript" \
+        -d "$wrapped_code" \
+        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+
+    local success
+    success=$(echo "$result" | jq -r '.success // false')
+
+    if [[ "$success" == "true" ]]; then
+        local diagnostics=$(echo "$result" | jq '.diagnostics')
+
+        if [[ -n "$OUTPUT_PATH" ]]; then
+            mkdir -p "${OUTPUT_PATH%/*}"
+            echo "$diagnostics" > "$OUTPUT_PATH"
+            echo "Combined diagnostics saved: $OUTPUT_PATH"
+        fi
+
+        # Output the diagnostics
+        echo "$diagnostics"
+
+        # Summary
+        local console_count=$(echo "$diagnostics" | jq '.consoleLogs | length')
+        local network_count=$(echo "$diagnostics" | jq '.networkRequests | length')
+        log::info "✅ Collected: $console_count console logs, $network_count network requests, performance metrics, and HTML" >&2
+
+        return 0
+    else
+        local error_msg=$(echo "$result" | jq -r '.error // "Unknown error"')
+        echo "Error: $error_msg" >&2
+        return 1
+    fi
+}
+
+#######################################
 # Dispatch function for CLI routing
 #######################################
 actions::dispatch() {
@@ -2055,9 +2438,16 @@ actions::dispatch() {
         echo "  performance    - Measure page performance metrics" >&2
         return 1
     fi
-    
+
     local action="$1"
     shift
+
+    # Check browserless health before executing actions
+    if ! browserless::is_healthy >/dev/null 2>&1; then
+        echo "Error: Browserless service is unhealthy" >&2
+        echo "Run 'resource-browserless manage restart' to fix" >&2
+        return 7
+    fi
     
     # Validate action is not empty
     if [[ -z "$action" ]]; then
@@ -2103,8 +2493,14 @@ actions::dispatch() {
         console)
             actions::console "$@"
             ;;
+        network)
+            actions::network "$@"
+            ;;
         performance)
             actions::performance "$@"
+            ;;
+        diagnostics)
+            actions::diagnostics "$@"
             ;;
         *)
             echo "Error: Unknown action: $action" >&2
@@ -2120,6 +2516,7 @@ actions::dispatch() {
             echo "  extract-elements - Extract interactive elements with metadata" >&2
             echo "  interact       - Perform form fills, clicks, and wait operations" >&2
             echo "  console        - Capture console logs from pages" >&2
+            echo "  network        - Capture network requests from pages" >&2
             echo "  performance    - Measure page performance metrics" >&2
             echo "" >&2
             echo "Universal options:" >&2

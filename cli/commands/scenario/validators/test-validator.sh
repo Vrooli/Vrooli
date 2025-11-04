@@ -318,7 +318,7 @@ scenario::test::calculate_overall_status() {
     local ui_tests="$5"
 
     local phased_docs_path
-    phased_docs_path=$(scenario::test::absolute_path "docs/scenarios/PHASED_TESTING_ARCHITECTURE.md")
+    phased_docs_path=$(scenario::test::absolute_path "docs/testing/architecture/PHASED_TESTING.md")
     
     local score=0
     local max_score=5
@@ -396,7 +396,7 @@ scenario::test::display_validation() {
     local validation_data="$2"
 
     local phased_docs_path
-    phased_docs_path=$(scenario::test::absolute_path "docs/scenarios/PHASED_TESTING_ARCHITECTURE.md")
+    phased_docs_path=$(scenario::test::absolute_path "docs/testing/architecture/PHASED_TESTING.md")
 
     echo ""
     echo "🧪 Test Infrastructure:"
@@ -529,7 +529,20 @@ scenario::test::display_validation() {
             done
         fi
         echo ""
-        echo "📚 See: $phased_docs_path"
+
+        # Build documentation links
+        local doc_links=("$phased_docs_path")
+        if [[ "${SCENARIO_STATUS_NEEDS_PRODUCTION_BUNDLE:-false}" == "true" ]]; then
+            local prod_bundle_doc="${VROOLI_ROOT}/docs/scenarios/PRODUCTION_BUNDLES.md"
+            doc_links+=("$prod_bundle_doc")
+        fi
+
+        if [[ ${#doc_links[@]} -gt 0 ]]; then
+            echo "📚 Further reading:"
+            for doc in "${doc_links[@]}"; do
+                [[ -n "$doc" ]] && echo "   • $doc"
+            done
+        fi
     fi
 
     SCENARIO_STATUS_EXTRA_RECOMMENDATIONS=""

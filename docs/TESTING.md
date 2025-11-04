@@ -12,6 +12,7 @@
 - 🔧 **Test a scenario** → [Scenario Testing Guide](testing/guides/scenario-testing.md)
 - 🏗️ **Test a resource** → [Resource Testing Strategy](testing/architecture/STRATEGY.md)
 - 🐛 **Debug failing tests** → [Troubleshooting Guide](testing/guides/troubleshooting.md)
+- 📊 **View requirement coverage** → `vrooli scenario requirements report <name> --format markdown`
 - 📝 **Write unit tests** → [Scenario Unit Testing Guide](testing/guides/scenario-unit-testing.md)
 - 🔧 **Test resources** → [Resource Unit Testing Guide](testing/guides/resource-unit-testing.md)
 - 🖥️ **Test CLI commands** → [CLI Testing with BATS](testing/guides/cli-testing.md)
@@ -25,6 +26,8 @@ Vrooli employs a **comprehensive, safety-first testing strategy** that ensures c
 3. **Multi-Language Support** - Unified testing across Go, Node.js, Python, and Shell
 4. **Resource Integration** - Automatic validation of PostgreSQL, Redis, Ollama, etc.
 5. **High Coverage Standards** - 80% warning, 70% error thresholds
+6. **Requirement Traceability** - Phase outputs, `REQ:`-tagged tests, and YAML workflows feed the scenario requirements registry (`docs/requirements.yaml` or modular `requirements/` folders), closing the loop with `vrooli scenario requirements report`.
+   - Validate the registry structure with `node scripts/requirements/validate.js --scenario <name>` (also surfaced inside `vrooli scenario status <name>`). Schema failures will now show up directly in the status output so broken registries can’t slip through CI.
 
 ## Testing Layers
 
@@ -107,6 +110,15 @@ vrooli test unit --no-cache
 # Or use the testing library directly
 source "$APP_ROOT/scripts/scenarios/testing/unit/run-all.sh"
 testing::unit::run_all_tests --coverage-warn 80
+```
+
+### Requirement Coverage Reporter
+```bash
+# Generate a Markdown report for a scenario
+vrooli scenario requirements report your-scenario
+
+# Fail CI when P0/P1 requirements remain incomplete and capture JSON output
+vrooli scenario requirements report your-scenario --fail-on-critical-gap --format json --output coverage/requirements.json
 ```
 
 ## Gold Standard Examples

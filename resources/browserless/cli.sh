@@ -100,7 +100,9 @@ cli::register_command "extract" "Extract structured data with custom scripts" "b
 cli::register_command "extract-forms" "Extract form data and input fields" "browserless::extract_forms"
 cli::register_command "interact" "Perform form fills, clicks, and interactions" "browserless::interact"
 cli::register_command "console" "Capture console logs from pages" "browserless::console"
+cli::register_command "network" "Capture network requests from pages" "browserless::network"
 cli::register_command "performance" "Measure page performance metrics" "browserless::performance"
+cli::register_command "diagnostics" "Collect all diagnostics in one browser session (console, network, performance, HTML)" "browserless::diagnostics"
 
 # N8N adapter system (critical for workflow integration)
 cli::register_command "for" "Use adapters for other resources (e.g., for n8n execute <id>)" "browserless::adapter_dispatch"
@@ -154,6 +156,7 @@ browserless::extract_forms() { actions::dispatch "extract-forms" "$@"; }
 browserless::interact() { actions::dispatch "interact" "$@"; }
 browserless::console() { actions::dispatch "console" "$@"; }
 browserless::performance() { actions::dispatch "performance" "$@"; }
+browserless::diagnostics() { actions::dispatch "diagnostics" "$@"; }
 
 browserless::adapter_dispatch() {
     source "$BROWSERLESS_CLI_DIR/adapters/common.sh"
