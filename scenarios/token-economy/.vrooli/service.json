@@ -286,11 +286,17 @@
           {
             "type": "binaries",
             "targets": [
-              "token-economy-api"
+              "api/token-economy-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "token-economy",
             "targets": [
               "token-economy"
             ]
@@ -299,14 +305,32 @@
       },
       "steps": [
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command"
+        },
+        {
           "name": "build-api",
           "run": "cd api && go build -o token-economy-api .",
           "description": "Build Go API binary"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command"
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Token Economy ready:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
+          "description": "Display service access URLs"
         }
       ]
     },

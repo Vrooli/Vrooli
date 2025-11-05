@@ -146,11 +146,17 @@
           {
             "type": "binaries",
             "targets": [
-              "stream-of-consciousness-analyzer-api"
+              "api/stream-of-consciousness-analyzer-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "stream-of-consciousness-analyzer",
             "targets": [
               "stream-of-consciousness-analyzer"
             ]
@@ -173,9 +179,27 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-deps",
-          "run": "cd ui && npm install && cd ../api && npm install",
-          "description": "Install dependencies"
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o stream-of-consciousness-analyzer-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",

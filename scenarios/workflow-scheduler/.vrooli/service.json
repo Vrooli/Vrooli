@@ -90,7 +90,7 @@
     "setup": {
       "description": "Initialize Workflow Scheduler platform",
        "condition": {
-         "checks": [
+       "checks": [
             {
               "type": "binaries",
               "targets": [
@@ -98,8 +98,14 @@
                 "cli/workflow-scheduler"
               ]
             },
+            {
+              "type": "ui-bundle",
+              "bundle_path": "ui/dist/index.html",
+              "source_dir": "ui/src"
+            },
            {
              "type": "cli",
+             "command": "workflow-scheduler",
              "targets": [
                "workflow-scheduler"
              ]
@@ -123,8 +129,21 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install scheduler CLI command globally"
+          "run": "bash cli/install.sh",
+          "description": "Install scheduler CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && pnpm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build UI production bundle"
         },
         {
           "name": "build-api",

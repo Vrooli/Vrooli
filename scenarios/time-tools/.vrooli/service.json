@@ -75,6 +75,23 @@
     },
     "setup": {
       "description": "Initialise CLI and API binaries",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/time-tools-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "time-tools",
+            "targets": [
+              "time-tools"
+            ]
+          }
+        ]
+      },
       "steps": [
         {
           "name": "install-cli",

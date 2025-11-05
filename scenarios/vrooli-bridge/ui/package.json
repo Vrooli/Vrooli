@@ -1,0 +1,10 @@
+{
+  "name": "vrooli-bridge-ui",
+  "version": "1.0.0",
+  "description": "Static dashboard bundle for Vrooli Bridge",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist && cp -R src/* dist/"
+  }
+}

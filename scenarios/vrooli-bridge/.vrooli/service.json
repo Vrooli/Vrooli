@@ -91,15 +91,20 @@
           {
             "type": "binaries",
             "targets": [
-              "api/vrooli-bridge-api",
-              "vrooli-bridge"
+              "api/vrooli-bridge-api"
             ]
           },
           {
             "type": "cli",
+            "command": "vrooli-bridge",
             "targets": [
               "vrooli-bridge"
             ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
           },
           {
             "type": "resources",
@@ -117,6 +122,19 @@
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
           "description": "Install CLI command globally"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build static UI bundle from source"
         },
         {
           "name": "show-urls",

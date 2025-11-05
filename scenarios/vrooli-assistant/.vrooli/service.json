@@ -86,9 +86,15 @@
           },
           {
             "type": "cli",
+            "command": "vrooli-assistant",
             "targets": [
               "vrooli-assistant"
             ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
           },
           {
             "type": "resources",

@@ -26,14 +26,21 @@ NC='\033[0m' # No Color
 get_api_url() {
     # Use vrooli scenario port command for dynamic port lookup
     local api_port
-    api_port=$(vrooli scenario port "${SCENARIO_NAME}" TIME_TOOLS_PORT 2>/dev/null)
-    
+    api_port="${API_PORT:-${TIME_TOOLS_PORT:-}}"
+
+    if [[ -z "$api_port" ]]; then
+        api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    fi
+    if [[ -z "$api_port" ]]; then
+        api_port=$(vrooli scenario port "${SCENARIO_NAME}" TIME_TOOLS_PORT 2>/dev/null)
+    fi
+
     if [[ -z "$api_port" ]]; then
         echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
         echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
         exit 1
     fi
-    
+
     echo "http://localhost:${api_port}"
 }
 

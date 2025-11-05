@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_PATH="${SCRIPT_DIR}/cli.sh"
+CLI_PATH="${SCRIPT_DIR}/../cli.sh"
 INSTALL_DIR="${HOME}/.local/bin"
 SYMLINK_NAME="swarm-manager"
 

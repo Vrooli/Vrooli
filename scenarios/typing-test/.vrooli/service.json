@@ -91,11 +91,17 @@
           {
             "type": "binaries",
             "targets": [
-              "typing-test-api"
+              "api/typing-test-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "typing-test",
             "targets": [
               "typing-test"
             ]
@@ -131,6 +137,11 @@
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",

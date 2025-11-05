@@ -12,7 +12,8 @@ setup() {
     fi
     
     # Check if time-tools service is running
-    if ! vrooli scenario port time-tools TIME_TOOLS_PORT >/dev/null 2>&1; then
+    if ! vrooli scenario port time-tools API_PORT >/dev/null 2>&1 && \
+       ! vrooli scenario port time-tools TIME_TOOLS_PORT >/dev/null 2>&1; then
         skip "time-tools service not running. Start with: vrooli scenario run time-tools"
     fi
 }

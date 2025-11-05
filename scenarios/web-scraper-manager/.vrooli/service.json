@@ -145,7 +145,13 @@
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "web-scraper-manager",
             "targets": [
               "web-scraper-manager"
             ]
@@ -196,9 +202,17 @@
           "description": "Build Go coordination API binary"
         },
         {
-          "name": "install-ui-dependencies",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",

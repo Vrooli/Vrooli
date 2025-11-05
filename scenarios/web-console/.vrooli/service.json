@@ -50,6 +50,21 @@
     },
     "setup": {
       "description": "Initialize Web Console services and dependencies",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/web-console-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
       "steps": [
         {
           "name": "prepare-storage",
@@ -74,13 +89,8 @@
       ]
     },
     "develop": {
-      "description": "Run Web Console API and UI servers via lifecycle",
+      "description": "Run Web Console API and UI servers with production bundles",
       "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go build -o web-console-api .",
-          "description": "Build Go API server binary"
-        },
     {
       "name": "start-api",
       "run": "cd api && ./web-console-api",
@@ -91,20 +101,12 @@
       }
     },
     {
-      "name": "build-ui",
-      "run": "cd ui && if [ ! -d node_modules ]; then echo 'WARNING: Web Console UI dependencies missing. Run `pnpm install --filter web-console-ui` before start.' >&2; exit 1; fi && pnpm run build",
-      "description": "Ensure Web Console UI bundle is up to date",
-      "condition": {
-        "file_exists": "ui/package.json"
-      }
-    },
-    {
       "name": "start-ui",
       "run": "cd ui && node server.js",
-      "description": "Start UI proxy server",
+      "description": "Start UI server with production bundle",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {

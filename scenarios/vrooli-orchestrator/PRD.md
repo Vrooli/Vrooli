@@ -15,7 +15,7 @@ Vrooli-orchestrator adds **contextual intelligence adaptation** - the ability to
 
 ### Recursive Value
 **What new scenarios become possible after this exists?**
-- **scenario-surfer**: Can intelligently preload relevant scenarios before displaying them
+- **app-monitor**: Can intelligently preload auto-next scenarios before displaying them
 - **morning-vision-walk**: Can activate productivity profiles automatically for work sessions
 - **deployment-manager**: Can create customer-specific minimal profiles for app delivery
 - **usage-analytics**: Can track which profiles are most effective for different user types
@@ -296,7 +296,7 @@ custom_commands:
 
 ### Downstream Enablement
 **What future capabilities does this unlock?**
-- **Intelligent Scenario Surfing**: scenario-surfer can preload before showing content
+- **Intelligent Scenario Surfing**: app-monitor can preload before showing content
 - **Context-Aware Morning Briefings**: morning-vision-walk can switch to productivity mode
 - **Customer-Specific Deployments**: deployment-manager can create minimal customer profiles
 - **Automated Workflow Optimization**: System can learn and optimize profile effectiveness
@@ -304,13 +304,13 @@ custom_commands:
 ### Cross-Scenario Interactions
 ```yaml
 provides_to:
-  - scenario: scenario-surfer
-    capability: Preload scenarios before display
-    interface: CLI command `vrooli-orchestrator activate gaming-profile`
+  - scenario: app-monitor
+    capability: Preload auto-next scenarios before display
+    interface: CLI command `vrooli-orchestrator activate development-profile`
     
   - scenario: morning-vision-walk  
     capability: Context-aware environment switching
-    interface: API call to activate productivity profile
+    interface: API call to activate productivity-profile
     
   - scenario: deployment-manager
     capability: Customer-specific minimal configurations
@@ -425,7 +425,7 @@ discovery:
     description: Contextual environment orchestration and profile management
     keywords: [orchestration, profiles, automation, context, environment]
     dependencies: [postgres]
-    enhances: [scenario-surfer, morning-vision-walk, deployment-manager]
+    enhances: [app-monitor, morning-vision-walk, deployment-manager]
 ```
 
 ## 🚨 Risk Mitigation
@@ -445,79 +445,15 @@ discovery:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: vrooli-orchestrator
+- **Shared runner**: `test/run-tests.sh` orchestrates the phased suite through the common runner (`scripts/scenarios/testing/shell/runner.sh`) and is wired into `.vrooli/service.json`, so `vrooli scenario test vrooli-orchestrator` executes identical logic locally and in CI.
+- **Structure phase** (`test/phases/test-structure.sh`) ensures the expected directories (`api`, `cli`, `initialization/*`, `ui`, `data`) and critical assets (`cli/vrooli-orchestrator`, `cli/vrooli-orchestrator.bats`, seeded SQL files, documentation) remain in place.
+- **Dependencies phase** (`test/phases/test-dependencies.sh`) validates Go tooling (`go list ./...`), performs an npm dry-run for the UI package, and exercises the local CLI help command to confirm core toolchains resolve without modifying state.
+- **Unit phase** (`test/phases/test-unit.sh`) reuses `scripts/scenarios/testing/unit/run-all.sh` with Go coverage thresholds (warn ≥80%, fail <50%) to execute the comprehensive test suite described in `TEST_IMPLEMENTATION_SUMMARY.md`.
+- **Integration phase** (`test/phases/test-integration.sh`) auto-manages the scenario runtime, calls `/health` and `/api/v1/profiles`, creates and retrieves a temporary profile, checks the UI `/health` endpoint, and exercises the CLI help/list commands.
+- **Business phase** (`test/phases/test-business.sh`) asserts the seeded `developer` profile is available via API and CLI, verifies the status contract, and—when `bats` is available—runs `cli/vrooli-orchestrator.bats` for workflow coverage.
+- **Performance phase** (`test/phases/test-performance.sh`) tracks outstanding performance/throughput benchmarks and currently emits a targeted warning until real measurements are added.
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/vrooli-orchestrator
-    - cli/install.sh
-    - initialization/n8n/config-manager.json
-    - initialization/postgres/schema.sql
-    - scenario-test.yaml
-    - ui/index.html
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/n8n
-    - initialization/postgres
-    - ui
-    - data
-
-resources:
-  required: [postgres]
-  optional: [browserless]
-  health_timeout: 60
-
-tests:
-  - name: "Postgres is accessible"
-    type: http
-    service: postgres
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "API profiles endpoint responds"
-    type: http
-    service: api
-    endpoint: /api/v1/profiles
-    method: GET
-    expect:
-      status: 200
-      body:
-        profiles: []
-        
-  - name: "CLI list-profiles command works"
-    type: exec
-    command: ./cli/vrooli-orchestrator list-profiles --json
-    expect:
-      exit_code: 0
-      output_contains: ["profiles"]
-      
-  - name: "Profile creation works"
-    type: http
-    service: api
-    endpoint: /api/v1/profiles
-    method: POST
-    body:
-      name: "test-profile"
-      display_name: "Test Profile"
-      resources: ["postgres"]
-      scenarios: []
-    expect:
-      status: 201
-      body:
-        id: "string"
-        name: "test-profile"
-```
+> Run `./test/run-tests.sh`, individual phases (e.g. `./test/phases/test-structure.sh`), or presets such as `./test/run-tests.sh core` for focused iterations.
 
 ## 📝 Implementation Notes
 
@@ -551,7 +487,7 @@ tests:
 - docs/profiles.md - Profile configuration guide
 
 ### Related PRDs
-- scenario-surfer: Will use orchestrator for preloading scenarios
+- app-monitor: Will use orchestrator for preloading scenarios
 - morning-vision-walk: Will use orchestrator for context switching
 - deployment-manager: Will use orchestrator for customer configurations
 

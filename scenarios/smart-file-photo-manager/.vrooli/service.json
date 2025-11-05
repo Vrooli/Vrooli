@@ -137,11 +137,17 @@
           {
             "type": "binaries",
             "targets": [
-              "smart-file-photo-manager-api"
+              "api/smart-file-photo-manager-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "smart-file-photo-manager",
             "targets": [
               "smart-file-photo-manager"
             ]
@@ -172,6 +178,19 @@
           "name": "build-api",
           "run": "cd api && go mod download && go build -o smart-file-photo-manager-api .",
           "description": "Build Go coordination API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",

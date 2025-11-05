@@ -461,7 +461,13 @@ structure:
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
     - ui/tracker.js
-    - scenario-test.yaml
+    - test/run-tests.sh
+    - test/phases/test-structure.sh
+    - test/phases/test-dependencies.sh
+    - test/phases/test-unit.sh
+    - test/phases/test-integration.sh
+    - test/phases/test-business.sh
+    - test/phases/test-performance.sh
     
   required_dirs:
     - api
@@ -477,7 +483,8 @@ resources:
 
 tests:
   - name: "PostgreSQL is accessible"
-    type: http
+    type: phase
+    ref: test/phases/test-dependencies.sh
     service: postgres
     endpoint: /health
     method: GET

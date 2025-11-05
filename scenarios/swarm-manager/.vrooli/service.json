@@ -98,11 +98,17 @@
           {
             "type": "binaries",
             "targets": [
-              "swarm-manager-api"
+              "api/swarm-manager-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "swarm-manager",
             "targets": [
               "swarm-manager"
             ]
@@ -112,15 +118,42 @@
       "steps": [
         {
           "name": "verify-directories",
-          "run": "ls -la tasks/ | head -5"
+          "run": "ls -la tasks/ | head -5",
+          "description": "Surface existing task modules"
+        },
+        {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o swarm-manager-api ."
+          "run": "cd api && go mod download && go build -o swarm-manager-api .",
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error"
+          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Swarm Manager initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: swarm-manager --help'",
+          "description": "Display service access URLs"
         }
       ]
     },

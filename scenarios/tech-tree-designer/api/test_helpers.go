@@ -1,6 +1,3 @@
-//go:build testing
-// +build testing
-
 package main
 
 import (
@@ -146,6 +143,7 @@ func setupTestRouter() *gin.Engine {
 		api.GET("/tech-tree/sectors", getSectors)
 		api.GET("/tech-tree/sectors/:id", getSector)
 		api.GET("/tech-tree/stages/:id", getStage)
+		api.PUT("/tech-tree/graph", updateGraph)
 
 		// Progress tracking routes
 		api.GET("/progress/scenarios", getScenarioMappings)

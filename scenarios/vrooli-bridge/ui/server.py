@@ -8,7 +8,7 @@ from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler
 from socketserver import ThreadingTCPServer
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dist")
 DEFAULT_PORT = 8080
 
 

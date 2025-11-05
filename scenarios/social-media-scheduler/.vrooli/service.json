@@ -124,19 +124,25 @@
     "setup": {
       "description": "Initialize Social Media Scheduler with all dependencies",
       "condition": {
-        "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "social-media-scheduler-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": [
-                "social-media-scheduler"
-              ]
-            },
+      "checks": [
+        {
+          "type": "binaries",
+          "targets": [
+            "api/social-media-scheduler-api"
+          ]
+        },
+        {
+          "type": "ui-bundle",
+          "bundle_path": "ui/dist/index.html",
+          "source_dir": "ui/src"
+        },
+        {
+          "type": "cli",
+          "command": "social-media-scheduler",
+          "targets": [
+            "social-media-scheduler"
+          ]
+        },
           {
             "type": "resources",
             "populated": true
@@ -155,9 +161,17 @@
           "description": "Build Go API with platform integrations"
         },
         {
-          "name": "install-ui-dependencies",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install React UI dependencies"
+          "description": "Install React UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production React UI bundles"
         },
         {
           "name": "setup-database-schema",

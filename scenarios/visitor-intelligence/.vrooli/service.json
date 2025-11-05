@@ -102,11 +102,12 @@
           {
             "type": "binaries",
             "targets": [
-              "visitor-intelligence-api"
+              "api/visitor-intelligence-api"
             ]
           },
           {
             "type": "cli",
+            "command": "visitor-intelligence",
             "targets": [
               "visitor-intelligence"
             ]
@@ -137,12 +138,17 @@
           }
         },
         {
-          "name": "build-tracking-script",
-          "run": "cd ui && npm install && npm run build",
-          "description": "Build tracking JavaScript library",
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
           }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build tracking JavaScript library"
         },
         {
           "name": "show-urls",

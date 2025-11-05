@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -83,6 +84,32 @@ type StageDependency struct {
 	DependencyStrength  float64   `json:"dependency_strength" db:"dependency_strength"`
 	Description         string    `json:"description" db:"description"`
 	CreatedAt           time.Time `json:"created_at" db:"created_at"`
+}
+
+type StagePositionUpdate struct {
+	ID        string  `json:"id"`
+	PositionX float64 `json:"position_x"`
+	PositionY float64 `json:"position_y"`
+}
+
+type GraphDependencyInput struct {
+	ID                  string  `json:"id"`
+	DependentStageID    string  `json:"dependent_stage_id"`
+	PrerequisiteStageID string  `json:"prerequisite_stage_id"`
+	DependencyType      string  `json:"dependency_type"`
+	DependencyStrength  float64 `json:"dependency_strength"`
+	Description         string  `json:"description"`
+}
+
+type GraphUpdateRequest struct {
+	StagePositions []StagePositionUpdate  `json:"stages"`
+	Dependencies   []GraphDependencyInput `json:"dependencies"`
+}
+
+type DependencyPayload struct {
+	Dependency       StageDependency `json:"dependency"`
+	DependentName    string          `json:"dependent_name"`
+	PrerequisiteName string          `json:"prerequisite_name"`
 }
 
 type StrategicMilestone struct {
@@ -333,6 +360,7 @@ func main() {
 		api.GET("/tech-tree/sectors", getSectors)
 		api.GET("/tech-tree/sectors/:id", getSector)
 		api.GET("/tech-tree/stages/:id", getStage)
+		api.PUT("/tech-tree/graph", updateGraph)
 
 		// Progress tracking routes
 		api.GET("/progress/scenarios", getScenarioMappings)
@@ -379,16 +407,15 @@ func getTechTree(c *gin.Context) {
 }
 
 // Get all sectors with their progress
-func getSectors(c *gin.Context) {
-	rows, err := db.Query(`
+func fetchSectorsWithStages(ctx context.Context) ([]Sector, error) {
+	rows, err := db.QueryContext(ctx, `
 		SELECT id, tree_id, name, category, description, progress_percentage,
 			   position_x, position_y, color, created_at, updated_at
 		FROM sectors 
 		ORDER BY category, name
 	`)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch sectors"})
-		return
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -399,17 +426,29 @@ func getSectors(c *gin.Context) {
 			&sector.Description, &sector.ProgressPercentage, &sector.PositionX,
 			&sector.PositionY, &sector.Color, &sector.CreatedAt, &sector.UpdatedAt)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan sector"})
-			return
+			return nil, err
 		}
 
-		// Load stages for each sector
-		stages, err := getStagesForSector(sector.ID)
-		if err == nil {
+		stages, stageErr := getStagesForSector(sector.ID)
+		if stageErr == nil {
 			sector.Stages = stages
 		}
 
 		sectors = append(sectors, sector)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return sectors, nil
+}
+
+func getSectors(c *gin.Context) {
+	sectors, err := fetchSectorsWithStages(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch sectors"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"sectors": sectors})
@@ -783,24 +822,22 @@ func getRecommendations(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"recommendations": recommendations})
 }
 
-// Get dependencies
-func getDependencies(c *gin.Context) {
-	rows, err := db.Query(`
+func fetchDependencies(ctx context.Context) ([]DependencyPayload, error) {
+	rows, err := db.QueryContext(ctx, `
 		SELECT sd.id, sd.dependent_stage_id, sd.prerequisite_stage_id,
 			   sd.dependency_type, sd.dependency_strength, sd.description,
-			   ps1.name as dependent_stage_name, ps2.name as prerequisite_stage_name
+			   ps1.name AS dependent_stage_name, ps2.name AS prerequisite_stage_name
 		FROM stage_dependencies sd
 		JOIN progression_stages ps1 ON sd.dependent_stage_id = ps1.id
 		JOIN progression_stages ps2 ON sd.prerequisite_stage_id = ps2.id
 		ORDER BY sd.dependency_strength DESC
 	`)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch dependencies"})
-		return
+		return nil, err
 	}
 	defer rows.Close()
 
-	var dependencies []gin.H
+	var dependencies []DependencyPayload
 	for rows.Next() {
 		var dep StageDependency
 		var dependentName, prerequisiteName string
@@ -808,17 +845,249 @@ func getDependencies(c *gin.Context) {
 			&dep.DependencyType, &dep.DependencyStrength, &dep.Description,
 			&dependentName, &prerequisiteName)
 		if err != nil {
-			continue
+			return nil, err
 		}
 
-		dependencies = append(dependencies, gin.H{
-			"dependency":        dep,
-			"dependent_name":    dependentName,
-			"prerequisite_name": prerequisiteName,
+		dependencies = append(dependencies, DependencyPayload{
+			Dependency:       dep,
+			DependentName:    dependentName,
+			PrerequisiteName: prerequisiteName,
 		})
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return dependencies, nil
+}
+
+// Get dependencies
+func getDependencies(c *gin.Context) {
+	dependencies, err := fetchDependencies(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch dependencies"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"dependencies": dependencies})
+}
+
+func updateGraph(c *gin.Context) {
+	var request GraphUpdateRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin graph update"})
+		return
+	}
+
+	if len(request.StagePositions) > 0 {
+		stmt, prepErr := tx.PrepareContext(ctx, `
+			UPDATE progression_stages
+			SET position_x = $1,
+			    position_y = $2,
+			    updated_at = CURRENT_TIMESTAMP
+			WHERE id = $3
+		`)
+		if prepErr != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare stage updates"})
+			return
+		}
+
+		for _, stage := range request.StagePositions {
+			if strings.TrimSpace(stage.ID) == "" {
+				continue
+			}
+
+			if _, execErr := stmt.ExecContext(ctx, stage.PositionX, stage.PositionY, stage.ID); execErr != nil {
+				stmt.Close()
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update stage position"})
+				return
+			}
+		}
+
+		stmt.Close()
+	}
+
+	if request.Dependencies != nil {
+		existingRows, queryErr := tx.QueryContext(ctx, `
+			SELECT id, dependent_stage_id, prerequisite_stage_id
+			FROM stage_dependencies
+		`)
+		if queryErr != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load current dependencies"})
+			return
+		}
+
+		existingByID := make(map[string]StageDependency)
+		existingByPair := make(map[string]StageDependency)
+		for existingRows.Next() {
+			var dep StageDependency
+			if scanErr := existingRows.Scan(&dep.ID, &dep.DependentStageID, &dep.PrerequisiteStageID); scanErr != nil {
+				existingRows.Close()
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read existing dependency"})
+				return
+			}
+
+			existingByID[dep.ID] = dep
+			existingByPair[dep.DependentStageID+"|"+dep.PrerequisiteStageID] = dep
+		}
+
+		if err := existingRows.Err(); err != nil {
+			existingRows.Close()
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to inspect existing dependencies"})
+			return
+		}
+		existingRows.Close()
+
+		keepIDs := make(map[string]struct{})
+		seenPairs := make(map[string]struct{})
+
+		for _, dep := range request.Dependencies {
+			dependentID := strings.TrimSpace(dep.DependentStageID)
+			prerequisiteID := strings.TrimSpace(dep.PrerequisiteStageID)
+			if dependentID == "" || prerequisiteID == "" || dependentID == prerequisiteID {
+				continue
+			}
+
+			pairKey := dependentID + "|" + prerequisiteID
+			if _, duplicate := seenPairs[pairKey]; duplicate {
+				continue
+			}
+			seenPairs[pairKey] = struct{}{}
+
+			depType := strings.TrimSpace(dep.DependencyType)
+			if depType == "" {
+				depType = "required"
+			}
+
+			strength := dep.DependencyStrength
+			if strength < 0 {
+				strength = 0
+			}
+			if strength > 1 {
+				strength = 1
+			}
+			if strength == 0 {
+				strength = 1
+			}
+
+			desc := strings.TrimSpace(dep.Description)
+			description := sql.NullString{String: desc, Valid: desc != ""}
+
+			if id := strings.TrimSpace(dep.ID); id != "" {
+				if _, execErr := tx.ExecContext(
+					ctx,
+					`UPDATE stage_dependencies
+					 SET dependent_stage_id = $1,
+					     prerequisite_stage_id = $2,
+					     dependency_type = $3,
+					     dependency_strength = $4,
+					     description = $5
+					 WHERE id = $6`,
+					dependentID,
+					prerequisiteID,
+					depType,
+					strength,
+					description,
+					id,
+				); execErr != nil {
+					tx.Rollback()
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update dependency"})
+					return
+				}
+
+				keepIDs[id] = struct{}{}
+				continue
+			}
+
+			if existing, ok := existingByPair[pairKey]; ok {
+				if _, execErr := tx.ExecContext(
+					ctx,
+					`UPDATE stage_dependencies
+					 SET dependency_type = $1,
+					     dependency_strength = $2,
+					     description = $3
+					 WHERE id = $4`,
+					depType,
+					strength,
+					description,
+					existing.ID,
+				); execErr != nil {
+					tx.Rollback()
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh dependency"})
+					return
+				}
+
+				keepIDs[existing.ID] = struct{}{}
+				continue
+			}
+
+			var newID string
+			insertErr := tx.QueryRowContext(
+				ctx,
+				`INSERT INTO stage_dependencies (dependent_stage_id, prerequisite_stage_id, dependency_type, dependency_strength, description)
+				 VALUES ($1, $2, $3, $4, $5)
+				 RETURNING id`,
+				dependentID,
+				prerequisiteID,
+				depType,
+				strength,
+				description,
+			).Scan(&newID)
+			if insertErr != nil {
+				tx.Rollback()
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create dependency"})
+				return
+			}
+
+			keepIDs[newID] = struct{}{}
+		}
+
+		for id := range existingByID {
+			if _, ok := keepIDs[id]; !ok {
+				if _, execErr := tx.ExecContext(ctx, `DELETE FROM stage_dependencies WHERE id = $1`, id); execErr != nil {
+					tx.Rollback()
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove dependency"})
+					return
+				}
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to persist graph changes"})
+		return
+	}
+
+	sectors, sectorErr := fetchSectorsWithStages(ctx)
+	if sectorErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Graph saved but sectors could not be refreshed"})
+		return
+	}
+
+	dependencies, depErr := fetchDependencies(ctx)
+	if depErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Graph saved but dependencies could not be refreshed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":      "Graph updated successfully",
+		"sectors":      sectors,
+		"dependencies": dependencies,
+	})
 }
 
 // Get cross-sector connections
@@ -903,3 +1172,4 @@ func updateScenarioMapping(c *gin.Context) {
 		"mapping": mapping,
 	})
 }
+// Test change

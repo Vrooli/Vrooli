@@ -1,14 +1,174 @@
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 
-if (typeof window !== 'undefined' && window.parent !== window) {
-    initIframeBridgeChild({ appId: 'travel-map-filler-ui' })
+const BRIDGE_FLAG = '__travelMapFillerBridgeInitialized'
+const LOOPBACK_HOST = '127.0.0.1'
+const PROXY_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__']
+const DEFAULT_API_BASE_PATH = '/api'
+
+function ensureBridge() {
+    if (typeof window === 'undefined') {
+        return
+    }
+
+    if (window.parent === window) {
+        return
+    }
+
+    if (window[BRIDGE_FLAG]) {
+        return
+    }
+
+    try {
+        initIframeBridgeChild({
+            appId: 'travel-map-filler-ui',
+            captureLogs: { enabled: true },
+            captureNetwork: { enabled: true }
+        })
+        window[BRIDGE_FLAG] = true
+    } catch (error) {
+        console.warn('[Travel Map Filler] Failed to initialize iframe bridge', error)
+    }
 }
 
-// Travel Map Filler - Interactive Script
+function coerceString(value) {
+    if (typeof value === 'string') {
+        const trimmed = value.trim()
+        return trimmed.length > 0 ? trimmed : undefined
+    }
+    return undefined
+}
 
-const API_BASE = window.location.hostname === 'localhost' 
-    ? `http://localhost:${window.location.port === '3760' ? '8760' : window.location.port}/api`
-    : '/api';
+function stripTrailingSlash(value) {
+    if (!value) {
+        return ''
+    }
+    const normalized = value.replace(/\/+$/, '')
+    return normalized || '/'
+}
+
+function ensureLeadingSlash(value) {
+    if (!value) {
+        return '/'
+    }
+    return value.startsWith('/') ? value : `/${value}`
+}
+
+function sanitizePort(port) {
+    if (typeof port === 'number') {
+        return port > 0 ? String(port) : ''
+    }
+
+    if (typeof port === 'string') {
+        const trimmed = port.trim()
+        return trimmed ? trimmed : ''
+    }
+
+    return ''
+}
+
+function collectProxyCandidates(value, seen, list) {
+    if (!value) {
+        return
+    }
+
+    if (Array.isArray(value)) {
+        value.forEach((item) => collectProxyCandidates(item, seen, list))
+        return
+    }
+
+    if (typeof value === 'string') {
+        const candidate = value.trim()
+        if (candidate && !seen.has(candidate)) {
+            seen.add(candidate)
+            list.push(candidate)
+        }
+        return
+    }
+
+    if (typeof value === 'object') {
+        const record = value
+        collectProxyCandidates(record.url, seen, list)
+        collectProxyCandidates(record.path, seen, list)
+        collectProxyCandidates(record.target, seen, list)
+        collectProxyCandidates(record.primary, seen, list)
+        if (Array.isArray(record.endpoints)) {
+            record.endpoints.forEach((endpoint) => collectProxyCandidates(endpoint, seen, list))
+        }
+    }
+}
+
+function resolveProxyBase() {
+    if (typeof window === 'undefined') {
+        return undefined
+    }
+
+    const seen = new Set()
+    const candidates = []
+
+    PROXY_KEYS.forEach((key) => {
+        try {
+            collectProxyCandidates(window[key], seen, candidates)
+        } catch (error) {
+            console.warn(`[Travel Map Filler] Unable to process proxy key ${key}`, error)
+        }
+    })
+
+    const candidate = candidates.find(Boolean)
+    if (!candidate) {
+        return undefined
+    }
+
+    if (/^https?:\/\//i.test(candidate)) {
+        return stripTrailingSlash(candidate)
+    }
+
+    const origin = coerceString(window.location && window.location.origin)
+    if (!origin) {
+        return undefined
+    }
+
+    return stripTrailingSlash(origin + ensureLeadingSlash(candidate))
+}
+
+function resolveApiBase(basePath = DEFAULT_API_BASE_PATH) {
+    if (typeof window === 'undefined') {
+        return basePath
+    }
+
+    const proxyBase = resolveProxyBase()
+    if (proxyBase) {
+        return stripTrailingSlash(proxyBase) + ensureLeadingSlash(basePath)
+    }
+
+    const origin = coerceString(window.location && window.location.origin)
+    if (origin) {
+        return stripTrailingSlash(origin) + ensureLeadingSlash(basePath)
+    }
+
+    const protocol = (window.location && window.location.protocol) || 'http:'
+    const hostname = coerceString(window.location && window.location.hostname) || LOOPBACK_HOST
+    const portSegment = sanitizePort(window.location && window.location.port)
+    const port = portSegment ? `:${portSegment}` : ''
+
+    return `${protocol}//${hostname}${port}` + ensureLeadingSlash(basePath)
+}
+
+function buildApiUrl(path = '', basePath = DEFAULT_API_BASE_PATH) {
+    const base = resolveApiBase(basePath)
+    if (!path) {
+        return base
+    }
+
+    if (/^https?:\/\//i.test(path)) {
+        return path
+    }
+
+    return stripTrailingSlash(base) + ensureLeadingSlash(path)
+}
+
+ensureBridge()
+
+// Travel Map Filler - Interactive Script
 
 class TravelMapFiller {
     constructor() {
@@ -133,7 +293,7 @@ class TravelMapFiller {
 
     async loadTravels() {
         try {
-            const response = await fetch(`${API_BASE}/travels`);
+            const response = await fetch(buildApiUrl('/travels'));
             if (response.ok) {
                 this.travels = await response.json();
                 this.displayTravels();
@@ -326,7 +486,7 @@ class TravelMapFiller {
 
             // Try to save to API
             try {
-                const response = await fetch(`${API_BASE}/travels`, {
+                const response = await fetch(buildApiUrl('/travels'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(newTravel)
@@ -407,7 +567,7 @@ class TravelMapFiller {
         if (!confirm('Are you sure you want to delete this travel?')) return;
 
         try {
-            await fetch(`${API_BASE}/travels/${id}`, { method: 'DELETE' });
+            await fetch(buildApiUrl(`/travels/${id}`), { method: 'DELETE' });
         } catch (error) {
             console.log('Using local deletion');
         }

@@ -133,11 +133,17 @@
           {
             "type": "binaries",
             "targets": [
-              "travel-map-filler-api"
+              "api/travel-map-filler-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "travel-map-filler",
             "targets": [
               "travel-map-filler"
             ]
@@ -179,6 +185,11 @@
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
