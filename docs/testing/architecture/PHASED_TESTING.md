@@ -2,7 +2,7 @@
 
 ## Overview
 
-Vrooli uses a comprehensive phased testing approach to ensure scenario quality, reliability, and consistency across all implementations. This architecture replaces the legacy `scenario-test.yaml` system with a modern, extensible framework that supports multiple programming languages and testing methodologies.
+Vrooli uses a comprehensive phased testing approach to ensure scenario quality, reliability, and consistency across all implementations. This modern, extensible framework supports multiple programming languages and testing methodologies.
 
 ## Recommended Directory Structure
 
@@ -76,13 +76,12 @@ By keeping scenario-specific wiring in this wrapper and delegating orchestration
 **Location**: `test/phases/test-structure.sh`
 
 - Verifies presence of essential files:
-  - `.vrooli/service.json` (modern configuration)
+  - `.vrooli/service.json` (service configuration)
   - `README.md` (documentation)
   - `PRD.md` (requirements)
 - Validates directory structure
-- Checks for deprecated files (warns about `scenario-test.yaml`)
 
-### Phase 2: Dependencies (30 seconds)  
+### Phase 2: Dependencies (30 seconds)
 **Purpose**: Verify all dependencies are available and compatible
 **Location**: `test/phases/test-dependencies.sh`
 
@@ -90,6 +89,51 @@ By keeping scenario-specific wiring in this wrapper and delegating orchestration
 - Resource availability validation
 - Version compatibility verification
 - Security vulnerability scanning
+
+## Phase Dependency Graph
+
+```mermaid
+graph TD
+    START[Test Run Start] --> STRUCTURE[Phase 1: Structure<br/>15s<br/>Files & Config]
+
+    STRUCTURE -->|Pass| DEPS[Phase 2: Dependencies<br/>30s<br/>Packages & Resources]
+    STRUCTURE -->|Fail| FAIL[❌ Test Run Failed]
+
+    DEPS -->|Pass| UNIT[Phase 3: Unit Tests<br/>60s<br/>Go, Node, Python]
+    DEPS -->|Fail| FAIL
+
+    UNIT -->|Pass| DECISION{Scenario<br/>Running?}
+    UNIT -->|Fail| FAIL
+
+    DECISION -->|Yes| INTEGRATION[Phase 4: Integration<br/>120s<br/>API, Components]
+    DECISION -->|No - Skip Runtime Phases| SUCCESS[✅ Partial Success]
+
+    INTEGRATION -->|Pass| BUSINESS[Phase 5: Business Logic<br/>180s<br/>Workflows, Journeys]
+    INTEGRATION -->|Fail| FAIL
+
+    BUSINESS -->|Pass| PERF[Phase 6: Performance<br/>60s<br/>Benchmarks, Load]
+    BUSINESS -->|Fail| FAIL
+
+    PERF -->|Pass| SUCCESS
+    PERF -->|Fail| FAIL
+
+    style START fill:#e1f5ff
+    style STRUCTURE fill:#fff3e0
+    style DEPS fill:#f3e5f5
+    style UNIT fill:#e8f5e9
+    style INTEGRATION fill:#fff9c4
+    style BUSINESS fill:#ffe0b2
+    style PERF fill:#f8bbd0
+    style SUCCESS fill:#c8e6c9
+    style FAIL fill:#ffcdd2
+    style DECISION fill:#e0f2f1
+```
+
+**Key Points**:
+- Phases run **sequentially** - each depends on previous phase success
+- **Runtime-dependent phases** (integration, business, performance) can be skipped if scenario not running
+- **Fail-fast mode** stops at first failure
+- Each phase has **strict timeout** enforcement
 
 ### Phase 3: Unit (60 seconds)
 **Purpose**: Execute unit tests for all code components
@@ -103,6 +147,76 @@ By keeping scenario-specific wiring in this wrapper and delegating orchestration
 - **Python**: pytest integration
 - **Coverage tracking** with configurable thresholds
 
+#### Automatic Requirement Tracking
+
+The unit phase automatically correlates test results with requirements using the `@vrooli/vitest-requirement-reporter` for Vitest tests and built-in parsing for Go tests.
+
+**How it works**:
+
+1. **Developer tags tests** with `[REQ:ID]` in test names:
+   ```typescript
+   // Vitest example
+   describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
+     it('fetches projects', async () => { ... });
+   });
+   ```
+
+   ```go
+   // Go example
+   func TestWorkflowCRUD(t *testing.T) {
+       t.Run("creates workflow [REQ:BAS-WORKFLOW-PERSIST-CRUD]", func(t *testing.T) {
+           // test implementation
+       })
+   }
+   ```
+
+2. **Test frameworks extract tags** during test execution:
+   - Vitest: Custom reporter extracts tags and generates `coverage/vitest-requirements.json`
+   - Go: Test output parser extracts tags from test names
+
+3. **Phase orchestrator parses output** and reports to phase helpers via `testing::phase::add_requirement()`
+
+4. **Phase results include per-requirement evidence** in `coverage/phase-results/unit.json`:
+   ```json
+   {
+     "id": "BAS-WORKFLOW-PERSIST-CRUD",
+     "status": "passed",
+     "evidence": "Node test ✓ PASS REQ:BAS-WORKFLOW-PERSIST-CRUD (7 tests, 9ms); Go: api/services/workflow_service_test.go:TestWorkflowCRUD"
+   }
+   ```
+
+5. **Requirements registry auto-syncs** after test run via `scripts/requirements/report.js --mode sync`
+
+**Benefits**:
+- No manual requirement tracking in test scripts
+- Precise test-to-requirement traceability
+- Automatic validation entry management
+- Consolidated evidence from multiple test frameworks
+
+**Configuration**:
+
+For Vitest tests, add the reporter to `vite.config.ts`:
+```typescript
+import RequirementReporter from '@vrooli/vitest-requirement-reporter';
+
+export default defineConfig({
+  test: {
+    reporters: [
+      'default',
+      new RequirementReporter({
+        outputFile: 'coverage/vitest-requirements.json',
+        emitStdout: true,  // Required for phase integration
+        verbose: true,
+      }),
+    ],
+  },
+});
+```
+
+For Go tests, no configuration needed - the parser automatically extracts `[REQ:ID]` tags from test output.
+
+See [@vrooli/vitest-requirement-reporter](../../../packages/vitest-requirement-reporter/README.md) for complete details.
+
 ### Phase 4: Integration (120 seconds)
 **Purpose**: Test component interactions and external integrations  
 **Location**: `test/phases/test-integration.sh`
@@ -113,6 +227,7 @@ By keeping scenario-specific wiring in this wrapper and delegating orchestration
 - CLI integration testing with BATS
 - Database connectivity verification
 - Resource integration testing
+- **Browser Automation Studio workflows** - Declarative UI testing (see [UI Automation with BAS](../guides/ui-automation-with-bas.md))
 
 ### Phase 5: Business (180 seconds)
 **Purpose**: Validate end-to-end business workflows
@@ -192,8 +307,9 @@ lib/testing/
 - Validate the registry schema with `node scripts/requirements/validate.js --scenario <name>` (invoked automatically by `vrooli scenario status <name>`). This command ensures every requirement/validation entry matches the JSON schema before phases attempt to load coverage expectations.
 - Bootstrap modular registries with `vrooli scenario requirements init <scenario>`, which copies the shared `requirements/` scaffold (parents, child modules, BAS workflow hooks) so PRD-level requirements are traceable from day one.
 
-### 3. Modern Service Configuration
-**Migration**: `scenario-test.yaml` → `.vrooli/service.json`
+### 3. Service Configuration
+
+All scenarios configure testing via `.vrooli/service.json`:
 
 ```json
 {
@@ -419,32 +535,6 @@ Robust connectivity verification:
 - Timeout handling
 - Retry mechanisms
 - Service dependency validation
-
-## Migration Guide
-
-### From Legacy to Modern Testing
-
-1. **Remove deprecated files**:
-   ```bash
-   rm scenario-test.yaml  # No longer needed
-   ```
-
-2. **Create modern structure**:
-   ```bash
-   mkdir -p test/phases
-   cp scripts/scenarios/templates/full/test/* test/
-   ```
-
-3. **Update service configuration**:
-   ```bash
-   # Add test lifecycle to .vrooli/service.json
-   jq '.test = {"description": "Comprehensive phased testing", "steps": [{"name": "run-comprehensive-tests", "run": "test/run-tests.sh"}]}' .vrooli/service.json
-   ```
-
-4. **Customize test phases**:
-   - Implement scenario-specific business logic tests
-   - Add resource-specific integration tests
-   - Configure appropriate coverage thresholds
 
 ## Safety Guidelines
 

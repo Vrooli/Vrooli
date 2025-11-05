@@ -2,6 +2,47 @@
 
 This guide covers unit testing for **scenario application code** (Go APIs, Node.js UIs, Python services) - not Vrooli resources. For resource testing, see [Resource Unit Testing Guide](resource-unit-testing.md).
 
+## Multi-Framework Integration
+
+```mermaid
+graph TB
+    subgraph "Test Frameworks"
+        Go[Go Tests<br/>*_test.go]
+        Vitest[Vitest Tests<br/>*.test.ts]
+        Python[Python Tests<br/>test_*.py]
+    end
+
+    subgraph "Tag Extraction"
+        GoParser[Go Parser<br/>grep [REQ:ID]]
+        VitestReporter[vitest-requirement-reporter<br/>Custom reporter]
+        PythonParser[Python Parser<br/>pytest markers]
+    end
+
+    subgraph "Unified System"
+        PhaseHelper[Phase Helper<br/>testing::phase::add_requirement]
+        PhaseResults[Phase Results<br/>coverage/phase-results/unit.json]
+        AutoSync[Auto-Sync<br/>report.js --mode sync]
+    end
+
+    Go --> GoParser
+    Vitest --> VitestReporter
+    Python --> PythonParser
+
+    GoParser --> PhaseHelper
+    VitestReporter --> PhaseHelper
+    PythonParser --> PhaseHelper
+
+    PhaseHelper --> PhaseResults
+    PhaseResults --> AutoSync
+
+    style Go fill:#00ADD8
+    style Vitest fill:#729B1B
+    style Python fill:#3776AB
+    style PhaseResults fill:#c8e6c9
+```
+
+**Key insight:** Multiple test frameworks → One unified requirement tracking system.
+
 ## 🎯 Unit Testing Purpose
 
 Unit tests validate individual functions and components in your scenario code:
@@ -421,6 +462,38 @@ describe('API Service', () => {
   });
 });
 ```
+
+### Requirement Tracking in Vitest
+
+Tag tests with `[REQ:ID]` to automatically track requirement coverage:
+
+```typescript
+import RequirementReporter from '@vrooli/vitest-requirement-reporter';
+
+// vite.config.ts
+export default defineConfig({
+  test: {
+    reporters: [
+      'default',
+      new RequirementReporter({
+        outputFile: 'coverage/vitest-requirements.json',
+        emitStdout: true,  // Required for phase integration
+        verbose: true,
+      }),
+    ],
+  },
+});
+
+// projectStore.test.ts
+describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
+  it('fetches projects', () => { ... });      // Inherits REQ tag
+  it('creates project', () => { ... });       // Inherits REQ tag
+});
+```
+
+**See Also:**
+- [@vrooli/vitest-requirement-reporter](../../../packages/vitest-requirement-reporter/README.md) - Package documentation
+- [Requirement Tracking Guide](requirement-tracking.md) - Complete system overview
 
 #### Vitest Alternative
 ```javascript
@@ -1164,9 +1237,26 @@ def test_process_file(configured_manager):
     assert result.success
 ```
 
-## 🔗 Related Documentation
+## See Also
 
-- [Phased Testing Architecture](../architecture/PHASED_TESTING.md) - Full testing strategy
+### Related Guides
+- [Quick Start Guide](quick-start.md) - Write your first test in 5 minutes
+- [Scenario Testing Guide](scenario-testing.md) - Complete testing workflow
+- [Requirement Tracking](requirement-tracking.md) - Link tests to requirements with `[REQ:ID]`
 - [CLI Testing Guide](cli-testing.md) - BATS testing for command-line tools
 - [Resource Unit Testing](resource-unit-testing.md) - Testing Vrooli resources
-- [Gold Standard Examples](../reference/examples.md) - Real implementations to study
+
+### Architecture & Concepts
+- [Phased Testing Architecture](../architecture/PHASED_TESTING.md) - How unit phase fits into 6-phase system
+- [Requirement Flow](../architecture/REQUIREMENT_FLOW.md) - End-to-end requirement tracking
+- [Testing Glossary](../GLOSSARY.md) - Understand testing terminology
+
+### Implementation Details
+- [@vrooli/vitest-requirement-reporter](../../../packages/vitest-requirement-reporter/README.md) - Vitest integration package
+- [Shell Libraries Reference](../reference/shell-libraries.md) - Phase helper functions
+- [Test Runners Reference](../reference/test-runners.md) - Universal test runner
+
+### Examples
+- [Gold Standard Examples](../reference/examples.md) - Best practice implementations
+- [browser-automation-studio tests](/scenarios/browser-automation-studio/test/) - Reference scenario
+- [Visited Tracker](../../../scenarios/visited-tracker/api/TESTING_GUIDE.md) - 79.4% Go coverage example

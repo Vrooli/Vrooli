@@ -291,8 +291,23 @@ Before submitting a resource, ensure your unit test:
 - [ ] Includes summary with pass/fail counts
 - [ ] Does not require external services to be running
 
-## 🔗 Related Documentation
+## See Also
 
-- [Resource Testing Strategy](../architecture/STRATEGY.md) - Overall testing architecture
-- [CLI Framework Guide](../../resources/cli-framework.md) - CLI integration patterns
-- [Resource Interface Standards](../../resources/interface-standards.md) - Required function contracts
+### Related Guides
+- [Scenario Unit Testing](scenario-unit-testing.md) - Testing scenario application code
+- [CLI Testing Guide](cli-testing.md) - BATS testing for CLIs
+- [Quick Start Guide](quick-start.md) - General testing introduction
+
+### Architecture & Strategy
+- [Resource Testing Strategy](../architecture/STRATEGY.md) - Three-layer validation system
+- [Phased Testing Architecture](../architecture/PHASED_TESTING.md) - How resource tests fit into phases
+- [Testing Glossary](../GLOSSARY.md) - Understand testing terminology
+
+### Implementation Details
+- [CLI Framework Guide](../../resources/cli-framework.md) - CLI integration patterns (if exists)
+- [Resource Interface Standards](../../resources/interface-standards.md) - Required function contracts (if exists)
+- [Shell Libraries Reference](../reference/shell-libraries.md) - Testing helper functions
+
+### Examples
+- [Resource Unit Test Examples](../reference/examples.md) - Real implementations
+- PostgreSQL, Redis, Ollama resource tests - See individual resource directories

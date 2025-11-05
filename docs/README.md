@@ -10,9 +10,9 @@ Comprehensive development guide for the Vrooli platform. For quick reference, se
 - [Technology Stack](#technology-stack)
 - [Architecture Overview](ARCHITECTURE_OVERVIEW.md)
 - [Development Guidelines](#development-guidelines)
+- **[Testing Guide](#testing-guide)** → **[Complete Testing Documentation](TESTING.md)**
 - [Task Management System](#task-management-system)
 - [Memory Management](#memory-management)
-- [Testing Guide](#testing-guide)
 - [Common Tasks](#common-tasks)
 - [Emergent Capabilities](#emergent-capabilities)
 - [Documentation Structure](#documentation-structure)
@@ -191,16 +191,42 @@ You have no persistent memory between sessions. **After every memory reset, rely
 
 ## Testing Guide
 
-### Testing Approach
-- Write tests alongside code in `__test` directories
-- Use descriptive test names following pattern: `should [expected behavior] when [condition]`
-- **IMPORTANT**: Use testcontainers for Redis and PostgreSQL - DO NOT mock these databases
-  - More computationally expensive but MUCH more reliable than mocks
-  - Integration tests should use real database connections via testcontainers
-  - See scenario test files for examples of proper resource testing
-- Mock external APIs and services (LLM providers, Stripe, etc.) but not core infrastructure
-- Aim for >80% code coverage
-- Testing framework: Vitest
+**→ For comprehensive testing documentation, see [TESTING.md](TESTING.md)**
+
+Vrooli employs a sophisticated, automated testing system with **zero-overhead requirement tracking** from PRD to test validation:
+
+### Quick Testing
+
+```bash
+# Test a scenario
+cd scenarios/my-scenario && make test
+
+# Run specific phase
+./test/phases/test-unit.sh
+
+# Generate tests automatically
+test-genie generate my-scenario --types unit,integration
+```
+
+### Key Testing Features
+
+- **🎯 Automatic Requirement Tracking** - Tag tests with `[REQ:ID]`, system handles the rest
+- **📊 6-Phase Progressive Validation** - Structure → Dependencies → Unit → Integration → Business → Performance
+- **🤖 AI-Powered Test Generation** - test-genie scenario generates comprehensive test suites
+- **🔄 Auto-Sync** - Test results automatically update requirement registry
+- **🌐 Multi-Framework** - Unified system for Go, Vitest, Python, BAS workflows
+
+### Essential Reading
+
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[Testing Hub](TESTING.md)** | Quick navigation, decision tree | Everyone |
+| **[Requirement Flow](testing/architecture/REQUIREMENT_FLOW.md)** | PRD → test → validation flow | AI agents, architects |
+| **[Quick Start](testing/guides/quick-start.md)** | Write first test in 5 minutes | Developers |
+| **[Safety Guidelines](testing/safety/GUIDELINES.md)** | Prevent data loss in tests | **CRITICAL** - Read first |
+| **[Requirement Tracking](testing/guides/requirement-tracking.md)** | Complete tracking system | Scenario builders |
+
+**Remember**: Vrooli scenarios are $10K-50K revenue applications. Comprehensive testing ensures production quality.
 
 ## Common Tasks
 

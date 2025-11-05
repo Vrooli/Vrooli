@@ -4,9 +4,7 @@ This guide explains how to properly test Vrooli scenarios using the modern phase
 
 ## Overview
 
-Vrooli uses a comprehensive **phased testing approach** that replaces the legacy `scenario-test.yaml` system with a modern, extensible framework configured through `.vrooli/service.json`.
-
-> **Note**: The `scenario-test.yaml` format is **deprecated**. All new scenarios should use the modern `.vrooli/service.json` configuration with phased testing.
+Vrooli uses a comprehensive **phased testing approach** configured through `.vrooli/service.json`.
 
 ## Modern Testing Architecture
 
@@ -30,6 +28,34 @@ All testing is configured in `.vrooli/service.json`:
 ### Testing Phases
 
 The modern architecture uses 6 progressive phases:
+
+```mermaid
+graph TB
+    subgraph "Static Phases (No Runtime)"
+        P1[Phase 1: Structure<br/>15s<br/>Files & config]
+        P2[Phase 2: Dependencies<br/>30s<br/>Packages & resources]
+        P3[Phase 3: Unit<br/>60s<br/>Go, Vitest, Python]
+    end
+
+    subgraph "Runtime Phases (Scenario Running)"
+        P4[Phase 4: Integration<br/>120s<br/>API, UI, resources]
+        P5[Phase 5: Business<br/>180s<br/>Workflows & journeys]
+        P6[Phase 6: Performance<br/>60s<br/>Benchmarks & load]
+    end
+
+    P1 --> P2
+    P2 --> P3
+    P3 --> P4
+    P4 --> P5
+    P5 --> P6
+
+    style P1 fill:#fff3e0
+    style P2 fill:#f3e5f5
+    style P3 fill:#e8f5e9
+    style P4 fill:#fff9c4
+    style P5 fill:#ffe0b2
+    style P6 fill:#f8bbd0
+```
 
 1. **Structure Validation** (15s) - Validates files and configuration
 2. **Dependencies Check** (30s) - Verifies all dependencies available
@@ -99,770 +125,372 @@ scenario/
 
 ## Writing Tests
 
-### Complete Working Example: Main Test Orchestrator
+### Test Orchestrator Pattern
 
-**File: `test/run-tests.sh` (complete orchestrator implementation)**
+**Canonical Implementation**: [/scripts/scenarios/templates/full/test/run-tests.sh](/scripts/scenarios/templates/full/test/run-tests.sh)
+
+The test orchestrator (`test/run-tests.sh`) is the main entry point for scenario testing. It follows a consistent pattern across all scenarios:
+
+#### Core Responsibilities
+
+1. **Configuration Management**
+   - Detects scenario context (name, root directory)
+   - Sets up logging and output paths
+   - Parses command-line arguments
+
+2. **Phase Registration**
+   - Declares testing phases with timeouts
+   - Configures phase dependencies (e.g., integration requires running scenario)
+   - Defines phase order
+
+3. **Execution Orchestration**
+   - Runs phases sequentially with timeout enforcement
+   - Tracks pass/fail/skip status
+   - Handles failures (fail-fast vs. continue-on-error)
+
+4. **Result Aggregation**
+   - Collects phase results
+   - Generates summary report
+   - Returns appropriate exit code for CI/CD
+
+#### Key Pattern Elements
+
 ```bash
-#!/bin/bash
-# Main test orchestrator for comprehensive phased testing
-# This script runs all testing phases in sequence with proper error handling
-
-set -euo pipefail
-
-# Configuration
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly APP_ROOT="${APP_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+# 1. Initialize context
 readonly SCENARIO_NAME="$(basename "$(cd "$SCRIPT_DIR/.." && pwd)")"
 readonly LOG_FILE="/tmp/test-${SCENARIO_NAME}-$$.log"
 
-# Test phases configuration
+# 2. Register phases (name:timeout:description)
 readonly PHASES=(
     "structure:15:Structure Validation"
-    "dependencies:30:Dependencies Check" 
     "unit:60:Unit Tests"
     "integration:120:Integration Tests"
-    "business:180:Business Logic Tests"
-    "performance:60:Performance Tests"
 )
 
-# Colors for output
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly BLUE='\033[0;34m'
-readonly NC='\033[0m' # No Color
-
-# Test results tracking
-TOTAL_PHASES=${#PHASES[@]}
-PASSED_PHASES=0
-FAILED_PHASES=0
-SKIPPED_PHASES=0
-START_TIME=$(date +%s)
-
-# Logging functions
-log() {
-    echo -e "${1}" | tee -a "$LOG_FILE"
-}
-
-log_success() {
-    log "${GREEN}✅ ${1}${NC}"
-}
-
-log_error() {
-    log "${RED}❌ ${1}${NC}"
-}
-
-log_warning() {
-    log "${YELLOW}⚠️  ${1}${NC}"
-}
-
-log_info() {
-    log "${BLUE}ℹ️  ${1}${NC}"
-}
-
-# Cleanup function
-cleanup() {
-    local exit_code=$?
-    
-    # Generate summary
-    local end_time=$(date +%s)
-    local duration=$((end_time - START_TIME))
-    local minutes=$((duration / 60))
-    local seconds=$((duration % 60))
-    
-    echo
-    log "=== Test Summary for $SCENARIO_NAME ==="
-    log "Total phases: $TOTAL_PHASES"
-    log_success "Passed: $PASSED_PHASES"
-    log_error "Failed: $FAILED_PHASES"
-    log_warning "Skipped: $SKIPPED_PHASES"
-    log "Duration: ${minutes}m ${seconds}s"
-    log "Log file: $LOG_FILE"
-    
-    if [ $exit_code -eq 0 ] && [ $FAILED_PHASES -eq 0 ]; then
-        log_success "🎉 All tests passed!"
-    else
-        log_error "💥 Some tests failed!"
-    fi
-    
-    exit $exit_code
-}
-
-# Run single phase
+# 3. Execute phases with timeout and logging
 run_phase() {
-    local phase_name="$1"
-    local timeout="$2"
-    local description="$3"
-    local phase_script="$SCRIPT_DIR/phases/test-${phase_name}.sh"
-    
-    log_info "[Phase ${PASSED_PHASES:-0}/$TOTAL_PHASES] $description..."
-    
-    if [ ! -f "$phase_script" ]; then
-        log_warning "Phase script not found: $phase_script (skipping)"
-        ((SKIPPED_PHASES++))
-        return 0
-    fi
-    
-    if [ ! -x "$phase_script" ]; then
-        chmod +x "$phase_script"
-    fi
-    
-    local phase_start=$(date +%s)
-    local phase_log="/tmp/phase-${phase_name}-${SCENARIO_NAME}-$$.log"
-    
-    # Run phase with timeout
-    if timeout "${timeout}" bash "$phase_script" > "$phase_log" 2>&1; then
-        local phase_end=$(date +%s)
-        local phase_duration=$((phase_end - phase_start))
-        log_success "$description completed (${phase_duration}s)"
-        ((PASSED_PHASES++))
-        
-        # Show important output
-        if [ -s "$phase_log" ]; then
-            tail -5 "$phase_log" | while read line; do
-                log "  $line"
-            done
-        fi
-    else
-        local exit_code=$?
-        log_error "$description failed (exit code: $exit_code)"
-        log_error "Phase log: $phase_log"
-        
-        # Show error details
-        if [ -s "$phase_log" ]; then
-            log "=== Error Details ==="
-            tail -10 "$phase_log" | while read line; do
-                log "  $line"
-            done
-            log "===================="
-        fi
-        
-        ((FAILED_PHASES++))
-        
-        # Decide whether to continue
-        if [ "${FAIL_FAST:-false}" = "true" ]; then
-            log_error "Fail-fast enabled, stopping execution"
-            return 1
-        fi
-    fi
-    
-    # Append phase log to main log
-    echo "=== Phase: $description ===" >> "$LOG_FILE"
-    cat "$phase_log" >> "$LOG_FILE" 2>/dev/null || true
-    rm -f "$phase_log"
+    timeout "${timeout}" bash "$phase_script" > "$phase_log" 2>&1
+    # Track results, handle errors
 }
 
-# Main execution
-main() {
-    # Setup
-    trap cleanup EXIT
-    
-    log "=== Starting Comprehensive Tests for $SCENARIO_NAME ==="
-    log "Timestamp: $(date)"
-    log "Working directory: $(pwd)"
-    log "App root: $APP_ROOT"
-    log "Log file: $LOG_FILE"
-    echo
-    
-    # Check if scenario is configured properly
-    if [ ! -f ".vrooli/service.json" ]; then
-        log_error "No .vrooli/service.json found. This doesn't appear to be a properly configured scenario."
-        exit 1
-    fi
-    
-    # Parse command line options
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --phase)
-                SINGLE_PHASE="$2"
-                shift 2
-                ;;
-            --skip-phase)
-                SKIP_PHASES="${SKIP_PHASES:-} $2"
-                shift 2
-                ;;
-            --fail-fast)
-                FAIL_FAST=true
-                shift
-                ;;
-            --verbose)
-                VERBOSE=true
-                shift
-                ;;
-            --help)
-                echo "Usage: $0 [options]"
-                echo "Options:"
-                echo "  --phase NAME       Run only specified phase"
-                echo "  --skip-phase NAME  Skip specified phase"
-                echo "  --fail-fast        Stop on first failure"
-                echo "  --verbose          Verbose output"
-                echo "  --help             Show this help"
-                exit 0
-                ;;
-            *)
-                log_error "Unknown option: $1"
-                exit 1
-                ;;
-        esac
-    done
-    
-    # Run phases
-    for phase_config in "${PHASES[@]}"; do
-        IFS=':' read -r phase_name timeout description <<< "$phase_config"
-        
-        # Skip if requested
-        if [[ "${SKIP_PHASES:-}" =~ $phase_name ]]; then
-            log_warning "Skipping $description (--skip-phase)"
-            ((SKIPPED_PHASES++))
-            continue
-        fi
-        
-        # Run only specific phase if requested
-        if [ -n "${SINGLE_PHASE:-}" ] && [ "$phase_name" != "$SINGLE_PHASE" ]; then
-            continue
-        fi
-        
-        # Run the phase
-        if ! run_phase "$phase_name" "$timeout" "$description"; then
-            exit 1
-        fi
-    done
-    
-    # Final check
-    if [ $FAILED_PHASES -gt 0 ]; then
-        exit 1
-    fi
+# 4. Summary and exit
+cleanup() {
+    log "Passed: $PASSED_PHASES, Failed: $FAILED_PHASES"
+    exit $([[ $FAILED_PHASES -gt 0 ]] && echo 1 || echo 0)
 }
-
-# Execute main function with all arguments
-main "$@"
 ```
 
-### Phase 1: Complete Structure Validation
+#### Command-Line Options
 
-**File: `test/phases/test-structure.sh` (complete structure testing)**
+Most orchestrators support:
+- `--phase NAME` - Run single phase
+- `--skip-phase NAME` - Skip specific phase
+- `--fail-fast` - Stop on first failure
+- `--verbose` - Detailed output
+- `--help` - Usage information
+
+#### Customization Points
+
+When creating your orchestrator:
+1. **Copy template**: `cp scripts/scenarios/templates/full/test/run-tests.sh scenarios/my-scenario/test/`
+2. **Adjust phases**: Add/remove/reorder phases based on scenario needs
+3. **Configure timeouts**: Adjust based on scenario complexity
+4. **Add custom options**: Extend CLI parsing for scenario-specific needs
+
+**See the canonical implementation for complete, production-ready code.**
+
+### Phase 1: Structure Validation Pattern
+
+**Canonical Implementation**: [/scripts/scenarios/templates/full/test/phases/test-structure.sh](/scripts/scenarios/templates/full/test/phases/test-structure.sh)
+
+Structure validation ensures the scenario has all required files, correct directory layout, and valid configuration. This phase runs first (target: <15 seconds) and catches basic setup issues before running expensive tests.
+
+#### What Structure Validation Checks
+
+1. **Essential Files**
+   - `README.md` - Documentation exists and not empty
+   - `PRD.md` - Product requirements documented
+   - `.vrooli/service.json` - Modern configuration (valid JSON)
+   - `Makefile` - Build/test targets defined
+
+2. **Directory Layout**
+   - `test/` - Test directory exists
+   - `test/phases/` - Phase scripts present
+   - `test/run-tests.sh` - Main orchestrator exists and executable
+   - Component directories (`api/`, `ui/`, `cli/`) match service.json
+
+3. **Configuration Validity**
+   - `service.json` has required fields (name, version)
+   - Component ports configured correctly
+   - JSON syntax valid
+
+4. **Basic Integrity**
+   - Test scripts are executable
+   - No obviously missing dependencies
+   - File permissions correct
+
+#### Pattern Structure
+
 ```bash
 #!/bin/bash
-# Comprehensive structure validation for Vrooli scenarios
-# Validates files, directories, configuration, and project structure
-
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SCENARIO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-readonly SCENARIO_NAME="$(basename "$SCENARIO_DIR")"
-
-# Test counters
+# 1. Initialize test tracking
 tests_passed=0
 tests_failed=0
 
-# Test execution function
+# 2. Define test helper
 run_test() {
     local description="$1"
     local test_command="$2"
     
-    echo "[TEST] $description"
     if eval "$test_command" 2>/dev/null; then
         echo "✅ PASS: $description"
-        tests_passed=$((tests_passed + 1))
-        return 0
+        ((tests_passed++))
     else
         echo "❌ FAIL: $description"
-        tests_failed=$((tests_failed + 1))
-        return 1
+        ((tests_failed++))
     fi
 }
 
-# Core file validation
+# 3. Run test groups
 test_core_files() {
-    echo "=== Testing Core Files ==="
-    
     run_test "README.md exists" "[ -f 'README.md' ]"
-    run_test "README.md not empty" "[ -s 'README.md' ]"
-    run_test "PRD.md exists" "[ -f 'PRD.md' ]"
-    run_test "PRD.md not empty" "[ -s 'PRD.md' ]"
-    
-    # Configuration files
-    run_test ".vrooli/service.json exists" "[ -f '.vrooli/service.json' ]"
     run_test ".vrooli/service.json valid JSON" "jq empty .vrooli/service.json"
-    
-    # Makefile (modern scenarios should have this)
-    run_test "Makefile exists" "[ -f 'Makefile' ]"
-    if [ -f "Makefile" ]; then
-        run_test "Makefile has test target" "grep -q '^test:' Makefile"
-        run_test "Makefile has run target" "grep -q '^run:' Makefile"
-    fi
 }
 
-# Directory structure validation
 test_directory_structure() {
-    echo "=== Testing Directory Structure ==="
-    
     run_test "Test directory exists" "[ -d 'test' ]"
-    
-    if [ -d "test" ]; then
-        run_test "Test phases directory exists" "[ -d 'test/phases' ]"
-        run_test "Main test runner exists" "[ -f 'test/run-tests.sh' ]"
-        run_test "Main test runner executable" "[ -x 'test/run-tests.sh' ]"
-    fi
-    
-    # Check for modern vs legacy structure
-    if [ -f "scenario-test.yaml" ]; then
-        echo "⚠️  WARNING: Found legacy scenario-test.yaml - consider migrating to modern structure"
-    fi
+    run_test "Main test runner executable" "[ -x 'test/run-tests.sh' ]"
 }
 
-# Service configuration validation
-test_service_configuration() {
-    echo "=== Testing Service Configuration ==="
-    
-    if [ -f ".vrooli/service.json" ]; then
-        # Test basic structure
-        run_test "Service has name field" "jq -e '.name' .vrooli/service.json >/dev/null"
-        run_test "Service has version field" "jq -e '.version' .vrooli/service.json >/dev/null"
-        
-        # Test component configurations
-        local components=$(jq -r 'keys[]' .vrooli/service.json 2>/dev/null | grep -v -E '^(name|version|description)$' || true)
-        
-        for component in $components; do
-            if [[ "$component" =~ ^(api|ui|cli)$ ]]; then
-                run_test "$component has port configured" "jq -e '.${component}.port' .vrooli/service.json >/dev/null"
-                
-                # Check if component directory exists
-                local component_dir="$component"
-                if [ "$component" = "ui" ] && [ ! -d "ui" ] && [ -d "web" ]; then
-                    component_dir="web"
-                fi
-                
-                run_test "$component directory exists" "[ -d '$component_dir' ]"
-            fi
-        done
-        
-        # Test configuration
-        if jq -e '.test' .vrooli/service.json >/dev/null 2>&1; then
-            run_test "Test configuration has steps" "jq -e '.test.steps[]' .vrooli/service.json >/dev/null"
-        fi
-    fi
-}
-
-# Language-specific validation
-test_language_structure() {
-    echo "=== Testing Language-Specific Structure ==="
-    
-    # Go API
-    if [ -d "api" ]; then
-        run_test "Go module file exists" "[ -f 'api/go.mod' ] || [ -f 'go.mod' ]"
-        
-        # Check for tests
-        local go_tests=$(find api -name "*_test.go" 2>/dev/null | wc -l)
-        if [ "$go_tests" -gt 0 ]; then
-            echo "✅ Found $go_tests Go test files"
-        else
-            echo "⚠️  No Go test files found in api/"
-        fi
-    fi
-    
-    # Node.js/UI
-    if [ -d "ui" ] || [ -d "web" ]; then
-        local ui_dir="ui"
-        [ -d "web" ] && ui_dir="web"
-        
-        run_test "Package.json exists" "[ -f '$ui_dir/package.json' ]"
-        
-        if [ -f "$ui_dir/package.json" ]; then
-            run_test "Package.json valid JSON" "jq empty '$ui_dir/package.json'"
-            
-            # Check for test scripts
-            if jq -e '.scripts.test' "$ui_dir/package.json" >/dev/null 2>&1; then
-                echo "✅ npm test script configured"
-            else
-                echo "⚠️  No npm test script found"
-            fi
-        fi
-        
-        # Check for test files
-        local js_tests=$(find "$ui_dir" -name "*.test.js" -o -name "*.test.ts" -o -name "*.spec.js" -o -name "*.spec.ts" 2>/dev/null | wc -l)
-        if [ "$js_tests" -gt 0 ]; then
-            echo "✅ Found $js_tests JavaScript/TypeScript test files"
-        else
-            echo "⚠️  No JavaScript/TypeScript test files found"
-        fi
-    fi
-    
-    # Python
-    if find . -maxdepth 2 -name "*.py" | grep -q .; then
-        echo "📁 Python files detected"
-        
-        # Check for Python tests
-        local py_tests=$(find . -name "test_*.py" -o -name "*_test.py" 2>/dev/null | wc -l)
-        if [ "$py_tests" -gt 0 ]; then
-            echo "✅ Found $py_tests Python test files"
-        else
-            echo "⚠️  No Python test files found"
-        fi
-        
-        # Check for common Python files
-        if [ -f "requirements.txt" ] || [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
-            echo "✅ Python package configuration found"
-        else
-            echo "⚠️  No Python package configuration found"
-        fi
-    fi
-}
-
-# CLI validation
-test_cli_structure() {
-    echo "=== Testing CLI Structure ==="
-    
-    if [ -d "cli" ]; then
-        run_test "CLI directory exists" "[ -d 'cli' ]"
-        
-        # Look for CLI executable
-        local cli_files=$(find cli -type f -executable 2>/dev/null | wc -l)
-        if [ "$cli_files" -gt 0 ]; then
-            echo "✅ Found $cli_files executable CLI files"
-        else
-            echo "⚠️  No executable CLI files found"
-        fi
-        
-        # Check for BATS tests
-        local bats_tests=$(find . -name "*.bats" 2>/dev/null | wc -l)
-        if [ "$bats_tests" -gt 0 ]; then
-            echo "✅ Found $bats_tests BATS test files"
-        else
-            echo "⚠️  No BATS test files found"
-        fi
-    fi
-}
-
-# Documentation validation
-test_documentation() {
-    echo "=== Testing Documentation ==="
-    
-    if [ -f "README.md" ]; then
-        run_test "README has title" "head -1 README.md | grep -q '^#'"
-        run_test "README mentions scenario name" "grep -qi '$SCENARIO_NAME' README.md"
-    fi
-    
-    if [ -f "PRD.md" ]; then
-        run_test "PRD has title" "head -1 PRD.md | grep -q '^#'"
-        
-        # Check for common PRD sections
-        local sections=("Overview" "Features" "Requirements" "Architecture")
-        for section in "${sections[@]}"; do
-            if grep -qi "$section" PRD.md; then
-                echo "✅ PRD contains $section section"
-            else
-                echo "⚠️  PRD missing $section section"
-            fi
-        done
-    fi
-}
-
-# Security validation
-test_security() {
-    echo "=== Testing Security ==="
-    
-    # Check for sensitive files that shouldn't be committed
-    local sensitive_patterns=(".env" "*.key" "*.pem" "secrets.yaml" "passwords.txt")
-    
-    for pattern in "${sensitive_patterns[@]}"; do
-        if find . -name "$pattern" -type f 2>/dev/null | grep -q .; then
-            echo "⚠️  WARNING: Found potentially sensitive files matching $pattern"
-        fi
-    done
-    
-    # Check gitignore
-    if [ -f ".gitignore" ]; then
-        run_test ".gitignore exists" "[ -f '.gitignore' ]"
-        
-        local ignore_patterns=(".env" "node_modules" "*.log" ".DS_Store")
-        for pattern in "${ignore_patterns[@]}"; do
-            if grep -q "$pattern" .gitignore; then
-                echo "✅ .gitignore includes $pattern"
-            else
-                echo "⚠️  .gitignore missing $pattern"
-            fi
-        done
-    else
-        echo "⚠️  No .gitignore found"
-    fi
-}
-
-# Main execution
-main() {
-    echo "=== Structure Validation for $SCENARIO_NAME ==="
-    echo "Working directory: $SCENARIO_DIR"
-    echo
-    
-    # Run all test categories
-    test_core_files
-    echo
-    test_directory_structure  
-    echo
-    test_service_configuration
-    echo
-    test_language_structure
-    echo
-    test_cli_structure
-    echo
-    test_documentation
-    echo
-    test_security
-    echo
-    
-    # Summary
-    local total_tests=$((tests_passed + tests_failed))
-    echo "=== Structure Test Summary ==="
-    echo "Total tests: $total_tests"
-    echo "Passed: $tests_passed"
-    echo "Failed: $tests_failed"
-    
-    if [ $tests_failed -eq 0 ]; then
-        echo "✅ All structure tests passed!"
-        exit 0
-    else
-        echo "❌ Some structure tests failed!"
-        exit 1
-    fi
-}
-
-# Execute from scenario directory
-cd "$SCENARIO_DIR"
-main "$@"
+# 4. Execute and exit
+test_core_files
+test_directory_structure
+exit $tests_failed
 ```
 
-### Phase 5: Complete Business Logic Testing
+#### Common Checks
 
-**File: `test/phases/test-business.sh` (complete business logic testing)**
+**File existence**:
+```bash
+run_test "README exists" "[ -f 'README.md' ]"
+run_test "README not empty" "[ -s 'README.md' ]"
+```
+
+**JSON validity**:
+```bash
+run_test "service.json valid" "jq empty .vrooli/service.json"
+run_test "service has name" "jq -e '.name' .vrooli/service.json >/dev/null"
+```
+
+**Directory presence**:
+```bash
+run_test "API directory exists" "[ -d 'api' ]"
+run_test "UI directory exists" "[ -d 'ui' ]"
+```
+
+**Executable permissions**:
+```bash
+run_test "Test runner executable" "[ -x 'test/run-tests.sh' ]"
+```
+
+#### Customization for Your Scenario
+
+1. **Add scenario-specific files**: Check for required config files, data directories, etc.
+2. **Validate component structure**: If scenario has specific architecture (microservices, monolith), validate accordingly
+3. **Check external dependencies**: Verify Docker Compose files, Kubernetes manifests, etc.
+4. **Warn on legacy patterns**: Alert if deprecated structures detected
+
+**See the canonical implementation for complete validation logic.**
+### Phase 5: Business Logic Testing Pattern
+
+**Canonical Implementation**: Scenario-specific, see [browser-automation-studio example](/scenarios/browser-automation-studio/test/phases/test-business.sh)
+
+Business logic testing validates end-to-end workflows, user journeys, and core business requirements. This phase runs after integration tests and targets real-world scenarios (target: <180 seconds).
+
+#### What Business Logic Testing Validates
+
+1. **Complete User Journeys**
+   - Multi-step workflows from start to finish
+   - Cross-component interactions
+   - State management across requests
+
+2. **Business Rules**
+   - Domain-specific validation logic
+   - Permission/authorization workflows
+   - Data transformation pipelines
+
+3. **Real-World Scenarios**
+   - Common use cases from PRD
+   - Edge cases that matter to users
+   - Error recovery workflows
+
+4. **Integration with External Systems**
+   - Resource dependencies (databases, APIs)
+   - Third-party service interactions
+   - Data consistency across boundaries
+
+#### Pattern Structure
+
+Business logic tests are **highly scenario-specific** but follow this general pattern:
+
 ```bash
 #!/bin/bash
-# Comprehensive business logic testing for Vrooli scenarios
-# Tests core workflows, user journeys, and business requirements
-
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SCENARIO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-readonly SCENARIO_NAME="$(basename "$SCENARIO_DIR")"
-readonly APP_ROOT="${APP_ROOT:-$(cd "$SCENARIO_DIR/../.." && pwd)}"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-# Source testing libraries
-source "$APP_ROOT/scripts/scenarios/testing/shell/core.sh"
-source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
+# 1. Initialize phase
+testing::phase::init --target-time "180s"
 
-# Test configuration
-tests_passed=0
-tests_failed=0
-readonly TEST_TIMEOUT=30
-readonly MAX_RETRIES=3
+# 2. Ensure scenario is running
+if ! testing::core::is_scenario_running "$SCENARIO_NAME"; then
+    testing::phase::add_error "Scenario not running"
+    testing::phase::end_with_summary "Business logic phase requires running scenario"
+fi
 
-# Helper functions
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
-}
-
-log_success() {
-    echo "✅ $1"
-}
-
-log_error() {
-    echo "❌ $1"
-}
-
-log_info() {
-    echo "ℹ️  $1"
-}
-
-# Test execution with retry logic
-run_test() {
-    local test_name="$1"
-    local test_function="$2"
-    local retry_count=0
+# 3. Test business workflows
+test_user_workflow() {
+    local workflow_name="$1"
     
-    log_info "Running: $test_name"
+    # Execute workflow steps
+    # Validate outcomes
+    # Report to phase system
     
-    while [ $retry_count -lt $MAX_RETRIES ]; do
-        if timeout $TEST_TIMEOUT bash -c "$test_function"; then
-            log_success "$test_name"
-            tests_passed=$((tests_passed + 1))
-            return 0
-        else
-            retry_count=$((retry_count + 1))
-            if [ $retry_count -lt $MAX_RETRIES ]; then
-                log_info "Retrying $test_name (attempt $((retry_count + 1))/$MAX_RETRIES)"
-                sleep 2
-            fi
-        fi
-    done
-    
-    log_error "$test_name (failed after $MAX_RETRIES attempts)"
-    tests_failed=$((tests_failed + 1))
-    return 1
+    if workflow_passed; then
+        testing::phase::add_test passed
+    else
+        testing::phase::add_test failed
+        testing::phase::add_error "Workflow $workflow_name failed"
+    fi
 }
 
-# Get service URLs with dynamic port discovery
-get_service_urls() {
-    API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME" 2>/dev/null || echo "")
-    UI_URL=$(testing::connectivity::get_ui_url "$SCENARIO_NAME" 2>/dev/null || echo "")
+# 4. Run workflow tests
+test_user_workflow "project-creation"
+test_user_workflow "workflow-execution"
+test_user_workflow "data-export"
+
+# 5. Complete phase
+testing::phase::end_with_summary "Business logic tests completed"
+```
+
+#### Using BAS Workflows for UI Testing
+
+For UI-heavy scenarios, use **Browser Automation Studio** workflows:
+
+```bash
+#!/bin/bash
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+
+testing::phase::init --target-time "180s"
+
+# Run all automation validations for this phase
+testing::phase::run_bas_automation_validations \
+    --scenario "$SCENARIO_NAME" \
+    --manage-runtime skip
+
+testing::phase::end_with_summary "UI workflow tests completed"
+```
+
+**See**: [UI Automation with BAS](../ui-automation-with-bas.md) for complete workflow testing guide.
+
+#### Example Business Tests
+
+**API Workflow Test**:
+```bash
+test_api_workflow() {
+    # 1. Create resource
+    local create_response=$(curl -s -X POST "$API_URL/projects" \
+        -H "Content-Type: application/json" \
+        -d '{"name":"Test Project"}')
     
-    if [ -z "$API_URL" ]; then
-        log_error "Could not determine API URL - is the scenario running?"
+    local project_id=$(echo "$create_response" | jq -r '.id')
+    
+    # 2. Verify resource created
+    if [ -z "$project_id" ] || [ "$project_id" = "null" ]; then
+        testing::phase::add_error "Failed to create project"
         return 1
     fi
     
-    log_info "API URL: $API_URL"
-    log_info "UI URL: $UI_URL"
-}
-
-# Test API health and basic functionality
-test_api_health() {
-    run_test "API health check" "
-        curl -sf '$API_URL/health' >/dev/null 2>&1
-    "
+    # 3. Update resource
+    curl -s -X PUT "$API_URL/projects/$project_id" \
+        -H "Content-Type: application/json" \
+        -d '{"name":"Updated Project"}' >/dev/null
     
-    run_test "API returns valid health response" "
-        response=\$(curl -sf '$API_URL/health' 2>/dev/null)
-        echo \"\$response\" | jq -e '.status' >/dev/null 2>&1
-    "
+    # 4. Verify update
+    local updated=$(curl -s "$API_URL/projects/$project_id" | jq -r '.name')
     
-    run_test "API responds within acceptable time" "
-        start_time=\$(date +%s%N)
-        curl -sf '$API_URL/health' >/dev/null 2>&1
-        end_time=\$(date +%s%N)
-        duration=\$(( (end_time - start_time) / 1000000 ))
-        [ \$duration -lt 1000 ]  # Less than 1 second
-    "
-}
-
-# Test core CRUD operations (customize based on scenario)
-test_crud_operations() {
-    local test_item='{\"name\":\"test-item\",\"description\":\"Test item for validation\"}'
-    local item_id=""
-    
-    # Create operation
-    run_test "Create new item via API" "
-        response=\$(curl -sf -X POST '$API_URL/api/items' \\
-            -H 'Content-Type: application/json' \\
-            -d '$test_item' 2>/dev/null)
-        echo \"\$response\" | jq -e '.id' >/dev/null 2>&1
-    "
-    
-    # Get the created item ID for subsequent tests
-    if [ $? -eq 0 ]; then
-        item_id=$(curl -sf -X POST "$API_URL/api/items" \
-            -H 'Content-Type: application/json' \
-            -d "$test_item" 2>/dev/null | jq -r '.id' 2>/dev/null || echo "")
+    if [ "$updated" != "Updated Project" ]; then
+        testing::phase::add_error "Project update failed"
+        return 1
     fi
     
-    if [ -n "$item_id" ] && [ "$item_id" != "null" ]; then
-        # Read operation
-        run_test "Read created item by ID" "
-            response=\$(curl -sf '$API_URL/api/items/$item_id' 2>/dev/null)
-            echo \"\$response\" | jq -e '.name' >/dev/null 2>&1
-        "
-        
-        # Update operation
-        run_test "Update item via API" "
-            updated_item='{\"name\":\"updated-test-item\",\"description\":\"Updated test item\"}'
-            response=\$(curl -sf -X PUT '$API_URL/api/items/$item_id' \\
-                -H 'Content-Type: application/json' \\
-                -d \"\$updated_item\" 2>/dev/null)
-            echo \"\$response\" | jq -e '.name' >/dev/null 2>&1
-        "
-        
-        # List operation
-        run_test "List all items includes our item" "
-            response=\$(curl -sf '$API_URL/api/items' 2>/dev/null)
-            echo \"\$response\" | jq -e '.[] | select(.id == \"$item_id\")' >/dev/null 2>&1
-        "
-        
-        # Delete operation
-        run_test "Delete item via API" "
-            curl -sf -X DELETE '$API_URL/api/items/$item_id' >/dev/null 2>&1
-        "
-        
-        # Verify deletion
-        run_test "Verify item was deleted" "
-            response=\$(curl -sf '$API_URL/api/items/$item_id' 2>/dev/null || echo 'null')
-            [ \"\$response\" = \"null\" ] || echo \"\$response\" | grep -q '404\\|not found'
-        "
+    testing::phase::add_test passed
+}
+```
+
+**Database Consistency Test**:
+```bash
+test_data_consistency() {
+    # Verify data consistency across operations
+    local count_before=$(psql -h localhost -U test -d testdb -tc "SELECT COUNT(*) FROM projects")
+    
+    # Perform operation
+    curl -s -X POST "$API_URL/projects" -d '{"name":"Test"}' >/dev/null
+    
+    # Verify count increased
+    local count_after=$(psql -h localhost -U test -d testdb -tc "SELECT COUNT(*) FROM projects")
+    
+    if [ "$count_after" -eq $((count_before + 1)) ]; then
+        testing::phase::add_test passed
     else
-        log_error "Could not create test item, skipping CRUD tests"
+        testing::phase::add_error "Database count mismatch"
+        testing::phase::add_test failed
     fi
 }
+```
 
-# Test user workflow scenarios
-test_user_workflows() {
-    # Test typical user journey
-    run_test "User workflow: Registration/Login simulation" "
-        # Simulate user registration (adapt to your scenario)
-        user_data='{\"username\":\"test-user\",\"email\":\"test@example.com\"}'
-        response=\$(curl -sf -X POST '$API_URL/api/users' \\
-            -H 'Content-Type: application/json' \\
-            -d \"\$user_data\" 2>/dev/null || echo 'null')
-        [ \"\$response\" != \"null\" ]
-    "
-    
-    run_test "User workflow: Profile access" "
-        # Test accessing user profile (adapt to your scenario)
-        response=\$(curl -sf '$API_URL/api/profile' 2>/dev/null || echo 'null')
-        [ \"\$response\" != \"null\" ]
-    "
-}
+#### Key Differences from Integration Tests
 
-# Test data validation and error handling
-test_error_handling() {
-    run_test "API handles invalid JSON gracefully" "
-        response=\$(curl -s -X POST '$API_URL/api/items' \\
-            -H 'Content-Type: application/json' \\
-            -d 'invalid-json' 2>/dev/null)
-        # Should return 4xx status code
-        curl -s -o /dev/null -w '%{http_code}' -X POST '$API_URL/api/items' \\
-            -H 'Content-Type: application/json' \\
-            -d 'invalid-json' | grep -q '^4'
-    "
-    
-    run_test "API handles missing required fields" "
-        response=\$(curl -s -X POST '$API_URL/api/items' \\
-            -H 'Content-Type: application/json' \\
-            -d '{}' 2>/dev/null)
-        # Should return 4xx status code  
-        curl -s -o /dev/null -w '%{http_code}' -X POST '$API_URL/api/items' \\
-            -H 'Content-Type: application/json' \\
-            -d '{}' | grep -q '^4'
-    "
-    
-    run_test "API handles non-existent resource requests" "
-        # Request non-existent item
-        curl -s -o /dev/null -w '%{http_code}' '$API_URL/api/items/99999' | grep -q '^404'
-    "
-}
+| Aspect | Integration Tests | Business Logic Tests |
+|--------|-------------------|----------------------|
+| **Scope** | Component interactions | Complete user journeys |
+| **Duration** | <120 seconds | <180 seconds |
+| **Data** | Minimal test data | Realistic datasets |
+| **Assertions** | Technical correctness | Business requirements |
+| **Examples** | "API returns 200" | "User can complete checkout flow" |
 
-# Test UI functionality (if available)
-test_ui_functionality() {
-    if [ -n "$UI_URL" ]; then
-        run_test "UI loads successfully" "
-            curl -sf '$UI_URL' >/dev/null 2>&1
-        "
-        
-        run_test "UI serves static assets" "
-            # Check for common static assets
-            curl -sf '$UI_URL/static/' >/dev/null 2>&1 || 
-            curl -sf '$UI_URL/css/' >/dev/null 2>&1 ||
-            curl -sf '$UI_URL/js/' >/dev/null 2>&1
-        "
-        
-        run_test "UI has proper HTML structure" "
-            response=\$(curl -sf '$UI_URL' 2>/dev/null)
-            echo \"\$response\" | grep -q '<html' &&
-            echo \"\$response\" | grep -q '<head' &&
-            echo \"\$response\" | grep -q '<body'
-        "
-    else
-        log_info "No UI URL available, skipping UI tests"
-    fi
+#### Best Practices
+
+1. **Test Real Workflows**: Mirror actual user behavior, not just technical operations
+2. **Use Realistic Data**: Test with data volumes and complexity matching production
+3. **Validate Business Rules**: Ensure domain logic works correctly
+4. **Test Error Recovery**: Validate graceful degradation and error handling
+5. **Integrate with Requirements**: Tag tests with `[REQ:ID]` for traceability
+
+**Business logic tests prove the scenario delivers value to users, not just that it works technically.**
+
+For complex multi-step UI testing, consider using **Browser Automation Studio (BAS) workflows** instead of curl-based testing:
+
+**Benefits:**
+- Declarative JSON workflows (version controlled)
+- Visual authoring in BAS UI
+- Integrated with requirement tracking
+- Automatic execution via phase helpers
+
+**Example validation:**
+```json
+{
+  "type": "automation",
+  "ref": "test/playbooks/ui/create-project.json",
+  "phase": "integration",
+  "status": "implemented"
 }
+```
+
+**See:** [UI Automation with BAS](ui-automation-with-bas.md) for complete guide.
 
 # Test business-specific features (customize for your scenario)
 test_business_features() {
@@ -1044,32 +672,6 @@ UI_URL="http://localhost:$UI_PORT"
 | "Port discovery fails" | Ensure scenario is running |
 | "Tests deleting files" | Use safety linter, validate variables |
 | "Coverage too low" | Add more unit tests |
-
-## Migration from Legacy Format
-
-If you have an old `scenario-test.yaml`:
-
-1. **Delete it** - No longer needed
-2. **Create test directory structure**:
-   ```bash
-   mkdir -p test/phases
-   ```
-3. **Copy phase templates**:
-   ```bash
-   cp scripts/scenarios/templates/full/test/* test/
-   ```
-4. **Update service.json**:
-   ```json
-   {
-     "test": {
-       "description": "Phased testing",
-       "steps": [{
-         "name": "run-tests",
-         "run": "test/run-tests.sh"
-       }]
-     }
-   }
-   ```
 
 ## Testing Checklist
 

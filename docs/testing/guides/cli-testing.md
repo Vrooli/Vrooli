@@ -407,12 +407,27 @@ jobs:
 6. **Documentation**: Comment complex test logic
 7. **Helpers**: Extract common patterns into helper functions
 
-## Getting Help
+## See Also
 
-- **Safety Issues**: [Safety Guidelines](../safety/GUIDELINES.md)
-- **BATS Bug Case Study**: [BATS Teardown Bug](../safety/BATS_TEARDOWN_BUG.md)
-- **Working Example**: [Visited Tracker CLI Tests](../../../scenarios/visited-tracker/cli/visited-tracker.bats)
-- **BATS Documentation**: [Official BATS Docs](https://bats-core.readthedocs.io/)
+### Critical Reading
+- **[Safety Guidelines](../safety/GUIDELINES.md)** - **MUST READ** - Prevent data loss in tests
+- [BATS Teardown Bug](../safety/BATS_TEARDOWN_BUG.md) - Real incident case study
+- [Safety README](../safety/README.md) - Quick safety checklist
+
+### Related Guides
+- [Quick Start Guide](quick-start.md) - Write your first test
+- [Scenario Unit Testing](scenario-unit-testing.md) - Testing application code
+- [Scenario Testing Guide](scenario-testing.md) - Full testing workflow
+
+### Architecture & Tools
+- [Phased Testing Architecture](../architecture/PHASED_TESTING.md) - How CLI tests fit into phases
+- [Testing Glossary](../GLOSSARY.md) - Understand testing terms
+- [BATS Official Docs](https://bats-core.readthedocs.io/) - External framework documentation
+
+### Examples
+- [Visited Tracker CLI Tests](../../../scenarios/visited-tracker/cli/visited-tracker.bats) - Gold standard implementation
+- [Safe BATS Template](/scripts/scenarios/testing/templates/bats/) - Copy-and-customize template
+- [Gold Standard Examples](../reference/examples.md) - More examples
 
 ---
 

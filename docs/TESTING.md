@@ -7,6 +7,7 @@
 **I want to...**
 
 - 🚀 **Write my first test** → [Quick Start Guide](testing/guides/quick-start.md)
+- 📖 **Understand testing terms** → [Testing Glossary](testing/GLOSSARY.md)
 - ⚠️ **Avoid deleting important files** → [Safety Guidelines](testing/safety/GUIDELINES.md)
 - 📚 **Understand the testing philosophy** → [Phased Testing Architecture](testing/architecture/PHASED_TESTING.md)
 - 🔧 **Test a scenario** → [Scenario Testing Guide](testing/guides/scenario-testing.md)
@@ -26,7 +27,7 @@ Vrooli employs a **comprehensive, safety-first testing strategy** that ensures c
 3. **Multi-Language Support** - Unified testing across Go, Node.js, Python, and Shell
 4. **Resource Integration** - Automatic validation of PostgreSQL, Redis, Ollama, etc.
 5. **High Coverage Standards** - 80% warning, 70% error thresholds
-6. **Requirement Traceability** - Phase outputs, `REQ:`-tagged tests, and YAML workflows feed the scenario requirements registry (`docs/requirements.yaml` or modular `requirements/` folders), closing the loop with `vrooli scenario requirements report`.
+6. **Requirement Traceability** - Phase outputs, `REQ:`-tagged tests, and YAML workflows feed the scenario requirements registry (`docs/requirements.json` or modular `requirements/` folders), closing the loop with `vrooli scenario requirements report`.
    - Validate the registry structure with `node scripts/requirements/validate.js --scenario <name>` (also surfaced inside `vrooli scenario status <name>`). Schema failures will now show up directly in the status output so broken registries can’t slip through CI.
 
 ## Testing Layers
@@ -150,6 +151,19 @@ bats test/cli/*.bats
 ```
 
 ## Testing Maturity Levels
+
+```mermaid
+graph LR
+    Start[Start] --> Bronze[🥉 Bronze<br/>Structure + Unit<br/>&gt;50% coverage<br/>&lt;2 min]
+    Bronze --> Silver[🥈 Silver<br/>+ Integration<br/>&gt;70% coverage<br/>&lt;5 min]
+    Silver --> Gold[🥇 Gold<br/>+ Business Logic<br/>&gt;80% coverage<br/>&lt;8 min]
+    Gold --> Diamond[💎 Diamond<br/>+ Performance<br/>&gt;90% coverage<br/>&lt;10 min]
+
+    style Bronze fill:#cd7f32,color:#fff
+    style Silver fill:#c0c0c0,color:#000
+    style Gold fill:#ffd700,color:#000
+    style Diamond fill:#b9f2ff,color:#000
+```
 
 | Level | Coverage | Features | Time |
 |-------|----------|----------|------|

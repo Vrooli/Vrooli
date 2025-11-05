@@ -1,5 +1,23 @@
 # Quick Start: Testing in 5 Minutes
 
+## How Testing Works in Vrooli
+
+```mermaid
+graph LR
+    A[Write test<br/>with [REQ:ID]] --> B[Run phase]
+    B --> C[Auto-extract<br/>tags]
+    C --> D[Update<br/>requirements.json]
+    D --> E[Generate<br/>reports]
+
+    style A fill:#e1f5ff
+    style B fill:#fff3e0
+    style C fill:#f3e5f5
+    style D fill:#fff9c4
+    style E fill:#c8e6c9
+```
+
+**That's it!** Tag tests with `[REQ:ID]` and the system handles the rest. No manual tracking required.
+
 ## Prerequisites
 
 ```bash
@@ -272,9 +290,19 @@ bats test/cli/*.bats
 bash -x ./test/phases/test-integration.sh
 ```
 
-## Getting Help
+## See Also
 
-- **Safety Issues**: [Safety Guidelines](../safety/GUIDELINES.md)
-- **Debugging**: [Troubleshooting Guide](troubleshooting.md)
-- **Examples**: [Gold Standard Implementations](../reference/examples.md)
-- **Architecture**: [Phased Testing](../architecture/PHASED_TESTING.md)
+### Next Steps
+- [Scenario Testing Guide](scenario-testing.md) - Complete testing workflow for full-stack apps
+- [Scenario Unit Testing](scenario-unit-testing.md) - Deep dive into Go, Vitest, Python testing
+- [Requirement Tracking](requirement-tracking.md) - Link tests to requirements with `[REQ:ID]` tags
+
+### Implementation Details
+- [Phased Testing Architecture](../architecture/PHASED_TESTING.md) - How the 6-phase system works
+- [Shell Libraries Reference](../reference/shell-libraries.md) - Testing helper functions
+- [Test Runners Reference](../reference/test-runners.md) - Available test execution methods
+
+### Critical Reading
+- **[Safety Guidelines](../safety/GUIDELINES.md)** - **MUST READ** before writing test scripts
+- [Troubleshooting Guide](troubleshooting.md) - Debug common issues
+- [Gold Standard Examples](../reference/examples.md) - Learn from best implementations
