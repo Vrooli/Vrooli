@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-05T05:16:06.911Z"
+    "last_synced_at": "2025-11-05T20:36:41.660Z"
   },
   "requirements": [
     {
@@ -13,21 +13,21 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI prompts generate executable workflows",
       "description": "Validates that natural language prompts produce valid workflow JSON that compiles and executes without manual intervention.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ai/generated-smoke.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "BAS workflow exercising AI prompt → workflow generation → execution pipeline."
         },
         {
           "type": "test",
           "ref": "test/phases/test-integration.sh",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Integration phase invokes AI generation smoke tests."
         }
       ]
@@ -38,21 +38,21 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "Generated workflows pass deterministic validation",
       "description": "Ensures AI-generated workflows satisfy compilation constraints, have valid node references, and produce consistent execution plans.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "test",
-          "ref": "api/services/ai.go",
+          "ref": "api/services/ai_client.go",
           "phase": "unit",
-          "status": "implemented",
-          "notes": "Unit tests for AI workflow validation logic (to be implemented)."
+          "status": "failing",
+          "notes": "Unit tests for AI client prompt execution (OpenRouter integration) - planned but not yet implemented."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/ai/generated-smoke.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Smoke workflow includes validation assertions."
         }
       ]

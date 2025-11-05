@@ -17,15 +17,15 @@ import (
 )
 
 type replayRendererStub struct {
-	t           *testing.T
-	tempFile    string
-	lastCtx     context.Context
+	t            *testing.T
+	tempFile     string
+	lastCtx      context.Context
 	receivedSpec *services.ReplayMovieSpec
-	format      services.RenderFormat
-	filename    string
-	invokedAt   time.Time
-	deadline    time.Time
-	hadDeadline bool
+	format       services.RenderFormat
+	filename     string
+	invokedAt    time.Time
+	deadline     time.Time
+	hadDeadline  bool
 }
 
 func newReplayRendererStub(t *testing.T) *replayRendererStub {
@@ -364,11 +364,11 @@ func TestPostExecutionExport_UsesEstimatedTimeout(t *testing.T) {
 			CursorScale:     1,
 		},
 		Frames: []services.ExportFrame{{
-			Index:         0,
-			StepIndex:     0,
-			StepType:      "navigate",
-			DurationMs:    2000,
-			StartOffsetMs: 0,
+			Index:             0,
+			StepIndex:         0,
+			StepType:          "navigate",
+			DurationMs:        2000,
+			StartOffsetMs:     0,
 			ScreenshotAssetID: "asset-1",
 		}},
 		Assets: []services.ExportAsset{{

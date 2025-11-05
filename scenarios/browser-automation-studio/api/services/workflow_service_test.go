@@ -63,11 +63,11 @@ func TestNormalizeFlowDefinitionStripsPreviewScreenshots(t *testing.T) {
 	definition := map[string]any{
 		"nodes": []any{
 			map[string]any{
-				"id": "node-1",
+				"id":       "node-1",
 				"position": map[string]any{"x": 0, "y": 0},
 				"data": map[string]any{
-					"url":                        "https://example.com",
-					"previewScreenshot":          "data:image/png;base64,AAAA",
+					"url":                         "https://example.com",
+					"previewScreenshot":           "data:image/png;base64,AAAA",
 					"previewScreenshotCapturedAt": time.Now().UTC().Format(time.RFC3339),
 					"previewScreenshotSourceUrl":  "https://example.com",
 					"preview": map[string]any{
@@ -590,47 +590,49 @@ func TestUpdateWorkflowSkipsNoOpSaves(t *testing.T) {
 }
 
 func TestUpdateWorkflowAutosaveDefaultsExpectedVersion(t *testing.T) {
-	projectID := uuid.New()
-	project := &database.Project{ID: projectID, Name: "Autosave Project", FolderPath: t.TempDir()}
-	workflow := newTestWorkflow(projectID, 5)
-	mock := &workflowUpdateRepoMock{project: project, workflow: workflow}
-	seedWorkflowFile(t, project, workflow)
-	svc := newTestService(mock)
+	t.Run("[REQ:BAS-VERSION-AUTOSAVE] autosave defaults expected version", func(t *testing.T) {
+		projectID := uuid.New()
+		project := &database.Project{ID: projectID, Name: "Autosave Project", FolderPath: t.TempDir()}
+		workflow := newTestWorkflow(projectID, 5)
+		mock := &workflowUpdateRepoMock{project: project, workflow: workflow}
+		seedWorkflowFile(t, project, workflow)
+		svc := newTestService(mock)
 
-	input := WorkflowUpdateInput{
-		Name:           workflow.Name,
-		Description:    workflow.Description,
-		FolderPath:     workflow.FolderPath,
-		Source:         fileSourceAutosave,
-		FlowDefinition: map[string]any{"nodes": []any{map[string]any{"id": "node-1", "type": "navigate", "position": map[string]any{"x": float64(150), "y": float64(220)}, "data": map[string]any{"url": "https://example.com/login"}}, map[string]any{"id": "node-2", "type": "click", "position": map[string]any{"x": float64(300), "y": float64(240)}, "data": map[string]any{"selector": "#sign-in"}}}, "edges": []any{map[string]any{"id": "edge-1", "source": "node-1", "target": "node-2"}}},
-	}
+		input := WorkflowUpdateInput{
+			Name:           workflow.Name,
+			Description:    workflow.Description,
+			FolderPath:     workflow.FolderPath,
+			Source:         fileSourceAutosave,
+			FlowDefinition: map[string]any{"nodes": []any{map[string]any{"id": "node-1", "type": "navigate", "position": map[string]any{"x": float64(150), "y": float64(220)}, "data": map[string]any{"url": "https://example.com/login"}}, map[string]any{"id": "node-2", "type": "click", "position": map[string]any{"x": float64(300), "y": float64(240)}, "data": map[string]any{"selector": "#sign-in"}}}, "edges": []any{map[string]any{"id": "edge-1", "source": "node-1", "target": "node-2"}}},
+		}
 
-	updated, err := svc.UpdateWorkflow(context.Background(), workflow.ID, input)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+		updated, err := svc.UpdateWorkflow(context.Background(), workflow.ID, input)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
 
-	if len(mock.updateCalls) != 1 {
-		t.Fatalf("expected one database update, recorded %d", len(mock.updateCalls))
-	}
-	if len(mock.versionCalls) != 1 {
-		t.Fatalf("expected one workflow version record, got %d", len(mock.versionCalls))
-	}
-	if updated.Version != workflow.Version+1 {
-		t.Fatalf("expected version %d, got %d", workflow.Version+1, updated.Version)
-	}
-	if updated.LastChangeSource != fileSourceAutosave {
-		t.Fatalf("expected last change source %q, got %q", fileSourceAutosave, updated.LastChangeSource)
-	}
-	if updated.LastChangeDescription != "Autosave" {
-		t.Fatalf("expected change description 'Autosave', got %q", updated.LastChangeDescription)
-	}
-	if mock.versionCalls[0].CreatedBy != fileSourceAutosave {
-		t.Fatalf("expected version created by %q, got %q", fileSourceAutosave, mock.versionCalls[0].CreatedBy)
-	}
-	if mock.versionCalls[0].ChangeDescription != "Autosave" {
-		t.Fatalf("expected version change description 'Autosave', got %q", mock.versionCalls[0].ChangeDescription)
-	}
+		if len(mock.updateCalls) != 1 {
+			t.Fatalf("expected one database update, recorded %d", len(mock.updateCalls))
+		}
+		if len(mock.versionCalls) != 1 {
+			t.Fatalf("expected one workflow version record, got %d", len(mock.versionCalls))
+		}
+		if updated.Version != workflow.Version+1 {
+			t.Fatalf("expected version %d, got %d", workflow.Version+1, updated.Version)
+		}
+		if updated.LastChangeSource != fileSourceAutosave {
+			t.Fatalf("expected last change source %q, got %q", fileSourceAutosave, updated.LastChangeSource)
+		}
+		if updated.LastChangeDescription != "Autosave" {
+			t.Fatalf("expected change description 'Autosave', got %q", updated.LastChangeDescription)
+		}
+		if mock.versionCalls[0].CreatedBy != fileSourceAutosave {
+			t.Fatalf("expected version created by %q, got %q", fileSourceAutosave, mock.versionCalls[0].CreatedBy)
+		}
+		if mock.versionCalls[0].ChangeDescription != "Autosave" {
+			t.Fatalf("expected version change description 'Autosave', got %q", mock.versionCalls[0].ChangeDescription)
+		}
+	})
 }
 
 func TestUpdateWorkflowMetadataOnly(t *testing.T) {
@@ -693,134 +695,138 @@ func TestEnsureWorkflowChangeMetadataBackfillsDefaults(t *testing.T) {
 }
 
 func TestListWorkflowVersionsSummaries(t *testing.T) {
-	projectID := uuid.New()
-	project := &database.Project{ID: projectID, Name: "Version Project", FolderPath: t.TempDir()}
-	workflow := newTestWorkflow(projectID, 3)
-	workflow.ProjectID = &projectID
+	t.Run("[REQ:BAS-VERSION-AUTOSAVE] lists workflow version summaries", func(t *testing.T) {
+		projectID := uuid.New()
+		project := &database.Project{ID: projectID, Name: "Version Project", FolderPath: t.TempDir()}
+		workflow := newTestWorkflow(projectID, 3)
+		workflow.ProjectID = &projectID
 
-	baseTime := time.Now().Add(-2 * time.Hour)
+		baseTime := time.Now().Add(-2 * time.Hour)
 
-	version1 := &database.WorkflowVersion{
-		WorkflowID:        workflow.ID,
-		Version:           1,
-		FlowDefinition:    database.JSONMap{"nodes": []any{map[string]any{"id": "v1-node"}}, "edges": []any{}},
-		ChangeDescription: "Initial import",
-		CreatedBy:         "manual",
-		CreatedAt:         baseTime,
-	}
-	version2 := &database.WorkflowVersion{
-		WorkflowID:        workflow.ID,
-		Version:           2,
-		FlowDefinition:    database.JSONMap{"nodes": []any{map[string]any{"id": "v2-node-1"}, map[string]any{"id": "v2-node-2"}}, "edges": []any{}},
-		ChangeDescription: "Added validation",
-		CreatedBy:         "autosave",
-		CreatedAt:         baseTime.Add(30 * time.Minute),
-	}
-	version3 := &database.WorkflowVersion{
-		WorkflowID:        workflow.ID,
-		Version:           3,
-		FlowDefinition:    database.JSONMap{"nodes": []any{map[string]any{"id": "v3-node"}}, "edges": []any{map[string]any{"id": "edge-1"}}},
-		ChangeDescription: "Refined selectors",
-		CreatedBy:         "manual",
-		CreatedAt:         baseTime.Add(90 * time.Minute),
-	}
+		version1 := &database.WorkflowVersion{
+			WorkflowID:        workflow.ID,
+			Version:           1,
+			FlowDefinition:    database.JSONMap{"nodes": []any{map[string]any{"id": "v1-node"}}, "edges": []any{}},
+			ChangeDescription: "Initial import",
+			CreatedBy:         "manual",
+			CreatedAt:         baseTime,
+		}
+		version2 := &database.WorkflowVersion{
+			WorkflowID:        workflow.ID,
+			Version:           2,
+			FlowDefinition:    database.JSONMap{"nodes": []any{map[string]any{"id": "v2-node-1"}, map[string]any{"id": "v2-node-2"}}, "edges": []any{}},
+			ChangeDescription: "Added validation",
+			CreatedBy:         "autosave",
+			CreatedAt:         baseTime.Add(30 * time.Minute),
+		}
+		version3 := &database.WorkflowVersion{
+			WorkflowID:        workflow.ID,
+			Version:           3,
+			FlowDefinition:    database.JSONMap{"nodes": []any{map[string]any{"id": "v3-node"}}, "edges": []any{map[string]any{"id": "edge-1"}}},
+			ChangeDescription: "Refined selectors",
+			CreatedBy:         "manual",
+			CreatedAt:         baseTime.Add(90 * time.Minute),
+		}
 
-	mock := &workflowUpdateRepoMock{
-		project:  project,
-		workflow: workflow,
-		versions: []*database.WorkflowVersion{version1, version2, version3},
-	}
+		mock := &workflowUpdateRepoMock{
+			project:  project,
+			workflow: workflow,
+			versions: []*database.WorkflowVersion{version1, version2, version3},
+		}
 
-	svc := newTestService(mock)
+		svc := newTestService(mock)
 
-	versions, err := svc.ListWorkflowVersions(context.Background(), workflow.ID, 10, 0)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+		versions, err := svc.ListWorkflowVersions(context.Background(), workflow.ID, 10, 0)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
 
-	if len(versions) != 3 {
-		t.Fatalf("expected 3 versions, got %d", len(versions))
-	}
+		if len(versions) != 3 {
+			t.Fatalf("expected 3 versions, got %d", len(versions))
+		}
 
-	if versions[0].Version != 3 {
-		t.Fatalf("expected latest version first, got %d", versions[0].Version)
-	}
-	if versions[0].NodeCount != 1 || versions[0].EdgeCount != 1 {
-		t.Fatalf("expected version 3 to have 1 node and 1 edge, got nodes=%d edges=%d", versions[0].NodeCount, versions[0].EdgeCount)
-	}
-	if strings.TrimSpace(versions[0].DefinitionHash) == "" {
-		t.Fatalf("expected version hash to be populated")
-	}
+		if versions[0].Version != 3 {
+			t.Fatalf("expected latest version first, got %d", versions[0].Version)
+		}
+		if versions[0].NodeCount != 1 || versions[0].EdgeCount != 1 {
+			t.Fatalf("expected version 3 to have 1 node and 1 edge, got nodes=%d edges=%d", versions[0].NodeCount, versions[0].EdgeCount)
+		}
+		if strings.TrimSpace(versions[0].DefinitionHash) == "" {
+			t.Fatalf("expected version hash to be populated")
+		}
+	})
 }
 
 func TestRestoreWorkflowVersionAppliesHistoricDefinition(t *testing.T) {
-	projectID := uuid.New()
-	project := &database.Project{ID: projectID, Name: "Restore Project", FolderPath: t.TempDir()}
-	workflow := newTestWorkflow(projectID, 3)
-	workflow.ProjectID = &projectID
-	workflow.FlowDefinition = database.JSONMap{"nodes": []any{map[string]any{"id": "current"}}, "edges": []any{}}
+	t.Run("[REQ:BAS-VERSION-AUTOSAVE] [REQ:BAS-VERSION-RESTORE] restores historic version", func(t *testing.T) {
+		projectID := uuid.New()
+		project := &database.Project{ID: projectID, Name: "Restore Project", FolderPath: t.TempDir()}
+		workflow := newTestWorkflow(projectID, 3)
+		workflow.ProjectID = &projectID
+		workflow.FlowDefinition = database.JSONMap{"nodes": []any{map[string]any{"id": "current"}}, "edges": []any{}}
 
-	priorVersion := &database.WorkflowVersion{
-		WorkflowID:        workflow.ID,
-		Version:           2,
-		FlowDefinition:    database.JSONMap{"nodes": []any{map[string]any{"id": "restored-node-1"}, map[string]any{"id": "restored-node-2"}}, "edges": []any{}},
-		ChangeDescription: "Added extra navigation",
-		CreatedBy:         "manual",
-		CreatedAt:         time.Now().Add(-time.Minute),
-	}
+		priorVersion := &database.WorkflowVersion{
+			WorkflowID:        workflow.ID,
+			Version:           2,
+			FlowDefinition:    database.JSONMap{"nodes": []any{map[string]any{"id": "restored-node-1"}, map[string]any{"id": "restored-node-2"}}, "edges": []any{}},
+			ChangeDescription: "Added extra navigation",
+			CreatedBy:         "manual",
+			CreatedAt:         time.Now().Add(-time.Minute),
+		}
 
-	mock := &workflowUpdateRepoMock{
-		project:  project,
-		workflow: workflow,
-		versions: []*database.WorkflowVersion{priorVersion},
-	}
+		mock := &workflowUpdateRepoMock{
+			project:  project,
+			workflow: workflow,
+			versions: []*database.WorkflowVersion{priorVersion},
+		}
 
-	seedWorkflowFile(t, project, workflow)
+		seedWorkflowFile(t, project, workflow)
 
-	svc := newTestService(mock)
-	if err := svc.syncProjectWorkflows(context.Background(), projectID); err != nil {
-		t.Fatalf("expected sync to succeed, got %v", err)
-	}
-	if mock.workflow == nil {
-		t.Fatalf("expected workflow to remain after sync")
-	}
-	originalVersion := mock.workflow.Version
+		svc := newTestService(mock)
+		if err := svc.syncProjectWorkflows(context.Background(), projectID); err != nil {
+			t.Fatalf("expected sync to succeed, got %v", err)
+		}
+		if mock.workflow == nil {
+			t.Fatalf("expected workflow to remain after sync")
+		}
+		originalVersion := mock.workflow.Version
 
-	restored, err := svc.RestoreWorkflowVersion(context.Background(), workflow.ID, 2, "")
-	if err != nil {
-		t.Fatalf("expected no error restoring version, got %v", err)
-	}
+		restored, err := svc.RestoreWorkflowVersion(context.Background(), workflow.ID, 2, "")
+		if err != nil {
+			t.Fatalf("expected no error restoring version, got %v", err)
+		}
 
-	if restored.Version != originalVersion+1 {
-		t.Fatalf("expected restored version %d, got %d", originalVersion+1, restored.Version)
-	}
+		if restored.Version != originalVersion+1 {
+			t.Fatalf("expected restored version %d, got %d", originalVersion+1, restored.Version)
+		}
 
-	nodes, ok := restored.FlowDefinition["nodes"].([]any)
-	if !ok || len(nodes) != 2 {
-		t.Fatalf("expected restored workflow to contain 2 nodes, got %v", restored.FlowDefinition["nodes"])
-	}
+		nodes, ok := restored.FlowDefinition["nodes"].([]any)
+		if !ok || len(nodes) != 2 {
+			t.Fatalf("expected restored workflow to contain 2 nodes, got %v", restored.FlowDefinition["nodes"])
+		}
 
-	if restored.LastChangeDescription != "Restored from version 2" {
-		t.Fatalf("unexpected change description %q", restored.LastChangeDescription)
-	}
+		if restored.LastChangeDescription != "Restored from version 2" {
+			t.Fatalf("unexpected change description %q", restored.LastChangeDescription)
+		}
 
-	if len(mock.versionCalls) == 0 {
-		t.Fatalf("expected a new workflow version to be recorded")
-	}
-	lastRecorded := mock.versionCalls[len(mock.versionCalls)-1]
-	if lastRecorded.Version != restored.Version {
-		t.Fatalf("expected recorded version %d, got %d", restored.Version, lastRecorded.Version)
-	}
-	if lastRecorded.ChangeDescription != "Restored from version 2" {
-		t.Fatalf("expected recorded change description to note restore, got %q", lastRecorded.ChangeDescription)
-	}
+		if len(mock.versionCalls) == 0 {
+			t.Fatalf("expected a new workflow version to be recorded")
+		}
+		lastRecorded := mock.versionCalls[len(mock.versionCalls)-1]
+		if lastRecorded.Version != restored.Version {
+			t.Fatalf("expected recorded version %d, got %d", restored.Version, lastRecorded.Version)
+		}
+		if lastRecorded.ChangeDescription != "Restored from version 2" {
+			t.Fatalf("expected recorded change description to note restore, got %q", lastRecorded.ChangeDescription)
+		}
 
-	if mock.workflow == nil || mock.workflow.Version != restored.Version {
-		t.Fatalf("expected mock workflow to update to version %d", restored.Version)
-	}
+		if mock.workflow == nil || mock.workflow.Version != restored.Version {
+			t.Fatalf("expected mock workflow to update to version %d", restored.Version)
+		}
 
-	restoredNodes, ok := mock.workflow.FlowDefinition["nodes"].([]any)
-	if !ok || len(restoredNodes) != 2 {
-		t.Fatalf("expected mock workflow definition to be replaced with restored nodes")
-	}
+		restoredNodes, ok := mock.workflow.FlowDefinition["nodes"].([]any)
+		if !ok || len(restoredNodes) != 2 {
+			t.Fatalf("expected mock workflow definition to be replaced with restored nodes")
+		}
+	})
 }

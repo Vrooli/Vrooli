@@ -212,4 +212,5 @@ func main() {
 		log.WithError(err).Fatal("❌ Server failed to start")
 	}
 }
+
 // Test change for auto-rebuild validation

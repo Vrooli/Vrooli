@@ -34,12 +34,19 @@ run_node_check() {
     return 0
   fi
 
-  if command -v npm >/dev/null 2>&1; then
-    if testing::phase::check "npm install --dry-run" bash -c 'cd ui && npm install --dry-run >/dev/null'; then
+  # Check for pnpm first (workspace protocol support)
+  if command -v pnpm >/dev/null 2>&1; then
+    # Just verify node_modules exists and package.json is readable
+    if testing::phase::check "pnpm workspace dependencies" bash -c 'cd ui && [ -d node_modules ] && pnpm list >/dev/null 2>&1'; then
+      return 0
+    fi
+  elif command -v npm >/dev/null 2>&1; then
+    # Fallback to npm for non-workspace projects
+    if testing::phase::check "npm install --dry-run" bash -c 'cd ui && npm install --dry-run >/dev/null 2>&1'; then
       return 0
     fi
   else
-    testing::phase::add_warning "npm CLI missing; cannot verify Node dependencies"
+    testing::phase::add_warning "Neither pnpm nor npm CLI found; cannot verify Node dependencies"
     testing::phase::add_test skipped
     return 0
   fi

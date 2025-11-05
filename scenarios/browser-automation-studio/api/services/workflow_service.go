@@ -151,10 +151,10 @@ func workflowDefinitionStats(def database.JSONMap) (nodeCount, edgeCount int) {
 
 var (
 	previewDataKeys = map[string]struct{}{
-		"previewscreenshot":          {},
+		"previewscreenshot":           {},
 		"previewscreenshotcapturedat": {},
 		"previewscreenshotsourceurl":  {},
-		"previewimage":               {},
+		"previewimage":                {},
 	}
 	previewNestedKeys = map[string]struct{}{
 		"screenshot": {},
@@ -856,7 +856,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, workflowID uuid.UU
 		return nil, err
 	}
 
-		nodes := toInterfaceSlice(current.FlowDefinition["nodes"])
+	nodes := toInterfaceSlice(current.FlowDefinition["nodes"])
 	edges := toInterfaceSlice(current.FlowDefinition["edges"])
 
 	cacheEntry, hasEntry := s.lookupWorkflowPath(current.ID)

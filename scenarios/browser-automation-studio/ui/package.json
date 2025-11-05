@@ -31,6 +31,7 @@
     "@tanstack/react-query": "^5.17.0",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/vitest-requirement-reporter": "workspace:*",
     "clsx": "^2.1.0",
     "date-fns": "^3.2.0",
     "express": "^5.1.0",

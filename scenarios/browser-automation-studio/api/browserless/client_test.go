@@ -500,88 +500,90 @@ func TestBuildInstructionsAssertStep(t *testing.T) {
 }
 
 func TestExecuteWorkflowPersistsTelemetry(t *testing.T) {
-	client, repo := newTestClient()
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] persists console logs and telemetry", func(t *testing.T) {
+		client, repo := newTestClient()
 
-	responses := []string{
-		`{"success":true,"steps":[{"index":0,"nodeId":"node-1","type":"navigate","success":true,"durationMs":1200,"finalUrl":"https://example.com/home","consoleLogs":[{"type":"log","text":"navigated","timestamp":25}]}]}`,
-		`{"success":true,"steps":[{"index":1,"nodeId":"node-2","type":"extract","success":true,"durationMs":800,"extractedData":"Headline text","elementBoundingBox":{"x":10,"y":20,"width":100,"height":30}}]}`,
-	}
-
-	var call int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if call >= len(responses) {
-			t.Fatalf("unexpected additional call %d", call)
+		responses := []string{
+			`{"success":true,"steps":[{"index":0,"nodeId":"node-1","type":"navigate","success":true,"durationMs":1200,"finalUrl":"https://example.com/home","consoleLogs":[{"type":"log","text":"navigated","timestamp":25}]}]}`,
+			`{"success":true,"steps":[{"index":1,"nodeId":"node-2","type":"extract","success":true,"durationMs":800,"extractedData":"Headline text","elementBoundingBox":{"x":10,"y":20,"width":100,"height":30}}]}`,
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(responses[call]))
-		call++
-	}))
-	defer server.Close()
 
-	client.browserless = server.URL
-	client.httpClient = server.Client()
+		var call int
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if call >= len(responses) {
+				t.Fatalf("unexpected additional call %d", call)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(responses[call]))
+			call++
+		}))
+		defer server.Close()
 
-	exec := &database.Execution{
-		ID:         uuid.New(),
-		WorkflowID: uuid.New(),
-		StartedAt:  time.Now().Add(-time.Minute),
-	}
+		client.browserless = server.URL
+		client.httpClient = server.Client()
 
-	workflow := &database.Workflow{
-		ID: uuid.New(),
-		FlowDefinition: database.JSONMap{
-			"nodes": []any{
-				map[string]any{
-					"id":   "node-1",
-					"type": "navigate",
-					"data": map[string]any{
-						"url": "https://example.com",
+		exec := &database.Execution{
+			ID:         uuid.New(),
+			WorkflowID: uuid.New(),
+			StartedAt:  time.Now().Add(-time.Minute),
+		}
+
+		workflow := &database.Workflow{
+			ID: uuid.New(),
+			FlowDefinition: database.JSONMap{
+				"nodes": []any{
+					map[string]any{
+						"id":   "node-1",
+						"type": "navigate",
+						"data": map[string]any{
+							"url": "https://example.com",
+						},
+					},
+					map[string]any{
+						"id":   "node-2",
+						"type": "extract",
+						"data": map[string]any{
+							"selector":    "#headline",
+							"extractType": "text",
+						},
 					},
 				},
-				map[string]any{
-					"id":   "node-2",
-					"type": "extract",
-					"data": map[string]any{
-						"selector":    "#headline",
-						"extractType": "text",
-					},
+				"edges": []any{
+					map[string]any{"id": "edge-1", "source": "node-1", "target": "node-2"},
 				},
 			},
-			"edges": []any{
-				map[string]any{"id": "edge-1", "source": "node-1", "target": "node-2"},
-			},
-		},
-	}
-
-	if err := client.ExecuteWorkflow(context.Background(), exec, workflow, nil); err != nil {
-		t.Fatalf("ExecuteWorkflow returned error: %v", err)
-	}
-
-	var consoleLogFound bool
-	for _, entry := range repo.executionLogs {
-		if entry.Message == "navigated" {
-			consoleLogFound = true
-			break
 		}
-	}
-	if !consoleLogFound {
-		t.Fatalf("expected console log to be persisted")
-	}
 
-	if len(repo.extractedData) != 1 {
-		t.Fatalf("expected extracted data to be stored, got %d", len(repo.extractedData))
-	}
-	if value, ok := repo.extractedData[0].DataValue["value"].(string); !ok || value != "Headline text" {
-		t.Fatalf("unexpected extracted data payload: %+v", repo.extractedData[0].DataValue)
-	}
+		if err := client.ExecuteWorkflow(context.Background(), exec, workflow, nil); err != nil {
+			t.Fatalf("ExecuteWorkflow returned error: %v", err)
+		}
 
-	if exec.Result == nil || exec.Result["success"] != true {
-		t.Fatalf("execution result not persisted: %+v", exec.Result)
-	}
+		var consoleLogFound bool
+		for _, entry := range repo.executionLogs {
+			if entry.Message == "navigated" {
+				consoleLogFound = true
+				break
+			}
+		}
+		if !consoleLogFound {
+			t.Fatalf("expected console log to be persisted")
+		}
 
-	if call != len(responses) {
-		t.Fatalf("expected %d browserless invocations, got %d", len(responses), call)
-	}
+		if len(repo.extractedData) != 1 {
+			t.Fatalf("expected extracted data to be stored, got %d", len(repo.extractedData))
+		}
+		if value, ok := repo.extractedData[0].DataValue["value"].(string); !ok || value != "Headline text" {
+			t.Fatalf("unexpected extracted data payload: %+v", repo.extractedData[0].DataValue)
+		}
+
+		if exec.Result == nil || exec.Result["success"] != true {
+			t.Fatalf("execution result not persisted: %+v", exec.Result)
+		}
+
+		if call != len(responses) {
+			t.Fatalf("expected %d browserless invocations, got %d", len(responses), call)
+		}
+	})
 }
 
 func TestExecuteWorkflowRetriesOnFailure(t *testing.T) {

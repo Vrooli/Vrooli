@@ -43,10 +43,24 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/services/replay.go",
+          "ref": "api/services/exporter.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Exporter generates ReplayMovieSpec with execution metadata."
+        },
+        {
+          "type": "test",
+          "ref": "api/services/exporter_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit tests validate export bundle generation and metadata."
+        },
+        {
+          "type": "test",
+          "ref": "api/services/replay_renderer.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Replay export validation (pending implementation)."
+          "notes": "ReplayRenderer generates video/gif from replay specs via Browserless."
         }
       ]
     }

@@ -55,11 +55,11 @@
           "notes": "Integration phase runs workflow version history contract via Node automation."
         },
         {
-          "type": "automation",
+          "type": "test",
           "ref": "tests/workflow-version-history.integration.mjs",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Validates API restore endpoints and CLI parity through Node integration script."
+          "notes": "Validates API restore endpoints and CLI parity through Node integration script (not a BAS workflow)."
         },
         {
           "type": "manual",
