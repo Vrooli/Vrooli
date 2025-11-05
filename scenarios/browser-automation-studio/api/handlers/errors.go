@@ -116,6 +116,12 @@ var (
 		Message: "A project with this name or folder path already exists",
 	}
 
+	ErrWorkflowAlreadyExists = &APIError{
+		Status:  http.StatusConflict,
+		Code:    "WORKFLOW_ALREADY_EXISTS",
+		Message: "A workflow with this name already exists in the target project",
+	}
+
 	ErrConflict = &APIError{
 		Status:  http.StatusConflict,
 		Code:    "WORKFLOW_CONFLICT",

@@ -59,6 +59,128 @@ func TestNormalizeFlowDefinitionReturnsAIWorkflowError(t *testing.T) {
 	}
 }
 
+func TestNormalizeFlowDefinitionStripsPreviewScreenshots(t *testing.T) {
+	definition := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id": "node-1",
+				"position": map[string]any{"x": 0, "y": 0},
+				"data": map[string]any{
+					"url":                        "https://example.com",
+					"previewScreenshot":          "data:image/png;base64,AAAA",
+					"previewScreenshotCapturedAt": time.Now().UTC().Format(time.RFC3339),
+					"previewScreenshotSourceUrl":  "https://example.com",
+					"preview": map[string]any{
+						"screenshot": "data:image/png;base64,BBBB",
+						"metadata":   "keep",
+					},
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	normalized, err := normalizeFlowDefinition(definition)
+	if err != nil {
+		t.Fatalf("expected normalization to succeed, got %v", err)
+	}
+
+	nodes := toInterfaceSlice(normalized["nodes"])
+	if len(nodes) != 1 {
+		t.Fatalf("expected one node, got %d", len(nodes))
+	}
+
+	node, ok := nodes[0].(map[string]any)
+	if !ok {
+		if jsonNode, okJSON := nodes[0].(database.JSONMap); okJSON {
+			node = map[string]any(jsonNode)
+		} else {
+			t.Fatalf("expected node to be a map, got %T", nodes[0])
+		}
+	}
+	data, ok := node["data"].(map[string]any)
+	if !ok {
+		if jsonData, okJSON := node["data"].(database.JSONMap); okJSON {
+			data = map[string]any(jsonData)
+		} else {
+			t.Fatalf("expected node data to be a map, got %T", node["data"])
+		}
+	}
+	if _, exists := data["previewScreenshot"]; exists {
+		t.Fatalf("expected previewScreenshot to be stripped")
+	}
+	if _, exists := data["previewScreenshotCapturedAt"]; exists {
+		t.Fatalf("expected previewScreenshotCapturedAt to be stripped")
+	}
+	if _, exists := data["previewScreenshotSourceUrl"]; exists {
+		t.Fatalf("expected previewScreenshotSourceUrl to be stripped")
+	}
+	previewValue, hasPreview := data["preview"].(map[string]any)
+	if !hasPreview {
+		t.Fatalf("expected preview map to remain with metadata")
+	}
+	if _, exists := previewValue["screenshot"]; exists {
+		t.Fatalf("expected nested preview screenshot to be stripped")
+	}
+	if previewValue["metadata"] != "keep" {
+		t.Fatalf("expected preview metadata to be preserved, got %v", previewValue["metadata"])
+	}
+}
+
+func TestSanitizeWorkflowDefinitionHandlesJSONMapData(t *testing.T) {
+	definition := database.JSONMap{
+		"nodes": []any{
+			database.JSONMap{
+				"id": "node-json",
+				"data": database.JSONMap{
+					"selector":       "#login",
+					"previewImage":   "data:image/png;base64,CCCC",
+					"preview":        database.JSONMap{"image": "data:image/png;base64,DDDD", "note": "keep"},
+					"other_metadata": "persist",
+				},
+			},
+		},
+	}
+
+	sanitized := sanitizeWorkflowDefinition(definition)
+	nodes := toInterfaceSlice(sanitized["nodes"])
+	if len(nodes) != 1 {
+		t.Fatalf("expected one node after sanitization, got %d", len(nodes))
+	}
+	node, ok := nodes[0].(map[string]any)
+	if !ok {
+		if jsonNode, okJSON := nodes[0].(database.JSONMap); okJSON {
+			node = map[string]any(jsonNode)
+		} else {
+			t.Fatalf("expected node to be a map, got %T", nodes[0])
+		}
+	}
+	data, ok := node["data"].(map[string]any)
+	if !ok {
+		if jsonData, okJSON := node["data"].(database.JSONMap); okJSON {
+			data = map[string]any(jsonData)
+		} else {
+			t.Fatalf("expected data to be a map, got %T", node["data"])
+		}
+	}
+	if _, exists := data["previewImage"]; exists {
+		t.Fatalf("expected previewImage to be stripped")
+	}
+	if data["other_metadata"] != "persist" {
+		t.Fatalf("expected other metadata to remain, got %v", data["other_metadata"])
+	}
+	previewValue, hasPreview := data["preview"].(map[string]any)
+	if !hasPreview {
+		t.Fatalf("expected preview map to remain after sanitization")
+	}
+	if _, exists := previewValue["image"]; exists {
+		t.Fatalf("expected nested preview image to be stripped")
+	}
+	if previewValue["note"] != "keep" {
+		t.Fatalf("expected non-image preview data to persist, got %v", previewValue["note"])
+	}
+}
+
 type workflowUpdateRepoMock struct {
 	timelineRepositoryMock
 	project      *database.Project
@@ -78,6 +200,20 @@ func (m *workflowUpdateRepoMock) GetProject(ctx context.Context, id uuid.UUID) (
 
 func (m *workflowUpdateRepoMock) GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error) {
 	if m.workflow != nil && m.workflow.ID == id {
+		return cloneWorkflow(m.workflow), nil
+	}
+	return nil, database.ErrNotFound
+}
+
+func (m *workflowUpdateRepoMock) GetWorkflowByName(ctx context.Context, name, folderPath string) (*database.Workflow, error) {
+	if m.workflow != nil && m.workflow.Name == name && m.workflow.FolderPath == folderPath {
+		return cloneWorkflow(m.workflow), nil
+	}
+	return nil, database.ErrNotFound
+}
+
+func (m *workflowUpdateRepoMock) GetWorkflowByProjectAndName(ctx context.Context, projectID uuid.UUID, name string) (*database.Workflow, error) {
+	if m.workflow != nil && m.workflow.ProjectID != nil && *m.workflow.ProjectID == projectID && m.workflow.Name == name {
 		return cloneWorkflow(m.workflow), nil
 	}
 	return nil, database.ErrNotFound

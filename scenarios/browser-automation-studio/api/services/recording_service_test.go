@@ -76,6 +76,15 @@ func (r *fakeRecordingRepo) GetWorkflowByName(ctx context.Context, name, folder 
 	return nil, database.ErrNotFound
 }
 
+func (r *fakeRecordingRepo) GetWorkflowByProjectAndName(ctx context.Context, projectID uuid.UUID, name string) (*database.Workflow, error) {
+	for _, wf := range r.workflows {
+		if wf.ProjectID != nil && *wf.ProjectID == projectID && wf.Name == name {
+			return wf, nil
+		}
+	}
+	return nil, database.ErrNotFound
+}
+
 func (r *fakeRecordingRepo) CreateWorkflow(ctx context.Context, workflow *database.Workflow) error {
 	copy := *workflow
 	r.workflows[workflow.ID] = &copy

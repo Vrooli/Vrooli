@@ -26,6 +26,7 @@ type Repository interface {
 	CreateWorkflow(ctx context.Context, workflow *Workflow) error
 	GetWorkflow(ctx context.Context, id uuid.UUID) (*Workflow, error)
 	GetWorkflowByName(ctx context.Context, name, folderPath string) (*Workflow, error)
+	GetWorkflowByProjectAndName(ctx context.Context, projectID uuid.UUID, name string) (*Workflow, error)
 	UpdateWorkflow(ctx context.Context, workflow *Workflow) error
 	DeleteWorkflow(ctx context.Context, id uuid.UUID) error
 	DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error
@@ -299,6 +300,22 @@ func (r *repository) GetWorkflowByName(ctx context.Context, name, folderPath str
 			"folderPath": folderPath,
 		}).Error("Failed to get workflow by name")
 		return nil, fmt.Errorf("failed to get workflow by name: %w", err)
+	}
+
+	return &workflow, nil
+}
+
+func (r *repository) GetWorkflowByProjectAndName(ctx context.Context, projectID uuid.UUID, name string) (*Workflow, error) {
+	query := `SELECT * FROM workflows WHERE project_id = $1 AND name = $2 LIMIT 1`
+
+	var workflow Workflow
+	err := r.db.GetContext(ctx, &workflow, query, projectID, name)
+	if err != nil {
+		r.log.WithError(err).WithFields(logrus.Fields{
+			"project_id": projectID,
+			"name":       name,
+		}).Error("Failed to get workflow by project and name")
+		return nil, fmt.Errorf("failed to get workflow by project and name: %w", err)
 	}
 
 	return &workflow, nil

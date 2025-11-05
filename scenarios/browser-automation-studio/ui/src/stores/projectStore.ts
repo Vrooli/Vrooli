@@ -30,25 +30,28 @@ interface BulkExecutionResult {
 interface ProjectState {
   projects: Project[];
   currentProject: Project | null;
+  selectedProject: Project | null; // Alias for currentProject
   isLoading: boolean;
   error: string | null;
   bulkExecutionInProgress: Record<string, boolean>;
   isConnected: boolean;
-  
+
   // Actions
   fetchProjects: () => Promise<void>;
   createProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'stats'>) => Promise<Project>;
   updateProject: (id: string, updates: Partial<Pick<Project, 'name' | 'description' | 'folder_path'>>) => Promise<Project>;
   deleteProject: (id: string) => Promise<void>;
   setCurrentProject: (project: Project | null) => void;
+  selectProject: (idOrNull: string | null) => void; // Alias/helper for setCurrentProject
   getProject: (id: string) => Promise<Project | null>;
   executeAllWorkflows: (projectId: string) => Promise<BulkExecutionResult>;
   clearError: () => void;
 }
 
-export const useProjectStore = create<ProjectState>((set) => ({
+export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: [],
   currentProject: null,
+  selectedProject: null, // Will be kept in sync with currentProject
   isLoading: false,
   error: null,
   bulkExecutionInProgress: {},
@@ -133,6 +136,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
       set(state => ({
         projects: state.projects.map(p => p.id === id ? updatedProject : p),
         currentProject: state.currentProject?.id === id ? updatedProject : state.currentProject,
+        selectedProject: state.selectedProject?.id === id ? updatedProject : state.selectedProject,
         isLoading: false
       }));
 
@@ -163,6 +167,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
       set(state => ({
         projects: state.projects.filter(p => p.id !== id),
         currentProject: state.currentProject?.id === id ? null : state.currentProject,
+        selectedProject: state.selectedProject?.id === id ? null : state.selectedProject,
         isLoading: false
       }));
     } catch (error) {
@@ -191,7 +196,19 @@ export const useProjectStore = create<ProjectState>((set) => ({
   },
 
   setCurrentProject: (project) => {
-    set({ currentProject: project });
+    set({ currentProject: project, selectedProject: project });
+  },
+
+  selectProject: (idOrNull) => {
+    if (idOrNull === null) {
+      set({ currentProject: null, selectedProject: null });
+      return;
+    }
+
+    const project = get().projects.find(p => p.id === idOrNull);
+    if (project) {
+      set({ currentProject: project, selectedProject: project });
+    }
   },
 
   executeAllWorkflows: async (projectId: string) => {

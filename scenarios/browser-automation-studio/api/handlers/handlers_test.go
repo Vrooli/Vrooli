@@ -53,6 +53,9 @@ func (m *mockRepository) GetWorkflow(ctx context.Context, id uuid.UUID) (*databa
 func (m *mockRepository) GetWorkflowByName(ctx context.Context, name, folderPath string) (*database.Workflow, error) {
 	return nil, nil
 }
+func (m *mockRepository) GetWorkflowByProjectAndName(ctx context.Context, projectID uuid.UUID, name string) (*database.Workflow, error) {
+	return nil, nil
+}
 func (m *mockRepository) UpdateWorkflow(ctx context.Context, workflow *database.Workflow) error {
 	return nil
 }

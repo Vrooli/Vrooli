@@ -28,6 +28,7 @@ const (
 var ErrWorkflowVersionConflict = errors.New("workflow version conflict")
 var ErrWorkflowVersionNotFound = errors.New("workflow version not found")
 var ErrWorkflowRestoreProjectMismatch = errors.New("workflow does not belong to a project")
+var ErrWorkflowNameConflict = errors.New("workflow name already exists in this project")
 
 // WorkflowVersionSummary captures version metadata alongside high-level definition statistics so
 // the UI can render history timelines without rehydrating full workflow payloads on every row.
@@ -148,29 +149,147 @@ func workflowDefinitionStats(def database.JSONMap) (nodeCount, edgeCount int) {
 	return len(nodes), len(edges)
 }
 
-var previewDataKeys = map[string]struct{}{
-	"previewScreenshot":           {},
-	"previewScreenshotCapturedAt": {},
-	"previewScreenshotSourceUrl":  {},
+var (
+	previewDataKeys = map[string]struct{}{
+		"previewscreenshot":          {},
+		"previewscreenshotcapturedat": {},
+		"previewscreenshotsourceurl":  {},
+		"previewimage":               {},
+	}
+	previewNestedKeys = map[string]struct{}{
+		"screenshot": {},
+		"image":      {},
+		"dataurl":    {},
+		"data_url":   {},
+		"thumbnail":  {},
+	}
+)
+
+func stripPreviewData(value any) (any, bool) {
+	switch typed := value.(type) {
+	case map[string]any:
+		cleaned, modified := stripPreviewDataMap(typed)
+		if !modified {
+			return typed, false
+		}
+		return cleaned, true
+	case database.JSONMap:
+		cleaned, modified := stripPreviewDataMap(map[string]any(typed))
+		if !modified {
+			return typed, false
+		}
+		return database.JSONMap(cleaned), true
+	default:
+		return value, false
+	}
 }
 
-func stripPreviewData(data map[string]any) map[string]any {
+func stripPreviewDataMap(data map[string]any) (map[string]any, bool) {
 	if data == nil {
-		return nil
+		return nil, false
 	}
 	modified := false
 	cleaned := make(map[string]any, len(data))
 	for key, value := range data {
-		if _, skip := previewDataKeys[key]; skip {
+		lowerKey := strings.ToLower(key)
+		if _, skip := previewDataKeys[lowerKey]; skip {
 			modified = true
 			continue
+		}
+		if lowerKey == "preview" {
+			if previewMap, ok := toStringAnyMap(value); ok {
+				sanitizedPreview, previewModified := stripPreviewPreviewMap(previewMap)
+				if previewModified {
+					modified = true
+				}
+				if len(sanitizedPreview) == 0 {
+					continue
+				}
+				cleaned[key] = sanitizedPreview
+				continue
+			}
 		}
 		cleaned[key] = value
 	}
 	if !modified {
-		return data
+		return data, false
 	}
-	return cleaned
+	return cleaned, true
+}
+
+func stripPreviewPreviewMap(data map[string]any) (map[string]any, bool) {
+	if data == nil {
+		return nil, false
+	}
+	modified := false
+	cleaned := make(map[string]any, len(data))
+	for key, value := range data {
+		lowerKey := strings.ToLower(key)
+		if _, skip := previewNestedKeys[lowerKey]; skip {
+			if str, ok := value.(string); ok {
+				trimmed := strings.TrimSpace(strings.ToLower(str))
+				if strings.HasPrefix(trimmed, "data:image/") {
+					modified = true
+					continue
+				}
+			}
+		}
+		cleaned[key] = value
+	}
+	if !modified {
+		return data, false
+	}
+	return cleaned, true
+}
+
+func toStringAnyMap(value any) (map[string]any, bool) {
+	switch typed := value.(type) {
+	case map[string]any:
+		return typed, true
+	case database.JSONMap:
+		return map[string]any(typed), true
+	default:
+		return nil, false
+	}
+}
+
+func sanitizeWorkflowDefinition(def database.JSONMap) database.JSONMap {
+	if def == nil {
+		return nil
+	}
+	nodes := toInterfaceSlice(def["nodes"])
+	modified := false
+	for i, rawNode := range nodes {
+		if sanitized, changed := sanitizeWorkflowNode(rawNode); changed {
+			nodes[i] = sanitized
+			modified = true
+		}
+	}
+	if modified {
+		def["nodes"] = nodes
+	}
+	return def
+}
+
+func sanitizeWorkflowNode(raw any) (any, bool) {
+	switch typed := raw.(type) {
+	case map[string]any:
+		if data, ok := typed["data"]; ok {
+			if cleaned, changed := stripPreviewData(data); changed {
+				typed["data"] = cleaned
+				return typed, true
+			}
+		}
+	case database.JSONMap:
+		nodeMap := map[string]any(typed)
+		if data, ok := nodeMap["data"]; ok {
+			if cleaned, changed := stripPreviewData(data); changed {
+				nodeMap["data"] = cleaned
+				return database.JSONMap(nodeMap), true
+			}
+		}
+	}
+	return raw, false
 }
 
 func newWorkflowVersionSummary(version *database.WorkflowVersion) *WorkflowVersionSummary {
@@ -464,6 +583,12 @@ func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, project
 		return nil, fmt.Errorf("failed to resolve project for workflow creation: %w", err)
 	}
 
+	if existing, err := s.repo.GetWorkflowByProjectAndName(ctx, *projectID, name); err == nil && existing != nil {
+		return nil, ErrWorkflowNameConflict
+	} else if err != nil && !errors.Is(err, sql.ErrNoRows) && !errors.Is(err, database.ErrNotFound) {
+		return nil, fmt.Errorf("failed to check existing workflows: %w", err)
+	}
+
 	now := time.Now().UTC()
 	workflow := &database.Workflow{
 		ID:                    uuid.New(),
@@ -492,6 +617,7 @@ func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, project
 			"edges": []any{},
 		}
 	}
+	workflow.FlowDefinition = sanitizeWorkflowDefinition(workflow.FlowDefinition)
 
 	if err := s.repo.CreateWorkflow(ctx, workflow); err != nil {
 		return nil, err
@@ -669,7 +795,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, workflowID uuid.UU
 			return nil, fmt.Errorf("invalid workflow definition: %w", normErr)
 		}
 
-		updatedDefinition = database.JSONMap(normalized)
+		updatedDefinition = sanitizeWorkflowDefinition(database.JSONMap(normalized))
 		incomingHash := hashWorkflowDefinition(updatedDefinition)
 		if incomingHash != existingFlowHash {
 			flowChanged = true
@@ -730,7 +856,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, workflowID uuid.UU
 		return nil, err
 	}
 
-	nodes := toInterfaceSlice(current.FlowDefinition["nodes"])
+		nodes := toInterfaceSlice(current.FlowDefinition["nodes"])
 	edges := toInterfaceSlice(current.FlowDefinition["edges"])
 
 	cacheEntry, hasEntry := s.lookupWorkflowPath(current.ID)
@@ -1141,8 +1267,10 @@ func normalizeFlowDefinition(payload map[string]any) (database.JSONMap, error) {
 				"y": float64(100 + i*120),
 			}
 		}
-		if dataMap, ok := node["data"].(map[string]any); ok {
-			node["data"] = stripPreviewData(dataMap)
+		if dataValue, hasData := node["data"]; hasData {
+			if cleaned, changed := stripPreviewData(dataValue); changed {
+				node["data"] = cleaned
+			}
 		}
 		nodes[i] = node
 	}
@@ -1168,7 +1296,7 @@ func normalizeFlowDefinition(payload map[string]any) (database.JSONMap, error) {
 	}
 	candidate["edges"] = edges
 
-	return database.JSONMap(candidate), nil
+	return sanitizeWorkflowDefinition(database.JSONMap(candidate)), nil
 }
 
 func detectAIWorkflowError(payload map[string]any) error {
@@ -1321,7 +1449,7 @@ User requested modifications:
 		return nil, &AIWorkflowError{Reason: "AI workflow generation did not return any steps. Specify real URLs, selectors, and actions, then try again."}
 	}
 
-	workflow.FlowDefinition = definition
+	workflow.FlowDefinition = sanitizeWorkflowDefinition(definition)
 	workflow.Version++
 	workflow.UpdatedAt = time.Now()
 

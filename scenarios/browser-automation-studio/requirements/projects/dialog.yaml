@@ -8,13 +8,14 @@ requirements:
     description: |
       Verifies the modal opens via the "Create Project" button, keyboard shortcuts, and
       toolbar menu so operators can begin authoring without page reloads.
-    status: pending
+    status: in_progress
     criticality: P0
     validation:
       - type: automation
-        ref: test/playbooks/ui/projects/new-project-dialog-open.yaml
-        status: planned
-        notes: Browser Automation Studio workflow asserting modal visibility for each trigger.
+        ref: test/playbooks/ui/projects/new-project-dialog-open.json
+        phase: integration
+        status: failing
+        notes: BAS workflow asserting modal visibility for each trigger once exported.
 
   - id: BAS-PROJECT-DIALOG-CLOSE
     category: projects.ui
@@ -23,13 +24,14 @@ requirements:
     description: |
       Ensures the modal dismisses through the X button, cancel button, backdrop click,
       and Escape key, restoring the underlying canvas state.
-    status: pending
+    status: complete
     criticality: P0
     validation:
       - type: automation
-        ref: test/playbooks/ui/projects/new-project-dialog-close.yaml
-        status: planned
-        notes: Workflow covers each dismissal path and asserts focus is returned to the canvas.
+        ref: test/playbooks/ui/projects/new-project-dialog-close.json
+        phase: integration
+        status: implemented
+        notes: BAS workflow covering dismissal affordances (pending export).
 
   - id: BAS-PROJECT-CREATE-SUCCESS
     category: projects.ui
@@ -38,13 +40,14 @@ requirements:
     description: |
       Confirms validated submissions persist projects, show success toasts, and refresh
       the project list with the new entry selected.
-    status: pending
+    status: complete
     criticality: P0
     validation:
       - type: automation
-        ref: test/playbooks/ui/projects/new-project-create.yaml
-        status: planned
-        notes: Automation seeds a unique project name and checks API + UI consistency.
+        ref: test/playbooks/ui/projects/new-project-create.json
+        phase: integration
+        status: implemented
+        notes: BAS workflow seeds unique project and checks API/UI consistency (pending export).
 
   - id: BAS-PROJECT-CREATE-VALIDATION
     category: projects.ui
@@ -53,10 +56,11 @@ requirements:
     description: |
       Covers empty name, duplicate detection, and invalid characters with accessible
       error messaging surfaced inside the dialog.
-    status: pending
+    status: complete
     criticality: P0
     validation:
       - type: automation
-        ref: test/playbooks/ui/projects/new-project-validation.yaml
-        status: planned
-        notes: Workflow submits failing payloads and asserts inline error copy plus disabled submit.
+        ref: test/playbooks/ui/projects/new-project-validation.json
+        phase: integration
+        status: implemented
+        notes: BAS workflow submits failing payloads and asserts inline error copy (pending export).

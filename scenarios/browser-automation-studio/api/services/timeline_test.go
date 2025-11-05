@@ -56,6 +56,9 @@ func (m *timelineRepositoryMock) GetWorkflow(ctx context.Context, id uuid.UUID) 
 func (m *timelineRepositoryMock) GetWorkflowByName(ctx context.Context, name, folderPath string) (*database.Workflow, error) {
 	return nil, database.ErrNotFound
 }
+func (m *timelineRepositoryMock) GetWorkflowByProjectAndName(ctx context.Context, projectID uuid.UUID, name string) (*database.Workflow, error) {
+	return nil, database.ErrNotFound
+}
 func (m *timelineRepositoryMock) UpdateWorkflow(ctx context.Context, workflow *database.Workflow) error {
 	return nil
 }

@@ -13,10 +13,12 @@ requirements:
     validation:
       - type: test
         ref: ui/tests/workflowStore.autosave.test.mjs
+        phase: unit
         status: implemented
         notes: Covers debounce saves, conflict suppression, and history refresh logic.
       - type: test
         ref: test/phases/test-unit.sh
+        phase: unit
         status: implemented
         notes: Unit phase captures autosave coverage thresholds.
       - type: manual
@@ -36,10 +38,12 @@ requirements:
     validation:
       - type: test
         ref: test/phases/test-integration.sh
+        phase: integration
         status: implemented
         notes: Integration phase runs workflow version history contract via Node automation.
       - type: automation
         ref: tests/workflow-version-history.integration.mjs
+        phase: integration
         status: implemented
         notes: Validates API restore endpoints and CLI parity through Node integration script.
       - type: manual

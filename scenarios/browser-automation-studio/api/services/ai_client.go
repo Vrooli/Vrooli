@@ -21,7 +21,7 @@ type OpenRouterClient struct {
 }
 
 const (
-	openRouterDefaultModel = "openai/gpt-5-mini"
+	openRouterDefaultModel = "openai/gpt-4o-mini"
 	openRouterCommand      = "resource-openrouter"
 )
 
@@ -103,6 +103,9 @@ func (c *OpenRouterClient) ExecutePrompt(ctx context.Context, prompt string) (st
 	}
 
 	response := strings.TrimSpace(string(output))
+	if response == "" {
+		return "", errors.New("resource-openrouter returned an empty response; verify the selected model produces textual completions")
+	}
 	fields["response_preview"] = truncateForLog(response, 400)
 	c.log.WithFields(fields).Debug("OpenRouter prompt executed successfully")
 	return response, nil

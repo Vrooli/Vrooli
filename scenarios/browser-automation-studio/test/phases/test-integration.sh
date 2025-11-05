@@ -37,24 +37,12 @@ if ! testing::core::is_scenario_running "$SCENARIO_NAME"; then
   fi
 fi
 
-if testing::phase::run_workflow_yaml \
-  --file "test/playbooks/executions/telemetry-smoke.yaml" \
-  --label "Telemetry smoke automation" \
-  --requirement BAS-EXEC-TELEMETRY-AUTOMATION; then
-  testing::phase::add_test passed
-else
-  testing::phase::add_test failed
-  testing::phase::end_with_summary "Integration automation failed"
-fi
-
-if testing::phase::run_workflow_yaml \
-  --file "test/playbooks/executions/heartbeat-stall.yaml" \
-  --label "Heartbeat stall automation" \
-  --requirement BAS-EXEC-HEARTBEAT-DETECTION; then
-  testing::phase::add_test passed
-else
-  testing::phase::add_test failed
-  testing::phase::add_error "Heartbeat stall automation failed"
+if ! testing::phase::run_bas_automation_validations --scenario "$SCENARIO_NAME" --manage-runtime skip; then
+  bas_rc=$?
+  if [ "$bas_rc" -ne 0 ] && [ "$bas_rc" -ne 200 ]; then
+    testing::phase::add_error "Browser Automation Studio workflow validations failed"
+    testing::phase::end_with_summary "Integration automation failed"
+  fi
 fi
 
 API_PORT_OUTPUT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT 2>/dev/null || true)

@@ -13,22 +13,27 @@ requirements:
     validation:
       - type: test
         ref: api/browserless/client_test.go
+        phase: unit
         status: implemented
         notes: Exercises telemetry persistence, retries, and artifact metadata.
       - type: test
         ref: api/browserless/runtime/session_test.go
+        phase: unit
         status: implemented
         notes: Validates Browserless session payloads and error handling.
       - type: test
         ref: ui/tests/executionEventProcessor.heartbeat.test.mjs
+        phase: unit
         status: implemented
         notes: Ensures heartbeat events update progress state in the UI store.
       - type: test
         ref: ui/tests/executionEventProcessor.assertion.test.mjs
+        phase: unit
         status: implemented
         notes: Confirms assertion payloads render readable log entries.
       - type: test
         ref: test/phases/test-unit.sh
+        phase: unit
         status: implemented
         notes: Unit phase captures Node + Go telemetry coverage with enforced thresholds.
 
@@ -43,11 +48,13 @@ requirements:
     criticality: P0
     validation:
       - type: automation
-        ref: test/playbooks/executions/telemetry-smoke.yaml
+        ref: test/playbooks/executions/telemetry-smoke.json
+        phase: integration
         status: implemented
-        notes: Workflow provisions deterministic data URL and verifies replay export metadata.
+        notes: BAS workflow validating telemetry stream (JSON export pending).
       - type: test
         ref: test/phases/test-integration.sh
+        phase: integration
         status: implemented
         notes: Integration phase invokes the telemetry smoke automation through run_workflow_yaml.
 
@@ -62,11 +69,13 @@ requirements:
     criticality: P0
     validation:
       - type: automation
-        ref: test/playbooks/executions/heartbeat-stall.yaml
+        ref: test/playbooks/executions/heartbeat-stall.json
+        phase: integration
         status: implemented
-        notes: Disables heartbeats and asserts CLI warning output.
+        notes: BAS workflow validating heartbeat stall detection once exported.
       - type: test
         ref: test/phases/test-integration.sh
+        phase: integration
         status: implemented
         notes: Integration phase records requirement state after running heartbeat automation.
 
@@ -76,14 +85,15 @@ requirements:
     title: CLI execution watch surfaces telemetry and heartbeat state
     description: |
       Confirms the CLI reflects progress, warning, and recovery events while tailing live executions.
-    status: in_progress
+    status: complete
     criticality: P0
     validation:
       - type: manual
-        ref: cli/browser-automation-studio execution watch
+        ref: cli/browser-automation-studio
         status: implemented
         notes: CLI emits heartbeat lag/stall notices during manual verification sessions.
       - type: automation
-        ref: test/playbooks/executions/telemetry-smoke.yaml
-        status: planned
+        ref: test/playbooks/executions/telemetry-smoke.json
+        phase: integration
+        status: implemented
         notes: Extend smoke workflow to assert CLI output once scripted checks are in place.

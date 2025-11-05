@@ -128,6 +128,12 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 		h.log.WithError(err).Error("Failed to create workflow")
 		var aiErr *services.AIWorkflowError
 		switch {
+		case errors.Is(err, services.ErrWorkflowNameConflict):
+			details := map[string]string{"name": req.Name}
+			if req.ProjectID != nil {
+				details["project_id"] = req.ProjectID.String()
+			}
+			h.respondError(w, ErrWorkflowAlreadyExists.WithDetails(details))
 		case errors.As(err, &aiErr):
 			h.respondError(w, ErrInvalidRequest.WithMessage(aiErr.Reason))
 		case strings.TrimSpace(req.AIPrompt) != "":

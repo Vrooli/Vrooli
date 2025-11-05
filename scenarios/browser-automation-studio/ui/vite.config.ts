@@ -163,6 +163,39 @@ export default defineConfig({
       '@api': path.resolve(__dirname, './src/api'),
     },
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test-utils/setupTests.ts',
+    globals: true,
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['tests/**/*', 'node_modules/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/__tests__/**',
+        'src/test-utils/**',
+        'src/**/*.d.ts',
+        'src/main.tsx',
+        'src/bootstrap.tsx',
+        'src/export/**',
+      ],
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 70,
+        statements: 70,
+      },
+    },
+    environmentOptions: {
+      jsdom: {
+        url: 'http://localhost:3000/',
+      },
+    },
+  },
   server: {
     port: parseInt(UI_PORT),
     host: true,

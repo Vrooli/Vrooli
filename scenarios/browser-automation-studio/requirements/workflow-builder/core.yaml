@@ -13,18 +13,22 @@ requirements:
     validation:
       - type: test
         ref: api/browserless/compiler/compiler_test.go
+        phase: unit
         status: implemented
         notes: Ensures ordering, cycle detection, and unsupported node handling.
       - type: test
         ref: api/browserless/runtime/session_test.go
+        phase: unit
         status: implemented
         notes: Exercises Browserless session payloads without external dependencies.
       - type: test
         ref: api/database/repository_test.go
+        phase: unit
         status: implemented
         notes: Confirms workflow persistence and retrieval with folder hierarchy metadata.
       - type: test
         ref: test/phases/test-unit.sh
+        phase: unit
         status: implemented
         notes: Unit phase aggregates Go + Node coverage with thresholds enforced.
 
@@ -35,10 +39,11 @@ requirements:
     description: |
       Guarantees the bundled demo project loads for first-time operators, providing an executable
       workflow that exercises the canvas and executor pipeline.
-    status: pending
+    status: in_progress
     criticality: P0
     validation:
       - type: automation
-        ref: test/playbooks/projects/demo-sanity.yaml
-        status: planned
-        notes: Planned automation validates the seed project + workflow through the public API.
+        ref: test/playbooks/projects/demo-sanity.json
+        phase: integration
+        status: failing
+        notes: BAS workflow ensuring demo seed parity via JSON playbook (pending export).

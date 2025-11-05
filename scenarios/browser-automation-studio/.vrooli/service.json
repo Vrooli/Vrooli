@@ -117,6 +117,7 @@
            },
            {
              "type": "cli",
+             "command": "browser-automation-studio",
              "targets": [
                "browser-automation-studio"
              ]
@@ -230,7 +231,7 @@
           }
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "printf '🚀 Services running (PRODUCTION):\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
           "description": "Display all running service URLs"
         }
