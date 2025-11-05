@@ -50,7 +50,7 @@ Future automated UI testing can use:
 - **React Testing Library** for component tests
 - **Playwright/Cypress** for end-to-end testing
 
-See `docs/scenarios/PHASED_TESTING_ARCHITECTURE.md` for guidelines.
+See `docs/testing/architecture/PHASED_TESTING.md` for guidelines.
 
 ## Test Workflows
 

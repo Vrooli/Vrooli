@@ -201,7 +201,14 @@ func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (ma
 		})
 	}
 
-	targets := buildScenarioTargets("scenario-auditor", req.SelectedScenarios)
+	var targets []map[string]string
+	if req.ReportType == "fix_violations" {
+		// Skip adding scenario-auditor as a target so tracker dedupe logic doesn't block
+		// multiple violation issues that work on different scenarios.
+		targets = buildScenarioTargets("", req.SelectedScenarios)
+	} else {
+		targets = buildScenarioTargets("scenario-auditor", nil)
+	}
 	if len(targets) == 0 {
 		return nil, errors.New("no valid targets available for issue payload")
 	}

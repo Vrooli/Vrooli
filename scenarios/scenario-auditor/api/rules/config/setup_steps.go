@@ -529,8 +529,8 @@ Targets: service_json
   <expected-message>Split build-ui</expected-message>
 </test-case>
 
-<test-case id="ui-install-condition-missing" should-fail="true">
-  <description>install-ui-deps must gate on ui/package.json so restarts rerun npm install when needed</description>
+<test-case id="ui-install-condition-missing" should-fail="false">
+  <description>install-ui-deps does not need a condition and should run unconditionally</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "ui-conditions"},
@@ -548,8 +548,29 @@ Targets: service_json
   }
 }
   ]]></input>
+</test-case>
+
+<test-case id="ui-install-condition-mismatch" should-fail="true">
+  <description>If condition.file_exists is provided it must reference ui/package.json</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "ui-conditions"},
+  "ports": {"ui": {"env_var": "UI_PORT"}},
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
+        {"name": "build-api", "run": "cd api && go build -o ui-conditions-api .", "description": "Build API"},
+        {"name": "install-ui-deps", "run": "cd ui && npm install", "description": "Install UI deps", "condition": {"file_exists": "ui/yarn.lock"}},
+        {"name": "build-ui", "run": "cd ui && npm run build", "description": "Build production UI"},
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
   <expected-violations>1</expected-violations>
-  <expected-message>condition.file_exists: "ui/package.json"</expected-message>
+  <expected-message>ui/yarn.lock</expected-message>
 </test-case>
 
 <test-case id="ui-build-condition-present" should-fail="true">
@@ -901,17 +922,12 @@ func validateUIInstallStep(filePath, source string, step map[string]any) []Viola
 		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installUIDepsRecommendation))
 	}
 
-	cond, ok := step["condition"].(map[string]any)
-	fileExists := ""
-	if ok {
-		fileExists = strings.TrimSpace(toStringOrDefault(cond["file_exists"]))
-	}
-	if !ok || fileExists == "" {
-		msg := "install-ui-deps must declare condition.file_exists: \"ui/package.json\" so lifecycle.setup.condition can rerun npm install whenever the UI workspace changes."
-		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installUIDepsRecommendation))
-	} else if fileExists != "ui/package.json" {
-		msg := "install-ui-deps condition.file_exists must point to ui/package.json so restart automation knows when dependencies went stale."
-		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installUIDepsRecommendation))
+	if cond, ok := step["condition"].(map[string]any); ok {
+		fileExists := strings.TrimSpace(toStringOrDefault(cond["file_exists"]))
+		if fileExists != "" && fileExists != "ui/package.json" {
+			msg := fmt.Sprintf("install-ui-deps condition.file_exists currently points to %s; only 'ui/package.json' is allowed so the step is skipped iff the UI workspace is actually missing.", fileExists)
+			violations = append(violations, newSetupStepsViolation(filePath, line, msg, installUIDepsRecommendation))
+		}
 	}
 
 	return violations
@@ -1084,10 +1100,18 @@ func shouldCheckSetupStepsJSON(path string) bool {
 		return false
 	}
 	base := strings.ToLower(filepath.Base(trimmed))
-	if base == "service.json" {
+	if strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".json") {
 		return true
 	}
-	if strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".json") {
+	if base != "service.json" {
+		return false
+	}
+	normalized := filepath.ToSlash(trimmed)
+	if strings.Contains(normalized, "/scenarios/") || strings.HasPrefix(normalized, "scenarios/") {
+		return true
+	}
+	if !strings.Contains(normalized, "/") {
+		// Doc tests use synthetic service.json paths without directories; allow them.
 		return true
 	}
 	return false
@@ -1229,13 +1253,7 @@ func dedupeSetupStepsViolations(list []Violation) []Violation {
 }
 
 func setupScenarioHasUI(payload map[string]any, steps []any) bool {
-	if scenarioPortsSuggestUI(payload) {
-		return true
-	}
-	if scenarioComponentsSuggestUI(payload) {
-		return true
-	}
-	return stepsSuggestUI(steps)
+	return scenarioPortsExposeUIPort(payload)
 }
 
 func inferUIBundlePath(payload map[string]any) string {
@@ -1272,88 +1290,23 @@ func inferUIBundlePath(payload map[string]any) string {
 	return defaultUIBundlePath
 }
 
-func scenarioPortsSuggestUI(payload map[string]any) bool {
+func scenarioPortsExposeUIPort(payload map[string]any) bool {
 	portsRaw, ok := payload["ports"].(map[string]any)
 	if !ok {
 		return false
 	}
-	for key, entry := range portsRaw {
-		if setupIsUIPortKey(key) && setupEntryEnabled(entry) {
-			return true
-		}
-	}
-	return false
-}
-
-func scenarioComponentsSuggestUI(payload map[string]any) bool {
-	componentsRaw, ok := payload["components"].(map[string]any)
-	if !ok {
-		return false
-	}
-	for key, entry := range componentsRaw {
-		if setupIsUIPortKey(key) && setupEntryEnabled(entry) {
-			return true
-		}
-	}
-	return false
-}
-
-func stepsSuggestUI(steps []any) bool {
-	for _, step := range steps {
-		stepMap, ok := step.(map[string]any)
+	for _, entry := range portsRaw {
+		entryMap, ok := entry.(map[string]any)
 		if !ok {
 			continue
 		}
-		if setupUIStepIndicator(toStringOrDefault(stepMap["name"])) || setupUIStepIndicator(toStringOrDefault(stepMap["run"])) {
+		envVar := strings.ToUpper(strings.TrimSpace(toStringOrDefault(entryMap["env_var"])))
+		if envVar == "UI_PORT" {
+			// UI_PORT is the standard environment variable for UI servers, so its presence reliably signals a UI bundle.
 			return true
 		}
 	}
 	return false
-}
-
-func setupIsUIPortKey(key string) bool {
-	if key == "" {
-		return false
-	}
-	lower := strings.ToLower(strings.TrimSpace(key))
-	tokens := []string{"ui", "web", "frontend", "dashboard", "client", "spa"}
-	for _, token := range tokens {
-		if strings.Contains(lower, token) {
-			return true
-		}
-	}
-	return false
-}
-
-func setupUIStepIndicator(value string) bool {
-	if value == "" {
-		return false
-	}
-	lower := strings.ToLower(value)
-	tokens := []string{"install-ui", "build-ui", "start-ui", "start-frontend", "ui server", "frontend", "vite", "next dev", "react", "node server"}
-	for _, token := range tokens {
-		if strings.Contains(lower, token) {
-			return true
-		}
-	}
-	return false
-}
-
-func setupEntryEnabled(entry any) bool {
-	if entry == nil {
-		return true
-	}
-	if m, ok := entry.(map[string]any); ok {
-		if enabledRaw, ok := m["enabled"]; ok {
-			switch v := enabledRaw.(type) {
-			case bool:
-				return v
-			case string:
-				return strings.EqualFold(v, "true")
-			}
-		}
-	}
-	return true
 }
 
 func containsAny(haystack string, needles []string) bool {
