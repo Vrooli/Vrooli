@@ -185,7 +185,7 @@ lib/testing/
 - Verbose mode support
 
 ### 3. Requirement Traceability
-- `testing::phase::init` reads the scenario requirement registry (`docs/requirements.yaml` or modular `requirements/`) to determine which requirement IDs each phase is responsible for. Missing coverage triggers warnings by default and can be promoted to hard failures by exporting `TESTING_REQUIREMENTS_ENFORCE=1` (or `VROOLI_REQUIREMENTS_ENFORCE=1`).
+- `testing::phase::init` reads the scenario requirement registry (`docs/requirements.json` or modular `requirements/`) to determine which requirement IDs each phase is responsible for. Missing coverage triggers warnings by default and can be promoted to hard failures by exporting `TESTING_REQUIREMENTS_ENFORCE=1` (or `VROOLI_REQUIREMENTS_ENFORCE=1`).
 - Unit and integration phases write per-phase summaries to `coverage/phase-results/<phase>.json`, enabling downstream tooling (like `scripts/requirements/report.js`) to surface live requirement coverage.
 - `testing::phase::run_workflow_yaml` executes YAML-defined automations (documents stored under `automation/`) and automatically updates requirement state. Workflows declare CLI commands, optional timeouts, and success patterns in a human-readable manifest.
 - The Go and Node.js unit runners now recognize `REQ:<ID>` markers in test names/output (`t.Run("... [REQ:ABC-123]", ...)`, `it('...', { /* ... */ })`) and record pass/fail/skipped statuses for each tagged requirement.
@@ -527,7 +527,7 @@ For comprehensive safety guidelines, see [Safety Guidelines](../safety/GUIDELINE
 
 ## Requirement Reporting
 
-- Maintain a requirements registry (`docs/requirements.yaml` or `requirements/`) within each scenario to map PRD items to validation assets (phases, unit tests, workflows, automations).
+- Maintain a requirements registry (`docs/requirements.json` or `requirements/`) within each scenario to map PRD items to validation assets (phases, unit tests, workflows, automations).
 - `testing::phase::init` automatically inspects this file and warns when a phase omits expected requirement updates; export `TESTING_REQUIREMENTS_ENFORCE=1` (or `VROOLI_REQUIREMENTS_ENFORCE=1`) to treat missing coverage as a failure.
 - Use `REQ:<ID>` markers in Go/Vitest test names to have the unit runners automatically register requirement outcomes.
 - Execute YAML-defined automations through `testing::phase::run_workflow_yaml --file automation/...` to keep requirement evidence aligned with phase results.

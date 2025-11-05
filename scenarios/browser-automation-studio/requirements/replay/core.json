@@ -1,0 +1,54 @@
+{
+  "_metadata": {
+    "description": "Replay and artifact persistence requirements",
+    "last_validated_at": "2025-11-04T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-05T05:16:06.912Z"
+  },
+  "requirements": [
+    {
+      "id": "BAS-REPLAY-TIMELINE-PERSISTENCE",
+      "category": "replay.persistence",
+      "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
+      "title": "Timeline artifacts persist normalized execution events",
+      "description": "Ensures execution artifacts are normalized, stored, and queryable so the replay UI and marketing renderer consume consistent payloads.",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/services/timeline_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validates timeline persistence, retrieval, and query filters."
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-unit.sh",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit phase captures timeline service coverage thresholds."
+        }
+      ]
+    },
+    {
+      "id": "BAS-REPLAY-EXPORT-BUNDLE",
+      "category": "replay.export",
+      "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
+      "title": "Replay exports portable bundles for marketing and sharing",
+      "description": "Confirms the export endpoint generates self-contained bundles (screenshots, timeline JSON, metadata) that work offline.",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/services/replay.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Replay export validation (pending implementation)."
+        }
+      ]
+    }
+  ]
+}

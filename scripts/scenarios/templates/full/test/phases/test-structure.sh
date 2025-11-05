@@ -53,7 +53,7 @@ else
   testing::phase::add_test skipped
 fi
 
-# Hook requirements here once the requirements registry is populated (docs/requirements.yaml or requirements/), e.g.:
+# Hook requirements here once the requirements registry is populated (docs/requirements.json or requirements/), e.g.:
 # testing::phase::add_requirement --id "REQ-STRUCTURE" --status passed --evidence "Structure validations"
 
 testing::phase::end_with_summary "Structure checks completed"

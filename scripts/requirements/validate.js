@@ -7,7 +7,7 @@ const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 
 const APP_ROOT = path.resolve(__dirname, '..', '..');
-const SCHEMA_DIR = path.join(APP_ROOT, 'scripts', 'requirements', 'schemas');
+const SCHEMA_PATH = path.join(APP_ROOT, 'scripts', 'requirements', 'schema.json');
 const CRITICAL_LEVELS = new Set(['P0', 'P1']);
 const OPTIONAL_VALIDATION_STATUSES = new Set(['planned', 'not_implemented', 'skipped', 'todo']);
 const VALID_PHASES = new Set(['structure', 'dependencies', 'unit', 'integration', 'business', 'performance', 'cli']);
@@ -62,13 +62,13 @@ function resolveScenarioRoot(baseDir, scenario) {
 }
 
 function collectRequirementFiles(scenarioRoot) {
-  const docsPath = path.join(scenarioRoot, 'docs', 'requirements.yaml');
+  const docsPath = path.join(scenarioRoot, 'docs', 'requirements.json');
   if (fs.existsSync(docsPath)) {
     return [{ path: docsPath, isIndex: true }];
   }
   const requirementsDir = path.join(scenarioRoot, 'requirements');
   if (!fs.existsSync(requirementsDir)) {
-    throw new Error('No requirements registry found (expected docs/requirements.yaml or requirements/ folder).');
+    throw new Error('No requirements registry found (expected docs/requirements.json or requirements/ folder).');
   }
   const results = [];
   const stack = [requirementsDir];
@@ -87,18 +87,18 @@ function collectRequirementFiles(scenarioRoot) {
       if (!entry.isFile()) {
         return;
       }
-      if (!/\.ya?ml$/i.test(entry.name)) {
+      if (!entry.name.endsWith('.json')) {
         return;
       }
       const relativeToBase = path.relative(requirementsDir, fullPath);
       results.push({
         path: fullPath,
-        isIndex: relativeToBase === 'index.yaml',
+        isIndex: relativeToBase === 'index.json',
       });
     });
   }
   if (results.length === 0) {
-    throw new Error('requirements/ exists but no YAML files were found.');
+    throw new Error('requirements/ exists but no JSON files were found.');
   }
   return results;
 }
@@ -122,22 +122,18 @@ function runCommand(command, args, label) {
   return result;
 }
 
-function convertYamlToJson(filePath) {
-  const result = runCommand('js-yaml', [filePath], `js-yaml (${filePath})`);
-  if (result.status !== 0) {
-    const errorOutput = result.stderr || result.stdout || 'unknown parser error';
-    throw new Error(`Unable to parse ${filePath}: ${errorOutput.trim()}`);
-  }
-  const jsonText = result.stdout;
+function parseJsonFile(filePath) {
   try {
-    return { jsonText, data: JSON.parse(jsonText) };
+    const content = fs.readFileSync(filePath, 'utf8');
+    const data = JSON.parse(content);
+    return { jsonText: content, data };
   } catch (error) {
-    throw new Error(`js-yaml output for ${filePath} was not valid JSON: ${error.message}`);
+    throw new Error(`Unable to parse ${filePath}: ${error.message}`);
   }
 }
 
 function runSchemaValidation(schemaPath, jsonText, sourcePath, tempDir) {
-  const dataFile = path.join(tempDir, `${path.basename(sourcePath)}.json`);
+  const dataFile = path.join(tempDir, `${path.basename(sourcePath)}`);
   fs.writeFileSync(dataFile, jsonText, 'utf8');
   const result = runCommand('ajv', ['validate', '-s', schemaPath, '-d', dataFile], `ajv (${sourcePath})`);
   fs.unlinkSync(dataFile);
@@ -172,21 +168,19 @@ function main() {
 
   try {
     requirementSources.forEach((source) => {
-      const schemaName = source.isIndex ? 'index.schema.json' : 'module.schema.json';
-      const schemaPath = path.join(SCHEMA_DIR, schemaName);
-      if (!fs.existsSync(schemaPath)) {
-        errors.push(`Missing schema definition ${schemaName} (expected at ${schemaPath}).`);
+      if (!fs.existsSync(SCHEMA_PATH)) {
+        errors.push(`Missing schema definition (expected at ${SCHEMA_PATH}).`);
         return;
       }
       let parsed;
       try {
-        parsed = convertYamlToJson(source.path);
+        parsed = parseJsonFile(source.path);
       } catch (error) {
         errors.push(error.message);
         return;
       }
       try {
-        runSchemaValidation(schemaPath, parsed.jsonText, source.path, tmpDir);
+        runSchemaValidation(SCHEMA_PATH, parsed.jsonText, source.path, tmpDir);
       } catch (error) {
         errors.push(error.message);
         return;

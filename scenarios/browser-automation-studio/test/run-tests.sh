@@ -46,7 +46,7 @@ testing::runner::define_preset comprehensive "structure dependencies unit integr
 RESULT=0
 testing::runner::execute "$@" || RESULT=$?
 
-if { [ -f "$SCENARIO_DIR/docs/requirements.yaml" ] || [ -d "$SCENARIO_DIR/requirements" ]; } \
+if { [ -f "$SCENARIO_DIR/docs/requirements.json" ] || [ -d "$SCENARIO_DIR/requirements" ]; } \
   && command -v node >/dev/null 2>&1; then
   if node "$APP_ROOT/scripts/requirements/report.js" --scenario "$SCENARIO_NAME" --mode sync >/dev/null; then
     log::info "📋 Requirements registry synced after test run"

@@ -1,0 +1,74 @@
+{
+  "_metadata": {
+    "description": "Autosave and version history requirements",
+    "last_validated_at": "2025-11-04T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BAS-VERSION-AUTOSAVE",
+      "category": "persistence",
+      "prd_ref": "Autosave & Version History",
+      "title": "Autosave prevents data loss and manages conflicts",
+      "description": "Debounced autosave writes workflow drafts, prevents overwrites when conflicts exist, and surfaces state to the UI header.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/tests/workflowStore.autosave.test.mjs",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers debounce saves, conflict suppression, and history refresh logic."
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-unit.sh",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit phase captures autosave coverage thresholds."
+        },
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Header.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Header renders save state, conflict actions, and version history entry points."
+        }
+      ]
+    },
+    {
+      "id": "BAS-VERSION-RESTORE",
+      "category": "persistence",
+      "prd_ref": "Autosave & Version History",
+      "title": "Version history exposes restore flows across API, UI, and CLI",
+      "description": "Ensures version listing, diffing, and restore endpoints are available and parity exists between CLI and UI flows.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Integration phase runs workflow version history contract via Node automation."
+        },
+        {
+          "type": "automation",
+          "ref": "tests/workflow-version-history.integration.mjs",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates API restore endpoints and CLI parity through Node integration script."
+        },
+        {
+          "type": "manual",
+          "ref": "cli/browser-automation-studio",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI restore commands documented and verified during operator workflows."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,226 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/requirements.json",
+  "title": "Vrooli Requirements Registry",
+  "description": "Schema for scenario requirement registries with validation tracking and live test evidence integration",
+  "type": "object",
+  "required": ["requirements"],
+  "properties": {
+    "_metadata": {
+      "type": "object",
+      "description": "File-level metadata for the requirements module",
+      "properties": {
+        "module": {
+          "type": "string",
+          "description": "Module name (e.g., 'projects.ui', 'execution.telemetry')"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what requirements this file contains"
+        },
+        "last_validated_at": {
+          "type": "string",
+          "description": "ISO 8601 timestamp when requirements were last validated"
+        },
+        "last_synced_at": {
+          "type": "string",
+          "description": "ISO 8601 timestamp when file was last auto-synced from test results"
+        },
+        "auto_sync_enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether auto-sync should update this file"
+        },
+        "schema_version": {
+          "type": "string",
+          "default": "1.0.0",
+          "description": "Schema version this file conforms to"
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "description": "Legacy metadata from YAML format (for index files)",
+      "properties": {
+        "scenario": {"type": "string"},
+        "version": {"type": "string"},
+        "generated": {"type": "string"},
+        "owners": {"type": "array"}
+      }
+    },
+    "imports": {
+      "type": "array",
+      "description": "List of child requirement files to import (index.json only)",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_/-]+\\.json$",
+        "examples": ["projects/dialog.json", "workflow-builder/core.json"]
+      }
+    },
+    "reporting": {
+      "type": "object",
+      "description": "Reporting configuration (index files only)"
+    },
+    "requirements": {
+      "type": "array",
+      "description": "Array of requirement definitions",
+      "items": {
+        "$ref": "#/definitions/requirement"
+      }
+    }
+  },
+  "definitions": {
+    "requirement": {
+      "type": "object",
+      "required": ["id", "title", "status", "criticality"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]+-[A-Z0-9-]+$",
+          "description": "Unique requirement identifier (e.g., BAS-WORKFLOW-PERSIST-CRUD)",
+          "examples": ["BAS-WORKFLOW-PERSIST-CRUD", "BAS-PROJECT-DIALOG-OPEN"]
+        },
+        "category": {
+          "type": "string",
+          "description": "Hierarchical category (e.g., 'projects.ui', 'execution.telemetry')"
+        },
+        "prd_ref": {
+          "type": "string",
+          "description": "Reference to PRD section this requirement traces to"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short title describing the requirement"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of what this requirement validates"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "planned", "in_progress", "complete", "not_implemented"],
+          "description": "Current implementation status"
+        },
+        "criticality": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2"],
+          "description": "Priority level (P0=critical, P1=important, P2=nice-to-have)"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Optional tags for categorization and filtering",
+          "items": {"type": "string"}
+        },
+        "children": {
+          "type": "array",
+          "description": "Child requirement IDs for hierarchical aggregation",
+          "items": {"type": "string"}
+        },
+        "depends_on": {
+          "type": "array",
+          "description": "Requirement IDs this depends on",
+          "items": {"type": "string"}
+        },
+        "blocks": {
+          "type": "array",
+          "description": "Requirement IDs that are blocked by this one",
+          "items": {"type": "string"}
+        },
+        "validation": {
+          "type": "array",
+          "description": "Validation methods that verify this requirement",
+          "items": {
+            "$ref": "#/definitions/validation"
+          }
+        },
+        "_sync_metadata": {
+          "type": "object",
+          "description": "Auto-sync metadata (auto-generated, do not edit manually)",
+          "properties": {
+            "last_updated": {
+              "type": "string"
+            },
+            "updated_by": {
+              "type": "string",
+              "enum": ["manual", "auto-sync"]
+            },
+            "test_coverage_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "all_tests_passing": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["type", "phase", "status"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["test", "automation", "manual"],
+          "description": "Validation method type"
+        },
+        "ref": {
+          "type": "string",
+          "description": "File path reference (test file, automation workflow, etc.)"
+        },
+        "workflow_id": {
+          "type": "string",
+          "description": "Workflow ID for automation validations"
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["unit", "integration", "business", "performance", "structure", "dependencies"],
+          "description": "Test phase this validation runs in"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["not_implemented", "planned", "implemented", "failing"],
+          "description": "Validation implementation status"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Human-readable notes about this validation"
+        },
+        "scenario": {
+          "type": "string",
+          "description": "External scenario name (for cross-scenario validations)"
+        },
+        "folder": {
+          "type": "string",
+          "description": "Folder path (for BAS automation workflows)"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional validation-specific metadata"
+        },
+        "_sync_metadata": {
+          "type": "object",
+          "description": "Auto-sync metadata (auto-generated)",
+          "properties": {
+            "last_test_run": {
+              "type": "string"
+            },
+            "test_duration_ms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "auto_updated": {
+              "type": "boolean"
+            },
+            "test_names": {
+              "type": "array",
+              "description": "Full test names that validate this requirement",
+              "items": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

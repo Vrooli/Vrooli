@@ -3,6 +3,7 @@ import type { ViteDevServer, Plugin, Connect } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import http from 'http';
+import RequirementReporter from '@vrooli/vitest-requirement-reporter';
 
 // Get environment variables with fallbacks for build time
 // AUDITOR NOTE: These fallbacks are intentional for development mode.
@@ -169,6 +170,14 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['tests/**/*', 'node_modules/**'],
+    reporters: [
+      'default',
+      new RequirementReporter({
+        outputFile: 'coverage/vitest-requirements.json',
+        emitStdout: true,  // CRITICAL: Required for existing shell parsers
+        verbose: true,
+      }),
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

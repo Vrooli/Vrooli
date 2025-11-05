@@ -1,0 +1,136 @@
+{
+  "_metadata": {
+    "description": "Browser Automation Studio requirement registry (modular) - Parent-level requirements reference child modules declared under imports",
+    "last_validated_at": "2025-11-04T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-05T05:16:06.911Z"
+  },
+  "meta": {
+    "scenario": "browser-automation-studio",
+    "version": "0.2.0",
+    "generated": "2025-11-10",
+    "owners": [
+      {
+        "platform": "browser-automation-studio",
+        "contact": "execution-team@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [
+    "projects/dialog.json",
+    "workflow-builder/core.json",
+    "execution/telemetry.json",
+    "replay/core.json",
+    "ai/generation.json",
+    "persistence/version-history.json"
+  ],
+  "requirements": [
+    {
+      "id": "BAS-FUNC-001",
+      "category": "foundation",
+      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+      "title": "Persist visual workflows with nodes/edges and folder hierarchy",
+      "description": "Tracks the complete experience for creating and managing projects and workflows. Child implementation requirements cover dialog affordances, validation, and persistence.",
+      "status": "in_progress",
+      "criticality": "P0",
+      "children": [
+        "BAS-PROJECT-DIALOG-OPEN",
+        "BAS-PROJECT-DIALOG-CLOSE",
+        "BAS-PROJECT-CREATE-SUCCESS",
+        "BAS-PROJECT-CREATE-VALIDATION",
+        "BAS-WORKFLOW-PERSIST-CRUD",
+        "BAS-WORKFLOW-DEMO-SEED"
+      ]
+    },
+    {
+      "id": "BAS-FUNC-002",
+      "category": "execution",
+      "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
+      "title": "Stream execution telemetry (screenshots, progress, logs) while runs are active",
+      "description": "Aggregates execution runtime behaviours, including websocket telemetry, CLI observability, and automation coverage.",
+      "status": "complete",
+      "criticality": "P0",
+      "children": [
+        "BAS-EXEC-TELEMETRY-STREAM",
+        "BAS-EXEC-TELEMETRY-AUTOMATION",
+        "BAS-EXEC-HEARTBEAT-DETECTION",
+        "BAS-EXEC-CLI-WATCH"
+      ]
+    },
+    {
+      "id": "BAS-FUNC-003",
+      "category": "replay",
+      "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
+      "title": "Persist normalized execution artifacts for replay & video rendering",
+      "description": "Ensures replay artifacts are persisted, queryable, and exportable for downstream renderers.",
+      "status": "complete",
+      "criticality": "P1",
+      "children": [
+        "BAS-REPLAY-TIMELINE-PERSISTENCE",
+        "BAS-REPLAY-EXPORT-BUNDLE"
+      ]
+    },
+    {
+      "id": "BAS-FUNC-004",
+      "category": "ai-integration",
+      "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
+      "title": "AI-generated workflows validated against the execution plan",
+      "description": "Validates that AI prompts produce executable workflows with deterministic smoke coverage.",
+      "status": "complete",
+      "criticality": "P0",
+      "children": [
+        "BAS-AI-GENERATION-SMOKE",
+        "BAS-AI-GENERATION-VALIDATION"
+      ]
+    },
+    {
+      "id": "BAS-FUNC-005",
+      "category": "persistence",
+      "prd_ref": "Autosave & Version History",
+      "title": "Conflict-aware autosave with auditable version history",
+      "description": "Captures autosave behaviour, version history presentation, and restore flows across UI and API.",
+      "status": "complete",
+      "criticality": "P0",
+      "children": [
+        "BAS-VERSION-AUTOSAVE",
+        "BAS-VERSION-RESTORE"
+      ]
+    }
+  ],
+  "reporting": {
+    "script": "scripts/requirements/report.js",
+    "entrypoint": "node scripts/requirements/report.js",
+    "outputs": [
+      {
+        "format": "json",
+        "description": "Machine-readable coverage report for CI dashboards"
+      },
+      {
+        "format": "markdown",
+        "description": "README badge/table generation"
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "coverage/phase-results/<phase>.json",
+        "description": "Live phase summaries written by test/phases via testing::phase::end_with_summary"
+      }
+    ],
+    "cli_options": {
+      "--scenario": "browser-automation-studio",
+      "--format": "json|markdown",
+      "--include-pending": "boolean"
+    },
+    "aggregates": [
+      {
+        "metric": "coverage_ratio",
+        "formula": "implemented validations / required validations"
+      },
+      {
+        "metric": "criticality_gap",
+        "formula": "count of requirements with status != complete and criticality in [P0, P1]"
+      }
+    ]
+  }
+}

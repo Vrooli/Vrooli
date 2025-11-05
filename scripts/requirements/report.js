@@ -4,7 +4,7 @@
  * requirements/report.js
  *
  * Lightweight coverage reporter for scenario requirements.
- * - Parses either <scenario>/docs/requirements.yaml or <scenario>/requirements/<module>.yaml files
+ * - Parses either <scenario>/docs/requirements.json or <scenario>/requirements/<module>.json files
  *   (index-first) to support modular requirement registries
  * - Computes aggregate counts by status and criticality gap
  * - Reads live phase results from coverage/phase-results to surface pass/fail state
@@ -24,6 +24,7 @@ function parseArgs(argv) {
     output: '',
     mode: 'report',
     phase: '',
+    pruneStale: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -59,6 +60,9 @@ function parseArgs(argv) {
       case '--output':
         options.output = argv[i + 1] || '';
         i += 1;
+        break;
+      case '--prune-stale':
+        options.pruneStale = true;
         break;
       default:
         break;
@@ -115,47 +119,29 @@ function resolveScenarioRoot(baseDir, scenario) {
 }
 
 function parseImports(indexPath) {
-  const imports = [];
   if (!fs.existsSync(indexPath)) {
-    return imports;
+    return [];
   }
 
-  const lines = fs.readFileSync(indexPath, 'utf8').split(/\r?\n/);
-  let inImports = false;
-
-  lines.forEach((line) => {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('#')) {
-      return;
-    }
-    if (!inImports && /^imports:\s*$/.test(trimmed)) {
-      inImports = true;
-      return;
-    }
-    if (inImports) {
-      const match = line.match(/^\s*-\s*(.+)$/);
-      if (match) {
-        imports.push(match[1].trim());
-      } else if (trimmed.length === 0) {
-        return;
-      } else if (!/^\s/.test(line)) {
-        inImports = false;
-      }
-    }
-  });
-
-  return imports;
+  try {
+    const content = fs.readFileSync(indexPath, 'utf8');
+    const parsed = JSON.parse(content);
+    return parsed.imports || [];
+  } catch (error) {
+    console.warn(`Failed to parse imports from ${indexPath}: ${error.message}`);
+    return [];
+  }
 }
 
 function collectRequirementFiles(scenarioRoot) {
-  const docsPath = path.join(scenarioRoot, 'docs', 'requirements.yaml');
+  const docsPath = path.join(scenarioRoot, 'docs', 'requirements.json');
   if (fs.existsSync(docsPath)) {
-    return [{ path: docsPath, relative: 'docs/requirements.yaml', isIndex: true }];
+    return [{ path: docsPath, relative: 'docs/requirements.json', isIndex: true }];
   }
 
   const requirementsDir = path.join(scenarioRoot, 'requirements');
   if (!fs.existsSync(requirementsDir)) {
-    throw new Error('No requirements registry found (expected docs/requirements.yaml or requirements/)');
+    throw new Error('No requirements registry found (expected docs/requirements.json or requirements/)');
   }
 
   const results = [];
@@ -173,7 +159,7 @@ function collectRequirementFiles(scenarioRoot) {
     results.push({ path: resolved, relative, isIndex });
   };
 
-  const indexPath = path.join(requirementsDir, 'index.yaml');
+  const indexPath = path.join(requirementsDir, 'index.json');
   if (fs.existsSync(indexPath)) {
     enqueue(indexPath, true);
     const imports = parseImports(indexPath);
@@ -199,7 +185,7 @@ function collectRequirementFiles(scenarioRoot) {
       if (!entry.isFile()) {
         return;
       }
-      if (!entry.name.endsWith('.yaml')) {
+      if (!entry.name.endsWith('.json')) {
         return;
       }
       enqueue(fullPath, path.resolve(fullPath) === path.resolve(indexPath));
@@ -220,182 +206,66 @@ function collectRequirementFiles(scenarioRoot) {
 }
 
 function parseRequirementFile(filePath) {
-  const content = fs.readFileSync(filePath, 'utf8');
-  const lines = content.split(/\r?\n/);
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(content);
 
-  const requirements = [];
-  let current = null;
-  let inValidation = false;
-  let currentValidation = null;
-
-  const startPattern = /^ {2}-\s+id:\s*(.+)$/;
-  const propertyPattern = /^ {4}([a-zA-Z_]+):\s*(.+)$/;
-  const listSectionPattern = /^ {4}([a-zA-Z_]+):\s*$/;
-  const listItemPattern = /^ {6}-\s*(.+)$/;
-  const validationSectionPattern = /^ {4}validation:/;
-  const validationStartPattern = /^ {6}-\s+type:\s*(.+)$/;
-  const validationPropertyPattern = /^ {8}([a-zA-Z_]+):\s*(.+)$/;
-
-  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-    const line = lines[lineIndex];
-    const startMatch = line.match(startPattern);
-    if (startMatch) {
-      if (current) {
-        if (currentValidation) {
-          current.validations.push(currentValidation);
-          currentValidation = null;
-        }
-        requirements.push(current);
-      }
-      current = {
-        id: startMatch[1].trim().replace(/^"|"$/g, ''),
-        status: 'pending',
-        criticality: '',
-        title: '',
-        category: '',
-        validations: [],
+    // Extract requirements array
+    const requirements = (parsed.requirements || []).map((req) => {
+      // Normalize requirement structure
+      const requirement = {
+        id: req.id || '',
+        status: req.status || 'pending',
+        criticality: req.criticality || '',
+        title: req.title || '',
+        category: req.category || '',
+        validations: (req.validation || []).map((val) => ({
+          type: val.type || '',
+          ref: val.ref || '',
+          status: val.status || '',
+          notes: val.notes || '',
+          phase: val.phase || '',
+          workflow_id: val.workflow_id || '',
+          scenario: val.scenario || '',
+          folder: val.folder || '',
+          metadata: val.metadata || null,
+        })),
+        children: req.children || [],
+        description: req.description || '',
+        prd_ref: req.prd_ref || '',
+        tags: req.tags || [],
+        depends_on: req.depends_on || [],
+        blocks: req.blocks || [],
       };
-      const meta = { statusLine: null, filePath, startLine: lineIndex, originalStatus: 'pending' };
-      Object.defineProperty(current, '__meta', {
+
+      // Add metadata for tracking (used by sync operations)
+      const meta = {
+        filePath,
+        originalStatus: requirement.status,
+      };
+      Object.defineProperty(requirement, '__meta', {
         value: meta,
         enumerable: false,
       });
-      inValidation = false;
-      currentValidation = null;
-      continue;
-    }
 
-    if (!current) {
-      continue;
-    }
-
-    const propMatch = line.match(propertyPattern);
-    if (propMatch && !inValidation) {
-      const key = propMatch[1].trim();
-      const rawValue = propMatch[2].trim();
-      const value = rawValue.replace(/^"|"$/g, '');
-      if (key === 'status') {
-        current.status = value;
-        const meta = current.__meta;
-        if (meta) {
-          meta.statusLine = lineIndex;
-          meta.originalStatus = value;
-        }
-      } else if (key === 'criticality') {
-        current.criticality = value;
-      } else if (key === 'title') {
-        current.title = value;
-      } else if (key === 'category') {
-        current.category = value;
-      }
-      if (key === 'validation') {
-        inValidation = true;
-        if (currentValidation) {
-          current.validations.push(currentValidation);
-          currentValidation = null;
-        }
-      }
-      continue;
-    }
-
-    const listMatch = line.match(listSectionPattern);
-    if (listMatch && !inValidation) {
-      const key = listMatch[1].trim();
-      if (key === 'validation') {
-        inValidation = true;
-        if (currentValidation) {
-          current.validations.push(currentValidation);
-          currentValidation = null;
-        }
-        continue;
-      }
-      const items = [];
-      let offset = lineIndex + 1;
-      while (offset < lines.length) {
-        const candidate = lines[offset];
-        const itemMatch = candidate.match(listItemPattern);
-        if (itemMatch) {
-          items.push(itemMatch[1].trim().replace(/^"|"$/g, ''));
-          offset += 1;
-          continue;
-        }
-        const indent = candidate.search(/\S|$/);
-        if (indent <= 4) {
-          break;
-        }
-        offset += 1;
-      }
-      current[key] = items;
-      lineIndex = offset - 1;
-      continue;
-    }
-
-    if (validationSectionPattern.test(line)) {
-      inValidation = true;
-      if (currentValidation) {
-        current.validations.push(currentValidation);
-        currentValidation = null;
-      }
-      continue;
-    }
-
-    if (inValidation) {
-      const validationStartMatch = line.match(validationStartPattern);
-      if (validationStartMatch) {
-        if (currentValidation) {
-          current.validations.push(currentValidation);
-        }
-        currentValidation = {
-          type: validationStartMatch[1].trim().replace(/^"|"$/g, ''),
-          ref: '',
-          status: '',
-          notes: '',
+      // Add metadata to validations
+      requirement.validations.forEach((validation) => {
+        const validationMeta = {
+          filePath,
         };
-        const validationMeta = { statusLine: null, filePath, startLine: lineIndex };
-        Object.defineProperty(currentValidation, '__meta', {
+        Object.defineProperty(validation, '__meta', {
           value: validationMeta,
           enumerable: false,
         });
-        continue;
-      }
+      });
 
-      const validationPropMatch = line.match(validationPropertyPattern);
-      if (validationPropMatch && currentValidation) {
-        const key = validationPropMatch[1].trim();
-        const rawValue = validationPropMatch[2].trim();
-        const value = rawValue.replace(/^"|"$/g, '');
-        currentValidation[key] = value;
-        if (key === 'status') {
-          const validationMeta = currentValidation.__meta;
-          if (validationMeta) {
-            validationMeta.statusLine = lineIndex;
-          }
-        }
-        continue;
-      }
+      return requirement;
+    });
 
-      const indent = line.search(/\S|$/);
-      if (indent <= 4) {
-        if (currentValidation) {
-          current.validations.push(currentValidation);
-          currentValidation = null;
-        }
-        inValidation = false;
-        // fall through to allow the line to be processed as a top-level property
-      } else {
-        continue;
-      }
-    }
+    return { requirements };
+  } catch (error) {
+    throw new Error(`Failed to parse ${filePath}: ${error.message}`);
   }
-
-  if (current) {
-    if (currentValidation) {
-      current.validations.push(currentValidation);
-    }
-    requirements.push(current);
-  }
-
-  return { requirements };
 }
 
 function collectValidationsForPhase(requirements, phaseName, scenarioRoot) {
@@ -609,6 +479,11 @@ function detectValidationSource(validation) {
     if (phaseMatch) {
       return { kind: 'phase', name: phaseMatch[1] };
     }
+    // Recognize vitest test files (ui/src/.../*.test.{ts,tsx})
+    if (ref.startsWith('ui/src/') && (ref.endsWith('.test.ts') || ref.endsWith('.test.tsx'))) {
+      return { kind: 'phase', name: 'unit' };
+    }
+    // Recognize Go test files
     if (ref.endsWith('_test.go') || ref.includes('/tests/')) {
       return { kind: 'phase', name: 'unit' };
     }
@@ -1095,21 +970,7 @@ function renderPhaseInspect(options, requirements, scenarioRoot) {
   return `${JSON.stringify(payload, null, 2)}\n`;
 }
 
-function replaceStatusValue(line, newValue) {
-  if (!line.includes('status:')) {
-    return line;
-  }
-
-  const commentIndex = line.indexOf('#');
-  if (commentIndex >= 0) {
-    const beforeComment = line.slice(0, commentIndex);
-    const comment = line.slice(commentIndex);
-    const updatedBefore = beforeComment.replace(/(status:\s*)([^#]+)/, (_, prefix) => `${prefix}${newValue}`);
-    return `${updatedBefore}${comment}`;
-  }
-
-  return line.replace(/(status:\s*)(.+?)(\s*)$/, (_, prefix, _value, suffix) => `${prefix}${newValue}${suffix}`);
-}
+// Removed replaceStatusValue - no longer needed with JSON
 
 function deriveValidationStatus(validation) {
   const originalStatus = validation.status || '';
@@ -1161,11 +1022,16 @@ function syncRequirementFile(filePath, requirements) {
     return [];
   }
 
+  // Read the original JSON file
   const originalContent = fs.readFileSync(filePath, 'utf8');
-  const newline = originalContent.includes('\r\n') ? '\r\n' : '\n';
-  const lines = originalContent.split(/\r?\n/);
-
+  const parsed = JSON.parse(originalContent);
   const updates = [];
+
+  // Create a map of requirement IDs to their index in the file
+  const requirementMap = new Map();
+  (parsed.requirements || []).forEach((req, idx) => {
+    requirementMap.set(req.id, idx);
+  });
 
   requirements.forEach((requirement) => {
     const requirementMeta = requirement.__meta;
@@ -1174,67 +1040,392 @@ function syncRequirementFile(filePath, requirements) {
       ? requirementMeta.originalStatus
       : requirement.status;
 
+    // Update validation statuses
     if (Array.isArray(requirement.validations)) {
       requirement.validations.forEach((validation, index) => {
-        const validationMeta = validation.__meta;
         const derivedStatus = deriveValidationStatus(validation);
         validationStatuses.push(derivedStatus);
 
-        if (!validationMeta || typeof validationMeta.statusLine !== 'number') {
-          return;
-        }
-
         if (derivedStatus && derivedStatus !== validation.status) {
-          const lineIndex = validationMeta.statusLine;
-          if (lineIndex >= 0 && lineIndex < lines.length) {
-            lines[lineIndex] = replaceStatusValue(lines[lineIndex], derivedStatus);
-            validation.status = derivedStatus;
-            updates.push({
-              type: 'validation',
-              requirement: requirement.id,
-              index,
-              status: derivedStatus,
-              file: filePath,
-            });
-          }
+          validation.status = derivedStatus;
+          updates.push({
+            type: 'validation',
+            requirement: requirement.id,
+            index,
+            status: derivedStatus,
+            file: filePath,
+          });
         }
       });
     }
 
-    if (!requirementMeta || typeof requirementMeta.statusLine !== 'number') {
-      return;
-    }
-
+    // Update requirement status based on validation rollup
     const nextStatus = deriveRequirementStatus(requirement.status, validationStatuses);
     if (nextStatus && nextStatus !== originalStatus) {
-      const lineIndex = requirementMeta.statusLine;
-      if (lineIndex >= 0 && lineIndex < lines.length) {
-        lines[lineIndex] = replaceStatusValue(lines[lineIndex], nextStatus);
-        requirement.status = nextStatus;
+      requirement.status = nextStatus;
+      if (requirementMeta) {
         requirementMeta.originalStatus = nextStatus;
-        updates.push({
-          type: 'requirement',
-          requirement: requirement.id,
-          status: nextStatus,
-          file: filePath,
+      }
+      updates.push({
+        type: 'requirement',
+        requirement: requirement.id,
+        status: nextStatus,
+        file: filePath,
+      });
+    }
+
+    // Update the parsed JSON with new statuses
+    const reqIndex = requirementMap.get(requirement.id);
+    if (reqIndex !== undefined && parsed.requirements[reqIndex]) {
+      parsed.requirements[reqIndex].status = requirement.status;
+
+      // Update validation statuses in parsed JSON
+      if (Array.isArray(requirement.validations) && Array.isArray(parsed.requirements[reqIndex].validation)) {
+        requirement.validations.forEach((validation, idx) => {
+          if (parsed.requirements[reqIndex].validation[idx]) {
+            parsed.requirements[reqIndex].validation[idx].status = validation.status;
+          }
         });
       }
     }
   });
 
+  // Write back to file if there were updates
   if (updates.length > 0) {
-    fs.writeFileSync(filePath, lines.join(newline), 'utf8');
+    // Update metadata
+    if (!parsed._metadata) {
+      parsed._metadata = {};
+    }
+    parsed._metadata.last_synced_at = new Date().toISOString();
+
+    // Write with 2-space indentation
+    fs.writeFileSync(filePath, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
   }
 
   return updates;
 }
 
-function syncRequirementRegistry(fileRequirementMap) {
+/**
+ * Extract vitest test file references from live vitest-requirements.json
+ * SCOPE: Only processes vitest test files (ui/src/.../...test.{ts,tsx})
+ * @param {string} scenarioRoot - Path to scenario directory
+ * @returns {Map<string, Array<{ref, phase, status}>>} - Map of requirement ID to test files
+ */
+function extractVitestFilesFromPhaseResults(scenarioRoot) {
+  const vitestReportPath = path.join(scenarioRoot, 'ui/coverage/vitest-requirements.json');
+  if (!fs.existsSync(vitestReportPath)) {
+    return new Map();
+  }
+
+  const vitestReport = JSON.parse(fs.readFileSync(vitestReportPath, 'utf8'));
+  const vitestFiles = new Map();
+
+  if (!Array.isArray(vitestReport.requirements)) {
+    return vitestFiles;
+  }
+
+  vitestReport.requirements.forEach(reqResult => {
+    const evidence = reqResult.evidence || '';
+
+    // Extract unique test file paths from evidence
+    // Evidence format: "src/components/__tests__/ProjectModal.test.tsx:Suite > Test; src/stores/..."
+    const fileRefs = new Set();
+
+    // Match all file paths in the evidence string
+    const fileMatches = evidence.matchAll(/([^;]+\.test\.tsx?)/g);
+
+    for (const match of fileMatches) {
+      // Extract just the file path part before the colon
+      const fullMatch = match[0];
+      const colonIndex = fullMatch.indexOf(':');
+      const filePath = colonIndex > 0 ? fullMatch.substring(0, colonIndex).trim() : fullMatch.trim();
+
+      // Prepend "ui/" if not already present
+      const testRef = filePath.startsWith('ui/') ? filePath : `ui/${filePath}`;
+
+      // Only track ui/ vitest files
+      if (testRef.startsWith('ui/src/') && testRef.match(/\.test\.(ts|tsx)$/)) {
+        fileRefs.add(testRef);
+      }
+    }
+
+    // Add all unique file refs for this requirement
+    if (fileRefs.size > 0) {
+      if (!vitestFiles.has(reqResult.id)) {
+        vitestFiles.set(reqResult.id, []);
+      }
+
+      fileRefs.forEach(testRef => {
+        vitestFiles.get(reqResult.id).push({
+          ref: testRef,
+          phase: 'unit',
+          status: reqResult.status === 'passed' ? 'implemented' : 'failing',
+        });
+      });
+    }
+  });
+
+  return vitestFiles;
+}
+
+/**
+ * Add missing vitest validation entries to requirement JSON
+ * @param {string} filePath - Path to requirements JSON file
+ * @param {Array} requirements - Requirements to check
+ * @param {Map} vitestFiles - Map of requirement ID to test files from live evidence
+ * @param {string} scenarioRoot - Scenario directory path
+ * @returns {Array} - Array of changes made
+ */
+function addMissingValidations(filePath, requirements, vitestFiles, scenarioRoot) {
+  const changes = [];
+
+  // 1. Read and parse JSON
+  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+  if (!parsed || !Array.isArray(parsed.requirements)) {
+    return changes;
+  }
+
+  let modified = false;
+
+  parsed.requirements.forEach((requirement) => {
+    const liveTestFiles = vitestFiles.get(requirement.id) || [];
+
+    if (liveTestFiles.length === 0) {
+      return; // No vitest evidence for this requirement
+    }
+
+    // 2. Ensure validation array exists
+    if (!Array.isArray(requirement.validation)) {
+      requirement.validation = [];
+    }
+
+    // 3. Build set of existing vitest refs
+    const existingRefs = new Set(
+      requirement.validation
+        .filter(v => v.type === 'test' && v.ref && v.ref.startsWith('ui/src/'))
+        .map(v => v.ref)
+    );
+
+    // 4. Add missing validations
+    liveTestFiles.forEach(testFile => {
+      if (existingRefs.has(testFile.ref)) {
+        return; // Already exists
+      }
+
+      const newValidation = {
+        type: 'test',
+        ref: testFile.ref,
+        phase: testFile.phase,
+        status: testFile.status,
+        notes: 'Auto-added from vitest evidence',
+      };
+
+      requirement.validation.push(newValidation);
+      modified = true;
+
+      changes.push({
+        type: 'add_validation',
+        requirement: requirement.id,
+        validation: testFile.ref,
+        status: testFile.status,
+      });
+    });
+  });
+
+  // 5. Write back if modified
+  if (modified) {
+    if (!parsed._metadata) {
+      parsed._metadata = {};
+    }
+    parsed._metadata.last_synced_at = new Date().toISOString();
+
+    fs.writeFileSync(filePath, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
+  }
+
+  return changes;
+}
+
+/**
+ * Detect and optionally remove orphaned vitest validation entries
+ * SCOPE: Only checks type:test validations pointing to ui/src/.../...test.{ts,tsx}
+ * @param {string} filePath - Path to requirements JSON file
+ * @param {string} scenarioRoot - Scenario directory
+ * @param {Object} options - Sync options (pruneStale flag)
+ * @returns {Object} - { orphaned: Array, removed: Array }
+ */
+function detectOrphanedValidations(filePath, scenarioRoot, options) {
+  const orphaned = [];
+  const removed = [];
+
+  // 1. Read and parse JSON
+  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+  if (!parsed || !Array.isArray(parsed.requirements)) {
+    return { orphaned, removed };
+  }
+
+  let modified = false;
+
+  parsed.requirements.forEach(requirement => {
+    if (!Array.isArray(requirement.validation)) {
+      return;
+    }
+
+    const validValidations = [];
+
+    requirement.validation.forEach(validation => {
+      // PRESERVE all non-test validations (automation, manual, etc.)
+      if (validation.type !== 'test') {
+        validValidations.push(validation);
+        return;
+      }
+
+      // PRESERVE Go/Python tests (not vitest scope)
+      const ref = validation.ref || '';
+      if (!ref.startsWith('ui/src/') || !ref.match(/\.test\.(ts|tsx)$/)) {
+        validValidations.push(validation);
+        return;
+      }
+
+      // Check if vitest test file exists
+      const exists = fs.existsSync(path.join(scenarioRoot, ref));
+
+      if (exists) {
+        validValidations.push(validation);
+      } else {
+        // Orphaned vitest validation found!
+        orphaned.push({
+          requirement: requirement.id,
+          ref,
+          phase: validation.phase,
+          file: filePath,
+        });
+
+        if (options.pruneStale) {
+          removed.push({
+            requirement: requirement.id,
+            ref,
+            file: filePath,
+          });
+          modified = true;
+          // Don't push to validValidations (removes it)
+        } else {
+          // Keep but mark as orphaned
+          validValidations.push(validation);
+        }
+      }
+    });
+
+    // Replace validation array if pruning
+    if (modified && options.pruneStale) {
+      requirement.validation = validValidations;
+    }
+  });
+
+  // Write back if modified
+  if (modified) {
+    if (!parsed._metadata) {
+      parsed._metadata = {};
+    }
+    parsed._metadata.last_synced_at = new Date().toISOString();
+
+    fs.writeFileSync(filePath, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
+  }
+
+  return { orphaned, removed };
+}
+
+function syncRequirementRegistry(fileRequirementMap, scenarioRoot, options) {
   const updates = [];
+  const addedValidations = [];
+  const orphanedValidations = [];
+  const removedValidations = [];
+
+  // Extract live vitest evidence once (from phase-results)
+  const vitestFiles = extractVitestFilesFromPhaseResults(scenarioRoot);
+
   for (const [filePath, requirements] of fileRequirementMap.entries()) {
+    // Phase 1: Detect and optionally remove orphaned validations
+    const orphanResult = detectOrphanedValidations(filePath, scenarioRoot, options);
+    orphanedValidations.push(...orphanResult.orphaned);
+    removedValidations.push(...orphanResult.removed);
+
+    // Phase 2: Add missing validations from live evidence
+    const added = addMissingValidations(filePath, requirements, vitestFiles, scenarioRoot);
+    addedValidations.push(...added);
+
+    // Phase 3: Update status fields (existing logic)
     updates.push(...syncRequirementFile(filePath, requirements));
   }
-  return updates;
+
+  return {
+    statusUpdates: updates,
+    addedValidations,
+    orphanedValidations,
+    removedValidations,
+  };
+}
+
+/**
+ * Print sync summary to console
+ * @param {Object} syncResult - Result from syncRequirementRegistry
+ */
+function printSyncSummary(syncResult) {
+  console.log('\n📋 Requirements Sync Report:\n');
+
+  // Status updates (existing)
+  if (syncResult.statusUpdates.length > 0) {
+    console.log('✏️  Status Updates:');
+    syncResult.statusUpdates.forEach(update => {
+      if (update.type === 'requirement') {
+        console.log(`   ${update.requirement}: status → ${update.status}`);
+      }
+    });
+    console.log();
+  }
+
+  // Added validations (new)
+  if (syncResult.addedValidations.length > 0) {
+    console.log('✅ Added Validations:');
+    syncResult.addedValidations.forEach(added => {
+      console.log(`   ${added.requirement}: + ${added.validation}`);
+    });
+    console.log();
+  }
+
+  // Orphaned validations (new)
+  if (syncResult.orphanedValidations.length > 0) {
+    console.log('⚠️  Orphaned Validations (file not found):');
+    syncResult.orphanedValidations.forEach(orphan => {
+      console.log(`   ${orphan.requirement}: × ${orphan.ref}`);
+    });
+    console.log();
+
+    if (!syncResult.removedValidations.length) {
+      console.log('   💡 Use --prune-stale to remove orphaned validations\n');
+    }
+  }
+
+  // Removed validations (new)
+  if (syncResult.removedValidations.length > 0) {
+    console.log('🗑️  Removed Orphaned Validations:');
+    syncResult.removedValidations.forEach(removed => {
+      console.log(`   ${removed.requirement}: - ${removed.ref}`);
+    });
+    console.log();
+  }
+
+  // Summary
+  const totalChanges = syncResult.statusUpdates.length +
+                      syncResult.addedValidations.length +
+                      syncResult.removedValidations.length;
+
+  if (totalChanges === 0) {
+    console.log('✅ No changes needed - all requirements are up to date\n');
+  } else {
+    console.log(`✅ Sync complete: ${totalChanges} total changes\n`);
+  }
 }
 
 function main() {
@@ -1301,12 +1492,13 @@ function main() {
   aggregateRequirementStatuses(requirements, requirementIndex);
 
   if (options.mode === 'sync') {
-    const updates = syncRequirementRegistry(fileRequirementMap);
-    if (updates.length === 0) {
-      process.stdout.write('requirements/report: no requirement updates needed\n');
-    } else {
-      process.stdout.write(`requirements/report: updated ${updates.length} requirement entries\n`);
-    }
+    const syncResult = syncRequirementRegistry(
+      fileRequirementMap,
+      scenarioRoot,
+      options
+    );
+
+    printSyncSummary(syncResult);
     return;
   }
 

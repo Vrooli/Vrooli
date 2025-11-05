@@ -311,7 +311,7 @@ CLI_NAME_PLACEHOLDER create resources name "Test"
 ```
 
 ### **Requirement Coverage**
-- Document PRD-level requirements in `docs/requirements.yaml` or a modular `requirements/` registry. Each requirement should list the phase scripts, unit tests, or workflow automations that validate it.
+- Document PRD-level requirements in `docs/requirements.json` or a modular `requirements/` registry. Each requirement should list the phase scripts, unit tests, or workflow automations that validate it.
 - Tag unit tests with `REQ:<ID>` (for example, `t.Run("persists workflows [REQ:SAMPLE-FUNC-001]", ...)`) so the shared Go/Node runners automatically record pass/fail status.
 - Execute YAML-defined automations with `testing::phase::run_workflow_yaml --file automation/workflows/<name>.yaml` inside phase scripts to keep requirement evidence aligned.
 - Generate coverage reports:

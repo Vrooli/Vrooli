@@ -1,0 +1,75 @@
+{
+  "_metadata": {
+    "description": "Workflow builder canvas and persistence requirements",
+    "last_validated_at": "2025-11-04T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-05T05:23:41.036Z"
+  },
+  "requirements": [
+    {
+      "id": "BAS-WORKFLOW-PERSIST-CRUD",
+      "category": "workflow.builder",
+      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+      "title": "Workflows persist nodes, edges, and metadata",
+      "description": "Validates compiler, database, and API layers so workflows round-trip with folder hierarchy and normalized metadata required for execution planning.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/browserless/compiler/compiler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Ensures ordering, cycle detection, and unsupported node handling."
+        },
+        {
+          "type": "test",
+          "ref": "api/browserless/runtime/session_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Exercises Browserless session payloads without external dependencies."
+        },
+        {
+          "type": "test",
+          "ref": "api/database/repository_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Confirms workflow persistence and retrieval with folder hierarchy metadata."
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-unit.sh",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit phase aggregates Go + Node coverage with thresholds enforced."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/__tests__/projectStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
+        }
+      ]
+    },
+    {
+      "id": "BAS-WORKFLOW-DEMO-SEED",
+      "category": "workflow.builder",
+      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+      "title": "Demo project and workflow seed remain available after boot",
+      "description": "Guarantees the bundled demo project loads for first-time operators, providing an executable workflow that exercises the canvas and executor pipeline.",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/projects/demo-sanity.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "BAS workflow ensuring demo seed parity via JSON playbook (pending export)."
+        }
+      ]
+    }
+  ]
+}

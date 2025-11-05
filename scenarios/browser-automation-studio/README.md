@@ -14,7 +14,7 @@ Browser Automation Studio transforms browser automation from code-based scripts 
 - Replay tooling offers a Replay tab with highlight/mask overlays, zoom anchoring, animated cursor trails, and storyboard navigation, and the API now serves structured `/executions/{id}/export` packages with transition hints, theme presets, and asset references. DOM snapshots are captured alongside screenshots, surface in the UI replay inspector, and ship as embedded HTML in export bundles. The CLI now includes `execution render-video`, which asks the API’s Browserless renderer to capture each frame from the composer iframe and streams MP4/WEBM bundles back to disk, while richer motion presets remain roadmap work.
 - The composer now sends its fully decorated `ReplayMovieSpec` to the export API, so Browserless captures exactly what the iframe shows while still supporting JSON exports and CLI automation.
 - Chrome extension recordings can be ingested via `POST /api/v1/recordings/import`, which normalises manifest + frame archives into executions, timeline artifacts, and replay assets served from `/api/v1/recordings/assets/{executionID}/…`. Automated extension packaging remains to be productised, but imported runs now appear alongside Browserless executions.
-- Requirements tracking continues through `requirements/index.yaml` (v0.2.0 modular registry) and `scripts/requirements/report.js`, now reflecting telemetry/replay progress; automated CI hooks remain pending.
+- Requirements tracking continues through `requirements/index.json` (v0.2.0 modular registry) and `scripts/requirements/report.js`, now reflecting telemetry/replay progress; automated CI hooks remain pending.
 - Automated coverage exercises the compiler/runtime helpers and executor telemetry persistence; WebSocket contract, handler integration, and end-to-end Browserless tests remain gaps.
 - Documentation across README/PRD/action-plan matches the current executor and replay capabilities while calling out remaining milestones.
 
@@ -28,7 +28,7 @@ Browser Automation Studio transforms browser automation from code-based scripts 
 - AI workflow generation/debugging endpoints exist but still require manual validation before they can be considered production-ready.
 
 ## 📊 Status Dashboard
-- Requirement coverage (`requirements/index.yaml` v0.2.0): totals now align with the modular registry. Running `test/phases/*` emits JSON to `coverage/phase-results/` so the requirements reporter reflects live phase pass/fail states instead of static bookkeeping.
+- Requirement coverage (`requirements/index.json` v0.2.0): totals now align with the modular registry. Running `test/phases/*` emits JSON to `coverage/phase-results/` so the requirements reporter reflects live phase pass/fail states instead of static bookkeeping.
 - Generate a fresh snapshot with `node ../../scripts/requirements/report.js --scenario browser-automation-studio --format markdown` from the scenario root.
 
 ## ✨ Features
