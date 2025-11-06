@@ -283,6 +283,7 @@ if (allowedHosts.size > 0) {
 
 export default defineConfig({
   plugins: [react()],
+  base: './',
   define: {
     // Expose API port to the frontend for WebSocket connections
     __API_PORT__: JSON.stringify(resolvedApiPort),

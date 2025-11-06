@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
+import { ensureIframeBridge, type BridgeController } from '@/lib/iframeBridge';
 import {
   ArrowDownToLine,
   CheckCircle2,
@@ -28,7 +28,6 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
-const APP_ID = 'qr-code-generator';
 const DEFAULT_API_PATH = '/api';
 
 type ErrorCorrection = 'L' | 'M' | 'Q' | 'H';
@@ -106,51 +105,13 @@ function App() {
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
 
   const statusResetHandle = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const bridgeRef = useRef<ReturnType<typeof initIframeBridgeChild> | null>(null);
+  const bridgeRef = useRef<BridgeController | null>(null);
 
   useEffect(() => {
     function setupBridge() {
-      if (typeof window === 'undefined' || window.parent === window) {
-        return;
-      }
-
-      if (bridgeRef.current) {
-        bridgeRef.current.notify();
-        return;
-      }
-
-      let parentOrigin: string | undefined;
-      try {
-        if (document.referrer) {
-          parentOrigin = new URL(document.referrer).origin;
-        }
-      } catch (error) {
-        console.warn('[QR UI] Unable to determine parent origin for iframe bridge', error);
-      }
-
-      const logLevels = ['log', 'info', 'warn', 'error', 'debug'];
-
-      try {
-        bridgeRef.current = initIframeBridgeChild({
-          parentOrigin,
-          appId: APP_ID,
-          captureLogs: {
-            enabled: true,
-            streaming: true,
-            bufferSize: 400,
-            levels: logLevels
-          },
-          captureNetwork: {
-            enabled: true,
-            streaming: true,
-            bufferSize: 200
-          }
-        });
-
-        window.__qrCodeGeneratorBridgeInitialized = true;
-      } catch (error) {
-        console.error('[QR UI] Failed to initialize iframe bridge', error);
-        bridgeRef.current = null;
+      const bridge = ensureIframeBridge();
+      if (bridge) {
+        bridgeRef.current = bridge;
       }
     }
 

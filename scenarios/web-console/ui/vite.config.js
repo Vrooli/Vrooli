@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => {
   const uiPort = Number(env.UI_PORT || process.env.UI_PORT || 0) || 5173
 
   return {
+    base: './',
     build: {
       outDir: 'dist',
       assetsDir: 'assets',

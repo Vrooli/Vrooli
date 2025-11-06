@@ -4,6 +4,8 @@
  * Shared utility helpers for the web-console UI.
  */
 
+import { resolveApiBase, resolveWsBase, buildApiUrl } from '@vrooli/api-base'
+
 const sharedTextDecoder = new TextDecoder();
 const sharedTextEncoder = new TextEncoder();
 
@@ -33,15 +35,16 @@ function scheduleResourceTimingCleanup() {
   }, 15000);
 }
 
+// Resolve API base URL once at module load
+const API_BASE = resolveApiBase({ appendSuffix: false })
+
 /**
  * @param {string} path
  * @param {{ method?: string; json?: unknown; headers?: HeadersInit }} [options]
  * @returns {Promise<Response>}
  */
 export function proxyToApi(path, { method = "GET", json, headers } = {}) {
-  const targetPath = path.startsWith("/api")
-    ? path
-    : `/api${path.startsWith("/") ? path : `/${path}`}`;
+  const url = buildApiUrl(path, { baseUrl: API_BASE });
   const requestHeaders = headers ? new Headers(headers) : new Headers();
   /** @type {RequestInit} */
   const requestInit = {
@@ -52,7 +55,7 @@ export function proxyToApi(path, { method = "GET", json, headers } = {}) {
     requestHeaders.set("Content-Type", "application/json");
     requestInit.body = JSON.stringify(json);
   }
-  const request = fetch(targetPath, requestInit);
+  const request = fetch(url, requestInit);
   scheduleResourceTimingCleanup();
   return request;
 }
@@ -62,10 +65,10 @@ export function proxyToApi(path, { method = "GET", json, headers } = {}) {
  * @returns {string}
  */
 export function buildWebSocketUrl(path) {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = window.location.host;
+  // Use resolveWsBase to get the WebSocket base URL
+  const WS_BASE = resolveWsBase({ appendSuffix: false });
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  return `${protocol}//${host}${normalized}`;
+  return `${WS_BASE}${normalized}`;
 }
 
 /**

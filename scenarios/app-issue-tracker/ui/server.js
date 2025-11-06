@@ -6,6 +6,7 @@ const app = createScenarioServer({
   distDir: './dist',
   serviceName: 'app-issue-tracker',
   version: '2.0.0',
+  corsOrigins: '*',
   verbose: true
 });
 

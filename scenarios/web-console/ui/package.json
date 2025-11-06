@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@vrooli/api-base": "file:../../../packages/api-base",
     "@xterm/addon-fit": "^0.10.0",
-    "@xterm/xterm": "^5.5.0"
+    "@xterm/xterm": "^5.5.0",
+    "express": "^4.21.2"
   },
   "scripts": {
     "dev": "vite",

@@ -1,4 +1,7 @@
+import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 import { extractTerminalContext } from "./context.js";
+
+const API_BASE = resolveApiBase({ appendSuffix: false })
 
 export async function generateAICommand(
   prompt,
@@ -10,7 +13,8 @@ export async function generateAICommand(
       typeof getActiveTabFn === "function" ? getActiveTabFn() : null;
     const context = extractTerminalContext(activeTab);
 
-    const response = await fetch("/api/generate-command", {
+    const url = buildApiUrl('/api/generate-command', { baseUrl: API_BASE })
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

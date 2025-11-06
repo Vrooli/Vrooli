@@ -62,6 +62,10 @@
             "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "web-console"
           }
         ]
       },
@@ -71,20 +75,33 @@
           "run": "mkdir -p data/sessions",
           "description": "Create storage directory for transcript archives"
         },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
     {
       "name": "build-api",
       "run": "cd api && go mod tidy && go build -o web-console-api .",
       "description": "Build Go API server"
     },
     {
+      "name": "install-ui-deps",
+      "run": "cd ui && pnpm install",
+      "description": "Install UI dependencies",
+      "condition": {
+        "file_exists": "ui/package.json"
+      }
+    },
+    {
       "name": "build-ui",
-      "run": "cd ui && if [ ! -d node_modules ]; then echo 'WARNING: Web Console UI dependencies missing. Run `pnpm install --filter web-console-ui` before setup.' >&2; exit 1; fi && pnpm run build",
+      "run": "cd ui && pnpm run build",
       "description": "Build Vite bundle for the Web Console UI"
     },
         {
-          "name": "show-next-steps",
-          "run": "echo 'Web Console ready. Use make run to launch services.'",
-          "description": "Display next-step guidance"
+          "name": "show-urls",
+          "run": "echo 'Web Console ready' && echo '  UI: http://localhost:${UI_PORT}' && echo '  API: http://localhost:${API_PORT}'",
+          "description": "Display service URLs"
         }
       ]
     },

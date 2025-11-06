@@ -19,13 +19,13 @@ app.use((req, res, next) => {
     if (req.path === '/' || req.path === '/index.html') {
         return next();
     }
-    express.static(path.join(__dirname))(req, res, next);
+    express.static(path.join(__dirname, 'dist'))(req, res, next);
 });
 
 // Main dashboard route with API URL injection
 app.get('/', (req, res) => {
     const fs = require('fs');
-    const indexPath = path.join(__dirname, 'index.html');
+    const indexPath = path.join(__dirname, 'dist', 'index.html');
     let html = fs.readFileSync(indexPath, 'utf8');
 
     // Inject API URL as data attribute in body tag
