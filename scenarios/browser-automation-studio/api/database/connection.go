@@ -424,8 +424,11 @@ CREATE TRIGGER update_execution_artifacts_updated_at BEFORE UPDATE ON execution_
 
 	db.log.Info("Database schema initialized successfully")
 
-	if err := db.seedDemoWorkflow(); err != nil {
-		return err
+	// Skip demo seeding in test environments
+	if os.Getenv("BAS_SKIP_DEMO_SEED") != "true" {
+		if err := db.seedDemoWorkflow(); err != nil {
+			return err
+		}
 	}
 
 	return nil

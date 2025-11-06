@@ -32,6 +32,17 @@ type ExecuteWorkflowRequest struct {
 	WaitForCompletion bool           `json:"wait_for_completion"`
 }
 
+// ExecuteAdhocWorkflowRequest represents the request to execute a workflow without persistence
+type ExecuteAdhocWorkflowRequest struct {
+	FlowDefinition    map[string]any `json:"flow_definition"`
+	Parameters        map[string]any `json:"parameters,omitempty"`
+	WaitForCompletion bool           `json:"wait_for_completion"`
+	Metadata          *struct {
+		Name        string `json:"name,omitempty"`
+		Description string `json:"description,omitempty"`
+	} `json:"metadata,omitempty"`
+}
+
 // ModifyWorkflowRequest represents the request to modify a workflow with AI support
 type ModifyWorkflowRequest struct {
 	ModificationPrompt string         `json:"modification_prompt"`
@@ -455,5 +466,56 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 	}{
 		workflowResponse: newWorkflowResponse(workflow),
 		ModificationNote: "ai",
+	})
+}
+
+// ExecuteAdhocWorkflow handles POST /api/v1/workflows/execute-adhoc
+// This endpoint allows executing workflow definitions directly without persisting them to the database.
+// It is particularly useful for testing scenarios where workflow pollution should be avoided.
+func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
+	var req ExecuteAdhocWorkflowRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.log.WithError(err).Error("Failed to decode adhoc workflow request")
+		h.respondError(w, ErrInvalidRequest)
+		return
+	}
+
+	// Validate required fields
+	if req.FlowDefinition == nil {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
+			"field": "flow_definition",
+		}))
+		return
+	}
+
+	// Extract workflow name from metadata or use default
+	workflowName := "adhoc-workflow"
+	if req.Metadata != nil && strings.TrimSpace(req.Metadata.Name) != "" {
+		workflowName = strings.TrimSpace(req.Metadata.Name)
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	execution, err := h.workflowService.ExecuteAdhocWorkflow(
+		ctx,
+		req.FlowDefinition,
+		req.Parameters,
+		workflowName,
+	)
+	if err != nil {
+		h.log.WithError(err).WithField("workflow_name", workflowName).Error("Failed to execute adhoc workflow")
+		h.respondError(w, ErrWorkflowExecutionFailed.WithDetails(map[string]string{
+			"workflow_name": workflowName,
+			"error":         err.Error(),
+		}))
+		return
+	}
+
+	h.respondSuccess(w, http.StatusOK, map[string]any{
+		"execution_id": execution.ID,
+		"status":       execution.Status,
+		"workflow_id":  nil, // No persisted workflow for adhoc execution
+		"message":      "Adhoc workflow execution started successfully",
 	})
 }

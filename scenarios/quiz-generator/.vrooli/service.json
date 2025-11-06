@@ -268,34 +268,48 @@
                "api/quiz-generator-api"
              ]
            },
-            {
-              "type": "cli",
-              "targets": [
-                "quiz-generator"
-              ]
-            }
+           {
+             "type": "ui-bundle",
+             "bundle_path": "ui/dist/index.html",
+             "source_dir": "ui/src"
+           },
+           {
+             "type": "cli",
+             "command": "quiz-generator",
+             "targets": [
+               "quiz-generator"
+             ]
+           }
          ]
        },
        "steps": [
-         {
-           "name": "build-api",
-           "run": "cd api && go mod download && go build -o quiz-generator-api .",
-           "description": "Build Go API binary"
-         },
-         {
-           "name": "install-cli",
-           "run": "cd cli && ./install.sh",
-           "description": "Install CLI command globally"
-         },
-         {
-           "name": "setup-ui",
-           "run": "cd ui && npm install",
-           "description": "Install UI dependencies"
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Quiz Generator initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: quiz-generator --help'",
-           "description": "Display service access URLs"
+       {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o quiz-generator-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Quiz Generator initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: quiz-generator --help'",
+          "description": "Display service access URLs"
          }
        ]
      },
@@ -313,9 +327,12 @@
           },
           {
             "name": "start-ui",
-            "run": "cd ui && npm run dev",
-            "description": "Start React UI development server",
-            "background": true
+            "run": "cd ui && node server.js",
+            "description": "Start React UI server",
+            "background": true,
+            "condition": {
+              "file_exists": "ui/dist/index.html"
+            }
           },
          {
            "name": "show-urls",

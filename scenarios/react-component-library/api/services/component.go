@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/vrooli/scenarios/react-component-library/models"
 )
 
@@ -31,9 +32,9 @@ func (s *ComponentService) CreateComponent(component *models.Component) error {
 		INSERT INTO components (
 			id, name, category, description, code, props_schema,
 			created_at, updated_at, version, author, usage_count,
-			tags, is_active, dependencies, example_usage
+			tags, is_active, dependencies, screenshots, example_usage
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 		)`
 
 	_, err := s.db.Exec(
@@ -49,9 +50,10 @@ func (s *ComponentService) CreateComponent(component *models.Component) error {
 		component.Version,
 		component.Author,
 		component.UsageCount,
-		strings.Join(component.Tags, ","),
+		pq.Array(component.Tags),
 		component.IsActive,
-		strings.Join(component.Dependencies, ","),
+		pq.Array(component.Dependencies),
+		pq.Array(component.Screenshots),
 		component.ExampleUsage,
 	)
 
@@ -72,8 +74,10 @@ func (s *ComponentService) GetComponent(id uuid.UUID) (*models.Component, error)
 	row := s.db.QueryRow(query, id)
 
 	var component models.Component
-	var tagsStr, dependenciesStr, screenshotsStr string
-	
+	var tags pq.StringArray
+	var dependencies pq.StringArray
+	var screenshots pq.StringArray
+
 	err := row.Scan(
 		&component.ID,
 		&component.Name,
@@ -88,10 +92,10 @@ func (s *ComponentService) GetComponent(id uuid.UUID) (*models.Component, error)
 		&component.UsageCount,
 		&component.AccessibilityScore,
 		&component.PerformanceMetrics,
-		&tagsStr,
+		&tags,
 		&component.IsActive,
-		&dependenciesStr,
-		&screenshotsStr,
+		&dependencies,
+		&screenshots,
 		&component.ExampleUsage,
 	)
 
@@ -102,16 +106,9 @@ func (s *ComponentService) GetComponent(id uuid.UUID) (*models.Component, error)
 		return nil, err
 	}
 
-	// Parse comma-separated strings back to slices
-	if tagsStr != "" {
-		component.Tags = strings.Split(tagsStr, ",")
-	}
-	if dependenciesStr != "" {
-		component.Dependencies = strings.Split(dependenciesStr, ",")
-	}
-	if screenshotsStr != "" {
-		component.Screenshots = strings.Split(screenshotsStr, ",")
-	}
+	component.Tags = append([]string(nil), tags...)
+	component.Dependencies = append([]string(nil), dependencies...)
+	component.Screenshots = append([]string(nil), screenshots...)
 
 	return &component, nil
 }
@@ -161,7 +158,9 @@ func (s *ComponentService) ListComponents(category string, limit, offset int) ([
 
 	for rows.Next() {
 		var component models.Component
-		var tagsStr, dependenciesStr, screenshotsStr string
+		var tags pq.StringArray
+		var dependencies pq.StringArray
+		var screenshots pq.StringArray
 
 		err := rows.Scan(
 			&component.ID,
@@ -177,26 +176,19 @@ func (s *ComponentService) ListComponents(category string, limit, offset int) ([
 			&component.UsageCount,
 			&component.AccessibilityScore,
 			&component.PerformanceMetrics,
-			&tagsStr,
+			&tags,
 			&component.IsActive,
-			&dependenciesStr,
-			&screenshotsStr,
+			&dependencies,
+			&screenshots,
 			&component.ExampleUsage,
 		)
 		if err != nil {
 			return nil, 0, err
 		}
 
-		// Parse comma-separated strings
-		if tagsStr != "" {
-			component.Tags = strings.Split(tagsStr, ",")
-		}
-		if dependenciesStr != "" {
-			component.Dependencies = strings.Split(dependenciesStr, ",")
-		}
-		if screenshotsStr != "" {
-			component.Screenshots = strings.Split(screenshotsStr, ",")
-		}
+		component.Tags = append([]string(nil), tags...)
+		component.Dependencies = append([]string(nil), dependencies...)
+		component.Screenshots = append([]string(nil), screenshots...)
 
 		components = append(components, component)
 	}
@@ -210,7 +202,7 @@ func (s *ComponentService) UpdateComponent(component *models.Component) (*models
 		UPDATE components SET 
 			name = $2, category = $3, description = $4, code = $5,
 			props_schema = $6, updated_at = $7, tags = $8,
-			dependencies = $9, example_usage = $10
+			dependencies = $9, screenshots = $10, example_usage = $11
 		WHERE id = $1 AND is_active = true
 		RETURNING 
 			id, name, category, description, code, props_schema,
@@ -227,13 +219,16 @@ func (s *ComponentService) UpdateComponent(component *models.Component) (*models
 		component.Code,
 		component.PropsSchema,
 		component.UpdatedAt,
-		strings.Join(component.Tags, ","),
-		strings.Join(component.Dependencies, ","),
+		pq.Array(component.Tags),
+		pq.Array(component.Dependencies),
+		pq.Array(component.Screenshots),
 		component.ExampleUsage,
 	)
 
 	var updatedComponent models.Component
-	var tagsStr, dependenciesStr, screenshotsStr string
+	var tags pq.StringArray
+	var dependencies pq.StringArray
+	var screenshots pq.StringArray
 
 	err := row.Scan(
 		&updatedComponent.ID,
@@ -249,10 +244,10 @@ func (s *ComponentService) UpdateComponent(component *models.Component) (*models
 		&updatedComponent.UsageCount,
 		&updatedComponent.AccessibilityScore,
 		&updatedComponent.PerformanceMetrics,
-		&tagsStr,
+		&tags,
 		&updatedComponent.IsActive,
-		&dependenciesStr,
-		&screenshotsStr,
+		&dependencies,
+		&screenshots,
 		&updatedComponent.ExampleUsage,
 	)
 
@@ -263,16 +258,9 @@ func (s *ComponentService) UpdateComponent(component *models.Component) (*models
 		return nil, err
 	}
 
-	// Parse comma-separated strings
-	if tagsStr != "" {
-		updatedComponent.Tags = strings.Split(tagsStr, ",")
-	}
-	if dependenciesStr != "" {
-		updatedComponent.Dependencies = strings.Split(dependenciesStr, ",")
-	}
-	if screenshotsStr != "" {
-		updatedComponent.Screenshots = strings.Split(screenshotsStr, ",")
-	}
+	updatedComponent.Tags = append([]string(nil), tags...)
+	updatedComponent.Dependencies = append([]string(nil), dependencies...)
+	updatedComponent.Screenshots = append([]string(nil), screenshots...)
 
 	return &updatedComponent, nil
 }
@@ -301,7 +289,7 @@ func (s *ComponentService) DeleteComponent(id uuid.UUID) error {
 func (s *ComponentService) ValidateComponentCode(code string) error {
 	// Basic validation - check for React component patterns
 	code = strings.TrimSpace(code)
-	
+
 	if code == "" {
 		return ErrInvalidCode
 	}
@@ -355,8 +343,8 @@ func (s *ComponentService) ExportComponent(id uuid.UUID, req models.ComponentExp
 	}
 
 	response := &models.ComponentExportResponse{
-		ExportType:       req.Format,
-		Dependencies:     component.Dependencies,
+		ExportType:        req.Format,
+		Dependencies:      component.Dependencies,
 		UsageInstructions: generateUsageInstructions(component, req.Format),
 	}
 
@@ -397,7 +385,7 @@ func (s *ComponentService) GetComponentVersions(componentID uuid.UUID) ([]models
 	var versions []models.ComponentVersion
 	for rows.Next() {
 		var version models.ComponentVersion
-		var breakingChangesStr string
+		var breakingChanges pq.StringArray
 
 		err := rows.Scan(
 			&version.ID,
@@ -405,7 +393,7 @@ func (s *ComponentService) GetComponentVersions(componentID uuid.UUID) ([]models
 			&version.Version,
 			&version.Code,
 			&version.Changelog,
-			&breakingChangesStr,
+			&breakingChanges,
 			&version.Deprecated,
 			&version.CreatedAt,
 		)
@@ -413,9 +401,7 @@ func (s *ComponentService) GetComponentVersions(componentID uuid.UUID) ([]models
 			return nil, err
 		}
 
-		if breakingChangesStr != "" {
-			version.BreakingChanges = strings.Split(breakingChangesStr, ",")
-		}
+		version.BreakingChanges = append([]string(nil), breakingChanges...)
 
 		versions = append(versions, version)
 	}
@@ -430,7 +416,7 @@ func (s *ComponentService) GetUsageAnalytics(componentID, startDate, endDate str
 		SELECT COUNT(*) as usage_count, DATE(used_at) as date
 		FROM usage_analytics 
 		WHERE 1=1`
-	
+
 	args := []interface{}{}
 	argIndex := 1
 

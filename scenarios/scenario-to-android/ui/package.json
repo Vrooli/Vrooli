@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "echo 'No build step required for static HTML UI'"
   },
   "keywords": ["android", "mobile", "vrooli"],
   "author": "Vrooli Platform",

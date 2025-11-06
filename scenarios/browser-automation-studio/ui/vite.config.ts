@@ -235,6 +235,7 @@ export default defineConfig({
     sourcemap: true,
     minify: 'esbuild',
     target: 'esnext',
+    cssCodeSplit: true,  // Split CSS for better caching and performance
     rollupOptions: {
       input: {
         main: mainEntry,
@@ -292,6 +293,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 800,
   },
   optimizeDeps: {
-    include: ['lucide-react'],
+    include: ['lucide-react', 'react', 'react-dom', 'zustand'],
+    exclude: ['@monaco-editor/react'],  // Lazy load Monaco Editor
   },
 });

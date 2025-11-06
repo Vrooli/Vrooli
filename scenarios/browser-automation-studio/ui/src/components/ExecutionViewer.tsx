@@ -417,6 +417,7 @@ const REPLAY_BACKGROUND_OPTIONS: Array<{
         <img
           src={geometricPrismUrl}
           alt=""
+          loading="lazy"
           className="h-full w-full object-cover"
         />
         <span className="absolute inset-0 bg-gradient-to-br from-cyan-400/30 via-transparent to-indigo-500/24 mix-blend-screen" />
@@ -437,6 +438,7 @@ const REPLAY_BACKGROUND_OPTIONS: Array<{
         <img
           src={geometricOrbitUrl}
           alt=""
+          loading="lazy"
           className="h-full w-full object-cover"
         />
         <span className="absolute inset-0 bg-gradient-to-br from-sky-300/28 via-transparent to-amber-300/20 mix-blend-screen" />
@@ -457,6 +459,7 @@ const REPLAY_BACKGROUND_OPTIONS: Array<{
         <img
           src={geometricMosaicUrl}
           alt=""
+          loading="lazy"
           className="h-full w-full object-cover"
         />
         <span className="absolute inset-0 bg-gradient-to-tr from-sky-400/28 via-transparent to-indigo-400/22 mix-blend-screen" />
@@ -3836,6 +3839,7 @@ function ActiveExecutionViewer({
                       <img
                         src={screenshot.url}
                         alt={screenshot.stepName}
+                        loading="lazy"
                         className="block w-full"
                       />
                     </div>
@@ -3859,6 +3863,7 @@ function ActiveExecutionViewer({
                       <img
                         src={screenshot.url}
                         alt={screenshot.stepName}
+                        loading="lazy"
                         className="w-full h-full object-cover"
                       />
                     </div>

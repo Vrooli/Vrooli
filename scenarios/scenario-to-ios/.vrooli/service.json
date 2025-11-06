@@ -47,7 +47,7 @@
           }
         },
         {
-          "name": "show-url",
+          "name": "show-urls",
           "run": "echo '🚀 Scenario to iOS API running on http://localhost:${API_PORT}'",
           "description": "Display API access URL"
         }
@@ -78,6 +78,7 @@
           },
           {
             "type": "cli",
+            "command": "scenario-to-ios",
             "targets": [
               "scenario-to-ios"
             ]
@@ -94,6 +95,11 @@
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
           "description": "Install CLI tool"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Scenario to iOS initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-ios --help'",
+          "description": "Display service access URLs"
         }
       ]
     }

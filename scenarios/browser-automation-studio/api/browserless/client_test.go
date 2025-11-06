@@ -280,9 +280,10 @@ func newTestClient() (*Client, *mockRepository) {
 }
 
 func TestBuildInstructions(t *testing.T) {
-	client, _ := newTestClient()
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] builds instruction list from workflow nodes", func(t *testing.T) {
+		client, _ := newTestClient()
 
-	workflow := &database.Workflow{
+		workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
 			"nodes": []any{
@@ -416,38 +417,42 @@ func TestBuildInstructions(t *testing.T) {
 	if instr[5].Params.Background != "#111111" {
 		t.Errorf("background not parsed: %s", instr[5].Params.Background)
 	}
-	if math.Abs(instr[5].Params.ZoomFactor-1.25) > 0.0001 {
-		t.Errorf("zoom factor not parsed: %f", instr[5].Params.ZoomFactor)
-	}
+		if math.Abs(instr[5].Params.ZoomFactor-1.25) > 0.0001 {
+			t.Errorf("zoom factor not parsed: %f", instr[5].Params.ZoomFactor)
+		}
+	})
 }
 
 func TestBuildInstructionsWorkflowCallNotSupported(t *testing.T) {
-	client, _ := newTestClient()
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] rejects unsupported workflow call nodes", func(t *testing.T) {
+		client, _ := newTestClient()
 
-	workflow := &database.Workflow{
-		ID: uuid.New(),
-		FlowDefinition: database.JSONMap{
-			"nodes": []any{
-				map[string]any{
-					"id":   "node-1",
-					"type": "workflowCall",
-					"data": map[string]any{
-						"workflowId": "wf-123",
+		workflow := &database.Workflow{
+			ID: uuid.New(),
+			FlowDefinition: database.JSONMap{
+				"nodes": []any{
+					map[string]any{
+						"id":   "node-1",
+						"type": "workflowCall",
+						"data": map[string]any{
+							"workflowId": "wf-123",
+						},
 					},
 				},
 			},
-		},
-	}
+		}
 
-	if _, err := client.buildInstructions(workflow); err == nil {
-		t.Fatalf("expected error for unsupported workflow call node")
-	}
+		if _, err := client.buildInstructions(workflow); err == nil {
+			t.Fatalf("expected error for unsupported workflow call node")
+		}
+	})
 }
 
 func TestBuildInstructionsAssertStep(t *testing.T) {
-	client, _ := newTestClient()
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] builds assert instruction with validation params", func(t *testing.T) {
+		client, _ := newTestClient()
 
-	workflow := &database.Workflow{
+		workflow := &database.Workflow{
 		ID: uuid.New(),
 		FlowDefinition: database.JSONMap{
 			"nodes": []any{
@@ -494,9 +499,10 @@ func TestBuildInstructionsAssertStep(t *testing.T) {
 	if assertStep.Params.TimeoutMs != 4500 {
 		t.Fatalf("timeout not parsed: %d", assertStep.Params.TimeoutMs)
 	}
-	if assertStep.Params.FailureMessage != "Status indicator missing" {
-		t.Fatalf("failure message not parsed: %s", assertStep.Params.FailureMessage)
-	}
+		if assertStep.Params.FailureMessage != "Status indicator missing" {
+			t.Fatalf("failure message not parsed: %s", assertStep.Params.FailureMessage)
+		}
+	})
 }
 
 func TestExecuteWorkflowPersistsTelemetry(t *testing.T) {
@@ -587,7 +593,8 @@ func TestExecuteWorkflowPersistsTelemetry(t *testing.T) {
 }
 
 func TestExecuteWorkflowRetriesOnFailure(t *testing.T) {
-	client, repo := newTestClient()
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] retries failed steps and persists retry metadata", func(t *testing.T) {
+		client, repo := newTestClient()
 
 	responses := []string{
 		`{"success":false,"error":"timeout","steps":[{"index":0,"nodeId":"node-1","type":"navigate","success":false,"durationMs":700,"error":"timeout"}]}`,
@@ -700,13 +707,15 @@ func TestExecuteWorkflowRetriesOnFailure(t *testing.T) {
 	if max := toIntTest(timelinePayload["retryMaxAttempts"]); max != 2 {
 		t.Fatalf("expected timeline retryMaxAttempts 2, got %d", max)
 	}
-	if total := toIntTest(timelinePayload["totalDurationMs"]); total <= 0 {
-		t.Fatalf("expected total duration to be recorded, got %d", total)
-	}
+		if total := toIntTest(timelinePayload["totalDurationMs"]); total <= 0 {
+			t.Fatalf("expected total duration to be recorded, got %d", total)
+		}
+	})
 }
 
 func TestExecuteWorkflowCreatesTimelineArtifactWithHighlightMetadata(t *testing.T) {
-	client, repo := newTestClient()
+	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] creates timeline artifacts with highlight metadata", func(t *testing.T) {
+		client, repo := newTestClient()
 
 	const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQYV2P4//8/AwAI/AL+fK5OAAAAAElFTkSuQmCC"
 	responses := []string{
@@ -914,13 +923,15 @@ func TestExecuteWorkflowCreatesTimelineArtifactWithHighlightMetadata(t *testing.
 		t.Fatalf("expected dom snapshot preview in step metadata, got %+v", stepMetadata["domSnapshotPreview"])
 	}
 
-	if len(repo.executionLogs) == 0 {
-		t.Fatalf("expected console log artifact to be created")
-	}
+		if len(repo.executionLogs) == 0 {
+			t.Fatalf("expected console log artifact to be created")
+		}
+	})
 }
 
 func TestExecuteWorkflowPersistsAssertionArtifacts(t *testing.T) {
-	client, repo := newTestClient()
+	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] persists assertion artifacts to timeline", func(t *testing.T) {
+		client, repo := newTestClient()
 
 	responses := []string{
 		`{"success":true,"steps":[{"index":0,"nodeId":"node-assert","type":"assert","success":true,"durationMs":180,"assertion":{"mode":"exists","selector":"#status","success":true,"actual":true}}]}`,
@@ -1006,13 +1017,15 @@ func TestExecuteWorkflowPersistsAssertionArtifacts(t *testing.T) {
 			break
 		}
 	}
-	if !assertLog {
-		t.Fatalf("expected assertion log message, got %+v", repo.executionLogs)
-	}
+		if !assertLog {
+			t.Fatalf("expected assertion log message, got %+v", repo.executionLogs)
+		}
+	})
 }
 
 func TestExecuteWorkflowEmitsHeartbeats(t *testing.T) {
-	client, _ := newTestClient()
+	t.Run("[REQ:BAS-EXEC-HEARTBEAT-DETECTION] emits heartbeats during execution", func(t *testing.T) {
+		client, _ := newTestClient()
 	client.heartbeatInterval = 10 * time.Millisecond
 
 	responses := []string{

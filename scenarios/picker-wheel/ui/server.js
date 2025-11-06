@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
 
 const app = express();
 
@@ -18,6 +19,8 @@ if (!process.env.API_PORT) {
 const PORT = process.env.UI_PORT;
 const API_PORT = process.env.API_PORT;
 const N8N_PORT = process.env.N8N_PORT || null;
+const BUILD_DIR = path.join(__dirname, 'dist');
+const STATIC_ROOT = fs.existsSync(BUILD_DIR) ? BUILD_DIR : __dirname;
 
 // Validate N8N_PORT if webhook functionality is required
 if (!N8N_PORT) {
@@ -158,8 +161,8 @@ app.use('/webhook', (req, res) => {
     proxyToApi(req, res, N8N_PORT, webhookPath);
 });
 
-// Serve static files
-app.use(express.static(__dirname, {
+// Serve built assets when available, falling back to source files during development
+app.use(express.static(STATIC_ROOT, {
     index: false,
     setHeaders: (res, path) => {
         if (path.endsWith('.js')) {
@@ -169,9 +172,15 @@ app.use(express.static(__dirname, {
     }
 }));
 
+// Ensure node_modules assets (iframe bridge) remain available even when serving from dist
+app.use('/node_modules', express.static(path.join(__dirname, 'node_modules')));
+
 // Serve the main page
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    const indexPath = fs.existsSync(path.join(STATIC_ROOT, 'index.html'))
+        ? path.join(STATIC_ROOT, 'index.html')
+        : path.join(__dirname, 'index.html');
+    res.sendFile(indexPath);
 });
 
 app.listen(PORT, () => {

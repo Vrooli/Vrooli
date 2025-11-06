@@ -54,7 +54,7 @@ This document describes the integration between `core-debugger` and `swarm-manag
 
 ### Core Issue Flow
 1. Core issue detected (e.g., "vrooli: command not found")
-2. Automatically routed to `core-debugger` (not `app-debugger`)
+2. Automatically routed to `core-debugger`
 3. Gets 10x priority boost (e.g., 100 → 1000)
 4. Checks workaround database for known fixes
 5. Applies fix or escalates to Claude for analysis

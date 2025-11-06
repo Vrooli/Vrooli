@@ -106,7 +106,13 @@
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "scenario-to-mcp",
             "targets": [
               "scenario-to-mcp"
             ]
@@ -173,11 +179,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start React dashboard in development mode",
+          "run": "cd ui && node server.js",
+          "description": "Start Express server with built React dashboard",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {

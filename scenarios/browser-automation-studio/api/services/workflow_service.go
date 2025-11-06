@@ -950,6 +950,73 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 	return execution, nil
 }
 
+// ExecuteAdhocWorkflow executes a workflow definition without persisting it to the database.
+// This is useful for testing scenarios where workflows should be ephemeral and not pollute
+// the database with test data. The workflow definition is validated and executed directly,
+// with execution records still persisted for telemetry and replay purposes.
+func (s *WorkflowService) ExecuteAdhocWorkflow(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error) {
+	// Validate workflow definition structure
+	if flowDefinition == nil {
+		return nil, errors.New("flow_definition is required")
+	}
+
+	nodes, hasNodes := flowDefinition["nodes"]
+	if !hasNodes {
+		return nil, errors.New("flow_definition must contain 'nodes' array")
+	}
+
+	nodesArray, ok := nodes.([]interface{})
+	if !ok {
+		return nil, errors.New("'nodes' must be an array")
+	}
+
+	if len(nodesArray) == 0 {
+		return nil, errors.New("workflow must contain at least one node")
+	}
+
+	_, hasEdges := flowDefinition["edges"]
+	if !hasEdges {
+		return nil, errors.New("flow_definition must contain 'edges' array")
+	}
+
+	// Create ephemeral workflow struct (not saved to DB)
+	// This workflow exists only in memory for the duration of execution
+	ephemeralWorkflow := &database.Workflow{
+		ID:             uuid.New(), // Generate ID for execution reference
+		Name:           name,
+		FlowDefinition: database.JSONMap(flowDefinition),
+		Version:        0, // Version 0 indicates adhoc/ephemeral workflow
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+		// ProjectID is intentionally nil - adhoc workflows have no project context
+	}
+
+	// Create execution record (this DOES persist for telemetry/replay)
+	// Even though the workflow is ephemeral, we want to track execution history
+	execution := &database.Execution{
+		ID:              uuid.New(),
+		WorkflowID:      ephemeralWorkflow.ID, // Reference ephemeral workflow ID
+		WorkflowVersion: 0,                    // 0 indicates adhoc execution
+		Status:          "pending",
+		TriggerType:     "adhoc", // Special trigger type for ephemeral workflows
+		Parameters:      database.JSONMap(parameters),
+		StartedAt:       time.Now(),
+		Progress:        0,
+		CurrentStep:     "Initializing",
+	}
+
+	if err := s.repo.CreateExecution(ctx, execution); err != nil {
+		return nil, err
+	}
+
+	// Execute asynchronously (same pattern as normal workflow execution)
+	// The executeWorkflowAsync method works with any workflow struct,
+	// whether persisted or ephemeral
+	go s.executeWorkflowAsync(execution, ephemeralWorkflow)
+
+	return execution, nil
+}
+
 // DescribeExecutionExport returns the current replay export status for an execution.
 func (s *WorkflowService) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*ExecutionExportPreview, error) {
 	execution, err := s.repo.GetExecution(ctx, executionID)
@@ -1503,7 +1570,8 @@ func (s *WorkflowService) executeWorkflowAsync(execution *database.Execution, wo
 
 		// Mark execution as failed
 		execution.Status = "failed"
-		execution.Error = err.Error()
+		execution.Error.Valid = true
+		execution.Error.String = err.Error()
 		now := time.Now()
 		execution.CompletedAt = &now
 

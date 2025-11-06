@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -106,6 +107,9 @@ func (r *repository) GetProject(ctx context.Context, id uuid.UUID) (*Project, er
 	var project Project
 	err := r.db.GetContext(ctx, &project, query, id)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
 		r.log.WithError(err).WithField("id", id).Error("Failed to get project")
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
@@ -141,14 +145,22 @@ func (r *repository) GetProjectByFolderPath(ctx context.Context, folderPath stri
 
 func (r *repository) UpdateProject(ctx context.Context, project *Project) error {
 	query := `
-		UPDATE projects 
+		UPDATE projects
 		SET name = :name, description = :description, folder_path = :folder_path, updated_at = CURRENT_TIMESTAMP
 		WHERE id = :id`
 
-	_, err := r.db.NamedExecContext(ctx, query, project)
+	result, err := r.db.NamedExecContext(ctx, query, project)
 	if err != nil {
 		r.log.WithError(err).WithField("id", project.ID).Error("Failed to update project")
 		return fmt.Errorf("failed to update project: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
 	}
 
 	return nil
@@ -170,10 +182,18 @@ func (r *repository) DeleteProject(ctx context.Context, id uuid.UUID) error {
 	}
 
 	// Delete the project
-	_, err = tx.ExecContext(ctx, `DELETE FROM projects WHERE id = $1`, id)
+	result, err := tx.ExecContext(ctx, `DELETE FROM projects WHERE id = $1`, id)
 	if err != nil {
 		r.log.WithError(err).WithField("id", id).Error("Failed to delete project")
 		return fmt.Errorf("failed to delete project: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
 	}
 
 	// Commit transaction

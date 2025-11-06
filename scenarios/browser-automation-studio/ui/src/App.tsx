@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import { ReactFlowProvider } from 'reactflow';
-import WorkflowBuilder from './components/WorkflowBuilder';
-import ExecutionViewer from './components/ExecutionViewer';
 import ResponsiveDialog from './components/ResponsiveDialog';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import AIPromptModal from './components/AIPromptModal';
-import Dashboard from './components/Dashboard';
-import ProjectDetail from './components/ProjectDetail';
 import ProjectModal from './components/ProjectModal';
+
+// Lazy load heavy components for better initial load performance
+const WorkflowBuilder = lazy(() => import('./components/WorkflowBuilder'));
+const ExecutionViewer = lazy(() => import('./components/ExecutionViewer'));
+const AIPromptModal = lazy(() => import('./components/AIPromptModal'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const ProjectDetail = lazy(() => import('./components/ProjectDetail'));
 import { useExecutionStore } from './stores/executionStore';
 import { useProjectStore, Project } from './stores/projectStore';
 import { useWorkflowStore } from './stores/workflowStore';
@@ -358,10 +360,16 @@ function App() {
   if (currentView === 'dashboard') {
     return (
       <div className="h-screen flex flex-col bg-flow-bg">
-        <Dashboard
-          onProjectSelect={handleProjectSelect}
-          onCreateProject={handleCreateProject}
-        />
+        <Suspense fallback={
+          <div className="h-screen flex items-center justify-center bg-flow-bg">
+            <div className="text-flow-text">Loading dashboard...</div>
+          </div>
+        }>
+          <Dashboard
+            onProjectSelect={handleProjectSelect}
+            onCreateProject={handleCreateProject}
+          />
+        </Suspense>
 
         {showProjectModal && (
           <ProjectModal
@@ -377,21 +385,29 @@ function App() {
   if (currentView === 'project-detail' && currentProject) {
     return (
       <div className="h-screen flex flex-col bg-flow-bg">
-        <ProjectDetail
-          project={currentProject}
-          onBack={handleBackToDashboard}
-          onWorkflowSelect={handleWorkflowSelect}
-          onCreateWorkflow={handleCreateWorkflow}
-        />
-        
-        {showAIModal && (
-          <AIPromptModal
-            onClose={() => setShowAIModal(false)}
-            folder={selectedFolder}
-            projectId={currentProject.id}
-            onSwitchToManual={handleSwitchToManualBuilder}
-            onSuccess={handleWorkflowGenerated}
+        <Suspense fallback={
+          <div className="h-screen flex items-center justify-center bg-flow-bg">
+            <div className="text-flow-text">Loading project...</div>
+          </div>
+        }>
+          <ProjectDetail
+            project={currentProject}
+            onBack={handleBackToDashboard}
+            onWorkflowSelect={handleWorkflowSelect}
+            onCreateWorkflow={handleCreateWorkflow}
           />
+        </Suspense>
+
+        {showAIModal && (
+          <Suspense fallback={<div className="text-flow-text">Loading AI modal...</div>}>
+            <AIPromptModal
+              onClose={() => setShowAIModal(false)}
+              folder={selectedFolder}
+              projectId={currentProject.id}
+              onSwitchToManual={handleSwitchToManualBuilder}
+              onSuccess={handleWorkflowGenerated}
+            />
+          </Suspense>
         )}
       </div>
     );
@@ -418,7 +434,13 @@ function App() {
           
           <div className={`flex-1 flex min-h-0 ${isResizingExecution ? 'select-none' : ''}`}>
             <div className="flex-1 flex flex-col min-h-0">
-              <WorkflowBuilder projectId={currentProject?.id} />
+              <Suspense fallback={
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-flow-text">Loading workflow builder...</div>
+                </div>
+              }>
+                <WorkflowBuilder projectId={currentProject?.id} />
+              </Suspense>
             </div>
 
             {isExecutionViewerOpen && activeExecutionWorkflowId && isLargeScreen && (
@@ -436,12 +458,18 @@ function App() {
                   className="border-l border-gray-800 flex flex-col min-h-0"
                   style={{ width: executionPaneWidth, minWidth: EXECUTION_MIN_WIDTH }}
                 >
-                  <ExecutionViewer
-                    workflowId={activeExecutionWorkflowId}
-                    execution={currentExecution}
-                    onClose={closeExecutionViewer}
-                    showExecutionSwitcher
-                  />
+                  <Suspense fallback={
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-flow-text">Loading execution viewer...</div>
+                    </div>
+                  }>
+                    <ExecutionViewer
+                      workflowId={activeExecutionWorkflowId}
+                      execution={currentExecution}
+                      onClose={closeExecutionViewer}
+                      showExecutionSwitcher
+                    />
+                  </Suspense>
                 </div>
               </>
             )}
@@ -455,23 +483,31 @@ function App() {
             ariaLabel="Execution Viewer"
             size="xl"
           >
-            <ExecutionViewer
-              workflowId={activeExecutionWorkflowId}
-              execution={currentExecution}
-              onClose={closeExecutionViewer}
-              showExecutionSwitcher
-            />
+            <Suspense fallback={
+              <div className="h-full flex items-center justify-center">
+                <div className="text-flow-text">Loading execution viewer...</div>
+              </div>
+            }>
+              <ExecutionViewer
+                workflowId={activeExecutionWorkflowId}
+                execution={currentExecution}
+                onClose={closeExecutionViewer}
+                showExecutionSwitcher
+              />
+            </Suspense>
           </ResponsiveDialog>
         )}
-        
+
         {showAIModal && (
-          <AIPromptModal
-            onClose={() => setShowAIModal(false)}
-            folder={selectedFolder}
-            projectId={currentProject?.id}
-            onSwitchToManual={handleSwitchToManualBuilder}
-            onSuccess={handleWorkflowGenerated}
-          />
+          <Suspense fallback={<div className="text-flow-text">Loading AI modal...</div>}>
+            <AIPromptModal
+              onClose={() => setShowAIModal(false)}
+              folder={selectedFolder}
+              projectId={currentProject?.id}
+              onSwitchToManual={handleSwitchToManualBuilder}
+              onSuccess={handleWorkflowGenerated}
+            />
+          </Suspense>
         )}
       </div>
     </ReactFlowProvider>

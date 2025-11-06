@@ -44,6 +44,7 @@ class PickerWheel {
     init() {
         this.generateSessionId();
         this.loadSettings();
+        this.applyTheme();
         this.setupEventListeners();
         this.loadPresetWheel('dinner');
         this.loadHistory();
@@ -672,13 +673,23 @@ class PickerWheel {
     loadSettings() {
         const saved = localStorage.getItem('wheelSettings');
         if (saved) {
-            this.settings = JSON.parse(saved);
-            document.getElementById('soundToggle').checked = this.settings.sound;
-            document.getElementById('confettiToggle').checked = this.settings.confetti;
-            document.getElementById('speedSelect').value = this.settings.speed;
-            document.getElementById('themeSelect').value = this.settings.theme;
-            this.applyTheme();
+            try {
+                const parsed = JSON.parse(saved);
+                this.settings = { ...this.settings, ...parsed };
+            } catch (error) {
+                console.warn('Unable to parse saved picker wheel settings; using defaults.', error);
+            }
         }
+
+        const themeOptions = new Set(['neon', 'retro', 'minimal', 'dark']);
+        if (!themeOptions.has(this.settings.theme)) {
+            this.settings.theme = 'neon';
+        }
+
+        document.getElementById('soundToggle').checked = this.settings.sound;
+        document.getElementById('confettiToggle').checked = this.settings.confetti;
+        document.getElementById('speedSelect').value = this.settings.speed;
+        document.getElementById('themeSelect').value = this.settings.theme;
     }
 
     saveSettings() {
@@ -686,7 +697,12 @@ class PickerWheel {
     }
 
     applyTheme() {
-        document.body.className = 'theme-' + this.settings.theme;
+        const themeClass = 'theme-' + this.settings.theme;
+        const themeClasses = Array.from(document.body.classList).filter(cls => cls.startsWith('theme-'));
+        if (themeClasses.length) {
+            document.body.classList.remove(...themeClasses);
+        }
+        document.body.classList.add(themeClass);
     }
 
     playSound(type) {

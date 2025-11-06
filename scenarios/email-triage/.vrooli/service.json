@@ -158,24 +158,54 @@
                 "api/email-triage-api"
               ]
             },
-             {
-               "type": "cli",
-               "targets": [
-                 "email-triage"
-               ]
-             }
+            {
+              "type": "cli",
+              "command": "email-triage",
+              "targets": [
+                "email-triage"
+              ]
+            },
+            {
+              "type": "ui-bundle",
+              "bundle_path": "ui/dist/index.html",
+              "source_dir": "ui/src"
+            }
           ]
         },
         "steps": [
           {
-            "name": "build-api",
-            "run": "cd api && go build -o email-triage-api .",
-            "description": "Build Go API binary"
+            "name": "install-cli",
+            "run": "bash cli/install.sh",
+            "description": "Install CLI command globally",
+            "condition": {
+              "file_exists": "cli/install.sh"
+            }
           },
           {
-            "name": "install-cli",
-            "run": "cd cli && ./install.sh",
-            "description": "Install CLI command globally"
+            "name": "build-api",
+            "run": "cd api && go mod download && go build -o email-triage-api .",
+            "description": "Build Go API binary",
+            "condition": {
+              "file_exists": "api/go.mod"
+            }
+          },
+          {
+            "name": "install-ui-deps",
+            "run": "cd ui && npm install",
+            "description": "Install UI dependencies",
+            "condition": {
+              "file_exists": "ui/package.json"
+            }
+          },
+          {
+            "name": "build-ui",
+            "run": "cd ui && npm run build",
+            "description": "Build production UI bundle"
+          },
+          {
+            "name": "show-urls",
+            "run": "echo \"🚀 Email Triage initialized: API http://localhost:${API_PORT} UI http://localhost:${UI_PORT} CLI email-triage --help\"",
+            "description": "Display service access URLs"
           }
         ]
       },
@@ -184,7 +214,7 @@
        "steps": [
           {
             "name": "start-api",
-             "run": "cd api && DEV_MODE=true ./email-triage-api",
+             "run": "cd api && DEV_MODE=true API_PORT=${API_PORT:-19525} UI_PORT=${UI_PORT:-36114} DATABASE_URL=${DATABASE_URL:-postgres://postgres:password@localhost/email_triage} QDRANT_URL=${QDRANT_URL:-http://localhost:6333} AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-http://localhost:8080} MAIL_SERVER_URL=${MAIL_SERVER_URL:-localhost} NOTIFICATION_HUB_URL=${NOTIFICATION_HUB_URL:-http://localhost:8081} OLLAMA_URL=${OLLAMA_URL:-http://localhost:11434} ./email-triage-api",
             "description": "Start Go API server in background",
             "background": true,
             "condition": {
@@ -193,11 +223,11 @@
           },
          {
            "name": "start-ui",
-           "run": "cd ui && npm run dev",
-           "description": "Start UI development server",
+           "run": "cd ui && UI_PORT=${UI_PORT} API_PORT=${API_PORT} API_BASE_URL=\"http://localhost:${API_PORT}\" NODE_ENV=production node server.js",
+           "description": "Start UI production server",
            "background": true,
            "condition": {
-             "file_exists": "ui/package.json"
+             "file_exists": "ui/dist/index.html"
            }
          },
          {

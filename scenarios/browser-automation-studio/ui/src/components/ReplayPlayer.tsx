@@ -772,7 +772,7 @@ const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDecor => 
         contentClass: 'p-6 sm:p-7 bg-slate-950/35',
         baseLayer: (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <img src={geometricPrismUrl} alt="" className="h-full w-full object-cover" />
+            <img src={geometricPrismUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/28 via-transparent to-indigo-500/24 mix-blend-screen" />
             <div className="absolute inset-0 bg-slate-950/42" />
           </div>
@@ -797,7 +797,7 @@ const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDecor => 
         contentClass: 'p-6 sm:p-7 bg-slate-950/40',
         baseLayer: (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <img src={geometricOrbitUrl} alt="" className="h-full w-full object-cover" />
+            <img src={geometricOrbitUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-br from-sky-300/22 via-transparent to-amber-300/22 mix-blend-screen" />
             <div className="absolute inset-0 bg-slate-950/45" />
           </div>
@@ -822,7 +822,7 @@ const buildBackgroundDecor = (theme: ReplayBackgroundTheme): BackgroundDecor => 
         contentClass: 'p-6 sm:p-7 bg-slate-950/38',
         baseLayer: (
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <img src={geometricMosaicUrl} alt="" className="h-full w-full object-cover" />
+            <img src={geometricMosaicUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-tr from-sky-400/20 via-transparent to-indigo-400/22 mix-blend-screen" />
             <div className="absolute inset-0 bg-slate-950/45" />
           </div>
@@ -2031,6 +2031,7 @@ export function ReplayPlayer({
                     <img
                       src={screenshot.url}
                       alt={currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`}
+                      loading="lazy"
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -2479,6 +2480,7 @@ export function ReplayPlayer({
                   <img
                     src={frame.screenshot?.thumbnailUrl || frame.screenshot?.url}
                     alt={`Timeline frame ${index + 1}`}
+                    loading="lazy"
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                   <div className={clsx('absolute inset-0 bg-black/40 transition-opacity duration-200', {

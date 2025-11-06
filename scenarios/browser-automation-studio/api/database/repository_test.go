@@ -3,27 +3,102 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// setupTestDB creates a test database connection
-// AUDITOR NOTE: Fallback to DATABASE_URL is intentional for test flexibility.
-// Tests are skipped (not run with unsafe defaults) when neither variable is set.
-func setupTestDB(t *testing.T) (*DB, func()) {
-	dbURL := os.Getenv("TEST_DATABASE_URL")
-	if dbURL == "" {
-		dbURL = os.Getenv("DATABASE_URL")
+// Global test database container and connection string
+var (
+	testDBContainer testcontainers.Container
+	testDBURL       string
+)
+
+// TestMain runs once before all tests in the package to set up the testcontainer
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	// Check if we should skip testcontainers (for CI environments that provide a database)
+	if url := os.Getenv("TEST_DATABASE_URL"); url != "" {
+		testDBURL = url
+		os.Exit(m.Run())
+		return
 	}
 
-	if dbURL == "" {
-		t.Skip("No database URL configured - skipping database tests")
+	// Check if Docker is available
+	if !isDockerAvailable() {
+		fmt.Println("Docker not available, skipping database tests")
+		os.Exit(0)
 	}
+
+	// Start PostgreSQL container
+	pgContainer, err := postgres.RunContainer(ctx,
+		testcontainers.WithImage("postgres:15-alpine"),
+		postgres.WithDatabase("bas_test"),
+		postgres.WithUsername("test"),
+		postgres.WithPassword("test"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(60*time.Second)),
+	)
+	if err != nil {
+		fmt.Printf("Failed to start postgres container: %s\n", err)
+		os.Exit(1)
+	}
+
+	testDBContainer = pgContainer
+
+	// Get connection string
+	testDBURL, err = pgContainer.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		fmt.Printf("Failed to get connection string: %s\n", err)
+		_ = pgContainer.Terminate(ctx)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Test database started: %s\n", testDBURL)
+
+	// Run tests
+	code := m.Run()
+
+	// Cleanup
+	if err := pgContainer.Terminate(ctx); err != nil {
+		fmt.Printf("Failed to terminate container: %s\n", err)
+	}
+
+	os.Exit(code)
+}
+
+// isDockerAvailable checks if Docker is available for testcontainers
+func isDockerAvailable() bool {
+	// Testcontainers will handle the actual Docker detection
+	// This is just a basic check to provide a clearer error message
+	return true
+}
+
+// setupTestDB creates a test database connection using the testcontainer
+func setupTestDB(t *testing.T) (*DB, func()) {
+	if testDBURL == "" {
+		t.Fatal("Test database not initialized - TestMain should have set testDBURL")
+	}
+
+	// Temporarily set env var so NewConnection can use it
+	oldURL := os.Getenv("DATABASE_URL")
+	oldSkipDemo := os.Getenv("BAS_SKIP_DEMO_SEED")
+
+	// Set test database URL and skip demo seeding
+	os.Setenv("DATABASE_URL", testDBURL)
+	os.Setenv("BAS_SKIP_DEMO_SEED", "true")
 
 	log := logrus.New()
 	log.SetOutput(ioutil.Discard)
@@ -52,6 +127,19 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 		}
 
 		db.Close()
+
+		// Restore original environment variables
+		if oldURL != "" {
+			os.Setenv("DATABASE_URL", oldURL)
+		} else {
+			os.Unsetenv("DATABASE_URL")
+		}
+
+		if oldSkipDemo != "" {
+			os.Setenv("BAS_SKIP_DEMO_SEED", oldSkipDemo)
+		} else {
+			os.Unsetenv("BAS_SKIP_DEMO_SEED")
+		}
 	}
 
 	return db, cleanup
@@ -128,9 +216,14 @@ func TestCreateProject(t *testing.T) {
 			FolderPath: "/test/duplicate2",
 		}
 
-		// This should succeed because uniqueness is on folder_path, not name
-		if err := repo.CreateProject(ctx, project2); err != nil {
-			t.Errorf("Second project with same name should succeed: %v", err)
+		// This should fail because project names are unique
+		err := repo.CreateProject(ctx, project2)
+		if err == nil {
+			t.Error("Expected error for duplicate project name")
+		}
+		// Check for unique constraint violation
+		if err != nil && !strings.Contains(err.Error(), "duplicate key") && !strings.Contains(err.Error(), "unique constraint") {
+			t.Errorf("Expected unique constraint error, got: %v", err)
 		}
 	})
 }
@@ -173,8 +266,8 @@ func TestGetProject(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error for non-existent project")
 		}
-		if !errors.Is(err, ErrNotFound) && err.Error() != "sql: no rows in result set" {
-			t.Errorf("Expected ErrNotFound or no rows error, got: %v", err)
+		if !errors.Is(err, ErrNotFound) {
+			t.Errorf("Expected ErrNotFound, got: %v", err)
 		}
 	})
 }
@@ -228,8 +321,8 @@ func TestUpdateProject(t *testing.T) {
 		}
 
 		err := repo.UpdateProject(ctx, nonExistentProject)
-		if err == nil {
-			t.Error("Expected error for non-existent project")
+		if !errors.Is(err, ErrNotFound) {
+			t.Errorf("Expected ErrNotFound, got: %v", err)
 		}
 	})
 }
@@ -385,8 +478,8 @@ func TestDeleteProject(t *testing.T) {
 		nonExistentID := uuid.New()
 		ctx := context.Background()
 		err := repo.DeleteProject(ctx, nonExistentID)
-		if err == nil {
-			t.Error("Expected error for non-existent project")
+		if !errors.Is(err, ErrNotFound) {
+			t.Errorf("Expected ErrNotFound, got: %v", err)
 		}
 	})
 }

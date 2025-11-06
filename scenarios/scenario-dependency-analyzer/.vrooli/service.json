@@ -119,7 +119,13 @@
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "scenario-dependency-analyzer",
             "targets": [
               "scenario-dependency-analyzer"
             ]
@@ -147,6 +153,19 @@
           "description": "Initialize PostgreSQL schema and seed initial data"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "verify-cli",
           "run": "echo '✅ CLI installed at:' && which scenario-dependency-analyzer || echo '  /home/matthalloran8/.vrooli/bin/scenario-dependency-analyzer'",
           "description": "Verify CLI installation"
@@ -172,11 +191,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && python3 server.py",
-          "description": "Start dependency graph visualization UI server",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.py"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {

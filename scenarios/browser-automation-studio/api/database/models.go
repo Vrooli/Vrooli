@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -37,6 +38,32 @@ func (j *JSONMap) Scan(value any) error {
 	}
 
 	return json.Unmarshal(bytes, j)
+}
+
+// NullableString represents a nullable string in the database
+type NullableString struct {
+	sql.NullString
+}
+
+func (ns NullableString) MarshalJSON() ([]byte, error) {
+	if ns.Valid {
+		return json.Marshal(ns.String)
+	}
+	return json.Marshal(nil)
+}
+
+func (ns *NullableString) UnmarshalJSON(data []byte) error {
+	var s *string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	if s != nil {
+		ns.Valid = true
+		ns.String = *s
+	} else {
+		ns.Valid = false
+	}
+	return nil
 }
 
 // Project represents a project containing related workflows
@@ -91,21 +118,21 @@ type WorkflowVersion struct {
 
 // Execution represents a workflow execution
 type Execution struct {
-	ID              uuid.UUID  `json:"id" db:"id"`
-	WorkflowID      uuid.UUID  `json:"workflow_id" db:"workflow_id"`
-	WorkflowVersion int        `json:"workflow_version,omitempty" db:"workflow_version"`
-	Status          string     `json:"status" db:"status"`
-	TriggerType     string     `json:"trigger_type" db:"trigger_type"`
-	TriggerMetadata JSONMap    `json:"trigger_metadata,omitempty" db:"trigger_metadata"`
-	Parameters      JSONMap    `json:"parameters,omitempty" db:"parameters"`
-	StartedAt       time.Time  `json:"started_at" db:"started_at"`
-	CompletedAt     *time.Time `json:"completed_at,omitempty" db:"completed_at"`
-	Error           string     `json:"error,omitempty" db:"error"`
-	Result          JSONMap    `json:"result,omitempty" db:"result"`
-	Progress        int        `json:"progress" db:"progress"`
-	CurrentStep     string     `json:"current_step,omitempty" db:"current_step"`
-	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at" db:"updated_at"`
+	ID              uuid.UUID      `json:"id" db:"id"`
+	WorkflowID      uuid.UUID      `json:"workflow_id" db:"workflow_id"`
+	WorkflowVersion int            `json:"workflow_version,omitempty" db:"workflow_version"`
+	Status          string         `json:"status" db:"status"`
+	TriggerType     string         `json:"trigger_type" db:"trigger_type"`
+	TriggerMetadata JSONMap        `json:"trigger_metadata,omitempty" db:"trigger_metadata"`
+	Parameters      JSONMap        `json:"parameters,omitempty" db:"parameters"`
+	StartedAt       time.Time      `json:"started_at" db:"started_at"`
+	CompletedAt     *time.Time     `json:"completed_at,omitempty" db:"completed_at"`
+	Error           NullableString `json:"error,omitempty" db:"error"`
+	Result          JSONMap        `json:"result,omitempty" db:"result"`
+	Progress        int            `json:"progress" db:"progress"`
+	CurrentStep     string         `json:"current_step,omitempty" db:"current_step"`
+	CreatedAt       time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at" db:"updated_at"`
 }
 
 // ExecutionLog represents a log entry for a workflow execution

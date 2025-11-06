@@ -14,20 +14,25 @@
             <div class="header-content">
                 <div class="logo" role="presentation">
                     <span class="logo-mark" data-lucide="sparkles" aria-hidden="true"></span>
-                    <div class="logo-copy">
-                        <h1>Extension Generator</h1>
-                        <span class="subtitle">Transform scenarios into polished browser extensions</span>
-                    </div>
+                    <h1>Extension Generator</h1>
                 </div>
                 <div class="header-actions">
-                    <span class="api-source-pill" id="api-source-pill" title="Resolving API base...">API: resolving</span>
-                    <button class="btn btn-outline" onclick="refreshStatus()">
-                        <span class="btn-icon" data-lucide="refresh-cw" aria-hidden="true"></span>
-                        <span>Refresh</span>
+                    <button
+                        class="status-trigger"
+                        id="status-indicator"
+                        data-status="loading"
+                        type="button"
+                        aria-haspopup="dialog"
+                        aria-expanded="false"
+                        aria-controls="status-popup"
+                        aria-label="Loading system status"
+                    >
+                        <span class="status-dot" aria-hidden="true"></span>
                     </button>
-                    <div class="status-indicator" id="status-indicator" data-status="loading">
-                        <span class="status-icon" data-role="status-icon" data-lucide="loader-2" aria-hidden="true"></span>
-                        <span id="status-text">Checking...</span>
+                    <div class="status-popup" id="status-popup" role="dialog" aria-hidden="true">
+                        <div class="status-popup-content" id="status-popup-content">
+                            <p class="status-popup-empty">Loading status...</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -200,7 +205,7 @@
 
                         <!-- Generation Controls -->
                         <div class="form-actions">
-                            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                            <button type="button" class="btn btn-secondary" id="reset-form-btn">
                                 Reset Form
                             </button>
                             <button type="submit" class="btn btn-primary" id="generate-btn">
@@ -218,7 +223,7 @@
                 <div class="card">
                     <div class="card-header">
                         <h2>Extension Builds</h2>
-                        <button class="btn btn-outline" onclick="loadBuilds()">
+                        <button class="btn btn-outline" id="refresh-builds-btn">
                             <span class="btn-icon" data-lucide="refresh-cw" aria-hidden="true"></span>
                             <span>Refresh</span>
                         </button>
@@ -234,7 +239,7 @@
                             <div class="empty-icon" data-lucide="package" aria-hidden="true"></div>
                             <h3>No Builds Yet</h3>
                             <p>Generate your first extension to see builds here.</p>
-                            <button class="btn btn-primary" onclick="switchTab('generator')">
+                            <button class="btn btn-primary" id="goto-generator-btn">
                                 Create Extension
                             </button>
                         </div>
@@ -273,7 +278,7 @@
                             <div class="input-group">
                                 <input type="text" id="test-extension-path" name="extension_path" required
                                        placeholder="Path to extension directory">
-                                <button type="button" class="btn btn-secondary" onclick="browseExtension()">
+                                <button type="button" class="btn btn-secondary" id="browse-extension-btn">
                                     Browse
                                 </button>
                             </div>
@@ -344,6 +349,22 @@
             <div class="spinner large"></div>
             <h3 id="loading-title">Processing...</h3>
             <p id="loading-message">This may take a moment...</p>
+        </div>
+    </div>
+
+    <!-- Build Details Modal -->
+    <div id="build-details-modal" class="modal hidden" role="dialog" aria-hidden="true" aria-labelledby="build-details-title">
+        <div class="modal-backdrop" aria-hidden="true"></div>
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="build-details-title">Build Details</h2>
+                <button class="modal-close" type="button" aria-label="Close modal">
+                    <span data-lucide="x" aria-hidden="true"></span>
+                </button>
+            </div>
+            <div class="modal-content" id="build-details-content">
+                <!-- Content will be populated dynamically -->
+            </div>
         </div>
     </div>
 

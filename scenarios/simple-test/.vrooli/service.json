@@ -59,11 +59,12 @@
           {
             "type": "binaries",
             "targets": [
-              "simple-test-api"
+              "api/simple-test-api"
             ]
           },
           {
             "type": "cli",
+            "command": "simple-test",
             "targets": [
               "simple-test"
             ]
@@ -80,6 +81,22 @@
           "name": "add-data",
           "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o simple-test-api .",
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
         },
         {
           "name": "show-urls",

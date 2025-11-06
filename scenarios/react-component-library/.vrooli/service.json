@@ -78,7 +78,7 @@
       "description": "React Component Library health check configuration",
       "endpoints": {
         "api": "/health",
-        "ui": "/health.json",
+        "ui": "/health",
         "metrics": "/api/metrics"
       },
       "checks": [
@@ -93,7 +93,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${UI_PORT}/health.json",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 30000
@@ -118,15 +118,21 @@
            {
              "type": "binaries",
              "targets": [
-               "react-component-library-api"
+               "api/react-component-library-api"
              ]
            },
-            {
-              "type": "cli",
-              "targets": [
-                "react-component-library"
-              ]
-            },
+           {
+             "type": "ui-bundle",
+             "bundle_path": "ui/dist/index.html",
+             "source_dir": "ui/src"
+           },
+           {
+             "type": "cli",
+             "command": "react-component-library",
+             "targets": [
+               "react-component-library"
+             ]
+           },
            {
              "type": "files",
              "targets": [
@@ -156,7 +162,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && echo '📦 Installing UI dependencies with pnpm...' && pnpm install --filter . --frozen-lockfile",
+          "run": "cd ui && echo '📦 Installing UI dependencies with pnpm...' && pnpm install --filter .",
           "description": "Install React UI dependencies"
         },
         {
@@ -185,13 +191,14 @@
           "description": "Verify all required resources are accessible"
         },
         {
-          "name": "show-completion",
-          "run": "echo '🚀 React Component Library setup complete!' && echo '  📚 Component Library: http://localhost:${UI_PORT}' && echo '  🔌 API: http://localhost:${API_PORT}' && echo '  💻 CLI: react-component-library --help'"
+          "name": "show-urls",
+          "run": "echo '🚀 React Component Library setup complete!' && echo '  📚 Component Library: http://localhost:${UI_PORT}' && echo '  🔌 API: http://localhost:${API_PORT}' && echo '  💻 CLI: react-component-library --help'",
+          "description": "Display key endpoints after setup"
         }
       ]
     },
     "develop": {
-      "description": "Start React Component Library in development mode",
+      "description": "Start React Component Library with production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -204,9 +211,12 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && echo '⚛️ Starting React UI...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && PORT=${UI_PORT} npm start",
+          "run": "cd ui && echo '⚛️ Starting React UI server...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && node server.js",
           "background": true,
-          "description": "Start React development server"
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Start Express server with built React app"
         },
         {
           "name": "show-urls",
@@ -226,7 +236,7 @@
         },
         {
           "name": "serve-ui",
-          "run": "cd ui && echo '🌐 Serving built UI...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && npx serve -s build -l ${UI_PORT}",
+          "run": "cd ui && echo '🌐 Serving built UI...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && npx serve -s dist -l ${UI_PORT}",
           "background": true,
           "description": "Serve built React UI"
         },
@@ -313,7 +323,7 @@
     "api": {
       "enabled": true,
       "base_path": "/api/v1",
-      "health_endpoint": "/health.json",
+      "health_endpoint": "/health",
       "docs_endpoint": "/api/docs",
       "endpoints": [
         "/components",
@@ -407,7 +417,7 @@
   },
     "monitoring": {
       "health_check": {
-        "endpoint": "/health.json",
+        "endpoint": "/health",
       "interval": 30,
       "timeout": 5
     },

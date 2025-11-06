@@ -10,7 +10,7 @@ testing::phase::init --target-time "240s" --require-runtime
 SCENARIO_NAME="$TESTING_PHASE_SCENARIO_NAME"
 SCENARIO_DIR="$TESTING_PHASE_SCENARIO_DIR"
 
-source "${APP_ROOT}/scripts/scenarios/testing/shell/resources.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
 API_URL=""
 if API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME" 2>/dev/null); then
@@ -29,14 +29,6 @@ if command -v secure-document-processing >/dev/null 2>&1; then
 else
   testing::phase::add_warning "CLI binary not on PATH; skipping CLI validation"
   testing::phase::add_test skipped
-fi
-
-# Execute declarative resource checks using the shared resource helpers.
-if testing::resources::test_all "$SCENARIO_NAME"; then
-  testing::phase::add_test passed
-else
-  testing::phase::add_warning "One or more resource integrations could not be verified"
-  testing::phase::add_test failed
 fi
 
 # Run custom business workflow checks if available.

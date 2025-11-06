@@ -18,8 +18,8 @@
     "react-scripts": "5.0.1",
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4",
-    
     "axios": "^1.6.0",
+    "express": "^4.21.2",
     "react-router-dom": "^6.8.0",
     "react-query": "^3.39.3",
     "react-hot-toast": "^2.4.1",
@@ -29,7 +29,6 @@
     "react-split-pane": "^0.1.92",
     "react-draggable": "^4.4.5",
     "framer-motion": "^10.16.4",
-    
     "@heroicons/react": "^2.0.18",
     "clsx": "^2.0.0",
     "tailwindcss": "^3.3.2",
@@ -40,7 +39,7 @@
   },
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh react-scripts start'",
-    "build": "react-scripts build",
+    "build": "BUILD_PATH='dist' react-scripts build",
     "test": "react-scripts test --passWithNoTests",
     "eject": "react-scripts eject",
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npm start'",
@@ -76,5 +75,6 @@
     "@storybook/testing-library": "^0.2.0",
     "storybook": "^7.4.0"
   },
-  "proxy": "http://localhost:15092"
+  "proxy": "http://localhost:15092",
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }

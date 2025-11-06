@@ -138,6 +138,60 @@ function resolveProxyBase(proxyInfo, win) {
 // Proxy Candidate Collection & Scoring
 // ============================================
 
+// Shared keyword scoring configuration
+const KEYWORD_SCORES = {
+    api: { word: 90, contains: 60 },
+    backend: 30,
+    server: { portEntry: 20, candidate: 18 },
+    service: 12,
+    core: { portEntry: 8, candidate: 6 },
+    ui: { portEntry: -60, candidate: -55 },
+    front: { portEntry: -40, candidate: -35 },
+    client: -30,
+    asset: -25,
+    static: -25,
+    primary: -15
+};
+
+// Helper to get context-specific score from keyword config
+function getContextualScore(keyword, normalizedText, context) {
+    if (!normalizedText.includes(keyword)) return 0;
+    const score = KEYWORD_SCORES[keyword];
+    return typeof score === 'object'
+        ? score[context === 'portEntry' ? 'portEntry' : 'candidate']
+        : score;
+}
+
+function scoreKeywords(normalizedText, context = 'candidate') {
+    let score = 0;
+
+    // API scoring (word boundary match vs contains)
+    if (/\bapi\b/.test(normalizedText)) {
+        score += KEYWORD_SCORES.api.word;
+    } else if (normalizedText.includes('api')) {
+        score += KEYWORD_SCORES.api.contains;
+    }
+
+    // Simple keywords (non-contextual)
+    score += getContextualScore('backend', normalizedText, context);
+    score += getContextualScore('service', normalizedText, context);
+    score += getContextualScore('client', normalizedText, context);
+    score += getContextualScore('primary', normalizedText, context);
+
+    // Context-specific keywords
+    score += getContextualScore('server', normalizedText, context);
+    score += getContextualScore('core', normalizedText, context);
+    score += getContextualScore('ui', normalizedText, context);
+    score += getContextualScore('front', normalizedText, context);
+
+    // Asset/Static (both use same score)
+    if (normalizedText.includes('asset') || normalizedText.includes('static')) {
+        score += KEYWORD_SCORES.asset;
+    }
+
+    return score;
+}
+
 function collectProxyCandidates(source) {
     const queue = [source];
     const seen = new Set();
@@ -218,9 +272,8 @@ function scoreProxyPortEntry(entry) {
         return Number.NEGATIVE_INFINITY;
     }
 
-    let score = 0;
+    // Collect text parts for keyword scoring
     const textParts = [];
-
     if (typeof entry.label === 'string') {
         textParts.push(entry.label);
     }
@@ -241,40 +294,11 @@ function scoreProxyPortEntry(entry) {
         textParts.push(entry.kind);
     }
 
+    // Use shared keyword scoring
     const normalizedText = textParts.join(' ').toLowerCase();
-    if (/\bapi\b/.test(normalizedText)) {
-        score += 90;
-    } else if (normalizedText.includes('api')) {
-        score += 60;
-    }
-    if (normalizedText.includes('backend')) {
-        score += 30;
-    }
-    if (normalizedText.includes('server')) {
-        score += 20;
-    }
-    if (normalizedText.includes('service')) {
-        score += 12;
-    }
-    if (normalizedText.includes('core')) {
-        score += 8;
-    }
-    if (normalizedText.includes('ui')) {
-        score -= 60;
-    }
-    if (normalizedText.includes('front')) {
-        score -= 40;
-    }
-    if (normalizedText.includes('client')) {
-        score -= 30;
-    }
-    if (normalizedText.includes('asset') || normalizedText.includes('static')) {
-        score -= 25;
-    }
-    if (normalizedText.includes('primary')) {
-        score -= 15;
-    }
+    let score = scoreKeywords(normalizedText, 'portEntry');
 
+    // Port-specific scoring
     if (Number.isFinite(entry.port)) {
         if (entry.port >= 15000 && entry.port < 25000) {
             score += 12;
@@ -334,6 +358,7 @@ function scoreProxyCandidate(candidate) {
     const normalized = trimmed.toLowerCase();
     let score = 0;
 
+    // URL structure scoring
     if (/^https?:\/\//.test(normalized)) {
         score += 18;
     }
@@ -343,41 +368,12 @@ function scoreProxyCandidate(candidate) {
     if (normalized.includes('proxy')) {
         score += 8;
     }
-    if (/(^|\b)api(\b|$)/.test(normalized)) {
-        score += 90;
-    } else if (normalized.includes('api')) {
-        score += 60;
-    }
-    if (normalized.includes('backend')) {
-        score += 30;
-    }
-    if (normalized.includes('server')) {
-        score += 18;
-    }
-    if (normalized.includes('service')) {
-        score += 12;
-    }
-    if (normalized.includes('core')) {
-        score += 6;
-    }
-    if (normalized.includes('ui')) {
-        score -= 55;
-    }
-    if (normalized.includes('front')) {
-        score -= 35;
-    }
-    if (normalized.includes('client')) {
-        score -= 30;
-    }
-    if (normalized.includes('asset') || normalized.includes('static')) {
-        score -= 25;
-    }
-    if (normalized.includes('primary')) {
-        score -= 15;
-    }
     if (/\d{2,}/.test(normalized)) {
         score += 6;
     }
+
+    // Use shared keyword scoring
+    score += scoreKeywords(normalized, 'candidate');
 
     return score;
 }

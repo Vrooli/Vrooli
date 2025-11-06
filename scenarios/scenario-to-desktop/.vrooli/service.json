@@ -324,7 +324,13 @@
                ]
              },
              {
+               "type": "ui-bundle",
+               "bundle_path": "ui/dist/index.html",
+               "source_dir": "ui/src"
+             },
+             {
                "type": "cli",
+               "command": "scenario-to-desktop",
                "targets": [
                  "scenario-to-desktop"
                ]
@@ -353,9 +359,20 @@
             "description": "Build Go API binary"
           },
           {
-            "name": "setup-ui",
+            "name": "install-ui-deps",
             "run": "cd ui && pnpm install",
-            "description": "Install UI dependencies"
+            "description": "Install UI dependencies",
+            "condition": {"file_exists": "ui/package.json"}
+          },
+          {
+            "name": "build-ui",
+            "run": "cd ui && pnpm run build",
+            "description": "Build production UI"
+          },
+          {
+            "name": "show-urls",
+            "run": "echo '🚀 Scenario to Desktop initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-desktop --help'",
+            "description": "Display service access URLs"
           }
         ]
       },
@@ -375,7 +392,10 @@
            "name": "start-ui",
            "run": "cd ui && node server.js",
            "description": "Start UI server in background",
-           "background": true
+           "background": true,
+           "condition": {
+             "file_exists": "ui/dist/index.html"
+           }
          },
          {
            "name": "show-urls",

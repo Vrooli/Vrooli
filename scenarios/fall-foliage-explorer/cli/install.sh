@@ -5,4 +5,4 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 CLI_DIR="${APP_ROOT}/scenarios/fall-foliage-explorer/cli"
 source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/foliage-explorer" "foliage-explorer"
+install_cli "$CLI_DIR/foliage-explorer" "fall-foliage-explorer"

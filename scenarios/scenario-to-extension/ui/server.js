@@ -201,18 +201,13 @@ server.listen(PORT, HOST, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully...');
+const gracefulShutdown = (signal) => {
+  console.log(`${signal} received, shutting down gracefully...`);
   server.close(() => {
     console.log('Server closed');
     process.exit(0);
   });
-});
+};
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully...');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

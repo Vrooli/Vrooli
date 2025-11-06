@@ -349,13 +349,14 @@ open http://localhost:20000
 
 ### Validation
 
-The scenario includes comprehensive validation via `scenario-test.yaml`:
+The scenario now uses the shared phased testing architecture driven by `test/run-tests.sh`:
 
-- **Structure Tests** - Required files and directories
-- **API Tests** - Endpoint functionality and responses
-- **Database Tests** - Schema and data integrity
-- **CLI Tests** - Command functionality and output
-- **Performance Tests** - Response time and throughput benchmarks
+- **Structure Phase** – Ensures required files and directories exist
+- **Dependencies Phase** – Verifies Go modules, postgres connectivity, and configuration
+- **Unit Phase** – Executes Go unit tests with coverage enforcement via the centralized runner
+- **Integration Phase** – Exercises handler/database integration using targeted Go test selections
+- **Business Phase** – Validates SaaS detection, landing-page generation, deployment, and A/B logic
+- **Performance Phase** – Measures health endpoint responsiveness and runs performance benchmarks against the live service
 
 ## 🚨 Troubleshooting
 

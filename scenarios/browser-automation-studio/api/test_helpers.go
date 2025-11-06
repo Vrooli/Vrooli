@@ -63,18 +63,24 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 }
 
 // setupTestDatabase creates a test database connection
+// NOTE: This function is intended for use in main_test.go and handler tests that need database access.
+// For database-specific tests, use setupTestDB in database/repository_test.go which manages
+// the testcontainer lifecycle via TestMain.
 func setupTestDatabase(t *testing.T) (*database.DB, func()) {
-	// Use environment variable for test database URL
-	// AUDITOR NOTE: Fallback to DATABASE_URL is intentional for test flexibility.
-	// Tests are skipped (not run with unsafe defaults) when neither variable is set.
+	// Check if database tests are being run with testcontainer
+	// If database package tests are running, they will have set up the container
 	dbURL := os.Getenv("TEST_DATABASE_URL")
 	if dbURL == "" {
 		dbURL = os.Getenv("DATABASE_URL")
 	}
 
 	if dbURL == "" {
-		t.Skip("No database URL configured - skipping database tests")
+		t.Skip("No database URL configured - skipping database tests (run database package tests to start testcontainer)")
 	}
+
+	// Set flag to skip demo seeding in tests
+	oldSkipDemo := os.Getenv("BAS_SKIP_DEMO_SEED")
+	os.Setenv("BAS_SKIP_DEMO_SEED", "true")
 
 	log := logrus.New()
 	log.SetOutput(ioutil.Discard)
@@ -87,6 +93,13 @@ func setupTestDatabase(t *testing.T) (*database.DB, func()) {
 	cleanup := func() {
 		if db != nil {
 			db.Close()
+		}
+
+		// Restore original environment variable
+		if oldSkipDemo != "" {
+			os.Setenv("BAS_SKIP_DEMO_SEED", oldSkipDemo)
+		} else {
+			os.Unsetenv("BAS_SKIP_DEMO_SEED")
 		}
 	}
 

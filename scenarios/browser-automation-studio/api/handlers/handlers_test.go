@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -141,6 +142,7 @@ type workflowServiceMock struct {
 	getWorkflowVersionFn      func(ctx context.Context, workflowID uuid.UUID, version int) (*services.WorkflowVersionSummary, error)
 	restoreWorkflowVersionFn  func(ctx context.Context, workflowID uuid.UUID, version int, changeDescription string) (*database.Workflow, error)
 	describeExecutionExportFn func(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error)
+	executeAdhocWorkflowFn    func(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error)
 }
 
 func (m *workflowServiceMock) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
@@ -181,6 +183,13 @@ func (m *workflowServiceMock) RestoreWorkflowVersion(ctx context.Context, workfl
 }
 
 func (m *workflowServiceMock) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *workflowServiceMock) ExecuteAdhocWorkflow(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error) {
+	if m.executeAdhocWorkflowFn != nil {
+		return m.executeAdhocWorkflowFn(ctx, flowDefinition, parameters, name)
+	}
 	return nil, errors.New("not implemented")
 }
 
@@ -501,5 +510,142 @@ func TestRestoreWorkflowVersionConflict(t *testing.T) {
 
 	if resp.Code != http.StatusConflict {
 		t.Fatalf("expected status 409, got %d", resp.Code)
+	}
+}
+
+func TestExecuteAdhocWorkflowSuccess(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-ADHOC-SUCCESS] executes adhoc workflow without persistence", func(t *testing.T) {
+		logger := logrus.New()
+		logger.SetOutput(io.Discard)
+
+		executionID := uuid.New()
+		handler := &Handler{
+			workflowService: &workflowServiceMock{
+				executeAdhocWorkflowFn: func(ctx context.Context, flowDef map[string]any, params map[string]any, name string) (*database.Execution, error) {
+					// Verify workflow name passed correctly
+					if name != "test-workflow" {
+						t.Errorf("expected workflow name 'test-workflow', got '%s'", name)
+					}
+					// Verify flow definition structure
+					if flowDef == nil {
+						t.Error("expected flow definition to be non-nil")
+					}
+					return &database.Execution{
+						ID:              executionID,
+						Status:          "pending",
+						TriggerType:     "adhoc",
+						WorkflowVersion: 0,
+					}, nil
+				},
+			},
+			log: logger,
+		}
+
+		reqBody := `{
+			"flow_definition": {
+				"nodes": [{"id": "1", "type": "navigate", "data": {"url": "https://example.com"}}],
+				"edges": []
+			},
+			"parameters": {},
+			"metadata": {"name": "test-workflow"}
+		}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/workflows/execute-adhoc", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		resp := httptest.NewRecorder()
+
+		handler.ExecuteAdhocWorkflow(resp, req)
+
+		if resp.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d: %s", resp.Code, resp.Body.String())
+		}
+
+		var result map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if result["execution_id"] != executionID.String() {
+			t.Errorf("expected execution_id %s, got %v", executionID, result["execution_id"])
+		}
+
+		if result["workflow_id"] != nil {
+			t.Error("expected workflow_id to be null for adhoc execution")
+		}
+
+		if result["status"] != "pending" {
+			t.Errorf("expected status 'pending', got %v", result["status"])
+		}
+	})
+}
+
+func TestExecuteAdhocWorkflowMissingFlowDefinition(t *testing.T) {
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+
+	handler := &Handler{
+		workflowService: &workflowServiceMock{},
+		log:             logger,
+	}
+
+	reqBody := `{"parameters": {}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/workflows/execute-adhoc", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+
+	handler.ExecuteAdhocWorkflow(resp, req)
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", resp.Code)
+	}
+}
+
+func TestExecuteAdhocWorkflowInvalidJSON(t *testing.T) {
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+
+	handler := &Handler{
+		workflowService: &workflowServiceMock{},
+		log:             logger,
+	}
+
+	reqBody := `{invalid json`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/workflows/execute-adhoc", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+
+	handler.ExecuteAdhocWorkflow(resp, req)
+
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", resp.Code)
+	}
+}
+
+func TestExecuteAdhocWorkflowServiceError(t *testing.T) {
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+
+	handler := &Handler{
+		workflowService: &workflowServiceMock{
+			executeAdhocWorkflowFn: func(ctx context.Context, flowDef map[string]any, params map[string]any, name string) (*database.Execution, error) {
+				return nil, errors.New("workflow compilation failed")
+			},
+		},
+		log: logger,
+	}
+
+	reqBody := `{
+		"flow_definition": {
+			"nodes": [{"id": "1", "type": "navigate"}],
+			"edges": []
+		}
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/workflows/execute-adhoc", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+
+	handler.ExecuteAdhocWorkflow(resp, req)
+
+	if resp.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d", resp.Code)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -112,7 +113,23 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	projects, err := h.workflowService.ListProjects(ctx, 100, 0)
+	// Parse pagination parameters
+	limit := 100 // default
+	offset := 0  // default
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	projects, err := h.workflowService.ListProjects(ctx, limit, offset)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to list projects")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_projects"}))

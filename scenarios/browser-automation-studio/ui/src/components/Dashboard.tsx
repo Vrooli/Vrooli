@@ -101,8 +101,16 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
 
   return (
     <div className="flex-1 flex flex-col min-h-[100svh] overflow-hidden">
+      {/* Skip to content link for keyboard navigation */}
+      <a
+        href="#projects-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-flow-accent focus:text-white focus:rounded-md"
+      >
+        Skip to projects
+      </a>
+
       {/* Header */}
-      <div className="sticky top-0 z-30 border-b border-gray-800 bg-flow-bg/95 backdrop-blur supports-[backdrop-filter]:bg-flow-bg/90">
+      <header className="sticky top-0 z-30 border-b border-gray-800 bg-flow-bg/95 backdrop-blur supports-[backdrop-filter]:bg-flow-bg/90">
         <div className="px-4 py-4 sm:px-6 sm:py-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
@@ -121,13 +129,18 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
 
           {/* Search */}
           <div className="relative mt-4 sm:mt-6">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <label htmlFor="project-search" className="sr-only">
+              Search projects
+            </label>
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden="true" />
             <input
+              id="project-search"
               type="text"
               placeholder="Search projects..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent"
+              className="w-full pl-10 pr-10 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/50"
+              aria-label="Search for projects by name or description"
             />
             {searchTerm && (
               <button
@@ -136,12 +149,12 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                 aria-label="Clear project search"
               >
-                <X size={16} />
+                <X size={16} aria-hidden="true" />
               </button>
             )}
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Status Bar for API errors */}
       <StatusBar />
@@ -190,12 +203,19 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div
+            id="projects-content"
+            className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            data-testid="projects-grid"
+            role="region"
+            aria-label="Projects list"
+          >
             {filteredProjects.map((project) => (
               <div
                 key={project.id}
                 onClick={() => onProjectSelect(project)}
                 className="bg-flow-node border border-gray-700 rounded-lg p-5 sm:p-6 cursor-pointer hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/20 transition-all"
+                data-testid={`project-card-${project.id}`}
               >
                 {/* Project Header */}
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-4">
@@ -204,7 +224,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                       <FolderOpen size={16} className="text-flow-accent" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-white truncate max-w-[12rem] sm:max-w-32" title={project.name}>
+                      <h3 className="font-semibold text-white truncate max-w-[12rem] sm:max-w-32" title={project.name} data-testid={`project-card-title-${project.id}`}>
                         {project.name}
                       </h3>
                     </div>
@@ -217,16 +237,18 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                       onClick={(e) => handleScheduleClick(e)}
                       className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
                       title="Open Calendar"
+                      aria-label="Open Calendar for project"
                     >
                       <Calendar size={14} />
                     </button>
-                    
+
                     {/* Run All Workflows Button */}
                     <button
                       onClick={(e) => handleRunAllWorkflows(e, project.id)}
                       disabled={bulkExecutionInProgress[project.id]}
                       className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title={bulkExecutionInProgress[project.id] ? 'Running workflows...' : 'Run All Workflows'}
+                      aria-label={bulkExecutionInProgress[project.id] ? 'Running workflows' : 'Run all workflows in project'}
                     >
                       {bulkExecutionInProgress[project.id] ? (
                         <Loader size={14} className="animate-spin" />

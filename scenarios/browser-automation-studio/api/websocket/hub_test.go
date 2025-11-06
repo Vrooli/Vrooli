@@ -33,6 +33,7 @@ func waitForUpdate(t *testing.T, ch <-chan ExecutionUpdate) ExecutionUpdate {
 }
 
 func TestHubBroadcastsToRegisteredClients(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] broadcasts execution updates to all connected clients", func(t *testing.T) {
 	hub := newTestHub(t)
 
 	client := &Client{
@@ -54,13 +55,15 @@ func TestHubBroadcastsToRegisteredClients(t *testing.T) {
 
 	hub.BroadcastUpdate(update)
 
-	received := waitForUpdate(t, client.Send)
-	if received.Type != update.Type || received.Progress != update.Progress {
-		t.Fatalf("expected %+v, got %+v", update, received)
-	}
+		received := waitForUpdate(t, client.Send)
+		if received.Type != update.Type || received.Progress != update.Progress {
+			t.Fatalf("expected %+v, got %+v", update, received)
+		}
+	})
 }
 
 func TestHubFiltersByExecutionID(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] filters updates by execution ID for subscribed clients", func(t *testing.T) {
 	hub := newTestHub(t)
 
 	executionID := uuid.New()
@@ -109,15 +112,17 @@ func TestHubFiltersByExecutionID(t *testing.T) {
 		t.Fatalf("filtered client received wrong execution: %+v", receivedFiltered)
 	}
 
-	select {
-	case extra := <-filteredClient.Send:
-		t.Fatalf("filtered client should not receive non-matching updates, got %+v", extra)
-	case <-time.After(200 * time.Millisecond):
-		// expected
-	}
+		select {
+		case extra := <-filteredClient.Send:
+			t.Fatalf("filtered client should not receive non-matching updates, got %+v", extra)
+		case <-time.After(200 * time.Millisecond):
+			// expected
+		}
+	})
 }
 
 func TestGetClientCount(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] tracks connected client count", func(t *testing.T) {
 	hub := newTestHub(t)
 
 	if count := hub.GetClientCount(); count != 0 {
@@ -152,7 +157,101 @@ func TestGetClientCount(t *testing.T) {
 	hub.unregister <- client1
 	time.Sleep(50 * time.Millisecond)
 
-	if count := hub.GetClientCount(); count != 1 {
-		t.Fatalf("expected 1 client after unregister, got %d", count)
-	}
+		if count := hub.GetClientCount(); count != 1 {
+			t.Fatalf("expected 1 client after unregister, got %d", count)
+		}
+	})
+}
+
+// TestHubSendsWelcomeMessage verifies that new clients receive a welcome message upon connection
+func TestHubSendsWelcomeMessage(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] sends welcome message to newly connected clients", func(t *testing.T) {
+		hub := newTestHub(t)
+
+		client := &Client{
+			ID:   uuid.New(),
+			Send: make(chan ExecutionUpdate, 4),
+			Hub:  hub,
+		}
+
+		hub.register <- client
+
+		welcome := waitForUpdate(t, client.Send)
+		if welcome.Type != "connected" {
+			t.Errorf("expected welcome message type 'connected', got %s", welcome.Type)
+		}
+		if welcome.Message != "Connected to Browser Automation Studio" {
+			t.Errorf("expected welcome message, got %s", welcome.Message)
+		}
+	})
+}
+
+// TestHubHandlesMultipleBroadcasts verifies hub can handle rapid sequential broadcasts
+func TestHubHandlesMultipleBroadcasts(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] handles multiple rapid broadcasts", func(t *testing.T) {
+		hub := newTestHub(t)
+
+		client := &Client{
+			ID:   uuid.New(),
+			Send: make(chan ExecutionUpdate, 10),
+			Hub:  hub,
+		}
+
+		hub.register <- client
+		_ = waitForUpdate(t, client.Send) // Drain welcome message
+
+		executionID := uuid.New()
+
+		// Send multiple updates rapidly
+		for i := 0; i < 5; i++ {
+			hub.BroadcastUpdate(ExecutionUpdate{
+				Type:        "progress",
+				ExecutionID: executionID,
+				Progress:    i * 20,
+			})
+		}
+
+		// Verify all updates were received
+		receivedProgress := make([]int, 0, 5)
+		for i := 0; i < 5; i++ {
+			update := waitForUpdate(t, client.Send)
+			receivedProgress = append(receivedProgress, update.Progress)
+		}
+
+		if len(receivedProgress) != 5 {
+			t.Errorf("expected 5 progress updates, got %d", len(receivedProgress))
+		}
+	})
+}
+
+// TestHubCleanupOnClientDisconnect verifies proper cleanup when client disconnects
+func TestHubCleanupOnClientDisconnect(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] cleans up disconnected clients", func(t *testing.T) {
+		hub := newTestHub(t)
+
+		client := &Client{
+			ID:   uuid.New(),
+			Send: make(chan ExecutionUpdate, 4),
+			Hub:  hub,
+		}
+
+		hub.register <- client
+		time.Sleep(50 * time.Millisecond)
+
+		initialCount := hub.GetClientCount()
+		if initialCount != 1 {
+			t.Fatalf("expected 1 client after registration, got %d", initialCount)
+		}
+
+		hub.unregister <- client
+		time.Sleep(50 * time.Millisecond)
+
+		finalCount := hub.GetClientCount()
+		if finalCount != 0 {
+			t.Errorf("expected 0 clients after unregister, got %d", finalCount)
+		}
+
+		// Verify the client is removed from the hub - channel closing is implementation detail
+		// that's handled asynchronously, so we just verify client count decreased
+	})
 }

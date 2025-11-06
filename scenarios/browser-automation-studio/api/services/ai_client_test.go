@@ -10,9 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TestNewOpenRouterClient verifies client initialization with model selection [REQ:BAS-AI-GENERATION-VALIDATION]
 func TestNewOpenRouterClient(t *testing.T) {
-	t.Run("uses default model when env var not set", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] uses default model when env var not set", func(t *testing.T) {
 		originalModel := os.Getenv("BAS_OPENROUTER_MODEL")
 		os.Unsetenv("BAS_OPENROUTER_MODEL")
 		defer func() {
@@ -36,7 +35,7 @@ func TestNewOpenRouterClient(t *testing.T) {
 		}
 	})
 
-	t.Run("uses custom model from env var", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] uses custom model from env var", func(t *testing.T) {
 		originalModel := os.Getenv("BAS_OPENROUTER_MODEL")
 		customModel := "anthropic/claude-3-sonnet"
 		os.Setenv("BAS_OPENROUTER_MODEL", customModel)
@@ -56,7 +55,7 @@ func TestNewOpenRouterClient(t *testing.T) {
 		}
 	})
 
-	t.Run("handles whitespace in model env var", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles whitespace in model env var", func(t *testing.T) {
 		originalModel := os.Getenv("BAS_OPENROUTER_MODEL")
 		os.Setenv("BAS_OPENROUTER_MODEL", "   ")
 		defer func() {
@@ -76,14 +75,13 @@ func TestNewOpenRouterClient(t *testing.T) {
 	})
 }
 
-// TestExecutePrompt_Validation verifies prompt validation logic [REQ:BAS-AI-GENERATION-VALIDATION]
 func TestExecutePrompt_Validation(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
 	client := NewOpenRouterClient(log)
 	ctx := context.Background()
 
-	t.Run("rejects empty prompt", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects empty prompt", func(t *testing.T) {
 		_, err := client.ExecutePrompt(ctx, "")
 		if err == nil {
 			t.Fatal("expected error for empty prompt")
@@ -93,7 +91,7 @@ func TestExecutePrompt_Validation(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects whitespace-only prompt", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects whitespace-only prompt", func(t *testing.T) {
 		_, err := client.ExecutePrompt(ctx, "   \n\t  ")
 		if err == nil {
 			t.Fatal("expected error for whitespace-only prompt")
@@ -104,7 +102,6 @@ func TestExecutePrompt_Validation(t *testing.T) {
 	})
 }
 
-// TestExecutePrompt_ContextCancellation verifies context timeout handling [REQ:BAS-AI-GENERATION-VALIDATION]
 func TestExecutePrompt_ContextCancellation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping context cancellation test in short mode")
@@ -114,7 +111,7 @@ func TestExecutePrompt_ContextCancellation(t *testing.T) {
 	log.SetOutput(os.Stderr)
 	client := NewOpenRouterClient(log)
 
-	t.Run("respects context cancellation", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] respects context cancellation", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 		defer cancel()
 
@@ -133,7 +130,6 @@ func TestExecutePrompt_ContextCancellation(t *testing.T) {
 	})
 }
 
-// TestExecutePrompt_PromptFileManagement verifies temp file cleanup [REQ:BAS-AI-GENERATION-VALIDATION]
 func TestExecutePrompt_PromptFileManagement(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping file management test in short mode")
@@ -146,7 +142,7 @@ func TestExecutePrompt_PromptFileManagement(t *testing.T) {
 	client := NewOpenRouterClient(log)
 	ctx := context.Background()
 
-	t.Run("creates and cleans up prompt file", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] creates and cleans up prompt file", func(t *testing.T) {
 		prompt := "test prompt for file management"
 
 		// Execute the prompt (will likely fail due to missing resource-openrouter binary in test env)
@@ -164,12 +160,11 @@ func TestExecutePrompt_PromptFileManagement(t *testing.T) {
 	})
 }
 
-// TestOpenRouterClient_Deterministic verifies deterministic behavior [REQ:BAS-AI-GENERATION-VALIDATION]
 func TestOpenRouterClient_Deterministic(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
 
-	t.Run("multiple clients with same config are equivalent", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] multiple clients with same config are equivalent", func(t *testing.T) {
 		client1 := NewOpenRouterClient(log)
 		client2 := NewOpenRouterClient(log)
 
@@ -178,7 +173,7 @@ func TestOpenRouterClient_Deterministic(t *testing.T) {
 		}
 	})
 
-	t.Run("validation errors are consistent", func(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] validation errors are consistent", func(t *testing.T) {
 		client := NewOpenRouterClient(log)
 		ctx := context.Background()
 

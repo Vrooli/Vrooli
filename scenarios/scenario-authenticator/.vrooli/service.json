@@ -131,10 +131,13 @@
              "bundle_path": "ui/dist/index.html",
              "source_dir": "ui/src"
            },
-            {
-              "type": "cli",
-              "targets": ["scenario-authenticator"]
-            },
+          {
+            "type": "cli",
+            "command": "scenario-authenticator",
+            "targets": [
+              "scenario-authenticator"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -207,9 +210,12 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && pnpm run start",
-          "description": "Start authentication UI server",
-          "background": true
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
         {
           "name": "show-urls",

@@ -24,7 +24,8 @@ const CONFIG = {
     API_ROOT: apiResolution.root,
     API_SOURCE: apiResolution.source,
     API_NOTES: apiResolution.notes,
-    POLL_INTERVAL: 5000, // 5 seconds
+    POLL_INTERVAL: 5000, // 5 seconds (build status polling)
+    STATUS_REFRESH_INTERVAL: 30000, // 30 seconds (system health checks)
     NOTIFICATION_TIMEOUT: 5000,
     DEBUG: false
 };
@@ -43,11 +44,10 @@ const state = {
 // Debug & Development Utilities
 // ============================================
 
-function log(...args) {
-    if (CONFIG.DEBUG) {
-        console.log('[ExtensionGenerator]', ...args);
-    }
-}
+// Conditional logging - no-op in production, full logging in debug mode
+const log = CONFIG.DEBUG
+    ? (...args) => console.log('[ExtensionGenerator]', ...args)
+    : () => {}; // No-op function - zero overhead in production
 
 function debounce(func, wait) {
     let timeout;
@@ -93,6 +93,39 @@ function formatStatusLabel(value) {
         .filter(Boolean)
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatDisplayValue(value) {
+    if (typeof value === 'boolean') {
+        return value ? 'Available' : 'Unavailable';
+    }
+
+    if (value === null || value === undefined) {
+        return 'Unknown';
+    }
+
+    if (value instanceof Date) {
+        return value.toLocaleString();
+    }
+
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value);
+        } catch (error) {
+            log('Failed to stringify value for display', error);
+        }
+    }
+
+    return String(value);
 }
 
 // ============================================
@@ -337,12 +370,9 @@ function switchTab(tabName) {
 
 async function refreshStatus() {
     const indicator = document.getElementById('status-indicator');
-    const icon = indicator?.querySelector('[data-role="status-icon"]');
-    if (indicator && icon) {
+    if (indicator) {
         indicator.dataset.status = 'loading';
-        icon.setAttribute('data-lucide', 'loader-2');
-        icon.classList.add('is-spinning');
-        renderLucideIcons(indicator);
+        indicator.setAttribute('aria-label', 'Loading system status...');
     }
 
     try {
@@ -351,44 +381,42 @@ async function refreshStatus() {
         updateStatusIndicator(status);
     } catch (error) {
         log('Status check failed:', error);
-        updateStatusIndicator({ status: 'error' });
+        const fallbackStatus = {
+            status: 'error',
+            message: error?.message || 'Status check failed'
+        };
+        state.systemStatus = fallbackStatus;
+        updateStatusIndicator(fallbackStatus);
     }
 }
 
 function updateStatusIndicator(status) {
     const indicator = document.getElementById('status-indicator');
-    const text = document.getElementById('status-text');
-    const icon = indicator?.querySelector('[data-role="status-icon"]');
-    const state = status?.status || 'error';
+    const popup = document.getElementById('status-popup');
+    const dot = indicator?.querySelector('.status-dot');
+    const stateValue = status?.status || 'error';
 
     if (!indicator) {
         return;
     }
 
-    indicator.dataset.status = state;
-    indicator.setAttribute('title', `API base: ${CONFIG.API_BASE} (${CONFIG.API_SOURCE})`);
+    indicator.dataset.status = stateValue;
 
-    if (text) {
-        if (state === 'healthy') {
-            text.textContent = 'System Healthy';
-        } else if (state === 'warning') {
-            text.textContent = 'System Warning';
-        } else {
-            text.textContent = 'System Error';
-        }
+    const statusLabel = formatStatusLabel(stateValue);
+    const timestamp = status?.timestamp ? formatDate(status.timestamp) : null;
+    const ariaParts = [`${statusLabel} status`];
+    if (timestamp) {
+        ariaParts.push(`Checked ${timestamp}`);
     }
 
-    if (icon) {
-        const iconName = {
-            healthy: 'check-circle-2',
-            warning: 'alert-triangle',
-            error: 'alert-octagon'
-        }[state] || 'loader-2';
-        icon.setAttribute('data-lucide', iconName);
-        icon.classList.toggle('is-spinning', state === 'building' || state === 'loading');
+    indicator.setAttribute('aria-label', `${ariaParts.join('. ')}. Click for details.`);
+    indicator.setAttribute('aria-expanded', popup?.classList.contains('is-open') ? 'true' : 'false');
+
+    if (dot) {
+        dot.classList.toggle('is-loading', stateValue === 'loading' || stateValue === 'building');
     }
 
-    renderLucideIcons(indicator);
+    renderStatusPopupContent(status);
 }
 
 function syncApiEndpointField(previousRoot) {
@@ -418,24 +446,165 @@ function syncApiEndpointField(previousRoot) {
 }
 
 function applyApiContext() {
-    const apiSourcePill = document.getElementById('api-source-pill');
-    if (apiSourcePill) {
-        const label = formatStatusLabel(CONFIG.API_SOURCE || 'configured');
-        apiSourcePill.textContent = `API: ${label}`;
-        const detailParts = [CONFIG.API_BASE, CONFIG.API_NOTES].filter(Boolean);
-        if (detailParts.length > 0) {
-            apiSourcePill.setAttribute('title', detailParts.join('\n'));
-        } else {
-            apiSourcePill.removeAttribute('title');
-        }
-    }
-
     syncApiEndpointField();
 
     const healthLink = document.getElementById('api-health-link');
     if (healthLink && CONFIG.API_BASE) {
         healthLink.href = `${CONFIG.API_BASE}/health`;
     }
+
+    renderStatusPopupContent();
+}
+
+function renderStatusPopupContent(status = state.systemStatus) {
+    const popupContent = document.getElementById('status-popup-content');
+    if (!popupContent) {
+        return;
+    }
+
+    const effectiveStatus = status || state.systemStatus;
+
+    if (!effectiveStatus) {
+        popupContent.innerHTML = '<p class="status-popup-empty">Status information not available yet.</p>';
+        return;
+    }
+
+    const statusState = effectiveStatus.status || 'error';
+    const statusLabel = formatStatusLabel(statusState);
+    const service = effectiveStatus.service || 'Scenario API';
+    const scenarioName = effectiveStatus.scenario || 'Unknown';
+    const version = effectiveStatus.version || 'Unknown';
+    const timestamp = effectiveStatus.timestamp ? formatDate(effectiveStatus.timestamp) : null;
+    const message = effectiveStatus.message;
+    const resources = effectiveStatus.resources || {};
+    const stats = effectiveStatus.stats || {};
+
+    const resourcesMarkup = Object.keys(resources).length > 0
+        ? Object.entries(resources)
+            .map(([key, value]) => {
+                const label = formatStatusLabel(key);
+                const isBoolean = typeof value === 'boolean';
+                const badgeClass = value === true
+                    ? 'status-popup-badge status-popup-badge--ok'
+                    : value === false
+                        ? 'status-popup-badge status-popup-badge--error'
+                        : 'status-popup-badge';
+                const displayValue = isBoolean ? (value ? 'Available' : 'Unavailable') : formatDisplayValue(value);
+                return `
+                    <li>
+                        <span>${escapeHtml(label)}</span>
+                        <span class="${badgeClass}">${escapeHtml(displayValue)}</span>
+                    </li>
+                `;
+            })
+            .join('')
+        : '<li class="status-popup-empty">No resource data</li>';
+
+    const statsMarkup = Object.keys(stats).length > 0
+        ? Object.entries(stats)
+            .map(([key, value]) => `
+                <li>
+                    <span>${escapeHtml(formatStatusLabel(key))}</span>
+                    <span class="status-popup-value-strong">${escapeHtml(formatDisplayValue(value))}</span>
+                </li>
+            `)
+            .join('')
+        : '<li class="status-popup-empty">No stats available</li>';
+
+    const apiSourceLabel = CONFIG.API_SOURCE ? formatStatusLabel(CONFIG.API_SOURCE) : '';
+    const apiBase = CONFIG.API_BASE || '';
+
+    popupContent.innerHTML = `
+        <div class="status-popup-header">
+            <span class="status-popup-dot" data-status="${escapeHtml(statusState)}"></span>
+            <div>
+                <div class="status-popup-title">${escapeHtml(statusLabel)}</div>
+                <div class="status-popup-subtitle">${escapeHtml(service)}</div>
+            </div>
+        </div>
+        <div class="status-popup-section">
+            <div class="status-popup-section-title">Summary</div>
+            <ul class="status-popup-list">
+                <li><span>Scenario</span><span>${escapeHtml(scenarioName)}</span></li>
+                <li><span>Version</span><span>${escapeHtml(version)}</span></li>
+                ${timestamp ? `<li><span>Checked</span><span>${escapeHtml(timestamp)}</span></li>` : ''}
+                ${message ? `<li><span>Message</span><span>${escapeHtml(message)}</span></li>` : ''}
+            </ul>
+        </div>
+        <div class="status-popup-section">
+            <div class="status-popup-section-title">Resources</div>
+            <ul class="status-popup-list">${resourcesMarkup}</ul>
+        </div>
+        <div class="status-popup-section">
+            <div class="status-popup-section-title">Stats</div>
+            <ul class="status-popup-list">${statsMarkup}</ul>
+        </div>
+        <div class="status-popup-footer">
+            <div class="status-popup-footer-info">
+                ${apiSourceLabel ? `<span>${escapeHtml(apiSourceLabel)}</span>` : ''}
+                ${apiBase ? `<span class="status-popup-footer-url">${escapeHtml(apiBase)}</span>` : ''}
+            </div>
+            ${apiBase ? `<a href="${escapeHtml(`${apiBase}/health`)}" target="_blank" rel="noopener">Open JSON</a>` : ''}
+        </div>
+    `;
+}
+
+function closeStatusPopup() {
+    const popup = document.getElementById('status-popup');
+    const trigger = document.getElementById('status-indicator');
+    if (!popup || !trigger) {
+        return;
+    }
+
+    popup.classList.remove('is-open');
+    popup.setAttribute('aria-hidden', 'true');
+    trigger.setAttribute('aria-expanded', 'false');
+}
+
+function toggleStatusPopup() {
+    const popup = document.getElementById('status-popup');
+    const trigger = document.getElementById('status-indicator');
+    if (!popup || !trigger) {
+        return;
+    }
+
+    const isOpen = popup.classList.toggle('is-open');
+    popup.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+
+    if (isOpen) {
+        renderStatusPopupContent();
+    }
+}
+
+function initializeStatusPopover() {
+    const popup = document.getElementById('status-popup');
+    const trigger = document.getElementById('status-indicator');
+
+    if (!popup || !trigger) {
+        return;
+    }
+
+    popup.setAttribute('aria-hidden', 'true');
+
+    trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleStatusPopup();
+    });
+
+    document.addEventListener('click', (event) => {
+        if (popup.contains(event.target) || event.target === trigger) {
+            return;
+        }
+        closeStatusPopup();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeStatusPopup();
+        }
+    });
 }
 
 // ============================================
@@ -460,15 +629,21 @@ function initializeGenerator() {
             state.selectedTemplate = card.getAttribute('data-template');
         });
     });
-    
+
     // Form submission
     const form = document.getElementById('extension-form');
     form.addEventListener('submit', handleExtensionGeneration);
-    
+
+    // Reset form button
+    const resetBtn = document.getElementById('reset-form-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetForm);
+    }
+
     // Auto-populate app name from scenario name
     const scenarioNameInput = document.getElementById('scenario-name');
     const appNameInput = document.getElementById('app-name');
-    
+
     scenarioNameInput.addEventListener('input', debounce(() => {
         if (!appNameInput.value || appNameInput.dataset.autoGenerated) {
             const scenarioName = scenarioNameInput.value;
@@ -480,7 +655,7 @@ function initializeGenerator() {
             appNameInput.dataset.autoGenerated = 'true';
         }
     }, 300));
-    
+
     appNameInput.addEventListener('input', () => {
         delete appNameInput.dataset.autoGenerated;
     });
@@ -698,16 +873,16 @@ function createBuildElement(build) {
         
         <div class="build-actions">
             ${build.status === 'ready' ? `
-                <button class="btn btn-outline" onclick="testBuild('${build.build_id}')">
+                <button class="btn btn-outline" data-action="test" data-build-id="${build.build_id}">
                     ${createIconMarkup('beaker', { className: 'btn-icon' })}
                     <span>Test Extension</span>
                 </button>
-                <button class="btn btn-outline" onclick="downloadBuild('${build.build_id}')">
+                <button class="btn btn-outline" data-action="download" data-build-id="${build.build_id}">
                     ${createIconMarkup('download', { className: 'btn-icon' })}
                     <span>Download</span>
                 </button>
             ` : ''}
-            <button class="btn btn-outline" onclick="viewBuildDetails('${build.build_id}')">
+            <button class="btn btn-outline" data-action="view-details" data-build-id="${build.build_id}">
                 ${createIconMarkup('eye', { className: 'btn-icon' })}
                 <span>View Details</span>
             </button>
@@ -773,13 +948,177 @@ function testBuild(buildId) {
 }
 
 function downloadBuild(buildId) {
-    // TODO: Implement build download functionality
-    NotificationManager.info('Coming Soon', 'Build download functionality will be available soon.');
+    const build = state.builds.find(b => b.build_id === buildId);
+    if (!build) {
+        NotificationManager.error('Download Failed', 'Build not found');
+        return;
+    }
+
+    if (build.status !== 'ready') {
+        NotificationManager.warning('Not Ready', 'Build must be completed before downloading');
+        return;
+    }
+
+    // Create download URL
+    const downloadUrl = `${CONFIG.API_BASE}/extension/download/${buildId}`;
+
+    // Create temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `${build.scenario_name}-v${build.config.version || '1.0.0'}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    NotificationManager.success(
+        'Download Started',
+        `Downloading ${build.scenario_name} extension as ZIP file`
+    );
 }
 
 function viewBuildDetails(buildId) {
-    // TODO: Implement build details modal
-    NotificationManager.info('Coming Soon', 'Build details view will be available soon.');
+    const build = state.builds.find(b => b.build_id === buildId);
+    if (!build) {
+        NotificationManager.error('Error', 'Build not found');
+        return;
+    }
+
+    const modal = document.getElementById('build-details-modal');
+    const content = document.getElementById('build-details-content');
+
+    // Format duration
+    const duration = build.completed_at
+        ? formatDuration(build.created_at, build.completed_at)
+        : formatDuration(build.created_at, new Date());
+
+    // Build the modal content
+    content.innerHTML = `
+        <div class="detail-section">
+            <h3>
+                ${createIconMarkup('info', { className: 'section-icon' })}
+                Build Information
+            </h3>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Build ID</span>
+                    <span class="detail-value">${escapeHtml(build.build_id)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Scenario</span>
+                    <span class="detail-value">${escapeHtml(build.scenario_name)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Template</span>
+                    <span class="detail-value">${escapeHtml(build.template_type)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value">${formatStatusLabel(build.status)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Created</span>
+                    <span class="detail-value">${formatDate(build.created_at)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Duration</span>
+                    <span class="detail-value">${duration}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="detail-section">
+            <h3>
+                ${createIconMarkup('settings', { className: 'section-icon' })}
+                Configuration
+            </h3>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">App Name</span>
+                    <span class="detail-value">${escapeHtml(build.config.app_name)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Version</span>
+                    <span class="detail-value">${escapeHtml(build.config.version || '1.0.0')}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Author</span>
+                    <span class="detail-value">${escapeHtml(build.config.author_name || 'N/A')}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">API Endpoint</span>
+                    <span class="detail-value" style="word-break: break-all; font-size: 0.9rem;">
+                        ${escapeHtml(build.config.api_endpoint)}
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Extension Path</span>
+                    <span class="detail-value" style="word-break: break-all; font-size: 0.85rem; color: var(--text-muted);">
+                        ${escapeHtml(build.extension_path)}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        ${build.build_log && build.build_log.length > 0 ? `
+            <div class="detail-section">
+                <h3>
+                    ${createIconMarkup('terminal', { className: 'section-icon' })}
+                    Build Log (${build.build_log.length} entries)
+                </h3>
+                <div class="log-container">
+                    ${build.build_log.map(entry => {
+                        const logClass = entry.toLowerCase().includes('error') ? 'log-error'
+                            : entry.toLowerCase().includes('warning') ? 'log-warning'
+                            : entry.toLowerCase().includes('success') ? 'log-success'
+                            : 'log-info';
+                        return `<div class="log-entry ${logClass}">${escapeHtml(entry)}</div>`;
+                    }).join('')}
+                </div>
+            </div>
+        ` : '<div class="empty-message">No build log entries</div>'}
+
+        ${build.error_log && build.error_log.length > 0 ? `
+            <div class="detail-section">
+                <h3>
+                    ${createIconMarkup('alert-circle', { className: 'section-icon' })}
+                    Error Log (${build.error_log.length} errors)
+                </h3>
+                <div class="log-container">
+                    ${build.error_log.map(error =>
+                        `<div class="log-entry log-error">${escapeHtml(error)}</div>`
+                    ).join('')}
+                </div>
+            </div>
+        ` : ''}
+    `;
+
+    // Render icons in the modal content
+    renderLucideIcons(content);
+
+    // Show modal
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+
+    // Setup close handlers
+    const closeButton = modal.querySelector('.modal-close');
+    const backdrop = modal.querySelector('.modal-backdrop');
+
+    const closeModal = () => {
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+    };
+
+    closeButton.onclick = closeModal;
+    backdrop.onclick = closeModal;
+
+    // Close on Escape key
+    const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', handleEscape);
+        }
+    };
+    document.addEventListener('keydown', handleEscape);
 }
 
 // ============================================
@@ -846,6 +1185,23 @@ function createTemplateElement(template) {
 function initializeTesting() {
     const form = document.getElementById('testing-form');
     form.addEventListener('submit', handleExtensionTesting);
+
+    // Browse extension button
+    const browseBtn = document.getElementById('browse-extension-btn');
+    if (browseBtn) {
+        browseBtn.addEventListener('click', async () => {
+            // Load latest builds if not already loaded
+            if (state.builds.length === 0) {
+                try {
+                    const response = await APIClient.get('/extension/builds');
+                    state.builds = response.builds || [];
+                } catch (error) {
+                    log('Failed to load builds for browser:', error);
+                }
+            }
+            browseExtension();
+        });
+    }
 }
 
 async function handleExtensionTesting(event) {
@@ -954,8 +1310,110 @@ function displayTestResults(results) {
 }
 
 function browseExtension() {
-    // TODO: Implement file browser or provide common paths
-    NotificationManager.info('File Browser', 'Enter the path to your extension directory manually for now.');
+    // Show a helpful modal with available builds to choose from
+    const pathInput = document.getElementById('test-extension-path');
+
+    if (state.builds.length === 0) {
+        NotificationManager.info(
+            'No Builds Available',
+            'Generate an extension first to have build paths available. Or enter a path manually.'
+        );
+        return;
+    }
+
+    // Filter to only completed builds
+    const completedBuilds = state.builds.filter(b => b.status === 'ready');
+
+    if (completedBuilds.length === 0) {
+        NotificationManager.warning(
+            'No Completed Builds',
+            'Wait for a build to complete, or enter a path manually.'
+        );
+        return;
+    }
+
+    // Create a quick selection dialog using native select element
+    const selectHtml = `
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-primary);">
+                Select a recent build:
+            </label>
+            <select id="build-path-selector" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem;">
+                ${completedBuilds.map(build => `
+                    <option value="${escapeHtml(build.extension_path)}">
+                        ${escapeHtml(build.scenario_name)} (${escapeHtml(build.config.app_name)}) - v${escapeHtml(build.config.version || '1.0.0')}
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button id="cancel-path-btn" class="btn btn-outline" style="padding: 10px 20px;">
+                Cancel
+            </button>
+            <button id="select-path-btn" class="btn btn-primary" style="padding: 10px 20px;">
+                ${createIconMarkup('check', { className: 'btn-icon' })}
+                <span>Select Path</span>
+            </button>
+        </div>
+    `;
+
+    // Create temporary modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'modal';
+    overlay.innerHTML = `
+        <div class="modal-backdrop"></div>
+        <div class="modal-container" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Select Extension Path</h2>
+                <button class="modal-close" type="button" aria-label="Close">
+                    ${createIconMarkup('x')}
+                </button>
+            </div>
+            <div class="modal-content">
+                ${selectHtml}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    renderLucideIcons(overlay);
+
+    // Show modal
+    requestAnimationFrame(() => {
+        overlay.classList.remove('hidden');
+    });
+
+    const selector = overlay.querySelector('#build-path-selector');
+    const selectBtn = overlay.querySelector('#select-path-btn');
+    const cancelBtn = overlay.querySelector('#cancel-path-btn');
+    const closeBtn = overlay.querySelector('.modal-close');
+    const backdrop = overlay.querySelector('.modal-backdrop');
+
+    const closeOverlay = () => {
+        overlay.classList.add('hidden');
+        setTimeout(() => {
+            document.body.removeChild(overlay);
+        }, 300);
+    };
+
+    selectBtn.onclick = () => {
+        pathInput.value = selector.value;
+        NotificationManager.success('Path Selected', 'Extension path has been populated');
+        closeOverlay();
+    };
+
+    cancelBtn.onclick = closeOverlay;
+    closeBtn.onclick = closeOverlay;
+    backdrop.onclick = closeOverlay;
+
+    // Close on Escape
+    const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+            closeOverlay();
+            document.removeEventListener('keydown', handleEscape);
+        }
+    };
+    document.addEventListener('keydown', handleEscape);
 }
 
 // ============================================
@@ -964,7 +1422,7 @@ function browseExtension() {
 
 document.addEventListener('DOMContentLoaded', () => {
     log('Extension Generator UI initializing...');
-    
+
     applyApiContext();
     renderLucideIcons();
 
@@ -972,31 +1430,70 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeTabs();
     initializeGenerator();
     initializeTesting();
-    
+    initializeStatusPopover();
+
+    // Additional UI event listeners
+    const refreshBuildsBtn = document.getElementById('refresh-builds-btn');
+    if (refreshBuildsBtn) {
+        refreshBuildsBtn.addEventListener('click', loadBuilds);
+    }
+
+    const gotoGeneratorBtn = document.getElementById('goto-generator-btn');
+    if (gotoGeneratorBtn) {
+        gotoGeneratorBtn.addEventListener('click', () => switchTab('generator'));
+    }
+
+    // Event delegation for dynamically generated build action buttons
+    const buildsContainer = document.getElementById('builds-list');
+    if (buildsContainer) {
+        buildsContainer.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            const buildId = button.dataset.buildId;
+
+            switch (action) {
+                case 'test':
+                    testBuild(buildId);
+                    break;
+                case 'download':
+                    downloadBuild(buildId);
+                    break;
+                case 'view-details':
+                    viewBuildDetails(buildId);
+                    break;
+            }
+        });
+    }
+
     // Initial status check
     refreshStatus();
-    
+
     // Set up periodic status updates
-    setInterval(refreshStatus, 30000); // Every 30 seconds
-    
+    setInterval(refreshStatus, CONFIG.STATUS_REFRESH_INTERVAL);
+
     log('Extension Generator UI initialized');
 });
 
 // ============================================
-// Global Functions (exposed to HTML and api-resolver.js)
+// Global Functions (exposed for api-resolver.js integration)
 // ============================================
 
-window.refreshStatus = refreshStatus;
-window.switchTab = switchTab;
-window.resetForm = resetForm;
-window.loadBuilds = loadBuilds;
-window.loadTemplates = loadTemplates;
-window.testBuild = testBuild;
-window.downloadBuild = downloadBuild;
-window.viewBuildDetails = viewBuildDetails;
-window.browseExtension = browseExtension;
-window.syncApiEndpointField = syncApiEndpointField;
-window.applyApiContext = applyApiContext;
+// Consolidate all app functions into a single namespace to reduce global pollution
+window.ScenarioToExtensionApp = {
+    refreshStatus,
+    switchTab,
+    resetForm,
+    loadBuilds,
+    loadTemplates,
+    testBuild,
+    downloadBuild,
+    viewBuildDetails,
+    browseExtension,
+    syncApiEndpointField,
+    applyApiContext
+};
 
 // Bootstrap API resolution from api-resolver.js
 if (typeof window.applyApiResolution === 'function') {

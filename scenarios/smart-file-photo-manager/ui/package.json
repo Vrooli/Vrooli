@@ -6,7 +6,8 @@
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "install-deps": "npm install"
+    "install-deps": "npm install",
+    "build": "bash -c 'set -e; rm -rf dist && mkdir -p dist && for file in index.html styles.css script.js; do if [ -f \"$file\" ]; then cp -a \"$file\" dist/; fi; done'"
   },
   "keywords": [
     "file-manager",
