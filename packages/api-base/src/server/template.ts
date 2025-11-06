@@ -1,0 +1,398 @@
+/**
+ * Full scenario server template
+ *
+ * Provides a complete Express server implementation that handles all common
+ * scenario needs: static files, API proxy, config endpoint, health endpoint,
+ * CORS, metadata injection, etc.
+ */
+
+import express, { type Express, type Request, type Response, type NextFunction } from 'express'
+import * as path from 'node:path'
+import * as fs from 'node:fs'
+import type { ServerTemplateOptions } from '../shared/types.js'
+import { createConfigEndpoint } from './config.js'
+import { createHealthEndpoint } from './health.js'
+import { proxyToApi, createProxyMiddleware } from './proxy.js'
+import { injectProxyMetadata, injectScenarioConfig } from './inject.js'
+import { parsePort } from '../shared/utils.js'
+
+/**
+ * Default allowed CORS origins
+ *
+ * Includes localhost and loopback addresses with any port.
+ *
+ * @internal
+ */
+function buildDefaultCorsOrigins(uiPort?: string): string[] {
+  const origins = [
+    'http://localhost',
+    'http://127.0.0.1',
+    'http://[::1]',
+    'null', // For file:// protocol
+  ]
+
+  if (uiPort) {
+    origins.push(`http://localhost:${uiPort}`)
+    origins.push(`http://127.0.0.1:${uiPort}`)
+  }
+
+  return origins
+}
+
+/**
+ * Check if origin is allowed
+ *
+ * @param origin - Origin to check
+ * @param allowedOrigins - List of allowed origins (supports wildcards)
+ * @returns Whether origin is allowed
+ *
+ * @internal
+ */
+function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
+  // Check for exact match
+  if (allowedOrigins.includes(origin)) {
+    return true
+  }
+
+  // Check for wildcard match
+  if (allowedOrigins.includes('*')) {
+    return true
+  }
+
+  // Check for pattern match (e.g., "http://localhost:*")
+  for (const pattern of allowedOrigins) {
+    if (pattern.includes('*')) {
+      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
+      if (regex.test(origin)) {
+        return true
+      }
+    }
+  }
+
+  // Check if origin starts with any allowed origin (for port wildcards)
+  const originLower = origin.toLowerCase()
+  for (const allowed of allowedOrigins) {
+    const allowedLower = allowed.toLowerCase()
+    if (allowedLower.endsWith(':*')) {
+      const baseAllowed = allowedLower.slice(0, -2)
+      if (originLower.startsWith(baseAllowed)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+/**
+ * Create CORS middleware
+ *
+ * @param corsOrigins - Allowed origins (supports wildcards, defaults to localhost)
+ * @param verbose - Whether to log CORS decisions
+ * @returns CORS middleware
+ *
+ * @internal
+ */
+function createCorsMiddleware(corsOrigins: string | string[] | undefined, verbose: boolean) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const origin = req.headers.origin
+
+    // Normalize cors origins
+    let allowedOrigins: string[]
+    if (corsOrigins === '*') {
+      allowedOrigins = ['*']
+    } else if (Array.isArray(corsOrigins)) {
+      allowedOrigins = corsOrigins
+    } else if (typeof corsOrigins === 'string') {
+      allowedOrigins = corsOrigins.split(',').map(o => o.trim())
+    } else {
+      // Default: build from UI port
+      allowedOrigins = buildDefaultCorsOrigins()
+    }
+
+    // Handle wildcard
+    if (allowedOrigins.includes('*')) {
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Credentials', 'false')
+    } else if (origin && isOriginAllowed(origin, allowedOrigins)) {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
+      res.setHeader('Vary', 'Origin')
+    } else if (origin) {
+      if (verbose) {
+        console.log(`[cors] Blocked origin: ${origin}`)
+      }
+      res.status(403).json({ error: 'Origin not allowed' })
+      return
+    }
+
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      req.headers['access-control-request-headers'] || 'Accept,Authorization,Content-Type,X-CSRF-Token,X-Requested-With'
+    )
+    res.setHeader('Access-Control-Expose-Headers', 'Link')
+    res.setHeader('Access-Control-Max-Age', '300')
+
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+      res.status(204).end()
+      return
+    }
+
+    next()
+  }
+}
+
+/**
+ * Create HTML injection middleware
+ *
+ * Intercepts HTML responses and injects proxy metadata and/or config.
+ *
+ * @internal
+ */
+function createHtmlInjectionMiddleware(options: ServerTemplateOptions) {
+  const { proxyMetadata, scenarioConfig } = options
+
+  // If nothing to inject, return no-op middleware
+  if (!proxyMetadata && !scenarioConfig) {
+    return (_req: Request, _res: Response, next: NextFunction) => next()
+  }
+
+  return (req: Request, res: Response, next: NextFunction) => {
+    // Only intercept HTML responses
+    const originalSend = res.send
+
+    res.send = function (body: any): Response {
+      // Check if this is an HTML response
+      const contentType = res.getHeader('content-type')
+      const isHtml = contentType && typeof contentType === 'string' && contentType.includes('text/html')
+
+      if (isHtml && typeof body === 'string') {
+        let modifiedBody = body
+
+        // Inject proxy metadata
+        if (proxyMetadata) {
+          modifiedBody = injectProxyMetadata(modifiedBody, proxyMetadata)
+        }
+
+        // Inject scenario config
+        if (scenarioConfig) {
+          modifiedBody = injectScenarioConfig(modifiedBody, scenarioConfig)
+        }
+
+        return originalSend.call(this, modifiedBody)
+      }
+
+      return originalSend.call(this, body)
+    }
+
+    next()
+  }
+}
+
+/**
+ * Create a complete scenario server
+ *
+ * Returns a configured Express application with all standard middleware:
+ * - CORS handling
+ * - API proxying
+ * - Config endpoint
+ * - Health endpoint
+ * - Static file serving
+ * - SPA fallback routing
+ * - Optional metadata injection
+ *
+ * @param options - Server configuration options
+ * @returns Configured Express application
+ *
+ * @example
+ * ```typescript
+ * import { createScenarioServer } from '@vrooli/api-base/server'
+ *
+ * const app = createScenarioServer({
+ *   uiPort: process.env.UI_PORT || 3000,
+ *   apiPort: process.env.API_PORT || 8080,
+ *   distDir: './dist',
+ *   serviceName: 'my-scenario',
+ *   version: '1.0.0'
+ * })
+ *
+ * app.listen(process.env.UI_PORT || 3000, () => {
+ *   console.log('Server running')
+ * })
+ * ```
+ */
+export function createScenarioServer(options: ServerTemplateOptions): Express {
+  const {
+    uiPort,
+    apiPort,
+    apiHost,
+    wsPort,
+    wsHost,
+    distDir = './dist',
+    serviceName = 'scenario-ui',
+    version,
+    corsOrigins,
+    verbose = false,
+    configBuilder,
+    setupRoutes,
+    proxyMetadata,
+    scenarioConfig,
+  } = options
+
+  // Parse ports
+  const parsedUiPort = parsePort(uiPort)
+  const parsedApiPort = parsePort(apiPort)
+  const parsedWsPort = parsePort(wsPort) || parsedApiPort
+
+  if (!parsedUiPort) {
+    throw new Error('Invalid UI_PORT configuration')
+  }
+  if (!parsedApiPort) {
+    throw new Error('Invalid API_PORT configuration')
+  }
+
+  // Create Express app
+  const app = express()
+
+  // JSON body parser for API routes
+  app.use(express.json({ limit: '10mb' }))
+
+  // CORS middleware
+  app.use(createCorsMiddleware(corsOrigins, verbose))
+
+  // HTML injection middleware (if needed)
+  if (proxyMetadata || scenarioConfig) {
+    app.use(createHtmlInjectionMiddleware(options))
+  }
+
+  // API proxy middleware
+  app.use('/api', createProxyMiddleware({
+    apiPort: parsedApiPort,
+    apiHost,
+    verbose,
+  }))
+
+  // Config endpoint
+  if (configBuilder) {
+    app.get('/config', (_req: Request, res: Response) => {
+      try {
+        const config = configBuilder(process.env)
+        res.json(config)
+      } catch (error) {
+        res.status(500).json({
+          error: 'Failed to build configuration',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+  } else {
+    app.get('/config', createConfigEndpoint({
+      apiPort: parsedApiPort,
+      apiHost,
+      wsPort: parsedWsPort,
+      wsHost,
+      uiPort: parsedUiPort,
+      serviceName,
+      version,
+    }))
+  }
+
+  // Health endpoint
+  app.get('/health', createHealthEndpoint({
+    serviceName,
+    version,
+    apiPort: parsedApiPort,
+    apiHost,
+  }))
+
+  // Custom routes
+  if (setupRoutes) {
+    setupRoutes(app)
+  }
+
+  // Resolve dist directory
+  const absoluteDistDir = path.isAbsolute(distDir) ? distDir : path.resolve(process.cwd(), distDir)
+
+  // Check if dist directory exists
+  if (!fs.existsSync(absoluteDistDir)) {
+    console.warn(`[server] Warning: dist directory does not exist: ${absoluteDistDir}`)
+    console.warn('[server] Static files will not be served. Run build first.')
+  }
+
+  // Serve static files
+  app.use(express.static(absoluteDistDir))
+
+  // SPA fallback - serve index.html for all other routes
+  app.get('*', (req: Request, res: Response) => {
+    const indexPath = path.join(absoluteDistDir, 'index.html')
+
+    if (!fs.existsSync(indexPath)) {
+      res.status(404).send('Application not built. Run build command first.')
+      return
+    }
+
+    res.sendFile(indexPath)
+  })
+
+  // Log configuration
+  if (verbose) {
+    console.log('[server] Configuration:')
+    console.log(`  UI Port: ${parsedUiPort}`)
+    console.log(`  API Port: ${parsedApiPort}`)
+    console.log(`  WS Port: ${parsedWsPort}`)
+    console.log(`  Dist Dir: ${absoluteDistDir}`)
+    console.log(`  Service: ${serviceName}${version ? ` v${version}` : ''}`)
+  }
+
+  return app
+}
+
+/**
+ * Create and start scenario server
+ *
+ * Convenience function that creates the server and starts listening.
+ *
+ * @param options - Server configuration options
+ * @returns Express application (already listening)
+ *
+ * @example
+ * ```typescript
+ * import { startScenarioServer } from '@vrooli/api-base/server'
+ *
+ * startScenarioServer({
+ *   uiPort: process.env.UI_PORT || 3000,
+ *   apiPort: process.env.API_PORT || 8080,
+ *   distDir: './dist',
+ *   serviceName: 'my-scenario'
+ * })
+ * ```
+ */
+export function startScenarioServer(options: ServerTemplateOptions): Express {
+  const app = createScenarioServer(options)
+
+  const port = parsePort(options.uiPort)
+  if (!port) {
+    throw new Error('Invalid UI_PORT for server startup')
+  }
+
+  app.listen(Number.parseInt(port, 10), '0.0.0.0', () => {
+    console.log(`${options.serviceName || 'Scenario'} UI server listening on port ${port}`)
+    console.log(`Health: http://localhost:${port}/health`)
+    console.log(`Config: http://localhost:${port}/config`)
+    console.log(`UI: http://localhost:${port}`)
+  })
+
+  // Graceful shutdown
+  const shutdown = () => {
+    console.log('\nShutting down gracefully...')
+    process.exit(0)
+  }
+
+  process.on('SIGTERM', shutdown)
+  process.on('SIGINT', shutdown)
+
+  return app
+}

@@ -1,7 +1,8 @@
 {
   "name": "@vrooli/api-base",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "description": "Universal API connectivity for Vrooli scenarios",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -10,18 +11,58 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server/index.js",
+      "types": "./dist/server/index.d.ts"
+    },
+    "./types": {
+      "import": "./dist/shared/types.js",
+      "types": "./dist/shared/types.d.ts"
     }
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "docs",
+    "README.md",
+    "IMPLEMENTATION_PLAN.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "@types/express": "^4.17.21",
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^1.0.4",
+    "express": "^4.18.2",
+    "happy-dom": "^20.0.10",
+    "jsdom": "^27.1.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
   },
+  "peerDependencies": {
+    "express": "^4.18.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "vrooli",
+    "api",
+    "proxy",
+    "resolution",
+    "deployment",
+    "iframe",
+    "websocket"
+  ],
   "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }
