@@ -269,7 +269,7 @@ The test suite follows visited-tracker gold standards and provides a solid found
 ## Next Steps (Optional Enhancements)
 
 1. **Mock Qdrant CLI** - Create mock responses for deterministic testing
-2. **Integration Tests** - Add scenario-test.yaml integration tests
+2. **Integration Tests** - Covered by phased `test/phases/test-integration.sh`
 3. **Load Testing** - Add sustained load tests for production readiness
 4. **Database Fixtures** - Add test fixtures for database-dependent tests
 5. **WebSocket Tests** - Implement WebSocket client testing

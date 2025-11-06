@@ -106,18 +106,24 @@
       "description": "Initialize Chart Generator with all dependencies",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/chart-generator-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "chart-generator"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/chart-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "chart-generator",
+            "targets": [
+              "chart-generator"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -134,6 +140,19 @@
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
           "description": "Install chart-generator CLI command globally"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "setup-database",
@@ -165,7 +184,7 @@
           "description": "Start style management UI server with health endpoint",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "ui/dist/index.html"
           }
         },
          {

@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const https = require('https');
@@ -9,6 +10,9 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.UI_PORT || 3200;
 const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.API_PORT || 15200}`;
+const distDir = path.join(__dirname, 'dist');
+const staticRoot = fs.existsSync(distDir) ? distDir : __dirname;
+const modulesDir = path.join(__dirname, 'node_modules');
 
 let parsedApiBaseUrl;
 try {
@@ -128,7 +132,11 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Middleware
-app.use(express.static(path.join(__dirname)));
+if (fs.existsSync(modulesDir)) {
+  app.use('/node_modules', express.static(modulesDir));
+}
+
+app.use(express.static(staticRoot));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -147,12 +155,12 @@ app.use('/api', (req, res) => {
 
 // Serve main application
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(staticRoot, 'index.html'));
 });
 
 // Catch-all handler
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(staticRoot, 'index.html'));
 });
 
 // Error handling middleware

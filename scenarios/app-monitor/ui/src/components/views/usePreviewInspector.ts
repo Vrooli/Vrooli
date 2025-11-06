@@ -3,14 +3,13 @@ import type { MutableRefObject } from 'react';
 import type { ChangeEvent, MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { ensureDataUrl } from '@/utils/dataUrl';
 import { logger } from '@/services/logger';
+import { usePreviewBackgroundColor } from '@/hooks/usePreviewBackgroundColor';
+import { INSPECTOR_UI, PREVIEW_TIMEOUTS } from './previewConstants';
 import type { ReportElementCapture } from '../report/reportTypes';
 import type { BridgeInspectState, UseIframeBridgeReturn } from '@/hooks/useIframeBridge';
 import type { BridgeInspectHoverPayload, BridgeInspectResultPayload, BridgeInspectRect, BridgeInspectAncestorMeta } from '@vrooli/iframe-bridge';
 
-const INSPECTOR_FLOATING_MARGIN = 12;
 type InspectorPosition = { x: number; y: number };
-const DEFAULT_INSPECTOR_POSITION: InspectorPosition = { x: 24, y: INSPECTOR_FLOATING_MARGIN };
-const DRAG_THRESHOLD_PX = 3;
 
 export type InspectorScreenshot = {
   dataUrl: string;
@@ -141,7 +140,7 @@ export const usePreviewInspector = ({
   const [inspectorScreenshot, setInspectorScreenshot] = useState<InspectorScreenshot | null>(null);
   const [isInspectorScreenshotCapturing, setIsInspectorScreenshotCapturing] = useState(false);
   const [inspectorScreenshotExpanded, setInspectorScreenshotExpanded] = useState(false);
-  const [inspectorDialogPosition, setInspectorDialogPosition] = useState<InspectorPosition>(() => ({ ...DEFAULT_INSPECTOR_POSITION }));
+  const [inspectorDialogPosition, setInspectorDialogPosition] = useState<InspectorPosition>(() => ({ ...INSPECTOR_UI.DEFAULT_POSITION }));
   const [isInspectorDragging, setIsInspectorDragging] = useState(false);
   const [inspectorCaptureNote, setInspectorCaptureNote] = useState('');
   const [inspectorReportStatus, setInspectorReportStatus] = useState<InspectorReportStatus | null>(null);
@@ -190,7 +189,7 @@ export const usePreviewInspector = ({
     if (typeof window === 'undefined') {
       return;
     }
-    const timeoutId = window.setTimeout(() => setInspectCopyFeedback(null), 1800);
+    const timeoutId = window.setTimeout(() => setInspectCopyFeedback(null), PREVIEW_TIMEOUTS.COPY_FEEDBACK_DURATION);
     return () => window.clearTimeout(timeoutId);
   }, [inspectCopyFeedback]);
 
@@ -220,14 +219,23 @@ export const usePreviewInspector = ({
     if (inspectAncestors.length === 0) {
       return null;
     }
-    return inspectAncestors.map((ancestor, index) => {
-      const selector = ancestor.selector ?? ancestor.tag ?? `node-${index}`;
-      const rect = ancestor.documentRect ?? ancestor.rect ?? null;
-      const rectPart = rect
-        ? `${Math.round(rect.x)}:${Math.round(rect.y)}:${Math.round(rect.width)}:${Math.round(rect.height)}`
-        : '0:0:0:0';
-      return `${selector}@${rectPart}`;
-    }).join('|');
+
+    // Use a more efficient serialization approach
+    // JSON.stringify is faster than manual string concatenation for complex objects
+    const signatureParts = inspectAncestors.map(ancestor => {
+      const rect = ancestor.documentRect ?? ancestor.rect;
+      return JSON.stringify({
+        s: ancestor.selector ?? ancestor.tag ?? '',
+        r: rect ? {
+          x: Math.round(rect.x),
+          y: Math.round(rect.y),
+          w: Math.round(rect.width),
+          h: Math.round(rect.height),
+        } : null,
+      });
+    });
+
+    return signatureParts.join('|');
   }, [inspectAncestors]);
 
   useEffect(() => {
@@ -331,54 +339,7 @@ export const usePreviewInspector = ({
     return 'Element';
   }, [inspectMeta, inspectState.active]);
 
-  const resolvePreviewBackgroundColor = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return undefined;
-    }
-
-    const iframe = iframeRef.current;
-    if (iframe) {
-      try {
-        const iframeWindow = iframe.contentWindow;
-        const iframeDocument = iframe.contentDocument ?? iframeWindow?.document ?? null;
-        if (iframeDocument && iframeWindow) {
-          const candidates: Element[] = [];
-          if (iframeDocument.body) {
-            candidates.push(iframeDocument.body);
-          }
-          if (iframeDocument.documentElement && iframeDocument.documentElement !== iframeDocument.body) {
-            candidates.push(iframeDocument.documentElement);
-          }
-          for (const element of candidates) {
-            const style = iframeWindow.getComputedStyle(element);
-            if (!style) {
-              continue;
-            }
-            const color = style.backgroundColor;
-            if (color && color !== 'rgba(0, 0, 0, 0)' && color.toLowerCase() !== 'transparent') {
-              return color;
-            }
-          }
-        }
-      } catch (error) {
-        logger.debug('Unable to inspect iframe background color', error);
-      }
-    }
-
-    if (previewViewRef.current) {
-      try {
-        const style = window.getComputedStyle(previewViewRef.current);
-        const color = style.backgroundColor;
-        if (color && color !== 'rgba(0, 0, 0, 0)' && color.toLowerCase() !== 'transparent') {
-          return color;
-        }
-      } catch (error) {
-        logger.debug('Unable to inspect preview container background color', error);
-      }
-    }
-
-    return undefined;
-  }, [iframeRef, previewViewRef]);
+  const getPreviewBackgroundColor = usePreviewBackgroundColor(iframeRef, previewViewRef);
 
   const clampInspectorPosition = useCallback((
     x: number,
@@ -392,10 +353,10 @@ export const usePreviewInspector = ({
     if (!containerRect) {
       return { x, y };
     }
-    const maxX = Math.max(INSPECTOR_FLOATING_MARGIN, containerRect.width - width - INSPECTOR_FLOATING_MARGIN);
-    const maxY = Math.max(INSPECTOR_FLOATING_MARGIN, containerRect.height - height - INSPECTOR_FLOATING_MARGIN);
-    const clampedX = Math.min(Math.max(x, INSPECTOR_FLOATING_MARGIN), maxX);
-    const clampedY = Math.min(Math.max(y, INSPECTOR_FLOATING_MARGIN), maxY);
+    const maxX = Math.max(INSPECTOR_UI.FLOATING_MARGIN, containerRect.width - width - INSPECTOR_UI.FLOATING_MARGIN);
+    const maxY = Math.max(INSPECTOR_UI.FLOATING_MARGIN, containerRect.height - height - INSPECTOR_UI.FLOATING_MARGIN);
+    const clampedX = Math.min(Math.max(x, INSPECTOR_UI.FLOATING_MARGIN), maxX);
+    const clampedY = Math.min(Math.max(y, INSPECTOR_UI.FLOATING_MARGIN), maxY);
     return { x: clampedX, y: clampedY };
   }, [previewViewRef]);
 
@@ -407,7 +368,7 @@ export const usePreviewInspector = ({
     inspectMessageLockRef.current.locked = false;
   }, []);
 
-  const setLockedInspectMessage = useCallback((message: string, durationMs = 3200) => {
+  const setLockedInspectMessage = useCallback((message: string, durationMs: number = PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_STANDARD) => {
     clearInspectMessageLock();
     setInspectStatusMessage(message);
     if (typeof window === 'undefined') {
@@ -433,14 +394,14 @@ export const usePreviewInspector = ({
 
   const handleInspectorAncestorSelect = useCallback((index: number) => {
     if (!inspectState.active) {
-      setLockedInspectMessage('Start element inspection to adjust the selection.', 3200);
+      setLockedInspectMessage('Start element inspection to adjust the selection.');
       return;
     }
     if (!Number.isFinite(index) || inspectAncestors.length === 0) {
       return;
     }
     if (!hasAncestorNavigation) {
-      setLockedInspectMessage('Ancestor navigation is unavailable for this element.', 3200);
+      setLockedInspectMessage('Ancestor navigation is unavailable for this element.');
       return;
     }
     const clamped = Math.min(Math.max(Math.floor(index), 0), inspectAncestors.length - 1);
@@ -451,7 +412,7 @@ export const usePreviewInspector = ({
     const ok = setInspectTargetIndex(clamped);
     if (!ok) {
       setInspectorAncestorIndex(effectiveAncestorIndex);
-      setLockedInspectMessage('Unable to adjust selection.', 3200);
+      setLockedInspectMessage('Unable to adjust selection.');
     }
   }, [
     effectiveAncestorIndex,
@@ -464,14 +425,14 @@ export const usePreviewInspector = ({
 
   const handleInspectorAncestorStep = useCallback((delta: number) => {
     if (!inspectState.active) {
-      setLockedInspectMessage('Start element inspection to adjust the selection.', 3200);
+      setLockedInspectMessage('Start element inspection to adjust the selection.');
       return;
     }
     if (!Number.isFinite(delta) || delta === 0 || inspectAncestors.length === 0) {
       return;
     }
     if (!hasAncestorNavigation) {
-      setLockedInspectMessage('Ancestor navigation is unavailable for this element.', 3200);
+      setLockedInspectMessage('Ancestor navigation is unavailable for this element.');
       return;
     }
     const normalized = delta > 0 ? 1 : -1;
@@ -486,7 +447,7 @@ export const usePreviewInspector = ({
     const ok = shiftInspectTarget(normalized);
     if (!ok) {
       setInspectorAncestorIndex(effectiveAncestorIndex);
-      setLockedInspectMessage('Unable to adjust selection.', 3200);
+      setLockedInspectMessage('Unable to adjust selection.');
     }
   }, [
     effectiveAncestorIndex,
@@ -503,7 +464,7 @@ export const usePreviewInspector = ({
 
   const handleAddInspectorCaptureToReport = useCallback(() => {
     if (!inspectorScreenshot) {
-      setLockedInspectMessage('Capture an element before adding it to the report.', 3200);
+      setLockedInspectMessage('Capture an element before adding it to the report.');
       return;
     }
 
@@ -512,7 +473,7 @@ export const usePreviewInspector = ({
       : inspectorScreenshot.dataUrl;
 
     if (!base64Payload) {
-      setLockedInspectMessage('Unable to read captured image data.', 3200);
+      setLockedInspectMessage('Unable to read captured image data.');
       return;
     }
 
@@ -640,7 +601,7 @@ export const usePreviewInspector = ({
     }
     const deltaX = Math.abs(event.clientX - state.startClientX);
     const deltaY = Math.abs(event.clientY - state.startClientY);
-    if (!state.dragging && (deltaX > DRAG_THRESHOLD_PX || deltaY > DRAG_THRESHOLD_PX)) {
+    if (!state.dragging && (deltaX > INSPECTOR_UI.DRAG_THRESHOLD || deltaY > INSPECTOR_UI.DRAG_THRESHOLD)) {
       state.dragging = true;
       setIsInspectorDragging(true);
       inspectorSuppressClickRef.current = true;
@@ -697,18 +658,18 @@ export const usePreviewInspector = ({
       return;
     }
     if (!inspectState.supported) {
-      setLockedInspectMessage('Element inspector requires the latest bridge in the previewed app.', 3600);
+      setLockedInspectMessage('Element inspector requires the latest bridge in the previewed app.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_DETAILED);
       return;
     }
     if (!previewUrl) {
-      setLockedInspectMessage('Load the preview before inspecting elements.', 3200);
+      setLockedInspectMessage('Load the preview before inspecting elements.');
       return;
     }
     inspectorAutoOpenSuppressedRef.current = false;
     setInspectorAncestorIndex(0);
     const started = startInspect();
     if (!started) {
-      setLockedInspectMessage('Element inspector is unavailable for this preview.', 3600);
+      setLockedInspectMessage('Element inspector is unavailable for this preview.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_DETAILED);
       return;
     }
     clearInspectMessageLock();
@@ -752,16 +713,16 @@ export const usePreviewInspector = ({
         throw new Error('clipboard-unavailable');
       }
       setInspectCopyFeedback(kind);
-      setLockedInspectMessage(kind === 'selector' ? 'Selector copied to clipboard.' : 'Text snippet copied to clipboard.', 2200);
+      setLockedInspectMessage(kind === 'selector' ? 'Selector copied to clipboard.' : 'Text snippet copied to clipboard.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_SHORT);
     } catch (error) {
       logger.warn('Failed to copy inspector value', error);
-      setLockedInspectMessage('Unable to copy to clipboard.', 3200);
+      setLockedInspectMessage('Unable to copy to clipboard.');
     }
   }, [setLockedInspectMessage]);
 
   const handleCopySelector = useCallback(() => {
     if (!inspectSelectorValue) {
-      setLockedInspectMessage('Selector unavailable for this element.', 2600);
+      setLockedInspectMessage('Selector unavailable for this element.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_SHORT);
       return;
     }
     void handleCopyValue(inspectSelectorValue, 'selector');
@@ -769,7 +730,7 @@ export const usePreviewInspector = ({
 
   const handleCopyText = useCallback(() => {
     if (!inspectTextValue) {
-      setLockedInspectMessage('Text snippet unavailable for this element.', 2600);
+      setLockedInspectMessage('Text snippet unavailable for this element.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_SHORT);
       return;
     }
     void handleCopyValue(inspectTextValue, 'text');
@@ -777,7 +738,7 @@ export const usePreviewInspector = ({
 
   const handleCaptureElementScreenshot = useCallback(async () => {
     if (!inspectRect) {
-      setLockedInspectMessage('Element bounds unavailable for screenshots.', 3000);
+      setLockedInspectMessage('Element bounds unavailable for screenshots.');
       return;
     }
     const captureToken = Date.now();
@@ -789,7 +750,7 @@ export const usePreviewInspector = ({
         mode: 'clip',
         clip: inspectRect,
         selector: inspectSelectorValue ?? undefined,
-        backgroundColor: resolvePreviewBackgroundColor(),
+        backgroundColor: getPreviewBackgroundColor(),
         scale,
       });
       const sanitizedSelector = inspectSelectorValue
@@ -798,7 +759,7 @@ export const usePreviewInspector = ({
       const filename = `${(currentAppIdentifier ?? 'preview').replace(/[^a-z0-9-_]+/gi, '-').slice(0, 24)}-${sanitizedSelector || 'element'}-${Date.now()}.png`;
       const dataUrl = ensureDataUrl(result.data);
       if (!dataUrl) {
-        setLockedInspectMessage('Failed to capture element screenshot.', 3400);
+        setLockedInspectMessage('Failed to capture element screenshot.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_DETAILED);
         return;
       }
       const capturedAt = Date.now();
@@ -813,10 +774,10 @@ export const usePreviewInspector = ({
         clip: result.clip ?? null,
       });
       setInspectorScreenshotExpanded(true);
-      setLockedInspectMessage('Element screenshot captured. Use the download button to save it.', 3600);
+      setLockedInspectMessage('Element screenshot captured. Use the download button to save it.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_DETAILED);
     } catch (error) {
       logger.error('Failed to capture element screenshot', error);
-      setLockedInspectMessage('Failed to capture element screenshot.', 3400);
+      setLockedInspectMessage('Failed to capture element screenshot.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_DETAILED);
     } finally {
       if (inspectorCaptureTokenRef.current === captureToken) {
         setIsInspectorScreenshotCapturing(false);
@@ -827,13 +788,13 @@ export const usePreviewInspector = ({
     inspectRect,
     inspectSelectorValue,
     requestScreenshot,
-    resolvePreviewBackgroundColor,
+    getPreviewBackgroundColor,
     setLockedInspectMessage,
   ]);
 
   const handleDownloadInspectorScreenshot = useCallback(() => {
     if (!inspectorScreenshot) {
-      setLockedInspectMessage('Capture an element before downloading.', 3200);
+      setLockedInspectMessage('Capture an element before downloading.');
       return;
     }
     if (typeof document === 'undefined') {
@@ -846,10 +807,10 @@ export const usePreviewInspector = ({
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);
-      setLockedInspectMessage('Element screenshot downloaded.', 3200);
+      setLockedInspectMessage('Element screenshot downloaded.');
     } catch (error) {
       logger.error('Failed to download element screenshot', error);
-      setLockedInspectMessage('Unable to download the screenshot.', 3200);
+      setLockedInspectMessage('Unable to download the screenshot.');
     }
   }, [inspectorScreenshot, setLockedInspectMessage]);
 
@@ -958,22 +919,22 @@ export const usePreviewInspector = ({
     if (inspectState.active) {
       const stopped = stopInspect();
       if (!stopped) {
-        setLockedInspectMessage('Unable to exit inspect mode.', 3200);
+        setLockedInspectMessage('Unable to exit inspect mode.');
       }
       return;
     }
     if (!inspectState.supported) {
-      setLockedInspectMessage('Element inspector requires the latest bridge in the previewed app.', 3600);
+      setLockedInspectMessage('Element inspector requires the latest bridge in the previewed app.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_DETAILED);
       return;
     }
     if (!previewUrl) {
-      setLockedInspectMessage('Load the preview before inspecting elements.', 3200);
+      setLockedInspectMessage('Load the preview before inspecting elements.');
       return;
     }
     inspectorAutoOpenSuppressedRef.current = false;
     const started = startInspect();
     if (!started) {
-      setLockedInspectMessage('Element inspector is unavailable for this preview.', 3600);
+      setLockedInspectMessage('Element inspector is unavailable for this preview.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_DETAILED);
       return;
     }
     clearInspectMessageLock();
@@ -1050,8 +1011,8 @@ export const usePreviewInspector = ({
     const width = dialog.offsetWidth;
     const height = dialog.offsetHeight;
     const target = clampInspectorPosition(
-      containerRect.width - width - INSPECTOR_FLOATING_MARGIN,
-      INSPECTOR_FLOATING_MARGIN,
+      containerRect.width - width - INSPECTOR_UI.FLOATING_MARGIN,
+      INSPECTOR_UI.FLOATING_MARGIN,
       { width, height, containerRect },
     );
     inspectorDefaultPositionAppliedRef.current = true;
@@ -1073,7 +1034,7 @@ export const usePreviewInspector = ({
       return;
     }
     if (inspectState.error) {
-      setLockedInspectMessage(`Element inspector error: ${inspectState.error}`, 3600);
+      setLockedInspectMessage(`Element inspector error: ${inspectState.error}`, PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_DETAILED);
       return;
     }
     if (inspectState.active) {
@@ -1084,11 +1045,11 @@ export const usePreviewInspector = ({
       return;
     }
     if (inspectState.lastReason === 'complete') {
-      setLockedInspectMessage('Element captured. Use “Inspect element” to capture another.', 3400);
+      setLockedInspectMessage('Element captured. Use "Inspect element" to capture another.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_DETAILED);
       return;
     }
     if (inspectState.lastReason === 'cancel') {
-      setLockedInspectMessage('Selection cancelled.', 2400);
+      setLockedInspectMessage('Selection cancelled.', PREVIEW_TIMEOUTS.INSPECTOR_MESSAGE_SHORT);
       return;
     }
     if (!inspectTarget) {

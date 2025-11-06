@@ -305,4 +305,4 @@ func filterScenarios(scenarios []Scenario, ageRange, category string) []Scenario
 func generateSessionID() string {
 	// Simple session ID generation
 	return fmt.Sprintf("session-%d", os.Getpid())
-}
+}// Test change

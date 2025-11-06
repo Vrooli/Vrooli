@@ -95,20 +95,26 @@
     },
     "setup": {
       "description": "Initialize Personal Relationship Manager",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "personal-relationship-manager-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "personal-relationship-manager"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/personal-relationship-manager-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "personal-relationship-manager",
+            "targets": [
+              "personal-relationship-manager"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -148,6 +154,11 @@
           "description": "Install UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
           "run": "echo 'Personal Relationship Manager initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: relationship-manager --help'",
           "description": "Display service access URLs"
@@ -170,7 +181,10 @@
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
          {
            "name": "show-urls",

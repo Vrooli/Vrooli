@@ -5,7 +5,7 @@
   "main": "index.html",
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh python3 -m http.server 3000 2>/dev/null || python -m SimpleHTTPServer 3000 2>/dev/null || echo 'Python not found, serving at file://$(pwd)/index.html''",
-    "build": "echo 'Build complete - static files ready for deployment'",
+    "build": "mkdir -p dist && cp -r *.html *.css *.js assets dist/ 2>/dev/null || true",
     "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npm start'",
     "serve": "npm start"
   },
@@ -19,6 +19,7 @@
   "license": "MIT",
   "devDependencies": {},
   "dependencies": {
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "express": "^4.21.2"
   }
 }

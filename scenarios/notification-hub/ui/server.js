@@ -6,6 +6,12 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 
+const DIST_DIR = path.join(__dirname, 'dist');
+const STATIC_ROOT = fs.existsSync(DIST_DIR) ? DIST_DIR : __dirname;
+if (STATIC_ROOT !== DIST_DIR) {
+    console.warn('[Notification Hub UI] dist bundle missing or stale. Run `npm run build` so lifecycle.setup.condition can verify ui/dist/index.html.');
+}
+
 // Fail fast if UI_PORT is not configured
 if (!process.env.UI_PORT) {
     console.error('ERROR: UI_PORT environment variable is required');
@@ -23,7 +29,7 @@ const API_PORT = process.env.API_PORT;
 const startTime = new Date();
 
 // Serve static files
-app.use(express.static(__dirname));
+app.use(express.static(STATIC_ROOT));
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -123,12 +129,12 @@ app.use('/api', createProxyMiddleware({
 
 // Serve main dashboard
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(STATIC_ROOT, 'index.html'));
 });
 
 // Serve deep links through the primary single-page application shell
 app.get(['/profiles', '/analytics', '/providers', '/templates', '/contacts'], (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(STATIC_ROOT, 'index.html'));
 });
 
 // Health check helper functions
@@ -143,7 +149,7 @@ function checkStaticFiles() {
     const missingFiles = [];
 
     requiredFiles.forEach(fileName => {
-        const filePath = path.join(__dirname, fileName);
+        const filePath = path.join(STATIC_ROOT, fileName);
         try {
             if (fs.existsSync(filePath)) {
                 const stats = fs.statSync(filePath);

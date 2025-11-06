@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 
@@ -66,12 +67,16 @@ app.get('/health', async (req, res) => {
     });
 });
 
+const DIST_DIR = path.join(__dirname, 'dist');
+const SRC_DIR = path.join(__dirname, 'src');
+const STATIC_ROOT = fs.existsSync(DIST_DIR) ? DIST_DIR : (fs.existsSync(SRC_DIR) ? SRC_DIR : __dirname);
+
 app.use(cors());
-app.use(express.static(__dirname));
+app.use(express.static(STATIC_ROOT));
 
 // Inject environment variables into the HTML
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(STATIC_ROOT, 'index.html'));
 });
 
 // Pass environment variables to the client

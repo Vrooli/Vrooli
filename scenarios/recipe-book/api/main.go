@@ -765,3 +765,5 @@ func updateUserPreferences(userID string, preferences map[string]interface{}) {
 	// TODO: Update in database
 	log.Printf("Updating preferences for user %s", userID)
 }
+// Test change for rebuild detection
+// Test change

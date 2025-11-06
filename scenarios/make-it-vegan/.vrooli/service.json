@@ -108,20 +108,26 @@
     },
     "setup": {
       "description": "Initialize Make It Vegan app",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/make-it-vegan-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "make-it-vegan"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/make-it-vegan-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "make-it-vegan",
+            "targets": [
+              "make-it-vegan"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -161,6 +167,11 @@
           "description": "Install UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
           "run": "echo '🥬 Make It Vegan initialized' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  n8n workflows: http://localhost:'${RESOURCE_PORTS[n8n]} && echo '  CLI: make-it-vegan --help'",
           "description": "Display service URLs"
@@ -183,7 +194,10 @@
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
          {
            "name": "show-urls",

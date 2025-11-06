@@ -96,7 +96,13 @@
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "resource-experimenter",
             "targets": [
               "resource-experimenter"
             ]
@@ -145,6 +151,19 @@
           "description": "Build Go API binary"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build resource experimenter UI"
+        },
+        {
           "name": "show-urls",
           "run": "echo '\ud83d\ude80 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
           "description": "Display service access information"
@@ -167,7 +186,10 @@
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start React UI in development mode",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
         {
           "name": "show-urls",

@@ -45,14 +45,9 @@ if ! testing::phase::run_bas_automation_validations --scenario "$SCENARIO_NAME" 
   fi
 fi
 
-API_PORT_OUTPUT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT 2>/dev/null || true)
-API_PORT=$(echo "$API_PORT_OUTPUT" | awk -F= '/=/{print $2}' | tr -d ' ')
-if [ -z "$API_PORT" ]; then
-  API_PORT=$(echo "$API_PORT_OUTPUT" | tr -d '[:space:]')
-fi
-
-if [ -z "$API_PORT" ]; then
-  testing::phase::add_error "Unable to determine API_PORT for $SCENARIO_NAME"
+API_PORT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT 2>&1)
+if [ -z "$API_PORT" ] || [ "$API_PORT" = "Error" ]; then
+  testing::phase::add_error "Unable to determine API_PORT for $SCENARIO_NAME (scenario may not be running)"
   testing::phase::end_with_summary "Integration tests incomplete"
 fi
 

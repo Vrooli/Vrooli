@@ -97,7 +97,13 @@
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "git-control-tower",
             "targets": [
               "git-control-tower"
             ]
@@ -106,9 +112,30 @@
       },
       "steps": [
         {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install Git Control Tower CLI globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o git-control-tower-api .",
           "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "create-data-directories",
@@ -132,11 +159,20 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./git-control-tower-api",
+          "run": "cd api && GIT_CONTROL_TOWER_EXTERNAL_UI_SERVER=true ./git-control-tower-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/git-control-tower-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && PORT=${UI_PORT} UI_PORT=${UI_PORT} node server.cjs",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
           }
         },
         {

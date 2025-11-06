@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
 
 const app = express();
 app.set('trust proxy', true);
@@ -11,6 +12,10 @@ const hasApiPort = Number.isFinite(API_PORT) && API_PORT > 0;
 const API_HOST = process.env.API_HOST || '127.0.0.1';
 const UI_HOST = process.env.UI_HOST || '127.0.0.1';
 const PROXY_ROOT = '/proxy';
+const STATIC_ROOT = (() => {
+    const distPath = path.join(__dirname, 'dist');
+    return fs.existsSync(distPath) ? distPath : __dirname;
+})();
 
 function buildOrigin(req) {
     const forwardedProto = req.headers['x-forwarded-proto'];
@@ -76,7 +81,7 @@ app.use(PROXY_ROOT, (req, res) => {
 });
 
 // Serve static files
-app.use(express.static(__dirname));
+app.use(express.static(STATIC_ROOT));
 
 // Health check endpoint (schema-compliant)
 app.get('/health', async (req, res) => {
@@ -152,7 +157,9 @@ app.get('/config', (req, res) => {
 
 // Serve index.html for all routes (SPA)
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    const fallback = path.join(__dirname, 'index.html');
+    const target = path.join(STATIC_ROOT, 'index.html');
+    res.sendFile(fs.existsSync(target) ? target : fallback);
 });
 
 // Start server

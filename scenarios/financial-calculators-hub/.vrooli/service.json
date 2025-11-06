@@ -101,8 +101,14 @@
                "api/financial-calculators-hub-api"
              ]
            },
-            {
+           {
+             "type": "ui-bundle",
+             "bundle_path": "ui/dist/index.html",
+             "source_dir": "ui/src"
+           },
+           {
               "type": "cli",
+              "command": "financial-calculators-hub",
               "targets": [
                 "financial-calculators-hub"
               ]
@@ -143,7 +149,7 @@
       ]
     },
     "develop": {
-      "description": "Start Financial Calculators Hub services",
+      "description": "Start Financial Calculators Hub with production UI bundle",
       "steps": [
          {
            "name": "start-api",
@@ -156,11 +162,11 @@
          },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server",
+          "run": "cd ui && node server.cjs",
+          "description": "Start Express server with built UI",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
          {

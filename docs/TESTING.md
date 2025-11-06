@@ -81,8 +81,8 @@ Located in `/scripts/scenarios/testing/`:
 ```bash
 # Source what you need
 source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
-source "$APP_ROOT/scripts/scenarios/testing/shell/resources.sh"
-source "$APP_ROOT/scripts/scenarios/testing/shell/orchestration.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/dependencies.sh"
+source "$APP_ROOT/scripts/scenarios/testing/unit/run-all.sh"
 ```
 
 ### Safety Linter

@@ -70,6 +70,9 @@ const API_PORT = parseInt(process.env.API_PORT, 10);
 const AUTH_PORT = process.env.AUTH_PORT ? parseInt(process.env.AUTH_PORT, 10) : null;
 const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || '';
 const AUTH_UI_URL = process.env.AUTH_UI_URL || '';
+const STATIC_ROOT = fs.existsSync(path.join(__dirname, 'dist'))
+    ? path.join(__dirname, 'dist')
+    : __dirname;
 
 function parseServiceUrl(rawValue, label) {
     if (!rawValue) {
@@ -295,7 +298,7 @@ const server = http.createServer((req, res) => {
         return;
     }
     
-    const filePath = path.join(__dirname, pathname);
+    const filePath = path.join(STATIC_ROOT, pathname);
     const ext = path.extname(filePath);
     
     // Check if file exists

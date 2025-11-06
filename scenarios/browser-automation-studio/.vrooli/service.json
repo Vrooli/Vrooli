@@ -146,12 +146,12 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "run": "cd ui && if [ -f package.json ]; then pnpm install --filter . --no-optional; else echo 'No package.json found, skipping pnpm install'; fi",
           "description": "Install React UI dependencies"
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "cd ui && pnpm run build",
           "description": "Build React UI for production"
         },
         {
@@ -209,7 +209,7 @@
       "steps": [
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "cd ui && pnpm run build",
           "description": "Build React UI for production"
         },
         {

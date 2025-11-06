@@ -177,7 +177,7 @@ func (s *Server) enableCORS(next http.Handler) http.Handler {
 Standards auditor found 6 CRITICAL violations: missing required test phase scripts (test-docs.sh, test-integration.sh, test-performance.sh, test-structure.sh).
 
 ### Root Cause
-Scenario was created before phased testing architecture was standardized. Only had legacy scenario-test.yaml and test-unit.sh.
+Scenario originally predated phased testing and relied on a legacy YAML manifest with ad-hoc scripts. Migrated to the shared phased runner in 2025-11, replacing that manifest with `test/run-tests.sh` plus standardized phase scripts.
 
 ### Solution
 Created all missing test phase scripts following Vrooli testing standards:

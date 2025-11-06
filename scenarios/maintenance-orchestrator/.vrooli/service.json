@@ -100,22 +100,28 @@
     },
     "setup": {
       "description": "Initialize Maintenance Orchestrator",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/maintenance-orchestrator-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "maintenance-orchestrator"
-             ]
-           }
-         ]
-       },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/maintenance-orchestrator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "maintenance-orchestrator",
+            "targets": [
+              "maintenance-orchestrator"
+            ]
+          }
+        ]
+      },
       "steps": [
         {
           "name": "install-cli",
@@ -131,6 +137,11 @@
           "name": "install-ui-deps",
           "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
           "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
@@ -157,7 +168,7 @@
           "description": "Start UI development server",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "ui/dist/index.html"
           }
         },
          {

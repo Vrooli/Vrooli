@@ -16,9 +16,9 @@ required_files=(
   "api/storage.go"
   "cli/image-tools"
   "cli/install.sh"
-  "ui/index.html"
-  "ui/app.js"
-  "ui/styles.css"
+  "ui/src/index.html"
+  "ui/src/app.js"
+  "ui/src/styles.css"
   "ui/server.js"
   "Makefile"
 )

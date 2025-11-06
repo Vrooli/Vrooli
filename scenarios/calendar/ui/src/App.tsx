@@ -82,7 +82,10 @@ function App() {
   // Handle events data
   useEffect(() => {
     if (eventsData) {
-      setEvents(eventsData.events)
+      const sanitizedEvents = Array.isArray(eventsData.events)
+        ? eventsData.events
+        : []
+      setEvents(sanitizedEvents)
       setLoading(false)
     }
   }, [eventsData, setEvents, setLoading])

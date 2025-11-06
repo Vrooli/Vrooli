@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useCalendarStore } from '@/stores/calendarStore'
-import { 
-  Calendar, 
-  Filter, 
-  Search, 
-  Settings, 
+import {
+  Calendar,
+  Filter,
+  Search,
+  Settings,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   User
 } from 'lucide-react'
 import type { Event } from '@/types'
@@ -15,8 +17,9 @@ export function Sidebar() {
     filters, 
     setFilters, 
     clearFilters, 
-    user, 
-    sidebarCollapsed 
+    user,
+    sidebarCollapsed,
+    toggleSidebar
   } = useCalendarStore()
   const [isFilterExpanded, setFilterExpanded] = useState(true)
   const [searchQuery, setSearchQuery] = useState(filters.searchQuery || '')
@@ -60,7 +63,20 @@ export function Sidebar() {
   }
 
   return (
-    <aside className={`${sidebarCollapsed ? 'w-16' : 'w-64'} transition-all duration-300 border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800`}>
+    <aside
+      className={`${
+        sidebarCollapsed ? 'w-16' : 'w-64'
+      } relative flex h-full flex-shrink-0 flex-col border-r border-gray-200 bg-white transition-all duration-300 dark:border-gray-700 dark:bg-gray-800`}
+    >
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        className="absolute -right-3 top-4 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:bg-gray-100 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </button>
+
       <div className="flex h-full flex-col">
         {/* Logo/Brand */}
         <div className={`flex items-center border-b border-gray-200 py-4 dark:border-gray-700 ${sidebarCollapsed ? 'justify-center px-3' : 'space-x-2 px-6'}`}>

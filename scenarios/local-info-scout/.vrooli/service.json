@@ -68,6 +68,7 @@
            },
            {
              "type": "cli",
+             "command": "local-info-scout",
              "targets": [
                "local-info-scout"
              ]
@@ -99,6 +100,14 @@
           "name": "build-cli",
           "run": "cd cli && go build -o local-info-scout main.go",
           "description": "Build CLI binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install Local Info Scout CLI",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
         },
         {
           "name": "show-urls",

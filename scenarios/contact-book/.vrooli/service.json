@@ -99,15 +99,16 @@
     "setup": {
       "description": "Initialize Contact Book with database schema and embeddings",
       "condition": {
-        "checks": [
+           "checks": [
            {
              "type": "binaries",
              "targets": [
-               "contact-book-api"
+               "api/contact-book-api"
              ]
            },
            {
              "type": "cli",
+             "command": "contact-book",
              "targets": ["contact-book"]
            },
           {

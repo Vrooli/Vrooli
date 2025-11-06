@@ -357,21 +357,28 @@ set -euo pipefail
 
 # Source libraries
 source "$APP_ROOT/scripts/scenarios/testing/shell/core.sh"
-source "$APP_ROOT/scripts/scenarios/testing/shell/orchestration.sh"
+source "$APP_ROOT/scripts/scenarios/testing/unit/run-all.sh"
 
 # Custom logic
 echo "Running custom tests..."
 
-# Detect scenario
+# Detect scenario and languages
 scenario=$(testing::core::detect_scenario)
+languages=$(testing::core::detect_languages)
 
 # Run specific tests
 if [[ "$scenario" == "special-case" ]]; then
     # Special handling
     ./test/special/run-special.sh
 else
-    # Standard tests
-    testing::orchestration::run_unit_tests "$scenario"
+    # Standard unit tests with custom thresholds
+    runner_args=("--coverage-warn" "80" "--coverage-error" "70")
+    for lang in go node python; do
+        if ! echo "$languages" | grep -q "$lang"; then
+            runner_args+=("--skip-$lang")
+        fi
+    done
+    testing::unit::run_all_tests "${runner_args[@]}"
 fi
 
 # Custom validation

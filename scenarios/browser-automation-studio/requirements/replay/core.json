@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-05T05:16:06.912Z"
+    "last_synced_at": "2025-11-06T02:22:19.969Z"
   },
   "requirements": [
     {
@@ -58,9 +58,16 @@
         {
           "type": "test",
           "ref": "api/services/replay_renderer.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "ReplayRenderer generates video/gif from replay specs via Browserless (tested in unit phase)."
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/replay/render-check.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "ReplayRenderer generates video/gif from replay specs via Browserless."
+          "notes": "End-to-end validation of replay export and rendering workflow."
         }
       ]
     }

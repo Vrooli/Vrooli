@@ -125,11 +125,12 @@
            {
              "type": "binaries",
              "targets": [
-               "no-spoilers-book-talk-api"
+               "api/no-spoilers-book-talk-api"
              ]
            },
            {
              "type": "cli",
+             "command": "no-spoilers-book-talk",
              "targets": [
                "no-spoilers-book-talk"
              ]

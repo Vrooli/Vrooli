@@ -94,18 +94,24 @@
       "description": "Initialize ChoreQuest",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "chore-tracking-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "chore-tracking"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/chore-tracking-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "chore-tracking",
+            "targets": [
+              "chore-tracking"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -136,13 +142,21 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o chore-tracker-api .",
+          "run": "cd api && go mod download && go build -o chore-tracking-api .",
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
@@ -165,9 +179,12 @@
          },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server",
-          "background": true
+          "run": "cd ui && UI_PORT=${UI_PORT} API_PORT=${API_PORT} API_URL=\"http://localhost:${API_PORT}\" NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
          {
            "name": "show-urls",

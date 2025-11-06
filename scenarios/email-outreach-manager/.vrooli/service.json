@@ -124,14 +124,20 @@
           {
             "type": "binaries",
             "targets": [
-              "email-outreach-manager-api"
+              "api/email-outreach-manager-api"
             ]
           },
           {
             "type": "cli",
+            "command": "email-outreach-manager",
             "targets": [
               "email-outreach-manager"
             ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
           },
           {
             "type": "resources",
@@ -161,11 +167,19 @@
           "description": "Check optional dependencies"
         },
         {
-          "name": "install-ui-dependencies",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React UI for production",
+          "condition": {
+            "json_path_exists": "ui/package.json:scripts.build"
           }
         },
         {
@@ -189,16 +203,16 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server",
+          "run": "cd ui && npx serve -s dist -l ${UI_PORT}",
+          "description": "Start UI production server",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Email Outreach Manager running:\\n  API: http://localhost:$EMAIL_OUTREACH_API_PORT\\n  UI: http://localhost:$EMAIL_OUTREACH_UI_PORT\\n  CLI: email-outreach-manager --help\\n  Health: http://localhost:$EMAIL_OUTREACH_API_PORT/health'",
+          "run": "echo '\ud83d\ude80 Email Outreach Manager running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: email-outreach-manager --help\\n  Health: http://localhost:$API_PORT/health'",
           "description": "Display service access URLs"
         }
       ]

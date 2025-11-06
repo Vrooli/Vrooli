@@ -122,10 +122,11 @@
                "api/data-backup-manager-api"
              ]
            },
-           {
-             "type": "cli",
-             "targets": ["data-backup-manager"]
-           },
+          {
+            "type": "cli",
+            "command": "data-backup-manager",
+            "targets": ["data-backup-manager"]
+          },
           {
             "type": "resources",
             "populated": true

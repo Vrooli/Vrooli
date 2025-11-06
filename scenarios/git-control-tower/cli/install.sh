@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../.." && builtin pwd)}"
-CLI_DIR="${APP_ROOT}/scripts/scenarios/templates/full/cli"
-source "${APP_ROOT}/scripts/scenarios/templates/full/scripts/lib/utils/cli-install.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLI_NAME="git-control-tower"
+CLI_SOURCE="${SCRIPT_DIR}/${CLI_NAME}"
+INSTALL_BIN_DIR="${HOME}/.vrooli/bin"
 
-install_cli "$CLI_DIR/CLI_NAME_PLACEHOLDER" "CLI_NAME_PLACEHOLDER"
+if [[ ! -f "${CLI_SOURCE}" ]]; then
+  echo "CLI binary not found at ${CLI_SOURCE}" >&2
+  exit 1
+fi
+
+mkdir -p "${INSTALL_BIN_DIR}"
+chmod +x "${CLI_SOURCE}"
+ln -sf "${CLI_SOURCE}" "${INSTALL_BIN_DIR}/${CLI_NAME}"
+
+echo "Installed ${CLI_NAME} CLI to ${INSTALL_BIN_DIR}/${CLI_NAME}"

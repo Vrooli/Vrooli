@@ -13,6 +13,7 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "express": "^4.21.2",
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.316.0",
     "clsx": "^2.1.0",

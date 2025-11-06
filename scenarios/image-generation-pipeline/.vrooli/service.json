@@ -159,11 +159,17 @@
           {
             "type": "binaries",
             "targets": [
-              "image-generation-pipeline-api"
+              "api/image-generation-pipeline-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "image-generation-pipeline",
             "targets": [
               "image-generation-pipeline"
             ]
@@ -188,12 +194,31 @@
         {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
         },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o image-generation-pipeline-api .",
-          "description": "Build Go API binary"
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
@@ -216,9 +241,12 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start Node.js UI server in background",
-          "background": true
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
         {
           "name": "show-urls",

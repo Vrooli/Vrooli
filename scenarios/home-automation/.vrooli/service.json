@@ -193,18 +193,24 @@
       "description": "Initialize Home Automation Intelligence System",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/home-automation-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "home-automation"
-             ]
-           },
+    {
+      "type": "binaries",
+      "targets": [
+        "api/home-automation-api"
+      ]
+    },
+    {
+      "type": "ui-bundle",
+      "bundle_path": "ui/dist/index.html",
+      "source_dir": "ui/src"
+    },
+    {
+      "type": "cli",
+      "command": "home-automation",
+      "targets": [
+        "home-automation"
+      ]
+    },
           {
             "type": "dependencies",
             "paths": [
@@ -259,6 +265,11 @@
           "description": "Install UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "create-data-directories",
           "run": "mkdir -p data/{profiles,automations,device-cache,logs}",
           "description": "Create data storage directories"
@@ -294,7 +305,10 @@
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start home automation UI server",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
          {
            "name": "show-urls",

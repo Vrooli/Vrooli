@@ -125,7 +125,18 @@
             </section>
 
             <!-- Note Editor -->
-            <section class="note-editor-section">
+            <section class="note-editor-section show-placeholder">
+                <div id="notePlaceholder" class="note-placeholder" aria-hidden="false">
+                    <div class="note-placeholder-icon icon" data-icon="NotebookPen"></div>
+                    <h3>Nothing selected yet</h3>
+                    <p class="note-placeholder-copy">
+                        Choose a note from the list or create a new one to start writing.
+                    </p>
+                    <button class="btn btn-primary note-placeholder-action" onclick="createNewNote()">
+                        <span class="icon" data-icon="Plus"></span>
+                        <span>New Note</span>
+                    </button>
+                </div>
                 <div class="editor-header">
                     <input type="text" id="noteTitle" class="note-title-input" placeholder="Untitled Note">
                     <div class="editor-actions">

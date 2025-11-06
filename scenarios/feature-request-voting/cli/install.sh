@@ -5,8 +5,10 @@ set -euo pipefail
 # Install script for Feature Voting CLI
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_NAME="feature-voting"
-CLI_PATH="${SCRIPT_DIR}/${CLI_NAME}"
+CLI_SCRIPT="feature-voting"
+CLI_COMMAND="feature-request-voting"
+CLI_ALIAS="feature-voting"
+CLI_PATH="${SCRIPT_DIR}/${CLI_SCRIPT}"
 INSTALL_DIR="${HOME}/.vrooli/bin"
 
 # Color codes
@@ -35,13 +37,17 @@ if [ ! -f "$CLI_PATH" ]; then
 fi
 
 # Create symlink
-if [ -L "${INSTALL_DIR}/${CLI_NAME}" ]; then
+if [ -L "${INSTALL_DIR}/${CLI_COMMAND}" ]; then
     echo "Removing existing symlink..."
-    rm "${INSTALL_DIR}/${CLI_NAME}"
+    rm "${INSTALL_DIR}/${CLI_COMMAND}"
 fi
 
-ln -s "$CLI_PATH" "${INSTALL_DIR}/${CLI_NAME}"
-print_success "Created symlink: ${INSTALL_DIR}/${CLI_NAME} -> $CLI_PATH"
+ln -s "$CLI_PATH" "${INSTALL_DIR}/${CLI_COMMAND}"
+print_success "Created symlink: ${INSTALL_DIR}/${CLI_COMMAND} -> $CLI_PATH"
+
+# Maintain backward compatibility for legacy command name
+ln -sf "$CLI_PATH" "${INSTALL_DIR}/${CLI_ALIAS}"
+print_success "Created symlink: ${INSTALL_DIR}/${CLI_ALIAS} -> $CLI_PATH"
 
 # Check if install directory is in PATH
 if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
@@ -73,7 +79,7 @@ if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
         # Check if already in config
         if ! grep -q "${INSTALL_DIR}" "$CONFIG_FILE" 2>/dev/null; then
             echo "" >> "$CONFIG_FILE"
-            echo "# Added by feature-voting install script" >> "$CONFIG_FILE"
+    echo "# Added by feature-request-voting install script" >> "$CONFIG_FILE"
             echo "$PATH_LINE" >> "$CONFIG_FILE"
             print_success "Added PATH update to $CONFIG_FILE"
             echo "Please run: source $CONFIG_FILE"
@@ -88,10 +94,11 @@ fi
 echo ""
 print_success "Installation complete!"
 echo ""
-echo "You can now use the CLI with: ${CLI_NAME} --help"
+echo "You can now use the CLI with: ${CLI_COMMAND} --help"
+echo "Legacy alias still available as: ${CLI_ALIAS} --help"
 
 # Test the installation
-if command -v "$CLI_NAME" &> /dev/null; then
+if command -v "$CLI_COMMAND" &> /dev/null; then
     print_success "CLI is accessible from PATH"
 else
     echo "Note: You may need to restart your terminal or run 'source' on your shell config"

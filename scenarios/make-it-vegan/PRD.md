@@ -581,7 +581,7 @@ All endpoints return JSON with standard format:
 ### Documentation
 - [Make It Vegan README](README.md)
 - [Vrooli Scenario Template](../../scripts/scenarios/templates/full/)
-- [Phased Testing Architecture](../../docs/scenarios/PHASED_TESTING_ARCHITECTURE.md)
+- [Phased Testing Architecture](../../docs/testing/architecture/PHASED_TESTING.md)
 
 ### External Resources
 - [Vegan Society Ingredient Guide](https://www.vegansociety.com/)

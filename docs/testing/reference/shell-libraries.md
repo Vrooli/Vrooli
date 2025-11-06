@@ -103,85 +103,54 @@ Tests all configured endpoints.
 testing::connectivity::test_all "my-scenario"
 ```
 
-### resources.sh
-Resource integration testing utilities.
+### dependencies.sh
+Unified dependency validation helper. Validates runtimes, package managers, resources, and connectivity.
 
 ```bash
-source "$APP_ROOT/scripts/scenarios/testing/shell/resources.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/dependencies.sh"
 ```
 
 #### Functions
 
-##### `testing::resources::test_postgres()`
-Tests PostgreSQL connectivity and basic operations.
+##### `testing::dependencies::validate_all()`
+Validates all dependencies for a scenario automatically:
+- Detects tech stack from service.json and file structure
+- Validates language runtimes (Go, Node.js, Python)
+- Checks package managers and dependency resolution
+- Tests resource health (postgres, redis, ollama, etc.)
+- Validates runtime connectivity (if scenario is running)
+
+All powered by `vrooli scenario status --json` with fallbacks to file detection.
 
 ```bash
-testing::resources::test_postgres "my-scenario"
+testing::dependencies::validate_all \
+  --scenario "my-scenario" \
+  --enforce-resources \
+  --enforce-runtimes
 ```
 
-##### `testing::resources::test_redis()`
-Tests Redis connectivity and basic operations.
+**Parameters:**
+- `--scenario`: Scenario name (auto-detected if omitted)
+- `--enforce-resources`: Fail on unhealthy resources (default: warn only)
+- `--enforce-runtimes`: Fail on missing runtimes (default: warn only)
+
+**Example usage in test-dependencies.sh:**
 
 ```bash
-testing::resources::test_redis "my-scenario"
-```
+#!/bin/bash
+set -euo pipefail
 
-##### `testing::resources::test_ollama()`
-Tests Ollama availability and model loading.
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-```bash
-testing::resources::test_ollama "my-scenario"
-```
+testing::phase::init --target-time "60s"
 
-##### `testing::resources::test_n8n()`
-Tests N8n workflow automation integration.
+testing::dependencies::validate_all \
+  --scenario "$TESTING_PHASE_SCENARIO_NAME"
 
-```bash
-testing::resources::test_n8n "my-scenario"
-```
-
-##### `testing::resources::test_qdrant()`
-Tests Qdrant vector database integration.
-
-```bash
-testing::resources::test_qdrant "my-scenario"
-```
-
-##### `testing::resources::test_all()`
-Tests all configured resources for a scenario.
-
-```bash
-testing::resources::test_all "my-scenario"
-```
-
-### cli.sh
-CLI testing utilities.
-
-```bash
-source "$APP_ROOT/scripts/scenarios/testing/shell/cli.sh"
-```
-
-#### Functions
-
-##### `testing::cli::test_integration()`
-Tests CLI binary installation and basic functionality.
-
-```bash
-testing::cli::test_integration "my-cli"
-```
-
-##### `testing::cli::test_command()`
-Tests a specific CLI command.
-
-```bash
-testing::cli::test_command "my-cli" "list --json"
-```
-
-##### `testing::cli::test_with_input()`
-Tests CLI with input/output validation.
-
-```bash
-testing::cli::test_with_input "my-cli" "process" "input.txt" "expected output"
+testing::phase::end_with_summary "Dependency validation completed"
 ```
 
 ### phase-helpers.sh
@@ -205,37 +174,6 @@ Runs YAML-defined automations (with optional timeouts and success patterns) and 
 ##### `testing::phase::end_with_summary()`
 Writes JSON summaries to `coverage/phase-results/<phase>.json` for downstream reporting.
 
-### orchestration.sh
-Comprehensive test suite execution.
-
-```bash
-source "$APP_ROOT/scripts/scenarios/testing/shell/orchestration.sh"
-```
-
-#### Functions
-
-##### `testing::orchestration::run_unit_tests()`
-Runs all unit tests for detected languages.
-
-```bash
-testing::orchestration::run_unit_tests "my-scenario" 80 70
-# Args: scenario_name, coverage_warn%, coverage_error%
-```
-
-##### `testing::orchestration::run_integration_tests()`
-Runs integration tests only.
-
-```bash
-testing::orchestration::run_integration_tests "my-scenario"
-```
-
-##### `testing::orchestration::run_comprehensive_tests()`
-Runs the full test suite (all phases).
-
-```bash
-testing::orchestration::run_comprehensive_tests "my-scenario"
-```
-
 ## Usage Patterns
 
 ### Basic Usage
@@ -254,42 +192,44 @@ if testing::connectivity::test_api; then
 fi
 ```
 
-### Complete Test Script
+### Complete Dependency Validation
 
 ```bash
 #!/bin/bash
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)}"
-source "$APP_ROOT/scripts/scenarios/testing/shell/orchestration.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/dependencies.sh"
 
-# Run everything
-testing::orchestration::run_comprehensive_tests "$1"
+# Run comprehensive dependency validation
+testing::dependencies::validate_all \
+  --scenario "$1" \
+  --enforce-resources \
+  --enforce-runtimes
 ```
 
-### Selective Testing
+### Unit Testing with Custom Thresholds
 
 ```bash
 #!/bin/bash
-# Test only specific resources
+set -euo pipefail
 
-source "$APP_ROOT/scripts/scenarios/testing/shell/resources.sh"
+APP_ROOT="${APP_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)}"
+source "$APP_ROOT/scripts/scenarios/testing/shell/core.sh"
+source "$APP_ROOT/scripts/scenarios/testing/unit/run-all.sh"
 
-# Test only databases
-testing::resources::test_postgres "my-scenario"
-testing::resources::test_redis "my-scenario"
-```
+# Detect languages and build skip flags
+languages=$(testing::core::detect_languages)
+runner_args=("--coverage-warn" "80" "--coverage-error" "70")
 
-### Custom Coverage Thresholds
+for lang in go node python; do
+    if ! echo "$languages" | grep -q "$lang"; then
+        runner_args+=("--skip-$lang")
+    fi
+done
 
-```bash
-#!/bin/bash
-# Strict coverage requirements
-
-source "$APP_ROOT/scripts/scenarios/testing/shell/orchestration.sh"
-
-# 80% warning, 70% error thresholds (standard)
-testing::orchestration::run_unit_tests "my-scenario" 80 70
+# Run unit tests
+testing::unit::run_all_tests "${runner_args[@]}"
 ```
 
 ## Environment Variables
@@ -316,7 +256,7 @@ if ! testing::connectivity::test_api; then
 fi
 
 # Most functions output errors to stderr
-testing::resources::test_postgres 2>&1 | tee test.log
+testing::dependencies::validate_all 2>&1 | tee test.log
 ```
 
 ## Debugging

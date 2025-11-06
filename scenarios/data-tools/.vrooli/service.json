@@ -180,10 +180,16 @@
                "api/data-tools-api"
              ]
            },
-           {
-             "type": "cli",
-             "targets": ["data-tools"]
-           },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "data-tools",
+            "targets": ["data-tools"]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -233,7 +239,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "test -f ui/package.json && cd ui && npm install --silent || true",
+          "run": "cd ui && npm install --silent",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -241,10 +247,9 @@
         },
         {
           "name": "build-ui",
-          "run": "test -f ui/package.json && cd ui && npm run build || true",
+          "run": "cd ui && npm run build",
           "description": "Build React UI for production",
           "condition": {
-            "file_exists": "ui/package.json",
             "json_path_exists": "ui/package.json:scripts.build"
           }
         },

@@ -101,11 +101,17 @@
           {
             "type": "binaries",
             "targets": [
-              "feature-request-voting-api"
+              "api/feature-request-voting-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "feature-request-voting",
             "targets": [
               "feature-request-voting"
             ]
@@ -129,23 +135,31 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o feature-voting-api .",
+          "run": "cd api && go mod download && go build -o feature-request-voting-api .",
           "description": "Build Go API binary"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "build-ui",
-          "run": "cd ui && npm install && npm run build",
+          "run": "cd ui && npm run build",
           "description": "Build React UI"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Feature Request Voting initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: feature-voting --help'",
+          "run": "echo '🚀 Feature Request Voting initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: feature-request-voting --help (alias: feature-voting)'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start feature voting system",
+      "description": "Start feature voting system with production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -158,16 +172,16 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start React UI dev server",
+          "run": "cd ui && node server.js",
+          "description": "Start Express server with built React app",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: feature-voting --help'",
+          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: feature-request-voting --help (alias: feature-voting)'",
           "description": "Display all running service URLs"
         }
       ]

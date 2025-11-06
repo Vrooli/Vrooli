@@ -83,8 +83,17 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__funne
     console.warn('[FunnelBuilder] Unable to parse parent origin for iframe bridge', error)
   }
 
-  initIframeBridgeChild({ parentOrigin, appId: 'funnel-builder' })
-  window.__funnelBuilderBridgeInitialized = true
+  try {
+    initIframeBridgeChild({
+      parentOrigin,
+      appId: 'funnel-builder',
+      captureLogs: { enabled: true },
+      captureNetwork: { enabled: true }
+    })
+    window.__funnelBuilderBridgeInitialized = true
+  } catch (error) {
+    console.warn('[FunnelBuilder] Unable to initialize iframe bridge', error)
+  }
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

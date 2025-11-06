@@ -95,11 +95,17 @@
           {
             "type": "binaries",
             "targets": [
-              "retro-game-launcher-api"
+              "api/retro-game-launcher-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "retro-game-launcher",
             "targets": [
               "retro-game-launcher"
             ]
@@ -143,6 +149,11 @@
           "description": "Install React UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
           "run": "echo '\ud83d\ude80 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
           "description": "Display service access URLs"
@@ -167,7 +178,7 @@
           "description": "Start React UI in background",
           "background": true,
           "condition": {
-            "directory_exists": "ui/node_modules"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {

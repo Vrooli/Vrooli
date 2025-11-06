@@ -496,7 +496,7 @@ vrooli scenario test notes
 - [PostgreSQL Full-Text Search](https://www.postgresql.org/docs/current/textsearch.html)
 
 ### Internal References
-- `/docs/scenarios/PHASED_TESTING_ARCHITECTURE.md` - Testing standards
+- `/docs/testing/architecture/PHASED_TESTING.md` - Testing standards
 - `/scripts/resources/contracts/v2.0/universal.yaml` - Service contract spec
 - `initialization/postgres/schema.sql` - Database schema definition
 - `initialization/qdrant/collections.json` - Vector collection config

@@ -155,18 +155,24 @@
       "description": "Initialize Document Manager with all resources and integrations",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/document-manager-api"
-             ]
-           },
-            {
-              "type": "cli",
-              "targets": [
-                "document-manager"
-              ]
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/document-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "document-manager",
+            "targets": [
+              "document-manager"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
           {
             "type": "resources",
             "populated": true
@@ -208,6 +214,11 @@
           }
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
           "run": "echo '🚀 Document Manager initialized\\n  Web Interface: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager\\n  Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: document-manager --help'",
           "description": "Display service access URLs"
@@ -233,11 +244,11 @@
          },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
+          "run": "cd ui && UI_PORT=${UI_PORT} API_PORT=${API_PORT} API_BASE_URL=\"http://localhost:${API_PORT}\" NODE_ENV=production node server.js",
           "description": "Start UI server in background",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {

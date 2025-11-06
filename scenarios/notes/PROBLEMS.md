@@ -369,7 +369,7 @@ This document tracks known limitations, issues, and areas for future improvement
 - `/scenarios/notes/PRD.md` - Product requirements and progress
 - `/scenarios/notes/README.md` - User-facing documentation
 - `/scenarios/notes/AUDIT_ANALYSIS.md` - Security audit details
-- `/docs/scenarios/PHASED_TESTING_ARCHITECTURE.md` - Testing standards
+- `/docs/testing/architecture/PHASED_TESTING.md` - Testing standards
 
 ### Related Issues
 - None currently tracked in external systems

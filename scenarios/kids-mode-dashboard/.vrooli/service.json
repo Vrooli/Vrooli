@@ -1,7 +1,12 @@
 {
-  "name": "kids-mode-dashboard",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "description": "A safe, engaging dashboard for kids mode applications",
+  "service": {
+    "name": "kids-mode-dashboard",
+    "displayName": "Kids Mode Dashboard",
+    "description": "A safe, engaging dashboard for kids mode applications",
+    "version": "1.0.0"
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -43,18 +48,117 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 10000
-    }
-  },
-  "setup": {
-    "steps": [
-      {
-        "name": "install-cli",
-        "run": "cd cli && ./install.sh"
+    },
+    "setup": {
+      "description": "Initialize Kids Mode Dashboard",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/kids-mode-dashboard-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "kids-mode-dashboard",
+            "targets": [
+              "kids-mode-dashboard"
+            ]
+          }
+        ]
       },
-      {
-        "name": "build-api",
-        "run": "cd api && go build -o kids-mode-dashboard-api ."
-      }
-    ]
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install Kids Mode Dashboard CLI"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o kids-mode-dashboard-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && npm run build; else echo 'UI workspace missing, skipping build'; fi",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🎨 Kids Mode Dashboard initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: kids-mode-dashboard --help'",
+          "description": "Display service URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Kids Mode Dashboard with API and UI",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./kids-mode-dashboard-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/kids-mode-dashboard-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🎨 Kids Mode Dashboard running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: kids-mode-dashboard --help'",
+          "description": "Display service URLs and usage information"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run Kids Mode Dashboard tests",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"kids-mode-dashboard-api\" || true; sleep 1; pkill -9 -f \"kids-mode-dashboard-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/kids-mode-dashboard.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/kids-mode-dashboard.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
   }
 }

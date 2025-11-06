@@ -1,4 +1,5 @@
 import type { App } from '@/types';
+import { logger } from '@/services/logger';
 
 /**
  * Normalizes an identifier string for comparison purposes.
@@ -233,23 +234,21 @@ const findPortInEnvironment = (environment: Record<string, unknown>): number | n
   return fallbackPort;
 };
 
-const computeAppUIPort = (app: App): number | null => {
-  const portMappings = (app.port_mappings ?? {}) as Record<string, unknown>;
-  const config = app.config ?? {};
-  const environment = (app.environment ?? {}) as Record<string, unknown>;
-
-  // Debug logging
-  if (typeof window !== 'undefined' && (window as any).__DEBUG_UI_PORT) {
-    console.log('[computeAppUIPort] Starting computation for app:', {
-      appId: app.id,
-      portMappings,
-      config,
-      environment,
-    });
+/**
+ * Debug helper for UI port computation.
+ * Only logs when __DEBUG_UI_PORT is enabled on window object.
+ */
+const debugUIPort = (message: string, data?: unknown): void => {
+  if (typeof window !== 'undefined' && window.__DEBUG_UI_PORT) {
+    logger.debug(`[computeAppUIPort] ${message}`, data);
   }
+};
 
-  // IMPORTANT: UI_PORT is the ONLY accepted convention for UI ports
-  // Do NOT accept primary_port if it's labeled as API_PORT or any non-UI port
+/**
+ * Attempts to extract UI port from app's primary_port configuration.
+ * Only returns a port if the primary_port_label explicitly indicates it's a UI port.
+ */
+const computePrimaryUIPort = (config: Record<string, unknown>, portMappings: Record<string, unknown>): number | null => {
   const primaryPortLabel = typeof config.primary_port_label === 'string'
     ? config.primary_port_label.toLowerCase()
     : null;
@@ -258,30 +257,30 @@ const computeAppUIPort = (app: App): number | null => {
   if (primaryPortLabel && primaryPortLabel.includes('ui')) {
     const primaryPort = parsePort(config.primary_port);
     if (primaryPort !== null) {
-      if (typeof window !== 'undefined' && (window as any).__DEBUG_UI_PORT) {
-        console.log('[computeAppUIPort] Found UI primary_port in config:', primaryPort);
-      }
+      debugUIPort('Found UI primary_port in config', primaryPort);
       return primaryPort;
     }
-  }
 
-  // Check if primary_port_label points to a UI-related port in mappings
-  if (primaryPortLabel && primaryPortLabel.includes('ui')) {
+    // Check if primary_port_label points to a UI-related port in mappings
     const labeledPort = getPortFromMappings(portMappings, config.primary_port_label as string);
     if (labeledPort !== null) {
-      if (typeof window !== 'undefined' && (window as any).__DEBUG_UI_PORT) {
-        console.log('[computeAppUIPort] Found UI labeled port:', labeledPort);
-      }
+      debugUIPort('Found UI labeled port', labeledPort);
       return labeledPort;
     }
   }
 
-  // Look for UI_PORT explicitly in port mappings (the standard convention)
+  return null;
+};
+
+/**
+ * Attempts to find UI port in port_mappings using standard conventions.
+ * Checks for UI_PORT first (standard), then falls back to common UI port keys.
+ */
+const computeMappedUIPort = (portMappings: Record<string, unknown>): number | null => {
+  // Look for UI_PORT explicitly (the standard convention)
   const uiPort = getPortFromMappings(portMappings, 'UI_PORT');
   if (uiPort !== null) {
-    if (typeof window !== 'undefined' && (window as any).__DEBUG_UI_PORT) {
-      console.log('[computeAppUIPort] Found UI_PORT in mappings:', uiPort);
-    }
+    debugUIPort('Found UI_PORT in mappings', uiPort);
     return uiPort;
   }
 
@@ -289,43 +288,84 @@ const computeAppUIPort = (app: App): number | null => {
   for (const key of candidatePortKeys) {
     const mappedPort = getPortFromMappings(portMappings, key);
     if (mappedPort !== null) {
-      if (typeof window !== 'undefined' && (window as any).__DEBUG_UI_PORT) {
-        console.log('[computeAppUIPort] Found UI port via candidatePortKeys:', { key, port: mappedPort });
-      }
+      debugUIPort('Found UI port via candidatePortKeys', { key, port: mappedPort });
       return mappedPort;
     }
+  }
 
+  return null;
+};
+
+/**
+ * Attempts to find UI port in environment variables.
+ * First tries specific candidate keys, then performs heuristic search.
+ */
+const computeEnvironmentUIPort = (environment: Record<string, unknown>): number | null => {
+  // Check candidate port keys in environment
+  for (const key of candidatePortKeys) {
     const envPort = getPortFromEnvironment(environment, key);
     if (envPort !== null) {
-      if (typeof window !== 'undefined' && (window as any).__DEBUG_UI_PORT) {
-        console.log('[computeAppUIPort] Found UI port in environment:', { key, port: envPort });
-      }
+      debugUIPort('Found UI port in environment', { key, port: envPort });
       return envPort;
     }
   }
 
-  // Check environment variables for UI-related port names
+  // Perform heuristic search for UI-related environment variables
   const environmentPort = findPortInEnvironment(environment);
   if (environmentPort !== null) {
-    if (typeof window !== 'undefined' && (window as any).__DEBUG_UI_PORT) {
-      console.log('[computeAppUIPort] Found UI port in environment:', environmentPort);
-    }
+    debugUIPort('Found UI port via environment heuristic', environmentPort);
     return environmentPort;
   }
 
-  // Only use app.port as a last resort if no explicit UI port is found
+  return null;
+};
+
+/**
+ * Last resort: attempts to use app.port as the UI port.
+ * This fallback is used when no explicit UI port configuration is found.
+ */
+const computeFallbackUIPort = (app: App): number | null => {
   const fallbackPort = parsePort(app.port);
   if (fallbackPort !== null) {
-    if (typeof window !== 'undefined' && (window as any).__DEBUG_UI_PORT) {
-      console.log('[computeAppUIPort] Using app.port fallback:', fallbackPort);
-    }
+    debugUIPort('Using app.port fallback', fallbackPort);
     return fallbackPort;
   }
 
-  if (typeof window !== 'undefined' && (window as any).__DEBUG_UI_PORT) {
-    console.log('[computeAppUIPort] No UI port found, returning null');
-  }
   return null;
+};
+
+/**
+ * Determines the UI port for an app by checking multiple sources in priority order:
+ * 1. Primary port configuration (if labeled as UI)
+ * 2. Port mappings (UI_PORT or common UI port keys)
+ * 3. Environment variables (UI-related keys or heuristic search)
+ * 4. Fallback to app.port
+ *
+ * Returns null if no UI port can be determined.
+ */
+const computeAppUIPort = (app: App): number | null => {
+  const portMappings = (app.port_mappings ?? {}) as Record<string, unknown>;
+  const config = app.config ?? {};
+  const environment = (app.environment ?? {}) as Record<string, unknown>;
+
+  debugUIPort('Starting computation for app', {
+    appId: app.id,
+    portMappings,
+    config,
+    environment,
+  });
+
+  // Try each strategy in priority order
+  const port = computePrimaryUIPort(config, portMappings)
+    ?? computeMappedUIPort(portMappings)
+    ?? computeEnvironmentUIPort(environment)
+    ?? computeFallbackUIPort(app);
+
+  if (port === null) {
+    debugUIPort('No UI port found, returning null');
+  }
+
+  return port;
 };
 
 export const buildPreviewUrl = (app: App): string | null => {

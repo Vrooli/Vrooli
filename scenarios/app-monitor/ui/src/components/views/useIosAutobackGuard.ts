@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import type { Location, NavigateFunction } from 'react-router-dom';
+import type { PreviewLocationState } from '@/types/preview';
 
-export interface PreviewLocationState {
+interface ExtendedPreviewLocationState extends PreviewLocationState {
   fromAppsList?: boolean;
   originAppId?: string;
   navTimestamp?: number;
   suppressedAutoBack?: boolean;
-  autoSelected?: boolean;
   autoSelectedAt?: number;
 }
 
@@ -15,11 +15,10 @@ interface UseIosAutobackGuardOptions {
   appId: string | null;
   guardTtlMs: number;
   isIosSafari: boolean;
-  lastAppIdRef: MutableRefObject<string | null>;
+  lastAppId: string | null;
   location: Location;
-  locationState: PreviewLocationState | null;
+  locationState: ExtendedPreviewLocationState | null;
   navigate: NavigateFunction;
-  previewLocationRef: MutableRefObject<{ pathname: string; search: string }>;
   recordDebugEvent: (event: string, detail?: Record<string, unknown>) => void;
   recordNavigateEvent: (detail: Record<string, unknown>) => void;
   updatePreviewGuard: (patch: Record<string, unknown>) => void;
@@ -68,11 +67,10 @@ export const useIosAutobackGuard = ({
   appId,
   guardTtlMs,
   isIosSafari,
-  lastAppIdRef,
+  lastAppId,
   location,
   locationState,
   navigate,
-  previewLocationRef,
   recordDebugEvent,
   recordNavigateEvent,
   updatePreviewGuard,
@@ -84,6 +82,12 @@ export const useIosAutobackGuard = ({
     handledCount: 0,
   });
   const iosGuardedLocationKeyRef = useRef<string | null>(null);
+
+  // Compute preview location from current appId
+  const previewLocation = appId ? {
+    pathname: `/apps/${encodeURIComponent(appId)}/preview`,
+    search: location.search || '',
+  } : null;
 
   useEffect(() => {
     if (!isIosSafari) {
@@ -164,23 +168,23 @@ export const useIosAutobackGuard = ({
         guard.active = false;
         clearGuardTimeout(guard);
 
-        const targetLocation = previewLocationRef.current;
-        const hasTargetPath = Boolean(targetLocation.pathname);
+        const targetLocation = previewLocation;
+        const hasTargetPath = Boolean(targetLocation?.pathname);
 
         recordDebugEvent('ios-popstate-suppressed', {
           elapsed,
           appId,
-          targetPath: targetLocation.pathname,
+          targetPath: targetLocation?.pathname,
         });
 
-        if (!hasTargetPath) {
+        if (!hasTargetPath || !targetLocation) {
           return;
         }
 
         const nextState: PreviewLocationState = {
           ...(locationState ?? {}),
           fromAppsList: true,
-          originAppId: locationState?.originAppId ?? lastAppIdRef.current ?? undefined,
+          originAppId: locationState?.originAppId ?? lastAppId ?? undefined,
           navTimestamp: locationState?.navTimestamp ?? Date.now(),
           suppressedAutoBack: true,
         };
@@ -259,10 +263,10 @@ export const useIosAutobackGuard = ({
     appId,
     guardTtlMs,
     isIosSafari,
-    lastAppIdRef,
+    lastAppId,
     locationState,
     navigate,
-    previewLocationRef,
+    previewLocation,
     recordDebugEvent,
     recordNavigateEvent,
     updatePreviewGuard,

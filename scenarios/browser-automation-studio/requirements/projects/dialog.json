@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-05T20:36:41.660Z"
+    "last_synced_at": "2025-11-05T23:33:59.687Z"
   },
   "requirements": [
     {
@@ -45,14 +45,14 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "New project dialog closes through all affordances",
       "description": "Ensures the modal dismisses through the X button, cancel button, backdrop click, and Escape key, restoring the underlying canvas state.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/new-project-dialog-close.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow covering dismissal affordances (pending export)."
         },
         {
@@ -77,14 +77,14 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Operators can create a project from the dialog",
       "description": "Confirms validated submissions persist projects, show success toasts, and refresh the project list with the new entry selected.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/new-project-create.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow seeds unique project and checks API/UI consistency (pending export)."
         },
         {
@@ -109,14 +109,14 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Project creation enforces inline validation rules",
       "description": "Covers empty name, duplicate detection, and invalid characters with accessible error messaging surfaced inside the dialog.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/new-project-validation.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow submits failing payloads and asserts inline error copy (pending export)."
         },
         {

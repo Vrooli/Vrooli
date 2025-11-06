@@ -1,39 +1,26 @@
 #!/bin/bash
-# Dependency validation for core-debugger scenario
+# Dependencies validation using unified helper
+# Validates runtimes, package managers, resources, and connectivity
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-testing::phase::init --target-time "45s"
+testing::phase::init --target-time "60s"
 
-if command -v go >/dev/null 2>&1; then
-  testing::phase::check "Go modules resolve" bash -c 'cd api && go list ./... >/dev/null'
-else
-  testing::phase::add_warning "Go toolchain not available; skipping module resolution"
-  testing::phase::add_test skipped
-fi
+# ONE-LINER: Validate all dependencies automatically
+# This helper:
+# - Detects tech stack from service.json and file structure
+# - Validates language runtimes (Go, Node.js, Python)
+# - Checks package managers and dependency resolution
+# - Tests resource health (postgres, redis, ollama, etc.)
+# - Validates runtime connectivity (if scenario is running)
+#
+# All powered by `vrooli scenario status --json` with fallbacks to file detection
 
-if [ -x cli/core-debugger ]; then
-  testing::phase::check "CLI dependencies satisfied" ./cli/core-debugger --help
-else
-  testing::phase::add_warning "CLI binary missing; skipping CLI dependency check"
-  testing::phase::add_test skipped
-fi
-
-if [ -f data/components.json ] && command -v jq >/dev/null 2>&1; then
-  testing::phase::check "Component registry parses" jq '.components | length >= 1' data/components.json
-else
-  testing::phase::add_warning "Component registry not available or jq missing"
-  testing::phase::add_test skipped
-fi
-
-if [ -f scripts/health-monitor.sh ]; then
-  testing::phase::check "Health monitor script lint" bash -c 'bash -n scripts/health-monitor.sh'
-else
-  testing::phase::add_warning "Health monitor script missing"
-  testing::phase::add_test skipped
-fi
+testing::dependencies::validate_all \
+  --scenario "$TESTING_PHASE_SCENARIO_NAME"
 
 testing::phase::end_with_summary "Dependency validation completed"

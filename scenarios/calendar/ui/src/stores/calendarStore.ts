@@ -3,6 +3,19 @@ import { devtools } from 'zustand/middleware'
 import type { Event, CalendarView, CalendarFilters, User } from '@/types'
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns'
 
+const sanitizeEvents = (events: Event[] | null | undefined): Event[] => {
+  if (!Array.isArray(events)) {
+    return []
+  }
+
+  return events.filter((event): event is Event => Boolean(event))
+}
+
+const sortByStartTime = (events: Event[]): Event[] =>
+  [...events].sort(
+    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  )
+
 interface CalendarState {
   // User
   user: User | null
@@ -30,7 +43,7 @@ interface CalendarState {
   setAuthRequired: (required: boolean, loginUrl?: string | null) => void
 
   // Actions
-  setEvents: (events: Event[]) => void
+  setEvents: (events: Event[] | null | undefined) => void
   addEvent: (event: Event) => void
   updateEvent: (id: string, event: Partial<Event>) => void
   deleteEvent: (id: string) => void
@@ -82,19 +95,17 @@ export const useCalendarStore = create<CalendarState>()(
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
       // Event actions
-      setEvents: (events) => set({ events }),
+      setEvents: (events) => set({ events: sortByStartTime(sanitizeEvents(events)) }),
       
       addEvent: (event) => set((state) => ({
-        events: [...state.events, event].sort((a, b) => 
-          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-        )
+        events: sortByStartTime([...sanitizeEvents(state.events), event])
       })),
       
       updateEvent: (id, updatedEvent) => set((state) => ({
-        events: state.events.map((e) => 
-          e.id === id ? { ...e, ...updatedEvent } : e
-        ).sort((a, b) => 
-          new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        events: sortByStartTime(
+          sanitizeEvents(state.events).map((e) => 
+            e.id === id ? { ...e, ...updatedEvent } : e
+          )
         ),
         selectedEvent: state.selectedEvent?.id === id 
           ? { ...state.selectedEvent, ...updatedEvent }
@@ -102,7 +113,7 @@ export const useCalendarStore = create<CalendarState>()(
       })),
       
       deleteEvent: (id) => set((state) => ({
-        events: state.events.filter((e) => e.id !== id),
+        events: sanitizeEvents(state.events).filter((e) => e.id !== id),
         selectedEvent: state.selectedEvent?.id === id ? null : state.selectedEvent
       })),
       
@@ -154,8 +165,9 @@ export const useCalendarStore = create<CalendarState>()(
 
       // Computed getters
       getFilteredEvents: () => {
-        const { events, filters } = get()
-        
+        const { filters } = get()
+        const events = sanitizeEvents(get().events)
+
         return events.filter((event) => {
           // Filter by event type
           if (filters.eventTypes?.length && !filters.eventTypes.includes(event.eventType)) {

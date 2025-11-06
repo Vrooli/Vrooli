@@ -31,7 +31,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Recipe Book UI dev server port",
-      "range": "20000-24999",
+      "range": "35000-39999",
       "proxy_path": "/"
     }
   },
@@ -167,11 +167,17 @@
           {
             "type": "binaries",
             "targets": [
-              "recipe-book-api"
+              "api/recipe-book-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "recipe-book",
             "targets": [
               "recipe-book"
             ]
@@ -189,9 +195,12 @@
           "description": "Install Go module dependencies"
         },
         {
-          "name": "install-ui-dependencies",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install UI package dependencies"
+          "description": "Install UI package dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
         },
         {
           "name": "build-ui",
@@ -226,7 +235,7 @@
       ]
     },
     "develop": {
-      "description": "Start Recipe Book with API server and UI",
+      "description": "Start Recipe Book with API server and production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -239,17 +248,16 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && UI_PORT=${UI_PORT} VROOLI_LIFECYCLE_MANAGED=true npm run dev -- --host 0.0.0.0 --port ${UI_PORT}",
-          "description": "Start Vite UI development server",
+          "run": "cd ui && node server.cjs",
+          "description": "Start Express server with built React app",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.dev"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo \"API: http://localhost:$API_PORT\"",
+          "run": "echo \"\ud83c\udf73 Recipe Book running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\"",
           "description": "Display service URLs"
         }
       ]

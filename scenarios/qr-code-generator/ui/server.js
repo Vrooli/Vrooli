@@ -2,11 +2,15 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { Readable } = require('stream');
+const { spawnSync } = require('child_process');
 
 const DEFAULT_API_PATH = '/api';
 const DIST_DIR = path.join(__dirname, 'dist');
+const DIST_INDEX = path.join(DIST_DIR, 'index.html');
 
 const app = express();
+
+ensureUiBundle();
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -77,6 +81,23 @@ app.use((_req, res) => {
     hint: 'Run `npm install` and `npm run build` before starting the UI service.'
   });
 });
+
+function ensureUiBundle() {
+  if (fs.existsSync(DIST_INDEX)) {
+    return;
+  }
+
+  console.warn('[qr-code-generator-ui] Missing production bundle, building UI...');
+  const result = spawnSync('npm', ['run', 'build'], {
+    cwd: __dirname,
+    stdio: 'inherit',
+    env: process.env
+  });
+
+  if (result.status !== 0) {
+    throw new Error('Failed to build QR Code Generator UI bundle');
+  }
+}
 
 async function proxyToApi(req, res, upstreamPath) {
   const normalizedPath = normalizeUpstreamPath(upstreamPath ?? req.originalUrl ?? req.url ?? '/');

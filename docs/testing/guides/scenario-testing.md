@@ -618,12 +618,12 @@ The centralized testing library provides reusable functions:
 # Source what you need
 source "$APP_ROOT/scripts/scenarios/testing/shell/core.sh"
 source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
-source "$APP_ROOT/scripts/scenarios/testing/shell/resources.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/dependencies.sh"
 
 # Use the functions
 scenario=$(testing::core::detect_scenario)
 api_url=$(testing::connectivity::get_api_url "$scenario")
-testing::resources::test_postgres "$scenario"
+testing::dependencies::validate_all --scenario "$scenario"
 ```
 
 ## Safety Guidelines

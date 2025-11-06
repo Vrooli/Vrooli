@@ -312,17 +312,59 @@
           {
             "type": "binaries",
             "targets": [
-              "code-smell-api"
+              "api/code-smell-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "code-smell",
             "targets": [
               "code-smell"
             ]
           }
         ]
-      }
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install Code Smell CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o code-smell-api .",
+          "description": "Build Go API server binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React dashboard"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🕵️ Code Smell Detector initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: code-smell --help'",
+          "description": "Display service URLs"
+        }
+      ]
     },
     "stop": {
       "description": "Stop code-smell services",
@@ -358,9 +400,12 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server",
-          "background": true
+          "run": "cd ui && UI_PORT=${UI_PORT} NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
         {
           "name": "show-urls",

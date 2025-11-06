@@ -158,6 +158,11 @@ export async function fetchFunnels(init?: RequestInit): Promise<Funnel[]> {
   return response.map((raw, index) => normalizeFunnel(raw, index))
 }
 
+export async function fetchFunnel(funnelId: string, init?: RequestInit): Promise<Funnel> {
+  const response = await apiFetch<unknown>(`/funnels/${funnelId}`, init)
+  return normalizeFunnel(response, 0)
+}
+
 export async function fetchFunnelAnalytics(
   funnelId: string,
   init?: RequestInit
@@ -174,6 +179,103 @@ export interface ProjectPayload {
 export async function fetchProjects(init?: RequestInit): Promise<Project[]> {
   const response = await apiFetch<unknown[]>('/projects', init)
   return response.map((raw, index) => normalizeProject(raw, index))
+}
+
+export interface CreateFunnelPayload {
+  name: string
+  description?: string
+  slug?: string
+  steps: FunnelStep[]
+  settings: FunnelSettings
+  status?: Funnel['status']
+  tenantId?: string | null
+  projectId: string
+}
+
+export async function createFunnel(payload: CreateFunnelPayload, init?: RequestInit): Promise<Funnel> {
+  const bodyPayload: Record<string, unknown> = {
+    name: payload.name,
+    description: payload.description ?? '',
+    slug: payload.slug,
+    steps: payload.steps,
+    settings: payload.settings,
+    status: payload.status,
+    project_id: payload.projectId,
+  }
+
+  if (payload.tenantId) {
+    bodyPayload.tenant_id = payload.tenantId
+  }
+
+  const response = await apiFetch<{ id: string }>(
+    '/funnels',
+    {
+      ...init,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {})
+      },
+      body: JSON.stringify(bodyPayload)
+    }
+  )
+
+  if (!response?.id) {
+    throw new Error('Create funnel response missing id')
+  }
+
+  return fetchFunnel(response.id, init)
+}
+
+export interface UpdateFunnelPayload {
+  name?: string
+  description?: string
+  steps?: FunnelStep[]
+  settings?: FunnelSettings
+  status?: Funnel['status']
+  projectId?: string | null
+}
+
+export async function updateFunnel(
+  funnelId: string,
+  payload: UpdateFunnelPayload,
+  init?: RequestInit
+): Promise<Funnel> {
+  const bodyPayload: Record<string, unknown> = {}
+
+  if (payload.name !== undefined) {
+    bodyPayload.name = payload.name
+  }
+  if (payload.description !== undefined) {
+    bodyPayload.description = payload.description
+  }
+  if (payload.steps !== undefined) {
+    bodyPayload.steps = payload.steps
+  }
+  if (payload.settings !== undefined) {
+    bodyPayload.settings = payload.settings
+  }
+  if (payload.status !== undefined) {
+    bodyPayload.status = payload.status
+  }
+  if (payload.projectId !== undefined) {
+    bodyPayload.project_id = payload.projectId ?? null
+  }
+
+  await apiFetch<unknown>(
+    `/funnels/${funnelId}`,
+    {
+      ...init,
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {})
+      },
+      body: JSON.stringify(bodyPayload)
+    }
+  )
+
+  return fetchFunnel(funnelId, init)
 }
 
 export async function createProject(payload: ProjectPayload, init?: RequestInit): Promise<Project> {

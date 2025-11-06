@@ -350,7 +350,7 @@ main() {
 
     echo ""
     log::info "📚 For more information, see:"
-    echo "   • docs/scenarios/PHASED_TESTING_ARCHITECTURE.md"
+    echo "   • docs/testing/architecture/PHASED_TESTING.md"
     echo "   • Test files in: $TEST_DIR"
 
     exit $execution_result

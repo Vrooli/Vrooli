@@ -1,0 +1,17 @@
+{
+  "name": "image-tools-ui",
+  "version": "1.0.0",
+  "description": "Retro photo lab interface for Image Tools",
+  "private": true,
+  "scripts": {
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "build": "rm -rf dist && mkdir -p dist && cp -R src/. dist/"
+  },
+  "dependencies": {
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

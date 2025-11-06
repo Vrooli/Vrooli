@@ -782,7 +782,7 @@ tests:
 ### Code Repositories & Standards
 - **Vrooli Root**: `/home/matthalloran8/Vrooli/` - Main repository
 - **Scenario Contract**: `scripts/resources/contracts/v2.0/universal.yaml` - Service standards
-- **Testing Architecture**: `docs/scenarios/PHASED_TESTING_ARCHITECTURE.md` - Test guidelines
+- **Testing Architecture**: `docs/testing/architecture/PHASED_TESTING.md` - Test guidelines
 - **Makefile Template**: `scripts/scenarios/templates/full/Makefile` - Standard targets
 
 ### Design Inspiration

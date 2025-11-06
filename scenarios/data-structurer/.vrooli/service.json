@@ -139,10 +139,11 @@
                "api/data-structurer-api"
              ]
            },
-           {
-             "type": "cli",
-             "targets": ["data-structurer"]
-           },
+          {
+            "type": "cli",
+            "command": "data-structurer",
+            "targets": ["data-structurer"]
+          },
           {
             "type": "resources",
             "populated": true

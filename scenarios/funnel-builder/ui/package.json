@@ -16,6 +16,7 @@
     "@dnd-kit/sortable": "^8.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "axios": "^1.6.2",
+    "express": "^4.21.2",
     "zustand": "^4.4.7",
     "recharts": "^2.10.3",
     "lucide-react": "^0.294.0",

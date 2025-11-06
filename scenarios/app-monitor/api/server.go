@@ -27,11 +27,12 @@ type Server struct {
 
 // Handlers holds all handler instances
 type Handlers struct {
-	health    *handlers.HealthHandler
-	app       *handlers.AppHandler
-	system    *handlers.SystemHandler
-	docker    *handlers.DockerHandler
-	websocket *handlers.WebSocketHandler
+	health     *handlers.HealthHandler
+	app        *handlers.AppHandler
+	system     *handlers.SystemHandler
+	docker     *handlers.DockerHandler
+	websocket  *handlers.WebSocketHandler
+	lighthouse *handlers.LighthouseHandler
 }
 
 // NewServer creates and configures a new server instance
@@ -67,11 +68,12 @@ func NewServer(cfg *config.Config) (*Server, error) {
 
 	// Create handlers
 	handlers := &Handlers{
-		health:    handlers.NewHealthHandler(db, redis, docker),
-		app:       handlers.NewAppHandler(appService),
-		system:    handlers.NewSystemHandler(metricsService),
-		docker:    handlers.NewDockerHandler(docker),
-		websocket: handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
+		health:     handlers.NewHealthHandler(db, redis, docker),
+		app:        handlers.NewAppHandler(appService),
+		system:     handlers.NewSystemHandler(metricsService),
+		docker:     handlers.NewDockerHandler(docker),
+		websocket:  handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
+		lighthouse: handlers.NewLighthouseHandler(),
 	}
 
 	// Setup router
@@ -161,6 +163,11 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 		// Docker integration endpoints
 		v1.GET("/docker/info", h.docker.GetDockerInfo)
 		v1.GET("/docker/containers", h.docker.GetContainers)
+
+		// Lighthouse testing endpoints
+		v1.POST("/scenarios/:scenario/lighthouse/run", h.lighthouse.RunLighthouse)
+		v1.GET("/scenarios/:scenario/lighthouse/history", h.lighthouse.GetLighthouseHistory)
+		v1.GET("/scenarios/:scenario/lighthouse/report/:reportId", h.lighthouse.GetLighthouseReport)
 	}
 
 	// WebSocket endpoint

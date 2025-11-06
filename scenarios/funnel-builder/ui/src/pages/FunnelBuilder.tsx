@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback, type KeyboardEvent, type FormEvent } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import {
@@ -18,9 +18,23 @@ import StepEditor from '../components/builder/StepEditor'
 import StepTypeSelector from '../components/builder/StepTypeSelector'
 import FunnelSettingsModal from '../components/builder/FunnelSettingsModal'
 import toast from 'react-hot-toast'
-import { FunnelStep } from '../types'
+import { FunnelStep, FunnelSettings } from '../types'
 import { getFunnelTemplate } from '../data/funnelTemplates'
-import { saveFunnelToCache } from '../utils/funnelCache'
+import {
+  saveFunnelToCache,
+  saveDraftFunnel,
+  loadDraftFunnel,
+  clearDraftFunnel,
+  loadFunnelFromCache,
+  removeFunnelFromCache
+} from '../utils/funnelCache'
+import {
+  fetchFunnel,
+  fetchProjects,
+  createFunnel,
+  updateFunnel,
+  createProject
+} from '../services/funnels'
 
 const buildPreviewUrl = (funnelId?: string) => {
   if (!funnelId) {
@@ -43,9 +57,11 @@ const buildPreviewUrl = (funnelId?: string) => {
 }
 
 const FunnelBuilder = () => {
+  const navigate = useNavigate()
   const { id } = useParams()
   const [searchParams] = useSearchParams()
   const templateId = searchParams.get('template') ?? undefined
+  const projectParam = searchParams.get('project') ?? searchParams.get('projectId') ?? undefined
 
   const {
     currentFunnel,
@@ -55,15 +71,39 @@ const FunnelBuilder = () => {
     reorderSteps,
     addStep,
     updateFunnelDetails,
-    updateFunnelSettings
-  } = useFunnelStore()
-  
+    updateFunnelSettings,
+    projects,
+    setProjects,
+    upsertFunnel
+  } = useFunnelStore((state) => ({
+    currentFunnel: state.currentFunnel,
+    selectedStep: state.selectedStep,
+    setCurrentFunnel: state.setCurrentFunnel,
+    setSelectedStep: state.setSelectedStep,
+    reorderSteps: state.reorderSteps,
+    addStep: state.addStep,
+    updateFunnelDetails: state.updateFunnelDetails,
+    updateFunnelSettings: state.updateFunnelSettings,
+    projects: state.projects,
+    setProjects: state.setProjects,
+    upsertFunnel: state.upsertFunnel,
+  }))
+
+  const [isInitializing, setIsInitializing] = useState(true)
+  const [initializationError, setInitializationError] = useState<string | null>(null)
+  const [reloadCounter, setReloadCounter] = useState(0)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isNewFunnel, setIsNewFunnel] = useState(() => !id || id === 'new')
   const [showStepSelector, setShowStepSelector] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
+  const [isProjectModalOpen, setProjectModalOpen] = useState(false)
+  const [projectDraft, setProjectDraft] = useState({ name: '', description: '' })
+  const [projectModalError, setProjectModalError] = useState<string | null>(null)
+  const [isSavingProject, setIsSavingProject] = useState(false)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
   const cancelNameEditRef = useRef(false)
 
@@ -79,108 +119,150 @@ const FunnelBuilder = () => {
   }, [])
 
   useEffect(() => {
-    if (id && id !== 'new') {
-      // Load funnel by ID
-      // For now, using mock data
-      const mockFunnel = {
-        id,
-        name: 'Sample Funnel',
-        slug: 'sample-funnel',
-        description: 'A sample funnel for demonstration',
-        steps: [
-          {
-            id: 'step-1',
-            type: 'quiz' as const,
-            position: 0,
-            title: 'What are you looking for?',
-            content: {
-              question: 'What are you looking for?',
-              options: [
-                { id: 'opt-1', text: 'Lead Generation', icon: '📊' },
-                { id: 'opt-2', text: 'Sales Automation', icon: '🚀' },
-                { id: 'opt-3', text: 'Customer Support', icon: '💬' },
-              ]
-            }
-          },
-          {
-            id: 'step-2',
-            type: 'form' as const,
-            position: 1,
-            title: 'Get Started',
-            content: {
-              fields: [
-                { id: 'field-1', type: 'text' as const, label: 'Full Name', required: true },
-                { id: 'field-2', type: 'email' as const, label: 'Email', required: true },
-                { id: 'field-3', type: 'tel' as const, label: 'Phone', required: false },
-              ],
-              submitText: 'Get Free Access'
-            }
+    let cancelled = false
+
+    const initialize = async () => {
+      setInitializationError(null)
+      setIsInitializing(true)
+
+      const ensureProjects = async () => {
+        if (projects.length > 0) {
+          return
+        }
+        try {
+          const data = await fetchProjects()
+          if (!cancelled) {
+            setProjects(data)
           }
-        ],
-        settings: {
-          theme: { primaryColor: '#0ea5e9' },
-          progressBar: true
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: 'draft' as const
+        } catch (error) {
+          throw new Error('Unable to load projects. Please try again.')
+        }
       }
-      setCurrentFunnel(mockFunnel)
-      setSelectedStep(mockFunnel.steps[0])
-      return
-    }
 
-    const now = new Date().toISOString()
-    const uniqueSuffix = Date.now().toString()
+      const initExistingFunnel = async (funnelId: string) => {
+        setIsNewFunnel(false)
+        clearDraftFunnel()
 
-    if (templateId) {
-      const template = getFunnelTemplate(templateId)
+        const cached = loadFunnelFromCache(funnelId)
+        if (cached && !cancelled) {
+          upsertFunnel(cached)
+          setCurrentFunnel(cached)
+          setSelectedStep(cached.steps[0] ?? null)
+          return
+        }
 
-      if (template) {
-        const steps = template.funnel.steps.map((step, index) => ({
-          ...step,
-          id: `${step.id}-${uniqueSuffix}`,
-          position: index,
-          content: JSON.parse(JSON.stringify(step.content)) as typeof step.content
-        }))
+        const stored = useFunnelStore.getState().funnels.find((funnel) => funnel.id === funnelId)
+        if (stored && !cancelled) {
+          upsertFunnel(stored)
+          setCurrentFunnel(stored)
+          setSelectedStep(stored.steps[0] ?? null)
+          return
+        }
 
-        const templateFunnel = {
+        try {
+          const fetched = await fetchFunnel(funnelId)
+          if (!cancelled) {
+            upsertFunnel(fetched)
+            setCurrentFunnel(fetched)
+            setSelectedStep(fetched.steps[0] ?? null)
+          }
+        } catch (error) {
+          throw new Error('Unable to load the requested funnel.')
+        }
+      }
+
+      const initNewFunnel = () => {
+        setIsNewFunnel(true)
+        const draft = loadDraftFunnel()
+        if (draft && !cancelled) {
+          setCurrentFunnel(draft)
+          setSelectedStep(draft.steps[0] ?? null)
+          return
+        }
+
+        const now = new Date().toISOString()
+        const uniqueSuffix = Date.now().toString()
+        const preselectedProjectId = projectParam
+
+        if (templateId) {
+          const template = getFunnelTemplate(templateId)
+          if (template) {
+            const steps = template.funnel.steps.map((step, index) => ({
+              ...JSON.parse(JSON.stringify(step)),
+              id: `${step.id}-${uniqueSuffix}`,
+              position: index,
+            }))
+            const templateSettings = JSON.parse(JSON.stringify(template.funnel.settings))
+
+            const templateFunnel = {
+              id: `new-${uniqueSuffix}`,
+              name: template.funnel.name,
+              slug: `${template.id}-${uniqueSuffix}`,
+              description: template.funnel.description,
+              steps,
+              settings: templateSettings,
+              projectId: preselectedProjectId ?? null,
+              createdAt: now,
+              updatedAt: now,
+              status: 'draft' as const
+            }
+
+            setCurrentFunnel(templateFunnel)
+            setSelectedStep(steps[0] ?? null)
+            return
+          }
+        }
+
+        const newFunnel = {
           id: `new-${uniqueSuffix}`,
-          name: template.funnel.name,
-          slug: `${template.id}-${uniqueSuffix}`,
-          description: template.funnel.description,
-          steps,
+          name: 'Untitled Funnel',
+          slug: `untitled-${uniqueSuffix}`,
+          description: '',
+          steps: [],
           settings: {
-            ...template.funnel.settings
+            theme: { primaryColor: '#0ea5e9' },
+            progressBar: true
           },
+          projectId: preselectedProjectId ?? null,
           createdAt: now,
           updatedAt: now,
           status: 'draft' as const
         }
 
-        setCurrentFunnel(templateFunnel)
-        setSelectedStep(steps[0] ?? null)
-        return
+        setCurrentFunnel(newFunnel)
+        setSelectedStep(null)
+      }
+
+      try {
+        await ensureProjects()
+
+        if (id && id !== 'new') {
+          await initExistingFunnel(id)
+        } else {
+          initNewFunnel()
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to initialize funnel builder', error)
+          setInitializationError(error instanceof Error ? error.message : 'Unable to load funnel builder.')
+        }
+      } finally {
+        if (!cancelled) {
+          setIsInitializing(false)
+        }
       }
     }
 
-    const newFunnel = {
-      id: `new-${uniqueSuffix}`,
-      name: 'Untitled Funnel',
-      slug: `untitled-${uniqueSuffix}`,
-      description: '',
-      steps: [],
-      settings: {
-        theme: { primaryColor: '#0ea5e9' },
-        progressBar: true
-      },
-      createdAt: now,
-      updatedAt: now,
-      status: 'draft' as const
+    void initialize()
+
+    return () => {
+      cancelled = true
     }
-    setCurrentFunnel(newFunnel)
-    setSelectedStep(null)
-  }, [id, templateId, setCurrentFunnel, setSelectedStep])
+  }, [id, templateId, projectParam, projects.length, setCurrentFunnel, setProjects, setSelectedStep, upsertFunnel, reloadCounter])
+
+  const handleRetryInitialization = useCallback(() => {
+    setReloadCounter((count) => count + 1)
+  }, [])
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -207,17 +289,209 @@ const FunnelBuilder = () => {
     }
   }
 
-  const handleSave = () => {
-    // Save funnel to backend
-    toast.success('Funnel saved successfully!')
-  }
+  const handleSave = useCallback(async () => {
+    if (!currentFunnel) {
+      return
+    }
+
+    if (!currentFunnel.projectId) {
+      toast.error('Select a project before saving your funnel.')
+      return
+    }
+
+    setIsSaving(true)
+
+    try {
+      if (isNewFunnel || !id || id === 'new' || currentFunnel.id.startsWith('new-')) {
+        const created = await createFunnel({
+          name: currentFunnel.name,
+          description: currentFunnel.description,
+          slug: currentFunnel.slug,
+          steps: currentFunnel.steps,
+          settings: currentFunnel.settings,
+          status: currentFunnel.status,
+          tenantId: currentFunnel.tenantId ?? undefined,
+          projectId: currentFunnel.projectId,
+        })
+
+        upsertFunnel(created)
+        setCurrentFunnel(created)
+        setSelectedStep(created.steps[0] ?? null)
+        clearDraftFunnel()
+        removeFunnelFromCache(currentFunnel.id)
+        setIsNewFunnel(false)
+        toast.success('Funnel created and linked to your project.')
+        navigate(`/builder/${created.id}`, { replace: true })
+      } else {
+        const updated = await updateFunnel(currentFunnel.id, {
+          name: currentFunnel.name,
+          description: currentFunnel.description,
+          steps: currentFunnel.steps,
+          settings: currentFunnel.settings,
+          status: currentFunnel.status,
+          projectId: currentFunnel.projectId,
+        })
+
+        upsertFunnel(updated)
+        setCurrentFunnel(updated)
+        const nextSelectedStep = selectedStep
+          ? updated.steps.find((step) => step.id === selectedStep.id) ?? updated.steps[0] ?? null
+          : updated.steps[0] ?? null
+        setSelectedStep(nextSelectedStep)
+        toast.success('Funnel saved successfully!')
+      }
+      try {
+        const refreshedProjects = await fetchProjects()
+        setProjects(refreshedProjects)
+      } catch (refreshError) {
+        console.error('Failed to refresh projects after saving funnel', refreshError)
+      }
+    } catch (error) {
+      console.error('Failed to save funnel', error)
+      toast.error(error instanceof Error ? error.message : 'Unable to save funnel.')
+    } finally {
+      setIsSaving(false)
+    }
+  }, [currentFunnel, id, isNewFunnel, navigate, selectedStep, setCurrentFunnel, setProjects, setSelectedStep, upsertFunnel])
 
   useEffect(() => {
     if (currentFunnel) {
       setNameDraft(currentFunnel.name)
       saveFunnelToCache(currentFunnel)
+      if (isNewFunnel || currentFunnel.id.startsWith('new-')) {
+        saveDraftFunnel(currentFunnel)
+      }
     }
-  }, [currentFunnel])
+  }, [currentFunnel, isNewFunnel])
+
+  const handleSettingsSave = useCallback(
+    async (settings: FunnelSettings, scope: 'funnel' | 'project') => {
+      if (!currentFunnel) {
+        return
+      }
+
+      const cloneSettings = () => JSON.parse(JSON.stringify(settings)) as FunnelSettings
+      const normalizedSettings = cloneSettings()
+      updateFunnelSettings(normalizedSettings)
+
+      if (scope === 'project') {
+        const projectId = currentFunnel.projectId
+        if (!projectId) {
+          toast.success('Funnel settings updated.')
+          setShowSettings(false)
+          return
+        }
+
+        const sourceProject = projects.find((project) => project.id === projectId)
+        if (!sourceProject) {
+          toast.error('Unable to locate the selected project. Settings were only applied to this funnel.')
+          setShowSettings(false)
+          return
+        }
+
+        const timestamp = new Date().toISOString()
+        const updatedProjects = projects.map((project) => {
+          if (project.id !== projectId) {
+            return project
+          }
+
+          const updatedFunnels = project.funnels.map((funnel) => ({
+            ...funnel,
+            settings: cloneSettings(),
+            updatedAt: timestamp
+          }))
+
+          return { ...project, funnels: updatedFunnels }
+        })
+
+        setProjects(updatedProjects)
+
+        try {
+          const updatedResults = await Promise.all(
+            sourceProject.funnels.map((funnel) =>
+              updateFunnel(funnel.id, {
+                settings: cloneSettings(),
+                projectId: funnel.projectId ?? projectId
+              })
+            )
+          )
+
+          updatedResults.forEach((funnel) => upsertFunnel(funnel))
+
+          try {
+            const refreshedProjects = await fetchProjects()
+            setProjects(refreshedProjects)
+          } catch (refreshError) {
+            console.error('Failed to refresh projects after applying settings', refreshError)
+          }
+
+          toast.success('Applied settings to every funnel in this project.')
+          setShowSettings(false)
+        } catch (error) {
+          console.error('Failed to apply settings to project funnels', error)
+          toast.error('Failed to update every funnel. Only this funnel reflects the new settings.')
+          try {
+            const refreshedProjects = await fetchProjects()
+            setProjects(refreshedProjects)
+          } catch (refreshError) {
+            console.error('Failed to refresh projects after settings error', refreshError)
+          }
+        }
+
+        return
+      }
+
+      toast.success('Funnel settings updated.')
+      setShowSettings(false)
+    },
+    [currentFunnel, projects, setProjects, updateFunnelSettings, upsertFunnel]
+  )
+
+  const openProjectModal = () => {
+    setProjectModalError(null)
+    setProjectDraft({ name: '', description: '' })
+    setProjectModalOpen(true)
+  }
+
+  const closeProjectModal = () => {
+    setProjectModalOpen(false)
+    setProjectModalError(null)
+    setIsSavingProject(false)
+    setProjectDraft({ name: '', description: '' })
+  }
+
+  const handleProjectSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const trimmedName = projectDraft.name.trim()
+    const trimmedDescription = projectDraft.description.trim()
+
+    if (!trimmedName) {
+      setProjectModalError('Project name is required')
+      return
+    }
+
+    setIsSavingProject(true)
+    setProjectModalError(null)
+
+    try {
+      const newProject = await createProject({
+        name: trimmedName,
+        description: trimmedDescription !== '' ? trimmedDescription : undefined
+      })
+
+      const refreshedProjects = await fetchProjects()
+      setProjects(refreshedProjects)
+      updateFunnelDetails({ projectId: newProject.id })
+      toast.success('Project created.')
+      closeProjectModal()
+    } catch (error) {
+      console.error('Failed to create project', error)
+      setProjectModalError('Unable to create project. Try again in a moment.')
+      toast.error('Failed to create project')
+    } finally {
+      setIsSavingProject(false)
+    }
+  }
 
   useEffect(() => {
     if (isEditingName) {
@@ -288,6 +562,38 @@ const FunnelBuilder = () => {
     }
 
     window.open(previewUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  if (isInitializing) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center bg-gray-50 p-8">
+        <div className="rounded-lg border border-gray-200 bg-white px-6 py-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-gray-700">Preparing funnel builder…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (initializationError) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center bg-gray-50 p-8">
+        <div className="max-w-md space-y-4 rounded-lg border border-amber-200 bg-amber-50 p-6 text-amber-800 shadow-sm">
+          <div>
+            <h2 className="text-lg font-semibold">We couldn't load the funnel</h2>
+            <p className="mt-1 text-sm leading-relaxed">{initializationError}</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleRetryInitialization}
+              className="btn btn-primary"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!currentFunnel) {
@@ -438,6 +744,42 @@ const FunnelBuilder = () => {
                   </button>
                 )}
                 <p className="text-sm text-gray-600">{currentFunnel.description}</p>
+                <div className="mt-3 space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Project
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <select
+                      value={currentFunnel.projectId ?? ''}
+                      onChange={(event) =>
+                        updateFunnelDetails({
+                          projectId: event.target.value ? event.target.value : null,
+                        })
+                      }
+                      className="input sm:max-w-xs"
+                    >
+                      <option value="">Select a project…</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={openProjectModal}
+                      className="btn btn-outline sm:w-auto"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Project
+                    </button>
+                  </div>
+                  {!currentFunnel.projectId && (
+                    <p className="text-xs text-amber-600">
+                      Select a project to keep this funnel organized and enable saving.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -461,10 +803,11 @@ const FunnelBuilder = () => {
               </button>
               <button
                 type="button"
-                onClick={handleSave}
+                onClick={() => void handleSave()}
                 className="icon-btn icon-btn-primary"
-                aria-label="Save funnel"
-                title="Save funnel"
+                aria-label={isSaving ? 'Saving funnel' : 'Save funnel'}
+                title={isSaving ? 'Saving funnel…' : 'Save funnel'}
+                disabled={isSaving}
               >
                 <Save className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -505,13 +848,77 @@ const FunnelBuilder = () => {
       {showSettings && currentFunnel && (
         <FunnelSettingsModal
           settings={currentFunnel.settings}
+          canApplyToProject={Boolean(currentFunnel.projectId)}
           onClose={() => setShowSettings(false)}
-          onSave={(settings) => {
-            updateFunnelSettings(settings)
-            toast.success('Funnel settings updated')
-            setShowSettings(false)
-          }}
+          onSave={handleSettingsSave}
         />
+      )}
+      {isProjectModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={closeProjectModal}
+        >
+          <div
+            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Create Project</h3>
+                <p className="text-sm text-gray-500">Organize funnels by grouping them into a dedicated project.</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeProjectModal}
+                className="icon-btn icon-btn-ghost h-9 w-9"
+                aria-label="Close create project dialog"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            <form onSubmit={handleProjectSubmit} className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="builder-project-name" className="block text-sm font-medium text-gray-700">
+                  Project name
+                </label>
+                <input
+                  id="builder-project-name"
+                  type="text"
+                  value={projectDraft.name}
+                  onChange={(event) => setProjectDraft((prev) => ({ ...prev, name: event.target.value }))}
+                  className="input mt-1"
+                  placeholder="e.g. Spring Launch"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="builder-project-description" className="block text-sm font-medium text-gray-700">
+                  Description (optional)
+                </label>
+                <textarea
+                  id="builder-project-description"
+                  value={projectDraft.description}
+                  onChange={(event) => setProjectDraft((prev) => ({ ...prev, description: event.target.value }))}
+                  className="input mt-1 min-h-[80px]"
+                  placeholder="Give teammates context about this collection of funnels."
+                />
+              </div>
+              {projectModalError && (
+                <p className="text-sm text-amber-600">{projectModalError}</p>
+              )}
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={closeProjectModal} className="btn btn-secondary">
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={isSavingProject}>
+                  {isSavingProject ? 'Saving…' : 'Create Project'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   )

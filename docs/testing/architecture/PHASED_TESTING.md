@@ -279,13 +279,12 @@ lib/testing/
 ├── shell/                   # Sourceable shell libraries
 │   ├── core.sh             # Scenario detection, configuration
 │   ├── connectivity.sh     # API/UI connectivity testing
-│   ├── resources.sh        # Resource integration testing
-│   ├── cli.sh              # CLI testing utilities
-│   └── orchestration.sh    # Comprehensive test execution
+│   ├── dependencies.sh     # Unified dependency validation
+│   └── phase-helpers.sh    # Phase lifecycle management
 ├── unit/                    # Language-specific test runners
 │   ├── run-all.sh          # Universal test runner
 │   ├── go.sh               # Go-specific testing
-│   ├── node.sh             # Node.js testing  
+│   ├── node.sh             # Node.js testing
 │   └── python.sh           # Python testing
 └── templates/               # Copy-and-customize templates
     └── go/                  # Go testing templates
@@ -476,7 +475,7 @@ fi
 ```bash
 # Source the modules you need
 source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
-source "$APP_ROOT/scripts/scenarios/testing/shell/resources.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/dependencies.sh"
 
 # Get dynamic URLs using the testing library
 scenario_name=$(basename "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)")
@@ -485,8 +484,8 @@ API_BASE_URL=$(testing::connectivity::get_api_url "$scenario_name")
 # Test connectivity
 testing::connectivity::test_api "$scenario_name"
 
-# Test resources
-testing::resources::test_all "$scenario_name"
+# Validate all dependencies
+testing::dependencies::validate_all --scenario "$scenario_name"
 ```
 
 ### 4. Test Result Reporting

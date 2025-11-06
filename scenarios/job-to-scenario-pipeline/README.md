@@ -51,13 +51,13 @@ cd scenarios/job-to-scenario-pipeline
 ./cli/install.sh
 
 # Build API
-cd api && go build -o job-pipeline-api .
+cd api && go build -o job-to-scenario-pipeline-api .
 ```
 
 ### Run Services
 ```bash
 # Start API
-cd api && ./job-pipeline-api
+cd api && ./job-to-scenario-pipeline-api
 
 # Start UI (in another terminal)
 cd ui && npm install && npm start

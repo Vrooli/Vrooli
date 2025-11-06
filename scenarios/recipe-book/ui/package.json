@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0 --port ${UI_PREVIEW_PORT:-4173}"
   },
   "dependencies": {
-    "@vrooli/iframe-bridge": "file:../../packages/iframe-bridge"
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "express": "^4.21.2"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

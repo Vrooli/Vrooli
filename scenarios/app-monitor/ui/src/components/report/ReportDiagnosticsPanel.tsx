@@ -77,7 +77,7 @@ const ReportDiagnosticsPanel = ({
     const hasNoPreviewUrl = !activePreviewUrl || activePreviewUrl.trim() === '';
 
     // Debug logging
-    if (typeof window !== 'undefined' && (window as any).__DEBUG_NO_UI_PORT) {
+    if (typeof window !== 'undefined' && window.__DEBUG_NO_UI_PORT) {
       console.log('[ReportDiagnosticsPanel] No UI Port check:', {
         app: app ? { id: app.id, status: app.status, port_mappings: app.port_mappings } : null,
         activePreviewUrl,

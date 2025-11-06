@@ -1,0 +1,446 @@
+/* Lighthouse Tab Container */
+.lighthouse-tab {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Loading/Empty/Error States */
+.lighthouse-tab__loading,
+.lighthouse-tab__empty,
+.lighthouse-tab__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem;
+  text-align: center;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.lighthouse-tab__loading-icon {
+  animation: spin 1s linear infinite;
+  color: var(--color-primary, #3b82f6);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lighthouse-tab__error {
+  color: var(--color-error, #ef4444);
+}
+
+.lighthouse-tab__error-hint {
+  font-size: 0.875rem;
+  color: var(--color-text-tertiary, #9ca3af);
+  margin-top: 0.5rem;
+}
+
+.lighthouse-tab__error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-error-bg, #fee2e2);
+  color: var(--color-error, #ef4444);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Header */
+.lighthouse-tab__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.lighthouse-tab__header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lighthouse-tab__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary, #111827);
+}
+
+.lighthouse-tab__subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #6b7280);
+  margin: 0;
+}
+
+/* Run Button */
+.lighthouse-tab__run-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 0.5rem;
+  background: var(--color-bg-secondary, #f9fafb);
+  color: var(--color-text-primary, #111827);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lighthouse-tab__run-button:hover:not(:disabled) {
+  background: var(--color-bg-tertiary, #f3f4f6);
+  border-color: var(--color-border-hover, #d1d5db);
+}
+
+.lighthouse-tab__run-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lighthouse-tab__run-button--primary {
+  background: var(--color-primary, #3b82f6);
+  color: white;
+  border-color: var(--color-primary, #3b82f6);
+}
+
+.lighthouse-tab__run-button--primary:hover:not(:disabled) {
+  background: var(--color-primary-hover, #2563eb);
+  border-color: var(--color-primary-hover, #2563eb);
+}
+
+.lighthouse-tab__run-button-icon--spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* Sections */
+.lighthouse-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lighthouse-section__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary, #111827);
+}
+
+/* Score Cards Grid */
+.lighthouse-scores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.lighthouse-score-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 0.5rem;
+  background: var(--color-bg-secondary, #f9fafb);
+}
+
+.lighthouse-score-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lighthouse-score-card__page {
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+  text-transform: capitalize;
+}
+
+.lighthouse-score-card__viewport {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--color-bg-tertiary, #f3f4f6);
+  border-radius: 0.25rem;
+  color: var(--color-text-secondary, #6b7280);
+  text-transform: capitalize;
+}
+
+.lighthouse-score-card__scores {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.lighthouse-score-card__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-primary, #3b82f6);
+  text-decoration: none;
+  border-top: 1px solid var(--color-border, #e5e7eb);
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  transition: color 0.2s;
+}
+
+.lighthouse-score-card__link:hover {
+  color: var(--color-primary-hover, #2563eb);
+}
+
+/* Score Badge */
+.lighthouse-score-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  background: white;
+}
+
+.lighthouse-score-badge--good {
+  border-left: 3px solid #0cce6b;
+}
+
+.lighthouse-score-badge--average {
+  border-left: 3px solid #ffa400;
+}
+
+.lighthouse-score-badge--poor {
+  border-left: 3px solid #ff4e42;
+}
+
+.lighthouse-score-badge__icon {
+  font-size: 1.25rem;
+}
+
+.lighthouse-score-badge__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.lighthouse-score-badge__label {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #6b7280);
+  line-height: 1;
+}
+
+.lighthouse-score-badge__score {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lighthouse-score-badge--good .lighthouse-score-badge__score {
+  color: #0cce6b;
+}
+
+.lighthouse-score-badge--average .lighthouse-score-badge__score {
+  color: #ffa400;
+}
+
+.lighthouse-score-badge--poor .lighthouse-score-badge__score {
+  color: #ff4e42;
+}
+
+/* Score Chip (for tables) */
+.lighthouse-score-chip {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.lighthouse-score-chip--good {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.lighthouse-score-chip--average {
+  background: #fed7aa;
+  color: #92400e;
+}
+
+.lighthouse-score-chip--poor {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Reports Table */
+.lighthouse-reports-table {
+  overflow-x: auto;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 0.5rem;
+}
+
+.lighthouse-reports-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.lighthouse-reports-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-secondary, #f9fafb);
+  font-weight: 600;
+  color: var(--color-text-secondary, #6b7280);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.lighthouse-reports-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.lighthouse-reports-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.lighthouse-reports-table tbody tr:hover {
+  background: var(--color-bg-hover, #f9fafb);
+}
+
+.lighthouse-reports-table__page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lighthouse-reports-table__viewport {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #9ca3af);
+}
+
+.lighthouse-reports-table__link {
+  color: var(--color-primary, #3b82f6);
+  transition: color 0.2s;
+}
+
+.lighthouse-reports-table__link:hover {
+  color: var(--color-primary-hover, #2563eb);
+}
+
+/* Mini Chart (Trend Visualization) */
+.lighthouse-mini-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-bg-secondary, #f9fafb);
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+
+.lighthouse-mini-chart__row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lighthouse-mini-chart__label {
+  flex-shrink: 0;
+  width: 120px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #111827);
+  text-transform: capitalize;
+}
+
+.lighthouse-mini-chart__bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 40px;
+}
+
+.lighthouse-mini-chart__bar {
+  flex: 1;
+  min-width: 8px;
+  border-radius: 2px 2px 0 0;
+  transition: all 0.2s;
+  cursor: help;
+}
+
+.lighthouse-mini-chart__bar:hover {
+  opacity: 0.8;
+}
+
+.lighthouse-mini-chart__stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  min-width: 60px;
+}
+
+.lighthouse-mini-chart__avg {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+}
+
+.lighthouse-mini-chart__trend {
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.lighthouse-mini-chart__trend--up {
+  color: #0cce6b;
+}
+
+.lighthouse-mini-chart__trend--down {
+  color: #ff4e42;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .lighthouse-scores-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lighthouse-tab__header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .lighthouse-tab__run-button--primary {
+    align-self: stretch;
+  }
+
+  .lighthouse-mini-chart__label {
+    width: 80px;
+    font-size: 0.75rem;
+  }
+
+  .lighthouse-mini-chart__bars {
+    height: 30px;
+  }
+}

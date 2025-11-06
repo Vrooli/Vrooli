@@ -3,36 +3,38 @@
 # Runs language-specific unit tests with coverage reporting
 set -euo pipefail
 
-echo "=== Unit Tests Phase ==="
-start_time=$(date +%s)
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/core.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
-# Get paths
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
+testing::phase::init --target-time "60s"
 
-# Change to scenario directory
-cd "$SCENARIO_DIR"
+# Detect languages and run appropriate tests
+languages=$(testing::core::detect_languages)
 
-# Source the testing orchestration module
-source "$APP_ROOT/scripts/scenarios/testing/shell/orchestration.sh"
-
-# Run unit tests with coverage thresholds
-# Auto-detects scenario and languages
-if testing::orchestration::run_unit_tests "" 80 70; then
-    end_time=$(date +%s)
-    duration=$((end_time - start_time))
-    
-    echo "✅ Unit tests completed successfully in ${duration}s"
-    
-    if [ $duration -gt 60 ]; then
-        echo "⚠️  Unit phase exceeded 60s target"
-    fi
-    
-    exit 0
+if [ -z "$languages" ]; then
+    echo "ℹ️  No supported languages detected for unit testing"
+    testing::phase::add_test skipped
 else
-    end_time=$(date +%s)
-    duration=$((end_time - start_time))
-    
-    echo "❌ Unit tests failed in ${duration}s"
-    exit 1
+    echo "📋 Detected languages: $languages"
+
+    # Build arguments for the universal runner
+    runner_args=(
+        "--coverage-warn" "80"
+        "--coverage-error" "70"
+    )
+
+    # Skip languages not present
+    for lang in go node python; do
+        if ! echo "$languages" | grep -q "$lang"; then
+            runner_args+=("--skip-$lang")
+        fi
+    done
+
+    # Run the universal test runner
+    testing::unit::run_all_tests "${runner_args[@]}"
 fi
+
+testing::phase::end_with_summary "Unit tests completed"

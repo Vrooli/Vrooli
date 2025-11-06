@@ -141,18 +141,24 @@
       "description": "Initialize Game Dialog Generator with jungle platformer theme",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "game-dialog-generator-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "game-dialog-generator"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/game-dialog-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "game-dialog-generator",
+            "targets": [
+              "game-dialog-generator"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -189,17 +195,31 @@
         {
           "name": "install-cli",
           "run": "chmod +x cli/game-dialog-generator && ln -sf $(pwd)/cli/game-dialog-generator ~/.local/bin/game-dialog-generator 2>/dev/null || true",
-          "description": "Install CLI command globally"
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/game-dialog-generator"
+          }
         },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o game-dialog-generator-api .",
-          "description": "Build Go API binary"
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
         },
         {
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install jungle-themed UI dependencies"
+          "description": "Install jungle-themed UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
@@ -224,13 +244,16 @@
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start jungle-themed UI server in background",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🌿 Services running! 🎮 Jungle UI: http://localhost:${UI_PORT} 🔧 Dialog API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
-           "description": "Display all running service URLs with jungle theme"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🌿 Services running! 🎮 Jungle UI: http://localhost:${UI_PORT} 🔧 Dialog API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
+          "description": "Display all running service URLs with jungle theme"
+        }
       ]
     },
     "test": {

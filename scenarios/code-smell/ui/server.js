@@ -1,10 +1,17 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const uiPort = Number(process.env.UI_PORT || process.env.PORT || 3000);
 
-const publicDir = __dirname;
+const distDir = path.join(__dirname, 'dist');
+const distIndex = path.join(distDir, 'index.html');
+const publicDir = fs.existsSync(distIndex) ? distDir : __dirname;
+
+if (publicDir === __dirname) {
+  console.warn('⚠️  UI bundle not found. Serving files from ui/. Run `npm run build` for optimized assets.');
+}
 
 app.get('/health', (_req, res) => {
   res.json({

@@ -207,7 +207,8 @@ func main() {
 	router.HandleFunc("/index.html", handleHome).Methods("GET", "HEAD")
 
 	uiPort := strings.TrimSpace(os.Getenv("UI_PORT"))
-	if uiPort != "" && uiPort != port {
+	skipsUIMirror := strings.EqualFold(strings.TrimSpace(os.Getenv("GIT_CONTROL_TOWER_EXTERNAL_UI_SERVER")), "true")
+	if uiPort != "" && uiPort != port && !skipsUIMirror {
 		go func() {
 			log.Printf("Git Control Tower UI mirror starting on port %s", uiPort)
 			if err := http.ListenAndServe(":"+uiPort, router); err != nil {
@@ -217,9 +218,12 @@ func main() {
 	}
 
 	log.Printf("Git Control Tower API starting on port %s", port)
-	if uiPort == "" || uiPort == port {
+	switch {
+	case uiPort == "" || uiPort == port:
 		log.Printf("Git Control Tower UI served from API port %s", port)
-	} else {
+	case skipsUIMirror:
+		log.Printf("Git Control Tower UI served by dedicated Node server on port %s", uiPort)
+	default:
 		log.Printf("Git Control Tower UI mirrored on port %s", uiPort)
 	}
 

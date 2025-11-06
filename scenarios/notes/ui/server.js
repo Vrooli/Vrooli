@@ -8,6 +8,12 @@ const { URL } = require('url');
 
 const app = express();
 
+const DIST_DIR = path.join(__dirname, 'dist');
+const STATIC_ROOT = fs.existsSync(DIST_DIR) ? DIST_DIR : __dirname;
+if (STATIC_ROOT !== DIST_DIR) {
+    console.warn('[SmartNotes UI] dist bundle missing or stale. Run `npm run build` so lifecycle.setup.condition can verify ui/dist/index.html.');
+}
+
 // Port configuration - REQUIRED, no defaults
 const PORT = process.env.UI_PORT;
 if (!PORT) {
@@ -112,7 +118,7 @@ app.use('/api', (req, res) => {
 });
 
 const serveIndexWithPort = (htmlFile) => (req, res) => {
-    const htmlPath = path.join(__dirname, htmlFile);
+    const htmlPath = path.join(STATIC_ROOT, htmlFile);
 
     fs.readFile(htmlPath, 'utf8', (err, html) => {
         if (err) {
@@ -131,7 +137,7 @@ const serveIndexWithPort = (htmlFile) => (req, res) => {
 
 app.get('/zen', serveIndexWithPort('zen-index.html'));
 app.get('/', serveIndexWithPort('index.html'));
-app.use(express.static(__dirname));
+app.use(express.static(STATIC_ROOT));
 
 app.listen(PORT, () => {
     console.log(`[SmartNotes UI] listening on http://localhost:${PORT}`);

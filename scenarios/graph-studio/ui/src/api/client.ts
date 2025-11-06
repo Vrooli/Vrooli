@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
+import { resolveApiBase } from '@vrooli/api-base'
 
 declare global {
   interface Window {

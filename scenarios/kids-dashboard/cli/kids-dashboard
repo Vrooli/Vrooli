@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+command -v curl >/dev/null 2>&1 || {
+  echo "curl is required to use the kids-dashboard CLI" >&2
+  exit 1
+}
+
+API_PORT_ENV="${API_PORT:-}"
+UI_PORT_ENV="${UI_PORT:-}"
+DEFAULT_PORT=${API_PORT_ENV:-3500}
+API_BASE="${KIDS_DASHBOARD_API:-http://localhost:${DEFAULT_PORT}}"
+UI_BASE="${KIDS_DASHBOARD_UI:-${API_BASE}}"
+
+print_help() {
+  cat <<'USAGE'
+Kids Dashboard CLI
+------------------
+Usage: kids-dashboard <command> [options]
+
+Commands:
+  list                 List kid-friendly scenarios available in the dashboard
+  launch <scenario>    Request a launch URL for the given scenario id
+  health               Check the dashboard API health endpoint
+  open-ui              Print the dashboard UI URL
+  help                 Show this help message
+
+Environment variables:
+  API_PORT             Overrides the API port when not using lifecycle orchestration
+  UI_PORT              Overrides the UI port in open-ui output
+  KIDS_DASHBOARD_API   Full base URL for API requests (default: http://localhost:${DEFAULT_PORT})
+  KIDS_DASHBOARD_UI    Full base URL for UI requests (defaults to API URL)
+USAGE
+}
+
+run_list() {
+  local response
+  if ! response=$(curl -fsS "$API_BASE/api/v1/kids/scenarios" 2>/dev/null); then
+    echo "Unable to reach $API_BASE/api/v1/kids/scenarios" >&2
+    exit 1
+  fi
+
+  python3 - "$API_BASE" <<'PY' "$response"
+import json, sys
+try:
+    payload = json.loads(sys.argv[1])
+except Exception as exc:
+    sys.stderr.write(f"Failed to parse scenarios response: {exc}\n")
+    sys.exit(1)
+scenarios = payload.get('scenarios') or []
+if not scenarios:
+    print('No kid-friendly scenarios discovered yet.')
+    sys.exit(0)
+print(f"Found {len(scenarios)} kid-friendly scenarios:\n")
+for item in scenarios:
+    name = item.get('name') or item.get('title') or 'unknown'
+    scenario_id = item.get('id') or 'n/a'
+    category = item.get('category') or 'unspecified'
+    port = item.get('port')
+    age = item.get('ageRange') or 'all ages'
+    url = f"http://localhost:{port}" if isinstance(port, int) else 'n/a'
+    print(f"- {name} ({scenario_id})\n    Category: {category}, Ages: {age}\n    URL: {url}\n")
+PY
+}
+
+run_launch() {
+  local scenario_id=${1:-}
+  if [[ -z "$scenario_id" ]]; then
+    echo "Usage: kids-dashboard launch <scenario-id>" >&2
+    exit 1
+  fi
+  local response
+  if ! response=$(curl -fsS -X POST -H 'Content-Type: application/json' \
+    -d "{\"scenarioId\":\"$scenario_id\"}" \
+    "$API_BASE/api/v1/kids/launch" 2>/dev/null); then
+    echo "Launch request failed. Ensure the dashboard API is running." >&2
+    exit 1
+  fi
+  python3 - "$scenario_id" <<'PY' "$response"
+import json, sys
+scenario_id = sys.argv[1]
+try:
+    payload = json.loads(sys.argv[2])
+except Exception as exc:
+    sys.stderr.write(f"Launch response parsing failed: {exc}\n")
+    sys.exit(1)
+url = payload.get('url') or 'n/a'
+session = payload.get('sessionId') or 'n/a'
+print(f"Launch granted for {scenario_id}:\n  URL: {url}\n  Session: {session}")
+PY
+}
+
+run_health() {
+  if ! curl -fsS "$API_BASE/health"; then
+    echo "Kids Dashboard API health check failed" >&2
+    exit 1
+  fi
+}
+
+run_open_ui() {
+  local final_url
+  if [[ -n "$KIDS_DASHBOARD_UI" ]]; then
+    final_url="$KIDS_DASHBOARD_UI"
+  elif [[ -n "$UI_PORT_ENV" ]]; then
+    final_url="http://localhost:${UI_PORT_ENV}"
+  else
+    final_url="$API_BASE"
+  fi
+  echo "Kids Dashboard UI: $final_url"
+}
+
+main() {
+  local cmd=${1:-help}
+  shift || true
+  case "$cmd" in
+    list) run_list "$@" ;;
+    launch) run_launch "$@" ;;
+    health) run_health ;;
+    open-ui) run_open_ui ;;
+    help|--help|-h) print_help ;;
+    *)
+      echo "Unknown command: $cmd" >&2
+      print_help
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

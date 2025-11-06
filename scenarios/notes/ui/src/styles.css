@@ -641,6 +641,70 @@ body::before {
     opacity: 0.5;
 }
 
+.note-editor-section .note-placeholder {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--text-secondary);
+    min-height: 100%;
+    position: relative;
+    z-index: 3;
+}
+
+.note-placeholder h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.note-placeholder-copy {
+    max-width: 360px;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.note-placeholder-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(124, 58, 237, 0.08);
+    color: var(--primary);
+}
+
+.note-placeholder-icon svg {
+    width: 32px;
+    height: 32px;
+}
+
+.note-placeholder-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.note-editor-section.show-placeholder::before {
+    opacity: 0;
+}
+
+.note-editor-section.show-placeholder .editor-header,
+.note-editor-section.show-placeholder .editor-toolbar,
+.note-editor-section.show-placeholder #stickerPicker,
+.note-editor-section.show-placeholder .editor-container,
+.note-editor-section.show-placeholder .editor-footer {
+    display: none;
+}
+
+.note-editor-section.show-placeholder .note-placeholder {
+    display: flex;
+}
+
 .editor-header {
     padding: 1.5rem;
     border-bottom: 2px dashed var(--border-accent);

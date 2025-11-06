@@ -165,7 +165,13 @@
              ]
            },
            {
+             "type": "ui-bundle",
+             "bundle_path": "ui/dist/index.html",
+             "source_dir": "ui/src"
+           },
+           {
              "type": "cli",
+             "command": "notes",
              "targets": [
                "notes"
              ]
@@ -204,9 +210,14 @@
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
@@ -231,7 +242,10 @@
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
          {
            "name": "show-urls",

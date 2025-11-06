@@ -131,18 +131,24 @@
       "description": "Initialize Graph Studio",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "graph-studio-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "graph-studio"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/graph-studio-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "graph-studio",
+            "targets": [
+              "graph-studio"
+            ]
+          },
           {
             "type": "file",
             "path": "initialization/postgres/schema.sql"
@@ -164,6 +170,11 @@
           "name": "install-ui-deps",
           "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
           "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "initialize-postgres",
@@ -202,11 +213,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server",
+          "run": "cd ui && npm run preview -- --host 0.0.0.0 --port ${UI_PORT}",
+          "description": "Serve production UI bundle",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           },
           "env": {
             "UI_PORT": "${UI_PORT}",

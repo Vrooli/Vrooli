@@ -111,20 +111,26 @@
     "setup": {
       "description": "Initialize Privacy & Terms Generator",
        "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/privacy-terms-generator-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "privacy-terms-generator"
-             ]
-           },
-           {
+       "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/privacy-terms-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "privacy-terms-generator",
+            "targets": [
+              "privacy-terms-generator"
+            ]
+          },
+          {
              "type": "resources",
              "populated": true
            }
@@ -152,6 +158,16 @@
           "description": "Install CLI command globally"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
           "name": "show-urls",
           "run": "echo '🚀 Privacy & Terms Generator initialized\\n  UI: http://localhost:${UI_PORT}\\n  CLI: privacy-terms-generator --help'",
           "description": "Display service access URLs"
@@ -174,7 +190,10 @@
            "name": "start-ui",
            "run": "cd ui && node server.js",
            "description": "Start web UI server",
-           "background": true
+           "background": true,
+           "condition": {
+             "file_exists": "ui/dist/index.html"
+           }
          },
          {
            "name": "show-urls",

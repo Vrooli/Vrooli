@@ -100,7 +100,7 @@ db-schema-explorer optimize "SELECT * FROM large_table WHERE status = 'active'"
 ## 🔄 Cross-Scenario Integration
 
 This scenario enhances other scenarios:
-- **app-debugger**: Visual database state inspection
+- **app-monitor**: Visual database state inspection
 - **test-genie**: Schema-aware test data generation
 - **migration-manager**: Schema diff and migration scripts
 - **performance-optimizer**: Query pattern analysis

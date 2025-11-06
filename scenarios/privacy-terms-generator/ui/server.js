@@ -38,6 +38,9 @@ const mimeTypes = {
     '.svg': 'image/svg+xml'
 };
 
+const distPath = path.join(__dirname, 'dist');
+const staticRoot = fs.existsSync(distPath) ? distPath : __dirname;
+
 const server = http.createServer((req, res) => {
     // Health check endpoint
     if (req.url === '/health') {
@@ -98,7 +101,7 @@ const server = http.createServer((req, res) => {
     
     // Serve static files
     let filePath = req.url === '/' ? '/index.html' : req.url;
-    filePath = path.join(__dirname, filePath);
+    filePath = path.join(staticRoot, filePath);
     
     fs.readFile(filePath, (err, content) => {
         if (err) {

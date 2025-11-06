@@ -1,15 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
+const distPath = path.join(__dirname, 'dist');
+const staticRoot = fs.existsSync(distPath) ? distPath : __dirname;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(staticRoot));
+app.use('/node_modules', express.static(path.join(__dirname, 'node_modules')));
 
 // API proxy configuration
 const API_URL = process.env.API_URL || 'http://localhost:39001';
@@ -37,7 +41,7 @@ app.use('/api', (req, res) => {
 
 // Serve the main HTML file
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(staticRoot, 'index.html'));
 });
 
 // Health check endpoint

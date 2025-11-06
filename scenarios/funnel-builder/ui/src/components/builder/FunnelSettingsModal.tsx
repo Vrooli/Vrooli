@@ -15,7 +15,8 @@ import {
 interface FunnelSettingsModalProps {
   settings: FunnelSettings
   onClose: () => void
-  onSave: (settings: FunnelSettings) => void
+  onSave: (settings: FunnelSettings, scope: 'funnel' | 'project') => void
+  canApplyToProject?: boolean
 }
 
 interface FontOption {
@@ -78,15 +79,17 @@ const normalizeSettings = (settings: FunnelSettings): FunnelSettings => ({
   exitIntent: settings.exitIntent ?? false,
 })
 
-const FunnelSettingsModal = ({ settings, onClose, onSave }: FunnelSettingsModalProps) => {
+const FunnelSettingsModal = ({ settings, onClose, onSave, canApplyToProject = false }: FunnelSettingsModalProps) => {
   const [localSettings, setLocalSettings] = useState<FunnelSettings>(normalizeSettings(settings))
   const [isTrackingInfoOpen, setIsTrackingInfoOpen] = useState(false)
   const trackingInfoRef = useRef<HTMLDivElement | null>(null)
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop')
+  const [applyScope, setApplyScope] = useState<'funnel' | 'project'>(canApplyToProject ? 'funnel' : 'funnel')
 
   useEffect(() => {
     setLocalSettings(normalizeSettings(settings))
-  }, [settings])
+    setApplyScope('funnel')
+  }, [settings, canApplyToProject])
 
   useEffect(() => {
     if (!isTrackingInfoOpen) {
@@ -151,7 +154,8 @@ const FunnelSettingsModal = ({ settings, onClose, onSave }: FunnelSettingsModalP
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    onSave(localSettings)
+    const scope = canApplyToProject ? applyScope : 'funnel'
+    onSave(localSettings, scope)
   }
 
   const selectedFontFamily = localSettings.theme.fontFamily ?? fontOptions[0].value
@@ -509,13 +513,51 @@ const FunnelSettingsModal = ({ settings, onClose, onSave }: FunnelSettingsModalP
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
-          <button type="button" onClick={onClose} className="btn btn-secondary">
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-primary">
-            Save Settings
-          </button>
+        <div className="space-y-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
+          {canApplyToProject && (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Apply changes to
+              </legend>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="radio"
+                    name="funnel-settings-scope"
+                    value="funnel"
+                    checked={applyScope === 'funnel'}
+                    onChange={() => setApplyScope('funnel')}
+                  />
+                  This funnel only
+                </label>
+                <label className={clsx(
+                  'flex items-center gap-2 text-sm',
+                  canApplyToProject ? 'text-gray-700' : 'text-gray-400'
+                )}>
+                  <input
+                    type="radio"
+                    name="funnel-settings-scope"
+                    value="project"
+                    checked={applyScope === 'project'}
+                    onChange={() => setApplyScope('project')}
+                    disabled={!canApplyToProject}
+                  />
+                  Apply to every funnel in this project
+                </label>
+              </div>
+              <p className="text-xs text-gray-500">
+                Use the project-wide option to keep design consistent across every funnel under the same project.
+              </p>
+            </fieldset>
+          )}
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="btn btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary">
+              Save Settings
+            </button>
+          </div>
         </div>
       </form>
     </ResponsiveDialog>

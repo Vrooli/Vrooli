@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  Info,
   Loader2,
   RefreshCw,
   XCircle,
@@ -51,8 +50,8 @@ const ReportLogsSection = ({
   healthPanelId,
   statusPanelId,
 }: ReportLogsSectionProps) => {
-  const hasLogsCapability = bridgeCaps.includes('logs');
-  const hasNetworkCapability = bridgeCaps.includes('network');
+  const hasLogsCapability = bridgeCaps.includes('logs') || consoleLogs.fromFallback;
+  const hasNetworkCapability = bridgeCaps.includes('network') || network.fromFallback;
 
   const renderHealthStatusIcon = (status: 'pass' | 'warn' | 'fail') => {
     switch (status) {
@@ -242,8 +241,8 @@ const ReportLogsSection = ({
         </div>
       )}
       {consoleLogs.fromFallback && (
-        <div className="report-dialog__logs-alert report-dialog__logs-alert--info" role="alert">
-          <Info aria-hidden size={18} />
+        <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
+          <AlertTriangle aria-hidden size={18} />
           <div>
             <p className="report-dialog__logs-alert-title">Retrieved via fallback diagnostics</p>
             <p>
@@ -370,8 +369,8 @@ const ReportLogsSection = ({
         </div>
       )}
       {network.fromFallback && (
-        <div className="report-dialog__logs-alert report-dialog__logs-alert--info" role="alert">
-          <Info aria-hidden size={18} />
+        <div className="report-dialog__logs-alert report-dialog__logs-alert--warning" role="alert">
+          <AlertTriangle aria-hidden size={18} />
           <div>
             <p className="report-dialog__logs-alert-title">Retrieved via fallback diagnostics</p>
             <p>

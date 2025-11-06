@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Copy, ExternalLink, Play, RotateCcw, ScrollText, Square, FileText, Activity, Layers, AlertCircle, CheckCircle, Loader } from 'lucide-react';
+import { Copy, ExternalLink, Play, RotateCcw, ScrollText, Square, FileText, Activity, Layers, AlertCircle, CheckCircle, Loader, Zap } from 'lucide-react';
 import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
-import type { App, AppProxyMetadata, AppProxyPortInfo, LocalhostUsageReport, CompleteDiagnostics } from '@/types';
+import type { App, AppProxyMetadata, AppProxyPortInfo, CompleteDiagnostics } from '@/types';
 import { buildPreviewUrl } from '@/utils/appPreview';
-import { useAppDiagnostics } from '@/hooks/useAppDiagnostics';
+import type { LighthouseHistory } from '@/hooks/useLighthouseHistory';
 import TechStackTab from './tabs/TechStackTab';
 import DiagnosticsTab from './tabs/DiagnosticsTab';
 import DocumentationTab from './tabs/DocumentationTab';
+import LighthouseTab from './tabs/LighthouseTab';
 import './AppModal.css';
 
 interface AppModalProps {
@@ -17,8 +18,13 @@ interface AppModalProps {
   onAction: (appId: string, action: 'start' | 'stop' | 'restart') => Promise<void>;
   onViewLogs: (appId: string) => void;
   proxyMetadata?: AppProxyMetadata | null;
-  localhostReport?: LocalhostUsageReport | null;
   previewUrl?: string | null;
+  preloadedDiagnostics?: CompleteDiagnostics | null;
+  diagnosticsLoading?: boolean;
+  preloadedLighthouseHistory?: LighthouseHistory | null;
+  lighthouseLoading?: boolean;
+  lighthouseError?: string | null;
+  onRefetchLighthouse?: () => Promise<void>;
 }
 
 type OtherPort = { label: string; value: string };
@@ -26,7 +32,7 @@ type OtherPort = { label: string; value: string };
 const FOCUSABLE_SELECTORS =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
-type TabType = 'overview' | 'diagnostics' | 'tech-stack' | 'docs';
+type TabType = 'overview' | 'diagnostics' | 'tech-stack' | 'docs' | 'lighthouse';
 
 export default function AppModal({
   app,
@@ -36,6 +42,12 @@ export default function AppModal({
   onViewLogs,
   proxyMetadata,
   previewUrl,
+  preloadedDiagnostics,
+  diagnosticsLoading: externalDiagnosticsLoading,
+  preloadedLighthouseHistory,
+  lighthouseLoading: externalLighthouseLoading,
+  lighthouseError: externalLighthouseError,
+  onRefetchLighthouse,
 }: AppModalProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [hasCopiedPreviewUrl, setHasCopiedPreviewUrl] = useState(false);
@@ -47,11 +59,13 @@ export default function AppModal({
   const titleId = useId();
   const descriptionId = useId();
 
-  // Fetch complete diagnostics when modal opens
-  const { diagnostics, loading: diagnosticsLoading } = useAppDiagnostics(
-    isOpen ? app.id : null,
-    { enabled: isOpen, refetchOnOpen: true }
-  );
+  // Use preloaded data if available, otherwise use undefined
+  const diagnostics = preloadedDiagnostics ?? null;
+  const diagnosticsLoading = externalDiagnosticsLoading ?? false;
+  const lighthouseHistory = preloadedLighthouseHistory ?? null;
+  const lighthouseLoading = externalLighthouseLoading ?? false;
+  const lighthouseError = externalLighthouseError ?? null;
+  const refetchLighthouse = onRefetchLighthouse ?? (async () => {});
 
   useEffect(() => {
     if (!isOpen) {
@@ -169,20 +183,6 @@ export default function AppModal({
       .filter(([label]) => !shownPorts.has(label))
       .map(([label, value]) => ({ label: label.toUpperCase(), value: String(value) }));
 
-    // Debug logging
-    if (typeof window !== 'undefined' && (window as any).__DEBUG_APP_MODAL_PORTS) {
-      console.log('[AppModal] Port computation:', {
-        appId: app.id,
-        portEntries,
-        hasUIPort,
-        resolvedPrimaryLabel,
-        resolvedPrimaryValue,
-        resolvedApiPort,
-        shownPorts: Array.from(shownPorts),
-        resolvedOtherPorts,
-      });
-    }
-
     const resolvedProxyRoutes: AppProxyPortInfo[] = proxyMetadata?.ports
       ? [...proxyMetadata.ports].sort((a, b) => {
           if (a.isPrimary === b.isPrimary) {
@@ -201,7 +201,7 @@ export default function AppModal({
       primaryPortValue: resolvedPrimaryValue,
       proxyRoutes: resolvedProxyRoutes,
     };
-  }, [app.config?.primary_port, app.config?.primary_port_label, app.port_mappings, proxyMetadata?.ports]);
+  }, [app.config?.primary_port, app.config?.primary_port_label, app.port_mappings, app.id, proxyMetadata?.ports]);
 
 
   const uptime = app.uptime && app.uptime !== 'N/A' ? app.uptime : 'N/A';
@@ -230,7 +230,9 @@ export default function AppModal({
   const displayName = app.name || app.scenario_name || app.id;
   const subtitleChips = [app.scenario_name && app.scenario_name !== displayName ? app.scenario_name : null, app.id]
     .filter(Boolean) as string[];
-  const currentUrl = previewUrl ?? fallbackPreviewUrl ?? (app.port_mappings?.UI_PORT ? `http://localhost:${app.port_mappings.UI_PORT}` : null);
+  const uiPort = app.port_mappings?.UI_PORT;
+  const portUrl = typeof uiPort === 'number' ? `http://localhost:${uiPort}` : null;
+  const currentUrl = previewUrl ?? fallbackPreviewUrl ?? portUrl;
 
   const handleOpenPreview = useCallback(() => {
     if (!currentUrl || typeof window === 'undefined') {
@@ -357,6 +359,15 @@ export default function AppModal({
               <span className="modal-tab-badge">{diagnostics.documents.total}</span>
             )}
           </button>
+          <button
+            type="button"
+            className={clsx('modal-tab', { 'modal-tab--active': activeTab === 'lighthouse' })}
+            onClick={() => setActiveTab('lighthouse')}
+            aria-label="Lighthouse performance tab"
+          >
+            <Zap size={16} aria-hidden />
+            <span>Performance</span>
+          </button>
         </div>
 
         <div className="modal-body" id={descriptionId}>
@@ -399,6 +410,10 @@ export default function AppModal({
 
           {activeTab === 'docs' && (
             <DocumentationTab appId={app.id} documents={diagnostics?.documents} loading={diagnosticsLoading} />
+          )}
+
+          {activeTab === 'lighthouse' && (
+            <LighthouseTab app={app} history={lighthouseHistory} loading={lighthouseLoading} error={lighthouseError} onRefetch={refetchLighthouse} />
           )}
         </div>
 

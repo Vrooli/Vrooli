@@ -118,20 +118,26 @@
     "setup": {
       "description": "Initialize Prompt Injection Arena",
        "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/prompt-injection-arena-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "prompt-injection-arena"
-             ]
-           },
+        "checks": [
           {
+            "type": "binaries",
+            "targets": [
+              "api/prompt-injection-arena-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "prompt-injection-arena",
+            "targets": [
+              "prompt-injection-arena"
+            ]
+          },
+         {
             "type": "resources",
             "populated": true
           }
@@ -149,9 +155,17 @@
           "description": "Build Go API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "add-data",
@@ -184,11 +198,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server in background",
+          "run": "cd ui && node server.js",
+          "description": "Serve production UI bundle",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
          {

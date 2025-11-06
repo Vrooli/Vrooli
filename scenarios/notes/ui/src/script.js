@@ -38,6 +38,44 @@ function initializeApp() {
     updatePinButtonState(false);
     updateFavoriteButtonState(false);
     updateSidebarToggleIcon();
+    toggleEditorPlaceholder(true);
+}
+
+function toggleEditorPlaceholder(show) {
+    const editorSection = document.querySelector('.note-editor-section');
+    const placeholder = document.getElementById('notePlaceholder');
+    if (!editorSection || !placeholder) {
+        return;
+    }
+
+    const isVisible = Boolean(show);
+    editorSection.classList.toggle('show-placeholder', isVisible);
+    placeholder.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+
+    if (isVisible) {
+        const titleInput = document.getElementById('noteTitle');
+        const contentInput = document.getElementById('noteContent');
+        if (titleInput) {
+            titleInput.value = '';
+        }
+        if (contentInput) {
+            contentInput.value = '';
+        }
+        const wordCount = document.getElementById('wordCount');
+        const readingTime = document.getElementById('readingTime');
+        const lastSaved = document.getElementById('lastSaved');
+        if (wordCount) {
+            wordCount.textContent = '0 words';
+        }
+        if (readingTime) {
+            readingTime.textContent = '0 min read';
+        }
+        if (lastSaved) {
+            lastSaved.textContent = 'Select a note to begin';
+        }
+
+        refreshStaticIcons(placeholder);
+    }
 }
 
 function stripTrailingSlash(value = '') {
@@ -576,6 +614,7 @@ async function loadNote(noteId) {
 }
 
 function displayNote(note) {
+    toggleEditorPlaceholder(false);
     document.getElementById('noteTitle').value = note.title || '';
     document.getElementById('noteContent').value = note.content || '';
 
@@ -583,6 +622,11 @@ function displayNote(note) {
     updateFavoriteButtonState(Boolean(note.is_favorite));
 
     updateWordCount();
+
+    const lastSaved = document.getElementById('lastSaved');
+    if (lastSaved) {
+        lastSaved.textContent = 'All changes saved';
+    }
 }
 
 async function createNewNote() {
@@ -661,6 +705,7 @@ async function deleteCurrentNote() {
         currentNote = null;
         document.getElementById('noteTitle').value = '';
         document.getElementById('noteContent').value = '';
+        toggleEditorPlaceholder(true);
         
         await loadNotes();
         showNotification('Note deleted', 'success');

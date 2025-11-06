@@ -428,59 +428,17 @@ discovery:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: knowledge-observatory
+Knowledge Observatory adopts the shared phased testing architecture. Key coverage includes:
 
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/knowledge-observatory
-    - cli/install.sh
-    - initialization/postgres/schema.sql
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/n8n
-    - initialization/postgres
-    - ui
+- `test/phases/test-structure.sh` – filesystem layout, service configuration, and Go build smoke.
+- `test/phases/test-docs.sh` – README/PRD/PROBLEMS presence plus link sanity.
+- `test/phases/test-dependencies.sh` – Go module verification, Makefile targets, CLI/assets, and best-effort resource checks.
+- `test/phases/test-unit.sh` – Go unit tests via the centralized runner with coverage thresholds.
+- `test/phases/test-integration.sh` – Live API/UI reachability, CLI delegation, and resource status when the scenario is running.
+- `test/phases/test-business.sh` – Endpoints that back the knowledge workflows (health, search, metrics, CORS expectations).
+- `test/phases/test-performance.sh` – Lightweight latency and resource sampling to enforce PRD performance guardrails.
 
-resources:
-  required: [qdrant, postgres]
-  optional: [n8n, ollama]
-  health_timeout: 60
-
-tests:
-  - name: "Qdrant is accessible"
-    type: http
-    service: qdrant
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "API search endpoint responds"
-    type: http
-    service: api
-    endpoint: /api/v1/knowledge/search
-    method: POST
-    body:
-      query: "test query"
-    expect:
-      status: 200
-      
-  - name: "CLI search command executes"
-    type: exec
-    command: ./cli/knowledge-observatory search "test"
-    expect:
-      exit_code: 0
-```
+Lifecycle testing now invokes `test/run-tests.sh`, ensuring consistent execution through `make test` and `vrooli scenario test`.
 
 ## 📝 Implementation Notes
 

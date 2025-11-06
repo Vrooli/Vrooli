@@ -500,7 +500,6 @@ tests:
 
 ### Related PRDs
 - app-monitor/PRD.md - Application monitoring (complementary)
-- app-debugger/PRD.md - Application debugging (different scope)
 
 ---
 

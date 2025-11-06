@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const https = require('https');
@@ -35,6 +36,9 @@ const API_PORT = parsePort(requireEnv('API_PORT'), 'API_PORT');
 const API_PROTOCOL = (process.env.API_PROTOCOL || process.env.BRAND_MANAGER_API_PROTOCOL || 'http').toLowerCase() === 'https' ? 'https' : 'http';
 const API_HOST = process.env.API_HOST || process.env.BRAND_MANAGER_API_HOST || '127.0.0.1';
 const API_TARGET = `${API_PROTOCOL}://${API_HOST}:${API_PORT}`;
+const distDir = path.join(__dirname, 'dist');
+const staticRoot = fs.existsSync(distDir) ? distDir : __dirname;
+const modulesDir = path.join(__dirname, 'node_modules');
 
 function normalizeUpstreamPath(input) {
     if (!input) {
@@ -118,10 +122,15 @@ function proxyToApi(req, res, upstreamPath) {
 }
 
 app.use(cors());
-app.use(express.static(__dirname));
+
+if (fs.existsSync(modulesDir)) {
+    app.use('/node_modules', express.static(modulesDir));
+}
+
+app.use(express.static(staticRoot));
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(staticRoot, 'index.html'));
 });
 
 app.get('/health', (req, res) => {

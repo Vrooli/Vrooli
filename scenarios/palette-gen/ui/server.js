@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
@@ -17,6 +18,11 @@ if (!process.env.API_PORT) {
 const PORT = process.env.UI_PORT;
 const API_PORT = process.env.API_PORT;
 const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
+const DIST_DIR = path.join(__dirname, 'dist');
+const STATIC_ROOT = fs.existsSync(DIST_DIR) ? DIST_DIR : __dirname;
+if (STATIC_ROOT !== DIST_DIR) {
+    console.warn('[Palette Gen UI] dist bundle missing or stale. Run `npm run build` so lifecycle.setup.condition can verify ui/dist/index.html.');
+}
 
 // Serve static files
 
@@ -67,7 +73,7 @@ app.get('/health', async (req, res) => {
     });
 });
 
-app.use(express.static(__dirname));
+app.use(express.static(STATIC_ROOT));
 
 // Proxy API requests
 app.use('/api', createProxyMiddleware({
@@ -80,7 +86,7 @@ app.use('/api', createProxyMiddleware({
 
 // Serve index.html for all routes
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(STATIC_ROOT, 'index.html'));
 });
 
 app.listen(PORT, () => {

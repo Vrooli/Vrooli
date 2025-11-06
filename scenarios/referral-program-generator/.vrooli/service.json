@@ -110,15 +110,21 @@
            {
              "type": "binaries",
              "targets": [
-               "referral-program-generator-api"
+               "api/referral-program-generator-api"
              ]
            },
            {
-             "type": "cli",
-             "targets": [
-               "referral-program-generator"
-             ]
+             "type": "ui-bundle",
+             "bundle_path": "ui/dist/index.html",
+             "source_dir": "ui/src"
            },
+          {
+            "type": "cli",
+            "command": "referral-program-generator",
+            "targets": [
+              "referral-program-generator"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -147,12 +153,17 @@
           "description": "Initialize database schema and seed data"
         },
         {
-          "name": "build-ui",
-          "run": "cd ui && npm install && npm run build",
-          "description": "Build referral program dashboard UI",
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
           }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build referral program dashboard UI"
         },
         {
           "name": "show-urls",
@@ -162,7 +173,7 @@
       ]
     },
     "develop": {
-      "description": "Start referral program generator with API and UI servers",
+      "description": "Start referral program generator with API and production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -175,11 +186,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev -- --port ${UI_PORT}",
-          "description": "Start UI development server in background",
+          "run": "cd ui && node server.cjs",
+          "description": "Start Express server with built React app",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {

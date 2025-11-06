@@ -104,14 +104,17 @@
             {
               "type": "binaries",
               "targets": [
-                "ecosystem-manager-api"
+                "api/ecosystem-manager-api"
               ]
             },
             {
               "type": "cli",
-              "targets": [
-                "ecosystem-manager"
-              ]
+              "command": "ecosystem-manager"
+            },
+            {
+              "type": "ui-bundle",
+              "bundle_path": "ui/dist/index.html",
+              "source_dir": "ui/src"
             },
           {
             "type": "directories",
@@ -133,6 +136,14 @@
           "description": "Create required directory structure"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
           "name": "build-api",
           "run": "cd api && if [ ! -f go.sum ]; then go mod tidy; fi && go build -o ecosystem-manager-api main.go",
           "description": "Build Go API binary"
@@ -146,6 +157,11 @@
           }
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI"
+        },
+        {
           "name": "validate-prompts",
           "run": "python3 -c \"import yaml; yaml.safe_load(open('prompts/sections.yaml'))\" || echo 'Warning: Prompts configuration may have YAML errors'",
           "description": "Validate prompts configuration",
@@ -157,6 +173,11 @@
           "name": "set-permissions",
           "run": "chmod +x api/ecosystem-manager-api || true",
           "description": "Set executable permissions"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"🎉 Ecosystem Manager is ready at http://localhost:${API_PORT}\" && echo \"📊 Dashboard: http://localhost:${UI_PORT}\" && echo \"🔌 API Base: http://localhost:${API_PORT}/api\"",
+          "description": "Display service access URLs"
         }
       ]
     },
@@ -174,18 +195,17 @@
          },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start UI development server",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json",
-            "json_path_exists": "ui/package.json:scripts.dev"
+            "file_exists": "ui/dist/index.html"
           }
         },
          {
            "name": "show-urls",
-           "run": "echo \"🎉 Ecosystem Manager is running at http://localhost:${API_PORT}\" && echo \"📊 Dashboard: http://localhost:${UI_PORT}\" && echo \"🔌 API Base: http://localhost:${API_PORT}/api\"",
-           "description": "Display service access URLs"
+           "run": "echo \"🎉 Ecosystem Manager is running\" && echo \"📊 Dashboard: http://localhost:${UI_PORT}\" && echo \"🔌 API: http://localhost:${API_PORT}/api\"",
+           "description": "Display service URLs"
          }
       ]
     },

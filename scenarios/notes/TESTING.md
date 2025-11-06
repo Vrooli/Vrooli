@@ -791,7 +791,7 @@ pkill -f "scenarios/notes"
 - `/scenarios/notes/README.md` - User guide
 - `/scenarios/notes/PROBLEMS.md` - Known issues
 - `/scenarios/notes/AUDIT_ANALYSIS.md` - Security audit
-- `/docs/scenarios/PHASED_TESTING_ARCHITECTURE.md` - Testing standards
+- `/docs/testing/architecture/PHASED_TESTING.md` - Testing standards
 
 ### External Resources
 - [BATS Documentation](https://bats-core.readthedocs.io/)

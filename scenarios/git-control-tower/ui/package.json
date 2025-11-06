@@ -9,7 +9,7 @@
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
   "scripts": {
-    "build": "echo 'UI assets are served via the Go API; no build step required'",
+    "build": "rm -rf dist && mkdir -p dist/src && cp index.html dist/index.html && cp -R src/. dist/src",
     "start": "echo 'Use make start or vrooli scenario start git-control-tower'",
     "lint": "echo 'No UI build pipeline defined'"
   }

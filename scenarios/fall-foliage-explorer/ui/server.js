@@ -34,6 +34,38 @@ const mimeTypes = {
     '.ico': 'image/x-icon'
 };
 
+function getStaticRoot() {
+    if (fs.existsSync(DIST_DIR)) {
+        return DIST_DIR;
+    }
+    return SRC_DIR;
+}
+
+function resolveStaticFilePath(requestUrl = '/') {
+    const staticRoot = getStaticRoot();
+    const urlPath = decodeURIComponent((requestUrl || '/').split('?')[0]);
+    let relativePath = urlPath;
+    if (!relativePath || relativePath === '/' || relativePath === './') {
+        relativePath = '/index.html';
+    }
+
+    const trimmed = relativePath.replace(/^\/+/, '');
+    const normalized = path
+        .normalize(trimmed)
+        .replace(/^(\.\.([\\/]|$))+/, '');
+    const candidate = path.join(staticRoot, normalized);
+
+    if (!candidate.startsWith(staticRoot)) {
+        return path.join(staticRoot, 'index.html');
+    }
+
+    return candidate;
+}
+
+const ROOT_DIR = __dirname;
+const DIST_DIR = path.join(ROOT_DIR, 'dist');
+const SRC_DIR = path.join(ROOT_DIR, 'src');
+
 const server = http.createServer((req, res) => {
     console.log(`${req.method} ${req.url}`);
 
@@ -63,12 +95,8 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    let filePath = '.' + req.url;
-    if (filePath === './') {
-        filePath = './index.html';
-    }
-
-    const extname = String(path.extname(filePath)).toLowerCase();
+    const filePath = resolveStaticFilePath(req.url);
+    const extname = path.extname(filePath).toLowerCase();
     const contentType = mimeTypes[extname] || 'application/octet-stream';
 
     fs.readFile(filePath, (error, content) => {

@@ -135,13 +135,19 @@
            {
              "type": "binaries",
              "targets": [
-               "db-schema-explorer-api"
+               "api/db-schema-explorer-api"
              ]
            },
-            {
-              "type": "cli",
-              "targets": ["db-schema-explorer"]
-            },
+           {
+             "type": "ui-bundle",
+             "bundle_path": "ui/dist/index.html",
+             "source_dir": "ui/src"
+           },
+          {
+            "type": "cli",
+            "command": "db-schema-explorer",
+            "targets": ["db-schema-explorer"]
+          },
           {
             "type": "resources",
             "populated": true
@@ -187,7 +193,7 @@
       ]
     },
     "develop": {
-      "description": "Start schema explorer with API and UI servers",
+      "description": "Start schema explorer with API and production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -200,11 +206,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start React UI development server in background",
+          "run": "cd ui && node server.js",
+          "description": "Start Express server with built React app",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
          {

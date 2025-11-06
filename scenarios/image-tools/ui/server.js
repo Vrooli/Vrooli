@@ -44,12 +44,16 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
+const DIST_DIR = path.join(__dirname, 'dist');
+const SRC_DIR = path.join(__dirname, 'src');
+const STATIC_ROOT = fs.existsSync(DIST_DIR) ? DIST_DIR : (fs.existsSync(SRC_DIR) ? SRC_DIR : __dirname);
+
 const server = http.createServer((req, res) => {
-  let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url);
+  let filePath = path.join(STATIC_ROOT, req.url === '/' ? 'index.html' : req.url);
   
   // Security: prevent directory traversal
   const safePath = path.normalize(filePath);
-  if (!safePath.startsWith(__dirname)) {
+  if (!safePath.startsWith(STATIC_ROOT)) {
     res.writeHead(403);
     res.end('Forbidden');
     return;

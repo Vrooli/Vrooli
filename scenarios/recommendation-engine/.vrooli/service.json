@@ -100,11 +100,17 @@
           {
             "type": "binaries",
             "targets": [
-              "recommendation-engine-api"
+              "api/recommendation-engine-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "recommendation-engine",
             "targets": [
               "recommendation-engine"
             ]
@@ -127,13 +133,21 @@
           "description": "Install CLI command globally"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o recommendation-engine-api .",
           "description": "Build Go recommendation API binary"
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm install && npm run build || echo \"UI build skipped (development mode)\"",
+          "run": "cd ui && npm run build || echo \"UI build skipped (development mode)\"",
           "description": "Build management dashboard UI"
         },
         {
@@ -149,7 +163,7 @@
       ]
     },
     "develop": {
-      "description": "Start recommendation engine with API and management UI",
+      "description": "Start recommendation engine with API and production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -162,11 +176,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm start",
-          "description": "Start management dashboard UI",
+          "run": "cd ui && node server.js",
+          "description": "Start Express server with built React app",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {

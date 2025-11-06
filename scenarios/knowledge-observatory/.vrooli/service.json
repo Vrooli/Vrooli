@@ -126,26 +126,32 @@
     },
     "setup": {
       "description": "Initialize Knowledge Observatory",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/knowledge-observatory-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "targets": [
-               "knowledge-observatory"
-             ]
-           },
-           {
-             "type": "resources",
-             "populated": true
-           }
-         ]
-       },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/knowledge-observatory-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "knowledge-observatory",
+            "targets": [
+              "knowledge-observatory"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
           "name": "add-data",
@@ -154,8 +160,11 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install Knowledge Observatory CLI globally"
+          "run": "bash cli/install.sh",
+          "description": "Install Knowledge Observatory CLI globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
         },
         {
           "name": "build-api",
@@ -166,6 +175,11 @@
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
@@ -188,9 +202,12 @@
          },
         {
           "name": "start-ui",
-          "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm run start",
+          "run": "cd ui && node server.js",
           "description": "Start UI dashboard server",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
          {
            "name": "show-urls",
@@ -200,43 +217,12 @@
       ]
     },
     "test": {
-      "description": "Test Knowledge Observatory API, CLI, and UI",
+      "description": "Run phased Knowledge Observatory test suite",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-search-endpoint",
-          "run": "curl -sf -X POST http://localhost:$API_PORT/api/v1/knowledge/search -H 'Content-Type: application/json' -d '{\"query\":\"test\"}'",
-          "description": "Test API search endpoint"
-        },
-        {
-          "name": "test-graph-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/knowledge/graph",
-          "description": "Test API graph endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && API_PORT=$API_PORT bats knowledge-observatory.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/knowledge-observatory.bats"
-          }
-        },
-        {
-          "name": "test-ui-accessible",
-          "run": "curl -sf http://localhost:$UI_PORT/ &>/dev/null",
-          "description": "Test UI dashboard is accessible"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario tests"
         }
       ]
     },

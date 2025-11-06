@@ -126,11 +126,17 @@
           {
             "type": "binaries",
             "targets": [
-              "resume-screening-assistant-api"
+              "api/resume-screening-assistant-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "resume-screening-assistant",
             "targets": [
               "resume-screening-assistant"
             ]
@@ -169,9 +175,17 @@
           "description": "Build Go coordination API binary"
         },
         {
-          "name": "setup-ui",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build resume screening assistant UI"
         },
         {
           "name": "show-urls",
@@ -196,7 +210,10 @@
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
         {
           "name": "show-urls",
