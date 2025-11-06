@@ -272,7 +272,7 @@ func (svc *InvestigationService) prepareInvestigationPrompt(issueID, agentID, st
 		return "", loadErr
 	}
 
-	prompt := svc.buildInvestigationPrompt(issue, issueDir, agentID, svc.server.config.ScenarioRoot, startedAt)
+	prompt := svc.buildInvestigationPrompt(issue, issueDir, agentID, svc.server.config.VrooliRoot, startedAt)
 	return prompt, nil
 }
 

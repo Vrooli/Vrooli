@@ -1,7 +1,7 @@
 # Test Implementation Summary - vrooli-orchestrator
 
 ## Overview
-Comprehensive test suite implemented for vrooli-orchestrator scenario following gold standard patterns from visited-tracker (79.4% coverage reference).
+Comprehensive test suite implemented for vrooli-orchestrator scenario following gold standard patterns from visited-tracker (79.4% coverage reference). The scenario now uses the shared phased testing architecture (`test/run-tests.sh` + `test/phases/*`), replacing the legacy `scenario-test.yaml` workflow and aligning with the platform-wide runner in `scripts/scenarios/testing/`.
 
 **Issue ID**: issue-621d4ce5
 **Request ID**: 1d9b4dcc-068d-4f58-94b3-466b0d738b09

@@ -114,8 +114,8 @@ scenario::requirements::report() {
         return 1
     fi
 
-    if [ ! -f "${scenario_dir}/docs/requirements.yaml" ] && [ ! -d "${scenario_dir}/requirements" ]; then
-        log::error "Scenario ${scenario_name} does not define docs/requirements.yaml or requirements/"
+    if [ ! -f "${scenario_dir}/docs/requirements.json" ] && [ ! -d "${scenario_dir}/requirements" ]; then
+        log::error "Scenario ${scenario_name} does not define docs/requirements.json or requirements/"
         return 1
     fi
 
@@ -208,8 +208,8 @@ scenario::requirements::_ensure_scenario_dir() {
         log::error "Scenario directory not found: $scenario_dir"
         return 1
     fi
-    if [ ! -f "${scenario_dir}/docs/requirements.yaml" ] && [ ! -d "${scenario_dir}/requirements" ]; then
-        log::error "Scenario ${scenario_name} does not define docs/requirements.yaml or requirements/"
+    if [ ! -f "${scenario_dir}/docs/requirements.json" ] && [ ! -d "${scenario_dir}/requirements" ]; then
+        log::error "Scenario ${scenario_name} does not define docs/requirements.json or requirements/"
         return 1
     fi
     echo "$scenario_dir"
@@ -484,8 +484,8 @@ scenario::requirements::quick_check() {
         return 0
     fi
 
-    if [ ! -f "${scenario_dir}/docs/requirements.yaml" ] && [ ! -d "${scenario_dir}/requirements" ]; then
-        printf '%s\n' '{"status":"missing","message":"No requirements registry defined","recommendation":"Add docs/requirements.yaml or requirements/ to track PRD coverage."}'
+    if [ ! -f "${scenario_dir}/docs/requirements.json" ] && [ ! -d "${scenario_dir}/requirements" ]; then
+        printf '%s\n' '{"status":"missing","message":"No requirements registry defined","recommendation":"Add docs/requirements.json or requirements/ to track PRD coverage."}'
         return 0
     fi
 

@@ -82,6 +82,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		// vrooli:env:optional - tests do not require vector search infrastructure
 		QdrantURL:               os.Getenv("QDRANT_URL"),
 		ScenarioRoot:            tempDir,
+		VrooliRoot:              tempDir, // For tests, use same as ScenarioRoot
 		WebsocketAllowedOrigins: []string{"*"},
 	}
 

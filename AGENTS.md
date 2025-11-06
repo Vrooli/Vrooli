@@ -23,22 +23,21 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 
 ### Key Definitions
 - **Resources**: Core local services (AI/ML like claude-code, ollama; storage like postgres, redis, qdrant; development helpers like judge0, browserless, vault) that scenarios can compose.
-- **Scenarios**: Full applications—APIs, CLIs, UIs, workflows—that combine resources and other scenarios to deliver reusable business capabilities.
-- **Business Model**: Every scenario targets measurable value; deliverables can deploy directly, ship as SaaS, or serve enterprise installs, so revenue impact must be explicit.
-- **Execution Principles**: Memory-first, no duplicated work, incremental validated progress, cross-scenario synergy, quality over quantity, and relentless focus on business value.
+- **Scenarios**: Full applications or microservices - with APIs, CLIs, and UIs - that combine resources and other scenarios to deliver reusable business capabilities.
 
 **CRITICAL CONTEXT:** Vrooli is not just an automation platform - it's a **self-improving intelligence system** where:
 
 ### The Core Vision
-- **Shared Local Resources:** Apps share local resources like N8n, Redis, Qdrant, and PostgreSQL so they can work together and build off each other.
-- **Scenarios Become Capabilities:** Every app (which is generated from a *scenario*) built becomes a permanent tool the system can use forever
+- **Shared Local Resources:** Apps share local resources like Ollama, Redis, Qdrant, and PostgreSQL so they can work together and build off each other.
+- **Scenarios Become Capabilities:** Every app (which is generated from a scenario) built becomes a permanent tool the system can use forever
 - **Recursive Improvement:** Agents build tools → Tools make agents smarter → Smarter agents build better tools → ∞
 - **Compound Intelligence:** The system literally cannot forget how to solve problems, only get better at solving them
+- **Scenario-Based Business Model**: Scenarios target measurable value; deliverables can deploy directly, ship as SaaS, serve enterprise installs, or simply act as internal tools or microservices for other scenarios to leverage. Each scenario we complete should increase Vrooli's capabilities and/or be a new monetizable service
 
 ### The Evolution That Changed Everything
 - **Phase 1 (Past):** Web platform where agents could only interact through APIs (limited but proved the concept)
-- **Phase 2 (Current):** AI inference servers with local resource access - agents can now build complete applications
-- **Phase 3 (Future):** Specialized servers for engineering, science, finance - unlimited domain expansion
+- **Phase 2 (Current):** Physical server with local resource access - agents can now build complete applications by building off of existing resources and scenarios
+- **Phase 3 (Future):** Specialized servers for engineering, science, finance. Hardware line where businesses and households can run their own specialized Vrooli server
 
 ### Understanding Scenarios
 Scenarios are NOT just test cases or demos. They serve triple duty:
@@ -49,14 +48,14 @@ Scenarios are NOT just test cases or demos. They serve triple duty:
 When working with scenarios, remember: **You're not building tests. You're building businesses and expanding intelligence.**
 
 ### Working with Resources
-Local resources (Ollama, n8n, PostgreSQL, etc.) aren't just "integrations" - they're the building blocks of emergent capability:
+Local resources (Ollama, PostgreSQL, etc.) aren't just "integrations" - they're the building blocks of emergent capability:
 - Each resource multiplies what agents can accomplish
 - Agents discover novel combinations we haven't imagined
 - Resources enable the shift from "calling APIs" to "building the APIs"
 
 ### The Recursive Learning Loop in Practice
 1. Agent solves problem using available resources
-2. Solution gets crystallized as reusable workflow/app
+2. Solution gets crystallized as reusable scenario
 3. Future agents use that solution as a building block
 4. More complex problems become solvable
 5. Each iteration makes ALL future iterations more powerful
@@ -108,7 +107,7 @@ vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
 
 ## 🔍 Available Tools
 - **ast-grep (sg)**: For syntax-aware code search - default to `ast-grep --lang <language> --pattern '<pattern>'` over `grep` for structural matching
-- **jq/yq**: For JSON/YAML processing - use these for analyzing service.json, package.json, n8n workflows, and YAML configs instead of manual parsing
+- **jq/yq**: For JSON/YAML processing
 - **gofumpt**: Stricter Go formatting (superset of gofmt) - use `gofumpt -w .` to format Go code
 - **golangci-lint**: Comprehensive Go linting - use `golangci-lint run` to check Go code quality and catch issues
 

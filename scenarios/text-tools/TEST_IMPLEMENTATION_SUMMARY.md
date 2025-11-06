@@ -11,6 +11,8 @@
 ### Test Phases Created ✅
 All required test phases have been implemented following the centralized testing infrastructure pattern:
 
+- **Shared orchestrator**: `test/run-tests.sh` now wraps the common `testing::runner` tooling, enabling presets, runtime management, caching, and JUnit-ready artifacts while delegating CLI coverage to a dedicated test type.
+
 1. **test-dependencies.sh** - Validates all dependencies
    - Resource CLI availability checks
    - Language toolchain validation (Go, Node.js, npm)
@@ -45,13 +47,9 @@ All required test phases have been implemented following the centralized testing
    - Go benchmark integration
    - Performance metrics reporting
 
-7. **test-cli.sh** - CLI tests (existing)
-   - BATS test suite for CLI commands
-   - Command validation and help text
-
-8. **test-api.sh** - API tests (existing)
-   - HTTP endpoint validation
-   - Request/response verification
+7. **CLI BATS test type** - Executed via `test/cli/run-cli-tests.sh`
+   - Runs `cli/text-tools.bats` through the shared runner
+   - Skips gracefully when BATS or the CLI binary is unavailable
 
 ### Go Test Files Created/Enhanced ✅
 

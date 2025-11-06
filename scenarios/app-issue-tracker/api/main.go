@@ -31,6 +31,7 @@ func loadConfig() *serverpkg.Config {
 		QdrantURL:               qdrantURL,
 		IssuesDir:               getEnv("ISSUES_DIR", defaultIssuesDir),
 		ScenarioRoot:            scenarioRoot,
+		VrooliRoot:              vrooliRoot,
 		WebsocketAllowedOrigins: parseAllowedOrigins(os.Getenv("API_WS_ALLOWED_ORIGINS")),
 	}
 }

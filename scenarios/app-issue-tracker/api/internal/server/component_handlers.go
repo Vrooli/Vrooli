@@ -135,7 +135,7 @@ func (s *Server) discoverResources() ([]Component, error) {
 	// TODO: Parse `vrooli resource list` output
 
 	commonResources := []string{
-		"postgres", "redis", "qdrant", "n8n", "ollama",
+		"postgres", "redis", "qdrant", "ollama",
 		"browserless", "judge0", "vault", "claude-code",
 		"airbyte", "apache-airflow", "apache-superset", "audiocraft",
 		"autogen-studio", "autogpt", "blender", "btcpay",
@@ -173,9 +173,6 @@ func (s *Server) discoverResources() ([]Component, error) {
 
 func toDisplayName(id string) string {
 	// Handle special cases
-	if id == "n8n" {
-		return "n8n"
-	}
 	if id == "ファイルブラウザ" {
 		return "File Browser (ファイルブラウザ)"
 	}

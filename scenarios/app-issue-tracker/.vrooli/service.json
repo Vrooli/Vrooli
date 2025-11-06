@@ -99,9 +99,12 @@
           },
           {
             "type": "cli",
-            "targets": [
-              "app-issue-tracker"
-            ]
+            "command": "app-issue-tracker"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
           },
           {
             "type": "directories",
@@ -129,14 +132,27 @@
           "description": "Make issue management CLI globally available"
         },
         {
-          "name": "install-main-cli",
+          "name": "install-cli",
           "run": "ln -sf $(pwd)/cli/app-issue-tracker.sh ~/.local/bin/app-issue-tracker 2>/dev/null || echo '  CLI available at ./cli/app-issue-tracker.sh'",
-          "description": "Install main CLI command"
+          "description": "Install CLI command globally"
         },
         {
-          "name": "build-file-api",
+          "name": "build-api",
           "run": "cd api && go mod download && go build -o app-issue-tracker-api .",
-          "description": "Build file-based Go API binary"
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI"
         },
         {
           "name": "setup-vector-search",
@@ -147,9 +163,9 @@
           }
         },
         {
-          "name": "show-file-urls",
+          "name": "show-urls",
           "run": "echo '📁 File-Based Issue Tracker initialized\\n  📊 Management: ./issues/manage.sh status\\n  🌐 API: http://localhost:${API_PORT}\\n  🎯 CLI: app-issue-tracker --help\\n  📂 Issues: ./issues/\\n  📝 Templates: ./issues/templates/\\n\\n💡 Create issues with:\\n  app-issue-tracker create --title \"Issue title\" --priority high\\n  ./issues/manage.sh add\\n  cp issues/templates/bug-template.yaml issues/open/123-new.yaml'",
-          "description": "Display file-based service information"
+          "description": "Display service information"
         }
       ]
     },

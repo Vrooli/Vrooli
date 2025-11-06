@@ -98,7 +98,7 @@ func TestExecuteClaudeCodeUsesCommandFactory(t *testing.T) {
 	factory := &captureFactory{cmd: cmd}
 
 	srv := &Server{
-		config:         &Config{ScenarioRoot: root, WebsocketAllowedOrigins: []string{"*"}},
+		config:         &Config{ScenarioRoot: root, VrooliRoot: root, WebsocketAllowedOrigins: []string{"*"}},
 		commandFactory: factory.build,
 	}
 
@@ -144,7 +144,7 @@ func TestExecuteClaudeCodeCommandFactoryError(t *testing.T) {
 
 	factory := &captureFactory{buildErr: errors.New("boom")}
 	srv := &Server{
-		config:         &Config{ScenarioRoot: root, WebsocketAllowedOrigins: []string{"*"}},
+		config:         &Config{ScenarioRoot: root, VrooliRoot: root, WebsocketAllowedOrigins: []string{"*"}},
 		commandFactory: factory.build,
 	}
 

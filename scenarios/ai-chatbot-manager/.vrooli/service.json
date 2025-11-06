@@ -154,6 +154,11 @@
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
             "command": "ai-chatbot-manager"
           },
@@ -175,7 +180,7 @@
           "description": "Install CLI command globally"
         },
         {
-          "name": "setup-ui-deps",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install React dashboard dependencies",
           "condition": {
@@ -185,10 +190,7 @@
         {
           "name": "build-ui",
           "run": "cd ui && npm run build",
-          "description": "Build React dashboard for production",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
+          "description": "Build React dashboard for production"
         },
         {
           "name": "add-data",
@@ -216,15 +218,15 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm start",
-          "description": "Start UI server (serves built React app or development fallback)",
+          "run": "cd ui && node server.js",
+          "description": "Start production UI server that serves the dist bundle",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  CLI: ai-chatbot-manager --help'",
           "description": "Display all running service URLs"
         }

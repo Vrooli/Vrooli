@@ -162,7 +162,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["test", "automation", "manual"],
+          "enum": ["test", "automation", "manual", "lighthouse"],
           "description": "Validation method type"
         },
         "ref": {

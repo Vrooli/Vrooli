@@ -219,7 +219,13 @@
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "accessibility-compliance-hub",
             "targets": [
               "accessibility-compliance-hub"
             ]
@@ -230,7 +236,36 @@
         {
           "name": "install-cli",
           "run": "bash cli/install.sh",
-          "description": "Install CLI binary to ~/.vrooli/bin"
+          "description": "Install CLI binary to ~/.vrooli/bin",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o accessibility-compliance-hub-api .",
+          "description": "Build Go API server",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo -e '🚀 Accessibility Compliance Hub initialized\n  Dashboard: http://localhost:${UI_PORT}\n  CLI: accessibility-compliance-hub --help'",
+          "description": "Display running service URLs"
         }
       ]
     },
@@ -238,13 +273,26 @@
       "description": "Start accessibility compliance hub services",
       "steps": [
         {
-          "name": "start-ui",
-          "run": "cd ui && python3 -m http.server ${UI_PORT} &",
-          "description": "Start simple UI server for static files"
+          "name": "start-api",
+          "run": "cd api && ./accessibility-compliance-hub-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/accessibility-compliance-hub-api"
+          }
         },
         {
-          "name": "show-running-services",
-          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  Note: This is a UI prototype, full API not yet implemented'",
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start production UI server for dist bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  API: http://localhost:'${API_PORT}'\\n  CLI: accessibility-compliance-hub --help'",
           "description": "Display running service URLs"
         }
       ]

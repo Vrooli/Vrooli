@@ -129,11 +129,17 @@
              ]
            },
            {
-             "type": "cli",
-             "targets": [
-               "algorithm-library"
-             ]
+             "type": "ui-bundle",
+             "bundle_path": "ui/dist/index.html",
+             "source_dir": "ui/src"
            },
+          {
+            "type": "cli",
+            "command": "algorithm-library",
+            "targets": [
+              "algorithm-library"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -142,7 +148,7 @@
       },
       "steps": [
         {
-          "name": "install-dependencies",
+          "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
         },
@@ -179,7 +185,7 @@
       ]
     },
     "develop": {
-      "description": "Start Algorithm Library services for development",
+      "description": "Start Algorithm Library with production UI bundle",
       "steps": [
         {
           "name": "start-api",
@@ -192,11 +198,11 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run dev",
-          "description": "Start React development server",
+          "run": "cd ui && node server.cjs",
+          "description": "Start Express server with built React app",
           "background": true,
           "condition": {
-            "file_exists": "ui/package.json"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {

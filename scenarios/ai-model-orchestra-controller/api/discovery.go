@@ -79,8 +79,8 @@ func initDatabase(logger *log.Logger) (*sql.DB, error) {
 
 		// Exponential backoff with random jitter
 		backoff := time.Duration(math.Pow(2, float64(attempt-1))) * backoffBase
-		if backoff > 30*time.Second {
-			backoff = 30 * time.Second
+		if backoff > maxBackoff {
+			backoff = maxBackoff
 		}
 
 		// Add random jitter to prevent thundering herd

@@ -62,15 +62,15 @@ testing::phase::init() {
     done
     
     # Auto-detect directories
-    local phase_script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
+    local phase_script_dir="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
     TESTING_PHASE_SCENARIO_DIR="$(cd "$phase_script_dir/../.." && pwd)"
     TESTING_PHASE_APP_ROOT="${APP_ROOT:-$(builtin cd "${TESTING_PHASE_SCENARIO_DIR}/../.." && builtin pwd)}"
     export APP_ROOT="$TESTING_PHASE_APP_ROOT"
     TESTING_PHASE_SCENARIO_NAME="$(basename "$TESTING_PHASE_SCENARIO_DIR")"
-    
+
     # Auto-detect phase name from script filename if not provided
     if [ -z "$phase_name" ]; then
-        local script_name="$(basename "${BASH_SOURCE[1]}")"
+        local script_name="$(basename "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")"
         phase_name="${script_name#test-}"
         phase_name="${phase_name%.sh}"
     fi

@@ -14,7 +14,7 @@ if (!PORT) {
 
 // Middleware
 app.use(cors());
-app.use(express.static(path.join(__dirname, '../ui-react/dist')));
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // Health check - compliant with UI health schema
 app.get('/health', async (req, res) => {
@@ -66,7 +66,7 @@ app.get('/health', async (req, res) => {
 
 // Serve index.html for all routes
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../ui-react/dist/index.html'));
+    res.sendFile(path.join(__dirname, 'dist/index.html'));
 });
 
 // Start server

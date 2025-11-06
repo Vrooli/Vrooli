@@ -48,7 +48,7 @@ func TestIssueContentServiceResolveAttachment(t *testing.T) {
 	}
 
 	srv := &Server{
-		config: &Config{ScenarioRoot: root, IssuesDir: issuesDir, WebsocketAllowedOrigins: []string{"*"}},
+		config: &Config{ScenarioRoot: root, VrooliRoot: root, IssuesDir: issuesDir, WebsocketAllowedOrigins: []string{"*"}},
 		store:  store,
 	}
 	svc := NewIssueContentService(srv)
@@ -108,7 +108,7 @@ func TestIssueContentServiceAgentConversation(t *testing.T) {
 	}
 
 	srv := &Server{
-		config: &Config{ScenarioRoot: root, IssuesDir: issuesDir, WebsocketAllowedOrigins: []string{"*"}},
+		config: &Config{ScenarioRoot: root, VrooliRoot: root, IssuesDir: issuesDir, WebsocketAllowedOrigins: []string{"*"}},
 		store:  store,
 	}
 	svc := NewIssueContentService(srv)

@@ -59,7 +59,8 @@ type Config struct {
 	Port                    string
 	QdrantURL               string
 	IssuesDir               string
-	ScenarioRoot            string
+	ScenarioRoot            string // Path to app-issue-tracker scenario directory
+	VrooliRoot              string // Path to Vrooli repository root
 	WebsocketAllowedOrigins []string
 }
 

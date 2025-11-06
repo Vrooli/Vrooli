@@ -60,7 +60,7 @@ testing::core::detect_languages() {
     fi
     
     # Python detection
-    if [ -f "requirements.txt" ] || [ -f "pyproject.toml" ] || [ -f "setup.py" ] || find . -name "*.py" -not -path "./node_modules/*" | head -1 | grep -q ".*"; then
+    if [ -f "requirements.txt" ] || [ -f "pyproject.toml" ] || [ -f "setup.py" ] || find . -name "*.py" -not -path "*/node_modules/*" -not -path "*/venv/*" -not -path "*/.venv/*" | head -1 | grep -q ".*"; then
         languages+=("python")
     fi
     
