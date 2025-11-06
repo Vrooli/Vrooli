@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { buildApiUrl } from '@vrooli/api-base';
+import { resolveWsBase } from '@vrooli/api-base';
 import type { Issue } from '../types/issue';
 import type { RateLimitStatusPayload } from '../services/issues';
 import { normalizeStatus, transformIssue } from '../utils/issues';
@@ -46,8 +46,6 @@ interface UseIssueRealtimeSyncResult {
   reconnectAttempts: number;
 }
 
-declare const __API_PORT__: string | undefined;
-
 function formatElapsedDuration(startTime: string): string | undefined {
   const parsed = new Date(startTime);
   if (Number.isNaN(parsed.getTime())) {
@@ -71,32 +69,6 @@ function formatElapsedDuration(startTime: string): string | undefined {
     return `${minutes}m ${seconds % 60}s`;
   }
   return `${seconds}s`;
-}
-
-function resolveWebSocketUrl(apiBaseUrl: string): string {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-
-  const httpEndpoint = buildApiUrl('/ws', { baseUrl: apiBaseUrl, appendSuffix: false });
-
-  try {
-    const absolute = new URL(httpEndpoint);
-    absolute.protocol = absolute.protocol === 'https:' ? 'wss:' : 'ws:';
-    return absolute.toString();
-  } catch {
-    try {
-      const viaLocation = new URL(httpEndpoint, window.location.href);
-      viaLocation.protocol = viaLocation.protocol === 'https:' ? 'wss:' : 'ws:';
-      return viaLocation.toString();
-    } catch {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const normalizedPath = httpEndpoint.startsWith('/') ? httpEndpoint : `/${httpEndpoint}`;
-      const apiPort = typeof __API_PORT__ === 'string' && __API_PORT__.trim() ? __API_PORT__ : undefined;
-      const host = apiPort ? `${window.location.hostname}:${apiPort}` : window.location.host;
-      return `${wsProtocol}//${host}${normalizedPath}`;
-    }
-  }
 }
 
 export function useIssueRealtimeSync({
@@ -144,12 +116,21 @@ export function useIssueRealtimeSync({
   }, [initialRunningProcesses]);
 
   const websocketUrl = useMemo(() => {
-    const base = resolveWebSocketUrl(apiBaseUrl);
-    if (!base || !enabled) {
+    if (!enabled) {
       return '';
     }
-    return base;
-  }, [apiBaseUrl, enabled]);
+    // Use @vrooli/api-base to resolve WebSocket URL - works in all deployment contexts
+    // resolveWsBase automatically handles protocol (ws:// or wss://) and proxying
+    // The suffix '/api/v1/ws' will be appended to the resolved base
+    const wsUrl = resolveWsBase({
+      appendSuffix: true,
+      apiSuffix: '/api/v1/ws'
+    });
+    if (!wsUrl) {
+      return '';
+    }
+    return wsUrl;
+  }, [enabled]);
 
   const handleWebSocketEvent = useCallback(
     (event: WebSocketEvent) => {

@@ -12,7 +12,7 @@ const (
 	developDefaultRecommendation     = "Provide start-api, start-ui (when UI_PORT is defined), and show-urls steps in lifecycle.develop so scenarios restart predictably."
 	startUIRunRecommendation         = "Serve the built ui/dist bundle (node server.(js|cjs) or static file server) per PRODUCTION_BUNDLES.md so lifecycle restarts rebuild stale assets."
 	startUIBackgroundRecommendation  = "Set start-ui background: true so develop can continue to show-urls and agents regain their shell."
-	startAPIBackgroundRecommendation = "Set start-api background: true so the CLI can continue and show-urls can print connection info."
+	startAPIBackgroundRecommendation = "Set start-api background: true so lifecycle can inject resource environment variables (DATABASE_URL, REDIS_HOST, etc.), monitor the process via health checks, and return shell control to agents for show-urls and subsequent steps. Foreground processes block the lifecycle and prevent orchestration."
 	developDefaultUIBundlePath       = "ui/dist/index.html"
 )
 
@@ -478,7 +478,8 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 		startAPIStep, _ := findStepByName(stepsSlice, "start-api")
 		if startAPIStep == nil {
 			line := contextualLine(findJSONLineDevelop(source, "\"start-api\""), stepsLine, developLine)
-			violations = append(violations, newDevelopViolation(filePath, line, "Develop steps must include a \"start-api\" command"))
+			msg := "Develop steps must include a \"start-api\" command so lifecycle restarts can launch the Go API server with injected resource environment variables (DATABASE_URL, REDIS_HOST, etc.) and monitor it via health checks. Without start-api, operators must manually start the API, orchestration tools can't detect the API endpoint, and resource connections may fail."
+			violations = append(violations, newDevelopViolation(filePath, line, msg))
 		} else {
 			runVal := strings.TrimSpace(getString(startAPIStep, "run"))
 			lineRun := findJSONLineDevelop(source, "\"start-api\"", "\"run\"")
@@ -495,12 +496,14 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 
 			if desc := strings.TrimSpace(getString(startAPIStep, "description")); desc == "" {
 				line := findJSONLineDevelop(source, "\"start-api\"", "\"description\"")
-				violations = append(violations, newDevelopViolation(filePath, line, "start-api description must be provided"))
+				msg := "start-api description must be provided so operators and agents understand this step launches the Go API server that lifecycle monitors via health checks. Clear descriptions help agents troubleshoot startup failures and understand which services are running."
+				violations = append(violations, newDevelopViolation(filePath, line, msg))
 			}
 
 			if bg, ok := startAPIStep["background"].(bool); !ok || !bg {
 				line := findJSONLineDevelop(source, "\"start-api\"", "\"background\"")
-				violations = append(violations, newDevelopViolation(filePath, line, "start-api must run in the background", startAPIBackgroundRecommendation))
+				msg := "start-api must run in the background so lifecycle can inject resource environment variables, monitor the process via health checks, and return shell control to agents for show-urls and subsequent steps. Foreground processes block the lifecycle, prevent orchestration, and cause agents to hang waiting for shell access."
+				violations = append(violations, newDevelopViolation(filePath, line, msg, startAPIBackgroundRecommendation))
 			}
 
 			if cond, ok := startAPIStep["condition"].(map[string]any); ok {
@@ -523,22 +526,27 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 		startUIStep, _ := findStepByName(stepsSlice, "start-ui")
 		if startUIStep == nil {
 			line := contextualLine(findJSONLineDevelop(source, "\"start-ui\""), stepsLine, developLine)
-			violations = append(violations, newDevelopViolation(filePath, line, "Develop steps must include a \"start-ui\" command when the UI is enabled"))
+			msg := "Develop steps must include a \"start-ui\" command when the UI is enabled so lifecycle restarts can serve the production bundle from ui/dist. Without start-ui, operators must manually start the UI, orchestration tools like app-monitor can't detect the UI endpoint, and users can't access the web interface. Verify that lifecycle.setup includes a build-ui step and that setup.condition includes a ui-bundle check pointing to the same bundle path."
+			violations = append(violations, newDevelopViolation(filePath, line, msg))
 		} else {
 			if bg, ok := startUIStep["background"].(bool); !ok || !bg {
 				line := findJSONLineDevelop(source, "\"start-ui\"", "\"background\"")
-				violations = append(violations, newDevelopViolation(filePath, line, "start-ui must run in the background when provided", startUIBackgroundRecommendation))
+				msg := "start-ui must run in the background so develop can continue to show-urls and agents regain their shell. Foreground UI servers block the lifecycle from completing, prevent show-urls from displaying connection info, and cause automation to hang waiting for shell access."
+				violations = append(violations, newDevelopViolation(filePath, line, msg, startUIBackgroundRecommendation))
 			}
 
 			runVal := strings.TrimSpace(getString(startUIStep, "run"))
 			lineRun := findJSONLineDevelop(source, "\"start-ui\"", "\"run\"")
 			if runVal == "" {
-				violations = append(violations, newDevelopViolation(filePath, lineRun, "start-ui run command must launch the production bundle server", startUIRunRecommendation))
+				msg := "start-ui run command must launch the production bundle server so lifecycle restarts serve the built ui/dist assets instead of running dev servers that bypass staleness detection. Production servers ensure cache-busting works, iframes load correctly, and restart automation rebuilds when ui/src changes per docs/scenarios/PRODUCTION_BUNDLES.md."
+				violations = append(violations, newDevelopViolation(filePath, lineRun, msg, startUIRunRecommendation))
 			} else {
 				if usesDevServerCommand(runVal) {
-					violations = append(violations, newDevelopViolation(filePath, lineRun, "start-ui must serve the built dist bundle (node server.js/Express) instead of npm run dev per PRODUCTION_BUNDLES.md", startUIRunRecommendation))
+					msg := "start-ui must serve the built dist bundle (node server.js/Express) instead of npm run dev per PRODUCTION_BUNDLES.md. Dev servers bypass lifecycle staleness detection, preventing auto-rebuild on restart. This causes stale UI code to persist after ui/src changes, breaks cache-busting in production-like environments, and makes iframe embedding unreliable. Replace with 'node server.js' that serves ui/dist and verify setup.condition includes a ui-bundle check."
+					violations = append(violations, newDevelopViolation(filePath, lineRun, msg, startUIRunRecommendation))
 				} else if !isProductionUIServerRun(runVal, bundlePath) {
-					violations = append(violations, newDevelopViolation(filePath, lineRun, "start-ui must launch a production bundle server (node server.(js|cjs) or equivalent static asset server) so restarts detect stale ui/dist builds", startUIRunRecommendation))
+					msg := "start-ui must launch a production bundle server (node server.(js|cjs) or equivalent static asset server) so restarts detect stale ui/dist builds and trigger setup to rebuild when ui/src changes. Without production serving, lifecycle can't correlate bundle staleness with source changes, auto-rebuild fails, and users see outdated UI code after git pull or agent fixes."
+					violations = append(violations, newDevelopViolation(filePath, lineRun, msg, startUIRunRecommendation))
 				}
 			}
 
@@ -557,25 +565,15 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 		}
 	}
 
-	lastStepMap, ok := stepsSlice[len(stepsSlice)-1].(map[string]any)
-	if ok {
-		lastStepName := strings.TrimSpace(getString(lastStepMap, "name"))
-		if lastStepName != "show-urls" {
-			line := findJSONLineDevelop(source, "\"show-urls\"")
-			violations = append(violations, newDevelopViolation(filePath, line, "show-urls step must be the final develop step"))
-		}
-	} else {
-		line := findJSONLineDevelop(source, "\"develop\"", "\"steps\"")
-		violations = append(violations, newDevelopViolation(filePath, line, "Each develop step must be an object with a name"))
-	}
-
 	showStep, showIndex := findStepByName(stepsSlice, "show-urls")
 	if showStep == nil {
 		line := contextualLine(findJSONLineDevelop(source, "\"show-urls\""), stepsLine, developLine)
-		violations = append(violations, newDevelopViolation(filePath, line, "Develop steps must include a \"show-urls\" command"))
+		msg := "Develop steps must include a \"show-urls\" command so operators and agents know which URLs to access after lifecycle completes. Without show-urls, users don't know the API_PORT or UI_PORT values, making it impossible to open the correct endpoints or verify the scenario is running correctly."
+		violations = append(violations, newDevelopViolation(filePath, line, msg))
 	} else if showIndex != len(stepsSlice)-1 {
 		line := findJSONLineDevelop(source, "\"show-urls\"")
-		violations = append(violations, newDevelopViolation(filePath, line, "show-urls step must be the final develop step"))
+		msg := "show-urls step must be the final develop step so backgrounded services complete before displaying connection info. Showing URLs before services start causes agents and operators to attempt connections while health checks are still pending, leading to 'connection refused' errors and false failure reports."
+		violations = append(violations, newDevelopViolation(filePath, line, msg))
 	}
 
 	return deduplicateDevelopViolations(violations)

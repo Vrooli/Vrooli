@@ -522,6 +522,16 @@
   border-bottom: 1px solid var(--border-default);
 }
 
+.sidebar-header-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-header-top .sidebar-title {
+  flex: 1;
+}
+
 .sidebar-title {
   display: flex;
   align-items: center;
@@ -570,6 +580,206 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+}
+
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.nav-section:last-child {
+  border-bottom: none;
+}
+
+.nav-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.nav-section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mobile-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-subtle);
+  color: var(--fg-default);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.mobile-nav-toggle:hover {
+  background: var(--bg-muted);
+}
+
+.mobile-nav-toggle--icon-only {
+  padding: 0.45rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  justify-content: center;
+  gap: 0;
+}
+
+.mobile-nav-toggle--icon-only .mobile-nav-toggle-icon {
+  margin: 0;
+}
+
+.mobile-nav-toggle-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.quick-access-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.quick-access-links.mobile {
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-default);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+  gap: 0.5rem;
+}
+
+.quick-access-links.mobile .nav-item {
+  padding: 0.65rem;
+  border-radius: 6px;
+}
+
+.quick-access-links.mobile .nav-item:hover {
+  background: var(--bg-muted);
+}
+
+@media (max-width: 768px) {
+  .sidebar-header {
+    padding: 1rem;
+  }
+
+  .sidebar-title {
+    font-size: 1.125rem;
+  }
+}
+
+.quick-access-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 1rem;
+}
+
+.quick-access-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 13, 18, 0.65);
+  backdrop-filter: blur(2px);
+  animation: quick-access-backdrop-fade 0.2s ease forwards;
+}
+
+.quick-access-drawer-panel {
+  position: relative;
+  width: min(360px, 90vw);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  box-shadow: 0 28px 60px rgba(10, 13, 18, 0.45);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  outline: none;
+  animation: quick-access-panel-enter 0.24s ease forwards;
+}
+
+.quick-access-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.quick-access-drawer-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--fg-default);
+}
+
+.quick-access-drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: var(--bg-subtle);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-access-drawer-close:hover {
+  background: var(--bg-muted);
+  color: var(--fg-default);
+  border-color: var(--border-default);
+}
+
+.quick-access-drawer-close-icon {
+  width: 18px;
+  height: 18px;
+}
+
+@keyframes quick-access-backdrop-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes quick-access-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .nav-icon {

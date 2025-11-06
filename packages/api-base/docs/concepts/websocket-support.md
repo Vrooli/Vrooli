@@ -21,7 +21,6 @@ import { resolveWsBase } from '@vrooli/api-base'
 
 // Resolve WebSocket base URL
 const WS_BASE = resolveWsBase({
-  defaultPort: '8081',  // WebSocket port
 })
 
 // Connect to WebSocket
@@ -32,7 +31,6 @@ const ws = new WebSocket(`${WS_BASE}/events`)
 
 ```typescript
 const WS_BASE = resolveWsBase({
-  defaultPort: '8081',
   appendSuffix: true,
   apiSuffix: '/ws',  // Custom suffix for WebSocket
 })
@@ -77,7 +75,7 @@ graph TD
 ```typescript
 // Browser: http://localhost:3000
 
-resolveWsBase({ defaultPort: '8081' })
+resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 // → "ws://127.0.0.1:8081"
 
 // Usage
@@ -122,7 +120,6 @@ const ws = new WebSocket('wss://app-monitor.com/apps/scenario/proxy/ws')
 import { buildWsUrl } from '@vrooli/api-base'
 
 const wsUrl = buildWsUrl('/events', {
-  defaultPort: '8081',
 })
 
 const ws = new WebSocket(wsUrl)
@@ -133,7 +130,6 @@ const ws = new WebSocket(wsUrl)
 
 ```typescript
 const wsUrl = buildWsUrl('/events?channel=notifications', {
-  defaultPort: '8081',
   appendSuffix: true,
   apiSuffix: '/ws',
 })
@@ -157,7 +153,7 @@ if (config?.wsUrl) {
   const ws = new WebSocket(config.wsUrl)
 } else {
   // Fallback to resolution
-  const wsBase = resolveWsBase({ defaultPort: '8081' })
+  const wsBase = resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
   const ws = new WebSocket(`${wsBase}/events`)
 }
 ```
@@ -235,7 +231,7 @@ const app = createScenarioServer({
 ```typescript
 // Browser: https://example.com (secure)
 
-resolveWsBase({ defaultPort: '8081' })
+resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 // → "wss://example.com:8081" (secure WebSocket)
 
 // ✅ Browser allows wss:// on HTTPS pages
@@ -247,7 +243,7 @@ resolveWsBase({ defaultPort: '8081' })
 ```typescript
 // Browser: http://localhost:3000 (insecure)
 
-resolveWsBase({ defaultPort: '8081' })
+resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 // → "ws://127.0.0.1:8081" (insecure WebSocket)
 
 // ✅ OK for development
@@ -268,8 +264,7 @@ class WebSocketManager {
 
   constructor() {
     this.wsBase = resolveWsBase({
-      defaultPort: '8081',
-      appendSuffix: true,
+          appendSuffix: true,
       apiSuffix: '/ws',
     })
   }
@@ -342,8 +337,7 @@ function getWebSocketUrl(path: string): string {
 
   // 3. Fallback to resolution
   const wsBase = resolveWsBase({
-    defaultPort: '8081',
-    appendSuffix: true,
+      appendSuffix: true,
     apiSuffix: '/ws',
   })
 
@@ -371,9 +365,8 @@ class TypedWebSocket<TSend = unknown, TReceive = unknown> {
   private ws: WebSocket
   private messageHandlers = new Map<string, (payload: TReceive) => void>()
 
-  constructor(path: string, options?: { defaultPort?: string }) {
+  constructor(path: string) {
     const url = buildWsUrl(path, {
-      defaultPort: options?.defaultPort || '8081',
     })
 
     this.ws = new WebSocket(url)
@@ -413,7 +406,6 @@ interface ChatMessage {
 }
 
 const ws = new TypedWebSocket<ChatMessage, ChatMessage>('/chat', {
-  defaultPort: '8081',
 })
 
 ws.on('message', (payload) => {
@@ -436,7 +428,7 @@ ws.send('message', {
 **1. Use resolveWsBase for consistency**:
 ```typescript
 // ✅ Good
-const wsBase = resolveWsBase({ defaultPort: '8081' })
+const wsBase = resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 const ws = new WebSocket(`${wsBase}/events`)
 
 // ❌ Bad
@@ -446,7 +438,7 @@ const ws = new WebSocket('ws://localhost:8081/events')  // Hardcoded
 **2. Handle both ws:// and wss://**:
 ```typescript
 // ✅ Good - automatically handles protocol
-const wsBase = resolveWsBase({ defaultPort: '8081' })
+const wsBase = resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 
 // Works in dev (ws://) and prod (wss://)
 const ws = new WebSocket(`${wsBase}/events`)
@@ -456,7 +448,7 @@ const ws = new WebSocket(`${wsBase}/events`)
 ```typescript
 // ✅ Good
 const config = getScenarioConfig()
-const wsUrl = config?.wsUrl || resolveWsBase({ defaultPort: '8081' })
+const wsUrl = config?.wsUrl || resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 ```
 
 **4. Implement reconnection logic**:
@@ -508,71 +500,456 @@ const ws = new WebSocket(buildWsUrl('/events?token=abc', {
 
 ## Troubleshooting
 
-### WebSocket connection fails
+This comprehensive troubleshooting guide covers common WebSocket issues and their solutions.
 
-**Symptom**: `WebSocket connection failed` error
+---
 
-**Solutions**:
+### Connection Refused / 404 Error
 
-1. **Check URL**:
-```typescript
-const wsUrl = resolveWsBase({ defaultPort: '8081' })
-console.log('WebSocket URL:', wsUrl)
+**Symptoms**:
+- Browser console: `WebSocket connection to 'ws://localhost:3000/api/v1/ws' failed`
+- Network tab: 404 Not Found or Connection Refused
 
-// Verify protocol matches page protocol
-console.log('Page protocol:', window.location.protocol)
+**Root Causes**:
+
+1. **Missing server upgrade handler**
+   ```javascript
+   // ❌ WRONG - No upgrade handler
+   const app = createScenarioServer({ uiPort, apiPort })
+   app.listen(uiPort)
+   // WebSocket connections will fail!
+   ```
+
+   ```javascript
+   // ✅ CORRECT - Add upgrade handler
+   const app = createScenarioServer({ uiPort, apiPort })
+   const server = app.listen(uiPort)
+
+   server.on('upgrade', (req, socket, head) => {
+     if (req.url?.startsWith('/api')) {
+       proxyWebSocketUpgrade(req, socket, head, {
+         apiPort: process.env.API_PORT,
+         verbose: true  // Enable to see connection logs
+       })
+     } else {
+       socket.destroy()
+     }
+   })
+   ```
+
+2. **API server not running or wrong port**
+   ```bash
+   # Check if API server is running
+   curl http://localhost:YOUR_API_PORT/health
+
+   # Check server logs
+   vrooli scenario logs your-scenario --step start-api
+   ```
+
+3. **Wrong WebSocket endpoint path**
+   ```typescript
+   // ❌ WRONG - Endpoint doesn't exist
+   const ws = new WebSocket('ws://localhost:3000/ws')
+
+   // ✅ CORRECT - Match your API endpoint
+   const wsBase = resolveWsBase({ appendSuffix: true, apiSuffix: '/api/v1/ws' })
+   const ws = new WebSocket(wsBase)
+   ```
+
+**Debugging Steps**:
+
+1. Enable verbose logging in server:
+   ```javascript
+   proxyWebSocketUpgrade(req, socket, head, {
+     apiPort: process.env.API_PORT,
+     verbose: true  // See all proxy activity
+   })
+   ```
+
+2. Check browser console for exact error
+3. Check server logs for connection attempts
+4. Verify API endpoint exists: `curl http://localhost:API_PORT/api/v1/ws`
+
+---
+
+### Connection Hangs / Timeout
+
+**Symptoms**:
+- Connection attempt never completes
+- No error message, just hangs
+- Browser eventually times out
+
+**Root Causes**:
+
+1. **WebSocket headers being filtered**
+
+   This was a bug in api-base where critical headers like `Sec-WebSocket-Version` were incorrectly removed.
+
+   **Check server logs for**:
+   ```
+   [ws-proxy] Missing required WebSocket headers: Sec-WebSocket-Version
+   ```
+
+   **Solution**: Update to latest api-base version (includes fix)
+
+2. **Firewall blocking WebSocket connections**
+   ```bash
+   # Test if port is accessible
+   telnet localhost YOUR_UI_PORT
+
+   # Check firewall rules
+   sudo ufw status
+   ```
+
+3. **Network proxy interfering**
+
+   Some corporate proxies block WebSocket upgrades.
+
+   **Workaround**: Use secure WebSockets (wss://) on HTTPS
+
+---
+
+### "unsupported version: 13 not found in 'Sec-Websocket-Version'"
+
+**Symptom**:
+- API server logs show: `websocket: unsupported version: 13 not found in 'Sec-Websocket-Version' header`
+- Connection fails immediately
+
+**Root Cause**:
+The proxy is not forwarding WebSocket-specific headers to the API server.
+
+**Solution**:
+This is the exact bug that was fixed in api-base. The proxy was filtering out `Sec-WebSocket-Version` and other critical headers.
+
+**Verify Fix**:
+1. Update api-base to latest version
+2. Check that `proxyWebSocketUpgrade` is forwarding all headers
+3. Enable verbose logging to see forwarded headers:
+   ```javascript
+   proxyWebSocketUpgrade(req, socket, head, {
+     apiPort,
+     verbose: true  // Will log: "Sec-WebSocket-Version: 13"
+   })
+   ```
+
+**Expected Output** (verbose mode):
 ```
-
-2. **Check mixed content** (HTTPS page, ws:// WebSocket):
-```typescript
-// ❌ Blocked by browser
-// Page: https://example.com
-// WebSocket: ws://example.com/events
-
-// ✅ Fixed
-// Use wss:// for HTTPS pages (automatic with resolveWsBase)
-```
-
-3. **Check CORS/proxy configuration**:
-```typescript
-// WebSocket in proxy context
-// Make sure proxy metadata includes WebSocket port
+[ws-proxy] Upgrade request: GET /api/v1/ws -> 127.0.0.1:8080
+[ws-proxy] Client headers: host, connection, upgrade, sec-websocket-key, sec-websocket-version
+[ws-proxy] Connected to upstream 127.0.0.1:8080
+[ws-proxy] Forwarding upgrade request with headers:
+[ws-proxy]   Sec-WebSocket-Version: 13
+[ws-proxy]   Sec-WebSocket-Key: [present]
+[ws-proxy]   Connection: Upgrade
+[ws-proxy]   Upgrade: websocket
 ```
 
 ---
 
-### Wrong protocol (ws:// vs wss://)
+### Mixed Content Error (HTTPS + ws://)
 
-**Symptom**: Mixed content error or insecure WebSocket on HTTPS
+**Symptom**:
+- Browser console: `Mixed Content: The page was loaded over HTTPS, but attempted to connect to an insecure WebSocket endpoint`
 
-**Solution**: Use `resolveWsBase()` for automatic protocol:
+**Root Cause**:
+Browsers block insecure WebSocket connections (ws://) from secure pages (https://).
+
+**Solution**:
+Use `resolveWsBase()` which automatically uses wss:// for HTTPS pages:
 
 ```typescript
 // ✅ Automatic protocol selection
-const wsBase = resolveWsBase({ defaultPort: '8081' })
+const wsBase = resolveWsBase({ appendSuffix: true, apiSuffix: '/api/v1/ws' })
 
-// http:// page → ws://
-// https:// page → wss://
+// http:// page → ws://localhost:3000/api/v1/ws
+// https:// page → wss://example.com/api/v1/ws
+```
+
+**Manual Override** (not recommended):
+```typescript
+// ⚠️  Only if you have a specific reason
+const wsBase = window.location.protocol === 'https:'
+  ? 'wss://example.com/api/v1/ws'
+  : 'ws://localhost:3000/api/v1/ws'
 ```
 
 ---
 
-### Connection in proxy context
+### Connection Works in Localhost but Fails in Production
 
-**Symptom**: WebSocket connects to wrong server when embedded
+**Symptoms**:
+- Works: `http://localhost:3000`
+- Fails: `https://your-app.com`
 
-**Solution**: Check proxy metadata:
+**Root Causes**:
+
+1. **Hardcoded localhost URL**
+   ```typescript
+   // ❌ WRONG - Only works in localhost
+   const ws = new WebSocket('ws://localhost:3000/api/v1/ws')
+
+   // ✅ CORRECT - Works everywhere
+   const wsBase = resolveWsBase({ appendSuffix: true, apiSuffix: '/api/v1/ws' })
+   const ws = new WebSocket(wsBase)
+   ```
+
+2. **Missing wss:// support in production**
+
+   Ensure your production deployment supports WebSocket upgrades with TLS.
+
+3. **Reverse proxy not configured for WebSockets**
+
+   If using nginx/Apache:
+   ```nginx
+   # nginx configuration
+   location /api/v1/ws {
+     proxy_pass http://backend;
+     proxy_http_version 1.1;
+     proxy_set_header Upgrade $http_upgrade;
+     proxy_set_header Connection "Upgrade";
+   }
+   ```
+
+---
+
+### Connection Drops Unexpectedly
+
+**Symptoms**:
+- Connection established successfully
+- Closes after a few seconds/minutes
+- No error message
+
+**Root Causes**:
+
+1. **Reverse proxy timeout**
+
+   Many proxies have default timeouts for inactive connections.
+
+   **Solution**: Implement heartbeat/ping-pong:
+   ```typescript
+   const ws = new WebSocket(wsUrl)
+
+   // Send ping every 30 seconds
+   const pingInterval = setInterval(() => {
+     if (ws.readyState === WebSocket.OPEN) {
+       ws.send(JSON.stringify({ type: 'ping' }))
+     }
+   }, 30000)
+
+   ws.on('close', () => {
+     clearInterval(pingInterval)
+   })
+   ```
+
+2. **Server-side idle timeout**
+
+   Check your WebSocket server configuration for idle timeouts.
+
+3. **Network interruption**
+
+   **Solution**: Implement reconnection logic:
+   ```typescript
+   function connect() {
+     const ws = new WebSocket(wsUrl)
+
+     ws.on('close', () => {
+       console.log('Connection lost, reconnecting in 5s...')
+       setTimeout(connect, 5000)
+     })
+
+     return ws
+   }
+
+   let ws = connect()
+   ```
+
+---
+
+### "Invalid API_PORT configuration"
+
+**Symptom**:
+Server logs show: `[ws-proxy] Invalid API_PORT configuration: undefined`
+
+**Root Cause**:
+The `API_PORT` environment variable is not set or being passed incorrectly.
+
+**Solution**:
+
+1. **Check environment variables**:
+   ```bash
+   echo $API_PORT
+   # Should output a port number
+   ```
+
+2. **Verify server.js passes port correctly**:
+   ```javascript
+   const server = app.listen(process.env.UI_PORT)
+
+   server.on('upgrade', (req, socket, head) => {
+     if (req.url?.startsWith('/api')) {
+       proxyWebSocketUpgrade(req, socket, head, {
+         apiPort: process.env.API_PORT,  // ✅ Must be set
+         verbose: true
+       })
+     }
+   })
+   ```
+
+3. **Check .vrooli/service.json**:
+   ```json
+   {
+     "start": {
+       "steps": [{
+         "name": "ui",
+         "env": {
+           "API_PORT": "{{api_port}}"  // ✅ Pass to UI server
+         }
+       }]
+     }
+   }
+   ```
+
+---
+
+### Messages Not Being Received
+
+**Symptoms**:
+- Connection established
+- Can send messages
+- Never receive messages
+
+**Debugging**:
+
+1. **Check message event handler**:
+   ```typescript
+   const ws = new WebSocket(wsUrl)
+
+   ws.onmessage = (event) => {
+     console.log('Received:', event.data)  // Add this!
+   }
+
+   // Or with EventEmitter syntax
+   ws.on('message', (data) => {
+     console.log('Received:', data.toString())
+   })
+   ```
+
+2. **Verify API server is sending messages**:
+
+   Add logging to your WebSocket server:
+   ```go
+   // Go example
+   func (h *Handler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+     conn, err := upgrader.Upgrade(w, r, nil)
+     // ...
+
+     err = conn.WriteMessage(websocket.TextMessage, data)
+     log.Printf("Sent message to client: %s", data)  // Add this!
+   }
+   ```
+
+3. **Check proxy is forwarding data**:
+
+   The proxy uses bidirectional pipes, so it should forward everything. But verify with verbose logging.
+
+---
+
+### Multiple Connections Being Created
+
+**Symptom**:
+Browser creates many WebSocket connections instead of one.
+
+**Root Cause**:
+React/component re-renders creating new connections without cleaning up old ones.
+
+**Solution**:
 
 ```typescript
-// Debug proxy info
-console.log('Proxy info:', window.__VROOLI_PROXY_INFO__)
+// ✅ CORRECT - Cleanup in useEffect
+useEffect(() => {
+  const ws = new WebSocket(wsUrl)
 
-const wsBase = resolveWsBase()
-console.log('Resolved WebSocket base:', wsBase)
+  ws.onopen = () => console.log('Connected')
+  ws.onmessage = (event) => handleMessage(event.data)
 
-// Should resolve to proxy path
-// e.g., wss://app-monitor.com/apps/scenario/proxy
+  // Cleanup function
+  return () => {
+    console.log('Cleaning up WebSocket')
+    ws.close()
+  }
+}, [wsUrl])  // Only recreate if URL changes
 ```
+
+---
+
+### Proxy Context Issues
+
+**Symptom**: WebSocket connects to wrong server when embedded in another scenario (e.g., app-monitor)
+
+**Solution**: Ensure proxy metadata is properly configured:
+
+```typescript
+// Debug proxy detection
+console.log('Proxy info:', window.__VROOLI_PROXY_INFO__)
+console.log('Is proxy context:', isProxyContext())
+
+const wsBase = resolveWsBase({ appendSuffix: true, apiSuffix: '/api/v1/ws' })
+console.log('Resolved WebSocket URL:', wsBase)
+
+// In proxy context, should be:
+// wss://app-monitor.com/apps/your-scenario/proxy/api/v1/ws
+```
+
+**Check hosting scenario is injecting metadata**:
+```javascript
+// In host scenario (e.g., app-monitor)
+const modifiedHtml = injectProxyMetadata(html, metadata, {
+  patchFetch: true,
+  infoGlobalName: '__VROOLI_PROXY_INFO__'
+})
+```
+
+---
+
+## Debugging Checklist
+
+When WebSocket connections fail, work through this checklist:
+
+- [ ] **Browser Console**: Check for error messages
+- [ ] **Network Tab**: Look at WebSocket upgrade request (Status should be 101 Switching Protocols)
+- [ ] **Server Logs**: Enable verbose mode and check for connection attempts
+- [ ] **URL Resolution**: Log the resolved WebSocket URL to verify correctness
+- [ ] **Upgrade Handler**: Verify server.on('upgrade') handler exists and correct path
+- [ ] **API Health**: Test API server health endpoint
+- [ ] **Port Configuration**: Verify API_PORT environment variable is set
+- [ ] **Protocol**: Ensure ws:// for HTTP and wss:// for HTTPS
+- [ ] **Headers**: Check verbose logs show Sec-WebSocket-Version being forwarded
+- [ ] **Firewall**: Verify ports are accessible
+- [ ] **Proxy Context**: If embedded, verify proxy metadata is injected
+
+---
+
+## Getting Help
+
+If you're still stuck after trying these solutions:
+
+1. **Enable verbose logging**:
+   ```javascript
+   proxyWebSocketUpgrade(req, socket, head, {
+     apiPort,
+     verbose: true  // Critical for debugging
+   })
+   ```
+
+2. **Collect diagnostic info**:
+   - Browser console output (full errors)
+   - Server logs (with verbose enabled)
+   - Network tab showing WebSocket upgrade request
+   - Resolved WebSocket URL (log `resolveWsBase()` output)
+   - Environment: localhost, tunnel, or proxy context
+
+3. **Check the integration tests**:
+   See `packages/api-base/src/__tests__/integration/websocket-proxy.test.ts` for working examples
 
 ---
 

@@ -20,6 +20,7 @@ import { parsePort } from '../shared/utils.js'
  * Default allowed CORS origins
  *
  * Includes localhost and loopback addresses with any port.
+ * Auto-detects tunnel environments and allows HTTPS origins.
  *
  * @internal
  */
@@ -34,6 +35,21 @@ function buildDefaultCorsOrigins(uiPort?: string): string[] {
   if (uiPort) {
     origins.push(`http://localhost:${uiPort}`)
     origins.push(`http://127.0.0.1:${uiPort}`)
+  }
+
+  // Auto-allow tunnel/proxy contexts
+  // Detect common tunnel environment variables or presence of HTTPS connections
+  const isTunnelEnv = Boolean(
+    process.env.TUNNEL_URL ||
+    process.env.CLOUDFLARE_TUNNEL ||
+    process.env.CLOUDFLARED_TUNNEL_ID ||
+    process.env.NGROK_URL ||
+    process.env.CLOUDFLARE_TUNNEL_TOKEN
+  )
+
+  if (isTunnelEnv) {
+    // When tunnel is detected, allow all HTTPS origins
+    origins.push('https://*')
   }
 
   return origins

@@ -429,6 +429,7 @@ describe('proxyWebSocketUpgrade', () => {
     mockSocket = new EventEmitter()
     mockSocket.destroy = vi.fn()
     mockSocket.end = vi.fn()
+    mockSocket.write = vi.fn()  // Added for error response
     mockSocket.setNoDelay = vi.fn()
     mockSocket.setTimeout = vi.fn()
     mockSocket.setKeepAlive = vi.fn()

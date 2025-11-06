@@ -24,11 +24,7 @@ import type {
 } from '@/types/api'
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
-const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '18507'
-
 const API_BASE = resolveApiBase({
-  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
-  defaultPort: DEFAULT_API_PORT,
   appendSuffix: true,
 })
 

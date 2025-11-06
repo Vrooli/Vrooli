@@ -29,18 +29,9 @@ import type { SnackVariant } from './notifications/snackBus';
 import { resolveApiBase } from '@vrooli/api-base';
 import { useComponentStore } from './stores/componentStore';
 
-declare const __API_PORT__: string | undefined;
-
-const FALLBACK_API_PORT =
-  typeof __API_PORT__ === 'string' && __API_PORT__.trim().length > 0 ? __API_PORT__ : '15000';
-
-const API_BASE_INPUT = resolveApiBase({
-  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
-  defaultPort: FALLBACK_API_PORT,
-  appendSuffix: true,
-});
-
-const API_BASE_URL = API_BASE_INPUT;
+// Automatically resolves API base URL for all deployment contexts
+// Works in localhost, direct tunnel, and proxied/embedded scenarios
+const API_BASE_URL = resolveApiBase({ appendSuffix: true });
 const ISSUE_FETCH_LIMIT = 200;
 const SNACK_IDS = {
   loading: 'snack:data-loading',

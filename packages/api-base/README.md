@@ -4,14 +4,13 @@ Universal API connectivity for Vrooli scenarios. Handles API resolution, WebSock
 
 ## Features
 
-- 🌍 **Universal**: Works with any domain, any proxy pattern, any deployment
-- 🔗 **Smart Resolution**: Automatically detects deployment context (localhost, tunnel, proxy)
+- 🌍 **Universal**: Works with any domain, any deployment
+- 🔗 **Smart Resolution**: Automatically detects context (localhost, tunnel, proxy)
 - 🔌 **WebSocket Support**: First-class WS/WSS endpoint resolution
-- ⚙️ **Runtime Config**: Fetch configuration dynamically in production bundles
-- 🖥️ **Server Utilities**: Middleware for proxying, health checks, config endpoints
-- 🧪 **Fully Tested**: 156 unit tests with 79% coverage
-- 📦 **Zero Dependencies**: No runtime dependencies (Express is peer/optional)
-- 🔄 **Backwards Compatible**: Supports existing `__APP_MONITOR_PROXY_INFO__` globals
+- 🖥️ **Server Utilities**: Complete server with health, config, and proxy built-in
+- 🧪 **Fully Tested**: 156 unit tests covering all edge cases
+- 📦 **Zero Config**: Just `resolveApiBase({ appendSuffix: true })` and you're done
+- 🔄 **Backwards Compatible**: Supports existing proxy patterns
 
 ## Installation
 
@@ -32,15 +31,12 @@ pnpm add @vrooli/api-base express
 ```typescript
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
-// Automatically resolves API base URL for current context
-const API_BASE = resolveApiBase({
-  defaultPort: '8080',
-  appendSuffix: true  // Adds /api/v1
-})
+// Simple! Just specify if you want the /api/v1 suffix
+const API_BASE = resolveApiBase({ appendSuffix: true })
 
 // Build API URLs
 const healthUrl = buildApiUrl('/health', { baseUrl: API_BASE })
-// → http://127.0.0.1:8080/api/v1/health (localhost)
+// → http://localhost:36221/api/v1/health (localhost)
 // → https://example.com/api/v1/health (remote)
 // → https://host.com/apps/scenario/proxy/api/v1/health (proxied)
 
@@ -50,21 +46,19 @@ const response = await fetch(healthUrl)
 
 ### Server-Side (Node.js/Express)
 
-```typescript
-import express from 'express'
+```javascript
 import { createScenarioServer } from '@vrooli/api-base/server'
 
 const app = createScenarioServer({
-  uiPort: process.env.UI_PORT || 3000,
-  apiPort: process.env.API_PORT || 8080,
+  uiPort: process.env.UI_PORT,
+  apiPort: process.env.API_PORT,
   distDir: './dist',
   serviceName: 'my-scenario',
-  version: '1.0.0'
+  version: '1.0.0',
+  corsOrigins: '*'  // Allow tunnel/proxy origins
 })
 
-app.listen(3000, () => {
-  console.log('Scenario UI server running on port 3000')
-})
+app.listen(process.env.UI_PORT)
 ```
 
 This automatically sets up:
@@ -74,6 +68,43 @@ This automatically sets up:
 - Static file serving from `./dist`
 - SPA fallback routing
 
+## The Vrooli Pattern
+
+Vrooli scenarios always serve production bundles, even in local development. This means:
+
+1. **UI is pre-built** (`npm run build` → `dist/` directory)
+2. **Server serves static files** from `dist/`
+3. **Server proxies API requests** from `/api/*` to API server
+4. **No dev servers** like `vite dev` (too slow, cache issues)
+
+This is why `@vrooli/api-base` defaults to using `window.location.origin` - it assumes requests go through your server's proxy.
+
+### Why Production Bundles?
+
+- **Fast**: No dev server overhead, instant page loads
+- **Reliable**: What you test is what users get
+- **Cache-safe**: Vite hashes assets, no stale bundles
+- **Universal**: Same pattern for local, tunnel, and deployed scenarios
+
+### The Request Flow
+
+```
+Browser                  UI Server               API Server
+   │                        │                       │
+   │  GET /                 │                       │
+   │ ──────────────────────>│                       │
+   │  (serve dist/index.html)                       │
+   │ <──────────────────────│                       │
+   │                        │                       │
+   │  GET /api/v1/issues    │                       │
+   │ ──────────────────────>│  GET /api/v1/issues   │
+   │                        │ ─────────────────────>│
+   │                        │ <─────────────────────│
+   │ <──────────────────────│                       │
+```
+
+Because the browser and API requests use the same origin (localhost:36221), there are no CORS issues.
+
 ## Deployment Contexts
 
 `@vrooli/api-base` automatically handles three deployment contexts:
@@ -81,12 +112,12 @@ This automatically sets up:
 ### 1. Localhost Development
 
 ```
-http://localhost:3000
+http://localhost:36221
 ```
 
-- UI serves from `localhost:3000`
-- API at `localhost:8080`
-- Resolution: `http://127.0.0.1:8080/api/v1`
+- UI serves from `localhost:36221`
+- API at `localhost:19750`
+- Resolution: `http://localhost:36221/api/v1` (proxied to API)
 
 ### 2. Direct Tunnel (Cloudflare/ngrok)
 
@@ -107,6 +138,55 @@ https://app-monitor.example.com/apps/my-scenario/proxy/
 - Resolution: `https://app-monitor.example.com/apps/my-scenario/proxy/api/v1`
 - Proxy metadata injected via `window.__VROOLI_PROXY_INFO__`
 
+## Complete Example
+
+This is the standard pattern for all Vrooli scenarios.
+
+**Vite Config (`ui/vite.config.ts`):**
+
+```typescript
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  base: './',  // Required for tunnel/proxy contexts
+  plugins: [react()],
+})
+```
+
+**Frontend (`ui/src/App.tsx`):**
+
+```typescript
+import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
+
+// Simple! Works in all three deployment contexts automatically
+const API_BASE = resolveApiBase({ appendSuffix: true })
+
+async function fetchData() {
+  const url = buildApiUrl('/data', { baseUrl: API_BASE })
+  const response = await fetch(url)
+  return response.json()
+}
+```
+
+**Backend (`ui/server.js`):**
+
+```javascript
+import { createScenarioServer } from '@vrooli/api-base/server'
+
+const app = createScenarioServer({
+  uiPort: process.env.UI_PORT,
+  apiPort: process.env.API_PORT,
+  distDir: './dist',
+  serviceName: 'my-scenario',
+  corsOrigins: '*'  // Allow tunnel/proxy origins
+})
+
+app.listen(process.env.UI_PORT)
+```
+
+**That's it!** This works in all three deployment contexts automatically.
+
 ## API Reference
 
 ### Client Functions
@@ -118,16 +198,18 @@ Resolves the API base URL for the current deployment context.
 ```typescript
 import { resolveApiBase } from '@vrooli/api-base'
 
-const apiBase = resolveApiBase({
-  explicitUrl: 'https://custom.com/api',  // Override (optional)
-  defaultPort: '8080',                     // Localhost fallback port
-  apiSuffix: '/api/v1',                    // Path suffix
-  appendSuffix: true,                      // Whether to append suffix
-  windowObject: customWindow,              // Custom window (for testing)
-  proxyGlobalNames: ['__CUSTOM__'],        // Custom proxy globals
-  configEndpoint: './config'               // Runtime config endpoint
-})
+// Standard usage (recommended for all Vrooli scenarios)
+const apiBase = resolveApiBase({ appendSuffix: true })
 ```
+
+**Common Options:**
+- `appendSuffix?: boolean` - Whether to append `/api/v1` (default: `false`)
+- `apiSuffix?: string` - Custom suffix (default: `'/api/v1'`)
+
+**Advanced Options (rarely needed):**
+- `explicitUrl?: string` - Override URL (for special deployment scenarios)
+- `windowObject?: WindowLike` - Custom window object (for testing only)
+- `proxyGlobalNames?: string[]` - Custom proxy global names (advanced)
 
 **Resolution Priority:**
 1. Explicit URL (if provided)
@@ -135,7 +217,7 @@ const apiBase = resolveApiBase({
 3. Path-based proxy detection (`/proxy` in pathname)
 4. App shell pattern (`/apps/{slug}/proxy`)
 5. Remote host origin (if not localhost)
-6. Localhost fallback (`http://127.0.0.1:{defaultPort}`)
+6. Localhost origin (default for production bundles)
 
 #### `resolveWsBase(options?): string`
 
@@ -144,30 +226,22 @@ Resolves WebSocket endpoint URL (ws:// or wss://).
 ```typescript
 import { resolveWsBase } from '@vrooli/api-base'
 
-const wsBase = resolveWsBase({
-  defaultPort: '8080',
-  appendSuffix: true,  // Adds /ws
-  apiSuffix: '/ws'
-})
-// → ws://127.0.0.1:8080/ws (localhost)
+const wsBase = resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
+// → ws://localhost:36221/ws (localhost)
 // → wss://example.com/ws (remote/https)
 ```
 
 #### `buildApiUrl(path, options?): string`
 
-Builds full API URL from path and options.
+Builds full API URL from path and base URL.
 
 ```typescript
 import { buildApiUrl } from '@vrooli/api-base'
 
-const url = buildApiUrl('/users/123', {
-  baseUrl: 'https://api.example.com',
-  appendSuffix: false
-})
-// → https://api.example.com/users/123
+const url = buildApiUrl('/users/123', { baseUrl: API_BASE })
 ```
 
-#### `isProxyContext(windowObject?, proxyGlobalNames?): boolean`
+#### `isProxyContext(options?): boolean`
 
 Detects if running in a proxied context.
 
@@ -179,7 +253,7 @@ if (isProxyContext()) {
 }
 ```
 
-#### `getProxyInfo(windowObject?, proxyGlobalNames?): ProxyInfo | null`
+#### `getProxyInfo(options?): ProxyInfo | null`
 
 Retrieves proxy metadata if available.
 
@@ -204,22 +278,22 @@ import { createScenarioServer } from '@vrooli/api-base/server'
 
 const app = createScenarioServer({
   // Required
-  uiPort: 3000,
-  apiPort: 8080,
+  uiPort: process.env.UI_PORT,
+  apiPort: process.env.API_PORT,
 
   // Optional
   apiHost: '127.0.0.1',
-  wsPort: 8081,
+  wsPort: process.env.WS_PORT,
   distDir: './dist',
   serviceName: 'my-scenario',
   version: '1.0.0',
   corsOrigins: '*',
-  verbose: true,
+  verbose: false,
 
   // Custom config builder
   configBuilder: (env) => ({
-    apiUrl: `http://custom:${env.API_PORT}`,
-    wsUrl: `ws://custom:${env.WS_PORT}`,
+    apiUrl: `http://localhost:${env.API_PORT}/api/v1`,
+    wsUrl: `ws://localhost:${env.WS_PORT}/ws`,
     customField: 'value'
   }),
 
@@ -244,11 +318,10 @@ import { createHealthEndpoint } from '@vrooli/api-base/server'
 app.get('/health', createHealthEndpoint({
   serviceName: 'my-scenario',
   version: '1.0.0',
-  apiPort: 8080,
+  apiPort: process.env.API_PORT,
   timeout: 5000,
   customHealthCheck: async () => ({
-    database: { connected: true },
-    redis: { connected: false }
+    database: { connected: true }
   })
 }))
 ```
@@ -261,20 +334,10 @@ Creates a runtime config endpoint.
 import { createConfigEndpoint } from '@vrooli/api-base/server'
 
 app.get('/config', createConfigEndpoint({
-  apiPort: 8080,
-  uiPort: 3000,
+  apiPort: process.env.API_PORT,
+  uiPort: process.env.UI_PORT,
   serviceName: 'my-scenario',
-  version: '1.0.0',
-  cors: true,
-  includeTimestamp: true,
-  cacheControl: 'no-cache, must-revalidate',
-
-  // Or use custom builder
-  configBuilder: () => ({
-    apiUrl: 'http://custom.com/api',
-    wsUrl: 'ws://custom.com/ws',
-    customField: 'value'
-  })
+  version: '1.0.0'
 }))
 ```
 
@@ -286,10 +349,10 @@ Creates a proxy middleware for API requests.
 import { createProxyMiddleware } from '@vrooli/api-base/server'
 
 app.use('/api', createProxyMiddleware({
-  targetPort: 8080,
+  targetPort: process.env.API_PORT,
   targetHost: 'localhost',
   timeout: 30000,
-  verbose: true
+  verbose: false
 }))
 ```
 
@@ -304,23 +367,21 @@ const metadata = buildProxyMetadata({
   appId: 'embedded-scenario',
   hostScenario: 'app-monitor',
   targetScenario: 'embedded-scenario',
-  ports: [
-    {
-      port: 3000,
-      label: 'ui',
-      slug: 'ui',
-      path: '/apps/embedded/proxy',
-      aliases: [],
-      isPrimary: true,
-      source: 'manual',
-      priority: 100
-    }
-  ],
+  ports: [{
+    port: 3000,
+    label: 'ui',
+    slug: 'ui',
+    path: '/apps/embedded/proxy',
+    aliases: [],
+    isPrimary: true,
+    source: 'manual',
+    priority: 100
+  }],
   primaryPort: /* PortEntry */
 })
 
 const modifiedHtml = injectProxyMetadata(html, metadata, {
-  patchFetch: true,  // Automatically rewrite fetch() URLs
+  patchFetch: true,
   infoGlobalName: '__VROOLI_PROXY_INFO__',
   indexGlobalName: '__VROOLI_PROXY_INDEX__'
 })
@@ -342,78 +403,157 @@ import type {
 } from '@vrooli/api-base/types'
 ```
 
-## Testing
+## Troubleshooting
 
-Run tests:
+### CORS Errors on Localhost
 
-```bash
-pnpm test              # Run all tests
-pnpm test:watch        # Watch mode
-pnpm test:coverage     # With coverage report
+```
+Cross-Origin Request Blocked: The Same Origin Policy disallows reading
+the remote resource at http://127.0.0.1:8080/api/v1/...
 ```
 
-## Examples
+**Cause:** You're trying to connect directly to the API server instead of going through the proxy.
 
-### Basic Scenario
-
-**Client (`ui/src/App.tsx`):**
+**Fix:** Make sure you're using the simple pattern without `defaultPort`:
 
 ```typescript
-import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
+// ✅ Correct
+const API_BASE = resolveApiBase({ appendSuffix: true })
 
+// ❌ Wrong - causes CORS errors
 const API_BASE = resolveApiBase({
-  defaultPort: '8080',
+  defaultPort: '8080',  // Don't use this!
   appendSuffix: true
 })
-
-async function fetchData() {
-  const url = buildApiUrl('/data', { baseUrl: API_BASE })
-  const response = await fetch(url)
-  return response.json()
-}
 ```
 
-**Server (`ui/server.js`):**
+The library automatically uses `window.location.origin` on localhost, which routes requests through your UI server's proxy.
+
+### API Requests Return 404
+
+**Cause:** Server not proxying `/api/*` requests, or UI not built.
+
+**Check:**
+1. Are you using `createScenarioServer`? (You should be)
+2. Is `ui/dist/` populated? Run `npm run build` in ui directory
+3. Is server.js running? Check logs with `vrooli scenario logs <name> --step start-ui`
+
+### Production Bundle Not Updating
+
+**Cause:** Stale build artifacts.
+
+**Fix:**
+```bash
+cd ui
+rm -rf dist
+npm run build
+vrooli scenario stop <name>
+vrooli scenario start <name>
+```
+
+## Migration Guide
+
+### From Custom server.js
+
+**Before (190 lines of custom proxy code):**
+
+```javascript
+import express from 'express'
+import http from 'http'
+import httpProxy from 'http-proxy'
+
+const app = express()
+const apiProxy = httpProxy.createProxyServer({ /* ... */ })
+
+function proxyToApi(req, res, upstreamPath) {
+  // ... lots of custom proxy logic
+}
+
+app.use('/api', (req, res) => proxyToApi(req, res))
+app.use(express.static('dist'))
+app.get('*', (req, res) => res.sendFile('dist/index.html'))
+// ... more setup
+```
+
+**After (18 lines):**
 
 ```javascript
 import { createScenarioServer } from '@vrooli/api-base/server'
 
 const app = createScenarioServer({
-  uiPort: process.env.UI_PORT || 3000,
-  apiPort: process.env.API_PORT || 8080,
+  uiPort: process.env.UI_PORT,
+  apiPort: process.env.API_PORT,
   distDir: './dist',
   serviceName: 'my-scenario'
 })
 
-app.listen(process.env.UI_PORT || 3000)
+app.listen(process.env.UI_PORT)
 ```
 
-### With WebSockets
+### From Custom API Resolution
+
+**Before:**
 
 ```typescript
-import { resolveWsBase } from '@vrooli/api-base'
+// Custom buildApiUrl implementation
+function buildApiUrl(baseUrl: string, path: string): string {
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+  return `${normalizedBase}${path}`
+}
 
-const WS_BASE = resolveWsBase({
-  defaultPort: '8080',
-  appendSuffix: true
-})
-
-const ws = new WebSocket(WS_BASE)
-ws.onopen = () => console.log('Connected')
+const API_BASE = "http://localhost:8080/api/v1"  // Hardcoded!
 ```
 
+**After:**
+
+```typescript
+import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
+
+const API_BASE = resolveApiBase({ appendSuffix: true })
+// That's it! Works everywhere automatically
+```
+
+### From Custom Config Fetching
+
+**Before:**
+
+```typescript
+async function getConfig() {
+  const response = await fetch('/config')
+  return response.json()
+}
+
+const config = await getConfig()
+const API_BASE = config.apiUrl
+```
+
+**After:**
+
+```typescript
+import { resolveApiBase } from '@vrooli/api-base'
+
+const API_BASE = resolveApiBase({ appendSuffix: true })
+// No async needed - works synchronously
+```
+
+## Advanced Usage
+
 ### Custom Proxy Globals
+
+If you're hosting scenarios and want to use custom global variable names:
 
 ```typescript
 import { resolveApiBase } from '@vrooli/api-base'
 
 const API_BASE = resolveApiBase({
   proxyGlobalNames: ['__MY_CUSTOM_PROXY__'],
-  defaultPort: '8080'
+  appendSuffix: true
 })
 ```
 
 ### Hosting Embedded Scenarios
+
+If your scenario hosts other scenarios in iframes:
 
 ```typescript
 import express from 'express'
@@ -438,50 +578,26 @@ app.get('/embed/:scenario', async (req, res) => {
 })
 ```
 
-## Migration Guide
-
-### From Custom `config.ts` Implementations
-
-**Before:**
+### WebSocket Support
 
 ```typescript
-// Custom config.ts
-async function getConfig() {
-  const response = await fetch('/config')
-  return response.json()
-}
+import { resolveWsBase } from '@vrooli/api-base'
 
-const config = await getConfig()
-const API_BASE = config.apiUrl
+const WS_BASE = resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
+
+const ws = new WebSocket(WS_BASE)
+ws.onopen = () => console.log('Connected')
+ws.onmessage = (event) => console.log('Message:', event.data)
 ```
 
-**After:**
+## Testing
 
-```typescript
-import { resolveApiBase } from '@vrooli/api-base'
+Run tests:
 
-const API_BASE = resolveApiBase({
-  defaultPort: '8080',
-  appendSuffix: true
-})
-```
-
-### From Hardcoded URLs
-
-**Before:**
-
-```typescript
-const API_BASE = 'http://localhost:8080/api/v1'
-fetch(`${API_BASE}/data`)
-```
-
-**After:**
-
-```typescript
-import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
-
-const API_BASE = resolveApiBase({ defaultPort: '8080', appendSuffix: true })
-fetch(buildApiUrl('/data', { baseUrl: API_BASE }))
+```bash
+pnpm test              # Run all tests
+pnpm test:watch        # Watch mode
+pnpm test:coverage     # With coverage report
 ```
 
 ## Contributing

@@ -97,11 +97,8 @@ func main() {
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
 // Resolve API base URL (works in all contexts)
-const API_BASE = resolveApiBase({
-  defaultPort: '8080',
-  appendSuffix: true,
-  apiSuffix: '/api/v1',
-})
+// Production bundles automatically use window.location.origin to proxy through UI server
+const API_BASE = resolveApiBase({ appendSuffix: true })
 
 export interface DataResponse {
   message: string
@@ -123,7 +120,7 @@ export async function checkHealth(): Promise<boolean> {
   try {
     // Health endpoint is at root, not /api/v1
     const url = buildApiUrl('/health', {
-      baseUrl: resolveApiBase({ defaultPort: '8080' })
+      baseUrl: resolveApiBase()  // No suffix for health endpoint
     })
 
     const response = await fetch(url)
@@ -467,12 +464,9 @@ vrooli scenario start app-monitor
 
 1. **Universal API Resolution**:
    ```typescript
-   const API_BASE = resolveApiBase({
-     defaultPort: '8080',
-     appendSuffix: true,
-   })
+   const API_BASE = resolveApiBase({ appendSuffix: true })
    ```
-   - Works in localhost (uses defaultPort)
+   - Works in localhost (uses window.location.origin for proxy)
    - Works in tunnel (uses window.location.origin)
    - Works in proxy (uses proxy metadata)
 

@@ -80,12 +80,10 @@ import { resolveApiBase, resolveWsBase } from '@vrooli/api-base'
 
 // Replace getConfig() call with:
 const API_BASE = resolveApiBase({
-  defaultPort: '8080',      // Your API port
   appendSuffix: true        // Adds /api/v1
 })
 
 const WS_BASE = resolveWsBase({
-  defaultPort: '8080',
   appendSuffix: true        // Adds /ws
 })
 
@@ -167,7 +165,6 @@ pnpm add @vrooli/api-base
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
 const API_BASE = resolveApiBase({
-  defaultPort: '8080',
   appendSuffix: true
 })
 
@@ -249,7 +246,6 @@ app.listen(process.env.UI_PORT)
 import { resolveWsBase } from '@vrooli/api-base'
 
 const WS_BASE = resolveWsBase({
-  defaultPort: '8080',
   appendSuffix: true
 })
 

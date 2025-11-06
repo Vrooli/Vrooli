@@ -220,7 +220,7 @@ resolveApiBase()
 ### 5. Localhost Fallback (Context 1)
 
 ```typescript
-resolveApiBase({ defaultPort: '8080' })
+resolveApiBase({ appendSuffix: true })
 // → http://127.0.0.1:8080
 ```
 
@@ -232,7 +232,7 @@ resolveApiBase({ defaultPort: '8080' })
 
 ```typescript
 // window.location: http://localhost:3000
-const API_BASE = resolveApiBase({ defaultPort: '8080', appendSuffix: true })
+const API_BASE = resolveApiBase({ appendSuffix: true })
 console.log(API_BASE)
 // → http://127.0.0.1:8080/api/v1
 ```
@@ -287,7 +287,7 @@ if (window.__APP_MONITOR_PROXY_INFO__) {
 // ✅ Universal, tested, maintained
 import { resolveApiBase } from '@vrooli/api-base'
 
-const API_BASE = resolveApiBase({ defaultPort: '8080', appendSuffix: true })
+const API_BASE = resolveApiBase({ appendSuffix: true })
 ```
 
 **Benefits:**

@@ -99,9 +99,10 @@ export const DEFAULT_HEALTH_CHECK_TIMEOUT = 5000 as const
 export const DEFAULT_PROXY_TIMEOUT = 15000 as const
 
 /**
- * HTTP headers that should not be forwarded in proxy requests
+ * HTTP headers that should not be forwarded in regular HTTP proxy requests
  *
  * These are hop-by-hop headers that are connection-specific.
+ * Note: WebSocket headers MUST be forwarded during upgrade requests.
  */
 export const HOP_BY_HOP_HEADERS = new Set([
   'connection',
@@ -112,6 +113,15 @@ export const HOP_BY_HOP_HEADERS = new Set([
   'trailers',
   'transfer-encoding',
   'upgrade',
+])
+
+/**
+ * WebSocket-specific headers that must be forwarded during upgrade
+ *
+ * These headers are required for WebSocket handshake and should NOT
+ * be filtered out during WebSocket upgrade requests.
+ */
+export const WEBSOCKET_HEADERS = new Set([
   'sec-websocket-key',
   'sec-websocket-accept',
   'sec-websocket-version',

@@ -60,7 +60,7 @@ function createScenarioServer(options: ServerTemplateOptions): Express.Applicati
 | `distDir` | `string` | ❌ | Static files directory (default: `./dist`) |
 | `serviceName` | `string` | ❌ | Service name for logging |
 | `version` | `string` | ❌ | Service version |
-| `corsOrigins` | `string \| string[]` | ❌ | Allowed CORS origins |
+| `corsOrigins` | `string \| string[]` | ❌ | Allowed CORS origins. Use `'*'` for all origins, or specify patterns like `['https://*.example.com']`. Default: localhost + auto-detected tunnels |
 | `verbose` | `boolean` | ❌ | Enable verbose logging (default: `false`) |
 | `configBuilder` | `(env: NodeJS.ProcessEnv) => ScenarioConfig` | ❌ | Custom config builder |
 | `setupRoutes` | `(app: Express.Application) => void` | ❌ | Custom route setup |
@@ -115,8 +115,9 @@ const app = createScenarioServer({
   // Static files
   distDir: path.join(__dirname, '../dist'),
 
-  // CORS
-  corsOrigins: ['http://localhost:3001', 'https://app.example.com'],
+  // CORS - allow all origins (recommended for scenarios accessible via tunnels)
+  corsOrigins: '*',
+  // Or specify patterns: ['http://localhost:*', 'https://*.example.com']
 
   // Debugging
   verbose: process.env.NODE_ENV === 'development',
@@ -808,10 +809,8 @@ const app = createScenarioServer({
   serviceName: 'my-scenario-ui',
   version: process.env.npm_package_version || '1.0.0',
 
-  // CORS for development
-  corsOrigins: process.env.NODE_ENV === 'development'
-    ? 'http://localhost:5173'  // Vite dev server
-    : undefined,
+  // CORS - allow all origins for simplicity
+  corsOrigins: '*',
 
   // Verbose logging in development
   verbose: process.env.NODE_ENV === 'development',

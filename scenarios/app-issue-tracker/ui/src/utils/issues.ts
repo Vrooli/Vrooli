@@ -1,6 +1,7 @@
-import type { Issue, IssueStatus, Priority } from '../types/issue';
+import { buildApiUrl as buildApiUrlBase } from '@vrooli/api-base';
 import type { DashboardStats } from '../data/sampleData';
 import type { ApiIssue } from '../types/events';
+import type { Issue, IssueStatus, Priority } from '../types/issue';
 
 // Re-export ApiIssue from types/events for backward compatibility
 export type { ApiIssue };
@@ -52,8 +53,7 @@ export function formatStatusLabel(status: string): string {
 }
 
 export function buildApiUrl(baseUrl: string, path: string): string {
-  const normalizedBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  return `${normalizedBase}${path}`;
+  return buildApiUrlBase(path, { baseUrl });
 }
 
 function isLoopbackHost(hostname: string | null): boolean {

@@ -38,7 +38,7 @@ function resolveApiBase(options?: ResolveOptions): string
 |------|------|---------|-------------|
 | `options` | `ResolveOptions` | `{}` | Resolution configuration options |
 | `options.explicitUrl` | `string` | `undefined` | Explicit URL to use (highest priority) |
-| `options.defaultPort` | `string` | `'15000'` | Default API port for localhost |
+| `options.defaultPort` | `string` | `'15000'` | **⚠️ Rarely needed!** Default API port for SSR/non-browser contexts only. Production bundles should omit this to use `window.location.origin` |
 | `options.apiSuffix` | `string` | `'/api/v1'` | API path suffix |
 | `options.appendSuffix` | `boolean` | `false` | Whether to append the suffix |
 | `options.windowObject` | `WindowLike` | `globalThis.window` | Window object for testing |
@@ -52,23 +52,21 @@ function resolveApiBase(options?: ResolveOptions): string
 3. Path-based proxy detection (`/proxy` in pathname)
 4. App shell pattern (`/apps/{slug}/proxy`)
 5. Remote host origin (non-localhost domains)
-6. Localhost fallback (`http://127.0.0.1:{defaultPort}`)
+6. Localhost origin (uses `window.location.origin` for production bundles)
+7. SSR fallback (`http://127.0.0.1:{defaultPort}` - rarely used)
 
 **Examples:**
+
+> **⚠️ Important for Vrooli Scenarios**: All Vrooli scenarios use production bundles with server-side proxying. **Never use `defaultPort`** in production scenarios - it causes CORS errors by bypassing the proxy. Use the simple pattern: `resolveApiBase({ appendSuffix: true })`
 
 ```typescript
 import { resolveApiBase } from '@vrooli/api-base'
 
-// Basic usage - defaults to localhost
-const apiBase = resolveApiBase({ defaultPort: '8080' })
-// → "http://127.0.0.1:8080"
-
-// With API suffix
-const apiBase = resolveApiBase({
-  defaultPort: '8080',
-  appendSuffix: true
-})
-// → "http://127.0.0.1:8080/api/v1"
+// ✅ RECOMMENDED: Standard pattern for Vrooli scenarios (production bundles)
+const apiBase = resolveApiBase({ appendSuffix: true })
+// Localhost: → "http://localhost:36221/api/v1" (proxied)
+// Tunnel:    → "https://my-scenario.example.com/api/v1"
+// Proxied:   → "https://host.com/apps/scenario/proxy/api/v1"
 
 // Explicit URL (highest priority)
 const apiBase = resolveApiBase({
@@ -129,7 +127,7 @@ Same as [resolveApiBase](#resolveapibase)
 import { resolveWsBase } from '@vrooli/api-base'
 
 // Localhost
-const wsBase = resolveWsBase({ defaultPort: '8080' })
+const wsBase = resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 // → "ws://127.0.0.1:8080"
 
 // HTTPS site (converts to wss)
@@ -145,8 +143,8 @@ const wsBase = resolveWsBase()
 
 **Common Pattern:**
 ```typescript
-const API_BASE = resolveApiBase({ defaultPort: '8080', appendSuffix: true })
-const WS_BASE = resolveWsBase({ defaultPort: '8080' })
+const API_BASE = resolveApiBase({ appendSuffix: true })
+const WS_BASE = resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 
 // API requests
 fetch(`${API_BASE}/health`)
@@ -187,14 +185,12 @@ import { resolveWithConfig } from '@vrooli/api-base'
 
 // Async resolution with config
 const apiBase = await resolveWithConfig({
-  defaultPort: '8080',
   appendSuffix: true
 })
 
 // Using in component initialization
 export async function initializeApp() {
   const API_BASE = await resolveWithConfig({
-    defaultPort: process.env.API_PORT || '8080',
     configEndpoint: './config',
     appendSuffix: true
   })
@@ -248,13 +244,12 @@ const url = buildApiUrl('/health', {
 
 // Resolves base automatically
 const url = buildApiUrl('/users', {
-  defaultPort: '8080',
   appendSuffix: true
 })
 // → "http://127.0.0.1:8080/api/v1/users"
 
 // Common pattern: resolve once, build many
-const API_BASE = resolveApiBase({ defaultPort: '8080', appendSuffix: true })
+const API_BASE = resolveApiBase({ appendSuffix: true })
 
 fetch(buildApiUrl('/health', { baseUrl: API_BASE }))
 fetch(buildApiUrl('/users', { baseUrl: API_BASE }))
@@ -302,12 +297,12 @@ const wsUrl = buildWsUrl('/ws', {
 
 // Resolves base automatically
 const wsUrl = buildWsUrl('/events', {
-  defaultPort: '8080'
+  appendSuffix: true
 })
 // → "ws://127.0.0.1:8080/events"
 
 // Common pattern
-const WS_BASE = resolveWsBase({ defaultPort: '8080' })
+const WS_BASE = resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 const socket = new WebSocket(buildWsUrl('/ws', { baseUrl: WS_BASE }))
 ```
 
@@ -623,11 +618,9 @@ export async function initializeApp() {
   } else {
     // Fall back to resolution
     API_BASE = resolveApiBase({
-      defaultPort: import.meta.env.VITE_API_PORT || '8080',
       appendSuffix: true
     })
     WS_BASE = resolveWsBase({
-      defaultPort: import.meta.env.VITE_API_PORT || '8080'
     })
   }
 

@@ -364,7 +364,7 @@ interface ResolveOptions {
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 | `explicitUrl` | `string` | - | Explicit URL (bypasses all detection) |
-| `defaultPort` | `string` | `"15000"` | Default port for localhost fallback |
+| `defaultPort` | `string` | `"15000"` | **⚠️ Avoid in production!** Only for SSR/testing. Omit for production bundles to use `window.location.origin` |
 | `apiSuffix` | `string` | `"/api/v1"` | Path suffix to append |
 | `appendSuffix` | `boolean` | `false` | Whether to append suffix |
 | `windowObject` | [`WindowLike`](#windowlike) | `window` | Custom window object |
@@ -385,12 +385,11 @@ interface ResolveOptions {
 **Examples:**
 
 ```typescript
-// Minimal
-resolveApiBase({ defaultPort: '8080' })
+// ✅ RECOMMENDED: Production bundles (Vrooli scenarios)
+resolveApiBase({ appendSuffix: true })
 
-// With suffix
+// ✅ Custom suffix
 resolveApiBase({
-  defaultPort: '8080',
   appendSuffix: true,
   apiSuffix: '/api/v2',
 })
@@ -431,7 +430,6 @@ import { buildApiUrl } from '@vrooli/api-base'
 
 // With auto-resolution
 buildApiUrl('/health', {
-  defaultPort: '8080',
   appendSuffix: true,
 })
 // → "http://127.0.0.1:8080/api/v1/health"

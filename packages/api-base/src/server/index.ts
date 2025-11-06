@@ -31,6 +31,7 @@ export {
 export {
   proxyToApi,
   createProxyMiddleware,
+  proxyWebSocketUpgrade,
 } from './proxy.js'
 
 // Config endpoint

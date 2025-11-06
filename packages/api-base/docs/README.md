@@ -30,6 +30,7 @@ Comprehensive function documentation:
 
 ### 💻 [Examples](./examples/) - Real-World Use Cases
 Complete, working examples:
+- **[Vite Configuration](./examples/vite-config.md)** - Required Vite setup for universal deployment
 - **[Basic Scenario](./examples/basic-scenario.md)** - Standard scenario setup
 - **[Embedded Scenario](./examples/embedded-scenario.md)** - Being hosted by another app
 - **[Custom Proxy](./examples/custom-proxy.md)** - Creating your own proxy patterns
@@ -114,7 +115,7 @@ Each context requires different API URL resolution strategies. Writing this logi
 // Client (UI)
 import { resolveApiBase } from '@vrooli/api-base'
 
-const API_BASE = resolveApiBase({ defaultPort: '8080', appendSuffix: true })
+const API_BASE = resolveApiBase({ appendSuffix: true })
 fetch(`${API_BASE}/health`)
 ```
 

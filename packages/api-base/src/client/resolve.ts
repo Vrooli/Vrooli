@@ -357,7 +357,13 @@ export function resolveApiBase(options: ResolveOptions = {}): string {
     return ensureSuffixIfNeeded(origin)
   }
 
-  // 6. Localhost fallback
+  // 6. Localhost fallback - use current origin to go through UI server's proxy
+  // Production bundles should ALWAYS proxy through the UI server, never connect directly to API
+  if (origin) {
+    return ensureSuffixIfNeeded(origin)
+  }
+
+  // 7. SSR/non-browser fallback only (should rarely happen)
   return ensureSuffixIfNeeded(`http://${LOOPBACK_HOST}:${defaultPort}`)
 }
 

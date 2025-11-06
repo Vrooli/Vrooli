@@ -138,14 +138,13 @@ import { resolveApiBase, getScenarioConfig } from '@vrooli/api-base'
 
 // Resolution automatically checks window.__VROOLI_CONFIG__
 const apiBase = resolveApiBase({
-  defaultPort: '8080',
   appendSuffix: true,
   configGlobalName: '__VROOLI_CONFIG__',
 })
 
 // Or use config directly
 const config = getScenarioConfig()
-const apiBase = config?.apiUrl || resolveApiBase({ defaultPort: '8080' })
+const apiBase = config?.apiUrl || resolveApiBase({ appendSuffix: true })
 ```
 
 **Advantages**:
@@ -234,7 +233,6 @@ import { resolveWithConfig } from '@vrooli/api-base'
 // Automatically fetches config and resolves
 const apiBase = await resolveWithConfig({
   configEndpoint: './config',
-  defaultPort: '8080',
   appendSuffix: true,
 })
 ```
@@ -395,7 +393,6 @@ const config = getScenarioConfig()  // Instant access
 ```typescript
 const config = getScenarioConfig()
 const apiUrl = config?.apiUrl || resolveApiBase({
-  defaultPort: '8080',
   appendSuffix: true,
 })
 ```
@@ -434,7 +431,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
 // ✅ Good: Runtime resolution
 const config = getScenarioConfig()
-const API_URL = config?.apiUrl || resolveApiBase({ defaultPort: '8080' })
+const API_URL = config?.apiUrl || resolveApiBase({ appendSuffix: true })
 ```
 
 **2. Hard-code environment-specific values**:
@@ -446,7 +443,7 @@ const API_URL = process.env.NODE_ENV === 'production'
 
 // ✅ Good
 const config = getScenarioConfig()
-const API_URL = config?.apiUrl || resolveApiBase({ defaultPort: '8080' })
+const API_URL = config?.apiUrl || resolveApiBase({ appendSuffix: true })
 ```
 
 **3. Use absolute paths in proxy contexts**:
@@ -493,7 +490,6 @@ import { getScenarioConfig, resolveApiBase, buildApiUrl } from '@vrooli/api-base
 // Get injected config
 const config = getScenarioConfig()
 const API_BASE = config?.apiUrl || resolveApiBase({
-  defaultPort: '8080',
   appendSuffix: true,
 })
 
@@ -526,7 +522,6 @@ createScenarioServer({
 ```typescript
 const config = getScenarioConfig()
 const API_URL = config?.apiUrl || resolveApiBase({
-  defaultPort: '8080',
   appendSuffix: true,
 })
 ```

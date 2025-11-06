@@ -42,7 +42,6 @@ import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
 // Resolve once at app initialization
 const API_BASE = resolveApiBase({
-  defaultPort: '8080',      // Your API port
   appendSuffix: true        // Adds /api/v1
 })
 
@@ -59,7 +58,6 @@ import { useState, useEffect } from 'react'
 
 // Resolve API base once
 const API_BASE = resolveApiBase({
-  defaultPort: process.env.VITE_API_PORT || '8080',
   appendSuffix: true
 })
 
@@ -79,7 +77,25 @@ export function App() {
 }
 ```
 
-## Step 3: Create Server (Express)
+## Step 3: Configure Vite (Required)
+
+**For Vite-based UIs**, add `base: './'` to ensure assets work through tunnels:
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  base: './',  // ✅ Required for universal deployment
+  plugins: [react()],
+  // ... rest of config
+})
+```
+
+**Why?** Without this, Vite generates absolute asset paths (`/assets/index.js`) which fail when accessed through tunnels or proxied contexts. Relative paths (`./assets/index.js`) work everywhere.
+
+## Step 4: Create Server (Express)
 
 Replace your custom `server.js` with the template:
 
@@ -106,7 +122,8 @@ const app = createScenarioServer({
   distDir: './dist',
   serviceName: 'my-scenario',
   version: '1.0.0',
-  verbose: true  // Logs proxy requests
+  corsOrigins: '*',  // Allow tunnel/proxy origins
+  verbose: true       // Logs proxy requests
 })
 
 const PORT = process.env.UI_PORT || 3000
@@ -120,10 +137,10 @@ This automatically sets up:
 - `/api/*` proxy to your API server
 - `/health` endpoint with API connectivity check
 - `/config` endpoint with runtime configuration
-- CORS handling
+- CORS handling (set to `'*'` to allow all origins including tunnels)
 - SPA fallback routing
 
-## Step 4: Test All Contexts
+## Step 5: Test All Contexts
 
 ### Localhost
 
@@ -155,7 +172,7 @@ https://app-monitor.itsagitime.com/apps/my-scenario/proxy/
 
 All three should work identically! ✨
 
-## Step 5: Add WebSocket Support (Optional)
+## Step 6: Add WebSocket Support (Optional)
 
 If your scenario uses WebSockets:
 
@@ -163,7 +180,6 @@ If your scenario uses WebSockets:
 import { resolveWsBase } from '@vrooli/api-base'
 
 const WS_BASE = resolveWsBase({
-  defaultPort: '8080',
   appendSuffix: true  // Adds /ws
 })
 
@@ -179,7 +195,8 @@ ws.onopen = () => console.log('Connected!')
 1. Checks for proxy metadata (`window.__VROOLI_PROXY_INFO__`)
 2. Detects `/proxy` in the URL path
 3. Uses `window.location.origin` if on remote host
-4. Falls back to `http://127.0.0.1:{defaultPort}`
+4. Falls back to `window.location.origin` (production bundles)
+5. SSR fallback: `http://127.0.0.1:{defaultPort}` (rarely used)
 
 ### Server-Side
 
@@ -197,7 +214,6 @@ ws.onopen = () => console.log('Connected!')
 
 ```typescript
 const API_BASE = resolveApiBase({
-  defaultPort: '8080',
   apiSuffix: '/api/v2',  // Custom suffix
   appendSuffix: true
 })
@@ -249,6 +265,45 @@ const app = createScenarioServer({
 ```
 
 ## Troubleshooting
+
+### Assets return 403 or 404 in tunnel
+
+**Problem**: CSS/JS files fail to load when accessing through tunnels (e.g., `https://my-scenario.itsagitime.com`)
+
+**Symptoms**:
+```
+GET https://my-scenario.itsagitime.com/assets/index-abc123.css 403 (Forbidden)
+GET https://my-scenario.itsagitime.com/assets/index-xyz789.js 403 (Forbidden)
+```
+
+**Solution**: Add `base: './'` to your `vite.config.ts`:
+
+```typescript
+export default defineConfig({
+  base: './',  // ✅ This fixes it
+  plugins: [react()],
+})
+```
+
+Then rebuild: `pnpm build`
+
+### CORS errors in tunnel/proxy contexts
+
+**Problem**: Requests blocked with "Origin not allowed" errors
+
+**Symptoms**:
+```
+[cors] Blocked origin: https://my-scenario.itsagitime.com
+```
+
+**Solution**: Set `corsOrigins: '*'` in your server:
+
+```javascript
+const app = createScenarioServer({
+  corsOrigins: '*',  // ✅ Allow all origins
+  // ... other config
+})
+```
 
 ### API requests return 502
 

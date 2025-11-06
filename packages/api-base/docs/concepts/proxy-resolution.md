@@ -30,7 +30,7 @@ graph TD
     F -->|Yes| G[Derive from URL pathname]
     F -->|No| H{Remote host?}
     H -->|Yes| I[Use window.location.origin]
-    H -->|No| J[Use localhost + defaultPort]
+    H -->|No| J[Use window.location.origin]
 
     C --> K{Append suffix?}
     E --> K
@@ -87,7 +87,7 @@ window.__VROOLI_PROXY_INFO__ = {
 
 2. Child scenario detects metadata:
 ```typescript
-resolveApiBase({ defaultPort: '8080' })
+resolveApiBase({ appendSuffix: true })
 // Reads window.__VROOLI_PROXY_INFO__.primary.path
 // → "https://app-monitor.example.com/apps/my-scenario/proxy"
 ```
@@ -212,7 +212,7 @@ function isLocalHostname(hostname: string): boolean {
 When all else fails, use localhost with default port:
 
 ```typescript
-resolveApiBase({ defaultPort: '8080' })
+resolveApiBase({ appendSuffix: true })
 // No proxy metadata, localhost environment
 // → "http://127.0.0.1:8080"
 ```
@@ -233,7 +233,6 @@ resolveApiBase({ defaultPort: '8080' })
 // Environment: Local dev server
 
 resolveApiBase({
-  defaultPort: '8080',
   appendSuffix: true
 })
 // → "http://127.0.0.1:8080/api/v1"
@@ -352,7 +351,6 @@ Smart suffix appending:
 ```typescript
 // Add suffix
 resolveApiBase({
-  defaultPort: '8080',
   appendSuffix: true,
   apiSuffix: '/api/v1'
 })
@@ -360,14 +358,13 @@ resolveApiBase({
 
 // Custom suffix
 resolveApiBase({
-  defaultPort: '8080',
   appendSuffix: true,
   apiSuffix: '/graphql'
 })
 // → "http://127.0.0.1:8080/graphql"
 
 // No suffix
-resolveApiBase({ defaultPort: '8080' })
+resolveApiBase({ appendSuffix: true })
 // → "http://127.0.0.1:8080"
 ```
 
@@ -413,11 +410,11 @@ resolveApiBase({ windowObject: mockWindow })
 WebSocket URLs follow the same resolution algorithm, but with protocol conversion:
 
 ```typescript
-resolveWsBase({ defaultPort: '8080' })
+resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 // HTTP base: "http://127.0.0.1:8080"
 // → "ws://127.0.0.1:8080"
 
-resolveWsBase({ defaultPort: '8080', appendSuffix: true })
+resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' })
 // HTTPS base: "https://example.com/api/v1"
 // → "wss://example.com/api/v1"
 ```
@@ -456,7 +453,6 @@ if (isProxyContext()) {
 **1. Use standard resolution**:
 ```typescript
 const API_BASE = resolveApiBase({
-  defaultPort: '8080',
   appendSuffix: true
 })
 ```
@@ -465,7 +461,7 @@ const API_BASE = resolveApiBase({
 ```typescript
 // Environment variable with fallback
 const API_BASE = resolveApiBase({
-  defaultPort: process.env.API_PORT || '8080'
+  appendSuffix: true
 })
 ```
 
@@ -473,7 +469,7 @@ const API_BASE = resolveApiBase({
 ```typescript
 const API_BASE = resolveApiBase({
   explicitUrl: process.env.REACT_APP_API_URL,
-  defaultPort: '8080'  // Fallback if env var missing
+  appendSuffix: true
 })
 ```
 
@@ -487,7 +483,7 @@ const API_BASE = resolveApiBase({
 const API_BASE = 'http://localhost:8080'
 
 // ✅ Good
-const API_BASE = resolveApiBase({ defaultPort: '8080' })
+const API_BASE = resolveApiBase({ appendSuffix: true })
 ```
 
 **2. Assume specific domains**:

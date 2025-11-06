@@ -1,134 +1,26 @@
 #!/bin/bash
+# Dependencies validation using unified helper
+# Validates runtimes, package managers, resources, and connectivity
+set -euo pipefail
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-echo "=== Dependencies Tests ==="
+testing::phase::init --target-time "60s"
 
-# Check Go dependencies
-echo "Checking Go API dependencies..."
-cd api
-if [ -f "go.mod" ]; then
-    echo "Downloading Go dependencies..."
-    go mod download
-    
-    echo "Verifying Go dependencies..."
-    go mod verify
-    
-    echo "Checking for vulnerabilities..."
-    if command -v govulncheck >/dev/null 2>&1; then
-        govulncheck ./...
-        echo "✅ No Go vulnerabilities found"
-    else
-        echo "⚠️  govulncheck not installed, skipping vulnerability check"
-    fi
-    
-    echo "✅ Go API dependencies verified"
-else
-    echo "❌ go.mod not found in api directory"
-    exit 1
-fi
-cd ..
+# ONE-LINER: Validate all dependencies automatically
+# This helper:
+# - Detects tech stack from service.json and file structure
+# - Validates language runtimes (Go, Node.js, Python)
+# - Checks package managers and dependency resolution
+# - Tests resource health (postgres, redis, ollama, etc.)
+# - Validates runtime connectivity (if scenario is running)
+#
+# All powered by `vrooli scenario status --json` with fallbacks to file detection
 
-echo "Checking CLI..."
-cd cli
-if [ -f "scenario-auditor" ]; then
-    # CLI is a bash script, verify it's executable and has valid syntax
-    if [ -x "scenario-auditor" ]; then
-        echo "✅ CLI script is executable"
-    else
-        echo "⚠️  CLI script not executable, fixing permissions..."
-        chmod +x scenario-auditor
-    fi
+testing::dependencies::validate_all \
+  --scenario "$TESTING_PHASE_SCENARIO_NAME"
 
-    # Verify bash syntax
-    if bash -n scenario-auditor 2>/dev/null; then
-        echo "✅ CLI script syntax valid"
-    else
-        echo "❌ CLI script has syntax errors"
-        exit 1
-    fi
-
-    echo "✅ CLI validated"
-else
-    echo "❌ CLI script not found"
-    exit 1
-fi
-cd ..
-
-# Check Node.js dependencies
-echo "Checking Node.js dependencies..."
-cd ui
-if [ -f "package.json" ]; then
-    if command -v node >/dev/null 2>&1; then
-        echo "Node.js version: $(node --version)"
-        echo "npm version: $(npm --version)"
-        
-        if [ ! -d "node_modules" ]; then
-            echo "Installing Node.js dependencies..."
-            npm install --prefer-offline --no-audit --no-fund --loglevel error
-        fi
-        
-        echo "Checking for security vulnerabilities..."
-        npm audit --audit-level moderate || echo "⚠️  Some npm audit issues found"
-        
-        echo "Checking for outdated packages..."
-        npm outdated || echo "⚠️  Some packages may be outdated"
-        
-        echo "✅ Node.js dependencies verified"
-    else
-        echo "⚠️  Node.js not installed, skipping UI dependency check"
-    fi
-else
-    echo "❌ package.json not found in ui directory"
-    exit 1
-fi
-cd ..
-
-# Check system dependencies
-echo "Checking system dependencies..."
-
-# Check required tools
-required_tools=(
-    "go"
-    "git"
-    "curl"
-    "jq"
-)
-
-for tool in "${required_tools[@]}"; do
-    if command -v "$tool" >/dev/null 2>&1; then
-        echo "✅ $tool available"
-    else
-        echo "❌ $tool not found"
-        exit 1
-    fi
-done
-
-# Check optional tools
-optional_tools=(
-    "node"
-    "npm"
-    "docker"
-)
-
-for tool in "${optional_tools[@]}"; do
-    if command -v "$tool" >/dev/null 2>&1; then
-        echo "✅ $tool available"
-    else
-        echo "⚠️  $tool not found (optional)"
-    fi
-done
-
-# Check Go version
-echo "Checking Go version..."
-go_version=$(go version | cut -d' ' -f3 | sed 's/go//')
-required_go_version="1.21"
-
-if [ "$(printf '%s\n' "$required_go_version" "$go_version" | sort -V | head -n1)" = "$required_go_version" ]; then
-    echo "✅ Go version $go_version meets requirement ($required_go_version+)"
-else
-    echo "❌ Go version $go_version below requirement ($required_go_version+)"
-    exit 1
-fi
-
-echo "=== Dependencies Tests Complete ==="
+testing::phase::end_with_summary "Dependency validation completed"

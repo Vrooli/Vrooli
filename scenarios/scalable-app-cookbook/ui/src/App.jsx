@@ -1,16 +1,111 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { Search, Book, Code, Filter, Download, Zap } from 'lucide-react'
+import { Search, Book, Code, Filter, Download, Zap, Menu, X } from 'lucide-react'
 import './App.css'
 
-const API_URL = 'http://localhost:3300'
+const DEFAULT_API_BASE_URL = (import.meta?.env?.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) || '/api'
+
+const trimTrailingSlash = (value) => {
+  if (!value) {
+    return value
+  }
+
+  return value.endsWith('/') ? value.replace(/\/+$/, '') : value
+}
+
+const normalizeBasePath = (basePath) => {
+  if (!basePath || basePath === '/') {
+    return '/'
+  }
+
+  return basePath.replace(/\/+$/, '')
+}
+
+const detectAppBasename = () => {
+  if (typeof window === 'undefined') {
+    return normalizeBasePath(import.meta?.env?.BASE_URL || '/')
+  }
+
+  const { pathname } = window.location
+  const proxySegment = '/proxy'
+  const proxyIndex = pathname.indexOf(proxySegment)
+
+  if (proxyIndex !== -1) {
+    return pathname.slice(0, proxyIndex + proxySegment.length)
+  }
+
+  return normalizeBasePath(import.meta?.env?.BASE_URL || '/')
+}
+
+const detectApiBaseUrl = () => {
+  const envOverride = (import.meta?.env?.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.trim())
+    || (import.meta?.env?.VITE_API_URL && import.meta.env.VITE_API_URL.trim())
+    || (import.meta?.env?.VITE_API_BASE_PATH && import.meta.env.VITE_API_BASE_PATH.trim())
+
+  if (envOverride) {
+    return trimTrailingSlash(envOverride)
+  }
+
+  if (typeof window === 'undefined') {
+    return trimTrailingSlash(DEFAULT_API_BASE_URL)
+  }
+
+  if (window.__SCALABLE_APP_COOKBOOK_API_BASE_URL) {
+    return trimTrailingSlash(window.__SCALABLE_APP_COOKBOOK_API_BASE_URL)
+  }
+
+  const origin = window.location.origin
+  const basename = detectAppBasename()
+  const base = basename && basename !== '/' ? `${origin}${basename}` : origin
+  const resolved = `${trimTrailingSlash(base)}/api`
+
+  window.__SCALABLE_APP_COOKBOOK_API_BASE_URL = resolved
+  return resolved
+}
+
+const API_BASE_URL = detectApiBaseUrl()
+
+const toArray = (value) => {
+  if (Array.isArray(value)) {
+    return value
+  }
+
+  if (value == null) {
+    return []
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return []
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed
+      }
+    } catch {
+      // Fall back to comma-separated parsing below
+    }
+
+    return trimmed
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+
+  return []
+}
 
 function App() {
+  const basename = useMemo(() => detectAppBasename(), [])
+
   return (
-    <Router>
+    <Router basename={basename}>
       <div className="app">
         <Routes>
           <Route path="/" element={<CookbookLayout />}>
@@ -35,8 +130,8 @@ function CookbookLayout({ children }) {
     async function fetchData() {
       try {
         const [chaptersRes, statsRes] = await Promise.all([
-          axios.get(`${API_URL}/api/v1/patterns/chapters`),
-          axios.get(`${API_URL}/api/v1/patterns/stats`)
+          axios.get(`${API_BASE_URL}/v1/patterns/chapters`),
+          axios.get(`${API_BASE_URL}/v1/patterns/stats`)
         ])
         setChapters(chaptersRes.data)
         setStats(statsRes.data)
@@ -74,17 +169,160 @@ function CookbookLayout({ children }) {
 
 function Sidebar({ chapters, stats }) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false
+    }
+
+    return window.innerWidth <= 768
+  })
+  const [isMobileQuickAccessOpen, setIsMobileQuickAccessOpen] = useState(false)
+  const quickAccessDrawerPanelRef = useRef(null)
+  const navigate = useNavigate()
+
+  const statsTotals = (() => {
+    if (!stats || typeof stats !== 'object') {
+      return null
+    }
+
+    const candidate = stats.statistics && typeof stats.statistics === 'object'
+      ? stats.statistics
+      : stats
+
+    if (candidate && typeof candidate === 'object') {
+      const requiredKeys = ['total_patterns', 'total_recipes', 'total_implementations']
+      if (requiredKeys.some((key) => Object.prototype.hasOwnProperty.call(candidate, key))) {
+        return candidate
+      }
+    }
+
+    return null
+  })()
+
+  const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      return
+    }
+
+    navigate(`/search?q=${encodeURIComponent(searchQuery)}`)
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isMobile) {
+      setIsMobileQuickAccessOpen(false)
+    }
+  }, [isMobile])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined
+    }
+
+    if (!isMobileQuickAccessOpen) {
+      return undefined
+    }
+
+    const { body } = document
+    const previousOverflow = body.style.overflow
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setIsMobileQuickAccessOpen(false)
+      }
+    }
+
+    body.style.overflow = 'hidden'
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isMobileQuickAccessOpen])
+
+  useEffect(() => {
+    if (isMobileQuickAccessOpen && quickAccessDrawerPanelRef.current) {
+      quickAccessDrawerPanelRef.current.focus()
+    }
+  }, [isMobileQuickAccessOpen])
+
+  const quickAccessLinks = [
+    { to: '/', label: 'Overview', icon: Zap },
+    { to: '/chapters', label: 'All Chapters', icon: Book },
+    { to: '/search', label: 'Advanced Search', icon: Search }
+  ]
+
+  const handleQuickAccessNavigate = () => {
+    if (isMobile) {
+      setIsMobileQuickAccessOpen(false)
+    }
+  }
+
+  const renderQuickAccessLinks = (additionalClassNames = '') => (
+    <div
+      className={`quick-access-links${additionalClassNames ? ` ${additionalClassNames}` : ''}`}
+    >
+      {quickAccessLinks.map(({ to, label, icon: Icon }) => (
+        <Link
+          key={to}
+          to={to}
+          className="nav-item"
+          onClick={handleQuickAccessNavigate}
+        >
+          <Icon className="nav-icon" />
+          {label}
+        </Link>
+      ))}
+    </div>
+  )
 
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <Link to="/" className="sidebar-title">
-          <Book className="sidebar-icon" />
-          Scalable App Cookbook
-        </Link>
-        <div className="sidebar-subtitle">
-          Architecture Patterns Library
+        <div className="sidebar-header-top">
+          {isMobile && (
+            <button
+              type="button"
+              className="mobile-nav-toggle mobile-nav-toggle--icon-only"
+              onClick={() => setIsMobileQuickAccessOpen((open) => !open)}
+              aria-expanded={isMobileQuickAccessOpen}
+              aria-controls="quick-access-drawer"
+              aria-haspopup="dialog"
+              aria-label={isMobileQuickAccessOpen ? 'Close quick access menu' : 'Open quick access menu'}
+            >
+              <Menu className="mobile-nav-toggle-icon" />
+              <span className="sr-only">
+                {isMobileQuickAccessOpen ? 'Close menu' : 'Open menu'}
+              </span>
+            </button>
+          )}
+          <Link to="/" className="sidebar-title">
+            <Book className="sidebar-icon" />
+            Scalable App Cookbook
+          </Link>
         </div>
+        {!isMobile && (
+          <div className="sidebar-subtitle">
+            Architecture Patterns Library
+          </div>
+        )}
       </div>
 
       <div className="search-container">
@@ -96,9 +334,9 @@ function Sidebar({ chapters, stats }) {
             className="search-input"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && searchQuery.trim()) {
-                window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSearch()
               }
             }}
           />
@@ -106,25 +344,52 @@ function Sidebar({ chapters, stats }) {
       </div>
 
       <div className="sidebar-nav">
-        <div className="nav-section">
-          <div className="nav-section-title">Quick Access</div>
-          <Link to="/" className="nav-item">
-            <Zap className="nav-icon" />
-            Overview
-          </Link>
-          <Link to="/chapters" className="nav-item">
-            <Book className="nav-icon" />
-            All Chapters
-          </Link>
-          <Link to="/search" className="nav-item">
-            <Search className="nav-icon" />
-            Advanced Search
-          </Link>
-        </div>
+        {!isMobile && (
+          <div className="nav-section">
+            <div className="nav-section-header">
+              <div className="nav-section-title">Quick Access</div>
+            </div>
+            {renderQuickAccessLinks()}
+          </div>
+        )}
+
+        {isMobile && isMobileQuickAccessOpen && (
+          <div
+            className="quick-access-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quick-access-drawer-title"
+          >
+            <div
+              className="quick-access-drawer-backdrop"
+              onClick={() => setIsMobileQuickAccessOpen(false)}
+              aria-hidden="true"
+            />
+            <div
+              id="quick-access-drawer"
+              className="quick-access-drawer-panel"
+              tabIndex={-1}
+              ref={quickAccessDrawerPanelRef}
+            >
+              <div className="quick-access-drawer-header">
+                <div id="quick-access-drawer-title" className="quick-access-drawer-title">Quick Access</div>
+                <button
+                  type="button"
+                  className="quick-access-drawer-close"
+                  onClick={() => setIsMobileQuickAccessOpen(false)}
+                >
+                  <X className="quick-access-drawer-close-icon" aria-hidden="true" />
+                  <span className="sr-only">Close quick access</span>
+                </button>
+              </div>
+              {renderQuickAccessLinks('mobile')}
+            </div>
+          </div>
+        )}
 
         <div className="nav-section">
           <div className="nav-section-title">Chapters</div>
-          {chapters.slice(0, 10).map((chapter, index) => (
+          {(Array.isArray(chapters) ? chapters : []).slice(0, 10).map((chapter, index) => (
             <Link
               key={index}
               to={`/search?chapter=${encodeURIComponent(chapter.name)}`}
@@ -142,20 +407,20 @@ function Sidebar({ chapters, stats }) {
           ))}
         </div>
 
-        {stats && (
+        {statsTotals && (
           <div className="sidebar-stats">
             <div className="stats-title">Library Stats</div>
             <div className="stats-grid">
               <div className="stat-item">
-                <div className="stat-number">{stats.statistics.total_patterns}</div>
+                <div className="stat-number">{statsTotals.total_patterns ?? '—'}</div>
                 <div className="stat-label">Patterns</div>
               </div>
               <div className="stat-item">
-                <div className="stat-number">{stats.statistics.total_recipes}</div>
+                <div className="stat-number">{statsTotals.total_recipes ?? '—'}</div>
                 <div className="stat-label">Recipes</div>
               </div>
               <div className="stat-item">
-                <div className="stat-number">{stats.statistics.total_implementations}</div>
+                <div className="stat-number">{statsTotals.total_implementations ?? '—'}</div>
                 <div className="stat-label">Examples</div>
               </div>
             </div>
@@ -293,8 +558,8 @@ function PatternPage() {
     async function fetchPattern() {
       try {
         const [patternRes, recipesRes] = await Promise.all([
-          axios.get(`${API_URL}/api/v1/patterns/${patternId}`),
-          axios.get(`${API_URL}/api/v1/patterns/${patternId}/recipes`)
+          axios.get(`${API_BASE_URL}/v1/patterns/${patternId}`),
+          axios.get(`${API_BASE_URL}/v1/patterns/${patternId}/recipes`)
         ])
         setPattern(patternRes.data)
         setRecipes(recipesRes.data.recipes || [])
@@ -312,18 +577,18 @@ function PatternPage() {
 
   return (
     <div className="content">
-      <div className="content-header">
-        <h1 className="content-title">{pattern.title}</h1>
-        <div className="content-meta">
-          <span className="badge">{pattern.chapter}</span>
-          <span className="badge maturity">{pattern.maturity_level}</span>
-          <div className="tags">
-            {pattern.tags?.map(tag => (
-              <span key={tag} className="tag">{tag}</span>
-            ))}
+        <div className="content-header">
+          <h1 className="content-title">{pattern.title}</h1>
+          <div className="content-meta">
+            <span className="badge">{pattern.chapter}</span>
+            <span className="badge maturity">{pattern.maturity_level}</span>
+            <div className="tags">
+              {toArray(pattern.tags).map(tag => (
+                <span key={tag} className="tag">{tag}</span>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
       <div className="pattern-content">
         <div className="section">
@@ -375,7 +640,7 @@ function PatternPage() {
                   {recipe.steps?.length || 0} steps • {recipe.timeout_sec}s timeout
                 </div>
                 <div className="recipe-artifacts">
-                  {recipe.artifacts?.slice(0, 3).map(artifact => (
+                  {toArray(recipe.artifacts).slice(0, 3).map(artifact => (
                     <span key={artifact} className="tag">{artifact}</span>
                   ))}
                 </div>
@@ -402,7 +667,7 @@ function RecipeModal({ recipe, onClose }) {
   useEffect(() => {
     async function fetchImplementations() {
       try {
-        const response = await axios.get(`${API_URL}/api/v1/implementations?recipe_id=${recipe.id}`)
+        const response = await axios.get(`${API_BASE_URL}/v1/implementations?recipe_id=${recipe.id}`)
         setImplementations(response.data || [])
         if (response.data?.length > 0) {
           setSelectedLanguage(response.data[0].language)
@@ -537,7 +802,7 @@ function SearchPage() {
         if (value) params.set(key, value)
       })
       
-      const response = await axios.get(`${API_URL}/api/v1/patterns/search?${params}`)
+      const response = await axios.get(`${API_BASE_URL}/v1/patterns/search?${params}`)
       setPatterns(response.data.patterns || [])
     } catch (err) {
       console.error('Search failed:', err)
@@ -619,7 +884,7 @@ function SearchPage() {
               <span className="pattern-impls">{pattern.implementation_count} examples</span>
             </div>
             <div className="pattern-result-tags">
-              {pattern.tags?.slice(0, 5).map(tag => (
+              {toArray(pattern.tags).slice(0, 5).map(tag => (
                 <span key={tag} className="tag">{tag}</span>
               ))}
             </div>
@@ -644,7 +909,7 @@ function ChaptersPage() {
   useEffect(() => {
     async function fetchChapters() {
       try {
-        const response = await axios.get(`${API_URL}/api/v1/patterns/chapters`)
+        const response = await axios.get(`${API_BASE_URL}/v1/patterns/chapters`)
         setChapters(response.data || [])
       } catch (err) {
         console.error('Failed to fetch chapters:', err)

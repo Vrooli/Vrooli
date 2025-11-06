@@ -157,16 +157,6 @@ function resolveWebSocketProxyTarget(httpTarget: string): string {
   return ensureAbsolute(httpTarget, 'ws');
 }
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(
-      `${name} environment variable is required. Run this scenario through the Vrooli lifecycle so ports are provisioned automatically.`,
-    );
-  }
-  return value;
-}
-
 function optionalNumberEnv(name: string): number | undefined {
   const raw = process.env[name];
   if (!raw) {
@@ -180,7 +170,8 @@ function optionalNumberEnv(name: string): number | undefined {
   return parsed;
 }
 
-const apiPort = requireEnv('API_PORT');
+// API_PORT is optional for build - runtime resolution handles this
+const apiPort = process.env.API_PORT || '15000';
 
 const hmrHost = process.env.VITE_HMR_HOST;
 const hmrPort = optionalNumberEnv('VITE_HMR_PORT');

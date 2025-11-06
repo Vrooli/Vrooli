@@ -6,6 +6,7 @@
  */
 
 import * as http from 'node:http'
+import * as net from 'node:net'
 import type { Request, Response, NextFunction, RequestHandler } from 'express'
 import { HOP_BY_HOP_HEADERS, DEFAULT_PROXY_TIMEOUT, LOOPBACK_HOST } from '../shared/constants.js'
 import type { ProxyOptions } from '../shared/types.js'
@@ -145,9 +146,17 @@ export async function proxyToApi(
       proxyReq.destroy(new Error('Request to API timed out'))
     })
 
-    // Pipe request body for POST/PUT/PATCH
+    // Handle request body for POST/PUT/PATCH
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      req.pipe(proxyReq)
+      // If body has been parsed by express.json(), use the parsed body
+      if (req.body !== undefined) {
+        const bodyString = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+        proxyReq.write(bodyString)
+        proxyReq.end()
+      } else {
+        // Otherwise pipe the raw request stream
+        req.pipe(proxyReq)
+      }
     } else {
       proxyReq.end()
     }
@@ -231,9 +240,14 @@ export function proxyWebSocketUpgrade(
 
   const port = parsePort(apiPort)
   if (!port) {
-    if (verbose) {
-      console.error('[ws-proxy] Invalid API_PORT, closing connection')
-    }
+    const errorMsg = `Invalid API_PORT configuration: ${apiPort}`
+    console.error(`[ws-proxy] ${errorMsg}`)
+    clientSocket.write(
+      'HTTP/1.1 502 Bad Gateway\r\n' +
+      'Content-Type: text/plain\r\n' +
+      'Connection: close\r\n\r\n' +
+      `${errorMsg}\r\n`
+    )
     clientSocket.destroy()
     return
   }
@@ -241,11 +255,11 @@ export function proxyWebSocketUpgrade(
   const portNumber = Number.parseInt(port, 10)
 
   if (verbose) {
-    console.log(`[ws-proxy] Upgrade request: ${req.url}`)
+    console.log(`[ws-proxy] Upgrade request: ${req.method} ${req.url} -> ${apiHost}:${portNumber}`)
+    console.log(`[ws-proxy] Client headers:`, Object.keys(req.headers).join(', '))
   }
 
   // Establish TCP connection to API server
-  const net = require('node:net')
   const upstream = net.connect(portNumber, apiHost, () => {
     if (verbose) {
       console.log(`[ws-proxy] Connected to upstream ${apiHost}:${portNumber}`)
@@ -265,21 +279,35 @@ export function proxyWebSocketUpgrade(
     }
 
     // Build upgrade request headers
+    // For WebSocket upgrades, we must preserve ALL headers including WebSocket-specific ones
     const headers: Record<string, string | string[]> = {}
     for (const [key, value] of Object.entries(req.headers)) {
-      const lowerKey = key.toLowerCase()
-      if (HOP_BY_HOP_HEADERS.has(lowerKey)) {
-        continue
-      }
       if (value !== undefined) {
         headers[key] = value as string | string[]
       }
     }
 
-    // Ensure upgrade headers
+    // Validate critical WebSocket headers are present
+    const wsVersion = headers['sec-websocket-version']
+    const wsKey = headers['sec-websocket-key']
+    if (!wsVersion || !wsKey) {
+      const missing = []
+      if (!wsVersion) missing.push('Sec-WebSocket-Version')
+      if (!wsKey) missing.push('Sec-WebSocket-Key')
+      console.error(`[ws-proxy] Missing required WebSocket headers: ${missing.join(', ')}`)
+      if (verbose) {
+        console.error(`[ws-proxy] Available headers:`, Object.keys(headers))
+      }
+    }
+
+    // Override critical headers for proxying
     headers.host = `${apiHost}:${portNumber}`
-    headers.connection = 'Upgrade'
-    headers.upgrade = 'websocket'
+    if (!headers.connection) {
+      headers.connection = 'Upgrade'
+    }
+    if (!headers.upgrade) {
+      headers.upgrade = 'websocket'
+    }
 
     // Write HTTP upgrade request to upstream
     const requestLine = `${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`
@@ -296,7 +324,11 @@ export function proxyWebSocketUpgrade(
       .join('\r\n')
 
     if (verbose) {
-      console.log(`[ws-proxy] Forwarding upgrade request`)
+      console.log(`[ws-proxy] Forwarding upgrade request with headers:`)
+      console.log(`[ws-proxy]   Sec-WebSocket-Version: ${wsVersion}`)
+      console.log(`[ws-proxy]   Sec-WebSocket-Key: ${wsKey ? '[present]' : '[missing]'}`)
+      console.log(`[ws-proxy]   Connection: ${headers.connection}`)
+      console.log(`[ws-proxy]   Upgrade: ${headers.upgrade}`)
     }
 
     upstream.write(`${requestLine}${headerLines}\r\n\r\n`)
@@ -336,10 +368,17 @@ export function proxyWebSocketUpgrade(
   }
 
   upstream.on('error', (error: Error) => {
+    console.error(`[ws-proxy] Upstream connection error: ${error.message} (${apiHost}:${portNumber})`)
+    if (verbose) {
+      console.error(`[ws-proxy] Full error:`, error)
+    }
     teardown({ stage: 'upstream-error', message: error.message, host: apiHost, port: portNumber })
   })
 
   clientSocket.on('error', (error: Error) => {
+    if (verbose) {
+      console.error(`[ws-proxy] Client socket error: ${error.message}`)
+    }
     teardown({ stage: 'client-error', message: error.message })
   })
 

@@ -110,7 +110,6 @@ import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
 // This automatically detects proxy context
 const API_BASE = resolveApiBase({
-  defaultPort: '8081',
   appendSuffix: true,
 })
 

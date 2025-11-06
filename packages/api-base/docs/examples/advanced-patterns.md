@@ -20,11 +20,8 @@ function getApiBase(): string {
     return explicitUrl
   }
 
-  // 3. Environment-based resolution
-  return resolveApiBase({
-    defaultPort: import.meta.env.VITE_API_PORT || '8080',
-    appendSuffix: true,
-  })
+  // 3. Standard resolution (works everywhere)
+  return resolveApiBase({ appendSuffix: true })
 }
 
 export const API_BASE = getApiBase()
@@ -39,8 +36,8 @@ import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 
 async function fetchWithFallback<T>(path: string): Promise<T> {
   const bases = [
-    resolveApiBase({ defaultPort: '8080' }),
-    resolveApiBase({ explicitUrl: 'https://api-backup.example.com' }),
+    resolveApiBase({ appendSuffix: true }),  // Primary: current context
+    resolveApiBase({ explicitUrl: 'https://api-backup.example.com', appendSuffix: true }),  // Fallback
   ]
 
   for (const base of bases) {
@@ -70,14 +67,9 @@ class APIClient {
   private httpBase: string
   private wsBase: string
 
-  constructor(options?: { defaultPort?: string }) {
-    this.httpBase = resolveApiBase({
-      defaultPort: options?.defaultPort || '8080',
-      appendSuffix: true,
-    })
-
+  constructor() {
+    this.httpBase = resolveApiBase({ appendSuffix: true })
     this.wsBase = resolveWsBase({
-      defaultPort: options?.defaultPort || '8080',
       appendSuffix: true,
       apiSuffix: '/ws',
     })
@@ -108,7 +100,7 @@ class APIClient {
 }
 
 // Usage
-const api = new APIClient({ defaultPort: '8080' })
+const api = new APIClient()
 const data = await api.get('/data')
 const ws = api.connect('events')
 ```
