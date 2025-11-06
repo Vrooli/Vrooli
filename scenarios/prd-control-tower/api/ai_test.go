@@ -86,7 +86,7 @@ func TestBuildPrompt(t *testing.T) {
 func TestHandleAIGenerateSectionValidation(t *testing.T) {
 	tests := []struct {
 		name           string
-		requestBody    interface{}
+		requestBody    any
 		expectStatus   int
 		expectContains string
 	}{
@@ -96,14 +96,14 @@ func TestHandleAIGenerateSectionValidation(t *testing.T) {
 				Section: "",
 				Context: "some context",
 			},
-			expectStatus:   http.StatusServiceUnavailable, // Database not available in test
-			expectContains: "Database not available",
+			expectStatus:   http.StatusBadRequest,
+			expectContains: "Section is required",
 		},
 		{
 			name:           "invalid JSON",
 			requestBody:    "not a valid json",
-			expectStatus:   http.StatusServiceUnavailable, // Database checked before JSON parsing
-			expectContains: "Database not available",
+			expectStatus:   http.StatusBadRequest,
+			expectContains: "Invalid request body",
 		},
 	}
 
@@ -126,6 +126,8 @@ func TestHandleAIGenerateSectionValidation(t *testing.T) {
 			req = mux.SetURLVars(req, map[string]string{"id": "test-draft-id"})
 
 			w := httptest.NewRecorder()
+
+			// Call handler directly (validation happens before DB access)
 			handleAIGenerateSection(w, req)
 
 			if w.Code != tt.expectStatus {
@@ -185,11 +187,11 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 		}
 
 		// Return mock response
-		response := map[string]interface{}{
+		response := map[string]any{
 			"model": "anthropic/claude-3.5-sonnet",
-			"choices": []map[string]interface{}{
+			"choices": []map[string]any{
 				{
-					"message": map[string]interface{}{
+					"message": map[string]any{
 						"role":    "assistant",
 						"content": "Generated executive summary content",
 					},
@@ -251,7 +253,7 @@ func TestGenerateAIContentHTTPError(t *testing.T) {
 			name: "missing choices in response",
 			serverHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				json.NewEncoder(w).Encode(map[string]any{
 					"model": "test-model",
 				})
 			},

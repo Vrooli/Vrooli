@@ -472,17 +472,19 @@ func (h *ElementAnalysisHandler) generateAISuggestions(ctx context.Context, elem
 	defer os.Remove(tmpOllamaFile.Name())
 	defer tmpOllamaFile.Close()
 
-	// Call resource-ollama
-	ollamaCmd := exec.CommandContext(ctx, "resource-ollama", "chat",
+	// Call resource-ollama using the query command
+	ollamaCmd := exec.CommandContext(ctx, "resource-ollama", "query",
 		"--model", "llama3.2",
-		"--prompt", prompt,
-		"--format", "json",
-		"--max-tokens", "1000",
-		"--output", tmpOllamaFile.Name())
+		"--prompt", prompt)
 
 	output, err := ollamaCmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to call ollama: %w, output: %s", err, string(output))
+	}
+
+	// Write ollama output to temp file for parsing
+	if err := os.WriteFile(tmpOllamaFile.Name(), output, 0600); err != nil {
+		return nil, fmt.Errorf("failed to write ollama output: %w", err)
 	}
 
 	// Read and parse Ollama response

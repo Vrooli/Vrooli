@@ -13,6 +13,11 @@ const PROXY_API_BASE = `${PROXY_API_PREFIX}/v1`;
 const PROXY_HEALTH_URL = `${PROXY_ROOT}/health`;
 const DOCS_CONTENT_ROUTE = /^\/(?:.*\/)?docs-content\/?$/;
 
+const STATIC_ROOT = (() => {
+    const distPath = path.join(__dirname, 'dist');
+    return fs.existsSync(distPath) ? distPath : __dirname;
+})();
+
 const buildHealthPayload = ({ apiPort, displayUrl }) => ({
     status: 'healthy',
     service: 'visited-tracker-ui',
@@ -137,10 +142,10 @@ function createApp({ apiPort } = {}) {
         serveDocsContent(req, res);
     });
 
-    app.use(express.static(__dirname));
+    app.use(express.static(STATIC_ROOT));
 
     app.get('/', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'index.html'));
+        res.sendFile(path.join(STATIC_ROOT, 'index.html'));
     });
 
     app.get('/config', (req, res) => {
@@ -160,7 +165,7 @@ function createApp({ apiPort } = {}) {
     });
 
     app.get('/docs', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'docs.html'));
+        res.sendFile(path.join(STATIC_ROOT, 'docs.html'));
     });
 
     app.get('/health', async (_req, res) => {

@@ -24,6 +24,9 @@ type mockWorkflowServiceForWorkflows struct {
 	deleteWorkflowFn          func(ctx context.Context, id uuid.UUID) error
 	listWorkflowsByProjectFn  func(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error)
 	executeWorkflowFn         func(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error)
+	listWorkflowsFn           func(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error)
+	updateWorkflowFn          func(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error)
+	modifyWorkflowFn          func(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error)
 }
 
 func (m *mockWorkflowServiceForWorkflows) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
@@ -110,10 +113,25 @@ func (m *mockWorkflowServiceForWorkflows) DeleteProjectWorkflows(ctx context.Con
 	return nil
 }
 func (m *mockWorkflowServiceForWorkflows) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
-	return nil, nil
+	if m.listWorkflowsFn != nil {
+		return m.listWorkflowsFn(ctx, folderPath, limit, offset)
+	}
+	return []*database.Workflow{
+		{ID: uuid.New(), Name: "Workflow 1", FolderPath: folderPath},
+		{ID: uuid.New(), Name: "Workflow 2", FolderPath: folderPath},
+	}, nil
 }
 func (m *mockWorkflowServiceForWorkflows) UpdateWorkflow(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
-	return nil, nil
+	if m.updateWorkflowFn != nil {
+		return m.updateWorkflowFn(ctx, workflowID, input)
+	}
+	return &database.Workflow{
+		ID:          workflowID,
+		Name:        input.Name,
+		Description: input.Description,
+		FolderPath:  input.FolderPath,
+		Tags:        input.Tags,
+	}, nil
 }
 func (m *mockWorkflowServiceForWorkflows) ListWorkflowVersions(ctx context.Context, workflowID uuid.UUID, limit, offset int) ([]*services.WorkflowVersionSummary, error) {
 	return nil, nil
@@ -128,7 +146,17 @@ func (m *mockWorkflowServiceForWorkflows) ExecuteAdhocWorkflow(ctx context.Conte
 	return nil, nil
 }
 func (m *mockWorkflowServiceForWorkflows) ModifyWorkflow(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error) {
-	return nil, nil
+	if m.modifyWorkflowFn != nil {
+		return m.modifyWorkflowFn(ctx, workflowID, prompt, currentFlow)
+	}
+	return &database.Workflow{
+		ID:   workflowID,
+		Name: "Modified Workflow",
+		FlowDefinition: database.JSONMap{
+			"nodes": []any{},
+			"edges": []any{},
+		},
+	}, nil
 }
 func (m *mockWorkflowServiceForWorkflows) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error) {
 	return nil, nil
@@ -417,6 +445,397 @@ func TestExecuteWorkflow(t *testing.T) {
 
 		if _, ok := response["execution_id"]; !ok {
 			t.Error("response missing 'execution_id' field")
+		}
+	})
+}
+
+func TestListWorkflows(t *testing.T) {
+	t.Run("[REQ:BAS-WORKFLOW-PERSIST-CRUD] lists workflows by folder path", func(t *testing.T) {
+		service := &mockWorkflowServiceForWorkflows{
+			listWorkflowsFn: func(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
+				// Verify folder path filtering
+				if folderPath != "/my/folder" {
+					t.Errorf("expected folder path '/my/folder', got '%s'", folderPath)
+				}
+				if limit != 100 || offset != 0 {
+					t.Errorf("expected limit=100, offset=0, got limit=%d, offset=%d", limit, offset)
+				}
+				return []*database.Workflow{
+					{ID: uuid.New(), Name: "Workflow 1", FolderPath: "/my/folder"},
+					{ID: uuid.New(), Name: "Workflow 2", FolderPath: "/my/folder"},
+				}, nil
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		req := httptest.NewRequest("GET", "/api/v1/workflows?folder_path=/my/folder", nil)
+		w := httptest.NewRecorder()
+
+		handler.ListWorkflows(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+		}
+
+		var response map[string]any
+		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		workflows, ok := response["workflows"].([]any)
+		if !ok {
+			t.Fatal("response missing 'workflows' field or wrong type")
+		}
+		if len(workflows) != 2 {
+			t.Errorf("expected 2 workflows, got %d", len(workflows))
+		}
+	})
+
+	t.Run("[REQ:BAS-WORKFLOW-PERSIST-CRUD] lists all workflows when no folder specified", func(t *testing.T) {
+		service := &mockWorkflowServiceForWorkflows{
+			listWorkflowsFn: func(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
+				if folderPath != "" {
+					t.Errorf("expected empty folder path, got '%s'", folderPath)
+				}
+				return []*database.Workflow{
+					{ID: uuid.New(), Name: "Workflow 1", FolderPath: "/folder1"},
+					{ID: uuid.New(), Name: "Workflow 2", FolderPath: "/folder2"},
+					{ID: uuid.New(), Name: "Workflow 3", FolderPath: "/folder1"},
+				}, nil
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		req := httptest.NewRequest("GET", "/api/v1/workflows", nil)
+		w := httptest.NewRecorder()
+
+		handler.ListWorkflows(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+		}
+
+		var response map[string]any
+		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		workflows, ok := response["workflows"].([]any)
+		if !ok {
+			t.Fatal("response missing 'workflows' field or wrong type")
+		}
+		if len(workflows) != 3 {
+			t.Errorf("expected 3 workflows, got %d", len(workflows))
+		}
+	})
+
+	t.Run("[REQ:BAS-WORKFLOW-PERSIST-CRUD] handles service errors", func(t *testing.T) {
+		service := &mockWorkflowServiceForWorkflows{
+			listWorkflowsFn: func(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
+				return nil, errors.New("database connection failed")
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		req := httptest.NewRequest("GET", "/api/v1/workflows", nil)
+		w := httptest.NewRecorder()
+
+		handler.ListWorkflows(w, req)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+		}
+	})
+}
+
+func TestUpdateWorkflow(t *testing.T) {
+	t.Run("[REQ:BAS-WORKFLOW-PERSIST-VERSION] updates workflow with valid changes", func(t *testing.T) {
+		workflowID := uuid.New()
+		service := &mockWorkflowServiceForWorkflows{
+			updateWorkflowFn: func(ctx context.Context, id uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
+				if id != workflowID {
+					t.Errorf("expected workflow ID %s, got %s", workflowID, id)
+				}
+				if input.Name != "Updated Workflow" {
+					t.Errorf("expected name 'Updated Workflow', got '%s'", input.Name)
+				}
+				if input.Description != "New description" {
+					t.Errorf("expected description 'New description', got '%s'", input.Description)
+				}
+				return &database.Workflow{
+					ID:          id,
+					Name:        input.Name,
+					Description: input.Description,
+					FolderPath:  input.FolderPath,
+					Tags:        input.Tags,
+				}, nil
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{
+			"name": "Updated Workflow",
+			"description": "New description",
+			"folder_path": "/updated/path",
+			"tags": ["tag1", "tag2"]
+		}`
+
+		req := httptest.NewRequest("PUT", "/api/v1/workflows/"+workflowID.String(), strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+
+		handler.UpdateWorkflow(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+		}
+
+		var response map[string]any
+		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if response["name"] != "Updated Workflow" {
+			t.Errorf("expected name 'Updated Workflow' in response, got '%v'", response["name"])
+		}
+	})
+
+	t.Run("[REQ:BAS-WORKFLOW-PERSIST-VERSION] rejects empty name", func(t *testing.T) {
+		workflowID := uuid.New()
+		service := &mockWorkflowServiceForWorkflows{}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{"name": "", "folder_path": "/workflows"}`
+		req := httptest.NewRequest("PUT", "/api/v1/workflows/"+workflowID.String(), strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+
+		handler.UpdateWorkflow(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+		}
+	})
+
+	t.Run("[REQ:BAS-WORKFLOW-PERSIST-VERSION] handles version conflict", func(t *testing.T) {
+		workflowID := uuid.New()
+		service := &mockWorkflowServiceForWorkflows{
+			updateWorkflowFn: func(ctx context.Context, id uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
+				return nil, services.ErrWorkflowVersionConflict
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{"name": "Updated", "folder_path": "/workflows", "expected_version": 5}`
+		req := httptest.NewRequest("PUT", "/api/v1/workflows/"+workflowID.String(), strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+
+		handler.UpdateWorkflow(w, req)
+
+		if w.Code != http.StatusConflict {
+			t.Errorf("expected status %d, got %d", http.StatusConflict, w.Code)
+		}
+	})
+
+	t.Run("[REQ:BAS-WORKFLOW-PERSIST-VERSION] rejects invalid workflow ID", func(t *testing.T) {
+		service := &mockWorkflowServiceForWorkflows{}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{"name": "Updated", "folder_path": "/workflows"}`
+		req := httptest.NewRequest("PUT", "/api/v1/workflows/not-a-uuid", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", "not-a-uuid")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+
+		handler.UpdateWorkflow(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+		}
+	})
+
+	t.Run("[REQ:BAS-WORKFLOW-PERSIST-VERSION] handles invalid workflow definition", func(t *testing.T) {
+		workflowID := uuid.New()
+		service := &mockWorkflowServiceForWorkflows{
+			updateWorkflowFn: func(ctx context.Context, id uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error) {
+				return nil, errors.New("invalid workflow definition: missing required fields")
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{"name": "Updated", "folder_path": "/workflows", "flow_definition": {"invalid": true}}`
+		req := httptest.NewRequest("PUT", "/api/v1/workflows/"+workflowID.String(), strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+
+		handler.UpdateWorkflow(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+		}
+	})
+}
+
+func TestModifyWorkflow(t *testing.T) {
+	t.Run("[REQ:BAS-AI-GENERATION-MODIFY] modifies workflow via AI prompt", func(t *testing.T) {
+		workflowID := uuid.New()
+		service := &mockWorkflowServiceForWorkflows{
+			modifyWorkflowFn: func(ctx context.Context, id uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error) {
+				if id != workflowID {
+					t.Errorf("expected workflow ID %s, got %s", workflowID, id)
+				}
+				if prompt != "Add a screenshot step after navigation" {
+					t.Errorf("expected prompt 'Add a screenshot step after navigation', got '%s'", prompt)
+				}
+				return &database.Workflow{
+					ID:   id,
+					Name: "Modified Workflow",
+					FlowDefinition: database.JSONMap{
+						"nodes": []any{
+							map[string]any{"id": "1", "type": "navigate"},
+							map[string]any{"id": "2", "type": "screenshot"},
+						},
+						"edges": []any{},
+					},
+				}, nil
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{
+			"modification_prompt": "Add a screenshot step after navigation",
+			"current_flow": {"nodes": [{"id": "1", "type": "navigate"}], "edges": []}
+		}`
+
+		req := httptest.NewRequest("POST", "/api/v1/workflows/"+workflowID.String()+"/modify", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+
+		handler.ModifyWorkflow(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+		}
+
+		var response map[string]any
+		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if response["modification_note"] != "ai" {
+			t.Errorf("expected modification_note 'ai', got '%v'", response["modification_note"])
+		}
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-MODIFY] rejects empty modification prompt", func(t *testing.T) {
+		workflowID := uuid.New()
+		service := &mockWorkflowServiceForWorkflows{}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{"modification_prompt": "", "current_flow": {"nodes": [], "edges": []}}`
+		req := httptest.NewRequest("POST", "/api/v1/workflows/"+workflowID.String()+"/modify", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+
+		handler.ModifyWorkflow(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+		}
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-MODIFY] handles AI service errors", func(t *testing.T) {
+		workflowID := uuid.New()
+		service := &mockWorkflowServiceForWorkflows{
+			modifyWorkflowFn: func(ctx context.Context, id uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error) {
+				return nil, errors.New("AI service unavailable")
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{"modification_prompt": "Add step", "current_flow": {"nodes": [], "edges": []}}`
+		req := httptest.NewRequest("POST", "/api/v1/workflows/"+workflowID.String()+"/modify", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+
+		handler.ModifyWorkflow(w, req)
+
+		// Handler returns 502 Bad Gateway for AI service errors
+		if w.Code != http.StatusBadGateway {
+			t.Errorf("expected status %d, got %d", http.StatusBadGateway, w.Code)
+		}
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-MODIFY] rejects invalid workflow ID", func(t *testing.T) {
+		service := &mockWorkflowServiceForWorkflows{}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{"modification_prompt": "Add step"}`
+		req := httptest.NewRequest("POST", "/api/v1/workflows/not-a-uuid/modify", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", "not-a-uuid")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+
+		handler.ModifyWorkflow(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+		}
+	})
+
+	t.Run("[REQ:BAS-AI-GENERATION-MODIFY] rejects malformed JSON", func(t *testing.T) {
+		workflowID := uuid.New()
+		service := &mockWorkflowServiceForWorkflows{}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{invalid json`
+		req := httptest.NewRequest("POST", "/api/v1/workflows/"+workflowID.String()+"/modify", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+
+		handler.ModifyWorkflow(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
 		}
 	})
 }

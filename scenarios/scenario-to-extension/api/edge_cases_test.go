@@ -161,7 +161,7 @@ func TestEdgeCases(t *testing.T) {
 		}
 
 		buildID := response["build_id"].(string)
-		build := builds[buildID]
+		build, _ := buildManager.Get(buildID)
 		if build.ScenarioName != longName {
 			t.Errorf("Expected scenario name to be preserved, got %s", build.ScenarioName)
 		}
@@ -273,9 +273,7 @@ func TestConcurrentAccess(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Verify all builds were created
-		buildsMux.RLock()
-		buildCount := len(builds)
-		buildsMux.RUnlock()
+		buildCount := buildManager.Count()
 
 		if buildCount < concurrency {
 			t.Errorf("Expected at least %d builds, got %d", concurrency, buildCount)
@@ -285,14 +283,14 @@ func TestConcurrentAccess(t *testing.T) {
 	t.Run("ConcurrentStatusChecks", func(t *testing.T) {
 		// Create a build
 		buildID := "test_concurrent_status"
-		builds[buildID] = &ExtensionBuild{
+		buildManager.Add(&ExtensionBuild{
 			BuildID:      buildID,
 			ScenarioName: "test-scenario",
 			Status:       "building",
 			CreatedAt:    time.Now(),
 			BuildLog:     []string{},
 			ErrorLog:     []string{},
-		}
+		})
 
 		concurrency := 20
 		done := make(chan bool, concurrency)
@@ -365,14 +363,14 @@ func TestPerformance(t *testing.T) {
 		// Create 100 builds
 		for i := 0; i < 100; i++ {
 			buildID := generateBuildID()
-			builds[buildID] = &ExtensionBuild{
+			buildManager.Add(&ExtensionBuild{
 				BuildID:      buildID,
 				ScenarioName: "test-scenario",
 				Status:       "ready",
 				CreatedAt:    time.Now(),
 				BuildLog:     []string{},
 				ErrorLog:     []string{},
-			}
+			})
 		}
 
 		start := time.Now()
@@ -496,7 +494,7 @@ func TestBuildStateTransitions(t *testing.T) {
 			CreatedAt: time.Now(),
 		}
 
-		builds[buildID] = build
+		buildManager.Add(build)
 
 		// Run generation
 		generateExtension(build)
@@ -533,7 +531,7 @@ func TestBuildStateTransitions(t *testing.T) {
 			CreatedAt: time.Now(),
 		}
 
-		builds[buildID] = build
+		buildManager.Add(build)
 
 		// Run generation (should fail)
 		generateExtension(build)

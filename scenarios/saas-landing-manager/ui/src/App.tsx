@@ -2,38 +2,31 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Dialog from '@radix-ui/react-dialog';
 import clsx from 'clsx';
-
-type SaaSScenario = {
-  id: string;
-  scenario_name: string;
-  display_name: string;
-  description: string;
-  saas_type: string;
-  industry: string;
-  revenue_potential: string;
-  has_landing_page: boolean;
-  landing_page_url: string;
-  last_scan: string;
-  confidence_score: number;
-  metadata: Record<string, unknown>;
-};
+import {
+  formatCurrency,
+  formatDate,
+  formatRelativeTime,
+  extractCharacteristics,
+  SaasTypeLabels,
+  ConfidenceDescriptions,
+  confidenceBand,
+  scenarioLabel,
+  type SaaSScenario,
+} from './utils/formatters';
+import { DEFAULT_REQUEST_TIMEOUT } from './constants';
+import {
+  Notice,
+  MetricCard,
+  ScenarioTable,
+  TemplateCard,
+  type Template,
+} from './components';
 
 type DashboardSummary = {
   total_pages: number;
   active_ab_tests: number;
   average_conversion_rate: number;
   scenarios: SaaSScenario[];
-};
-
-type Template = {
-  id: string;
-  name: string;
-  category: string;
-  saas_type: string;
-  industry: string;
-  preview_url?: string;
-  usage_count?: number;
-  rating?: number;
 };
 
 type ScanResponse = {
@@ -70,109 +63,60 @@ function buildUrl(path: string) {
   return `${basePath}${ensureLeadingSlash(path)}`;
 }
 
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = new Headers(init?.headers);
-  if (!headers.has('accept')) {
-    headers.set('accept', 'application/json');
-  }
+type RequestOptions = RequestInit & {
+  timeout?: number;
+};
 
-  const hasBody = init?.body !== undefined && init.body !== null && init.body !== '';
-  if (hasBody && !headers.has('content-type')) {
-    headers.set('content-type', 'application/json');
-  }
+async function requestJson<T>(path: string, init?: RequestOptions): Promise<T> {
+  const timeout = init?.timeout ?? DEFAULT_REQUEST_TIMEOUT;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  const response = await fetch(buildUrl(path), {
-    ...init,
-    headers,
-  });
+  try {
+    const headers = new Headers(init?.headers);
+    if (!headers.has('accept')) {
+      headers.set('accept', 'application/json');
+    }
 
-  const contentType = response.headers.get('content-type') ?? '';
-  const payload = contentType.includes('application/json') ? await response.json() : await response.text();
+    const hasBody = init?.body !== undefined && init.body !== null && init.body !== '';
+    if (hasBody && !headers.has('content-type')) {
+      headers.set('content-type', 'application/json');
+    }
 
-  if (!response.ok) {
-    const errorMessage = typeof payload === 'string' && payload ? payload : response.statusText;
-    throw new Error(errorMessage || 'Request failed');
-  }
+    // Merge the AbortController signal with any existing signal
+    const existingSignal = init?.signal;
+    const mergedSignal = existingSignal
+      ? (() => {
+          const merged = new AbortController();
+          existingSignal.addEventListener('abort', () => merged.abort());
+          controller.signal.addEventListener('abort', () => merged.abort());
+          return merged.signal;
+        })()
+      : controller.signal;
 
-  return payload as T;
-}
+    const response = await fetch(buildUrl(path), {
+      ...init,
+      headers,
+      signal: mergedSignal,
+    });
 
-function formatCurrency(value: string) {
-  if (!value) {
-    return 'N/A';
-  }
+    const contentType = response.headers.get('content-type') ?? '';
+    const payload = contentType.includes('application/json') ? await response.json() : await response.text();
 
-  const numeric = Number.parseFloat(value.replace(/[^0-9.]/g, ''));
-  if (Number.isNaN(numeric)) {
-    return value;
-  }
+    if (!response.ok) {
+      const errorMessage = typeof payload === 'string' && payload ? payload : response.statusText;
+      throw new Error(errorMessage || 'Request failed');
+    }
 
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(numeric);
-}
-
-function formatDate(timestamp: string) {
-  if (!timestamp) {
-    return 'Unknown';
+    return payload as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timeout - please try again');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) {
-    return timestamp;
-  }
-
-  return date.toLocaleString();
-}
-
-function formatRelativeTime(timestamp: string) {
-  if (!timestamp) {
-    return 'N/A';
-  }
-
-  const target = new Date(timestamp).getTime();
-  if (Number.isNaN(target)) {
-    return timestamp;
-  }
-
-  const diffMs = Date.now() - target;
-  const diffMinutes = Math.round(diffMs / 60000);
-  if (diffMinutes < 1) {
-    return 'just now';
-  }
-  if (diffMinutes < 60) {
-    return `${diffMinutes}m ago`;
-  }
-  const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `${diffHours}h ago`;
-  }
-  const diffDays = Math.round(diffHours / 24);
-  if (diffDays < 7) {
-    return `${diffDays}d ago`;
-  }
-  const diffWeeks = Math.round(diffDays / 7);
-  if (diffWeeks < 5) {
-    return `${diffWeeks}w ago`;
-  }
-  const diffMonths = Math.round(diffDays / 30);
-  if (diffMonths < 12) {
-    return `${diffMonths}mo ago`;
-  }
-  const diffYears = Math.round(diffDays / 365);
-  return `${diffYears}y ago`;
-}
-
-function extractCharacteristics(metadata: Record<string, unknown>) {
-  const raw = metadata ? (metadata['characteristics'] as unknown) : undefined;
-  if (Array.isArray(raw)) {
-    return raw
-      .filter((entry) => typeof entry === 'string')
-      .map((value) => value.toString());
-  }
-  return [];
 }
 
 const emptyDashboard: DashboardSummary = {
@@ -181,33 +125,6 @@ const emptyDashboard: DashboardSummary = {
   average_conversion_rate: 0,
   scenarios: [],
 };
-
-const SaasTypeLabels: Record<string, string> = {
-  b2b_tool: 'B2B Tool',
-  b2c_app: 'B2C App',
-  api_service: 'API Service',
-  marketplace: 'Marketplace',
-};
-
-const ConfidenceDescriptions: Record<string, string> = {
-  High: 'Strong signal and recent scan',
-  Medium: 'Moderate confidence, consider review',
-  Low: 'Limited data, investigate manually',
-};
-
-function confidenceBand(score: number) {
-  if (score >= 1.5) {
-    return 'High';
-  }
-  if (score >= 1.0) {
-    return 'Medium';
-  }
-  return 'Low';
-}
-
-function scenarioLabel(scenario: SaaSScenario) {
-  return scenario.display_name || scenario.scenario_name || scenario.id;
-}
 
 const TabItems: { value: string; label: string; description: string }[] = [
   { value: 'overview', label: 'Overview', description: 'Portfolio metrics and top opportunities' },
@@ -811,116 +728,5 @@ const App = () => {
     </div>
   );
 };
-
-const Notice = ({
-  variant,
-  title,
-  description,
-}: {
-  variant: OperationNotice['variant'];
-  title: string;
-  description?: string;
-}) => (
-  <div className={clsx('notice', variant)}>
-    <div>
-      <strong>{title}</strong>
-      {description && <p>{description}</p>}
-    </div>
-  </div>
-);
-
-const MetricCard = ({
-  title,
-  value,
-  helper,
-  accent,
-}: {
-  title: string;
-  value: number | string;
-  helper?: string;
-  accent: 'blue' | 'violet' | 'green' | 'amber';
-}) => (
-  <article className={clsx('metric-card', accent)}>
-    <header>{title}</header>
-    <strong>{typeof value === 'number' ? value.toLocaleString() : value}</strong>
-    {helper && <p>{helper}</p>}
-  </article>
-);
-
-const ScenarioTable = ({ scenarios }: { scenarios: SaaSScenario[] }) => (
-  <div className="table-wrapper">
-    <table className="scenario-table">
-      <thead>
-        <tr>
-          <th scope="col">Scenario</th>
-          <th scope="col">Type</th>
-          <th scope="col">Industry</th>
-          <th scope="col">Confidence</th>
-          <th scope="col">Opportunity</th>
-          <th scope="col">Landing page</th>
-          <th scope="col">Last scan</th>
-        </tr>
-      </thead>
-      <tbody>
-        {scenarios.length === 0 && (
-          <tr>
-            <td colSpan={7} className="empty-state">
-              No scenarios match your filters yet.
-            </td>
-          </tr>
-        )}
-        {scenarios.map((scenario) => {
-          const confidence = confidenceBand(scenario.confidence_score);
-          return (
-            <tr key={scenario.id}>
-              <td data-label="Scenario">
-                <div className="scenario-name">{scenarioLabel(scenario)}</div>
-                <div className="scenario-id">{scenario.scenario_name}</div>
-              </td>
-              <td data-label="Type">{(SaasTypeLabels[scenario.saas_type] ?? scenario.saas_type) || 'SaaS'}</td>
-              <td data-label="Industry">{scenario.industry || 'Unspecified'}</td>
-              <td data-label="Confidence">
-                <span className={clsx('confidence-pill', confidence.toLowerCase())}>{confidence}</span>
-              </td>
-              <td data-label="Opportunity">{formatCurrency(scenario.revenue_potential)}</td>
-              <td data-label="Landing page">
-                {scenario.has_landing_page ? (
-                  <a href={scenario.landing_page_url || '#'} target="_blank" rel="noreferrer">
-                    View
-                  </a>
-                ) : (
-                  <span className="status-pill">Pending</span>
-                )}
-              </td>
-              <td data-label="Last scan">{formatRelativeTime(scenario.last_scan)}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  </div>
-);
-
-const TemplateCard = ({
-  template,
-  selected,
-  onSelect,
-}: {
-  template: Template;
-  selected: boolean;
-  onSelect: () => void;
-}) => (
-  <button type="button" className={clsx('template-card', { selected })} onClick={onSelect}>
-    <div className="template-card-header">
-      <h4>{template.name}</h4>
-      <span>{template.saas_type?.replace(/_/g, ' ') || 'General'}</span>
-    </div>
-    <p>{template.industry ? `${template.industry} • ${template.category}` : template.category}</p>
-    <div className="template-card-footer">
-      {template.usage_count !== undefined && <span>{template.usage_count} deployments</span>}
-      {template.rating !== undefined && <span>{template.rating.toFixed(1)}★</span>}
-    </div>
-  </button>
-);
 
 export default App;

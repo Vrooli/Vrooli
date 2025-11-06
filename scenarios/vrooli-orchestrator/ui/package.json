@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build": "echo 'No build step required for simple HTML/JS'",
+    "build": "mkdir -p dist && cp -r src/* dist/",
     "test": "echo 'No tests specified'"
   },
   "keywords": [

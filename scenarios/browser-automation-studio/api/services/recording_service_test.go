@@ -134,75 +134,77 @@ func (r *fakeRecordingRepo) CreateExecutionLog(ctx context.Context, logEntry *da
 }
 
 func TestRecordingServiceImportArchive(t *testing.T) {
-	t.Parallel()
+	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] imports recording archive and creates timeline artifacts", func(t *testing.T) {
+		t.Parallel()
 
-	repo := newFakeRecordingRepo()
-	demoProject := &database.Project{
-		ID:         uuid.New(),
-		Name:       "Demo Browser Automations",
-		FolderPath: t.TempDir(),
-		CreatedAt:  time.Now().UTC(),
-		UpdatedAt:  time.Now().UTC(),
-	}
-	repo.CreateProject(context.Background(), demoProject)
+		repo := newFakeRecordingRepo()
+		demoProject := &database.Project{
+			ID:         uuid.New(),
+			Name:       "Demo Browser Automations",
+			FolderPath: t.TempDir(),
+			CreatedAt:  time.Now().UTC(),
+			UpdatedAt:  time.Now().UTC(),
+		}
+		repo.CreateProject(context.Background(), demoProject)
 
-	recordingsRoot := t.TempDir()
-	log := logrus.New()
-	log.SetOutput(io.Discard)
+		recordingsRoot := t.TempDir()
+		log := logrus.New()
+		log.SetOutput(io.Discard)
 
-	service := NewRecordingService(repo, nil, nil, log, recordingsRoot)
+		service := NewRecordingService(repo, nil, nil, log, recordingsRoot)
 
-	archivePath := filepath.Join(t.TempDir(), "recording.zip")
-	createTestRecordingArchive(t, archivePath)
+		archivePath := filepath.Join(t.TempDir(), "recording.zip")
+		createTestRecordingArchive(t, archivePath)
 
-	result, err := service.ImportArchive(context.Background(), archivePath, RecordingImportOptions{})
-	if err != nil {
-		t.Fatalf("ImportArchive returned error: %v", err)
-	}
+		result, err := service.ImportArchive(context.Background(), archivePath, RecordingImportOptions{})
+		if err != nil {
+			t.Fatalf("ImportArchive returned error: %v", err)
+		}
 
-	if result.FrameCount != 2 {
-		t.Fatalf("expected frame count 2, got %d", result.FrameCount)
-	}
-	if result.AssetCount != 2 {
-		t.Fatalf("expected asset count 2, got %d", result.AssetCount)
-	}
-	if result.Execution.TriggerType != "extension" {
-		t.Fatalf("expected trigger type 'extension', got %s", result.Execution.TriggerType)
-	}
+		if result.FrameCount != 2 {
+			t.Fatalf("expected frame count 2, got %d", result.FrameCount)
+		}
+		if result.AssetCount != 2 {
+			t.Fatalf("expected asset count 2, got %d", result.AssetCount)
+		}
+		if result.Execution.TriggerType != "extension" {
+			t.Fatalf("expected trigger type 'extension', got %s", result.Execution.TriggerType)
+		}
 
-	if len(repo.steps) != 2 {
-		t.Fatalf("expected 2 execution steps, got %d", len(repo.steps))
-	}
+		if len(repo.steps) != 2 {
+			t.Fatalf("expected 2 execution steps, got %d", len(repo.steps))
+		}
 
-	hasTimeline := false
-	hasScreenshot := false
-	for _, artifact := range repo.artifacts {
-		switch artifact.ArtifactType {
-		case "timeline_frame":
-			hasTimeline = true
-			if _, ok := artifact.Payload["screenshotArtifactId"]; !ok {
-				t.Fatalf("timeline frame missing screenshot artifact reference")
-			}
-		case "screenshot":
-			hasScreenshot = true
-			if !strings.Contains(artifact.StorageURL, "/api/v1/recordings/assets/") {
-				t.Fatalf("unexpected storage URL: %s", artifact.StorageURL)
+		hasTimeline := false
+		hasScreenshot := false
+		for _, artifact := range repo.artifacts {
+			switch artifact.ArtifactType {
+			case "timeline_frame":
+				hasTimeline = true
+				if _, ok := artifact.Payload["screenshotArtifactId"]; !ok {
+					t.Fatalf("timeline frame missing screenshot artifact reference")
+				}
+			case "screenshot":
+				hasScreenshot = true
+				if !strings.Contains(artifact.StorageURL, "/api/v1/recordings/assets/") {
+					t.Fatalf("unexpected storage URL: %s", artifact.StorageURL)
+				}
 			}
 		}
-	}
 
-	if !hasTimeline {
-		t.Fatalf("expected at least one timeline artifact")
-	}
-	if !hasScreenshot {
-		t.Fatalf("expected at least one screenshot artifact")
-	}
+		if !hasTimeline {
+			t.Fatalf("expected at least one timeline artifact")
+		}
+		if !hasScreenshot {
+			t.Fatalf("expected at least one screenshot artifact")
+		}
 
-	// Verify files persisted to the recordings root
-	framePath := filepath.Join(recordingsRoot, result.Execution.ID.String(), "frames", "frame-0001.png")
-	if _, err := os.Stat(framePath); err != nil {
-		t.Fatalf("expected persisted frame asset, got error: %v", err)
-	}
+		// Verify files persisted to the recordings root
+		framePath := filepath.Join(recordingsRoot, result.Execution.ID.String(), "frames", "frame-0001.png")
+		if _, err := os.Stat(framePath); err != nil {
+			t.Fatalf("expected persisted frame asset, got error: %v", err)
+		}
+	})
 }
 
 func createTestRecordingArchive(t *testing.T, archivePath string) {

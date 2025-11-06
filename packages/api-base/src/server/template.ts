@@ -9,10 +9,11 @@
 import express, { type Express, type Request, type Response, type NextFunction } from 'express'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
+import * as http from 'node:http'
 import type { ServerTemplateOptions } from '../shared/types.js'
 import { createConfigEndpoint } from './config.js'
 import { createHealthEndpoint } from './health.js'
-import { proxyToApi, createProxyMiddleware } from './proxy.js'
+import { proxyToApi, createProxyMiddleware, proxyWebSocketUpgrade } from './proxy.js'
 import { injectProxyMetadata, injectScenarioConfig } from './inject.js'
 import { parsePort } from '../shared/utils.js'
 
@@ -256,6 +257,9 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     setupRoutes,
     proxyMetadata,
     scenarioConfig,
+    wsPathPrefix,
+    wsPathTransform,
+    proxyHeaders,
   } = options
 
   // Parse ports
@@ -289,6 +293,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     apiPort: parsedApiPort,
     apiHost,
     verbose,
+    headers: proxyHeaders,
   }))
 
   // Config endpoint
@@ -361,6 +366,51 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     console.log(`  WS Port: ${parsedWsPort}`)
     console.log(`  Dist Dir: ${absoluteDistDir}`)
     console.log(`  Service: ${serviceName}${version ? ` v${version}` : ''}`)
+    if (wsPathPrefix) {
+      console.log(`  WebSocket Proxy: ${wsPathPrefix} -> API server`)
+    }
+  }
+
+  // Attach WebSocket upgrade handler if configured
+  if (wsPathPrefix) {
+    // Store upgrade handler on app for later attachment to HTTP server
+    // This is a bit of a hack, but Express doesn't support upgrade events directly
+    ;(app as any).__wsUpgradeHandler = (req: any, socket: any, head: any) => {
+      if (!req.url || !req.url.startsWith(wsPathPrefix)) {
+        socket.destroy()
+        return
+      }
+
+      // Transform path
+      let transformedPath: string
+      if (wsPathTransform) {
+        transformedPath = wsPathTransform(req.url)
+      } else {
+        // Default: replace prefix with /api/v1
+        transformedPath = req.url.replace(new RegExp(`^${wsPathPrefix}`), '/api/v1')
+      }
+
+      // Build headers
+      let headers = proxyHeaders || {}
+      if (typeof headers === 'function') {
+        headers = headers(req)
+      }
+
+      // Create modified request
+      const modifiedReq = Object.create(req)
+      modifiedReq.url = transformedPath
+      if (Object.keys(headers).length > 0) {
+        modifiedReq.headers = { ...req.headers, ...headers }
+      }
+
+      // Call proxyWebSocketUpgrade (imported at top)
+      proxyWebSocketUpgrade(modifiedReq, socket, head, {
+        apiPort: parsedWsPort || parsedApiPort,
+        apiHost: wsHost || apiHost,
+        verbose,
+        headers,
+      })
+    }
   }
 
   return app
@@ -394,7 +444,16 @@ export function startScenarioServer(options: ServerTemplateOptions): Express {
     throw new Error('Invalid UI_PORT for server startup')
   }
 
-  app.listen(Number.parseInt(port, 10), '0.0.0.0', () => {
+  // Create HTTP server (needed for WebSocket upgrade handling)
+  const server = http.createServer(app)
+
+  // Attach WebSocket upgrade handler if it was configured
+  const wsUpgradeHandler = (app as any).__wsUpgradeHandler
+  if (wsUpgradeHandler) {
+    server.on('upgrade', wsUpgradeHandler)
+  }
+
+  server.listen(Number.parseInt(port, 10), '0.0.0.0', () => {
     console.log(`${options.serviceName || 'Scenario'} UI server listening on port ${port}`)
     console.log(`Health: http://localhost:${port}/health`)
     console.log(`Config: http://localhost:${port}/config`)
@@ -404,7 +463,9 @@ export function startScenarioServer(options: ServerTemplateOptions): Express {
   // Graceful shutdown
   const shutdown = () => {
     console.log('\nShutting down gracefully...')
-    process.exit(0)
+    server.close(() => {
+      process.exit(0)
+    })
   }
 
   process.on('SIGTERM', shutdown)

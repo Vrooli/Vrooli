@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,13 +17,25 @@ import (
 
 var db *sql.DB
 
+// Entity type constants
+const (
+	EntityTypeScenario = "scenario"
+	EntityTypeResource = "resource"
+)
+
+// Draft status constants
+const (
+	DraftStatusDraft     = "draft"
+	DraftStatusPublished = "published"
+)
+
 // HealthResponse represents the health check response
 type HealthResponse struct {
-	Status       string                 `json:"status"`
-	Service      string                 `json:"service"`
-	Timestamp    string                 `json:"timestamp"`
-	Readiness    bool                   `json:"readiness"`
-	Dependencies map[string]interface{} `json:"dependencies"`
+	Status       string         `json:"status"`
+	Service      string         `json:"service"`
+	Timestamp    string         `json:"timestamp"`
+	Readiness    bool           `json:"readiness"`
+	Dependencies map[string]any `json:"dependencies"`
 }
 
 func main() {
@@ -44,7 +55,8 @@ func main() {
 	// Validate required environment variables
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		log.Fatal("API_PORT environment variable must be set")
+		slog.Error("API_PORT environment variable must be set")
+		os.Exit(1)
 	}
 
 	// Validate RESOURCE_OPENROUTER_URL if AI features are expected
@@ -61,31 +73,37 @@ func main() {
 
 	router := mux.NewRouter()
 
-	// CORS middleware
+	// Global middleware
 	router.Use(corsMiddleware)
+	router.Use(jsonMiddleware)
 
 	// Health check (standard endpoint for ecosystem interoperability)
 	router.HandleFunc("/health", handleHealth).Methods("GET")
+
+	// API v1 routes with JSON and database middleware
+	apiV1 := router.PathPrefix("/api/v1").Subrouter()
+	apiV1.Use(requireDBMiddleware)
+
 	// Legacy health check endpoint for backward compatibility
-	router.HandleFunc("/api/v1/health", handleHealth).Methods("GET")
+	apiV1.HandleFunc("/health", handleHealth).Methods("GET")
 
 	// Catalog endpoints
-	router.HandleFunc("/api/v1/catalog", handleGetCatalog).Methods("GET")
-	router.HandleFunc("/api/v1/catalog/{type}/{name}", handleGetPublishedPRD).Methods("GET")
-	router.HandleFunc("/api/v1/catalog/{type}/{name}/draft", handleEnsureDraftFromPublishedPRD).Methods("POST")
+	apiV1.HandleFunc("/catalog", handleGetCatalog).Methods("GET")
+	apiV1.HandleFunc("/catalog/{type}/{name}", handleGetPublishedPRD).Methods("GET")
+	apiV1.HandleFunc("/catalog/{type}/{name}/draft", handleEnsureDraftFromPublishedPRD).Methods("POST")
 
 	// Draft endpoints
-	router.HandleFunc("/api/v1/drafts", handleListDrafts).Methods("GET")
-	router.HandleFunc("/api/v1/drafts", handleCreateDraft).Methods("POST")
-	router.HandleFunc("/api/v1/drafts/{id}", handleGetDraft).Methods("GET")
-	router.HandleFunc("/api/v1/drafts/{id}", handleUpdateDraft).Methods("PUT")
-	router.HandleFunc("/api/v1/drafts/{id}", handleDeleteDraft).Methods("DELETE")
+	apiV1.HandleFunc("/drafts", handleListDrafts).Methods("GET")
+	apiV1.HandleFunc("/drafts", handleCreateDraft).Methods("POST")
+	apiV1.HandleFunc("/drafts/{id}", handleGetDraft).Methods("GET")
+	apiV1.HandleFunc("/drafts/{id}", handleUpdateDraft).Methods("PUT")
+	apiV1.HandleFunc("/drafts/{id}", handleDeleteDraft).Methods("DELETE")
 
 	// Validation and AI endpoints
-	router.HandleFunc("/api/v1/drafts/validate", handleValidatePRD).Methods("POST")
-	router.HandleFunc("/api/v1/drafts/{id}/validate", handleValidateDraft).Methods("POST")
-	router.HandleFunc("/api/v1/drafts/{id}/ai/generate-section", handleAIGenerateSection).Methods("POST")
-	router.HandleFunc("/api/v1/drafts/{id}/publish", handlePublishDraft).Methods("POST")
+	apiV1.HandleFunc("/drafts/validate", handleValidatePRD).Methods("POST")
+	apiV1.HandleFunc("/drafts/{id}/validate", handleValidateDraft).Methods("POST")
+	apiV1.HandleFunc("/drafts/{id}/ai/generate-section", handleAIGenerateSection).Methods("POST")
+	apiV1.HandleFunc("/drafts/{id}/publish", handlePublishDraft).Methods("POST")
 
 	slog.Info("PRD Control Tower API starting", "port", port, "service", "prd-control-tower")
 	if err := http.ListenAndServe(":"+port, router); err != nil {
@@ -164,6 +182,25 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// jsonMiddleware sets JSON content type for API responses
+func jsonMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// requireDBMiddleware checks database availability before processing requests
+func requireDBMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if db == nil {
+			respondServiceUnavailable(w, "Database not available")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // splitOrigins splits a comma-separated list of origins
 func splitOrigins(origins string) []string {
 	var result []string
@@ -177,31 +214,29 @@ func splitOrigins(origins string) []string {
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	health := HealthResponse{
 		Status:       "healthy",
 		Service:      "prd-control-tower-api",
 		Timestamp:    time.Now().Format(time.RFC3339),
 		Readiness:    true,
-		Dependencies: map[string]interface{}{},
+		Dependencies: map[string]any{},
 	}
 
 	// Check database
 	if db != nil {
 		if err := db.Ping(); err != nil {
-			health.Dependencies["database"] = map[string]interface{}{
+			health.Dependencies["database"] = map[string]any{
 				"status": "error",
 				"error":  err.Error(),
 			}
 			health.Status = "degraded"
 		} else {
-			health.Dependencies["database"] = map[string]interface{}{
+			health.Dependencies["database"] = map[string]any{
 				"status": "healthy",
 			}
 		}
 	} else {
-		health.Dependencies["database"] = map[string]interface{}{
+		health.Dependencies["database"] = map[string]any{
 			"status": "not_initialized",
 		}
 		health.Status = "degraded"
@@ -210,18 +245,31 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	// Check draft directory (relative to scenario root, one level up from api/)
 	draftDir := "../data/prd-drafts"
 	if _, err := os.Stat(draftDir); os.IsNotExist(err) {
-		health.Dependencies["draft_storage"] = map[string]interface{}{
+		health.Dependencies["draft_storage"] = map[string]any{
 			"status": "error",
 			"error":  "Draft directory does not exist",
 		}
 		health.Status = "degraded"
 	} else {
-		health.Dependencies["draft_storage"] = map[string]interface{}{
+		health.Dependencies["draft_storage"] = map[string]any{
 			"status": "healthy",
 		}
 	}
 
-	json.NewEncoder(w).Encode(health)
+	respondJSON(w, http.StatusOK, health)
+}
+
+// respondJSON encodes v as JSON and writes it to w with the specified status code, logging any errors
+func respondJSON(w http.ResponseWriter, statusCode int, v any) {
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		slog.Error("failed to encode JSON response", "error", err)
+	}
+}
+
+// isValidEntityType checks if the given entity type is valid (scenario or resource)
+func isValidEntityType(entityType string) bool {
+	return entityType == EntityTypeScenario || entityType == EntityTypeResource
 }
 
 // getVrooliRoot returns the Vrooli root directory from environment or default

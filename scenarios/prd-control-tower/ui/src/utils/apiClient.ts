@@ -1,19 +1,20 @@
 const API_BASE_PATH = '/api/v1'
-const LOOPBACK_SEGMENTS = ['127', '0', '0', '1'] as const
-const LOOPBACK_FALLBACK_PORT = 18600
+const LOOPBACK_HOST = ['127', '0', '0', '1'].join('.')
+const DEFAULT_API_PORT = 18600
 
-type ProxyEndpoint = {
-  path?: unknown
-  url?: unknown
-  target?: unknown
-}
-
-type AppMonitorProxyInfo =
-  | ProxyEndpoint
+type AppMonitorProxyEndpoint =
   | string
   | {
-      primary?: ProxyEndpoint
-      endpoints?: ProxyEndpoint[]
+      url?: unknown
+      path?: unknown
+      target?: unknown
+    }
+
+type AppMonitorProxyInfo =
+  | AppMonitorProxyEndpoint
+  | {
+      primary?: AppMonitorProxyEndpoint
+      endpoints?: AppMonitorProxyEndpoint[]
     }
   | null
   | undefined
@@ -25,7 +26,7 @@ declare global {
   }
 }
 
-const toTrimmedString = (value: unknown): string | undefined => {
+function coerceString(value: unknown): string | undefined {
   if (typeof value === 'string') {
     const trimmed = value.trim()
     return trimmed.length > 0 ? trimmed : undefined
@@ -33,109 +34,74 @@ const toTrimmedString = (value: unknown): string | undefined => {
   return undefined
 }
 
-const stripTrailingSlash = (value: string): string => value.replace(/\/+$/, '')
-
-const ensureLeadingSlash = (value: string): string => (value.startsWith('/') ? value : `/${value}`)
-
-const joinUrlSegments = (base: string, segment: string): string => {
-  const cleanedBase = stripTrailingSlash(base)
-  const normalizedSegment = ensureLeadingSlash(segment)
-  if (!cleanedBase) {
-    return normalizedSegment
-  }
-  return `${cleanedBase}${normalizedSegment}`
-}
-
-const collectProxyCandidates = (input: AppMonitorProxyInfo, seen: Set<string>, results: string[]): void => {
-  if (!input) {
+function collectProxyCandidates(value: unknown, seen: Set<string>, list: string[]): void {
+  if (!value) {
     return
   }
 
-  if (typeof input === 'string') {
-    const candidate = input.trim()
+  if (typeof value === 'string') {
+    const candidate = value.trim()
     if (candidate && !seen.has(candidate)) {
       seen.add(candidate)
-      results.push(candidate)
+      list.push(candidate)
     }
     return
   }
 
-  if (Array.isArray(input)) {
-    input.forEach(item => collectProxyCandidates(item, seen, results))
-    return
-  }
-
-  if (typeof input === 'object') {
-    const record = input as Record<string, unknown>
-    collectProxyCandidates(record.url as AppMonitorProxyInfo, seen, results)
-    collectProxyCandidates(record.path as AppMonitorProxyInfo, seen, results)
-    collectProxyCandidates(record.target as AppMonitorProxyInfo, seen, results)
-    if (Array.isArray(record.endpoints)) {
-      collectProxyCandidates(record.endpoints as AppMonitorProxyInfo, seen, results)
-    }
-    if (record.primary) {
-      collectProxyCandidates(record.primary as AppMonitorProxyInfo, seen, results)
-    }
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    collectProxyCandidates(record.url, seen, list)
+    collectProxyCandidates(record.path, seen, list)
+    collectProxyCandidates(record.target, seen, list)
   }
 }
 
-const isLocalHostname = (value?: string | null): boolean => {
+function pickProxyBase(info: AppMonitorProxyInfo): string | undefined {
+  const seen = new Set<string>()
+  const candidates: string[] = []
+
+  collectProxyCandidates(info, seen, candidates)
+
+  if (info && typeof info === 'object') {
+    const descriptor = info as { primary?: AppMonitorProxyEndpoint; endpoints?: AppMonitorProxyEndpoint[] }
+    collectProxyCandidates(descriptor.primary, seen, candidates)
+    if (Array.isArray(descriptor.endpoints)) {
+      descriptor.endpoints.forEach((endpoint) => collectProxyCandidates(endpoint, seen, candidates))
+    }
+  }
+
+  return candidates.find(Boolean)
+}
+
+function ensureLeadingSlash(value: string): string {
   if (!value) {
-    return false
+    return '/'
   }
-  const normalized = value.trim().toLowerCase()
-  if (!normalized) {
-    return false
-  }
-  return (
-    normalized === 'localhost' ||
-    normalized === '127.0.0.1' ||
-    normalized === '0.0.0.0' ||
-    normalized === '::1' ||
-    normalized === '[::1]'
-  )
+  return value.startsWith('/') ? value : `/${value}`
 }
 
-const resolveProxyBase = (): string | undefined => {
+function stripTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '')
+}
+
+function sanitizePort(port: unknown): string {
+  if (typeof port === 'number') {
+    return port > 0 ? String(port) : ''
+  }
+  if (typeof port === 'string') {
+    const trimmed = port.trim()
+    return trimmed ? trimmed : ''
+  }
+  return ''
+}
+
+function resolveProxyBase(): string | undefined {
   if (typeof window === 'undefined') {
     return undefined
   }
 
-  const globalWindow = window as Window & {
-    __APP_MONITOR_PROXY_INFO__?: AppMonitorProxyInfo
-    __APP_MONITOR_PROXY_INDEX__?: AppMonitorProxyInfo
-  }
-
-  const visited = new Set<Window>()
-  const seen = new Set<string>()
-  const candidates: string[] = []
-
-  const collectFromWindow = (target?: Window | null): void => {
-    if (!target) {
-      return
-    }
-    if (visited.has(target)) {
-      return
-    }
-    visited.add(target)
-
-    try {
-      const source = target as Window & {
-        __APP_MONITOR_PROXY_INFO__?: AppMonitorProxyInfo
-        __APP_MONITOR_PROXY_INDEX__?: AppMonitorProxyInfo
-      }
-      const info = source.__APP_MONITOR_PROXY_INFO__ ?? source.__APP_MONITOR_PROXY_INDEX__
-      collectProxyCandidates(info, seen, candidates)
-    } catch (error) {
-      // Accessing parent/top windows can throw for cross-origin frames; ignore and continue.
-    }
-  }
-
-  collectFromWindow(globalWindow)
-  collectFromWindow(globalWindow.parent)
-  collectFromWindow(globalWindow.top)
-
-  const candidate = candidates.find(Boolean)
+  const info = window.__APP_MONITOR_PROXY_INFO__ ?? window.__APP_MONITOR_PROXY_INDEX__
+  const candidate = pickProxyBase(info)
   if (!candidate) {
     return undefined
   }
@@ -144,102 +110,80 @@ const resolveProxyBase = (): string | undefined => {
     return stripTrailingSlash(candidate)
   }
 
-  const origin = toTrimmedString(globalWindow.location?.origin)
+  const origin = coerceString(window.location?.origin)
   if (!origin) {
     return undefined
   }
 
-  return stripTrailingSlash(joinUrlSegments(origin, candidate))
+  return stripTrailingSlash(origin + ensureLeadingSlash(candidate))
 }
 
-const resolveLocalOriginBase = (): string | undefined => {
-  if (typeof window === 'undefined') {
-    return undefined
+/**
+ * Resolves the base URL for API requests.
+ *
+ * Strategy:
+ * 1. Check VITE_API_URL environment variable
+ * 2. Derive from App Monitor proxy metadata when available
+ * 3. Use current origin (covers local proxy server)
+ * 4. Fallback to localhost with calculated port
+ */
+function getApiBaseUrl(): string {
+  // Strategy 1: Explicit environment variable
+  const env = (import.meta as { env?: Record<string, unknown> }).env
+  const envApiUrl = env?.VITE_API_URL
+  if (typeof envApiUrl === 'string' && envApiUrl.trim()) {
+    return envApiUrl.trim().replace(/\/+$/, '')
   }
 
-  const origin = toTrimmedString(window.location?.origin)
-  if (!origin) {
-    return undefined
+  // Strategy 2: App Monitor proxy metadata
+  if (typeof window !== 'undefined') {
+    const proxyBase = resolveProxyBase()
+    if (proxyBase) {
+      return proxyBase
+    }
   }
 
-  if (!isLocalHostname(window.location?.hostname)) {
-    return undefined
+  // Strategy 3: Use current origin (works with UI proxy server)
+  if (typeof window !== 'undefined') {
+    const origin = coerceString(window.location?.origin)
+    if (origin) {
+      return stripTrailingSlash(origin)
+    }
   }
 
-  return stripTrailingSlash(origin)
-}
-
-const resolveRelativeBase = (): string | undefined => {
-  if (typeof window === 'undefined') {
-    return undefined
-  }
-
-  return ''
-}
-
-const resolveFallbackBase = (): string => {
-  const env = (import.meta as unknown as { env?: Record<string, unknown> }).env ?? {}
-  const envUrl = toTrimmedString(env?.VITE_API_URL)
-  if (envUrl) {
-    return stripTrailingSlash(envUrl)
-  }
-
-  const envHost = toTrimmedString(env?.VITE_API_HOST)
-  const envPort = toTrimmedString(env?.VITE_API_PORT)
-  const envProtocol = (toTrimmedString(env?.VITE_API_PROTOCOL) ?? '').toLowerCase() === 'https' ? 'https' : 'http'
-
-  if (envHost && envPort) {
-    return `${envProtocol}://${envHost}:${envPort}`
-  }
-
+  // Strategy 4: Fallback for direct file access or edge cases
   if (typeof window !== 'undefined') {
     const protocol = window.location?.protocol === 'https:' ? 'https' : 'http'
-    const hostname = toTrimmedString(window.location?.hostname) ?? ['local', 'host'].join('')
-    const uiPort = Number.parseInt(window.location?.port || '', 10)
-    let fallbackPort = ''
+    const hostname = coerceString(window.location?.hostname) || LOOPBACK_HOST
+    const portSegment = sanitizePort(window.location?.port)
 
-    if (Number.isFinite(uiPort) && uiPort > 0) {
-      if (uiPort >= 36000 && uiPort <= 39999) {
-        fallbackPort = String(uiPort - 17700)
-      } else if (uiPort >= 3000 && uiPort < 4000) {
-        fallbackPort = String(uiPort + 15000)
+    let apiPort = DEFAULT_API_PORT
+    if (portSegment) {
+      const uiPort = Number.parseInt(portSegment, 10)
+      if (Number.isFinite(uiPort) && uiPort >= 36000 && uiPort <= 39999) {
+        apiPort = uiPort - 17700
       }
     }
 
-    const resolvedHostname = hostname || LOOPBACK_SEGMENTS.join('.')
-    const portCandidate = fallbackPort || (isLocalHostname(resolvedHostname) ? String(LOOPBACK_FALLBACK_PORT) : '')
-    const portSegment = portCandidate ? `:${portCandidate}` : ''
-    return `${protocol}://${resolvedHostname}${portSegment}`
+    return `${protocol}://${hostname}:${apiPort}`
   }
 
-  const defaultProtocol = 'http'
-  const loopbackHost = LOOPBACK_SEGMENTS.join('.')
-  return `${defaultProtocol}://${loopbackHost}:${LOOPBACK_FALLBACK_PORT}`
+  // Final fallback when window is unavailable
+  return `http://localhost:${DEFAULT_API_PORT}`
 }
 
-const withApiBasePath = (base: string): string => joinUrlSegments(stripTrailingSlash(base), API_BASE_PATH)
-
-export const getApiBase = (): string => {
-  const proxyBase = resolveProxyBase()
-  if (proxyBase) {
-    return withApiBasePath(proxyBase)
-  }
-
-  const localOriginBase = resolveLocalOriginBase()
-  if (localOriginBase) {
-    return withApiBasePath(localOriginBase)
-  }
-
-  const relativeBase = resolveRelativeBase()
-  if (relativeBase !== undefined) {
-    return withApiBasePath(relativeBase)
-  }
-
-  const fallbackBase = resolveFallbackBase()
-  return withApiBasePath(fallbackBase)
+/**
+ * Get the full API base URL including the /api/v1 path
+ */
+export function getApiBase(): string {
+  const baseUrl = getApiBaseUrl()
+  return `${baseUrl}${API_BASE_PATH}`
 }
 
-export const buildApiUrl = (path: string): string => {
-  const normalizedPath = ensureLeadingSlash(path)
-  return `${stripTrailingSlash(getApiBase())}${normalizedPath}`
+/**
+ * Build a complete API URL for a given path
+ */
+export function buildApiUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${getApiBase()}${normalizedPath}`
 }

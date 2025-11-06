@@ -22,8 +22,22 @@
                 console.warn('[TestGenie] Unable to parse parent origin for iframe bridge', error);
             }
 
-            initIframeBridgeChild({ parentOrigin, appId: 'test-genie' });
+            const bridgeController = initIframeBridgeChild({
+                parentOrigin,
+                appId: 'test-genie',
+                captureLogs: {
+                    enabled: true,
+                    streaming: true,
+                    bufferSize: 1000,
+                },
+                captureNetwork: {
+                    enabled: true,
+                    streaming: true,
+                    bufferSize: 500,
+                },
+            });
             window.__testGenieBridgeInitialized = true;
+            window.__testGenieBridgeController = bridgeController;
         }
     </script>
     <style>

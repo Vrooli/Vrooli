@@ -19,6 +19,7 @@ export const EVENT_TYPES = {
 
     // Selection Events
     SELECTION_CHANGED: 'selection:changed',
+    SELECTION_CLEAR: 'selection:clear',
     SUITE_SELECTED: 'suite:selected',
     EXECUTION_SELECTED: 'execution:selected',
 
@@ -34,6 +35,7 @@ export const EVENT_TYPES = {
     EXECUTION_FAILED: 'execution:failed',
     EXECUTION_UPDATED: 'execution:updated',
     EXECUTION_DELETED: 'execution:deleted',
+    EXECUTION_VIEW_REQUESTED: 'execution:view:requested',
 
     // WebSocket Events
     WS_CONNECTED: 'websocket:connected',
@@ -50,13 +52,18 @@ export const EVENT_TYPES = {
     UI_DIALOG_CLOSED: 'ui:dialog:closed',
     UI_SUITE_DETAIL_CLOSE: 'ui:suite:detail:close',
     UI_EXECUTION_DETAIL_CLOSE: 'ui:execution:detail:close',
+    UI_SIDEBAR_CLOSE: 'ui:sidebar:close',
     NOTIFICATION_SHOW: 'notification:show',
+    NOTIFICATION_SUCCESS: 'notification:success',
+    NOTIFICATION_ERROR: 'notification:error',
+    NOTIFICATION_INFO: 'notification:info',
     FILTER_CHANGED: 'filter:changed',
 
     // System Events
     HEALTH_CHANGED: 'system:health:changed',
     HEALTH_CHECK_REQUESTED: 'system:health:check:requested',
     ERROR_OCCURRED: 'system:error',
+    SETTINGS_UPDATED: 'settings:updated',
 
     // Vault Events
     VAULT_CREATED: 'vault:created',

@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -7,7 +8,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +30,7 @@ type TestLogger struct {
 // setupTestLogger initializes logging for testing
 func setupTestLogger() func() {
 	// Redirect to dev/null for cleaner test output
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(os.Discard)
 	return func() {
 		log.SetOutput(os.Stderr)
 	}
@@ -46,7 +46,7 @@ type TestEnvironment struct {
 
 // setupTestDirectory creates an isolated test environment with proper cleanup
 func setupTestDirectory(t *testing.T) *TestEnvironment {
-	tempDir, err := ioutil.TempDir("", "saas-landing-test")
+	tempDir, err := os.MkdirTemp("", "saas-landing-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -281,18 +281,18 @@ func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSta
 // createTestScenario creates a test SaaS scenario in the database
 func createTestScenario(t *testing.T, db *sql.DB, name string) *SaaSScenario {
 	scenario := &SaaSScenario{
-		ID:              uuid.New().String(),
-		ScenarioName:    name,
-		DisplayName:     fmt.Sprintf("Test %s", name),
-		Description:     fmt.Sprintf("Test scenario: %s", name),
-		SaaSType:        "b2b_tool",
-		Industry:        "technology",
+		ID:               uuid.New().String(),
+		ScenarioName:     name,
+		DisplayName:      fmt.Sprintf("Test %s", name),
+		Description:      fmt.Sprintf("Test scenario: %s", name),
+		SaaSType:         "b2b_tool",
+		Industry:         "technology",
 		RevenuePotential: "$10K-$50K",
-		HasLandingPage:  false,
-		LandingPageURL:  "",
-		LastScan:        time.Now(),
-		ConfidenceScore: 0.8,
-		Metadata:        map[string]interface{}{"test": true},
+		HasLandingPage:   false,
+		LandingPageURL:   "",
+		LastScan:         time.Now(),
+		ConfidenceScore:  0.8,
+		Metadata:         map[string]interface{}{"test": true},
 	}
 
 	dbService := NewDatabaseService(db)
@@ -315,7 +315,7 @@ func createTestTemplate(t *testing.T, db *sql.DB, name string) *Template {
 		CSSContent:  "body { margin: 0; }",
 		JSContent:   "console.log('test');",
 		ConfigSchema: map[string]interface{}{
-			"title": "string",
+			"title":       "string",
 			"description": "string",
 		},
 		PreviewURL: fmt.Sprintf("/preview/%s", name),
@@ -399,7 +399,7 @@ func createTestScenariosDirectory(t *testing.T, tempDir string) string {
 
 	serviceJSON, _ := json.MarshalIndent(serviceConfig, "", "  ")
 	serviceFile := filepath.Join(saasScenarioDir, ".vrooli", "service.json")
-	if err := ioutil.WriteFile(serviceFile, serviceJSON, 0644); err != nil {
+	if err := os.WriteFile(serviceFile, serviceJSON, 0644); err != nil {
 		t.Fatalf("Failed to write service.json: %v", err)
 	}
 
@@ -412,7 +412,7 @@ Revenue Potential: $10K-$50K
 This is a multi-tenant SaaS application with subscription pricing.
 `
 	prdFile := filepath.Join(saasScenarioDir, "PRD.md")
-	if err := ioutil.WriteFile(prdFile, []byte(prdContent), 0644); err != nil {
+	if err := os.WriteFile(prdFile, []byte(prdContent), 0644); err != nil {
 		t.Fatalf("Failed to write PRD.md: %v", err)
 	}
 

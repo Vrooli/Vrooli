@@ -188,11 +188,17 @@
           {
             "type": "binaries",
             "targets": [
-              "test-data-generator-api"
+              "api/test-data-generator-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "test-data-generator",
             "targets": [
               "test-data-generator"
             ]
@@ -201,18 +207,42 @@
       },
       "steps": [
         {
-          "name": "install-deps",
-          "run": "cd api && npm install && cd ../ui && npm install",
-          "description": "Install dependencies"
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "install-api-deps",
+          "run": "cd api && npm install",
+          "description": "Install API dependencies"
         },
         {
           "name": "build-api",
-          "run": "cd api && npm run build",
-          "description": "Build API"
+          "run": "cd api && go mod download && go build -o test-data-generator-api .",
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
-          "run": "echo 'Test Data Generator initialized - API: http://localhost:${API_PORT} - UI: http://localhost:${UI_PORT}'",
+          "run": "echo 'Test Data Generator initialized - API: http://localhost:${API_PORT} - UI: http://localhost:${UI_PORT} - CLI: test-data-generator --help'",
           "description": "Display service URLs"
         }
       ]
@@ -233,7 +263,10 @@
           "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
-          "background": true
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         },
         {
           "name": "show-urls",

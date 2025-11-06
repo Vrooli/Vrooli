@@ -48,18 +48,55 @@
         }
 
         .header {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-primary);
-            padding: 16px 24px;
+            position: relative;
+            background: linear-gradient(135deg, rgba(31, 111, 235, 0.2), rgba(35, 134, 54, 0.06)), var(--bg-secondary);
+            border-bottom: 1px solid rgba(48, 54, 61, 0.8);
+            padding: 28px 32px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            top: -160px;
+            right: -140px;
+            width: 340px;
+            height: 340px;
+            background: radial-gradient(circle at center, rgba(31, 111, 235, 0.32), transparent 70%);
+            filter: blur(6px);
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            bottom: -180px;
+            left: -140px;
+            width: 320px;
+            height: 320px;
+            background: radial-gradient(circle at center, rgba(35, 134, 54, 0.28), transparent 70%);
+            filter: blur(6px);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .header-main {
+            position: relative;
+            z-index: 1;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+            gap: 24px;
+            flex-wrap: wrap;
         }
 
         .header-left {
             display: flex;
-            align-items: center;
-            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 18px;
         }
 
         .back-btn {
@@ -89,52 +126,57 @@
         .campaign-info {
             display: flex;
             flex-direction: column;
+            gap: 8px;
         }
 
         .campaign-name {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .campaign-meta {
             font-size: 13px;
             color: var(--text-secondary);
             display: flex;
-            gap: 16px;
+            gap: 12px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .campaign-meta span + span::before {
+            content: '\2022';
+            margin-right: 12px;
+            color: rgba(139, 148, 158, 0.4);
         }
 
         .campaign-status {
-            padding: 2px 6px;
-            border-radius: 4px;
+            padding: 4px 8px;
+            border-radius: 999px;
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            background: var(--accent-primary);
-            color: white;
+            background: rgba(35, 134, 54, 0.18);
+            color: #58d07c;
+            border: 1px solid rgba(35, 134, 54, 0.3);
         }
 
-        .stats {
+        .header-actions {
             display: flex;
-            gap: 24px;
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-
-        .stat-item {
-            display: flex;
-            flex-direction: column;
+            gap: 12px;
+            flex-wrap: wrap;
             align-items: center;
+            justify-content: flex-end;
         }
 
-        .stat-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-primary);
+        .header-stats-wrapper {
+            margin-top: 24px;
+            position: relative;
+            z-index: 1;
         }
+
 
         .container {
             max-width: 1400px;
@@ -200,6 +242,7 @@
             gap: 8px;
             flex: 1;
             max-width: 500px;
+            align-items: flex-start;
         }
 
         .input {
@@ -210,11 +253,67 @@
             color: var(--text-primary);
             border-radius: 6px;
             font-size: 14px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .input:focus {
             outline: none;
             border-color: var(--accent-secondary);
+            box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.2);
+        }
+
+        .input-with-suggestions {
+            position: relative;
+            flex: 1;
+            min-width: 240px;
+        }
+
+        .input-with-suggestions .input {
+            width: 100%;
+        }
+
+        .visit-suggestions {
+            position: absolute;
+            inset-inline: 0;
+            top: calc(100% + 4px);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 6px 0;
+            display: none;
+            z-index: 20;
+        }
+
+        .visit-suggestions.visible {
+            display: block;
+        }
+
+        .visit-suggestions button {
+            all: unset;
+            display: flex;
+            width: 100%;
+            padding: 8px 14px;
+            font-size: 13px;
+            color: var(--text-primary);
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .visit-suggestions button:hover,
+        .visit-suggestions button:focus {
+            background: rgba(31, 111, 235, 0.18);
+            color: var(--text-primary);
+        }
+
+        .visit-suggestions button span {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .grid-container {
@@ -453,51 +552,117 @@
         }
 
         @media (max-width: 768px) {
+            .header-main {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .header-actions {
+                justify-content: flex-start;
+            }
+
+            .header-stats {
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            }
+
             .grid-container {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .header {
+                padding: 18px 16px 24px;
+            }
+
+            .header-left {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 14px;
+            }
+
+            .header-actions {
+                width: 100%;
+            }
+
+            .header-actions .btn {
+                flex: 1 1 100%;
+            }
+
+            .header-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-item {
+                align-items: flex-start;
+            }
+
+            .container {
+                padding: 16px;
             }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="header-left">
-            <a href="index.html" class="back-btn">
-                <i data-lucide="arrow-left"></i>
-                <span>Back to Campaigns</span>
-            </a>
-            <div class="campaign-info">
-                <div class="campaign-name">
-                    <span id="campaignName">Loading...</span>
-                    <span class="campaign-status" id="campaignStatus">active</span>
+        <div class="header-main">
+            <div class="header-left">
+                <a href="index.html" class="back-btn">
+                    <i data-lucide="arrow-left"></i>
+                    <span>Back to Campaigns</span>
+                </a>
+                <div class="campaign-info">
+                    <div class="campaign-name">
+                        <span id="campaignName">Loading...</span>
+                        <span class="campaign-status" id="campaignStatus">active</span>
+                    </div>
+                    <div class="campaign-meta">
+                        <span>Created by: <strong id="campaignFrom">-</strong></span>
+                        <span id="campaignDate">-</span>
+                    </div>
                 </div>
-                <div class="campaign-meta">
-                    <span>Created by: <strong id="campaignFrom">-</strong></span>
-                    <span id="campaignDate">-</span>
-                </div>
+            </div>
+            <div class="header-actions">
+                <a href="/docs" class="btn" title="API Usage Guide">
+                    <i data-lucide="book-open"></i>
+                    <span>API Guide</span>
+                </a>
+                <button class="btn btn-danger" onclick="deleteCampaign()">
+                    <i data-lucide="trash-2"></i>
+                    <span>Delete Campaign</span>
+                </button>
             </div>
         </div>
-        <div class="stats" id="globalStats">
-            <div class="stat-item">
-                <span class="stat-value" id="totalFiles">-</span>
-                <span>Total Files</span>
+        <div class="header-stats-wrapper">
+            <div class="header-stats" id="globalStats">
+                <div class="stat-item">
+                    <span class="stat-icon" aria-hidden="true">
+                        <i data-lucide="folder-open"></i>
+                    </span>
+                    <div class="stat-meta">
+                        <span class="stat-label">Total Files</span>
+                        <span class="stat-value" id="totalFiles">-</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon" aria-hidden="true">
+                        <i data-lucide="target"></i>
+                    </span>
+                    <div class="stat-meta">
+                        <span class="stat-label">Coverage</span>
+                        <span class="stat-value" id="coveragePercent">-</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon" aria-hidden="true">
+                        <i data-lucide="activity"></i>
+                    </span>
+                    <div class="stat-meta">
+                        <span class="stat-label">Avg Staleness</span>
+                        <span class="stat-value" id="avgStaleness">-</span>
+                    </div>
+                </div>
             </div>
-            <div class="stat-item">
-                <span class="stat-value" id="coveragePercent">-</span>
-                <span>Coverage</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-value" id="avgStaleness">-</span>
-                <span>Avg Staleness</span>
-            </div>
-            <a href="/docs" class="btn" title="API Usage Guide" style="margin-left: 16px;">
-                <i data-lucide="book-open"></i>
-                <span>API Guide</span>
-            </a>
-            <button class="btn btn-danger" onclick="deleteCampaign()" style="margin-left: 8px;">
-                <i data-lucide="trash-2"></i>
-                <span>Delete Campaign</span>
-            </button>
         </div>
     </div>
 
@@ -583,7 +748,10 @@
                 <span>Quick Visit Recording</span>
             </h3>
             <div class="input-group" style="max-width: none;">
-                <input type="text" class="input" id="visitFiles" placeholder="Enter file paths (space-separated)">
+                <div class="input-with-suggestions">
+                    <input type="text" class="input" id="visitFiles" placeholder="Start typing a file path..." autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="visitSuggestions">
+                    <div class="visit-suggestions" id="visitSuggestions" role="listbox" aria-label="Tracked files suggestions"></div>
+                </div>
                 <select class="input" id="visitContext" style="flex: 0 0 150px;">
                     <option value="">No context</option>
                     <option value="security">Security</option>
@@ -604,6 +772,12 @@
         let displayApiEndpoint = '';
         let campaignId = '';
         let campaignData = null;
+
+        const trackedFileSuggestions = new Set();
+        const VISIT_SUGGESTION_LIMIT = 8;
+        const visitFilesInput = document.getElementById('visitFiles');
+        const visitSuggestionsList = document.getElementById('visitSuggestions');
+        let activeSuggestionIndex = -1;
 
         const PROXY_INFO_KEYS = ['__APP_MONITOR_PROXY_INFO__', '__APP_MONITOR_PROXY_INDEX__'];
 
@@ -755,6 +929,248 @@
             return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
         }
 
+        const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+
+        function ingestFileCandidates(items) {
+            if (!items) return;
+            const collection = Array.isArray(items) ? items : [items];
+            collection.forEach((entry) => {
+                let candidate = '';
+                if (typeof entry === 'string') {
+                    candidate = entry;
+                } else if (entry && typeof entry.file_path === 'string') {
+                    candidate = entry.file_path;
+                } else if (entry && typeof entry.filePath === 'string') {
+                    candidate = entry.filePath;
+                } else if (entry && typeof entry.path === 'string') {
+                    candidate = entry.path;
+                }
+
+                const normalized = typeof candidate === 'string' ? candidate.trim() : '';
+                if (normalized) {
+                    trackedFileSuggestions.add(normalized);
+                }
+            });
+
+            if (visitFilesInput && document.activeElement === visitFilesInput) {
+                const token = getActiveVisitToken(visitFilesInput.value);
+                renderVisitSuggestions(token);
+            }
+        }
+
+        function getActiveVisitToken(value) {
+            if (!value || /\s$/.test(value)) {
+                return '';
+            }
+            const parts = value.split(/\s+/);
+            return parts[parts.length - 1] || '';
+        }
+
+        function scoreSuggestion(path, term) {
+            if (!term) return 0;
+            const lower = path.toLowerCase();
+            const index = lower.indexOf(term.toLowerCase());
+            return index === -1 ? Number.POSITIVE_INFINITY : index;
+        }
+
+        const parseVisitEntries = (value) => {
+            if (!value) return [];
+            return value
+                .split(/\s+/)
+                .map((entry) => entry.trim())
+                .filter(Boolean);
+        };
+
+        function buildSuggestionList(term) {
+            const entries = Array.from(trackedFileSuggestions);
+            if (!entries.length) {
+                return [];
+            }
+
+            const scored = entries
+                .map((path) => ({ path, score: scoreSuggestion(path, term) }))
+                .filter((item) => item.score !== Number.POSITIVE_INFINITY)
+                .sort((a, b) => (a.score === b.score
+                    ? a.path.localeCompare(b.path)
+                    : a.score - b.score))
+                .slice(0, VISIT_SUGGESTION_LIMIT)
+                .map((item) => item.path);
+
+            if (scored.length || term) {
+                return scored;
+            }
+
+            return entries
+                .slice()
+                .sort((a, b) => a.localeCompare(b))
+                .slice(0, VISIT_SUGGESTION_LIMIT);
+        }
+
+        function hideVisitSuggestions() {
+            if (!visitSuggestionsList) return;
+            visitSuggestionsList.classList.remove('visible');
+            visitSuggestionsList.innerHTML = '';
+            activeSuggestionIndex = -1;
+            if (visitFilesInput) {
+                visitFilesInput.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        function renderVisitSuggestions(term) {
+            if (!visitSuggestionsList) return;
+
+            const suggestions = buildSuggestionList(term);
+            visitSuggestionsList.innerHTML = '';
+            activeSuggestionIndex = -1;
+
+            if (!suggestions.length) {
+                hideVisitSuggestions();
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            suggestions.forEach((path, index) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.setAttribute('role', 'option');
+                button.dataset.value = path;
+                button.innerHTML = `<span>${escapeHtml(path)}</span>`;
+                button.addEventListener('mouseenter', () => {
+                    activeSuggestionIndex = index;
+                });
+                button.addEventListener('focus', () => {
+                    activeSuggestionIndex = index;
+                });
+                fragment.appendChild(button);
+            });
+
+            visitSuggestionsList.appendChild(fragment);
+            visitSuggestionsList.classList.add('visible');
+            if (visitFilesInput) {
+                visitFilesInput.setAttribute('aria-expanded', 'true');
+            }
+        }
+
+        function applyVisitSuggestion(path) {
+            if (!visitFilesInput || !path) return;
+            const existingTokens = visitFilesInput.value.trim().split(/\s+/).filter(Boolean);
+            if (existingTokens.length === 0 || visitFilesInput.value.endsWith(' ')) {
+                const prefix = visitFilesInput.value.trim();
+                visitFilesInput.value = prefix ? `${prefix} ${path} ` : `${path} `;
+            } else {
+                existingTokens[existingTokens.length - 1] = path;
+                visitFilesInput.value = `${existingTokens.join(' ')} `;
+            }
+            hideVisitSuggestions();
+            visitFilesInput.focus();
+        }
+
+        function handleVisitInput() {
+            if (!visitFilesInput) return;
+            const token = getActiveVisitToken(visitFilesInput.value);
+            renderVisitSuggestions(token);
+        }
+
+        function handleVisitFocus() {
+            if (!visitFilesInput) return;
+            const token = getActiveVisitToken(visitFilesInput.value);
+            renderVisitSuggestions(token);
+        }
+
+        function handleVisitBlur() {
+            setTimeout(() => {
+                hideVisitSuggestions();
+            }, 120);
+        }
+
+        function handleVisitKeydown(event) {
+            if (!visitSuggestionsList || !visitSuggestionsList.classList.contains('visible')) {
+                return;
+            }
+
+            const options = Array.from(visitSuggestionsList.querySelectorAll('button'));
+            if (!options.length) return;
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                activeSuggestionIndex = (activeSuggestionIndex + 1) % options.length;
+                options[activeSuggestionIndex].focus();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                activeSuggestionIndex = activeSuggestionIndex <= 0 ? options.length - 1 : activeSuggestionIndex - 1;
+                options[activeSuggestionIndex].focus();
+            } else if (event.key === 'Enter') {
+                const target = options[activeSuggestionIndex];
+                if (target) {
+                    event.preventDefault();
+                    applyVisitSuggestion(target.dataset.value);
+                }
+            } else if (event.key === 'Escape') {
+                hideVisitSuggestions();
+            }
+        }
+
+        if (visitFilesInput) {
+            visitFilesInput.addEventListener('input', handleVisitInput);
+            visitFilesInput.addEventListener('focus', handleVisitFocus);
+            visitFilesInput.addEventListener('blur', handleVisitBlur);
+            visitFilesInput.addEventListener('keydown', handleVisitKeydown);
+        }
+
+        function handleSuggestionListKeydown(event) {
+            if (!visitSuggestionsList) return;
+            const options = Array.from(visitSuggestionsList.querySelectorAll('button'));
+            if (!options.length) return;
+
+            const currentIndex = options.indexOf(document.activeElement);
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % options.length;
+                activeSuggestionIndex = nextIndex;
+                options[nextIndex].focus();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                const prevIndex = currentIndex <= 0 ? options.length - 1 : currentIndex - 1;
+                activeSuggestionIndex = prevIndex;
+                options[prevIndex].focus();
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                const target = options[currentIndex >= 0 ? currentIndex : 0];
+                if (target) {
+                    applyVisitSuggestion(target.dataset.value);
+                }
+            } else if (event.key === 'Escape') {
+                hideVisitSuggestions();
+                if (visitFilesInput) {
+                    visitFilesInput.focus();
+                }
+            }
+        }
+
+        if (visitSuggestionsList) {
+            visitSuggestionsList.addEventListener('mousedown', (event) => {
+                const targetButton = event.target.closest('button');
+                if (!targetButton) return;
+                event.preventDefault();
+                applyVisitSuggestion(targetButton.dataset.value);
+            });
+            visitSuggestionsList.addEventListener('keydown', handleSuggestionListKeydown);
+        }
+
+        document.addEventListener('click', (event) => {
+            if (!visitSuggestionsList || !visitFilesInput) return;
+            if (event.target === visitFilesInput) return;
+            if (visitSuggestionsList.contains(event.target)) return;
+            hideVisitSuggestions();
+        });
+
         // Load campaign details
         async function loadCampaignDetails() {
             try {
@@ -771,7 +1187,9 @@
                 }
                 
                 campaignData = await response.json();
-                
+
+                ingestFileCandidates(campaignData.tracked_files || []);
+
                 // Update UI with campaign info
                 document.getElementById('campaignName').textContent = campaignData.name;
                 document.getElementById('campaignFrom').textContent = campaignData.from_agent;
@@ -844,6 +1262,8 @@
                 
                 const data = await response.json();
                 const list = document.getElementById('leastVisitedList');
+
+                ingestFileCandidates(data.files || []);
                 
                 if (!data.files || data.files.length === 0) {
                     list.innerHTML = '<div class="loading">No files tracked yet</div>';
@@ -881,6 +1301,8 @@
                 
                 const data = await response.json();
                 const list = document.getElementById('mostStaleList');
+
+                ingestFileCandidates(data.files || []);
                 
                 // Update critical count
                 document.getElementById('criticalStale').textContent = data.critical_count || 0;
@@ -945,10 +1367,11 @@
 
         // Record visit
         async function recordVisit() {
-            const files = document.getElementById('visitFiles').value;
             const context = document.getElementById('visitContext').value;
-            
-            if (!files) {
+            const rawValue = visitFilesInput ? visitFilesInput.value : '';
+            const files = parseVisitEntries(rawValue);
+
+            if (!files.length) {
                 showError('Please enter file paths');
                 return;
             }
@@ -958,7 +1381,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        files: files.split(' ').filter(f => f),
+                        files,
                         context: context || null,
                         agent: 'web-ui'
                     })
@@ -968,7 +1391,11 @@
                 
                 const data = await response.json();
                 showError(`✓ Recorded ${data.recorded} visits`);
-                document.getElementById('visitFiles').value = '';
+                if (visitFilesInput) {
+                    visitFilesInput.value = '';
+                }
+                hideVisitSuggestions();
+                ingestFileCandidates(files);
                 refreshData();
                 
             } catch (error) {

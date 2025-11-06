@@ -4,23 +4,38 @@ import { spawnSync } from 'child_process';
 import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
+import {
+  DEFAULT_UI_PORT,
+  DEFAULT_API_PORT,
+  HEALTH_CHECK_TIMEOUT,
+  SERVICE_NAME,
+} from './src/constants.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Normalizes a base path by removing trailing slashes and handling empty/root cases
+ */
 const normalizeBasePath = (value) => {
-  if (!value || value === '/') {
+  if (!value) {
     return '';
   }
-  return value.endsWith('/') ? value.slice(0, -1) : value;
+
+  const trimmed = String(value).trim();
+  if (!trimmed || trimmed === '/') {
+    return '';
+  }
+
+  return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
 };
 
 const normalizedPort = (() => {
-  const raw = process.env.UI_PORT || process.env.SAAS_LANDING_UI_PORT || process.env.PORT || '3000';
+  const raw = process.env.UI_PORT || process.env.SAAS_LANDING_UI_PORT || process.env.PORT || String(DEFAULT_UI_PORT);
   const parsed = Number.parseInt(raw, 10);
   if (Number.isNaN(parsed) || parsed <= 0) {
-    console.warn(`⚠️  Invalid UI port "${raw}". Falling back to 3000.`);
-    return 3000;
+    console.warn(`⚠️  Invalid UI port "${raw}". Falling back to ${DEFAULT_UI_PORT}.`);
+    return DEFAULT_UI_PORT;
   }
   return parsed;
 })();
@@ -31,7 +46,7 @@ const apiBaseUrl = (() => {
     return explicit.replace(/\/$/, '');
   }
 
-  const apiPort = process.env.API_PORT || process.env.SAAS_LANDING_API_PORT || '8080';
+  const apiPort = process.env.API_PORT || process.env.SAAS_LANDING_API_PORT || String(DEFAULT_API_PORT);
   return `http://127.0.0.1:${apiPort}/api/v1`;
 })();
 
@@ -120,6 +135,13 @@ if (!hasDist) {
   console.warn('⚠️  UI build artifacts not found. Falling back to static index.html.');
 }
 
+const createHealthError = (code, message, category, retryable) => ({
+  code,
+  message,
+  category,
+  retryable,
+});
+
 const buildUiHealthPayload = async () => {
   const timestamp = new Date();
   const connectivity = {
@@ -134,7 +156,7 @@ const buildUiHealthPayload = async () => {
   let readiness = true;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2000);
+  const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT);
 
   try {
     const start = Date.now();
@@ -147,12 +169,12 @@ const buildUiHealthPayload = async () => {
   } catch (error) {
     status = 'degraded';
     readiness = false;
-    connectivity.error = {
-      code: error.name === 'AbortError' ? 'TIMEOUT' : 'API_UNREACHABLE',
-      message: error.message,
-      category: 'network',
-      retryable: true,
-    };
+    connectivity.error = createHealthError(
+      error.name === 'AbortError' ? 'TIMEOUT' : 'API_UNREACHABLE',
+      error.message,
+      'network',
+      true
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -165,7 +187,7 @@ const buildUiHealthPayload = async () => {
 
   return {
     status,
-    service: 'saas-landing-manager-ui',
+    service: SERVICE_NAME,
     timestamp: timestamp.toISOString(),
     readiness,
     api_connectivity: connectivity,
@@ -182,7 +204,7 @@ const sendHealthResponse = async (res) => {
     const timestamp = new Date().toISOString();
     res.status(500).json({
       status: 'unhealthy',
-      service: 'saas-landing-manager-ui',
+      service: SERVICE_NAME,
       timestamp,
       readiness: false,
       api_connectivity: {
@@ -190,12 +212,12 @@ const sendHealthResponse = async (res) => {
         api_url: apiHealthUrl,
         last_check: timestamp,
         latency_ms: null,
-        error: {
-          code: error.name === 'AbortError' ? 'TIMEOUT' : 'HEALTH_CHECK_FAILURE',
-          message: error.message,
-          category: 'internal',
-          retryable: true,
-        },
+        error: createHealthError(
+          error.name === 'AbortError' ? 'TIMEOUT' : 'HEALTH_CHECK_FAILURE',
+          error.message,
+          'internal',
+          true
+        ),
       },
       metrics: {
         memory_usage_mb: Math.round((process.memoryUsage().rss / (1024 * 1024)) * 100) / 100,
@@ -282,10 +304,7 @@ router.get('*', (_req, res, next) => {
 const app = express();
 app.use(proxyBasePath || '/', router);
 
-app.get('/health', async (_req, res) => {
-  await sendHealthResponse(res);
-});
-
+// Catch-all for unmatched routes (health check is handled by router above)
 app.get('*', (_req, res) => {
   if (fs.existsSync(fallbackIndexPath)) {
     res.sendFile(fallbackIndexPath);

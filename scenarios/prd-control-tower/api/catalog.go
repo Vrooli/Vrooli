@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -45,27 +44,6 @@ type PublishedPRDResponse struct {
 	ContentHTML string `json:"content_html"`
 }
 
-type rowScanner interface {
-	Scan(dest ...any) error
-}
-
-type draftStore interface {
-	QueryRow(query string, args ...any) rowScanner
-	Exec(query string, args ...any) (sql.Result, error)
-}
-
-type sqlDraftStore struct {
-	db *sql.DB
-}
-
-func (s sqlDraftStore) QueryRow(query string, args ...any) rowScanner {
-	return s.db.QueryRow(query, args...)
-}
-
-func (s sqlDraftStore) Exec(query string, args ...any) (sql.Result, error) {
-	return s.db.Exec(query, args...)
-}
-
 var markdownRenderer = goldmark.New(
 	goldmark.WithExtensions(
 		extension.GFM,
@@ -85,11 +63,9 @@ func markdownToHTML(markdown []byte) (string, error) {
 }
 
 func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	vrooliRoot, err := getVrooliRoot()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to get Vrooli root", err)
 		return
 	}
 
@@ -99,7 +75,7 @@ func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
 	scenarios, err := enumerateEntities(scenariosDir, "scenario")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to enumerate scenarios: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to enumerate scenarios", err)
 		return
 	}
 	entries = append(entries, scenarios...)
@@ -108,7 +84,7 @@ func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 	resourcesDir := filepath.Join(vrooliRoot, "resources")
 	resources, err := enumerateEntities(resourcesDir, "resource")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to enumerate resources: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to enumerate resources", err)
 		return
 	}
 	entries = append(entries, resources...)
@@ -127,8 +103,7 @@ func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 		Total:   len(entries),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	respondJSON(w, http.StatusOK, response)
 }
 
 func enumerateEntities(baseDir string, entityType string) ([]CatalogEntry, error) {
@@ -221,13 +196,27 @@ func extractDescription(prdPath string) string {
 	return ""
 }
 
+// hasDraft checks if a draft exists for the given entity using a two-tier approach.
+//
+// Performance characteristics:
+//   - Database check: O(1) map lookup, very fast
+//   - Filesystem check: O(1) stat syscall, slower due to disk I/O
+//
+// Why dual checking is needed:
+//   - Database sync happens only during handleListDrafts (see syncDraftFilesystemWithDatabase)
+//   - Drafts created directly on disk (e.g., by external tools or during initialization)
+//     won't appear in the database until the next sync
+//   - The filesystem fallback ensures catalog consistency even before first draft list access
+//
+// Trade-off: This adds ~1-5ms of I/O per catalog entry without a DB record, but ensures
+// correctness and prevents confusing UX where drafts exist but aren't shown.
 func hasDraft(entityType string, entityName string, dbPresence map[string]struct{}) bool {
-	if len(dbPresence) > 0 {
-		if _, ok := dbPresence[draftPresenceKey(entityType, entityName)]; ok {
-			return true
-		}
+	// Check database first (faster, O(1) map lookup)
+	if _, ok := dbPresence[draftPresenceKey(entityType, entityName)]; ok {
+		return true
 	}
 
+	// Fallback to filesystem check for drafts not yet synced to DB
 	return hasDraftOnDisk(entityType, entityName)
 }
 
@@ -273,22 +262,19 @@ func draftPresenceKey(entityType, entityName string) string {
 }
 
 func handleGetPublishedPRD(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	vars := mux.Vars(r)
 	entityType := vars["type"]
 	entityName := vars["name"]
 
-	// Validate entity type
-	if entityType != "scenario" && entityType != "resource" {
-		http.Error(w, "Invalid entity type. Must be 'scenario' or 'resource'", http.StatusBadRequest)
+	if !isValidEntityType(entityType) {
+		respondInvalidEntityType(w)
 		return
 	}
 
 	// Construct PRD path
 	vrooliRoot, err := getVrooliRoot()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to get Vrooli root", err)
 		return
 	}
 
@@ -299,10 +285,10 @@ func handleGetPublishedPRD(w http.ResponseWriter, r *http.Request) {
 	content, err := os.ReadFile(prdPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			http.Error(w, fmt.Sprintf("PRD not found for %s/%s", entityType, entityName), http.StatusNotFound)
+			respondError(w, fmt.Sprintf("PRD not found for %s/%s", entityType, entityName), http.StatusNotFound)
 			return
 		}
-		http.Error(w, fmt.Sprintf("Failed to read PRD: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to read PRD", err)
 		return
 	}
 
@@ -319,35 +305,27 @@ func handleGetPublishedPRD(w http.ResponseWriter, r *http.Request) {
 		ContentHTML: htmlContent,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	respondJSON(w, http.StatusOK, response)
 }
 
 func handleEnsureDraftFromPublishedPRD(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if db == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
-		return
-	}
-
 	vars := mux.Vars(r)
 	entityType := vars["type"]
 	entityName := vars["name"]
 
-	if entityType != "scenario" && entityType != "resource" {
-		http.Error(w, "Invalid entity type. Must be 'scenario' or 'resource'", http.StatusBadRequest)
+	if !isValidEntityType(entityType) {
+		respondInvalidEntityType(w)
 		return
 	}
 
 	if strings.TrimSpace(entityName) == "" {
-		http.Error(w, "Entity name is required", http.StatusBadRequest)
+		respondBadRequest(w, "Entity name is required")
 		return
 	}
 
 	vrooliRoot, err := getVrooliRoot()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to get Vrooli root", err)
 		return
 	}
 
@@ -355,30 +333,30 @@ func handleEnsureDraftFromPublishedPRD(w http.ResponseWriter, r *http.Request) {
 	content, err := os.ReadFile(prdPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			http.Error(w, fmt.Sprintf("PRD not found for %s/%s", entityType, entityName), http.StatusNotFound)
+			respondError(w, fmt.Sprintf("PRD not found for %s/%s", entityType, entityName), http.StatusNotFound)
 			return
 		}
-		http.Error(w, fmt.Sprintf("Failed to read PRD: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to read PRD", err)
 		return
 	}
 
-	draft, err := ensureDraftFromPublishedPRD(sqlDraftStore{db: db}, entityType, entityName, string(content))
+	draft, err := ensureDraftFromPublishedPRD(sqlDB{db: db}, entityType, entityName, string(content))
 	if err != nil {
 		slog.Error("failed to ensure draft from published PRD", "entityType", entityType, "entityName", entityName, "error", err)
-		http.Error(w, fmt.Sprintf("Failed to prepare draft: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to prepare draft", err)
 		return
 	}
 
 	if err := saveDraftToFile(entityType, entityName, draft.Content); err != nil {
 		slog.Error("failed to persist draft file", "entityType", entityType, "entityName", entityName, "error", err)
-		http.Error(w, fmt.Sprintf("Failed to save draft file: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to save draft file", err)
 		return
 	}
 
-	json.NewEncoder(w).Encode(draft)
+	respondJSON(w, http.StatusOK, draft)
 }
 
-func ensureDraftFromPublishedPRD(store draftStore, entityType string, entityName string, content string) (Draft, error) {
+func ensureDraftFromPublishedPRD(store dbQueryExecutor, entityType string, entityName string, content string) (Draft, error) {
 	var draft Draft
 	var owner sql.NullString
 
@@ -409,13 +387,13 @@ func ensureDraftFromPublishedPRD(store draftStore, entityType string, entityName
 			Content:    content,
 			CreatedAt:  now,
 			UpdatedAt:  now,
-			Status:     "draft",
+			Status:     DraftStatusDraft,
 		}
 
 		if _, err := store.Exec(`
 			INSERT INTO drafts (id, entity_type, entity_name, content, owner, created_at, updated_at, status)
-			VALUES ($1, $2, $3, $4, $5, $6, $6, 'draft')
-		`, draft.ID, entityType, entityName, content, nullString(""), now); err != nil {
+			VALUES ($1, $2, $3, $4, $5, $6, $6, $7)
+		`, draft.ID, entityType, entityName, content, sql.NullString{}, now, DraftStatusDraft); err != nil {
 			return Draft{}, fmt.Errorf("failed to create draft: %w", err)
 		}
 
@@ -427,17 +405,17 @@ func ensureDraftFromPublishedPRD(store draftStore, entityType string, entityName
 			draft.Owner = owner.String
 		}
 
-		if draft.Status != "draft" {
+		if draft.Status != DraftStatusDraft {
 			now := time.Now()
 			if _, err := store.Exec(`
 				UPDATE drafts
-				SET content = $1, status = 'draft', updated_at = $2
-				WHERE id = $3
-			`, content, now, draft.ID); err != nil {
+				SET content = $1, status = $2, updated_at = $3
+				WHERE id = $4
+			`, content, DraftStatusDraft, now, draft.ID); err != nil {
 				return Draft{}, fmt.Errorf("failed to reset draft: %w", err)
 			}
 			draft.Content = content
-			draft.Status = "draft"
+			draft.Status = DraftStatusDraft
 			draft.UpdatedAt = now
 		}
 

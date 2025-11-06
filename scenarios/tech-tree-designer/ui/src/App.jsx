@@ -12,12 +12,11 @@ import {
   Database,
   LayoutDashboard,
   PenSquare,
-  ExternalLink,
   Maximize2,
   Minimize2,
   X
 } from 'lucide-react'
-import ReactFlow, { Background, Controls, MiniMap } from 'react-flow-renderer'
+import ReactFlow, { Background, Controls, MiniMap, useEdgesState, useNodesState } from 'react-flow-renderer'
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 import 'react-flow-renderer/dist/style.css'
 
@@ -63,6 +62,60 @@ const stageTypeLabel = {
   analytics: 'Analytics',
   integration: 'Integration',
   digital_twin: 'Digital Twin'
+}
+
+const EDGE_STYLE = {
+  stroke: 'rgba(14, 165, 233, 0.45)',
+  strokeWidth: 2
+}
+
+const EDGE_LABEL_STYLE = {
+  fill: '#bae6fd',
+  fontSize: 10,
+  textTransform: 'uppercase',
+  letterSpacing: 0.6
+}
+
+const EDGE_LABEL_TEXT = 'dependency'
+
+const isTemporaryEdgeId = (value) => typeof value === 'string' && value.startsWith('temp-')
+
+const generateTempEdgeId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
+
+const createGraphEdge = ({
+  id,
+  source,
+  target,
+  dependencyType,
+  dependencyStrength,
+  description
+}) => {
+  const resolvedType = dependencyType || 'required'
+  const strength = typeof dependencyStrength === 'number' && !Number.isNaN(dependencyStrength)
+    ? dependencyStrength
+    : 1
+
+  return {
+    id,
+    source,
+    target,
+    label: resolvedType.replace(/_/g, ' ') || EDGE_LABEL_TEXT,
+    animated: strength >= 0.85,
+    style: EDGE_STYLE,
+    labelBgPadding: [4, 2],
+    labelStyle: EDGE_LABEL_STYLE,
+    data: {
+      dependencyType: resolvedType,
+      dependencyStrength: strength,
+      description: description || '',
+      persistedId: !isTemporaryEdgeId(id) ? id : undefined
+    }
+  }
 }
 
 function App() {
@@ -336,23 +389,6 @@ function App() {
     return `$${value.toLocaleString()}`
   }
 
-  const graphStudioUrl = useMemo(() => {
-    if (typeof window === 'undefined') {
-      return ''
-    }
-
-    try {
-      const current = new URL(window.location.href)
-      if (current.href.includes('tech-tree-designer')) {
-        return current.href.replace('tech-tree-designer', 'graph-studio')
-      }
-      return `${current.origin}/apps/graph-studio/proxy/`
-    } catch (error) {
-      console.warn('Unable to resolve Graph Studio URL:', error)
-      return '/apps/graph-studio/proxy/'
-    }
-  }, [])
-
   useEffect(() => {
     if (typeof document === 'undefined') {
       return undefined
@@ -463,6 +499,23 @@ function App() {
       setIsLayoutFullscreen(true)
     })
   }, [isNativeFullscreen, isLayoutFullscreen])
+
+  const handleGraphPersist = useCallback(
+    ({ sectors: updatedSectors, dependencies: updatedDependencies, notice }) => {
+      if (Array.isArray(updatedSectors)) {
+        setSectors(attachStageMetadata(updatedSectors))
+      }
+
+      if (Array.isArray(updatedDependencies)) {
+        setDependencies(updatedDependencies)
+      }
+
+      if (typeof notice === 'string' && notice.trim().length) {
+        setGraphNotice(notice)
+      }
+    },
+    [attachStageMetadata]
+  )
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -828,13 +881,13 @@ function App() {
         <TechTreeCanvas
           sectors={sectors}
           dependencies={dependencies}
-          graphStudioUrl={graphStudioUrl}
           graphNotice={graphNotice}
           techTreeCanvasRef={techTreeCanvasRef}
           isFullscreen={isFullscreen}
           isLayoutFullscreen={isLayoutFullscreen}
           toggleFullscreen={toggleFullscreen}
           canFullscreen={canFullscreen}
+          onGraphPersist={handleGraphPersist}
         />
       )}
     </main>
@@ -844,20 +897,25 @@ function App() {
 function TechTreeCanvas({
   sectors,
   dependencies,
-  graphStudioUrl,
   graphNotice,
   techTreeCanvasRef,
   isFullscreen,
   isLayoutFullscreen,
   toggleFullscreen,
-  canFullscreen
+  canFullscreen,
+  onGraphPersist
 }) {
   const [selectedStageId, setSelectedStageId] = useState(null)
   const [isCompactLayout, setIsCompactLayout] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [hasGraphChanges, setHasGraphChanges] = useState(false)
+  const [isPersisting, setIsPersisting] = useState(false)
+  const [editError, setEditError] = useState(null)
 
-  const { nodes, edges, stageLookup } = useMemo(() => {
+  const { initialNodes, initialEdges, stageLookup } = useMemo(() => {
     const stageMap = new Map()
     const stageNodes = []
+    const edgeList = []
 
     sectors.forEach((sector, sectorIndex) => {
       const baseX = typeof sector.position_x === 'number' ? sector.position_x : sectorIndex * 260
@@ -901,39 +959,223 @@ function TechTreeCanvas({
       })
     })
 
-    const edgeList = (dependencies || []).reduce((accumulator, item) => {
+    ;(dependencies || []).forEach((item) => {
       const dep = item?.dependency || item
       const source = dep?.prerequisite_stage_id || dep?.prerequisiteStageId
       const target = dep?.dependent_stage_id || dep?.dependentStageId
 
       if (!stageMap.has(source) || !stageMap.has(target)) {
-        return accumulator
+        return
       }
 
-      accumulator.push({
-        id: dep?.id || `${source}->${target}`,
-        source,
-        target,
-        label: dep?.dependency_type ? dep.dependency_type.replace('_', ' ') : 'dependency',
-        animated: (dep?.dependency_strength || 0) >= 0.85,
-        style: {
-          stroke: 'rgba(14, 165, 233, 0.45)',
-          strokeWidth: 2
-        },
-        labelBgPadding: [4, 2],
-        labelStyle: {
-          fill: '#bae6fd',
-          fontSize: 10,
-          textTransform: 'uppercase',
-          letterSpacing: 0.6
+      edgeList.push(
+        createGraphEdge({
+          id: dep?.id || `${source}->${target}`,
+          source,
+          target,
+          dependencyType: dep?.dependency_type,
+          dependencyStrength: dep?.dependency_strength,
+          description: dep?.description
+        })
+      )
+    })
+
+    return { initialNodes: stageNodes, initialEdges: edgeList, stageLookup: stageMap }
+  }, [sectors, dependencies])
+
+  const [nodes, setNodes, onNodesStateChange] = useNodesState(initialNodes)
+  const [edges, setEdges, onEdgesStateChange] = useEdgesState(initialEdges)
+
+  useEffect(() => {
+    if (isEditMode && hasGraphChanges) {
+      return
+    }
+    setNodes(initialNodes)
+  }, [initialNodes, isEditMode, hasGraphChanges, setNodes])
+
+  useEffect(() => {
+    if (isEditMode && hasGraphChanges) {
+      return
+    }
+    setEdges(initialEdges)
+  }, [initialEdges, isEditMode, hasGraphChanges, setEdges])
+
+  useEffect(() => {
+    if (!isEditMode) {
+      setHasGraphChanges(false)
+      setEditError(null)
+    }
+  }, [isEditMode])
+
+  const handleNodesChange = useCallback(
+    (changes) => {
+      if (!isEditMode) {
+        return
+      }
+
+      if (changes.some((change) => change.type === 'position' || change.type === 'remove' || change.type === 'add')) {
+        setHasGraphChanges(true)
+      }
+
+      setEditError(null)
+      onNodesStateChange(changes)
+    },
+    [isEditMode, onNodesStateChange]
+  )
+
+  const handleEdgesChange = useCallback(
+    (changes) => {
+      if (!isEditMode) {
+        return
+      }
+
+      if (changes.some((change) => change.type === 'remove' || change.type === 'add')) {
+        setHasGraphChanges(true)
+      }
+
+      setEditError(null)
+      onEdgesStateChange(changes)
+    },
+    [isEditMode, onEdgesStateChange]
+  )
+
+  const handleConnect = useCallback(
+    (connection) => {
+      if (!isEditMode) {
+        return
+      }
+
+      if (!connection?.source || !connection?.target) {
+        return
+      }
+
+      setEditError(null)
+
+      setEdges((currentEdges) => {
+        const exists = currentEdges.some(
+          (edge) => edge.source === connection.source && edge.target === connection.target
+        )
+        if (exists) {
+          return currentEdges
         }
+
+        const newEdge = createGraphEdge({
+          id: `temp-${generateTempEdgeId()}`,
+          source: connection.source,
+          target: connection.target,
+          dependencyType: 'required',
+          dependencyStrength: 0.6
+        })
+
+        setHasGraphChanges(true)
+        return [...currentEdges, newEdge]
+      })
+    },
+    [isEditMode, setEdges]
+  )
+
+  const persistGraph = useCallback(async () => {
+    const stagePositions = nodes.map((node) => ({
+      id: node.id,
+      position_x: node?.position?.x ?? 0,
+      position_y: node?.position?.y ?? 0
+    }))
+
+    const dependencyPayload = edges.map((edge) => ({
+      id: isTemporaryEdgeId(edge.id) ? undefined : edge.id,
+      dependent_stage_id: edge.target,
+      prerequisite_stage_id: edge.source,
+      dependency_type: edge?.data?.dependencyType || 'required',
+      dependency_strength:
+        typeof edge?.data?.dependencyStrength === 'number'
+          ? edge.data.dependencyStrength
+          : 1,
+      description: edge?.data?.description || ''
+    }))
+
+    setIsPersisting(true)
+    setEditError(null)
+
+    try {
+      const response = await fetch(apiUrl('/tech-tree/graph'), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          stages: stagePositions,
+          dependencies: dependencyPayload
+        })
       })
 
-      return accumulator
-    }, [])
+      if (!response.ok) {
+        throw new Error(`Failed to update graph (status ${response.status})`)
+      }
 
-    return { nodes: stageNodes, edges: edgeList, stageLookup: stageMap }
-  }, [sectors, dependencies])
+      const payload = await response.json()
+
+      if (typeof onGraphPersist === 'function') {
+        onGraphPersist(payload)
+      }
+
+      if (Array.isArray(payload?.dependencies)) {
+        const normalizedEdges = payload.dependencies
+          .map((item) => {
+            const dep = item?.dependency || item
+            if (!dep) {
+              return null
+            }
+
+            return createGraphEdge({
+              id: dep.id,
+              source: dep.prerequisite_stage_id,
+              target: dep.dependent_stage_id,
+              dependencyType: dep.dependency_type,
+              dependencyStrength: dep.dependency_strength,
+              description: dep.description
+            })
+          })
+          .filter(Boolean)
+
+        setEdges(normalizedEdges)
+      }
+
+      setHasGraphChanges(false)
+      setEditError(null)
+      return true
+    } catch (error) {
+      console.error('Failed to persist graph edits:', error)
+      setEditError(error?.message || 'Unable to save graph changes. Please try again.')
+      return false
+    } finally {
+      setIsPersisting(false)
+    }
+  }, [edges, nodes, onGraphPersist, setEdges])
+
+  const handleToggleEditMode = useCallback(() => {
+    if (!isEditMode) {
+      setSelectedStageId(null)
+      setHasGraphChanges(false)
+      setEditError(null)
+      setIsEditMode(true)
+      return
+    }
+
+    if (isPersisting) {
+      return
+    }
+
+    if (!hasGraphChanges) {
+      setIsEditMode(false)
+      return
+    }
+
+    persistGraph().then((success) => {
+      if (success) {
+        setIsEditMode(false)
+      }
+    })
+  }, [hasGraphChanges, isEditMode, isPersisting, persistGraph])
 
   const selectedStage = selectedStageId ? stageLookup.get(selectedStageId) : null
   const stageDetailTitleId = selectedStage
@@ -948,9 +1190,16 @@ function TechTreeCanvas({
     : undefined
   const shouldShowDialog = Boolean(isFullscreen || isLayoutFullscreen || isCompactLayout)
 
-  const handleNodeClick = useCallback((_, node) => {
-    setSelectedStageId(node?.id || null)
-  }, [])
+  const handleNodeClick = useCallback(
+    (_, node) => {
+      if (isEditMode) {
+        return
+      }
+
+      setSelectedStageId(node?.id || null)
+    },
+    [isEditMode]
+  )
 
   const handleCloseStageDetail = useCallback(() => {
     setSelectedStageId(null)
@@ -1072,7 +1321,10 @@ function TechTreeCanvas({
         <div className="tech-tree-canvas__header">
           <div>
             <h2>Tech Tree Graph</h2>
-            <p>Navigate nodes, inspect dependencies, and hand off to Graph Studio for structural edits.</p>
+            <p>
+              Navigate nodes, inspect dependencies, or toggle edit mode to restructure the graph directly
+              within the designer.
+            </p>
           </div>
           <div className="tech-tree-actions">
             <button
@@ -1090,19 +1342,46 @@ function TechTreeCanvas({
               )}
               <span>{isFullscreen ? 'Exit full screen' : 'Full screen'}</span>
             </button>
-            <a
-              className="graph-studio-link"
-              href={graphStudioUrl || '#'}
-              target="_blank"
-              rel="noreferrer noopener"
+            <button
+              type="button"
+              className={`graph-edit-toggle${isEditMode ? ' is-active' : ''}`}
+              onClick={handleToggleEditMode}
+              aria-pressed={isEditMode}
+              aria-label={isEditMode ? 'Save changes and exit edit mode' : 'Enter graph edit mode'}
+              title="Edit mode lets you drag stages or connect them. Exit edit mode to save."
+              disabled={isPersisting}
             >
-              <ExternalLink className="graph-studio-link__icon" aria-hidden="true" />
-              Open in Graph Studio
-            </a>
+              <PenSquare className="graph-edit-toggle__icon" aria-hidden="true" />
+              <span>
+                {isPersisting
+                  ? 'Saving graph...'
+                  : isEditMode
+                    ? hasGraphChanges
+                      ? 'Save & exit edit mode'
+                      : 'Exit edit mode'
+                    : 'Enter edit mode'}
+              </span>
+            </button>
           </div>
         </div>
 
-        {graphNotice ? (
+        {editError ? (
+          <div className="graph-notice graph-notice--error" role="alert">
+            <span className="graph-notice__bullet" aria-hidden="true">•</span>
+            {editError}
+          </div>
+        ) : null}
+
+        {isEditMode ? (
+          <div className="graph-notice graph-notice--editing" role="status">
+            <span className="graph-notice__bullet" aria-hidden="true">•</span>
+            {hasGraphChanges
+              ? 'Edit mode active. Unsaved changes will persist when you exit edit mode.'
+              : 'Edit mode active. Drag nodes or connect stages; changes save when you exit edit mode.'}
+          </div>
+        ) : null}
+
+        {!isEditMode && graphNotice ? (
           <div className="graph-notice" role="status">
             <span className="graph-notice__bullet" aria-hidden="true">•</span>
             {graphNotice}
@@ -1113,8 +1392,21 @@ function TechTreeCanvas({
           <ReactFlow
             nodes={nodes}
             edges={edges}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={handleEdgesChange}
+            onConnect={handleConnect}
             onNodeClick={handleNodeClick}
             onPaneClick={handleCloseStageDetail}
+            nodesDraggable={isEditMode}
+            nodesConnectable={isEditMode}
+            elementsSelectable={isEditMode}
+            panOnDrag={!isEditMode}
+            selectionOnDrag={isEditMode}
+            defaultEdgeOptions={{
+              style: EDGE_STYLE,
+              labelStyle: EDGE_LABEL_STYLE,
+              labelBgPadding: [4, 2]
+            }}
             fitView
             fitViewOptions={{ padding: 0.2, minZoom: 0.4, maxZoom: 1.4 }}
           >

@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -43,9 +44,9 @@ func TestDatabaseServiceComprehensive(t *testing.T) {
 			LastScan:         time.Now(),
 			ConfidenceScore:  0.95,
 			Metadata: map[string]interface{}{
-				"test_key":  "test_value",
-				"features":  []string{"auth", "billing"},
-				"priority":  1,
+				"test_key": "test_value",
+				"features": []string{"auth", "billing"},
+				"priority": 1,
 			},
 		}
 
@@ -84,15 +85,15 @@ func TestDatabaseServiceComprehensive(t *testing.T) {
 		template := createTestTemplate(t, env.DB, "landing-template")
 
 		page := &LandingPage{
-			ID:         "landing-page-1",
-			ScenarioID: scenario.ID,
-			TemplateID: template.ID,
-			Variant:    "control",
-			Title:      "Test Landing Page",
+			ID:          "landing-page-1",
+			ScenarioID:  scenario.ID,
+			TemplateID:  template.ID,
+			Variant:     "control",
+			Title:       "Test Landing Page",
 			Description: "Comprehensive landing page test",
 			Content: map[string]interface{}{
-				"hero":    "Welcome",
-				"cta":     "Get Started",
+				"hero":     "Welcome",
+				"cta":      "Get Started",
 				"features": []string{"fast", "secure"},
 			},
 			SEOMetadata: map[string]interface{}{
@@ -231,7 +232,7 @@ func TestSaaSDetectionServiceComprehensive(t *testing.T) {
 			"service": map[string]interface{}{
 				"displayName": "Complex SaaS Application",
 				"description": "Multi-tenant enterprise SaaS platform",
-				"tags": []string{"multi-tenant", "billing", "analytics", "a-b-testing", "saas", "subscription"},
+				"tags":        []string{"multi-tenant", "billing", "analytics", "a-b-testing", "saas", "subscription"},
 			},
 			"resources": map[string]interface{}{
 				"postgres": map[string]interface{}{

@@ -3,9 +3,10 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,6 +16,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
+
+var ErrDatabaseNotAvailable = errors.New("database not available")
 
 // Draft represents a PRD draft with metadata
 type Draft struct {
@@ -47,20 +50,16 @@ type DraftListResponse struct {
 	Total  int     `json:"total"`
 }
 
-type draftExec interface {
-	Exec(query string, args ...any) (sql.Result, error)
-}
-
 func handleListDrafts(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
+	// Defensive check for unit tests (middleware protects in production)
 	if db == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		respondServiceUnavailable(w, "Database not available")
 		return
 	}
 
+	// Sync filesystem drafts with database
 	if err := syncDraftFilesystemWithDatabase(db); err != nil {
-		log.Printf("[Drafts] failed to sync filesystem drafts: %v", err)
+		slog.Warn("Failed to sync filesystem drafts", "error", err)
 	}
 
 	rows, err := db.Query(`
@@ -69,7 +68,7 @@ func handleListDrafts(w http.ResponseWriter, r *http.Request) {
 		ORDER BY updated_at DESC
 	`)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to query drafts: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to query drafts", err)
 		return
 	}
 	defer rows.Close()
@@ -90,7 +89,7 @@ func handleListDrafts(w http.ResponseWriter, r *http.Request) {
 			&draft.Status,
 		)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to scan draft: %v", err), http.StatusInternalServerError)
+			respondInternalError(w, "Failed to scan draft", err)
 			return
 		}
 
@@ -106,103 +105,75 @@ func handleListDrafts(w http.ResponseWriter, r *http.Request) {
 		Total:  len(drafts),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	respondJSON(w, http.StatusOK, response)
 }
 
 func handleGetDraft(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
+	// Defensive check for unit tests (middleware protects in production)
 	if db == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		respondServiceUnavailable(w, "Database not available")
 		return
 	}
 
 	vars := mux.Vars(r)
 	draftID := vars["id"]
 
-	var draft Draft
-	var owner sql.NullString
-
-	err := db.QueryRow(`
-		SELECT id, entity_type, entity_name, content, owner, created_at, updated_at, status
-		FROM drafts
-		WHERE id = $1
-	`, draftID).Scan(
-		&draft.ID,
-		&draft.EntityType,
-		&draft.EntityName,
-		&draft.Content,
-		&owner,
-		&draft.CreatedAt,
-		&draft.UpdatedAt,
-		&draft.Status,
-	)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, "Draft not found", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get draft: %v", err), http.StatusInternalServerError)
+	draft, err := getDraftByID(draftID)
+	if handleDraftError(w, err, "Failed to get draft") {
 		return
 	}
 
-	if owner.Valid {
-		draft.Owner = owner.String
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(draft)
+	respondJSON(w, http.StatusOK, draft)
 }
 
 func handleCreateDraft(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
+	// Defensive check for unit tests (middleware protects in production)
 	if db == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		respondServiceUnavailable(w, "Database not available")
 		return
 	}
 
 	var req CreateDraftRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		respondInvalidJSON(w, err)
 		return
 	}
 
-	// Validate entity type
-	if req.EntityType != "scenario" && req.EntityType != "resource" {
-		http.Error(w, "Invalid entity_type. Must be 'scenario' or 'resource'", http.StatusBadRequest)
+	if !isValidEntityType(req.EntityType) {
+		respondInvalidEntityType(w)
 		return
 	}
 
-	// Validate entity name
 	if req.EntityName == "" {
-		http.Error(w, "entity_name is required", http.StatusBadRequest)
+		respondBadRequest(w, "entity_name is required")
 		return
 	}
 
-	// Generate UUID
+	// Generate UUID for new drafts
 	draftID := uuid.New().String()
 	now := time.Now()
 
-	// Insert into database
-	_, err := db.Exec(`
+	// Insert into database and capture the actual ID (which may differ on conflict)
+	var actualID string
+	err := db.QueryRow(`
 		INSERT INTO drafts (id, entity_type, entity_name, content, owner, created_at, updated_at, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (entity_type, entity_name)
 		DO UPDATE SET content = $4, owner = $5, updated_at = $7
 		RETURNING id
-	`, draftID, req.EntityType, req.EntityName, req.Content, nullString(req.Owner), now, now, "draft")
+	`, draftID, req.EntityType, req.EntityName, req.Content, nullString(req.Owner), now, now, DraftStatusDraft).Scan(&actualID)
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create draft: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to create draft", err)
 		return
 	}
 
+	// Use the actual ID from the database
+	draftID = actualID
+
 	// Write draft to filesystem
 	if err := saveDraftToFile(req.EntityType, req.EntityName, req.Content); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to save draft file: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to save draft file", err)
 		return
 	}
 
@@ -214,55 +185,25 @@ func handleCreateDraft(w http.ResponseWriter, r *http.Request) {
 		Owner:      req.Owner,
 		CreatedAt:  now,
 		UpdatedAt:  now,
-		Status:     "draft",
+		Status:     DraftStatusDraft,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(draft)
+	respondJSON(w, http.StatusCreated, draft)
 }
 
 func handleUpdateDraft(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if db == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
-		return
-	}
-
 	vars := mux.Vars(r)
 	draftID := vars["id"]
 
+	// Get draft metadata (getDraftByID handles db nil check)
+	draft, err := getDraftByID(draftID)
+	if handleDraftError(w, err, "Failed to get draft") {
+		return
+	}
+
 	var req UpdateDraftRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	// Get draft metadata
-	var draft Draft
-	var owner sql.NullString
-	err := db.QueryRow(`
-		SELECT id, entity_type, entity_name, content, owner, created_at, updated_at, status
-		FROM drafts
-		WHERE id = $1
-	`, draftID).Scan(
-		&draft.ID,
-		&draft.EntityType,
-		&draft.EntityName,
-		&draft.Content,
-		&owner,
-		&draft.CreatedAt,
-		&draft.UpdatedAt,
-		&draft.Status,
-	)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, "Draft not found", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get draft: %v", err), http.StatusInternalServerError)
+		respondInvalidJSON(w, err)
 		return
 	}
 
@@ -275,32 +216,26 @@ func handleUpdateDraft(w http.ResponseWriter, r *http.Request) {
 	`, req.Content, now, draftID)
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to update draft: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to update draft", err)
 		return
 	}
 
 	// Update filesystem
 	if err := saveDraftToFile(draft.EntityType, draft.EntityName, req.Content); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to save draft file: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to save draft file", err)
 		return
 	}
 
 	draft.Content = req.Content
 	draft.UpdatedAt = now
 
-	if owner.Valid {
-		draft.Owner = owner.String
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(draft)
+	respondJSON(w, http.StatusOK, draft)
 }
 
 func handleDeleteDraft(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
+	// Defensive check for unit tests (middleware protects in production)
 	if db == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
+		respondServiceUnavailable(w, "Database not available")
 		return
 	}
 
@@ -316,25 +251,25 @@ func handleDeleteDraft(w http.ResponseWriter, r *http.Request) {
 	`, draftID).Scan(&entityType, &entityName)
 
 	if err == sql.ErrNoRows {
-		http.Error(w, "Draft not found", http.StatusNotFound)
+		respondNotFound(w, "Draft")
 		return
 	}
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get draft: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to get draft", err)
 		return
 	}
 
 	// Delete from database
 	_, err = db.Exec(`DELETE FROM drafts WHERE id = $1`, draftID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to delete draft: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to delete draft", err)
 		return
 	}
 
 	// Delete from filesystem
 	draftPath := getDraftPath(entityType, entityName)
 	if err := os.Remove(draftPath); err != nil && !os.IsNotExist(err) {
-		http.Error(w, fmt.Sprintf("Failed to delete draft file: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to delete draft file", err)
 		return
 	}
 
@@ -343,7 +278,7 @@ func handleDeleteDraft(w http.ResponseWriter, r *http.Request) {
 
 // Helper functions
 
-func syncDraftFilesystemWithDatabase(exec draftExec) error {
+func syncDraftFilesystemWithDatabase(exec dbExecutor) error {
 	if exec == nil {
 		return fmt.Errorf("draft executor is nil")
 	}
@@ -381,7 +316,7 @@ func syncDraftFilesystemWithDatabase(exec draftExec) error {
 		}
 
 		entityType := parts[0]
-		if entityType != "scenario" && entityType != "resource" {
+		if !isValidEntityType(entityType) {
 			return nil
 		}
 
@@ -432,4 +367,39 @@ func nullString(s string) sql.NullString {
 		return sql.NullString{Valid: false}
 	}
 	return sql.NullString{String: s, Valid: true}
+}
+
+// getDraftByID retrieves a draft by ID from the database
+func getDraftByID(draftID string) (Draft, error) {
+	if db == nil {
+		return Draft{}, ErrDatabaseNotAvailable
+	}
+
+	var draft Draft
+	var owner sql.NullString
+
+	err := db.QueryRow(`
+		SELECT id, entity_type, entity_name, content, owner, created_at, updated_at, status
+		FROM drafts
+		WHERE id = $1
+	`, draftID).Scan(
+		&draft.ID,
+		&draft.EntityType,
+		&draft.EntityName,
+		&draft.Content,
+		&owner,
+		&draft.CreatedAt,
+		&draft.UpdatedAt,
+		&draft.Status,
+	)
+
+	if err != nil {
+		return Draft{}, err
+	}
+
+	if owner.Valid {
+		draft.Owner = owner.String
+	}
+
+	return draft, nil
 }

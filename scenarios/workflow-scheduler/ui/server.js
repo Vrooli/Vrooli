@@ -17,6 +17,12 @@ const PORT = process.env.UI_PORT;
 const API_PORT = process.env.API_PORT;
 const VROOLI_ROOT = process.env.VROOLI_ROOT || path.resolve(__dirname, '..', '..', '..');
 const IFRAME_BRIDGE_DIST = path.join(VROOLI_ROOT, 'packages', 'iframe-bridge', 'dist');
+const DIST_DIR = path.join(__dirname, 'dist');
+const STATIC_ROOT = fs.existsSync(DIST_DIR) ? DIST_DIR : __dirname;
+
+if (!fs.existsSync(DIST_DIR)) {
+    console.warn('Warning: ui/dist not found. Serving assets from source directory. Run npm run build for production assets.');
+}
 
 // Only load iframe bridge if available (skip - this is server-side, not browser)
 // Note: iframe bridge initialization happens in browser via bridge-init.js
@@ -39,7 +45,7 @@ app.use((req, res, next) => {
 });
 
 // Serve static files
-app.use(express.static(__dirname));
+app.use(express.static(STATIC_ROOT));
 
 if (fs.existsSync(IFRAME_BRIDGE_DIST)) {
     app.use('/vendor/iframe-bridge', express.static(IFRAME_BRIDGE_DIST));
@@ -127,9 +133,9 @@ app.get('/api/config', (req, res) => {
 
 // Fallback routing for SPAs
 app.get('*', (req, res) => {
-    const dashboardFile = path.join(__dirname, 'dashboard.html');
-    const indexFile = path.join(__dirname, 'index.html');
-    
+    const dashboardFile = path.join(STATIC_ROOT, 'dashboard.html');
+    const indexFile = path.join(STATIC_ROOT, 'index.html');
+
     if (fs.existsSync(dashboardFile)) {
         res.sendFile(dashboardFile);
     } else if (fs.existsSync(indexFile)) {

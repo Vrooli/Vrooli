@@ -41,11 +41,19 @@ export interface BridgeInspectElementMeta {
   label?: string;
 }
 
+export interface BridgeInspectAncestorMeta extends BridgeInspectElementMeta {
+  rect?: BridgeInspectRect;
+  documentRect?: BridgeInspectRect;
+  depth?: number;
+}
+
 export interface BridgeInspectHoverPayload {
   rect: BridgeInspectRect;
   documentRect: BridgeInspectRect;
   meta: BridgeInspectElementMeta;
   pointerType?: string;
+  ancestors?: BridgeInspectAncestorMeta[];
+  selectedAncestorIndex?: number;
 }
 
 export interface BridgeInspectResultPayload extends BridgeInspectHoverPayload {
@@ -455,6 +463,82 @@ const collectElementMeta = (element: Element): BridgeInspectElementMeta => {
   };
 };
 
+const MAX_INSPECT_ANCESTOR_DEPTH = 12;
+
+type InspectAncestryEntry = {
+  element: Element;
+  rect: BridgeInspectRect;
+  documentRect: BridgeInspectRect;
+  meta: BridgeInspectAncestorMeta;
+  depth: number;
+};
+
+const collectElementAncestry = (element: Element): InspectAncestryEntry[] => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return [];
+  }
+
+  const entries: InspectAncestryEntry[] = [];
+  const seen = new Set<Element>();
+  let current: Element | null = element;
+  let depth = 0;
+
+  while (current && depth < MAX_INSPECT_ANCESTOR_DEPTH) {
+    if (seen.has(current)) {
+      break;
+    }
+    seen.add(current);
+
+    if (typeof current.getBoundingClientRect !== 'function') {
+      current = current.parentElement;
+      depth += 1;
+      continue;
+    }
+
+    const rect = current.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) {
+      current = current.parentElement;
+      depth += 1;
+      continue;
+    }
+
+    const viewportRect: BridgeInspectRect = {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    };
+
+    const documentRect: BridgeInspectRect = {
+      x: rect.x + window.scrollX,
+      y: rect.y + window.scrollY,
+      width: rect.width,
+      height: rect.height,
+    };
+
+    const baseMeta = collectElementMeta(current);
+    const meta: BridgeInspectAncestorMeta = {
+      ...baseMeta,
+      rect: viewportRect,
+      documentRect,
+      depth,
+    };
+
+    entries.push({
+      element: current,
+      rect: viewportRect,
+      documentRect,
+      meta,
+      depth,
+    });
+
+    current = current.parentElement;
+    depth += 1;
+  }
+
+  return entries;
+};
+
 const isTransparentColor = (value: string | null | undefined): boolean => {
   if (!value) {
     return true;
@@ -551,6 +635,8 @@ interface InspectController {
   stop: (reason?: InspectStopReason) => void;
   dispose: () => void;
   isActive: () => boolean;
+  setTargetIndex: (index: number) => void;
+  shiftTarget: (delta: number) => void;
 }
 
 const createInspectController = (post: PostFn): InspectController => {
@@ -561,6 +647,8 @@ const createInspectController = (post: PostFn): InspectController => {
       stop: () => undefined,
       dispose: () => undefined,
       isActive: () => false,
+      setTargetIndex: () => undefined,
+      shiftTarget: () => undefined,
     };
   }
 
@@ -570,6 +658,8 @@ const createInspectController = (post: PostFn): InspectController => {
   let lastHoverElement: Element | null = null;
   let lastRect: BridgeInspectRect | null = null;
   let lastPointerType: string | undefined;
+  let lastHoverStack: InspectAncestryEntry[] = [];
+  let selectedAncestorIndex = 0;
   let previousCursor: string | null = null;
   let previousTouchAction: string | null = null;
   let previousRootOverflow: string | null = null;
@@ -831,32 +921,37 @@ const createInspectController = (post: PostFn): InspectController => {
     return false;
   };
 
-  const buildHoverPayload = (element: Element, pointerType?: string): BridgeInspectHoverPayload | null => {
-    if (!element || typeof element.getBoundingClientRect !== 'function') {
+  const ensureOverlayAttachment = () => {
+    ensureOverlayNodes();
+    if (overlay && !overlay.parentElement) {
+      document.body.appendChild(overlay);
+    }
+    if (labelNode && !labelNode.parentElement) {
+      document.body.appendChild(labelNode);
+    }
+  };
+
+  const clampSelectedAncestorIndex = (index: number): number => {
+    if (lastHoverStack.length === 0) {
+      return 0;
+    }
+    return Math.min(Math.max(index, 0), lastHoverStack.length - 1);
+  };
+
+  const buildHoverPayloadFromSelection = (pointerType?: string): BridgeInspectHoverPayload | null => {
+    if (lastHoverStack.length === 0) {
       return null;
     }
-    const rect = element.getBoundingClientRect();
-    if (!rect || rect.width <= 0 || rect.height <= 0) {
-      return null;
-    }
-    const viewportRect: BridgeInspectRect = {
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height,
-    };
-    const documentRect: BridgeInspectRect = {
-      x: rect.x + window.scrollX,
-      y: rect.y + window.scrollY,
-      width: rect.width,
-      height: rect.height,
-    };
-    const meta = collectElementMeta(element);
+    selectedAncestorIndex = clampSelectedAncestorIndex(selectedAncestorIndex);
+    const target = lastHoverStack[selectedAncestorIndex];
+    const ancestors = lastHoverStack.map(entry => entry.meta);
     return {
-      rect: viewportRect,
-      documentRect,
-      meta,
+      rect: target.rect,
+      documentRect: target.documentRect,
+      meta: target.meta,
       pointerType,
+      ancestors,
+      selectedAncestorIndex,
     };
   };
 
@@ -917,13 +1012,13 @@ const createInspectController = (post: PostFn): InspectController => {
     post({ v: 1, t: 'INSPECT_RESULT', payload });
   };
 
-  const updateHover = (element: Element, pointerType?: string) => {
-    const payload = buildHoverPayload(element, pointerType);
+  const emitHoverFromSelection = (pointerType?: string) => {
+    const pointerValue = typeof pointerType !== 'undefined' ? pointerType : lastPointerType;
+    const payload = buildHoverPayloadFromSelection(pointerValue);
     if (!payload) {
       hideOverlay();
-      lastRect = null;
       lastHoverElement = null;
-      lastPointerType = undefined;
+      lastRect = null;
       return;
     }
 
@@ -932,27 +1027,62 @@ const createInspectController = (post: PostFn): InspectController => {
       || Math.abs(payload.rect.y - (lastRect?.y ?? 0)) > 0.5
       || Math.abs(payload.rect.width - (lastRect?.width ?? 0)) > 0.5
       || Math.abs(payload.rect.height - (lastRect?.height ?? 0)) > 0.5;
-    const elementChanged = element !== lastHoverElement;
-    const pointerChanged = pointerType !== lastPointerType;
+    const nextElement = lastHoverStack[selectedAncestorIndex]?.element ?? null;
+    const elementChanged = nextElement !== lastHoverElement;
+    const pointerChanged = typeof pointerType !== 'undefined' && pointerType !== lastPointerType;
 
     if (!rectChanged && !elementChanged && !pointerChanged) {
       return;
     }
 
-    ensureOverlayNodes();
-    if (overlay && !overlay.parentElement) {
-      document.body.appendChild(overlay);
-    }
-    if (labelNode && !labelNode.parentElement) {
-      document.body.appendChild(labelNode);
-    }
-
+    ensureOverlayAttachment();
     positionOverlay(payload);
     emitHover(payload);
 
-    lastHoverElement = element;
+    lastHoverElement = nextElement;
     lastRect = payload.rect;
-    lastPointerType = pointerType;
+    lastPointerType = pointerValue;
+  };
+
+  const setSelectedAncestor = (index: number, pointerType?: string) => {
+    if (lastHoverStack.length === 0) {
+      return;
+    }
+    const clamped = clampSelectedAncestorIndex(index);
+    if (clamped === selectedAncestorIndex && lastHoverElement === lastHoverStack[clamped]?.element) {
+      return;
+    }
+    selectedAncestorIndex = clamped;
+    emitHoverFromSelection(pointerType);
+  };
+
+  const shiftSelectedAncestor = (delta: number, pointerType?: string) => {
+    if (!Number.isFinite(delta) || delta === 0) {
+      return;
+    }
+    setSelectedAncestor(selectedAncestorIndex + delta, pointerType);
+  };
+
+  const updateHover = (element: Element, pointerType?: string) => {
+    const stack = collectElementAncestry(element);
+    if (stack.length === 0) {
+      hideOverlay();
+      lastHoverStack = [];
+      lastHoverElement = null;
+      lastRect = null;
+      lastPointerType = pointerType ?? lastPointerType;
+      return;
+    }
+
+    const previousBase = lastHoverStack.length > 0 ? lastHoverStack[0]?.element ?? null : null;
+    lastHoverStack = stack;
+    if (!previousBase || previousBase !== stack[0]?.element) {
+      selectedAncestorIndex = 0;
+    } else {
+      selectedAncestorIndex = clampSelectedAncestorIndex(selectedAncestorIndex);
+    }
+
+    emitHoverFromSelection(pointerType);
   };
 
   const resetHover = () => {
@@ -960,13 +1090,12 @@ const createInspectController = (post: PostFn): InspectController => {
     lastHoverElement = null;
     lastRect = null;
     lastPointerType = undefined;
+    lastHoverStack = [];
+    selectedAncestorIndex = 0;
   };
 
   const finalizeSelection = (method: 'pointer' | 'keyboard') => {
-    if (!lastHoverElement) {
-      return;
-    }
-    const payload = buildHoverPayload(lastHoverElement, lastPointerType);
+    const payload = buildHoverPayloadFromSelection(lastPointerType);
     if (!payload) {
       return;
     }
@@ -1150,6 +1279,7 @@ const createInspectController = (post: PostFn): InspectController => {
       applyScrollLock();
       installTouchMoveGuard();
     }
+    resetHover();
     ensureOverlayNodes();
     if (overlay && !overlay.parentElement) {
       document.body.appendChild(overlay);
@@ -1202,6 +1332,18 @@ const createInspectController = (post: PostFn): InspectController => {
     stop,
     dispose,
     isActive: () => active,
+    setTargetIndex: (index: number) => {
+      if (!active) {
+        return;
+      }
+      setSelectedAncestor(index);
+    },
+    shiftTarget: (delta: number) => {
+      if (!active) {
+        return;
+      }
+      shiftSelectedAncestor(delta);
+    },
   };
 };
 
@@ -1890,6 +2032,10 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
         }
       } else if (message.cmd === 'STOP') {
         inspectController.stop('stop');
+      } else if (message.cmd === 'SET_TARGET' && typeof message.index === 'number') {
+        inspectController.setTargetIndex(message.index);
+      } else if (message.cmd === 'SHIFT_TARGET' && typeof message.delta === 'number') {
+        inspectController.shiftTarget(message.delta);
       }
       return;
     }

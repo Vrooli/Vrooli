@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -242,7 +243,7 @@ func TestPerformanceScenarios(t *testing.T) {
 		defer os.Unsetenv("SCENARIOS_PATH")
 
 		reqBody := ScanRequest{
-			ForceRescan:     false,
+			ForceRescan:    false,
 			ScenarioFilter: "",
 		}
 

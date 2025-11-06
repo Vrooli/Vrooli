@@ -217,8 +217,8 @@ export interface ProxyOptions {
   apiHost?: string
   /** Request timeout in milliseconds */
   timeout?: number
-  /** Additional headers to add/override */
-  headers?: Record<string, string>
+  /** Additional headers to add/override (can be static or a function that receives the request) */
+  headers?: Record<string, string> | ((req: any) => Record<string, string>)
   /** Whether to log proxy requests */
   verbose?: boolean
 }
@@ -303,6 +303,12 @@ export interface ServerTemplateOptions {
   proxyMetadata?: ProxyInfo
   /** Inject scenario config into HTML */
   scenarioConfig?: ScenarioConfig
+  /** WebSocket URL prefix to proxy (e.g., '/ws'). If set, automatically handles WebSocket upgrades */
+  wsPathPrefix?: string
+  /** URL transformation for WebSocket paths (e.g., '/ws' -> '/api/v1'). Defaults to replacing prefix with '/api/v1' */
+  wsPathTransform?: (path: string) => string
+  /** Additional headers to inject into proxied requests */
+  proxyHeaders?: Record<string, string> | ((req: any) => Record<string, string>)
 }
 
 /**

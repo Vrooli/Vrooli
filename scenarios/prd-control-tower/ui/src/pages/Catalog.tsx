@@ -1,4 +1,4 @@
-import { KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   CheckCircle,
@@ -13,20 +13,8 @@ import {
   Filter as FilterIcon
 } from 'lucide-react'
 import { buildApiUrl } from '../utils/apiClient'
-
-interface CatalogEntry {
-  type: string
-  name: string
-  has_prd: boolean
-  prd_path: string
-  has_draft: boolean
-  description: string
-}
-
-interface CatalogResponse {
-  entries: CatalogEntry[]
-  total: number
-}
+import { usePrepareDraft } from '../utils/useDraft'
+import type { CatalogEntry, CatalogResponse } from '../types'
 
 export default function Catalog() {
   const [entries, setEntries] = useState<CatalogEntry[]>([])
@@ -34,14 +22,40 @@ export default function Catalog() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState<'all' | 'scenario' | 'resource'>('all')
-  const [preparingDraftId, setPreparingDraftId] = useState<string | null>(null)
   const [filterMenuOpen, setFilterMenuOpen] = useState(false)
   const filterMenuRef = useRef<HTMLDivElement | null>(null)
   const navigate = useNavigate()
 
+  const { prepareDraft, preparingId } = usePrepareDraft({
+    onSuccess: (entityType, entityName) => {
+      setEntries(prevEntries =>
+        prevEntries.map(item =>
+          item.type === entityType && item.name === entityName
+            ? { ...item, has_draft: true }
+            : item,
+        ),
+      )
+    },
+  })
+
+  const fetchCatalog = useCallback(async () => {
+    try {
+      const response = await fetch(buildApiUrl('/catalog'))
+      if (!response.ok) {
+        throw new Error(`Failed to fetch catalog: ${response.statusText}`)
+      }
+      const data: CatalogResponse = await response.json()
+      setEntries(data.entries)
+      setLoading(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchCatalog()
-  }, [])
+  }, [fetchCatalog])
 
   useEffect(() => {
     if (!filterMenuOpen) {
@@ -68,21 +82,6 @@ export default function Catalog() {
       window.removeEventListener('keydown', handleEscape)
     }
   }, [filterMenuOpen])
-
-  const fetchCatalog = async () => {
-    try {
-      const response = await fetch(buildApiUrl('/catalog'))
-      if (!response.ok) {
-        throw new Error(`Failed to fetch catalog: ${response.statusText}`)
-      }
-      const data: CatalogResponse = await response.json()
-      setEntries(data.entries)
-      setLoading(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-      setLoading(false)
-    }
-  }
 
   const catalogCounts = useMemo(() => {
     let scenarios = 0
@@ -132,45 +131,10 @@ export default function Catalog() {
     return matchesSearch && matchesType
   })
 
-  const handleFilterChange = (value: 'all' | 'scenario' | 'resource') => {
+  const handleFilterChange = useCallback((value: 'all' | 'scenario' | 'resource') => {
     setTypeFilter(value)
     setFilterMenuOpen(false)
-  }
-
-  const prepareDraft = async (entry: CatalogEntry) => {
-    const draftKey = `${entry.type}:${entry.name}`
-    setPreparingDraftId(draftKey)
-
-    try {
-      const encodedName = encodeURIComponent(entry.name)
-      const response = await fetch(buildApiUrl(`/catalog/${entry.type}/${encodedName}/draft`), {
-        method: 'POST',
-      })
-
-      if (!response.ok) {
-        const errorMessage = await response.text()
-        throw new Error(errorMessage || 'Failed to prepare draft')
-      }
-
-      await response.json()
-
-      setEntries(prevEntries =>
-        prevEntries.map(item =>
-          item.type === entry.type && item.name === entry.name
-            ? { ...item, has_draft: true }
-            : item,
-        ),
-      )
-
-      navigate(`/draft/${entry.type}/${encodeURIComponent(entry.name)}`)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      console.error('[Catalog] Failed to prepare draft', err)
-      alert(`Failed to prepare draft for ${entry.name}: ${message}`)
-    } finally {
-      setPreparingDraftId(null)
-    }
-  }
+  }, [])
 
   const getStatusBadge = (entry: CatalogEntry) => {
     if (entry.has_draft) {
@@ -390,10 +354,10 @@ export default function Catalog() {
                       <button
                         type="button"
                         className="btn-link"
-                        onClick={() => prepareDraft(entry)}
-                        disabled={preparingDraftId === cardKey}
+                        onClick={() => prepareDraft(entry.type, entry.name)}
+                        disabled={preparingId === cardKey}
                       >
-                        {preparingDraftId === cardKey ? 'Preparing...' : 'Edit PRD'}
+                        {preparingId === cardKey ? 'Preparing...' : 'Edit PRD'}
                       </button>
                     )}
                     {entry.has_draft && (

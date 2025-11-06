@@ -2,13 +2,13 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -30,67 +30,37 @@ type AIGenerateResponse struct {
 }
 
 func handleAIGenerateSection(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if db == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
-		return
-	}
-
 	vars := mux.Vars(r)
 	draftID := vars["id"]
 
 	// Parse request body
 	var req AIGenerateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		respondInvalidJSON(w, err)
 		return
 	}
 
 	if req.Section == "" {
-		http.Error(w, "Section is required", http.StatusBadRequest)
+		respondBadRequest(w, "Section is required")
 		return
 	}
 
 	// Get draft from database
-	var draft Draft
-	var owner sql.NullString
-	err := db.QueryRow(`
-		SELECT id, entity_type, entity_name, content, owner, created_at, updated_at, status
-		FROM drafts
-		WHERE id = $1
-	`, draftID).Scan(
-		&draft.ID,
-		&draft.EntityType,
-		&draft.EntityName,
-		&draft.Content,
-		&owner,
-		&draft.CreatedAt,
-		&draft.UpdatedAt,
-		&draft.Status,
-	)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, "Draft not found", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get draft: %v", err), http.StatusInternalServerError)
+	draft, err := getDraftByID(draftID)
+	if handleDraftError(w, err, "Failed to get draft") {
 		return
 	}
 
 	// Generate AI content
 	generatedText, model, err := generateAIContent(draft, req.Section, req.Context)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
 		response := AIGenerateResponse{
 			DraftID: draftID,
 			Section: req.Section,
 			Success: false,
 			Message: fmt.Sprintf("AI generation failed: %v", err),
 		}
-		json.NewEncoder(w).Encode(response)
+		respondJSON(w, http.StatusInternalServerError, response)
 		return
 	}
 
@@ -102,8 +72,7 @@ func handleAIGenerateSection(w http.ResponseWriter, r *http.Request) {
 		Success:       true,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	respondJSON(w, http.StatusOK, response)
 }
 
 func generateAIContent(draft Draft, section string, context string) (string, string, error) {
@@ -123,7 +92,7 @@ func generateAIContentHTTP(baseURL string, draft Draft, section string, context 
 	prompt := buildPrompt(draft, section, context)
 
 	// Call OpenRouter API
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"model": "anthropic/claude-3.5-sonnet",
 		"messages": []map[string]string{
 			{
@@ -146,7 +115,10 @@ func generateAIContentHTTP(baseURL string, draft Draft, section string, context 
 
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
+	// Set timeout for AI generation requests (60 seconds)
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to call OpenRouter API: %w", err)
@@ -158,20 +130,31 @@ func generateAIContentHTTP(baseURL string, draft Draft, section string, context 
 		return "", "", fmt.Errorf("OpenRouter API returned error: %s, body: %s", resp.Status, string(body))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// Extract generated text
-	choices, ok := result["choices"].([]interface{})
+	// Extract generated text with safe type assertions
+	choices, ok := result["choices"].([]any)
 	if !ok || len(choices) == 0 {
 		return "", "", fmt.Errorf("no choices in response")
 	}
 
-	choice := choices[0].(map[string]interface{})
-	message := choice["message"].(map[string]interface{})
-	content := message["content"].(string)
+	choice, ok := choices[0].(map[string]any)
+	if !ok {
+		return "", "", fmt.Errorf("invalid choice format in response")
+	}
+
+	message, ok := choice["message"].(map[string]any)
+	if !ok {
+		return "", "", fmt.Errorf("invalid message format in response")
+	}
+
+	content, ok := message["content"].(string)
+	if !ok {
+		return "", "", fmt.Errorf("invalid content format in response")
+	}
 
 	model := "anthropic/claude-3.5-sonnet"
 	if m, ok := result["model"].(string); ok {
@@ -226,14 +209,14 @@ Task: Generate the "%s" section for this PRD.
 `, context)
 	}
 
-	prompt += `Requirements:
+	prompt += fmt.Sprintf(`Requirements:
 - Follow Vrooli PRD standards and structure
 - Be specific and actionable
 - Include measurable criteria where applicable
 - Use markdown formatting
 - Focus on business value and technical clarity
 
-Generate only the content for the "%s" section. Do not include the section header itself.`
+Generate only the content for the "%s" section. Do not include the section header itself.`, section)
 
-	return fmt.Sprintf(prompt, section)
+	return prompt
 }

@@ -44,7 +44,7 @@ This scenario uses Windmill for UI rather than a custom React application, makin
 - **Directory**: `test/`
 - **Files**:
   - `test-analysis-endpoint.sh` - API endpoint validation
-- **Updated**: `scenario-test.yaml` to match new structure
+- **Modernized**: Replaced legacy `scenario-test.yaml` workflow with phased test runner (`test/run-tests.sh`)
 
 ### 5. ✅ Legacy Cleanup
 - **Removed**: `deployment/` directory with old startup scripts

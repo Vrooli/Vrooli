@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { ChangeEvent, KeyboardEvent, ReactNode } from 'react'
+import type { ChangeEvent, KeyboardEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import ReactMarkdown from 'react-markdown'
 import {
   FileEdit,
   Clock,
@@ -14,42 +16,17 @@ import {
   Loader2,
   Search,
   X,
+  Info,
 } from 'lucide-react'
 import { buildApiUrl } from '../utils/apiClient'
-
-interface Draft {
-  id: string
-  entity_type: string
-  entity_name: string
-  content: string
-  owner?: string
-  created_at: string
-  updated_at: string
-  status: string
-}
-
-interface DraftListResponse {
-  drafts: Draft[]
-  total: number
-}
-
-type ViewMode = 'split' | 'edit' | 'preview'
+import { useConfirm } from '../utils/confirmDialog'
+import { formatDate, formatFileSize, decodeRouteSegment, calculateDraftMetrics } from '../utils/formatters'
+import type { Draft, DraftListResponse, ViewMode } from '../types'
+import { ViewModes } from '../types'
 
 interface SaveStatus {
   type: 'success' | 'error'
   message: string
-}
-
-const decodeRouteSegment = (value?: string) => {
-  if (!value) {
-    return ''
-  }
-  try {
-    return decodeURIComponent(value)
-  } catch (error) {
-    console.warn('[Drafts] Failed to decode route segment', { value, error })
-    return value
-  }
 }
 
 export default function Drafts() {
@@ -58,6 +35,7 @@ export default function Drafts() {
     entityName?: string
   }>()
   const navigate = useNavigate()
+  const confirm = useConfirm()
 
   const decodedRouteName = useMemo(() => decodeRouteSegment(routeEntityName), [routeEntityName])
   const normalizedRouteType = routeEntityType?.toLowerCase()
@@ -74,7 +52,16 @@ export default function Drafts() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('split')
+  const [viewMode, setViewMode] = useState<ViewMode>(ViewModes.SPLIT)
+  const [metaDialogOpen, setMetaDialogOpen] = useState(false)
+
+  const openMetaDialog = useCallback(() => {
+    setMetaDialogOpen(true)
+  }, [])
+
+  const closeMetaDialog = useCallback(() => {
+    setMetaDialogOpen(false)
+  }, [])
 
   const fetchDrafts = useCallback(async (options?: { silent?: boolean }) => {
     if (options?.silent) {
@@ -163,7 +150,8 @@ export default function Drafts() {
       setEditorContent('')
       setLastLoadedContent('')
       setHasUnsavedChanges(false)
-      setViewMode('split')
+      setViewMode(ViewModes.SPLIT)
+      setMetaDialogOpen(false)
       return
     }
 
@@ -174,7 +162,8 @@ export default function Drafts() {
       setLastLoadedContent(selectedDraft.content)
       setHasUnsavedChanges(false)
       setSaveStatus(null)
-      setViewMode('split')
+      setViewMode(ViewModes.SPLIT)
+      setMetaDialogOpen(false)
       return
     }
 
@@ -198,6 +187,28 @@ export default function Drafts() {
     }
   }, [saveStatus])
 
+  useEffect(() => {
+    if (!metaDialogOpen) {
+      return
+    }
+
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setMetaDialogOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [metaDialogOpen])
+
   const handleEditorChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     const value = event.target.value
     setEditorContent(value)
@@ -206,12 +217,21 @@ export default function Drafts() {
     }
   }
 
-  const handleDiscardChanges = () => {
+  const handleDiscardChanges = async () => {
     if (!selectedDraft) {
       return
     }
-    if (hasUnsavedChanges && !confirm('Discard unsaved changes?')) {
-      return
+    if (hasUnsavedChanges) {
+      const shouldDiscard = await confirm({
+        title: 'Discard Changes?',
+        message: 'Are you sure you want to discard your unsaved changes? This action cannot be undone.',
+        confirmText: 'Discard',
+        cancelText: 'Keep Editing',
+        variant: 'warning',
+      })
+      if (!shouldDiscard) {
+        return
+      }
     }
 
     setEditorContent(lastLoadedContent)
@@ -223,7 +243,13 @@ export default function Drafts() {
       return
     }
     if (hasUnsavedChanges) {
-      const shouldContinue = confirm('Refreshing will discard unsaved changes. Continue?')
+      const shouldContinue = await confirm({
+        title: 'Refresh Draft?',
+        message: 'Refreshing will discard unsaved changes. Continue?',
+        confirmText: 'Refresh',
+        cancelText: 'Cancel',
+        variant: 'warning',
+      })
       if (!shouldContinue) {
         return
       }
@@ -268,7 +294,15 @@ export default function Drafts() {
   }
 
   const handleDelete = async (draftId: string) => {
-    if (!confirm('Are you sure you want to delete this draft?')) {
+    const shouldDelete = await confirm({
+      title: 'Delete Draft?',
+      message: 'Are you sure you want to delete this draft? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    })
+
+    if (!shouldDelete) {
       return
     }
 
@@ -280,8 +314,9 @@ export default function Drafts() {
         throw new Error(`Failed to delete draft: ${response.statusText}`)
       }
       await fetchDrafts()
+      toast.success('Draft deleted successfully')
     } catch (err) {
-      alert(`Error deleting draft: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      toast.error(`Error deleting draft: ${err instanceof Error ? err.message : 'Unknown error'}`)
     }
   }
 
@@ -303,18 +338,9 @@ export default function Drafts() {
     })
   }, [drafts, filter, normalizedRouteName, normalizedRouteType, routeFilterActive])
 
-  const previewElements = useMemo(() => buildMarkdownElements(editorContent), [editorContent])
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
+  const draftMetrics = useMemo(() => {
+    return calculateDraftMetrics(selectedDraft?.content ?? '')
+  }, [selectedDraft?.content])
 
   if (loading && !refreshing) {
     return (
@@ -391,7 +417,7 @@ export default function Drafts() {
                 </div>
                 <div className="draft-meta-item">
                   <FileEdit size={14} />
-                  <span>{(draft.content.length / 1024).toFixed(1)} KB</span>
+                  <span>{formatFileSize(draft.content.length)} KB</span>
                 </div>
               </div>
             </div>
@@ -450,154 +476,216 @@ export default function Drafts() {
       </Link>
     </section>
   ) : shouldShowDraftEditor && selectedDraft ? (
-    <section className="draft-editor" aria-labelledby="draft-editor-heading">
-      <div className="draft-editor__breadcrumbs">
-        <Link to="/drafts">Drafts</Link>
-        <span aria-hidden="true">/</span>
-        <span>{selectedDraft.entity_type}</span>
-        <span aria-hidden="true">/</span>
-        <span>{selectedDraft.entity_name}</span>
-      </div>
+    <>
+      <section className="draft-editor" aria-labelledby="draft-editor-heading">
+        <div className="draft-editor__breadcrumbs">
+          <Link to="/drafts">Drafts</Link>
+          <span aria-hidden="true">/</span>
+          <span>{selectedDraft.entity_type}</span>
+          <span aria-hidden="true">/</span>
+          <span>{selectedDraft.entity_name}</span>
+        </div>
 
-      <header className="draft-editor__header">
-        <div>
-          <h2 id="draft-editor-heading">{selectedDraft.entity_name}</h2>
-          <p className="draft-editor__subtitle">
-            {selectedDraft.status === 'draft' ? 'Draft in progress' : selectedDraft.status}
-          </p>
-        </div>
-        <div className="draft-editor__badges">
-          <span className={`type-badge ${selectedDraft.entity_type}`}>
-            {selectedDraft.entity_type}
-          </span>
-        </div>
-      </header>
+        <header className="draft-editor__header">
+          <div className="draft-editor__title">
+            <div className="draft-editor__title-group">
+              <h2 id="draft-editor-heading">{selectedDraft.entity_name}</h2>
+              <button
+                type="button"
+                className="draft-editor__info-button"
+                onClick={openMetaDialog}
+                aria-label="View supplemental draft details"
+                aria-haspopup="dialog"
+                aria-expanded={metaDialogOpen}
+                aria-controls="draft-info-dialog"
+              >
+                <Info size={18} aria-hidden="true" />
+              </button>
+            </div>
+            <p className="draft-editor__subtitle">
+              {selectedDraft.status === 'draft' ? 'Draft in progress' : selectedDraft.status}
+            </p>
+          </div>
+          <div className="draft-editor__badges">
+            <span className={`type-badge ${selectedDraft.entity_type}`}>
+              {selectedDraft.entity_type}
+            </span>
+          </div>
+        </header>
 
-      <div className="draft-editor__meta-grid">
-        <div className="draft-editor__meta-item">
-          <span className="draft-editor__meta-label">Last updated</span>
-          <span className="draft-editor__meta-value">{formatDate(selectedDraft.updated_at)}</span>
+        <div className="draft-editor__toolbar">
+          <button
+            type="button"
+            className="draft-editor__button draft-editor__button--primary"
+            onClick={handleSaveDraft}
+            disabled={saving || !hasUnsavedChanges}
+          >
+            {saving ? <Loader2 size={16} className="icon-spin" /> : <Save size={16} />}
+            <span>Save draft</span>
+          </button>
+          <button
+            type="button"
+            className="draft-editor__button"
+            onClick={handleDiscardChanges}
+            disabled={!hasUnsavedChanges}
+          >
+            <RotateCcw size={16} />
+            <span>Discard changes</span>
+          </button>
+          <button
+            type="button"
+            className="draft-editor__button"
+            onClick={handleRefreshDraft}
+            disabled={refreshing}
+          >
+            {refreshing ? <Loader2 size={16} className="icon-spin" /> : <RefreshCcw size={16} />}
+            <span>Refresh</span>
+          </button>
+          <div className="draft-editor__spacer" aria-hidden="true" />
+          <div className="draft-editor__view-toggle" role="group" aria-label="Editor view mode">
+            <button
+              type="button"
+              className={`draft-editor__toggle ${viewMode === ViewModes.EDIT ? 'draft-editor__toggle--active' : ''}`}
+              onClick={() => setViewMode(ViewModes.EDIT)}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className={`draft-editor__toggle ${viewMode === ViewModes.SPLIT ? 'draft-editor__toggle--active' : ''}`}
+              onClick={() => setViewMode(ViewModes.SPLIT)}
+            >
+              Split
+            </button>
+            <button
+              type="button"
+              className={`draft-editor__toggle ${viewMode === ViewModes.PREVIEW ? 'draft-editor__toggle--active' : ''}`}
+              onClick={() => setViewMode(ViewModes.PREVIEW)}
+            >
+              Preview
+            </button>
+          </div>
         </div>
-        <div className="draft-editor__meta-item">
-          <span className="draft-editor__meta-label">Created</span>
-          <span className="draft-editor__meta-value">{formatDate(selectedDraft.created_at)}</span>
-        </div>
-        {selectedDraft.owner && (
-          <div className="draft-editor__meta-item">
-            <span className="draft-editor__meta-label">Owner</span>
-            <span className="draft-editor__meta-value">{selectedDraft.owner}</span>
+
+        {saveStatus && (
+          <div className={`draft-editor__status draft-editor__status--${saveStatus.type}`}>
+            {saveStatus.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+            <span>{saveStatus.message}</span>
           </div>
         )}
-        <div className="draft-editor__meta-item">
-          <span className="draft-editor__meta-label">Size</span>
-          <span className="draft-editor__meta-value">{(selectedDraft.content.length / 1024).toFixed(1)} KB</span>
-        </div>
-      </div>
 
-      <div className="draft-editor__toolbar">
-        <button
-          type="button"
-          className="draft-editor__button draft-editor__button--primary"
-          onClick={handleSaveDraft}
-          disabled={saving || !hasUnsavedChanges}
-        >
-          {saving ? <Loader2 size={16} className="icon-spin" /> : <Save size={16} />}
-          <span>Save draft</span>
-        </button>
-        <button
-          type="button"
-          className="draft-editor__button"
-          onClick={handleDiscardChanges}
-          disabled={!hasUnsavedChanges}
-        >
-          <RotateCcw size={16} />
-          <span>Discard changes</span>
-        </button>
-        <button
-          type="button"
-          className="draft-editor__button"
-          onClick={handleRefreshDraft}
-          disabled={refreshing}
-        >
-          {refreshing ? <Loader2 size={16} className="icon-spin" /> : <RefreshCcw size={16} />}
-          <span>Refresh</span>
-        </button>
-        <div className="draft-editor__spacer" aria-hidden="true" />
-        <div className="draft-editor__view-toggle" role="group" aria-label="Editor view mode">
-          <button
-            type="button"
-            className={`draft-editor__toggle ${viewMode === 'edit' ? 'draft-editor__toggle--active' : ''}`}
-            onClick={() => setViewMode('edit')}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className={`draft-editor__toggle ${viewMode === 'split' ? 'draft-editor__toggle--active' : ''}`}
-            onClick={() => setViewMode('split')}
-          >
-            Split
-          </button>
-          <button
-            type="button"
-            className={`draft-editor__toggle ${viewMode === 'preview' ? 'draft-editor__toggle--active' : ''}`}
-            onClick={() => setViewMode('preview')}
-          >
-            Preview
-          </button>
-        </div>
-      </div>
-
-      {saveStatus && (
-        <div className={`draft-editor__status draft-editor__status--${saveStatus.type}`}>
-          {saveStatus.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
-          <span>{saveStatus.message}</span>
-        </div>
-      )}
-
-      <div className={`draft-editor__panes draft-editor__panes--${viewMode}`}>
-        <div className="draft-editor__pane draft-editor__pane--editor">
-          <label className="draft-editor__label" htmlFor="draft-content">
-            Markdown source
-          </label>
-          <textarea
-            id="draft-content"
-            className="draft-editor__textarea"
-            value={editorContent}
-            onChange={handleEditorChange}
-            spellCheck={false}
-          />
-          <p className="draft-editor__hint">
-            Tip: Use markdown headings (e.g. # Overview) to match the PRD structure.
-          </p>
-        </div>
-        <div className="draft-editor__pane draft-editor__pane--preview">
-          <span className="draft-editor__label">Live preview</span>
-          <div className="draft-preview">
-            {editorContent.trim().length === 0 ? (
-              <p className="draft-preview__empty">Start editing to see a formatted preview.</p>
-            ) : (
-              <div className="draft-preview__content">{previewElements}</div>
-            )}
+        <div className={`draft-editor__panes draft-editor__panes--${viewMode}`}>
+          <div className="draft-editor__pane draft-editor__pane--editor">
+            <label className="draft-editor__label" htmlFor="draft-content">
+              Markdown source
+            </label>
+            <textarea
+              id="draft-content"
+              className="draft-editor__textarea"
+              value={editorContent}
+              onChange={handleEditorChange}
+              spellCheck={false}
+            />
+            <p className="draft-editor__hint">
+              Tip: Use markdown headings (e.g. # Overview) to match the PRD structure.
+            </p>
+          </div>
+          <div className="draft-editor__pane draft-editor__pane--preview">
+            <span className="draft-editor__label">Live preview</span>
+            <div className="draft-preview">
+              {editorContent.trim().length === 0 ? (
+                <p className="draft-preview__empty">Start editing to see a formatted preview.</p>
+              ) : (
+                <div className="draft-preview__content">
+                  <ReactMarkdown>{editorContent}</ReactMarkdown>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+      {metaDialogOpen && (
+        <div className="draft-info-overlay" onClick={closeMetaDialog}>
+          <div
+            className="draft-info-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="draft-info-dialog-title"
+            aria-describedby="draft-info-dialog-description"
+            onClick={(event) => event.stopPropagation()}
+            id="draft-info-dialog"
+          >
+            <div className="draft-info-dialog__header">
+              <div>
+                <h3 id="draft-info-dialog-title">Draft details</h3>
+                <p id="draft-info-dialog-description" className="draft-info-dialog__subtitle">
+                  Supplemental metadata and helpful stats for <strong>{selectedDraft.entity_name}</strong>.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="draft-info-dialog__close"
+                onClick={closeMetaDialog}
+                aria-label="Close draft details"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <dl className="draft-info-dialog__grid">
+              <div className="draft-info-dialog__entry">
+                <dt>Last updated</dt>
+                <dd>{formatDate(selectedDraft.updated_at)}</dd>
+              </div>
+              <div className="draft-info-dialog__entry">
+                <dt>Created</dt>
+                <dd>{formatDate(selectedDraft.created_at)}</dd>
+              </div>
+              <div className="draft-info-dialog__entry">
+                <dt>Status</dt>
+                <dd>{selectedDraft.status}</dd>
+              </div>
+              <div className="draft-info-dialog__entry">
+                <dt>Type</dt>
+                <dd>{selectedDraft.entity_type}</dd>
+              </div>
+              {selectedDraft.owner && (
+                <div className="draft-info-dialog__entry">
+                  <dt>Owner</dt>
+                  <dd>{selectedDraft.owner}</dd>
+                </div>
+              )}
+              <div className="draft-info-dialog__entry">
+                <dt>File size</dt>
+                <dd>{draftMetrics.sizeKb.toFixed(1)} KB</dd>
+              </div>
+              <div className="draft-info-dialog__entry">
+                <dt>Word count</dt>
+                <dd>{draftMetrics.wordCount.toLocaleString()}</dd>
+              </div>
+              <div className="draft-info-dialog__entry">
+                <dt>Character count</dt>
+                <dd>{draftMetrics.characterCount.toLocaleString()}</dd>
+              </div>
+              {draftMetrics.estimatedReadMinutes > 0 && (
+                <div className="draft-info-dialog__entry">
+                  <dt>Estimated read time</dt>
+                  <dd>
+                    {draftMetrics.estimatedReadMinutes}{' '}
+                    {draftMetrics.estimatedReadMinutes === 1 ? 'minute' : 'minutes'}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </div>
+        </div>
+      )}
+    </>
   ) : null
 
   if (isDetailRoute) {
     return (
       <div className="container">
-        <header className="page-header">
-          <h1 className="page-title">
-            <span className="page-title__icon" aria-hidden="true">
-              <FileEdit size={28} strokeWidth={2.5} />
-            </span>
-            <span>Draft PRDs</span>
-          </h1>
-          <p className="subtitle">Focused view for a single draft</p>
-        </header>
-
         {detailContent}
 
         <div className="back-link-container">
@@ -683,188 +771,4 @@ export default function Drafts() {
       </div>
     </div>
   )
-}
-
-function buildMarkdownElements(markdown: string): ReactNode[] {
-  const lines = markdown.split(/\r?\n/)
-  const elements: ReactNode[] = []
-  let keyCounter = 0
-  const nextKey = () => `md-${keyCounter++}`
-
-  let paragraphLines: string[] = []
-  let unorderedItems: string[] = []
-  let orderedItems: string[] = []
-  let inCodeBlock = false
-  let codeLines: string[] = []
-  let codeLanguage = ''
-
-  const flushParagraph = () => {
-    if (!paragraphLines.length) {
-      return
-    }
-    const text = paragraphLines.join(' ')
-    elements.push(
-      <p key={nextKey()}>{renderInlineMarkdown(text, nextKey)}</p>,
-    )
-    paragraphLines = []
-  }
-
-  const flushUnordered = () => {
-    if (!unorderedItems.length) {
-      return
-    }
-    elements.push(
-      <ul key={nextKey()}>
-        {unorderedItems.map((item) => (
-          <li key={nextKey()}>{renderInlineMarkdown(item, nextKey)}</li>
-        ))}
-      </ul>,
-    )
-    unorderedItems = []
-  }
-
-  const flushOrdered = () => {
-    if (!orderedItems.length) {
-      return
-    }
-    elements.push(
-      <ol key={nextKey()}>
-        {orderedItems.map((item) => (
-          <li key={nextKey()}>{renderInlineMarkdown(item, nextKey)}</li>
-        ))}
-      </ol>,
-    )
-    orderedItems = []
-  }
-
-  const flushLists = () => {
-    flushUnordered()
-    flushOrdered()
-  }
-
-  const flushCodeBlock = () => {
-    if (!codeLines.length) {
-      return
-    }
-    elements.push(
-      <pre key={nextKey()}>
-        <code>
-          {codeLanguage ? `${codeLanguage}\n` : ''}
-          {codeLines.join('\n')}
-        </code>
-      </pre>,
-    )
-    codeLines = []
-    codeLanguage = ''
-    inCodeBlock = false
-  }
-
-  lines.forEach((line) => {
-    const trimmed = line.trim()
-
-    if (trimmed.startsWith('```')) {
-      if (inCodeBlock) {
-        flushCodeBlock()
-      } else {
-        flushParagraph()
-        flushLists()
-        inCodeBlock = true
-        codeLanguage = trimmed.slice(3).trim()
-      }
-      return
-    }
-
-    if (inCodeBlock) {
-      codeLines.push(line)
-      return
-    }
-
-    if (/^#{1,6} /.test(trimmed)) {
-      flushParagraph()
-      flushLists()
-      const match = trimmed.match(/^#{1,6}/)
-      const level = match ? match[0].length : 1
-      const content = trimmed.slice(level).trim()
-      const Tag = (`h${Math.min(level, 6)}`) as keyof JSX.IntrinsicElements
-      elements.push(
-        <Tag key={nextKey()}>{renderInlineMarkdown(content, nextKey)}</Tag>,
-      )
-      return
-    }
-
-    if (/^[-*] /.test(trimmed)) {
-      flushParagraph()
-      flushOrdered()
-      unorderedItems.push(trimmed.slice(2).trim())
-      return
-    }
-
-    if (/^\d+[.)] /.test(trimmed)) {
-      flushParagraph()
-      flushUnordered()
-      orderedItems.push(trimmed.replace(/^\d+[.)]\s*/, '').trim())
-      return
-    }
-
-    if (trimmed === '') {
-      flushParagraph()
-      flushLists()
-      return
-    }
-
-    paragraphLines.push(line)
-  })
-
-  if (inCodeBlock) {
-    flushCodeBlock()
-  }
-
-  flushParagraph()
-  flushLists()
-
-  return elements
-}
-
-function renderInlineMarkdown(text: string, nextKey: () => string): ReactNode[] {
-  const nodes: ReactNode[] = []
-  const pattern = /(\[[^\]]+\]\([^\)]+\)|\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*|_[^_]+_|~~[^~]+~~)/g
-  let lastIndex = 0
-
-  for (const match of text.matchAll(pattern)) {
-    const fullMatch = match[0]
-    const index = match.index ?? 0
-
-    if (index > lastIndex) {
-      nodes.push(text.slice(lastIndex, index))
-    }
-
-    if (fullMatch.startsWith('[')) {
-      const labelMatch = fullMatch.match(/^\[([^\]]+)\]\(([^\)]+)\)$/)
-      if (labelMatch) {
-        nodes.push(
-          <a key={nextKey()} href={labelMatch[2]} target="_blank" rel="noreferrer">
-            {labelMatch[1]}
-          </a>,
-        )
-      } else {
-        nodes.push(fullMatch)
-      }
-    } else if ((fullMatch.startsWith('**') && fullMatch.endsWith('**')) || (fullMatch.startsWith('__') && fullMatch.endsWith('__'))) {
-      nodes.push(<strong key={nextKey()}>{fullMatch.slice(2, -2)}</strong>)
-    } else if ((fullMatch.startsWith('*') && fullMatch.endsWith('*')) || (fullMatch.startsWith('_') && fullMatch.endsWith('_'))) {
-      nodes.push(<em key={nextKey()}>{fullMatch.slice(1, -1)}</em>)
-    } else if (fullMatch.startsWith('~~') && fullMatch.endsWith('~~')) {
-      nodes.push(<del key={nextKey()}>{fullMatch.slice(2, -2)}</del>)
-    } else if (fullMatch.startsWith('`') && fullMatch.endsWith('`')) {
-      nodes.push(<code key={nextKey()}>{fullMatch.slice(1, -1)}</code>)
-    }
-
-    lastIndex = index + fullMatch.length
-  }
-
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex))
-  }
-
-  return nodes.length > 0 ? nodes : [text]
 }

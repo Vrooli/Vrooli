@@ -106,11 +106,12 @@
           {
             "type": "binaries",
             "targets": [
-              "app-personalizer-api"
+              "api/app-personalizer-api"
             ]
           },
           {
             "type": "cli",
+            "command": "app-personalizer",
             "targets": [
               "app-personalizer"
             ]

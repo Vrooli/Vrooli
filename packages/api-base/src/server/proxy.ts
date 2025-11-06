@@ -188,7 +188,17 @@ export function createProxyMiddleware(options: ProxyOptions): RequestHandler {
     try {
       // Construct full path (preserves query params, etc.)
       const fullPath = req.url.startsWith('/api') ? req.url : `/api${req.url}`
-      await proxyToApi(req, res, fullPath, options)
+
+      // Build headers (support both static and dynamic)
+      let headers = options.headers || {}
+      if (typeof headers === 'function') {
+        headers = headers(req)
+      }
+
+      await proxyToApi(req, res, fullPath, {
+        ...options,
+        headers
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
       console.error(`[proxy] Unexpected error: ${message}`)
@@ -235,6 +245,7 @@ export function proxyWebSocketUpgrade(
   const {
     apiPort,
     apiHost = LOOPBACK_HOST,
+    headers: additionalHeaders = {},
     verbose = false,
   } = options
 
@@ -299,6 +310,9 @@ export function proxyWebSocketUpgrade(
         console.error(`[ws-proxy] Available headers:`, Object.keys(headers))
       }
     }
+
+    // Add additional headers from options
+    Object.assign(headers, additionalHeaders)
 
     // Override critical headers for proxying
     headers.host = `${apiHost}:${portNumber}`

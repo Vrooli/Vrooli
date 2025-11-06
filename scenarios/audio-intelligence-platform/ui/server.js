@@ -1,18 +1,25 @@
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
 const API_PORT = process.env.API_PORT;
+const N8N_PORT = process.env.N8N_PORT || process.env.N8N_HTTP_PORT || '';
 
-// Get port from environment variable or default to 31005
+const distDir = path.join(__dirname, 'dist');
+const staticRoot = fs.existsSync(distDir) ? distDir : __dirname;
+const modulesDir = path.join(__dirname, 'node_modules');
 
-// Serve static files from current directory
-app.use(express.static(__dirname));
+if (fs.existsSync(modulesDir)) {
+    app.use('/node_modules', express.static(modulesDir));
+}
+
+// Serve static files from built bundle when available
+app.use(express.static(staticRoot));
 
 // Inject environment variables into HTML
 app.get('/', (req, res) => {
-    const indexPath = path.join(__dirname, 'index.html');
-    const fs = require('fs');
+    const indexPath = path.join(staticRoot, 'index.html');
     
     fs.readFile(indexPath, 'utf8', (err, data) => {
         if (err) {
@@ -23,9 +30,9 @@ app.get('/', (req, res) => {
         // Inject environment variables as script tag
         const envScript = `
         <script>
-            window.API_PORT = '${API_PORT}';
+            window.API_PORT = '${API_PORT ?? ''}';
             window.N8N_PORT = '${N8N_PORT}';
-            window.UI_PORT = '${PORT}';
+            window.UI_PORT = '${PORT ?? ''}';
         </script>`;
         
         // Insert before closing head tag

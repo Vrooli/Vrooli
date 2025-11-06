@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -416,7 +417,7 @@ func TestScanScenariosHandler(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		reqBody := ScanRequest{
-			ForceRescan:     false,
+			ForceRescan:    false,
 			ScenarioFilter: "",
 		}
 

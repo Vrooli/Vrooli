@@ -124,9 +124,7 @@ func TestBusinessLogic(t *testing.T) {
 			response := assertJSONResponse(t, w, 201, nil)
 			buildID := response["build_id"].(string)
 
-			buildsMux.RLock()
-			build := builds[buildID]
-			buildsMux.RUnlock()
+			build, _ := buildManager.Get(buildID)
 
 			// Verify defaults were applied
 			if build.Config.Version != "1.0.0" {
@@ -163,9 +161,7 @@ func TestBusinessLogic(t *testing.T) {
 			response := assertJSONResponse(t, w, 201, nil)
 			buildID := response["build_id"].(string)
 
-			buildsMux.RLock()
-			build := builds[buildID]
-			buildsMux.RUnlock()
+			build, _ := buildManager.Get(buildID)
 
 			expectedPath := filepath.Join(config.OutputPath, "path-test-scenario", "platforms", "extension")
 			if build.ExtensionPath != expectedPath {
@@ -195,9 +191,7 @@ func TestBusinessLogic(t *testing.T) {
 			response := assertJSONResponse(t, w, 201, nil)
 			buildID := response["build_id"].(string)
 
-			buildsMux.RLock()
-			build, exists := builds[buildID]
-			buildsMux.RUnlock()
+			build, exists := buildManager.Get(buildID)
 
 			if !exists {
 				t.Fatal("Expected build to exist in global builds map")
@@ -229,9 +223,7 @@ func TestBusinessLogic(t *testing.T) {
 				CreatedAt:     time.Now(),
 			}
 
-			buildsMux.Lock()
-			builds[build.BuildID] = build
-			buildsMux.Unlock()
+			buildManager.Add(build)
 
 			// Simulate build process
 			generateExtension(build)
@@ -239,9 +231,7 @@ func TestBusinessLogic(t *testing.T) {
 			// Wait a bit for async processing
 			time.Sleep(200 * time.Millisecond)
 
-			buildsMux.RLock()
-			finalBuild := builds[build.BuildID]
-			buildsMux.RUnlock()
+			finalBuild, _ := buildManager.Get(build.BuildID)
 
 			if finalBuild.Status == "building" {
 				t.Error("Expected build to complete (status should not be 'building')")
@@ -269,9 +259,7 @@ func TestBusinessLogic(t *testing.T) {
 				CreatedAt:     time.Now(),
 			}
 
-			buildsMux.Lock()
-			builds[build.BuildID] = build
-			buildsMux.Unlock()
+			buildManager.Add(build)
 
 			// Simulate build process (should fail)
 			generateExtension(build)
@@ -279,9 +267,7 @@ func TestBusinessLogic(t *testing.T) {
 			// Wait for async processing
 			time.Sleep(200 * time.Millisecond)
 
-			buildsMux.RLock()
-			failedBuild := builds[build.BuildID]
-			buildsMux.RUnlock()
+			failedBuild, _ := buildManager.Get(build.BuildID)
 
 			if failedBuild.Status != "failed" {
 				t.Errorf("Expected status 'failed', got %s", failedBuild.Status)
@@ -321,9 +307,7 @@ func TestBusinessLogic(t *testing.T) {
 				response := assertJSONResponse(t, w, 201, nil)
 				buildID := response["build_id"].(string)
 
-				buildsMux.RLock()
-				build := builds[buildID]
-				buildsMux.RUnlock()
+				build, _ := buildManager.Get(buildID)
 
 				if build.TemplateType != templateType {
 					t.Errorf("Expected template type %s, got %s", templateType, build.TemplateType)
@@ -363,9 +347,7 @@ func TestBusinessLogic(t *testing.T) {
 		response := assertJSONResponse(t, w, 201, nil)
 		buildID := response["build_id"].(string)
 
-		buildsMux.RLock()
-		build := builds[buildID]
-		buildsMux.RUnlock()
+		build, _ := buildManager.Get(buildID)
 
 		if build.Config.CustomVariables == nil {
 			t.Fatal("Expected custom variables to be preserved")
@@ -499,17 +481,13 @@ func TestDataIntegrity(t *testing.T) {
 			go func(id int) {
 				for i := 0; i < iterations; i++ {
 					// Write
-					buildsMux.Lock()
-					builds[string(rune(id*iterations+i))] = &ExtensionBuild{
+					buildManager.Add(&ExtensionBuild{
 						BuildID: string(rune(id*iterations + i)),
 						Status:  "building",
-					}
-					buildsMux.Unlock()
+					})
 
 					// Read
-					buildsMux.RLock()
-					_ = len(builds)
-					buildsMux.RUnlock()
+					_ = buildManager.Count()
 				}
 				done <- true
 			}(g)
@@ -658,9 +636,7 @@ func TestBusinessConstraints(t *testing.T) {
 		response := assertJSONResponse(t, w, 201, nil)
 		buildID := response["build_id"].(string)
 
-		buildsMux.RLock()
-		build := builds[buildID]
-		buildsMux.RUnlock()
+		build, _ := buildManager.Get(buildID)
 
 		if len(build.Config.Permissions) != len(permissions) {
 			t.Errorf("Expected %d permissions, got %d", len(permissions), len(build.Config.Permissions))

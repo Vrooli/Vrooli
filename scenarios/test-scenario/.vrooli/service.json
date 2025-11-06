@@ -1,12 +1,75 @@
 {
-  "name": "test-scenario",
+  "service": {
+    "name": "test-scenario",
+    "description": "Test scenario for Vrooli"
+  },
   "version": "1.0.0",
-  "description": "Test scenario for Vrooli",
   "lifecycle": {
+    "setup": {
+      "description": "Prepare test-scenario binaries and CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/test-scenario-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "test-scenario",
+            "targets": [
+              "test-scenario"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "bash cli/install.sh",
+          "description": "Install CLI helpers",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o test-scenario-api .",
+          "description": "Build Go API binary",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'test-scenario initialized - API: http://localhost:${API_PORT} - CLI: test-scenario --help'",
+          "description": "Display service endpoints"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start test-scenario API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./test-scenario-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/test-scenario-api"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'test-scenario running - API: http://localhost:${API_PORT} - CLI: test-scenario --help'",
+          "description": "Display service endpoints"
+        }
+      ]
+    },
     "health": {
       "endpoints": {
-        "api": "/health",
-        "ui": "/health"
+        "api": "/health"
       },
       "description": "Test Scenario health check configuration",
       "checks": [
@@ -17,14 +80,6 @@
           "critical": true,
           "timeout": 5000,
           "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 3000,
-          "interval": 45000
         }
       ],
       "timeout": 5000,
@@ -35,10 +90,9 @@
   },
   "ports": {
     "api": {
-      "env_var": "API_PORT"
-    },
-    "ui": {
-      "env_var": "UI_PORT"
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Primary API port"
     }
   }
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,13 +28,6 @@ type PublishResponse struct {
 }
 
 func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if db == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
-		return
-	}
-
 	vars := mux.Vars(r)
 	draftID := vars["id"]
 
@@ -43,40 +35,22 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 	var req PublishRequest
 	req.CreateBackup = true // Default to creating backup
 	if r.Body != nil {
-		json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			// Non-fatal: just use defaults if decode fails
+			slog.Warn("Failed to decode publish request, using defaults", "error", err)
+		}
 	}
 
 	// Get draft from database
-	var draft Draft
-	var owner sql.NullString
-	err := db.QueryRow(`
-		SELECT id, entity_type, entity_name, content, owner, created_at, updated_at, status
-		FROM drafts
-		WHERE id = $1
-	`, draftID).Scan(
-		&draft.ID,
-		&draft.EntityType,
-		&draft.EntityName,
-		&draft.Content,
-		&owner,
-		&draft.CreatedAt,
-		&draft.UpdatedAt,
-		&draft.Status,
-	)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, "Draft not found", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get draft: %v", err), http.StatusInternalServerError)
+	draft, err := getDraftByID(draftID)
+	if handleDraftError(w, err, "Failed to get draft") {
 		return
 	}
 
 	// Construct target PRD path
 	vrooliRoot, err := getVrooliRoot()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get Vrooli root: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to get Vrooli root", err)
 		return
 	}
 
@@ -89,7 +63,7 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 		if _, err := os.Stat(targetPath); err == nil {
 			backupPath = targetPath + ".backup." + time.Now().Format("20060102-150405")
 			if err := copyFile(targetPath, backupPath); err != nil {
-				http.Error(w, fmt.Sprintf("Failed to create backup: %v", err), http.StatusInternalServerError)
+				respondInternalError(w, "Failed to create backup", err)
 				return
 			}
 		}
@@ -98,21 +72,21 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 	// Write PRD.md file
 	targetDir := filepath.Dir(targetPath)
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create target directory: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to create target directory", err)
 		return
 	}
 
 	if err := os.WriteFile(targetPath, []byte(draft.Content), 0644); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to write PRD file: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Failed to write PRD file", err)
 		return
 	}
 
 	// Update draft status to 'published'
 	_, err = db.Exec(`
 		UPDATE drafts
-		SET status = 'published', updated_at = $1
-		WHERE id = $2
-	`, time.Now(), draftID)
+		SET status = $1, updated_at = $2
+		WHERE id = $3
+	`, DraftStatusPublished, time.Now(), draftID)
 
 	if err != nil {
 		// Non-fatal, just log
@@ -134,7 +108,7 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 		PublishedAt: time.Now().Format(time.RFC3339),
 	}
 
-	json.NewEncoder(w).Encode(response)
+	respondJSON(w, http.StatusOK, response)
 }
 
 // Helper function to copy a file

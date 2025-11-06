@@ -181,6 +181,51 @@ _testing_playbooks_bas__wait_for_execution() {
     done
 }
 
+_testing_playbooks_bas__execute_adhoc_workflow() {
+    local api_base="$1"
+    local workflow_path="$2"
+
+    # Read workflow JSON and extract metadata
+    local flow_def
+    flow_def=$(cat "$workflow_path")
+
+    local name
+    name=$(printf '%s' "$flow_def" | jq -r '.metadata.name // .metadata.description // empty')
+    if [ -z "$name" ]; then
+        name=$(basename "$workflow_path" .json)
+    fi
+
+    # Build request payload for adhoc execution
+    local payload
+    payload=$(jq -n \
+        --argjson flow "$flow_def" \
+        --arg name "$name" \
+        '{
+            flow_definition: $flow,
+            parameters: {},
+            wait_for_completion: false,
+            metadata: {name: $name}
+        }')
+
+    # Execute workflow via adhoc endpoint
+    local resp
+    resp=$(curl -s -X POST \
+        -H 'Content-Type: application/json' \
+        -d "$payload" \
+        "$api_base/workflows/execute-adhoc")
+
+    local execution_id
+    execution_id=$(printf '%s' "$resp" | jq -r '.execution_id // empty')
+
+    if [ -z "$execution_id" ]; then
+        echo "❌ Adhoc workflow execution did not return execution_id" >&2
+        printf '%s\n' "$resp" >&2
+        return 1
+    fi
+
+    printf '%s' "$execution_id"
+}
+
 # Run a Browser Automation Studio workflow JSON via the public CLI/API.
 # Options:
 #   --file PATH                 JSON workflow definition (required)
@@ -334,6 +379,37 @@ testing::playbooks::bas::run_workflow() {
 
     local api_base
     api_base=$(_testing_playbooks_bas__api_base "$api_port")
+
+    # Try adhoc execution first if workflow file is provided
+    # This avoids database pollution with test workflows
+    if [ -n "$workflow_path" ] && [ -z "$workflow_id_input" ]; then
+        echo "✨ Attempting adhoc workflow execution (no DB pollution)" >&2
+
+        local execution_id
+        if execution_id=$(_testing_playbooks_bas__execute_adhoc_workflow "$api_base" "$workflow_path" 2>&1); then
+            TESTING_PLAYBOOKS_BAS_LAST_EXECUTION_ID="$execution_id"
+            TESTING_PLAYBOOKS_BAS_LAST_WORKFLOW_ID=""  # No workflow persisted
+            TESTING_PLAYBOOKS_BAS_LAST_SCENARIO="$scenario_name"
+
+            local execution_summary
+            if execution_summary=$(_testing_playbooks_bas__wait_for_execution "$api_base" "$execution_id" 360); then
+                if [ "$started_scenario" = true ]; then
+                    vrooli scenario stop "$scenario_name" >/dev/null 2>&1 || true
+                fi
+                return 0
+            else
+                echo "❌ Adhoc workflow execution failed" >&2
+                printf '%s\n' "$execution_summary" >&2
+                if [ "$started_scenario" = true ]; then
+                    vrooli scenario stop "$scenario_name" >/dev/null 2>&1 || true
+                fi
+                return 1
+            fi
+        else
+            # Adhoc execution failed, fall back to legacy import flow
+            echo "⚠️  Adhoc execution not available or failed, using legacy import flow" >&2
+        fi
+    fi
 
     local workflow_id="$workflow_id_input"
     local created_workflow=false

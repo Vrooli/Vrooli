@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -179,8 +180,8 @@ Enterprise tier available.
 
 	t.Run("DifferentSaaSTypes", func(t *testing.T) {
 		testCases := []struct {
-			prdContent     string
-			expectedType   string
+			prdContent   string
+			expectedType string
 		}{
 			{"B2B SaaS platform", "b2b_tool"},
 			{"API service provider", "api_service"},
@@ -267,7 +268,7 @@ func TestMetadataHandling(t *testing.T) {
 			ID:           uuid.New().String(),
 			ScenarioName: "test",
 			Metadata: map[string]interface{}{
-				"characteristics": []string{"has_ui", "has_api", "has_database"},
+				"characteristics":  []string{"has_ui", "has_api", "has_database"},
 				"analysis_version": "1.0",
 				"custom_field":     "value",
 				"nested": map[string]interface{}{

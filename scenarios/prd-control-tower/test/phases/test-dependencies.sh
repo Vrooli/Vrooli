@@ -1,45 +1,26 @@
-#!/usr/bin/env bash
+#!/bin/bash
+# Dependencies validation using unified helper
+# Validates runtimes, package managers, resources, and connectivity
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
+
+testing::phase::init --target-time "60s"
+
+# ONE-LINER: Validate all dependencies automatically
+# This helper:
+# - Detects tech stack from service.json and file structure
+# - Validates language runtimes (Go, Node.js, Python)
+# - Checks package managers and dependency resolution
+# - Tests resource health (postgres, redis, ollama, etc.)
+# - Validates runtime connectivity (if scenario is running)
 #
-# Dependencies Test: Check required dependencies for PRD Control Tower
-#
+# All powered by `vrooli scenario status --json` with fallbacks to file detection
 
-set -eo pipefail
+testing::dependencies::validate_all \
+  --scenario "$TESTING_PHASE_SCENARIO_NAME"
 
-echo "🔍 Testing PRD Control Tower dependencies..."
-
-# Check Go
-if ! command -v go &> /dev/null; then
-    echo "  ✗ Go not installed"
-    exit 1
-fi
-echo "  ✓ Go: $(go version)"
-
-# Check Node.js
-if ! command -v node &> /dev/null; then
-    echo "  ✗ Node.js not installed"
-    exit 1
-fi
-echo "  ✓ Node.js: $(node --version)"
-
-# Check npm
-if ! command -v npm &> /dev/null; then
-    echo "  ✗ npm not installed"
-    exit 1
-fi
-echo "  ✓ npm: $(npm --version)"
-
-# Check PostgreSQL (optional - might be in container)
-if command -v psql &> /dev/null; then
-    echo "  ✓ PostgreSQL client: $(psql --version)"
-else
-    echo "  ℹ PostgreSQL client not locally installed (may be containerized)"
-fi
-
-# Check jq (required by CLI)
-if ! command -v jq &> /dev/null; then
-    echo "  ✗ jq not installed (required for CLI)"
-    exit 1
-fi
-echo "  ✓ jq: $(jq --version)"
-
-echo "✅ Dependencies test passed"
+testing::phase::end_with_summary "Dependency validation completed"

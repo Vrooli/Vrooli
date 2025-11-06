@@ -1026,105 +1026,106 @@ func TestExecuteWorkflowPersistsAssertionArtifacts(t *testing.T) {
 func TestExecuteWorkflowEmitsHeartbeats(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-HEARTBEAT-DETECTION] emits heartbeats during execution", func(t *testing.T) {
 		client, _ := newTestClient()
-	client.heartbeatInterval = 10 * time.Millisecond
+		client.heartbeatInterval = 10 * time.Millisecond
 
-	responses := []string{
-		`{"success":true,"steps":[{"index":0,"nodeId":"node-1","type":"wait","success":true,"durationMs":500}]}`,
-	}
-
-	var call int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(35 * time.Millisecond)
-		if call >= len(responses) {
-			t.Fatalf("unexpected additional call %d", call)
+		responses := []string{
+			`{"success":true,"steps":[{"index":0,"nodeId":"node-1","type":"wait","success":true,"durationMs":500}]}`,
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(responses[call]))
-		call++
-	}))
-	defer server.Close()
 
-	client.browserless = server.URL
-	client.httpClient = server.Client()
+		var call int
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(35 * time.Millisecond)
+			if call >= len(responses) {
+				t.Fatalf("unexpected additional call %d", call)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(responses[call]))
+			call++
+		}))
+		defer server.Close()
 
-	exec := &database.Execution{
-		ID:         uuid.New(),
-		WorkflowID: uuid.New(),
-		StartedAt:  time.Now(),
-	}
+		client.browserless = server.URL
+		client.httpClient = server.Client()
 
-	workflow := &database.Workflow{
-		ID: uuid.New(),
-		FlowDefinition: database.JSONMap{
-			"nodes": []any{
-				map[string]any{
-					"id":   "node-1",
-					"type": "wait",
-					"data": map[string]any{
-						"type":     "time",
-						"duration": 1000,
+		exec := &database.Execution{
+			ID:         uuid.New(),
+			WorkflowID: uuid.New(),
+			StartedAt:  time.Now(),
+		}
+
+		workflow := &database.Workflow{
+			ID: uuid.New(),
+			FlowDefinition: database.JSONMap{
+				"nodes": []any{
+					map[string]any{
+						"id":   "node-1",
+						"type": "wait",
+						"data": map[string]any{
+							"type":     "time",
+							"duration": 1000,
+						},
 					},
 				},
+				"edges": []any{},
 			},
-			"edges": []any{},
-		},
-	}
+		}
 
-	emitter := &fakeEmitter{}
+		emitter := &fakeEmitter{}
 
-	if err := client.ExecuteWorkflow(context.Background(), exec, workflow, emitter); err != nil {
-		t.Fatalf("ExecuteWorkflow returned error: %v", err)
-	}
+		if err := client.ExecuteWorkflow(context.Background(), exec, workflow, emitter); err != nil {
+			t.Fatalf("ExecuteWorkflow returned error: %v", err)
+		}
 
-	// Allow asynchronous heartbeat goroutines to flush.
-	time.Sleep(15 * time.Millisecond)
+		// Allow asynchronous heartbeat goroutines to flush.
+		time.Sleep(15 * time.Millisecond)
 
-	emittedEvents := emitter.Events()
+		emittedEvents := emitter.Events()
 
-	if len(emittedEvents) == 0 {
-		t.Fatalf("expected events to be emitted")
-	}
+		if len(emittedEvents) == 0 {
+			t.Fatalf("expected events to be emitted")
+		}
 
-	firstHeartbeat := -1
-	firstCompletion := -1
-	heartbeatCount := 0
+		firstHeartbeat := -1
+		firstCompletion := -1
+		heartbeatCount := 0
 
-	for idx, evt := range emittedEvents {
-		switch evt.Type {
-		case events.EventStepHeartbeat:
-			heartbeatCount++
-			if firstHeartbeat == -1 {
-				firstHeartbeat = idx
-			}
-			if evt.Progress == nil {
-				t.Fatalf("heartbeat missing progress pointer")
-			}
-			if *evt.Progress < 0 || *evt.Progress > 100 {
-				t.Fatalf("heartbeat progress out of range: %d", *evt.Progress)
-			}
-			if evt.Payload == nil {
-				t.Fatalf("heartbeat missing payload")
-			}
-			if _, ok := evt.Payload["elapsed_ms"]; !ok {
-				t.Fatalf("heartbeat payload missing elapsed_ms: %+v", evt.Payload)
-			}
-			if evt.Message == "" || !strings.Contains(evt.Message, "wait in progress") {
-				t.Fatalf("heartbeat message unexpected: %s", evt.Message)
-			}
-		case events.EventStepCompleted:
-			if firstCompletion == -1 {
-				firstCompletion = idx
+		for idx, evt := range emittedEvents {
+			switch evt.Type {
+			case events.EventStepHeartbeat:
+				heartbeatCount++
+				if firstHeartbeat == -1 {
+					firstHeartbeat = idx
+				}
+				if evt.Progress == nil {
+					t.Fatalf("heartbeat missing progress pointer")
+				}
+				if *evt.Progress < 0 || *evt.Progress > 100 {
+					t.Fatalf("heartbeat progress out of range: %d", *evt.Progress)
+				}
+				if evt.Payload == nil {
+					t.Fatalf("heartbeat missing payload")
+				}
+				if _, ok := evt.Payload["elapsed_ms"]; !ok {
+					t.Fatalf("heartbeat payload missing elapsed_ms: %+v", evt.Payload)
+				}
+				if evt.Message == "" || !strings.Contains(evt.Message, "wait in progress") {
+					t.Fatalf("heartbeat message unexpected: %s", evt.Message)
+				}
+			case events.EventStepCompleted:
+				if firstCompletion == -1 {
+					firstCompletion = idx
+				}
 			}
 		}
-	}
 
-	if heartbeatCount == 0 {
-		t.Fatalf("expected at least one heartbeat event, got %d", heartbeatCount)
-	}
+		if heartbeatCount == 0 {
+			t.Fatalf("expected at least one heartbeat event, got %d", heartbeatCount)
+		}
 
-	if firstCompletion != -1 && firstHeartbeat != -1 && firstHeartbeat > firstCompletion {
-		t.Fatalf("heartbeat emitted after completion: %+v", emittedEvents)
-	}
+		if firstCompletion != -1 && firstHeartbeat != -1 && firstHeartbeat > firstCompletion {
+			t.Fatalf("heartbeat emitted after completion: %+v", emittedEvents)
+		}
+	})
 }
 
 func TestExecuteWorkflowRoutesToFailureBranch(t *testing.T) {

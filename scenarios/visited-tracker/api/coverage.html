@@ -55,7 +55,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">visited-tracker-api/main.go (80.6%)</option>
+				<option value="file0">visited-tracker-api/main.go (81.1%)</option>
 				
 				</select>
 			</div>
@@ -1156,6 +1156,58 @@ func structureSyncHandler(w http.ResponseWriter, r *http.Request) <span class="c
         json.NewEncoder(w).Encode(syncResult)</span>
 }
 
+// Helper: Load campaign and prepare it for prioritization queries
+func loadAndPrepareCampaign(campaignID uuid.UUID, w http.ResponseWriter) (*Campaign, bool) <span class="cov8" title="1">{
+        campaign, err := loadCampaign(campaignID)
+        if err != nil </span><span class="cov8" title="1">{
+                if err.Error() == "campaign not found" </span><span class="cov8" title="1">{
+                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+                }</span> else<span class="cov0" title="0"> {
+                        http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+                }</span>
+                <span class="cov8" title="1">return nil, false</span>
+        }
+
+        // Update staleness scores before returning
+        <span class="cov8" title="1">updateStalenessScores(campaign)
+        return campaign, true</span>
+}
+
+// Helper: Parse limit query parameter with default value
+func parseLimit(r *http.Request, defaultLimit int) int <span class="cov8" title="1">{
+        limitStr := r.URL.Query().Get("limit")
+        if limitStr == "" </span><span class="cov8" title="1">{
+                return defaultLimit
+        }</span>
+        <span class="cov8" title="1">if parsed, err := strconv.Atoi(limitStr); err == nil &amp;&amp; parsed &gt; 0 </span><span class="cov8" title="1">{
+                return parsed
+        }</span>
+        <span class="cov8" title="1">return defaultLimit</span>
+}
+
+// Helper: Parse threshold query parameter with default value
+func parseThreshold(r *http.Request, defaultThreshold float64) float64 <span class="cov8" title="1">{
+        thresholdStr := r.URL.Query().Get("threshold")
+        if thresholdStr == "" </span><span class="cov8" title="1">{
+                return defaultThreshold
+        }</span>
+        <span class="cov8" title="1">if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil </span><span class="cov8" title="1">{
+                return parsed
+        }</span>
+        <span class="cov8" title="1">return defaultThreshold</span>
+}
+
+// Helper: Filter out deleted files from a campaign
+func getNonDeletedFiles(campaign *Campaign) []TrackedFile <span class="cov8" title="1">{
+        var files []TrackedFile
+        for _, file := range campaign.TrackedFiles </span><span class="cov8" title="1">{
+                if !file.Deleted </span><span class="cov8" title="1">{
+                        files = append(files, file)
+                }</span>
+        }
+        <span class="cov8" title="1">return files</span>
+}
+
 func leastVisitedHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
         vars := mux.Vars(r)
         campaignID, err := uuid.Parse(vars["id"])
@@ -1163,51 +1215,32 @@ func leastVisitedHandler(w http.ResponseWriter, r *http.Request) <span class="co
                 http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
                 return
         }</span>
-        
-        // Parse query parameters
-        <span class="cov8" title="1">limitStr := r.URL.Query().Get("limit")
-        limit := 10
-        if limitStr != "" </span><span class="cov8" title="1">{
-                if parsed, err := strconv.Atoi(limitStr); err == nil &amp;&amp; parsed &gt; 0 </span><span class="cov8" title="1">{
-                        limit = parsed
-                }</span>
-        }
-        
-        // Load campaign
-        <span class="cov8" title="1">campaign, err := loadCampaign(campaignID)
-        if err != nil </span><span class="cov8" title="1">{
-                if err.Error() == "campaign not found" </span><span class="cov8" title="1">{
-                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
-                        return
-                }</span>
-                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
-                return</span>
-        }
-        
-        // Update staleness scores
-        <span class="cov8" title="1">updateStalenessScores(campaign)
-        
-        // Filter and sort files
-        var files []TrackedFile
-        for _, file := range campaign.TrackedFiles </span><span class="cov8" title="1">{
-                if !file.Deleted </span><span class="cov8" title="1">{
-                        files = append(files, file)
-                }</span>
-        }
-        
+
+        // Parse limit with default of 10
+        <span class="cov8" title="1">limit := parseLimit(r, 10)
+
+        // Load and prepare campaign
+        campaign, ok := loadAndPrepareCampaign(campaignID, w)
+        if !ok </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        // Filter deleted files
+        <span class="cov8" title="1">files := getNonDeletedFiles(campaign)
+
         // Sort by visit count (ascending), then staleness (descending)
-        <span class="cov8" title="1">sort.Slice(files, func(i, j int) bool </span><span class="cov8" title="1">{
+        sort.Slice(files, func(i, j int) bool </span><span class="cov8" title="1">{
                 if files[i].VisitCount == files[j].VisitCount </span><span class="cov0" title="0">{
                         return files[i].StalenessScore &gt; files[j].StalenessScore
                 }</span>
                 <span class="cov8" title="1">return files[i].VisitCount &lt; files[j].VisitCount</span>
         })
-        
+
         // Limit results
         <span class="cov8" title="1">if len(files) &gt; limit </span><span class="cov8" title="1">{
                 files = files[:limit]
         }</span>
-        
+
         <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]interface{}{
                 "files": files,
@@ -1221,40 +1254,19 @@ func mostStaleHandler(w http.ResponseWriter, r *http.Request) <span class="cov8"
                 http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
                 return
         }</span>
-        
-        // Parse query parameters
-        <span class="cov8" title="1">limitStr := r.URL.Query().Get("limit")
-        limit := 10
-        if limitStr != "" </span><span class="cov8" title="1">{
-                if parsed, err := strconv.Atoi(limitStr); err == nil &amp;&amp; parsed &gt; 0 </span><span class="cov8" title="1">{
-                        limit = parsed
-                }</span>
-        }
-        
-        <span class="cov8" title="1">thresholdStr := r.URL.Query().Get("threshold")
-        threshold := 0.0
-        if thresholdStr != "" </span><span class="cov8" title="1">{
-                if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil </span><span class="cov8" title="1">{
-                        threshold = parsed
-                }</span>
-        }
-        
-        // Load campaign
-        <span class="cov8" title="1">campaign, err := loadCampaign(campaignID)
-        if err != nil </span><span class="cov8" title="1">{
-                if err.Error() == "campaign not found" </span><span class="cov8" title="1">{
-                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
-                        return
-                }</span>
-                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
-                return</span>
-        }
-        
-        // Update staleness scores
-        <span class="cov8" title="1">updateStalenessScores(campaign)
-        
-        // Filter and sort files
-        var files []TrackedFile
+
+        // Parse query parameters with defaults
+        <span class="cov8" title="1">limit := parseLimit(r, 10)
+        threshold := parseThreshold(r, 0.0)
+
+        // Load and prepare campaign
+        campaign, ok := loadAndPrepareCampaign(campaignID, w)
+        if !ok </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        // Filter files by staleness threshold and deletion status
+        <span class="cov8" title="1">var files []TrackedFile
         for _, file := range campaign.TrackedFiles </span><span class="cov8" title="1">{
                 if !file.Deleted &amp;&amp; file.StalenessScore &gt;= threshold </span><span class="cov8" title="1">{
                         files = append(files, file)

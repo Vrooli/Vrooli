@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -16,18 +17,18 @@ import (
 func TestModels(t *testing.T) {
 	t.Run("SaaSScenario", func(t *testing.T) {
 		scenario := SaaSScenario{
-			ID:              uuid.New().String(),
-			ScenarioName:    "test-scenario",
-			DisplayName:     "Test Scenario",
-			Description:     "A test scenario",
-			SaaSType:        "b2b_tool",
-			Industry:        "technology",
+			ID:               uuid.New().String(),
+			ScenarioName:     "test-scenario",
+			DisplayName:      "Test Scenario",
+			Description:      "A test scenario",
+			SaaSType:         "b2b_tool",
+			Industry:         "technology",
 			RevenuePotential: "$10K-$50K",
-			HasLandingPage:  false,
-			LandingPageURL:  "",
-			LastScan:        time.Now(),
-			ConfidenceScore: 0.8,
-			Metadata:        map[string]interface{}{"key": "value"},
+			HasLandingPage:   false,
+			LandingPageURL:   "",
+			LastScan:         time.Now(),
+			ConfidenceScore:  0.8,
+			Metadata:         map[string]interface{}{"key": "value"},
 		}
 
 		if scenario.ScenarioName != "test-scenario" {
@@ -120,7 +121,7 @@ func TestModels(t *testing.T) {
 func TestRequestResponseTypes(t *testing.T) {
 	t.Run("ScanRequest", func(t *testing.T) {
 		req := ScanRequest{
-			ForceRescan:     true,
+			ForceRescan:    true,
 			ScenarioFilter: "test",
 		}
 

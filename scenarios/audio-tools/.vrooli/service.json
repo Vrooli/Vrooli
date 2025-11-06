@@ -184,11 +184,17 @@
           {
             "type": "binaries",
             "targets": [
-              "audio-tools-api"
+              "api/audio-tools-api"
             ]
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
             "type": "cli",
+            "command": "audio-tools",
             "targets": [
               "audio-tools"
             ]
@@ -239,6 +245,19 @@
           "condition": {
             "file_exists": "api/go.mod"
           }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",

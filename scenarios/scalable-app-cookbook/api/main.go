@@ -19,39 +19,39 @@ import (
 )
 
 type Pattern struct {
-	ID             string   `json:"id"`
-	Title          string   `json:"title"`
-	Chapter        string   `json:"chapter"`
-	Section        string   `json:"section"`
-	MaturityLevel  string   `json:"maturity_level"`
-	Tags           []string `json:"tags"`
-	WhatAndWhy     string   `json:"what_and_why"`
-	WhenToUse      string   `json:"when_to_use"`
-	Tradeoffs      string   `json:"tradeoffs"`
-	RefPatterns    []string `json:"reference_patterns"`
-	FailureModes   string   `json:"failure_modes"`
-	CostLevers     string   `json:"cost_levers"`
-	RecipeCount    int      `json:"recipe_count"`
-	ImplCount      int      `json:"implementation_count"`
-	Languages      []string `json:"languages"`
-	CreatedAt      string   `json:"created_at"`
-	UpdatedAt      string   `json:"updated_at"`
+	ID            string   `json:"id"`
+	Title         string   `json:"title"`
+	Chapter       string   `json:"chapter"`
+	Section       string   `json:"section"`
+	MaturityLevel string   `json:"maturity_level"`
+	Tags          []string `json:"tags"`
+	WhatAndWhy    string   `json:"what_and_why"`
+	WhenToUse     string   `json:"when_to_use"`
+	Tradeoffs     string   `json:"tradeoffs"`
+	RefPatterns   []string `json:"reference_patterns"`
+	FailureModes  string   `json:"failure_modes"`
+	CostLevers    string   `json:"cost_levers"`
+	RecipeCount   int      `json:"recipe_count"`
+	ImplCount     int      `json:"implementation_count"`
+	Languages     []string `json:"languages"`
+	CreatedAt     string   `json:"created_at"`
+	UpdatedAt     string   `json:"updated_at"`
 }
 
 type Recipe struct {
-	ID                string                 `json:"id"`
-	PatternID         string                 `json:"pattern_id"`
-	Title             string                 `json:"title"`
-	Type              string                 `json:"type"` // greenfield, brownfield, migration
-	Prerequisites     []string               `json:"prerequisites"`
-	Steps             []map[string]interface{} `json:"steps"`
-	ConfigSnippets    map[string]interface{} `json:"config_snippets"`
-	ValidationChecks  []string               `json:"validation_checks"`
-	Artifacts         []string               `json:"artifacts"`
-	Metrics           []string               `json:"metrics"`
-	Rollbacks         []string               `json:"rollbacks"`
-	Prompts           []string               `json:"prompts"`
-	TimeoutSec        int                    `json:"timeout_sec"`
+	ID               string                   `json:"id"`
+	PatternID        string                   `json:"pattern_id"`
+	Title            string                   `json:"title"`
+	Type             string                   `json:"type"` // greenfield, brownfield, migration
+	Prerequisites    []string                 `json:"prerequisites"`
+	Steps            []map[string]interface{} `json:"steps"`
+	ConfigSnippets   map[string]interface{}   `json:"config_snippets"`
+	ValidationChecks []string                 `json:"validation_checks"`
+	Artifacts        []string                 `json:"artifacts"`
+	Metrics          []string                 `json:"metrics"`
+	Rollbacks        []string                 `json:"rollbacks"`
+	Prompts          []string                 `json:"prompts"`
+	TimeoutSec       int                      `json:"timeout_sec"`
 }
 
 type Implementation struct {
@@ -73,10 +73,10 @@ type GenerationRequest struct {
 }
 
 type GenerationResult struct {
-	GeneratedCode      string   `json:"generated_code"`
-	FileStructure      map[string]interface{} `json:"file_structure"`
-	Dependencies       []string `json:"dependencies"`
-	SetupInstructions  []string `json:"setup_instructions"`
+	GeneratedCode     string                 `json:"generated_code"`
+	FileStructure     map[string]interface{} `json:"file_structure"`
+	Dependencies      []string               `json:"dependencies"`
+	SetupInstructions []string               `json:"setup_instructions"`
 }
 
 var db *sql.DB
@@ -99,28 +99,28 @@ func main() {
 	if dbHost == "" {
 		log.Fatal("❌ POSTGRES_HOST environment variable is required")
 	}
-	
+
 	dbPort := os.Getenv("POSTGRES_PORT")
 	if dbPort == "" {
 		log.Fatal("❌ POSTGRES_PORT environment variable is required")
 	}
-	
+
 	dbUser := os.Getenv("POSTGRES_USER")
 	if dbUser == "" {
 		log.Fatal("❌ POSTGRES_USER environment variable is required")
 	}
-	
+
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	if dbPassword == "" {
 		log.Fatal("❌ POSTGRES_PASSWORD environment variable is required")
 	}
-	
+
 	dbName := os.Getenv("POSTGRES_DB")
 	if dbName == "" {
 		log.Fatal("❌ POSTGRES_DB environment variable is required")
 	}
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable search_path='scalable_app_cookbook,public'",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
 
 	var err error
@@ -146,29 +146,43 @@ func main() {
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(rand.Float64() * jitterRange)
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		time.Sleep(actualDelay)
 	}
 
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+
+	if _, err := db.Exec(`SET search_path TO scalable_app_cookbook, public`); err != nil {
+		log.Printf("Search path configuration warning: %v", err)
+		if _, fallbackErr := db.Exec(`SET search_path TO public`); fallbackErr != nil {
+			log.Printf("Failed to set fallback search_path: %v", fallbackErr)
+		}
+	}
+
+	var currentSearchPath string
+	if err := db.QueryRow("SHOW search_path").Scan(&currentSearchPath); err == nil {
+		log.Printf("Active search_path: %s", currentSearchPath)
+	} else {
+		log.Printf("Unable to verify search_path: %v", err)
 	}
 
 	// Set up routes
@@ -177,12 +191,12 @@ func main() {
 	// Health check
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
-	// Pattern routes
+	// Pattern routes (static paths must come before dynamic {id} routes)
 	router.HandleFunc("/api/v1/patterns/search", searchPatternsHandler).Methods("GET")
-	router.HandleFunc("/api/v1/patterns/{id}", getPatternHandler).Methods("GET")
-	router.HandleFunc("/api/v1/patterns/{id}/recipes", getRecipesHandler).Methods("GET")
 	router.HandleFunc("/api/v1/patterns/chapters", getChaptersHandler).Methods("GET")
 	router.HandleFunc("/api/v1/patterns/stats", getStatsHandler).Methods("GET")
+	router.HandleFunc("/api/v1/patterns/{id}/recipes", getRecipesHandler).Methods("GET")
+	router.HandleFunc("/api/v1/patterns/{id}", getPatternHandler).Methods("GET")
 
 	// Recipe routes
 	router.HandleFunc("/api/v1/recipes/{id}", getRecipeHandler).Methods("GET")
@@ -205,11 +219,10 @@ func main() {
 	if port == "" {
 		port = "3300"
 	}
-	
+
 	log.Printf("Scalable App Cookbook API starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
-
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Check database connection
@@ -307,7 +320,7 @@ func searchPatternsHandler(w http.ResponseWriter, r *http.Request) {
 			array_to_json(tags) as tags,
 			recipe_count, implementation_count, languages,
 			created_at, updated_at
-		FROM scalable_app_cookbook.pattern_summary`, "SELECT COUNT(*) FROM pattern_summary", 1)
+		FROM scalable_app_cookbook.pattern_summary`, "SELECT COUNT(*) FROM scalable_app_cookbook.pattern_summary", 1)
 
 	var total int
 	db.QueryRow(countQuery, args...).Scan(&total)
@@ -317,7 +330,7 @@ func searchPatternsHandler(w http.ResponseWriter, r *http.Request) {
 	argCount++
 	sqlQuery += fmt.Sprintf(" LIMIT $%d", argCount)
 	args = append(args, limit)
-	
+
 	argCount++
 	sqlQuery += fmt.Sprintf(" OFFSET $%d", argCount)
 	args = append(args, offset)
@@ -336,7 +349,7 @@ func searchPatternsHandler(w http.ResponseWriter, r *http.Request) {
 		var pattern Pattern
 		var tagsJSON []byte
 		var languagesJSON []byte
-		
+
 		err := rows.Scan(
 			&pattern.ID, &pattern.Title, &pattern.Chapter, &pattern.Section,
 			&pattern.MaturityLevel, &tagsJSON, &pattern.RecipeCount,
@@ -384,12 +397,17 @@ func getPatternHandler(w http.ResponseWriter, r *http.Request) {
 	err := db.QueryRow(`
 		SELECT 
 			id, title, chapter, section, maturity_level,
-			array_to_json(tags) as tags, what_and_why, when_to_use,
-			tradeoffs, array_to_json(reference_patterns) as ref_patterns,
-			failure_modes, cost_levers, created_at, updated_at
+			array_to_json(tags) as tags,
+			COALESCE(what_and_why, '') as what_and_why,
+			COALESCE(when_to_use, '') as when_to_use,
+			COALESCE(tradeoffs, '') as tradeoffs,
+			array_to_json(reference_patterns) as ref_patterns,
+			COALESCE(failure_modes, '') as failure_modes,
+			COALESCE(cost_levers, '') as cost_levers,
+			created_at, updated_at
 		FROM scalable_app_cookbook.patterns
-		WHERE id = $1 OR LOWER(title) = LOWER($1)
-	`, id).Scan(
+		WHERE id = $1 OR LOWER(title) = LOWER($2)
+	`, id, id).Scan(
 		&pattern.ID, &pattern.Title, &pattern.Chapter, &pattern.Section,
 		&pattern.MaturityLevel, &tagsJSON, &pattern.WhatAndWhy,
 		&pattern.WhenToUse, &pattern.Tradeoffs, &refPatternsJSON,
@@ -431,12 +449,12 @@ func getRecipesHandler(w http.ResponseWriter, r *http.Request) {
 	// Get pattern info first
 	var pattern Pattern
 	var tagsJSON []byte
-	
+
 	err := db.QueryRow(`
 		SELECT id, title, chapter, section, maturity_level, array_to_json(tags) as tags
 		FROM scalable_app_cookbook.patterns
-		WHERE id = $1 OR LOWER(title) = LOWER($1)
-	`, patternID).Scan(
+		WHERE id = $1 OR LOWER(title) = LOWER($2)
+	`, patternID, patternID).Scan(
 		&pattern.ID, &pattern.Title, &pattern.Chapter, &pattern.Section,
 		&pattern.MaturityLevel, &tagsJSON,
 	)
@@ -462,7 +480,7 @@ func getRecipesHandler(w http.ResponseWriter, r *http.Request) {
 		FROM scalable_app_cookbook.recipes
 		WHERE pattern_id = $1
 	`
-	
+
 	args := []interface{}{pattern.ID}
 	if recipeType != "" {
 		query += " AND type = $2"
@@ -483,7 +501,7 @@ func getRecipesHandler(w http.ResponseWriter, r *http.Request) {
 		var recipe Recipe
 		var prereqJSON, stepsJSON, configJSON, checksJSON []byte
 		var artifactsJSON, metricsJSON, rollbacksJSON, promptsJSON []byte
-		
+
 		err := rows.Scan(
 			&recipe.ID, &recipe.PatternID, &recipe.Title, &recipe.Type,
 			&prereqJSON, &stepsJSON, &configJSON, &checksJSON,
@@ -547,8 +565,8 @@ func getRecipeHandler(w http.ResponseWriter, r *http.Request) {
 			steps, config_snippets, validation_checks,
 			artifacts, metrics, rollbacks, prompts, timeout_sec
 		FROM scalable_app_cookbook.recipes
-		WHERE id = $1 OR LOWER(title) = LOWER($1)
-	`, id).Scan(
+		WHERE id = $1 OR LOWER(title) = LOWER($2)
+	`, id, id).Scan(
 		&recipe.ID, &recipe.PatternID, &recipe.Title, &recipe.Type,
 		&prereqJSON, &stepsJSON, &configJSON, &checksJSON,
 		&artifactsJSON, &metricsJSON, &rollbacksJSON, &promptsJSON,
@@ -604,12 +622,12 @@ func generateCodeHandler(w http.ResponseWriter, r *http.Request) {
 	// Get recipe and implementations
 	var recipe Recipe
 	var stepsJSON, configJSON []byte
-	
+
 	err := db.QueryRow(`
 		SELECT id, title, steps, config_snippets
 		FROM scalable_app_cookbook.recipes
-		WHERE id = $1 OR LOWER(title) = LOWER($1)
-	`, req.RecipeID).Scan(&recipe.ID, &recipe.Title, &stepsJSON, &configJSON)
+		WHERE id = $1 OR LOWER(title) = LOWER($2)
+	`, req.RecipeID, req.RecipeID).Scan(&recipe.ID, &recipe.Title, &stepsJSON, &configJSON)
 
 	if err == sql.ErrNoRows {
 		http.Error(w, "Recipe not found", http.StatusNotFound)
@@ -630,7 +648,7 @@ func generateCodeHandler(w http.ResponseWriter, r *http.Request) {
 	// Get implementation for the requested language
 	var impl Implementation
 	var depsJSON []byte
-	
+
 	err = db.QueryRow(`
 		SELECT code, file_path, description, dependencies
 		FROM scalable_app_cookbook.implementations
@@ -656,7 +674,7 @@ func generateCodeHandler(w http.ResponseWriter, r *http.Request) {
 	result := GenerationResult{
 		GeneratedCode: impl.Code,
 		FileStructure: map[string]interface{}{
-			"main_file": impl.FilePath,
+			"main_file":    impl.FilePath,
 			"dependencies": impl.Dependencies,
 		},
 		Dependencies: impl.Dependencies,
@@ -669,11 +687,11 @@ func generateCodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Log usage
 	db.Exec(`
-		INSERT INTO scalable_app_cookbook.pattern_usage (pattern_id, access_type, success, metadata)
-		VALUES ((SELECT pattern_id FROM recipes WHERE id = $1), 'generate', true, $2)
+	INSERT INTO scalable_app_cookbook.pattern_usage (pattern_id, access_type, success, metadata)
+	VALUES ((SELECT pattern_id FROM scalable_app_cookbook.recipes WHERE id = $1), 'generate', true, $2)
 	`, recipe.ID, map[string]string{
 		"language": req.Language,
-		"recipe": recipe.Title,
+		"recipe":   recipe.Title,
 	})
 
 	w.Header().Set("Content-Type", "application/json")
@@ -696,7 +714,7 @@ func getImplementationsHandler(w http.ResponseWriter, r *http.Request) {
 		FROM scalable_app_cookbook.implementations
 		WHERE recipe_id = $1
 	`
-	
+
 	args := []interface{}{recipeID}
 	if language != "" {
 		query += " AND language = $2"
@@ -716,7 +734,7 @@ func getImplementationsHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var impl Implementation
 		var depsJSON []byte
-		
+
 		err := rows.Scan(
 			&impl.ID, &impl.RecipeID, &impl.Language, &impl.Code,
 			&impl.FilePath, &impl.Description, &depsJSON, &impl.TestCode,
@@ -745,7 +763,10 @@ func getChaptersHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY chapter
 	`)
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		log.Printf("Chapters query error: %v", err)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Database error: %v", err)
 		return
 	}
 	defer rows.Close()
@@ -776,10 +797,10 @@ func getStatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get statistics
-	db.QueryRow("SELECT COUNT(*) FROM patterns").Scan(&stats.TotalPatterns)
-	db.QueryRow("SELECT COUNT(*) FROM recipes").Scan(&stats.TotalRecipes)
-	db.QueryRow("SELECT COUNT(*) FROM implementations").Scan(&stats.TotalImplementations)
-	db.QueryRow("SELECT COUNT(DISTINCT chapter) FROM patterns").Scan(&stats.TotalChapters)
+	db.QueryRow("SELECT COUNT(*) FROM scalable_app_cookbook.patterns").Scan(&stats.TotalPatterns)
+	db.QueryRow("SELECT COUNT(*) FROM scalable_app_cookbook.recipes").Scan(&stats.TotalRecipes)
+	db.QueryRow("SELECT COUNT(*) FROM scalable_app_cookbook.implementations").Scan(&stats.TotalImplementations)
+	db.QueryRow("SELECT COUNT(DISTINCT chapter) FROM scalable_app_cookbook.patterns").Scan(&stats.TotalChapters)
 
 	// Get maturity level distribution
 	maturityRows, err := db.Query(`
@@ -834,7 +855,7 @@ func getFacets() map[string]interface{} {
 
 	// Get chapters
 	chapters := []string{}
-	rows, err := db.Query("SELECT DISTINCT chapter FROM patterns ORDER BY chapter")
+	rows, err := db.Query("SELECT DISTINCT chapter FROM scalable_app_cookbook.patterns ORDER BY chapter")
 	if err == nil && rows != nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -848,7 +869,7 @@ func getFacets() map[string]interface{} {
 
 	// Get maturity levels
 	levels := []string{}
-	rows, err = db.Query("SELECT DISTINCT maturity_level FROM patterns ORDER BY maturity_level")
+	rows, err = db.Query("SELECT DISTINCT maturity_level FROM scalable_app_cookbook.patterns ORDER BY maturity_level")
 	if err == nil && rows != nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -862,7 +883,7 @@ func getFacets() map[string]interface{} {
 
 	// Get all unique tags
 	tags := []string{}
-	rows, err = db.Query("SELECT DISTINCT unnest(tags) as tag FROM patterns ORDER BY tag")
+	rows, err = db.Query("SELECT DISTINCT unnest(tags) as tag FROM scalable_app_cookbook.patterns ORDER BY tag")
 	if err == nil && rows != nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -876,3 +897,5 @@ func getFacets() map[string]interface{} {
 
 	return facets
 }
+// Test change for rebuild detection
+// Test change

@@ -174,17 +174,99 @@ All three should work identically! ✨
 
 ## Step 6: Add WebSocket Support (Optional)
 
+### Client-Side
+
 If your scenario uses WebSockets:
 
 ```typescript
 import { resolveWsBase } from '@vrooli/api-base'
 
 const WS_BASE = resolveWsBase({
-  appendSuffix: true  // Adds /ws
+  appendSuffix: true,
+  apiSuffix: '/ws'  // Custom WebSocket path
 })
 
 const ws = new WebSocket(WS_BASE)
 ws.onopen = () => console.log('Connected!')
+```
+
+### Server-Side (Automatic)
+
+The easiest way is to let `createScenarioServer` handle WebSocket proxying automatically:
+
+```javascript
+import { createScenarioServer } from '@vrooli/api-base/server'
+
+const app = createScenarioServer({
+  uiPort: process.env.UI_PORT,
+  apiPort: process.env.API_PORT,
+  distDir: './dist',
+  serviceName: 'my-scenario',
+
+  // Enable automatic WebSocket proxying
+  wsPathPrefix: '/ws',  // Proxy all /ws/* requests
+
+  // Optional: Transform WebSocket paths
+  // Default transforms /ws/* to /api/v1/*
+  wsPathTransform: (path) => path.replace(/^\/ws/, '/api/v1')
+})
+
+// IMPORTANT: Use startScenarioServer OR create HTTP server manually
+// Option 1: Use startScenarioServer (handles everything)
+import { startScenarioServer } from '@vrooli/api-base/server'
+startScenarioServer({
+  // ... options including wsPathPrefix
+})
+
+// Option 2: Create HTTP server manually
+import http from 'http'
+const server = http.createServer(app)
+
+// Attach WebSocket upgrade handler if configured
+if (app.__wsUpgradeHandler) {
+  server.on('upgrade', app.__wsUpgradeHandler)
+}
+
+server.listen(process.env.UI_PORT)
+```
+
+### Server-Side (Manual)
+
+If you need more control, use `proxyWebSocketUpgrade` directly:
+
+```javascript
+import http from 'http'
+import { createScenarioServer, proxyWebSocketUpgrade } from '@vrooli/api-base/server'
+
+const app = createScenarioServer({
+  // ... options
+})
+
+const server = http.createServer(app)
+
+server.on('upgrade', (req, socket, head) => {
+  if (req.url?.startsWith('/ws/')) {
+    // Transform path
+    const apiPath = req.url.replace(/^\/ws/, '/api/v1')
+
+    // Add custom headers
+    const modifiedReq = Object.create(req)
+    modifiedReq.url = apiPath
+    modifiedReq.headers = {
+      ...req.headers,
+      'x-custom-header': 'value'
+    }
+
+    proxyWebSocketUpgrade(modifiedReq, socket, head, {
+      apiPort: process.env.API_PORT,
+      verbose: true
+    })
+  } else {
+    socket.destroy()
+  }
+})
+
+server.listen(process.env.UI_PORT)
 ```
 
 ## What Just Happened?
@@ -252,6 +334,34 @@ const app = createScenarioServer({
   }
 })
 ```
+
+### Custom Proxy Headers
+
+For APIs that require authentication or forwarding headers:
+
+```javascript
+const app = createScenarioServer({
+  uiPort: 3000,
+  apiPort: 8080,
+  distDir: './dist',
+
+  // Static headers
+  proxyHeaders: {
+    'x-custom-header': 'value'
+  },
+
+  // OR dynamic headers (built per-request)
+  proxyHeaders: (req) => ({
+    'x-forwarded-for': req.socket.remoteAddress || '127.0.0.1',
+    'x-forwarded-proto': req.socket.encrypted ? 'https' : 'http',
+    'x-forwarded-host': req.headers['host'] || ''
+  })
+})
+```
+
+These headers are automatically added to:
+- All HTTP API proxy requests (`/api/*`)
+- All WebSocket upgrade requests (if `wsPathPrefix` is configured)
 
 ### Verbose Logging
 

@@ -2,13 +2,10 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"os/exec"
 	"time"
 
@@ -28,23 +25,16 @@ type ValidatePRDRequest struct {
 
 // ValidationResponse represents the result of validation
 type ValidationResponse struct {
-	DraftID     string      `json:"draft_id"`
-	EntityType  string      `json:"entity_type"`
-	EntityName  string      `json:"entity_name"`
-	Violations  interface{} `json:"violations"`
-	CachedAt    *time.Time  `json:"cached_at,omitempty"`
-	ValidatedAt time.Time   `json:"validated_at"`
-	CacheUsed   bool        `json:"cache_used"`
+	DraftID     string     `json:"draft_id"`
+	EntityType  string     `json:"entity_type"`
+	EntityName  string     `json:"entity_name"`
+	Violations  any        `json:"violations"`
+	CachedAt    *time.Time `json:"cached_at,omitempty"`
+	ValidatedAt time.Time  `json:"validated_at"`
+	CacheUsed   bool       `json:"cache_used"`
 }
 
 func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if db == nil {
-		http.Error(w, "Database not available", http.StatusServiceUnavailable)
-		return
-	}
-
 	vars := mux.Vars(r)
 	draftID := vars["id"]
 
@@ -52,33 +42,15 @@ func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
 	var req ValidationRequest
 	req.UseCache = true // Default to using cache
 	if r.Body != nil {
-		json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			// Non-fatal: just use defaults if decode fails
+			slog.Warn("Failed to decode validation request, using defaults", "error", err)
+		}
 	}
 
 	// Get draft from database
-	var draft Draft
-	var owner sql.NullString
-	err := db.QueryRow(`
-		SELECT id, entity_type, entity_name, content, owner, created_at, updated_at, status
-		FROM drafts
-		WHERE id = $1
-	`, draftID).Scan(
-		&draft.ID,
-		&draft.EntityType,
-		&draft.EntityName,
-		&draft.Content,
-		&owner,
-		&draft.CreatedAt,
-		&draft.UpdatedAt,
-		&draft.Status,
-	)
-
-	if err == sql.ErrNoRows {
-		http.Error(w, "Draft not found", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get draft: %v", err), http.StatusInternalServerError)
+	draft, err := getDraftByID(draftID)
+	if handleDraftError(w, err, "Failed to get draft") {
 		return
 	}
 
@@ -95,44 +67,52 @@ func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
 
 		if err == nil {
 			// Cache hit
-			var violationsData interface{}
-			json.Unmarshal(violations, &violationsData)
+			var violationsData any
+			if err := json.Unmarshal(violations, &violationsData); err != nil {
+				slog.Warn("Failed to unmarshal cached violations, re-validating", "error", err, "draft_id", draftID)
+				// Fall through to run fresh validation
+			} else {
+				response := ValidationResponse{
+					DraftID:     draftID,
+					EntityType:  draft.EntityType,
+					EntityName:  draft.EntityName,
+					Violations:  violationsData,
+					CachedAt:    &cachedAt,
+					ValidatedAt: time.Now(),
+					CacheUsed:   true,
+				}
 
-			response := ValidationResponse{
-				DraftID:     draftID,
-				EntityType:  draft.EntityType,
-				EntityName:  draft.EntityName,
-				Violations:  violationsData,
-				CachedAt:    &cachedAt,
-				ValidatedAt: time.Now(),
-				CacheUsed:   true,
+				respondJSON(w, http.StatusOK, response)
+				return
 			}
-
-			json.NewEncoder(w).Encode(response)
-			return
 		}
 	}
 
 	// Run validation
-	violations, err := runScenarioAuditor(draft.EntityType, draft.EntityName, draft.Content)
+	violations, err := runScenarioAuditor(draft.EntityType, draft.EntityName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Validation failed: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Validation failed", err)
 		return
 	}
 
 	// Cache validation results
-	violationsJSON, _ := json.Marshal(violations)
 	now := time.Now()
-	_, err = db.Exec(`
-		INSERT INTO audit_results (draft_id, violations, cached_at)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (draft_id)
-		DO UPDATE SET violations = $2, cached_at = $3
-	`, draftID, violationsJSON, now)
-
+	violationsJSON, err := json.Marshal(violations)
 	if err != nil {
-		// Non-fatal, just log
-		slog.Warn("Failed to cache validation results", "error", err, "draft_id", draftID)
+		// Non-fatal, but log and skip caching to avoid storing corrupt data
+		slog.Warn("Failed to marshal validation results for caching", "error", err, "draft_id", draftID)
+	} else {
+		_, err = db.Exec(`
+			INSERT INTO audit_results (draft_id, violations, cached_at)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (draft_id)
+			DO UPDATE SET violations = $2, cached_at = $3
+		`, draftID, violationsJSON, now)
+
+		if err != nil {
+			// Non-fatal, just log
+			slog.Warn("Failed to cache validation results", "error", err, "draft_id", draftID)
+		}
 	}
 
 	response := ValidationResponse{
@@ -144,32 +124,21 @@ func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
 		CacheUsed:   false,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	respondJSON(w, http.StatusOK, response)
 }
 
-func runScenarioAuditor(entityType string, entityName string, content string) (interface{}, error) {
-	// Check if scenario-auditor is available
-	auditorURL := os.Getenv("SCENARIO_AUDITOR_URL")
-	if auditorURL != "" {
-		// Try HTTP API first
-		return runScenarioAuditorHTTP(auditorURL, entityType, entityName, content)
-	}
-
-	// Fallback to CLI
-	return runScenarioAuditorCLI(entityType, entityName)
+func runScenarioAuditor(entityType string, entityName string) (any, error) {
+	// Use CLI-based scenario auditor
+	// TODO: Add HTTP API support when scenario-auditor provides HTTP endpoint
+	// Note: When HTTP API is added, the draft content may be passed as a parameter
+	return runScenarioAuditorCLI(entityName)
 }
 
-func runScenarioAuditorHTTP(baseURL string, entityType string, entityName string, content string) (interface{}, error) {
-	// For now, we'll use the CLI since the HTTP API integration is more complex
-	// This is a placeholder for future HTTP API implementation
-	return runScenarioAuditorCLI(entityType, entityName)
-}
-
-func runScenarioAuditorCLI(entityType string, entityName string) (interface{}, error) {
+func runScenarioAuditorCLI(entityName string) (any, error) {
 	// Check if scenario-auditor CLI is available
 	_, err := exec.LookPath("scenario-auditor")
 	if err != nil {
-		return map[string]interface{}{
+		return map[string]any{
 			"error":   "scenario-auditor not available",
 			"message": "Install scenario-auditor to enable PRD validation",
 		}, nil
@@ -188,7 +157,7 @@ func runScenarioAuditorCLI(entityType string, entityName string) (interface{}, e
 		// Check if we have any stdout
 		if stdout.Len() == 0 {
 			// No output, return a simple message
-			return map[string]interface{}{
+			return map[string]any{
 				"message": fmt.Sprintf("scenario-auditor returned no output: %v", err),
 				"stderr":  stderr.String(),
 			}, nil
@@ -196,10 +165,10 @@ func runScenarioAuditorCLI(entityType string, entityName string) (interface{}, e
 	}
 
 	// Try to parse as JSON
-	var result interface{}
+	var result any
 	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
 		// If JSON parse fails, return text output
-		return map[string]interface{}{
+		return map[string]any{
 			"output":      stdout.String(),
 			"parse_error": err.Error(),
 		}, nil
@@ -208,65 +177,37 @@ func runScenarioAuditorCLI(entityType string, entityName string) (interface{}, e
 	return result, nil
 }
 
-// Helper function to call HTTP API (for future use)
-func callAuditorAPI(url string, payload interface{}) (interface{}, error) {
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call auditor API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("auditor API returned error: %s, body: %s", resp.Status, string(body))
-	}
-
-	var result interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode auditor response: %w", err)
-	}
-
-	return result, nil
-}
-
 // handleValidatePRD validates a published PRD (not a draft)
 func handleValidatePRD(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	var req ValidatePRDRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		respondInvalidJSON(w, err)
 		return
 	}
 
-	if req.EntityType != "scenario" && req.EntityType != "resource" {
-		http.Error(w, "Invalid entity_type. Must be 'scenario' or 'resource'", http.StatusBadRequest)
+	if !isValidEntityType(req.EntityType) {
+		respondInvalidEntityType(w)
 		return
 	}
 
 	if req.EntityName == "" {
-		http.Error(w, "entity_name is required", http.StatusBadRequest)
+		respondBadRequest(w, "entity_name is required")
 		return
 	}
 
 	// Run validation using scenario-auditor CLI
-	violations, err := runScenarioAuditorCLI(req.EntityType, req.EntityName)
+	violations, err := runScenarioAuditorCLI(req.EntityName)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Validation failed: %v", err), http.StatusInternalServerError)
+		respondInternalError(w, "Validation failed", err)
 		return
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"entity_type":  req.EntityType,
 		"entity_name":  req.EntityName,
 		"violations":   violations,
 		"validated_at": time.Now(),
 	}
 
-	json.NewEncoder(w).Encode(response)
+	respondJSON(w, http.StatusOK, response)
 }

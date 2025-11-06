@@ -1379,25 +1379,37 @@ code {
   font-size: 0.9rem;
 }
 
-.graph-studio-link {
+.graph-edit-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
   padding: 0.45rem 0.9rem;
   border-radius: var(--radius-md);
   border: 1px solid rgba(59, 130, 246, 0.35);
   color: var(--color-text-primary);
-  text-decoration: none;
   background: rgba(59, 130, 246, 0.14);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    background var(--transition-fast), border-color var(--transition-fast);
+  cursor: pointer;
 }
 
-.graph-studio-link:hover {
+.graph-edit-toggle:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: var(--shadow-strategic);
 }
 
-.graph-studio-link__icon {
+.graph-edit-toggle.is-active {
+  background: rgba(34, 211, 238, 0.16);
+  border-color: rgba(34, 211, 238, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(6, 182, 212, 0.35);
+}
+
+.graph-edit-toggle:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.graph-edit-toggle__icon {
   width: 1rem;
   height: 1rem;
 }
@@ -1466,10 +1478,28 @@ code {
   font-size: 0.85rem;
 }
 
+.graph-notice--editing {
+  background: rgba(56, 189, 248, 0.12);
+  color: rgba(191, 219, 254, 0.95);
+}
+
+.graph-notice--error {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fecaca;
+}
+
 .graph-notice__bullet {
   font-size: 1.4rem;
   line-height: 1;
   color: rgba(14, 165, 233, 0.6);
+}
+
+.graph-notice--editing .graph-notice__bullet {
+  color: rgba(56, 189, 248, 0.75);
+}
+
+.graph-notice--error .graph-notice__bullet {
+  color: rgba(248, 113, 113, 0.95);
 }
 
 .tech-tree-flow {

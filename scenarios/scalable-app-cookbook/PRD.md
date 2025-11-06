@@ -456,73 +456,13 @@ discovery:
 ## ✅ Validation Criteria
 
 ### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: scalable-app-cookbook
-
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/scalable-app-cookbook
-    - cli/install.sh
-    - docs/patterns/README.md
-    - scenario-test.yaml
-    
-  required_dirs:
-    - api
-    - cli
-    - docs
-    - docs/patterns
-    - ui
-    - tests
-
-resources:
-  required: [postgres]
-  optional: [ollama]
-  health_timeout: 30
-
-tests:
-  - name: "PostgreSQL patterns database initialized"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM patterns"
-    expect:
-      rows:
-        - count: ">= 38"
-        
-  - name: "API pattern search works"
-    type: http
-    service: api
-    endpoint: /api/v1/patterns/search?chapter=Part A
-    method: GET
-    expect:
-      status: 200
-      body:
-        total: ">= 6"
-        
-  - name: "CLI pattern retrieval works"
-    type: exec
-    command: ./cli/scalable-app-cookbook search --chapter "Part A"
-    expect:
-      exit_code: 0
-      output_contains: ["Architecture Styles", "Boundaries"]
-      
-  - name: "Recipe generation works"
-    type: http
-    service: api
-    endpoint: /api/v1/recipes/generate
-    method: POST
-    body:
-      recipe_id: "dependency-injection-go"
-      language: "go"
-    expect:
-      status: 200
-      body:
-        generated_code: contains("type Container struct")
-```
+- **Entry point**: `test/run-tests.sh` orchestrates the shared phased runner.
+- **Structure phase**: Validates required files/directories for the API, CLI, UI, and initialization assets.
+- **Dependencies phase**: Confirms Go module resolution, UI dependency installs (`npm install --dry-run`), and tool availability (`curl`, `jq`).
+- **Unit phase**: Executes Go unit tests with coverage captured under `coverage/scalable-app-cookbook/go`.
+- **Integration phase**: Probes `/health`, `/api/v1/patterns/search`, and `/api/v1/patterns/stats` to guarantee seeded data and catalog APIs remain healthy.
+- **Business phase**: Exercises CLI workflows (`status`, `search`, `chapters`, `help`) and validates the UI landing page is served.
+- **Performance phase**: Measures response times for health, search, and stats endpoints, enforcing 1–2s latency thresholds.
 
 ### Performance Validation
 - [ ] Pattern search < 100ms for 95% of queries

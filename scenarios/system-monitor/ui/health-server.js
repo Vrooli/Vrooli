@@ -6,12 +6,40 @@
  */
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { URL } = require('url');
 
-const HEALTH_PORT = process.env.HEALTH_PORT || (parseInt(process.env.UI_PORT || process.env.PORT || '3000') + 1);
-const API_PORT = process.env.API_PORT;
-const UI_PORT = process.env.UI_PORT || process.env.PORT;
+const uiPort = Number(process.env.UI_PORT || process.env.PORT || '3000');
+const HEALTH_PORT = Number(process.env.HEALTH_PORT || (uiPort + 1));
+const API_PORT = (process.env.API_PORT || '').trim();
+const UI_PORT = (process.env.UI_PORT || process.env.PORT || '').trim();
+
+const API_PROTOCOL = (process.env.API_PROTOCOL || 'http').trim().replace(/:+$/, '') || 'http';
+const API_HOST = (process.env.API_HOST || '127.0.0.1').trim() || '127.0.0.1';
+const UI_LISTEN_HOST = (process.env.HEALTH_HOST || process.env.UI_HOST || '0.0.0.0').trim() || '0.0.0.0';
+const UI_CHECK_HOST = UI_LISTEN_HOST === '0.0.0.0' ? '127.0.0.1' : UI_LISTEN_HOST;
+const RAW_API_BASE = (process.env.API_BASE_URL || process.env.VITE_API_BASE_URL || '').trim();
+
+const toUrl = (value) => {
+  if (!value) {
+    return undefined;
+  }
+  try {
+    return new URL(value);
+  } catch (error) {
+    console.warn(`Unable to parse API base URL "${value}":`, error.message || error);
+    return undefined;
+  }
+};
+
+const API_BASE = toUrl(RAW_API_BASE) || (API_PORT ? toUrl(`${API_PROTOCOL}://${API_HOST}:${API_PORT}`) : undefined);
+
+const API_BASE_ORIGIN = API_BASE ? `${API_BASE.protocol}//${API_BASE.host}` : undefined;
+const API_HEALTH_PATH = API_BASE ? `${API_BASE.pathname.replace(/\/$/, '') || ''}/health` : '/health';
+
+const selectHttpModule = (url) => (url?.protocol === 'https:' ? https : http);
 
 /**
  * Test API connectivity
@@ -19,16 +47,16 @@ const UI_PORT = process.env.UI_PORT || process.env.PORT;
 async function checkAPIConnectivity() {
   const result = {
     connected: false,
-    api_url: `http://localhost:${API_PORT}`,
+    api_url: API_BASE_ORIGIN || (API_PORT ? `${API_PROTOCOL}://${API_HOST}:${API_PORT}` : undefined),
     last_check: new Date().toISOString(),
     error: null,
     latency_ms: null
   };
 
-  if (!API_PORT) {
+  if (!API_BASE && !API_PORT) {
     result.error = {
       code: 'MISSING_CONFIG',
-      message: 'API_PORT environment variable not configured',
+      message: 'API target not configured; set API_BASE_URL or API_PORT',
       category: 'configuration',
       retryable: false
     };
@@ -39,10 +67,12 @@ async function checkAPIConnectivity() {
 
   try {
     await new Promise((resolve, reject) => {
+      const apiTarget = API_BASE || new URL(`${API_PROTOCOL}://${API_HOST}:${API_PORT}`);
       const options = {
-        hostname: 'localhost',
-        port: API_PORT,
-        path: '/health',
+        protocol: apiTarget.protocol,
+        hostname: apiTarget.hostname,
+        port: apiTarget.port || (apiTarget.protocol === 'https:' ? 443 : 80),
+        path: API_HEALTH_PATH,
         method: 'GET',
         timeout: 5000,
         headers: {
@@ -50,7 +80,9 @@ async function checkAPIConnectivity() {
         }
       };
 
-      const req = http.request(options, (res) => {
+      const transport = selectHttpModule(apiTarget);
+
+      const req = transport.request(options, (res) => {
         const endTime = Date.now();
         result.latency_ms = endTime - startTime;
 
@@ -152,8 +184,8 @@ async function checkViteServer() {
   try {
     await new Promise((resolve, reject) => {
       const options = {
-        hostname: 'localhost',
-        port: UI_PORT,
+        hostname: UI_CHECK_HOST,
+        port: UI_PORT || uiPort,
         path: '/',
         method: 'HEAD',
         timeout: 3000
@@ -327,10 +359,21 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(HEALTH_PORT, () => {
-  console.log(`🏥 System Monitor UI Health Server running on http://localhost:${HEALTH_PORT}/health`);
-  console.log(`📊 Monitoring UI on port ${UI_PORT}, API on port ${API_PORT}`);
+server.listen(HEALTH_PORT, UI_LISTEN_HOST, () => {
+  const displayHost = UI_LISTEN_HOST === '0.0.0.0' ? '127.0.0.1' : UI_LISTEN_HOST;
+  console.log(`🏥 System Monitor UI Health Server running on http://${displayHost}:${HEALTH_PORT}/health`);
+  console.log(`📊 Monitoring UI on port ${UI_PORT || uiPort}, API target ${resultTargetLabel()}`);
 });
+
+function resultTargetLabel() {
+  if (API_BASE_ORIGIN) {
+    return `${API_BASE_ORIGIN}${API_HEALTH_PATH}`;
+  }
+  if (API_PORT) {
+    return `${API_PROTOCOL}://${API_HOST}:${API_PORT}${API_HEALTH_PATH}`;
+  }
+  return 'unconfigured';
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

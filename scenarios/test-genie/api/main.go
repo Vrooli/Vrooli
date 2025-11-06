@@ -3123,12 +3123,19 @@ func aggregateFileCandidates(scenarioName string) []string {
 	var candidates []string
 
 	if wd, err := os.Getwd(); err == nil {
+		trimmed := strings.TrimSpace(scenarioName)
+		if trimmed != "" {
+			candidates = append(candidates, filepath.Clean(filepath.Join(wd, "..", "coverage", trimmed, "aggregate.json")))
+		}
 		candidates = append(candidates, filepath.Clean(filepath.Join(wd, "..", "coverage", "test-genie", "aggregate.json")))
 	}
 
 	if repoRoot, err := getRepoRoot(); err == nil {
-		if strings.TrimSpace(scenarioName) != "" {
-			candidates = append(candidates, filepath.Join(repoRoot, "scenarios", scenarioName, "coverage", "test-genie", "aggregate.json"))
+		if trimmed := strings.TrimSpace(scenarioName); trimmed != "" {
+			candidates = append(candidates,
+				filepath.Join(repoRoot, "scenarios", trimmed, "coverage", trimmed, "aggregate.json"),
+				filepath.Join(repoRoot, "scenarios", trimmed, "coverage", "test-genie", "aggregate.json"),
+			)
 		}
 		candidates = append(candidates, filepath.Join(repoRoot, "scenarios", "test-genie", "coverage", "test-genie", "aggregate.json"))
 	}
@@ -3157,11 +3164,17 @@ func listCoverageSummaries() ([]CoverageOverview, error) {
 	}
 
 	scenariosDir := filepath.Join(repoRoot, "scenarios")
-	globPattern := filepath.Join(scenariosDir, "*", "coverage", "test-genie", "aggregate.json")
-	matches, err := filepath.Glob(globPattern)
+	legacyPattern := filepath.Join(scenariosDir, "*", "coverage", "test-genie", "aggregate.json")
+	modernPattern := filepath.Join(scenariosDir, "*", "coverage", "*", "aggregate.json")
+	matches, err := filepath.Glob(legacyPattern)
 	if err != nil {
 		return nil, err
 	}
+	modernMatches, err := filepath.Glob(modernPattern)
+	if err != nil {
+		return nil, err
+	}
+	matches = append(matches, modernMatches...)
 
 	// Also check the test-genie scenario itself
 	matches = append(matches, filepath.Join(scenariosDir, "test-genie", "coverage", "test-genie", "aggregate.json"))

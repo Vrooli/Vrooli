@@ -58,9 +58,9 @@ type Handler struct {
 	workflowService  WorkflowService
 	repo             database.Repository
 	browserless      *browserless.Client
-	wsHub            *wsHub.Hub
-	storage          *storage.MinIOClient
-	recordingService *services.RecordingService
+	wsHub            wsHub.HubInterface
+	storage          storage.StorageInterface
+	recordingService services.RecordingServiceInterface
 	recordingsRoot   string
 	replayRenderer   replayRenderer
 	log              *logrus.Logger

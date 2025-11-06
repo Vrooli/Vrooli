@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +25,7 @@ type TestLogger struct {
 func setupTestLogger() func() {
 	// Suppress logs during tests unless DEBUG is set
 	if os.Getenv("DEBUG") != "true" {
-		log.SetOutput(ioutil.Discard)
+		log.SetOutput(io.Discard)
 	}
 	return func() {
 		log.SetOutput(os.Stdout)
@@ -42,7 +42,7 @@ type TestEnvironment struct {
 
 // setupTestDirectory creates an isolated test environment with proper cleanup
 func setupTestDirectory(t *testing.T) *TestEnvironment {
-	tempDir, err := ioutil.TempDir("", "scenario-to-extension-test")
+	tempDir, err := os.MkdirTemp("", "scenario-to-extension-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -73,7 +73,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
   "permissions": {{PERMISSIONS}},
   "host_permissions": {{HOST_PERMISSIONS}}
 }`
-	if err := ioutil.WriteFile(filepath.Join(templatesDir, "manifest.json"), []byte(manifestContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(templatesDir, "manifest.json"), []byte(manifestContent), 0644); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create manifest template: %v", err)
 	}
@@ -101,10 +101,12 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 // setupTestConfig initializes global config for testing
 func setupTestConfig(env *TestEnvironment) func() {
 	originalConfig := config
+	originalBuildManager := buildManager
 	config = env.Config
-	builds = make(map[string]*ExtensionBuild)
+	buildManager = NewBuildManager()
 	return func() {
 		config = originalConfig
+		buildManager = originalBuildManager
 	}
 }
 
@@ -297,3 +299,30 @@ func (g *TestDataGenerator) GenerateTestRequest(extensionPath string, sites []st
 
 // Global test data generator instance
 var TestData = &TestDataGenerator{}
+
+// TestSetup consolidates all test setup and cleanup into a single structure
+type TestSetup struct {
+	Env     *TestEnvironment
+	Cleanup func()
+}
+
+// setupTest creates a complete test environment with proper cleanup
+// This consolidates the common 3-line setup pattern used across all tests:
+//
+//	loggerCleanup := setupTestLogger()
+//	env := setupTestDirectory(t)
+//	configCleanup := setupTestConfig(env)
+func setupTest(t *testing.T) *TestSetup {
+	loggerCleanup := setupTestLogger()
+	env := setupTestDirectory(t)
+	configCleanup := setupTestConfig(env)
+
+	return &TestSetup{
+		Env: env,
+		Cleanup: func() {
+			configCleanup()
+			env.Cleanup()
+			loggerCleanup()
+		},
+	}
+}

@@ -172,9 +172,7 @@ func TestComprehensiveAPIEndpoints(t *testing.T) {
 		buildID := response["build_id"].(string)
 
 		// Check that build has defaults applied
-		buildsMux.RLock()
-		build := builds[buildID]
-		buildsMux.RUnlock()
+		build, _ := buildManager.Get(buildID)
 
 		if build.Config.Version != "1.0.0" {
 			t.Errorf("Expected default version 1.0.0, got %s", build.Config.Version)
@@ -238,9 +236,7 @@ func TestComprehensiveAPIEndpoints(t *testing.T) {
 		}
 
 		// Verify all builds were created
-		buildsMux.RLock()
-		buildCount := len(builds)
-		buildsMux.RUnlock()
+		buildCount := buildManager.Count()
 
 		if buildCount < concurrentRequests {
 			t.Errorf("Expected at least %d builds, got %d", concurrentRequests, buildCount)
@@ -270,9 +266,7 @@ func TestBuildManagement(t *testing.T) {
 			ErrorLog:     []string{},
 		}
 
-		buildsMux.Lock()
-		builds[build.BuildID] = build
-		buildsMux.Unlock()
+		buildManager.Add(build)
 
 		// Verify initial status
 		if build.Status != "building" {
@@ -316,9 +310,7 @@ func TestBuildManagement(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		// Check that build log is being populated
-		buildsMux.RLock()
-		build := builds[buildID]
-		buildsMux.RUnlock()
+		build, _ := buildManager.Get(buildID)
 
 		if len(build.BuildLog) == 0 {
 			t.Error("Expected build log to have entries")
@@ -342,30 +334,28 @@ func TestBuildManagement(t *testing.T) {
 
 	t.Run("CountBuildsByStatus", func(t *testing.T) {
 		// Clear builds
-		builds = make(map[string]*ExtensionBuild)
+		buildManager = NewBuildManager()
 
 		// Add builds with different statuses
-		buildsMux.Lock()
-		builds["build1"] = &ExtensionBuild{Status: "building"}
-		builds["build2"] = &ExtensionBuild{Status: "building"}
-		builds["build3"] = &ExtensionBuild{Status: "ready"}
-		builds["build4"] = &ExtensionBuild{Status: "failed"}
-		buildsMux.Unlock()
+		buildManager.Add(&ExtensionBuild{BuildID: "build1", Status: "building"})
+		buildManager.Add(&ExtensionBuild{BuildID: "build2", Status: "building"})
+		buildManager.Add(&ExtensionBuild{BuildID: "build3", Status: "ready"})
+		buildManager.Add(&ExtensionBuild{BuildID: "build4", Status: "failed"})
 
-		if countBuildsByStatus("building") != 2 {
-			t.Errorf("Expected 2 building builds, got %d", countBuildsByStatus("building"))
+		if buildManager.CountByStatus("building") != 2 {
+			t.Errorf("Expected 2 building builds, got %d", buildManager.CountByStatus("building"))
 		}
 
-		if countBuildsByStatus("ready") != 1 {
-			t.Errorf("Expected 1 ready build, got %d", countBuildsByStatus("ready"))
+		if buildManager.CountByStatus("ready") != 1 {
+			t.Errorf("Expected 1 ready build, got %d", buildManager.CountByStatus("ready"))
 		}
 
-		if countBuildsByStatus("failed") != 1 {
-			t.Errorf("Expected 1 failed build, got %d", countBuildsByStatus("failed"))
+		if buildManager.CountByStatus("failed") != 1 {
+			t.Errorf("Expected 1 failed build, got %d", buildManager.CountByStatus("failed"))
 		}
 
-		if countBuildsByStatus("nonexistent") != 0 {
-			t.Errorf("Expected 0 nonexistent builds, got %d", countBuildsByStatus("nonexistent"))
+		if buildManager.CountByStatus("nonexistent") != 0 {
+			t.Errorf("Expected 0 nonexistent builds, got %d", buildManager.CountByStatus("nonexistent"))
 		}
 	})
 }

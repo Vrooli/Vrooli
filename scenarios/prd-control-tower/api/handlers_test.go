@@ -375,7 +375,7 @@ func TestHandleGetDraftNoDB(t *testing.T) {
 
 // TestHandleUpdateDraftNoDB tests the update draft endpoint without database
 func TestHandleUpdateDraftNoDB(t *testing.T) {
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"content": "# Updated PRD Content\n\nTest update",
 	}
 	body, _ := json.Marshal(reqBody)

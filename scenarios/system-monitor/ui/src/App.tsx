@@ -396,7 +396,7 @@ function App() {
 
           const parsed = parseAgentsResponse(payload);
           const mapped = parsed.find(item => item.id === agent.id)
-            ?? mapAgentPayload({ ...payload, id: agent.id });
+            ?? mapAgentPayload({ ...(payload as Record<string, unknown>), id: agent.id });
 
           if (mapped && isMounted) {
             setAgents(prev => prev.map(existing => existing.id === mapped.id ? { ...existing, ...mapped } : existing));

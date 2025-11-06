@@ -12,6 +12,7 @@ export {
   type BridgeScreenshotOptions,
   type BridgeInspectRect,
   type BridgeInspectElementMeta,
+  type BridgeInspectAncestorMeta,
   type BridgeInspectHoverPayload,
   type BridgeInspectResultPayload,
   type LogCaptureOptions,

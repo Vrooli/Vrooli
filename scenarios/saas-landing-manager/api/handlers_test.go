@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -108,7 +109,7 @@ func TestScanScenariosHandlerDetailed(t *testing.T) {
 		os.MkdirAll(filepath.Join(tempDir, "test-scenario"), 0755)
 
 		reqBody := ScanRequest{
-			ForceRescan:     true,
+			ForceRescan:    true,
 			ScenarioFilter: "test",
 		}
 
