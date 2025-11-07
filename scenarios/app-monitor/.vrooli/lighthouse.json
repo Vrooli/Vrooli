@@ -1,0 +1,82 @@
+{
+  "_metadata": {
+    "description": "Lighthouse testing configuration for app-monitor - monitoring dashboard for Vrooli scenarios",
+    "last_updated": "2025-11-06T04:30:00Z",
+    "owner": "app-monitor team"
+  },
+  "enabled": true,
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "/",
+      "label": "Scenario Dashboard",
+      "viewport": "desktop",
+      "waitForSelector": "[data-testid='app-grid']",
+      "waitForMs": 1000,
+      "thresholds": {
+        "performance": {
+          "error": 0.75,
+          "warn": 0.85
+        },
+        "accessibility": {
+          "error": 0.9,
+          "warn": 0.95
+        },
+        "best-practices": {
+          "error": 0.85,
+          "warn": 0.9
+        },
+        "seo": {
+          "error": 0.8,
+          "warn": 0.9
+        }
+      },
+      "requirements": ["APPMON-PERF-DASHBOARD-LOAD", "APPMON-A11Y-DASHBOARD"]
+    },
+    {
+      "id": "mobile-dashboard",
+      "path": "/",
+      "label": "Scenario Dashboard (Mobile)",
+      "viewport": "mobile",
+      "waitForSelector": "[data-testid='app-grid']",
+      "waitForMs": 1000,
+      "thresholds": {
+        "performance": {
+          "error": 0.70,
+          "warn": 0.80
+        },
+        "accessibility": {
+          "error": 0.9,
+          "warn": 0.95
+        }
+      },
+      "requirements": ["APPMON-PERF-MOBILE"],
+      "notes": "Mobile viewport with lower performance threshold"
+    }
+  ],
+  "global_options": {
+    "lighthouse": {
+      "extends": "lighthouse:default",
+      "settings": {
+        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"],
+        "throttlingMethod": "simulate",
+        "formFactor": "desktop"
+      }
+    },
+    "chrome_flags": [
+      "--headless",
+      "--no-sandbox",
+      "--disable-gpu",
+      "--disable-dev-shm-usage"
+    ],
+    "timeout_ms": 60000,
+    "retries": 2
+  },
+  "reporting": {
+    "output_dir": "test/artifacts/lighthouse",
+    "formats": ["json", "html"],
+    "keep_reports": 10,
+    "fail_on_error": true,
+    "fail_on_warn": false
+  }
+}

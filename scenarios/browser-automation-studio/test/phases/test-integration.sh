@@ -53,7 +53,7 @@ fi
 
 if command -v node >/dev/null 2>&1; then
   export BAS_INTEGRATION_API_URL="http://localhost:${API_PORT}/api/v1"
-  if node tests/workflow-version-history.integration.mjs; then
+  if node test/integration/workflow-version-history.test.mjs; then
     log::success "✅ Workflow version history contract validated"
     testing::phase::add_test passed
     testing::phase::add_requirement --id BAS-VERSION-RESTORE --status passed --evidence "Workflow version history integration"

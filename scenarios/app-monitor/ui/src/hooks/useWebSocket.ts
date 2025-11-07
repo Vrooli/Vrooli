@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 import type { WSMessage, App, SystemMetrics, LogEntry } from '@/types';
 import { logger } from '@/services/logger';
+import { resolveWsBase } from '@vrooli/api-base';
 
 interface WebSocketHookOptions {
   onAppUpdate?: (app: Partial<App>) => void;
@@ -27,20 +28,12 @@ export function useAppWebSocket(options: WebSocketHookOptions = {}) {
   const messageHistory = useRef<WSMessage[]>([]);
   const reconnectCount = useRef(0);
 
-  // Determine WebSocket URL based on environment
+  // Determine WebSocket URL using api-base
   const getSocketUrl = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    
-    // In development, connect to Express server port
-    if (import.meta.env.DEV) {
-      // Use the UI_PORT from environment or fall back to default
-      const serverPort = import.meta.env.VITE_UI_PORT || import.meta.env.UI_PORT || '8085';
-      return `${protocol}//localhost:${serverPort}/ws`;
-    }
-    
-    // In production, use the same host
-    return `${protocol}//${host}/ws`;
+    return resolveWsBase({
+      appendSuffix: true,
+      apiSuffix: '/ws',
+    });
   }, []);
 
   const {

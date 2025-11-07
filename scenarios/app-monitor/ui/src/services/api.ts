@@ -25,31 +25,13 @@ import type {
 import { logger } from '@/services/logger';
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base';
 
-const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '15100';
-
-// CRITICAL: App-monitor must ALWAYS use an absolute API URL, never derive it from proxy paths
-// When viewing app-monitor itself through a scenario preview, the api-base package would incorrectly
-// derive the API URL as /apps/<scenario>/api/v1, breaking all API calls
-const getExplicitApiUrl = (): string | undefined => {
-  const envUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
-  if (envUrl) return envUrl;
-
-  // Use the current page's origin (protocol + hostname + port from tunnel/proxy)
-  // This works for:
-  // - Local dev: http://localhost:15101
-  // - Secure tunnel: https://app-monitor.itsagitime.com
-  // - Production: https://yourdomain.com
-  if (typeof window !== 'undefined' && window.location) {
-    return window.location.origin;
-  }
-
-  // Fallback for SSR or edge cases
-  return `http://127.0.0.1:${DEFAULT_API_PORT}`;
-};
-
+// App-monitor is special: it hosts other scenarios but is never itself proxied
+// We must use explicitUrl to prevent api-base from detecting proxy context
+// when viewing URLs like /apps/scenario-name/preview
 const API_BASE_URL = resolveApiBase({
-  explicitUrl: getExplicitApiUrl(),
-  defaultPort: DEFAULT_API_PORT,
+  explicitUrl: typeof window !== 'undefined' && window.location
+    ? window.location.origin
+    : undefined,
   appendSuffix: true,
 });
 

@@ -2,7 +2,7 @@
 # Default configuration and utilities for Lighthouse testing
 # Provides fallback thresholds and helper functions
 
-# Default thresholds (can be overridden per-page in .lighthouse/config.json)
+# Default thresholds (can be overridden per-page in .vrooli/lighthouse.json)
 LIGHTHOUSE_DEFAULT_PERFORMANCE_ERROR=0.70
 LIGHTHOUSE_DEFAULT_PERFORMANCE_WARN=0.80
 LIGHTHOUSE_DEFAULT_ACCESSIBILITY_ERROR=0.85

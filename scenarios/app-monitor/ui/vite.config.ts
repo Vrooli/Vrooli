@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
+    base: './',  // Required for universal deployment (proxied scenarios)
     plugins: [react()],
     server: {
       port: parseInt(env.VITE_PORT),

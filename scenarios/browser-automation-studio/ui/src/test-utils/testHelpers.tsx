@@ -1,6 +1,7 @@
 import { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { vi } from 'vitest';
 
 /**
  * Creates a QueryClient instance for testing with disabled retries and caching.

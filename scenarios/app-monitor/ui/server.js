@@ -1424,10 +1424,8 @@ const stripProxyPrefix = (fullPath) => {
         stripped = fullPath.replace(basePattern, '');
     }
 
-    if (stripped && stripped.startsWith(`/${APP_ASSET_SEGMENT}`)) {
-        const withoutAsset = stripped.slice(APP_ASSET_SEGMENT.length + 1) || '/';
-        stripped = withoutAsset.startsWith('/') ? withoutAsset : `/${withoutAsset}`;
-    }
+    // Note: Do NOT strip /assets prefix - scenarios using api-base with base: './'
+    // need the full path to be forwarded to their UI server which serves from dist/assets/
 
     if (!stripped) {
         return '/';
@@ -2742,102 +2740,36 @@ app.get('/health', async (req, res) => {
     res.json(healthResponse);
 });
 
-// In production, serve built React files
-if (process.env.NODE_ENV === 'production') {
-    const staticPath = path.join(__dirname, 'dist');
-    app.use(express.static(staticPath));
+// Serve built React files (Vrooli scenarios ALWAYS serve production bundles)
+const staticPath = path.join(__dirname, 'dist');
+app.use(express.static(staticPath));
 
-    // Catch all routes for client-side routing in production
-    app.get('*', (req, res) => {
-        // Skip API routes - return 404 for unknown API endpoints
-        if (isAppMonitorApiRoute(req.path)) {
-            return res.status(404).json({ error: 'Not found' });
-        }
-        res.sendFile(path.join(staticPath, 'index.html'));
-    });
-} else {
-    // In development, show helpful message
-    app.get('/', (req, res) => {
-        const vitePort = process.env.VITE_PORT;
-        res.send(`
-            <html>
-                <head>
-                    <title>App Monitor - Express Server</title>
-                    <style>
-                        body {
-                            background: #0a0a0a;
-                            color: #00ff41;
-                            font-family: 'Courier New', monospace;
-                            padding: 2rem;
-                            text-align: center;
-                        }
-                        h1 { color: #39ff14; }
-                        a {
-                            color: #00ffff;
-                            font-size: 1.2rem;
-                        }
-                        .info {
-                            margin: 2rem;
-                            padding: 1rem;
-                            border: 1px solid #00ff41;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <h1>🚀 App Monitor Express Server</h1>
-                    <div class="info">
-                        <p>This is the Express backend server (port ${PORT})</p>
-                        <p>It handles API proxying and WebSocket connections only.</p>
-                        <br>
-                        <p><strong>To access the React UI, go to:</strong></p>
-                        <h2><a href="http://localhost:${vitePort}">http://localhost:${vitePort}</a></h2>
-                        <br>
-                        <p>If Vite is not running, start it with: <code>npm run dev</code></p>
-                    </div>
-                    <div class="info">
-                        <p>Available endpoints on this server:</p>
-                        <ul style="text-align: left; display: inline-block;">
-                            <li>/api/* - Proxied to Go API server</li>
-                            <li>/ws - WebSocket endpoint</li>
-                            <li>/health - Health check</li>
-                        </ul>
-                    </div>
-                </body>
-            </html>
-        `);
-    });
+// Catch all routes for client-side routing (SPA fallback)
+app.get('*', (req, res) => {
+    // Skip API routes - return 404 for unknown API endpoints
+    if (isAppMonitorApiRoute(req.path)) {
+        return res.status(404).json({ error: 'Not found' });
+    }
 
-    // Catch all other routes in development with helpful message
-    app.get('*', (req, res) => {
-        if (req.path.startsWith('/api')) {
-            return res.status(404).json({ error: 'API endpoint not found' });
+    // Read and modify index.html to inject <base> tag for correct asset resolution
+    const indexPath = path.join(staticPath, 'index.html');
+    fs.readFile(indexPath, 'utf8', (err, html) => {
+        if (err) {
+            console.error('Error reading index.html:', err);
+            return res.status(500).send('Internal server error');
         }
-        const vitePort = process.env.VITE_PORT;
-        res.status(404).send(`
-            <html>
-                <head>
-                    <title>404 - Wrong Server</title>
-                    <style>
-                        body {
-                            background: #0a0a0a;
-                            color: #ff0040;
-                            font-family: 'Courier New', monospace;
-                            padding: 2rem;
-                            text-align: center;
-                        }
-                        a { color: #00ffff; }
-                    </style>
-                </head>
-                <body>
-                    <h1>❌ 404 - Wrong Server</h1>
-                    <p>You're accessing the Express backend server.</p>
-                    <p>The React UI is running on the Vite dev server:</p>
-                    <h2><a href="http://localhost:${vitePort}${req.path}">http://localhost:${vitePort}${req.path}</a></h2>
-                </body>
-            </html>
-        `);
+
+        // Inject <base href="/"> to ensure assets are loaded from root
+        // This is necessary because Vite uses base: './' for relative paths,
+        // but we need assets to always resolve from the root URL
+        const modifiedHtml = html.replace(
+            '<head>',
+            '<head>\n  <base href="/">'
+        );
+
+        res.send(modifiedHtml);
     });
-}
+});
 
 // Start server
 server.listen(PORT, () => {

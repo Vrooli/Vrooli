@@ -168,8 +168,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test-utils/setupTests.ts',
     globals: true,
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['tests/**/*', 'node_modules/**'],
+    include: ['src/**/*.{test,spec}.{ts,tsx,mjs}'],
+    exclude: ['node_modules/**'],
     reporters: [
       'default',
       new RequirementReporter({
@@ -184,8 +184,8 @@ export default defineConfig({
       reportsDirectory: './coverage',
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
-        'src/**/*.test.{ts,tsx}',
-        'src/**/__tests__/**',
+        'src/**/*.test.{ts,tsx,mjs}',
+        'src/**/*.spec.{ts,tsx,mjs}',
         'src/test-utils/**',
         'src/**/*.d.ts',
         'src/main.tsx',

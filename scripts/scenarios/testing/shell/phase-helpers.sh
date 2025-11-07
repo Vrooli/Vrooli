@@ -89,8 +89,8 @@ testing::phase::init() {
     source "${TESTING_PHASE_APP_ROOT}/scripts/lib/utils/log.sh"
     source "${TESTING_PHASE_APP_ROOT}/scripts/scenarios/testing/shell/core.sh"
     source "${TESTING_PHASE_APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
-    if [ -f "${TESTING_PHASE_APP_ROOT}/scripts/scenarios/testing/playbooks/browser-automation-studio.sh" ]; then
-        source "${TESTING_PHASE_APP_ROOT}/scripts/scenarios/testing/playbooks/browser-automation-studio.sh"
+    if [ -f "${TESTING_PHASE_APP_ROOT}/scripts/scenarios/testing/playbooks/workflow-runner.sh" ]; then
+        source "${TESTING_PHASE_APP_ROOT}/scripts/scenarios/testing/playbooks/workflow-runner.sh"
     fi
     
     # Source scenario-specific utilities if they exist
@@ -546,12 +546,13 @@ testing::phase::expected_validations_for() {
     fi
 }
 
-# Execute Browser Automation Studio workflow validations declared for this phase.
+# Execute workflow validations declared for this phase using browser-automation-studio.
+# This function is generic and can be used by any scenario to run BAS workflow JSONs for testing.
 # Options:
-#   --scenario NAME         Scenario to manage (default: browser-automation-studio)
-#   --manage-runtime MODE   Pass-through to BAS helper (auto|start|skip)
+#   --scenario NAME         Target scenario to test (default: browser-automation-studio)
+#   --manage-runtime MODE   Pass-through to workflow runner (auto|start|skip)
 #   --disallow-missing      Treat missing workflow files as failures instead of skips
-testing::phase::run_bas_automation_validations() {
+testing::phase::run_workflow_validations() {
     local default_scenario="browser-automation-studio"
     local manage_runtime="auto"
     local allow_missing=true
@@ -571,14 +572,14 @@ testing::phase::run_bas_automation_validations() {
                 shift
                 ;;
             *)
-                echo "Unknown option to testing::phase::run_bas_automation_validations: $1" >&2
+                echo "Unknown option to testing::phase::run_workflow_validations: $1" >&2
                 return 1
                 ;;
         esac
     done
 
-    if ! declare -F testing::playbooks::bas::run_workflow >/dev/null 2>&1; then
-        log::warning "BAS workflow helper not available; skip automation validations"
+    if ! declare -F testing::playbooks::run_workflow >/dev/null 2>&1; then
+        log::warning "Workflow runner not available; skip workflow validations"
         return 200
     fi
 
@@ -704,14 +705,14 @@ testing::phase::run_bas_automation_validations() {
                 args+=(--keep-workflow)
             fi
 
-            if testing::playbooks::bas::run_workflow "${args[@]}"; then
+            if testing::playbooks::run_workflow "${args[@]}"; then
                 testing::phase::add_test passed
                 local evidence="Workflow ${workflow_label} executed"
-                if [ -n "${TESTING_PLAYBOOKS_BAS_LAST_EXECUTION_ID:-}" ]; then
-                    evidence+=" (execution ${TESTING_PLAYBOOKS_BAS_LAST_EXECUTION_ID})"
+                if [ -n "${TESTING_PLAYBOOKS_LAST_EXECUTION_ID:-}" ]; then
+                    evidence+=" (execution ${TESTING_PLAYBOOKS_LAST_EXECUTION_ID})"
                 fi
-                if [ -n "${TESTING_PLAYBOOKS_BAS_LAST_SCENARIO:-}" ]; then
-                    evidence+=" via ${TESTING_PLAYBOOKS_BAS_LAST_SCENARIO}"
+                if [ -n "${TESTING_PLAYBOOKS_LAST_SCENARIO:-}" ]; then
+                    evidence+=" via ${TESTING_PLAYBOOKS_LAST_SCENARIO}"
                 fi
                 testing::phase::add_requirement --id "$req_id" --status passed --evidence "$evidence"
             else
@@ -877,4 +878,7 @@ export -f testing::phase::cleanup
 export -f testing::phase::end_with_summary
 export -f testing::phase::timed_exec
 export -f testing::phase::expected_validations_for
+export -f testing::phase::run_workflow_validations
+# Backward compatibility alias
+testing::phase::run_bas_automation_validations() { testing::phase::run_workflow_validations "$@"; }
 export -f testing::phase::run_bas_automation_validations

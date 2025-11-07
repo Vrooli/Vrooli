@@ -17,7 +17,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/tests/workflowStore.autosave.test.mjs",
+          "ref": "ui/src/stores/workflowStore.autosave.test.mjs",
           "phase": "unit",
           "status": "implemented",
           "notes": "Covers debounce saves, conflict suppression, and history refresh logic."
@@ -56,7 +56,7 @@
         },
         {
           "type": "test",
-          "ref": "tests/workflow-version-history.integration.mjs",
+          "ref": "test/integration/workflow-version-history.test.mjs",
           "phase": "integration",
           "status": "implemented",
           "notes": "Validates API restore endpoints and CLI parity through Node integration script (not a BAS workflow)."

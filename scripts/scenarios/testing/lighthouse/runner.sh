@@ -11,13 +11,13 @@ set -euo pipefail
 lighthouse::run_audits() {
   local lighthouse_only="${1:-false}"
 
-  local config_path="${TESTING_PHASE_SCENARIO_DIR}/.lighthouse/config.json"
+  local config_path="${TESTING_PHASE_SCENARIO_DIR}/.vrooli/lighthouse.json"
   local scenario_name="${TESTING_PHASE_SCENARIO_NAME}"
   local app_root="${TESTING_PHASE_APP_ROOT}"
 
   if [ ! -f "$config_path" ]; then
     log::warning "No Lighthouse config found at $config_path"
-    log::info "To enable Lighthouse testing, create .lighthouse/config.json in your scenario"
+    log::info "To enable Lighthouse testing, create .vrooli/lighthouse.json in your scenario"
     log::info "See docs/testing/guides/lighthouse-integration.md for details"
     testing::phase::add_test skipped
     return 0
@@ -110,7 +110,7 @@ lighthouse::run_audits() {
 # Returns 0 if config exists, 1 otherwise
 lighthouse::has_config() {
   local scenario_dir="${1:-$TESTING_PHASE_SCENARIO_DIR}"
-  [ -f "${scenario_dir}/.lighthouse/config.json" ]
+  [ -f "${scenario_dir}/.vrooli/lighthouse.json" ]
 }
 
 # Validate Lighthouse config file
@@ -154,7 +154,7 @@ lighthouse::validate_config() {
 
 # Get list of pages to audit from config
 lighthouse::list_pages() {
-  local config_path="${1:-${TESTING_PHASE_SCENARIO_DIR}/.lighthouse/config.json}"
+  local config_path="${1:-${TESTING_PHASE_SCENARIO_DIR}/.vrooli/lighthouse.json}"
 
   if [ ! -f "$config_path" ]; then
     return 1

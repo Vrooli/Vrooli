@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "_metadata": {
+    "description": "Testing configuration for browser-automation-studio",
+    "last_updated": "2025-11-07T03:45:00Z"
+  },
+  "version": "1.0.0",
+  "unit": {
+    "languages": {
+      "go": {
+        "enabled": true,
+        "dir": "api",
+        "coverage": {
+          "warn_threshold": 40,
+          "error_threshold": 30
+        }
+      },
+      "node": {
+        "enabled": true,
+        "dir": "ui"
+      },
+      "python": {
+        "enabled": false
+      }
+    },
+    "options": {
+      "verbose": true,
+      "fail_fast": false
+    }
+  }
+}

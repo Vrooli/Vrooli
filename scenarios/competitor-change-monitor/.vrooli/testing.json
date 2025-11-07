@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "_metadata": {
+    "description": "Testing configuration for competitor-change-monitor",
+    "generated_from": "test/phases/test-unit.sh",
+    "last_updated": "2025-11-06T23:58:53-05:00"
+  },
+  "version": "1.0.0",
+  "unit": {
+    "languages": {
+      "go": {
+        "enabled": true,
+        "dir": "api",
+        "coverage": {
+          "warn_threshold": 80,
+          "error_threshold": 50
+        }
+      },
+      "node": {
+        "enabled": false,
+        "dir": "ui"
+      },
+      "python": {
+        "enabled": false,
+        "dir": "."
+      }
+    },
+    "options": {
+      "verbose": false,
+      "fail_fast": false
+    }
+  }
+}
