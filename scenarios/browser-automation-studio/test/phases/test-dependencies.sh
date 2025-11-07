@@ -1,5 +1,4 @@
 #!/bin/bash
-# Dependencies validation using unified helper
 # Validates runtimes, package managers, resources, and connectivity
 set -euo pipefail
 

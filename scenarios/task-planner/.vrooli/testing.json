@@ -9,25 +9,14 @@
   "unit": {
     "languages": {
       "go": {
-        "enabled": true,
-        "dir": "api",
         "coverage": {
           "warn_threshold": 35,
           "error_threshold": 20
         }
-      },
-      "node": {
-        "enabled": false,
-        "dir": "ui"
-      },
-      "python": {
-        "enabled": false,
-        "dir": "."
       }
     },
     "options": {
-      "verbose": false,
-      "fail_fast": false
+      "verbose": false
     }
   }
 }

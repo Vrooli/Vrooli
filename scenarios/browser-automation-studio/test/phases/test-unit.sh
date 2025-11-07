@@ -1,6 +1,5 @@
 #!/bin/bash
 # Orchestrates Go/Node/Python unit tests with coverage thresholds.
-# Configuration is read from .vrooli/testing.json
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"

@@ -5,27 +5,68 @@
     "last_updated": "2025-11-07T03:45:00Z"
   },
   "version": "1.0.0",
+  "structure": {
+    "additional_files": [
+      "ui/package.json",
+      "ui/vite.config.ts"
+    ],
+    "additional_dirs": [
+      "ui",
+      "initialization"
+    ]
+  },
   "unit": {
     "languages": {
       "go": {
-        "enabled": true,
-        "dir": "api",
         "coverage": {
           "warn_threshold": 40,
           "error_threshold": 30
         }
       },
-      "node": {
-        "enabled": true,
-        "dir": "ui"
+      "node": {}
+    },
+    "options": {
+      "verbose": true
+    }
+  },
+  "performance": {
+    "checks": {
+      "lighthouse": {
+        "enabled": true
       },
-      "python": {
-        "enabled": false
+      "bundle_size": {
+        "enabled": true,
+        "targets": [
+          {
+            "name": "UI bundle",
+            "path": "ui/dist",
+            "max_size_kb": 1000,
+            "warn_size_kb": 800,
+            "exclude_patterns": ["*.map", "*.LICENSE.txt"]
+          }
+        ]
+      },
+      "response_time": {
+        "enabled": true,
+        "endpoints": [
+          {
+            "path": "/health",
+            "max_ms": 100,
+            "warn_ms": 50,
+            "iterations": 10
+          },
+          {
+            "path": "/api/v1/projects",
+            "max_ms": 500,
+            "warn_ms": 300,
+            "iterations": 5,
+            "requirement": "BAS-PERF-PROJECTS-API"
+          }
+        ]
       }
     },
     "options": {
-      "verbose": true,
-      "fail_fast": false
+      "continue_on_failure": true
     }
   }
 }

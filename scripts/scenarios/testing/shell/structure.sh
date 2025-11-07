@@ -1,0 +1,248 @@
+#!/usr/bin/env bash
+# Structure validation helper with convention-over-configuration
+# Standard scenario structure is tested by default, .vrooli/testing.json defines exceptions
+set -euo pipefail
+
+# Source required helpers
+SHELL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SHELL_DIR/config.sh"
+source "$SHELL_DIR/phase-helpers.sh"
+
+# Standard scenario structure (convention)
+# All scenarios MUST have these files/directories unless explicitly excluded
+declare -ga TESTING_STRUCTURE_STANDARD_FILES=(
+  "api/main.go"
+  "cli/install.sh"
+  "test/run-tests.sh"
+  "test/phases/test-structure.sh"
+  "test/phases/test-dependencies.sh"
+  "test/phases/test-unit.sh"
+  "test/phases/test-integration.sh"
+  "test/phases/test-business.sh"
+  "test/phases/test-performance.sh"
+  ".vrooli/service.json"
+  ".vrooli/testing.json"
+  "README.md"
+  "PRD.md"
+  "Makefile"
+)
+
+declare -ga TESTING_STRUCTURE_STANDARD_DIRS=(
+  "api"
+  "cli"
+  "test"
+  "test/phases"
+  "requirements"
+  "docs"
+)
+
+# Main validation function
+testing::structure::validate_all() {
+  local scenario_name=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --scenario)
+        scenario_name="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown option to testing::structure::validate_all: $1" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  if [ -z "$scenario_name" ]; then
+    scenario_name="${TESTING_PHASE_SCENARIO_NAME:-$(basename "$PWD")}"
+  fi
+
+  local scenario_dir="${TESTING_PHASE_SCENARIO_DIR:-$PWD}"
+  local config_file="$scenario_dir/.vrooli/testing.json"
+
+  echo "🏗️  Validating scenario structure..."
+  echo ""
+
+  # Read configuration
+  local exclude_files=()
+  local exclude_dirs=()
+  local additional_files=()
+  local additional_dirs=()
+  local validate_service_json_name=true
+  local check_json_validity=true
+
+  if [ -f "$config_file" ]; then
+    # Read exclusions
+    if command -v jq >/dev/null 2>&1; then
+      mapfile -t exclude_files < <(jq -r '.structure.exclude_files[]? // empty' "$config_file" 2>/dev/null || true)
+      mapfile -t exclude_dirs < <(jq -r '.structure.exclude_dirs[]? // empty' "$config_file" 2>/dev/null || true)
+
+      # Read additional checks (simple strings or objects)
+      mapfile -t additional_files < <(jq -r '.structure.additional_files[]? | if type == "string" then . else .path end' "$config_file" 2>/dev/null || true)
+      mapfile -t additional_dirs < <(jq -r '.structure.additional_dirs[]? | if type == "string" then . else .path end' "$config_file" 2>/dev/null || true)
+
+      # Read validation flags
+      local svc_json_check=$(jq -r '.structure.validations.service_json_name_matches_directory // true' "$config_file" 2>/dev/null)
+      [ "$svc_json_check" = "false" ] && validate_service_json_name=false
+
+      local json_check=$(jq -r '.structure.validations.check_json_validity // true' "$config_file" 2>/dev/null)
+      [ "$json_check" = "false" ] && check_json_validity=false
+    fi
+  fi
+
+  # Build final file/dir lists
+  local files_to_check=()
+  local dirs_to_check=()
+
+  # Add standard files, excluding any in exclude list
+  for file in "${TESTING_STRUCTURE_STANDARD_FILES[@]}"; do
+    local excluded=false
+    for excl in "${exclude_files[@]}"; do
+      if [ "$file" = "$excl" ]; then
+        excluded=true
+        break
+      fi
+    done
+    if [ "$excluded" = false ]; then
+      # Add scenario name to cli binary path
+      if [ "$file" = "cli/install.sh" ]; then
+        files_to_check+=("$file")
+        files_to_check+=("cli/$scenario_name")
+      else
+        files_to_check+=("$file")
+      fi
+    fi
+  done
+
+  # Add standard dirs, excluding any in exclude list
+  for dir in "${TESTING_STRUCTURE_STANDARD_DIRS[@]}"; do
+    local excluded=false
+    for excl in "${exclude_dirs[@]}"; do
+      if [ "$dir" = "$excl" ]; then
+        excluded=true
+        break
+      fi
+    done
+    if [ "$excluded" = false ]; then
+      dirs_to_check+=("$dir")
+    fi
+  done
+
+  # Add additional files/dirs
+  files_to_check+=("${additional_files[@]}")
+  dirs_to_check+=("${additional_dirs[@]}")
+
+  # Validate directories
+  if [ ${#dirs_to_check[@]} -gt 0 ]; then
+    if testing::phase::check_directories "${dirs_to_check[@]}"; then
+      testing::phase::add_test passed
+    else
+      testing::phase::add_test failed
+    fi
+  fi
+
+  # Validate files
+  if [ ${#files_to_check[@]} -gt 0 ]; then
+    if testing::phase::check_files "${files_to_check[@]}"; then
+      testing::phase::add_test passed
+    else
+      testing::phase::add_test failed
+    fi
+  fi
+
+  # Additional validations
+  if [ "$validate_service_json_name" = true ]; then
+    _validate_service_json_name "$scenario_name" "$scenario_dir"
+  fi
+
+  if [ "$check_json_validity" = true ]; then
+    _validate_json_files "$scenario_dir"
+  fi
+
+  echo ""
+  local total_checks=$((${#dirs_to_check[@]} + ${#files_to_check[@]} + 2))
+  echo "✅ Structure validation completed ($total_checks checks)"
+}
+
+# Private helper: Validate service.json name matches directory
+_validate_service_json_name() {
+  local scenario_name="$1"
+  local scenario_dir="$2"
+  local service_json="$scenario_dir/.vrooli/service.json"
+
+  if [ ! -f "$service_json" ]; then
+    testing::phase::add_warning "service.json not found, skipping name validation"
+    return 0
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    testing::phase::add_warning "jq not available, skipping service.json name validation"
+    return 0
+  fi
+
+  local service_name
+  service_name=$(jq -r '.service.name // empty' "$service_json" 2>/dev/null)
+
+  if [ -z "$service_name" ]; then
+    testing::phase::add_warning "service.json missing service.name field"
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  if [ "$service_name" != "$scenario_name" ]; then
+    testing::phase::add_error "service.json name mismatch: expected '$scenario_name', got '$service_name'"
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  log::success "✅ service.json name matches scenario directory"
+  testing::phase::add_test passed
+  return 0
+}
+
+# Private helper: Validate JSON files are valid
+_validate_json_files() {
+  local scenario_dir="$1"
+
+  if ! command -v jq >/dev/null 2>&1; then
+    testing::phase::add_warning "jq not available, skipping JSON validity checks"
+    return 0
+  fi
+
+  local json_files=()
+  local json_file
+
+  # Find common JSON files
+  while IFS= read -r json_file; do
+    json_files+=("$json_file")
+  done < <(find "$scenario_dir" -maxdepth 3 -name "*.json" -type f \
+    ! -path "*/node_modules/*" \
+    ! -path "*/dist/*" \
+    ! -path "*/coverage/*" \
+    ! -path "*/.git/*" 2>/dev/null || true)
+
+  if [ ${#json_files[@]} -eq 0 ]; then
+    return 0
+  fi
+
+  local invalid_count=0
+  for json_file in "${json_files[@]}"; do
+    local rel_path="${json_file#$scenario_dir/}"
+    if ! jq empty < "$json_file" >/dev/null 2>&1; then
+      testing::phase::add_error "Invalid JSON: $rel_path"
+      invalid_count=$((invalid_count + 1))
+    fi
+  done
+
+  if [ $invalid_count -gt 0 ]; then
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  log::success "✅ All JSON files are valid (${#json_files[@]} checked)"
+  testing::phase::add_test passed
+  return 0
+}
+
+# Export functions
+export -f testing::structure::validate_all
