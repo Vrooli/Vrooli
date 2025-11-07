@@ -29,6 +29,19 @@
       "verbose": true
     }
   },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      },
+      "websockets": {
+        "enabled": true
+      }
+    }
+  },
   "performance": {
     "checks": {
       "lighthouse": {

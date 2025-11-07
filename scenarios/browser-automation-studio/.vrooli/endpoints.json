@@ -1,0 +1,926 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns health status of the Browser Automation Studio API and its dependencies",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string (healthy/degraded/unhealthy)",
+          "dependencies": "object"
+        }
+      },
+      "performance": {
+        "expected_latency_ms": 50,
+        "max_latency_ms": 100
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "status"
+      }
+    },
+    {
+      "id": "health-check-v1",
+      "path": "/api/v1/health",
+      "method": "GET",
+      "summary": "Service health check (versioned)",
+      "category": "system",
+      "response": {
+        "type": "object"
+      }
+    },
+    {
+      "id": "list-projects",
+      "path": "/api/v1/projects",
+      "method": "GET",
+      "summary": "List all projects",
+      "category": "projects",
+      "requirements": ["BAS-PROJECT-CRUD"],
+      "query": {
+        "folder_path": {
+          "type": "string",
+          "description": "Filter by folder path",
+          "required": false
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "projects": "array of project objects"
+        }
+      },
+      "cli_mapping": {
+        "command": "workflow list",
+        "args": ["--folder"]
+      }
+    },
+    {
+      "id": "create-project",
+      "path": "/api/v1/projects",
+      "method": "POST",
+      "summary": "Create a new project",
+      "category": "projects",
+      "requirements": ["BAS-PROJECT-CREATE-SUCCESS"],
+      "request": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": "string",
+          "folder_path": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "project_id": "string (UUID)",
+          "name": "string"
+        }
+      },
+      "performance": {
+        "expected_latency_ms": 200,
+        "max_latency_ms": 500
+      },
+      "examples": [
+        {
+          "name": "Create test project",
+          "request": {
+            "name": "My Test Project",
+            "folder_path": "/home/user/projects"
+          },
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/projects -H 'Content-Type: application/json' -d '{\"name\":\"Test\",\"folder_path\":\"/tmp\"}'"
+        }
+      ]
+    },
+    {
+      "id": "get-project",
+      "path": "/api/v1/projects/{id}",
+      "method": "GET",
+      "summary": "Get project by ID",
+      "category": "projects",
+      "requirements": ["BAS-PROJECT-CRUD"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Project UUID"
+        }
+      },
+      "response": {
+        "type": "object"
+      }
+    },
+    {
+      "id": "update-project",
+      "path": "/api/v1/projects/{id}",
+      "method": "PUT",
+      "summary": "Update project",
+      "category": "projects",
+      "requirements": ["BAS-PROJECT-CRUD"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Project UUID"
+        }
+      },
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string (optional)",
+          "folder_path": "string (optional)"
+        }
+      }
+    },
+    {
+      "id": "delete-project",
+      "path": "/api/v1/projects/{id}",
+      "method": "DELETE",
+      "summary": "Delete project",
+      "category": "projects",
+      "requirements": ["BAS-PROJECT-CRUD"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Project UUID"
+        }
+      }
+    },
+    {
+      "id": "get-project-workflows",
+      "path": "/api/v1/projects/{id}/workflows",
+      "method": "GET",
+      "summary": "List workflows in project",
+      "category": "projects",
+      "requirements": ["BAS-WORKFLOW-PERSIST-CRUD"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Project UUID"
+        }
+      }
+    },
+    {
+      "id": "bulk-delete-workflows",
+      "path": "/api/v1/projects/{id}/workflows/bulk-delete",
+      "method": "POST",
+      "summary": "Delete multiple workflows",
+      "category": "projects",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Project UUID"
+        }
+      },
+      "request": {
+        "type": "object",
+        "required": ["workflow_ids"],
+        "properties": {
+          "workflow_ids": "array of UUIDs"
+        }
+      }
+    },
+    {
+      "id": "execute-all-project-workflows",
+      "path": "/api/v1/projects/{id}/execute-all",
+      "method": "POST",
+      "summary": "Execute all workflows in project",
+      "category": "projects",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Project UUID"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "execution_ids": "array of UUIDs"
+        }
+      }
+    },
+    {
+      "id": "create-workflow",
+      "path": "/api/v1/workflows/create",
+      "method": "POST",
+      "summary": "Create new workflow (with optional AI generation)",
+      "category": "workflows",
+      "requirements": ["BAS-WORKFLOW-PERSIST-CRUD", "BAS-AI-GENERATION-SMOKE"],
+      "request": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": "string",
+          "project_id": "string (UUID, optional)",
+          "flow_definition": "object (optional)",
+          "ai_prompt": "string (for AI generation, optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workflow_id": "string (UUID)",
+          "name": "string",
+          "version": "integer"
+        }
+      },
+      "cli_mapping": {
+        "command": "workflow create",
+        "args": ["--name", "--from-file", "--ai-prompt"]
+      }
+    },
+    {
+      "id": "execute-adhoc-workflow",
+      "path": "/api/v1/workflows/execute-adhoc",
+      "method": "POST",
+      "summary": "Execute workflow without saving",
+      "category": "workflows",
+      "request": {
+        "type": "object",
+        "required": ["flow_definition"],
+        "properties": {
+          "flow_definition": "object",
+          "params": "object (optional)"
+        }
+      }
+    },
+    {
+      "id": "list-workflows",
+      "path": "/api/v1/workflows",
+      "method": "GET",
+      "summary": "List all workflows",
+      "category": "workflows",
+      "requirements": ["BAS-WORKFLOW-PERSIST-CRUD"],
+      "query": {
+        "project_id": {
+          "type": "string",
+          "description": "Filter by project UUID"
+        }
+      },
+      "cli_mapping": {
+        "command": "workflow list",
+        "args": ["--folder", "--json"]
+      }
+    },
+    {
+      "id": "get-workflow",
+      "path": "/api/v1/workflows/{id}",
+      "method": "GET",
+      "summary": "Get workflow by ID",
+      "category": "workflows",
+      "requirements": ["BAS-WORKFLOW-PERSIST-CRUD"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Workflow UUID"
+        }
+      }
+    },
+    {
+      "id": "update-workflow",
+      "path": "/api/v1/workflows/{id}",
+      "method": "PUT",
+      "summary": "Update workflow definition",
+      "category": "workflows",
+      "requirements": ["BAS-WORKFLOW-PERSIST-CRUD", "BAS-VERSION-AUTOSAVE"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Workflow UUID"
+        }
+      },
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string (optional)",
+          "flow_definition": "object (optional)",
+          "change_description": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "workflow_id": "string",
+          "version": "integer (new version number)"
+        }
+      }
+    },
+    {
+      "id": "list-workflow-versions",
+      "path": "/api/v1/workflows/{id}/versions",
+      "method": "GET",
+      "summary": "List saved versions of workflow",
+      "category": "workflows",
+      "requirements": ["BAS-VERSION-AUTOSAVE"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Workflow UUID"
+        }
+      },
+      "query": {
+        "limit": {
+          "type": "integer",
+          "default": 10
+        }
+      },
+      "cli_mapping": {
+        "command": "workflow versions list",
+        "args": ["--limit", "--json"]
+      }
+    },
+    {
+      "id": "get-workflow-version",
+      "path": "/api/v1/workflows/{id}/versions/{version}",
+      "method": "GET",
+      "summary": "Get specific workflow version",
+      "category": "workflows",
+      "requirements": ["BAS-VERSION-AUTOSAVE"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Workflow UUID"
+        },
+        "version": {
+          "type": "integer",
+          "description": "Version number"
+        }
+      },
+      "cli_mapping": {
+        "command": "workflow versions get"
+      }
+    },
+    {
+      "id": "restore-workflow-version",
+      "path": "/api/v1/workflows/{id}/versions/{version}/restore",
+      "method": "POST",
+      "summary": "Restore workflow to previous version",
+      "category": "workflows",
+      "requirements": ["BAS-VERSION-RESTORE"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Workflow UUID"
+        },
+        "version": {
+          "type": "integer",
+          "description": "Version number to restore"
+        }
+      },
+      "request": {
+        "type": "object",
+        "properties": {
+          "change_description": "string (optional)"
+        }
+      },
+      "cli_mapping": {
+        "command": "workflow versions restore",
+        "args": ["--change-description"]
+      }
+    },
+    {
+      "id": "execute-workflow",
+      "path": "/api/v1/workflows/{id}/execute",
+      "method": "POST",
+      "summary": "Execute a workflow",
+      "category": "workflows",
+      "requirements": ["BAS-EXEC-TELEMETRY-STREAM"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Workflow UUID"
+        }
+      },
+      "request": {
+        "type": "object",
+        "properties": {
+          "params": "object (workflow parameters, optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "execution_id": "string (UUID)",
+          "status": "string (queued/running)",
+          "workflow_id": "string"
+        }
+      },
+      "websocket": {
+        "path": "/ws",
+        "events": ["execution.started", "execution.progress", "execution.heartbeat", "execution.completed", "execution.failed"]
+      },
+      "performance": {
+        "expected_latency_ms": 500,
+        "max_latency_ms": 2000
+      },
+      "cli_mapping": {
+        "command": "workflow execute",
+        "args": ["--params", "--wait", "--output-screenshots"]
+      }
+    },
+    {
+      "id": "modify-workflow-ai",
+      "path": "/api/v1/workflows/{id}/modify",
+      "method": "POST",
+      "summary": "Modify workflow using AI prompt",
+      "category": "ai",
+      "requirements": ["BAS-AI-GENERATION-SMOKE"],
+      "experimental": true,
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Workflow UUID"
+        }
+      },
+      "request": {
+        "type": "object",
+        "required": ["modification_prompt"],
+        "properties": {
+          "modification_prompt": "string"
+        }
+      }
+    },
+    {
+      "id": "list-executions",
+      "path": "/api/v1/executions",
+      "method": "GET",
+      "summary": "List workflow executions",
+      "category": "executions",
+      "requirements": ["BAS-EXEC-TELEMETRY-STREAM"],
+      "query": {
+        "workflow_id": {
+          "type": "string",
+          "description": "Filter by workflow UUID"
+        },
+        "status": {
+          "type": "string",
+          "description": "Filter by status (running/completed/failed)"
+        }
+      },
+      "cli_mapping": {
+        "command": "execution list",
+        "args": ["--workflow", "--status", "--json"]
+      }
+    },
+    {
+      "id": "get-execution",
+      "path": "/api/v1/executions/{id}",
+      "method": "GET",
+      "summary": "Get execution details",
+      "category": "executions",
+      "requirements": ["BAS-EXEC-TELEMETRY-STREAM"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Execution UUID"
+        }
+      }
+    },
+    {
+      "id": "get-execution-timeline",
+      "path": "/api/v1/executions/{id}/timeline",
+      "method": "GET",
+      "summary": "Get execution timeline events",
+      "category": "executions",
+      "requirements": ["BAS-REPLAY-TIMELINE-PERSISTENCE"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Execution UUID"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array of timeline events (screenshots, console, network, etc.)"
+        }
+      }
+    },
+    {
+      "id": "export-execution",
+      "path": "/api/v1/executions/{id}/export",
+      "method": "POST",
+      "summary": "Export execution as replay package",
+      "category": "executions",
+      "requirements": ["BAS-REPLAY-EXPORT-BUNDLE"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Execution UUID"
+        }
+      },
+      "response": {
+        "type": "object",
+        "description": "Replay metadata package (screenshots, timeline, etc.)"
+      },
+      "cli_mapping": {
+        "command": "execution export",
+        "args": ["--output"]
+      }
+    },
+    {
+      "id": "stop-execution",
+      "path": "/api/v1/executions/{id}/stop",
+      "method": "POST",
+      "summary": "Stop running execution",
+      "category": "executions",
+      "requirements": ["BAS-EXEC-TELEMETRY-STREAM"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Execution UUID"
+        }
+      },
+      "cli_mapping": {
+        "command": "execution stop"
+      }
+    },
+    {
+      "id": "get-execution-screenshots",
+      "path": "/api/v1/executions/{id}/screenshots",
+      "method": "GET",
+      "summary": "List screenshots for execution",
+      "category": "executions",
+      "requirements": ["BAS-EXEC-TELEMETRY-STREAM"],
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Execution UUID"
+        }
+      }
+    },
+    {
+      "id": "list-scenarios",
+      "path": "/api/v1/scenarios",
+      "method": "GET",
+      "summary": "List available Vrooli scenarios",
+      "category": "system",
+      "description": "Service discovery endpoint - lists all scenarios in the Vrooli installation",
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenarios": "array of scenario metadata"
+        }
+      }
+    },
+    {
+      "id": "get-scenario-port",
+      "path": "/api/v1/scenarios/{name}/port",
+      "method": "GET",
+      "summary": "Get port information for a scenario",
+      "category": "system",
+      "description": "Service discovery endpoint - resolve API port for inter-scenario communication",
+      "params": {
+        "name": {
+          "type": "string",
+          "description": "Scenario name"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "port": "integer",
+          "status": "string (running/stopped/unknown)",
+          "url": "string (full URL)"
+        }
+      }
+    },
+    {
+      "id": "serve-screenshot",
+      "path": "/api/v1/screenshots/*",
+      "method": "GET",
+      "summary": "Serve screenshot file",
+      "category": "assets",
+      "response": {
+        "type": "binary",
+        "description": "PNG image"
+      }
+    },
+    {
+      "id": "serve-thumbnail",
+      "path": "/api/v1/screenshots/thumbnail/*",
+      "method": "GET",
+      "summary": "Serve screenshot thumbnail",
+      "category": "assets",
+      "response": {
+        "type": "binary",
+        "description": "PNG thumbnail image"
+      }
+    },
+    {
+      "id": "preview-screenshot",
+      "path": "/api/v1/preview-screenshot",
+      "method": "POST",
+      "summary": "Take screenshot of URL",
+      "category": "utilities",
+      "request": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "url": "string",
+          "viewport": "object (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "screenshot_url": "string"
+        }
+      }
+    },
+    {
+      "id": "analyze-elements",
+      "path": "/api/v1/analyze-elements",
+      "method": "POST",
+      "summary": "Analyze page elements for selector generation",
+      "category": "ai",
+      "description": "Computer vision-based element detection for intelligent selector generation",
+      "request": {
+        "type": "object",
+        "required": ["screenshot", "click_coordinates"],
+        "properties": {
+          "screenshot": "string (base64 or URL)",
+          "click_coordinates": "object {x, y}"
+        }
+      }
+    },
+    {
+      "id": "element-at-coordinate",
+      "path": "/api/v1/element-at-coordinate",
+      "method": "POST",
+      "summary": "Get element at specific coordinate",
+      "category": "utilities",
+      "request": {
+        "type": "object",
+        "required": ["url", "x", "y"],
+        "properties": {
+          "url": "string",
+          "x": "integer",
+          "y": "integer"
+        }
+      }
+    },
+    {
+      "id": "ai-analyze-elements",
+      "path": "/api/v1/ai-analyze-elements",
+      "method": "POST",
+      "summary": "AI-powered element analysis using DOM",
+      "category": "ai",
+      "requirements": ["BAS-AI-GENERATION-SMOKE"],
+      "experimental": true,
+      "request": {
+        "type": "object",
+        "required": ["dom_tree", "query"],
+        "properties": {
+          "dom_tree": "string (HTML or JSON)",
+          "query": "string (natural language)"
+        }
+      }
+    },
+    {
+      "id": "import-recording",
+      "path": "/api/v1/recordings/import",
+      "method": "POST",
+      "summary": "Import Chrome extension recording",
+      "category": "recordings",
+      "request": {
+        "type": "object",
+        "content_type": "multipart/form-data",
+        "properties": {
+          "archive": "binary (ZIP file)",
+          "project_id": "string (optional)",
+          "workflow_name": "string (optional)"
+        }
+      },
+      "cli_mapping": {
+        "command": "recording import",
+        "args": ["--project-id", "--project-name", "--workflow-id", "--workflow-name", "--json"]
+      }
+    },
+    {
+      "id": "serve-recording-asset",
+      "path": "/api/v1/recordings/assets/{executionID}/*",
+      "method": "GET",
+      "summary": "Serve recording asset file",
+      "category": "assets",
+      "params": {
+        "executionID": {
+          "type": "string",
+          "description": "Execution UUID"
+        }
+      }
+    },
+    {
+      "id": "get-dom-tree",
+      "path": "/api/v1/dom-tree",
+      "method": "POST",
+      "summary": "Extract DOM tree from URL",
+      "category": "utilities",
+      "description": "Used by Browser Inspector tab for DOM visualization",
+      "request": {
+        "type": "object",
+        "required": ["url"],
+        "properties": {
+          "url": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dom": "object (tree structure)"
+        }
+      }
+    }
+  ],
+  "categories": {
+    "system": {
+      "title": "System",
+      "description": "Health checks, status, and service discovery",
+      "order": 1
+    },
+    "projects": {
+      "title": "Projects",
+      "description": "Project CRUD operations and workflow organization",
+      "order": 2
+    },
+    "workflows": {
+      "title": "Workflows",
+      "description": "Workflow management, versioning, and execution",
+      "order": 3
+    },
+    "executions": {
+      "title": "Executions",
+      "description": "Workflow execution monitoring and replay",
+      "order": 4
+    },
+    "ai": {
+      "title": "AI Features",
+      "description": "AI-powered workflow generation and analysis (experimental)",
+      "order": 5
+    },
+    "recordings": {
+      "title": "Recordings",
+      "description": "Chrome extension recording import",
+      "order": 6
+    },
+    "utilities": {
+      "title": "Utilities",
+      "description": "Helper endpoints for UI and CLI",
+      "order": 7
+    },
+    "assets": {
+      "title": "Assets",
+      "description": "Static file serving (screenshots, recordings)",
+      "order": 8
+    }
+  },
+  "websockets": [
+    {
+      "path": "/ws",
+      "description": "Real-time execution updates and telemetry streaming",
+      "authentication": "none",
+      "events": {
+        "execution.started": "Workflow execution began",
+        "execution.progress": "Step completed with screenshot and metadata",
+        "execution.heartbeat": "Periodic keepalive with progress percentage",
+        "execution.assertion": "Assertion result (pass/fail)",
+        "execution.console": "Browser console message",
+        "execution.network": "Network request captured",
+        "execution.completed": "Execution finished successfully",
+        "execution.failed": "Execution encountered error",
+        "execution.stalled": "Heartbeat timeout detected"
+      },
+      "requirements": ["BAS-EXEC-TELEMETRY-STREAM", "BAS-EXEC-HEARTBEAT-DETECTION"]
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Show operational status and resource health",
+      "endpoint_id": "health-check",
+      "examples": [
+        {
+          "command": "browser-automation-studio status",
+          "description": "Check if API and browserless are running"
+        },
+        {
+          "command": "browser-automation-studio status --json",
+          "description": "Get status in JSON format"
+        }
+      ]
+    },
+    {
+      "name": "help",
+      "description": "Display help message with all commands",
+      "examples": [
+        {
+          "command": "browser-automation-studio help",
+          "description": "Show full help text"
+        }
+      ]
+    },
+    {
+      "name": "version",
+      "description": "Show CLI and API version information"
+    },
+    {
+      "name": "workflow",
+      "subcommands": ["create", "execute", "list", "delete", "versions"],
+      "description": "Workflow management commands",
+      "requirements": ["BAS-WORKFLOW-CLI"]
+    },
+    {
+      "name": "workflow create",
+      "description": "Create a workflow from file or AI prompt",
+      "endpoint_id": "create-workflow"
+    },
+    {
+      "name": "workflow execute",
+      "description": "Execute a workflow by ID or name",
+      "endpoint_id": "execute-workflow"
+    },
+    {
+      "name": "workflow list",
+      "description": "List all workflows in tree structure",
+      "endpoint_id": "list-workflows"
+    },
+    {
+      "name": "workflow delete",
+      "description": "Delete a workflow",
+      "endpoint_id": "delete-project"
+    },
+    {
+      "name": "workflow versions",
+      "subcommands": ["list", "get", "restore"],
+      "description": "Workflow version management",
+      "requirements": ["BAS-VERSION-RESTORE"]
+    },
+    {
+      "name": "workflow versions list",
+      "description": "Show saved versions for a workflow",
+      "endpoint_id": "list-workflow-versions"
+    },
+    {
+      "name": "workflow versions get",
+      "description": "Inspect a specific workflow version",
+      "endpoint_id": "get-workflow-version"
+    },
+    {
+      "name": "workflow versions restore",
+      "description": "Restore a workflow to a saved version",
+      "endpoint_id": "restore-workflow-version"
+    },
+    {
+      "name": "execution",
+      "subcommands": ["watch", "list", "stop", "export", "render", "render-video"],
+      "description": "Execution monitoring and replay commands",
+      "requirements": ["BAS-EXEC-CLI-WATCH"]
+    },
+    {
+      "name": "execution watch",
+      "description": "Watch live execution with screenshots",
+      "requirements": ["BAS-EXEC-CLI-WATCH"]
+    },
+    {
+      "name": "execution list",
+      "description": "List all executions",
+      "endpoint_id": "list-executions"
+    },
+    {
+      "name": "execution stop",
+      "description": "Stop a running execution",
+      "endpoint_id": "stop-execution"
+    },
+    {
+      "name": "execution export",
+      "description": "Generate replay export metadata for an execution",
+      "endpoint_id": "export-execution"
+    },
+    {
+      "name": "execution render",
+      "description": "Build a marketing-style HTML replay package for an execution"
+    },
+    {
+      "name": "execution render-video",
+      "description": "Generate an MP4/WEBM replay video via the API's Browserless renderer"
+    },
+    {
+      "name": "recording",
+      "subcommands": ["import"],
+      "description": "Chrome extension recording management"
+    },
+    {
+      "name": "recording import",
+      "description": "Import a Chrome extension recording archive",
+      "endpoint_id": "import-recording"
+    }
+  ]
+}

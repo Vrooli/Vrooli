@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-05T23:33:59.686Z"
+    "last_synced_at": "2025-11-07T13:58:40.589Z"
   },
   "requirements": [
     {
@@ -50,6 +50,20 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Unit phase captures Node + Go telemetry coverage with enforced thresholds."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/executionStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/__tests__/ExecutionViewer.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
         }
       ]
     },
@@ -100,6 +114,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Integration phase records requirement state after running heartbeat automation."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/executionStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
         }
       ]
     },

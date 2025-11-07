@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-05T23:33:59.686Z"
+    "last_synced_at": "2025-11-07T13:58:40.588Z"
   },
   "requirements": [
     {
@@ -29,6 +29,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Integration phase invokes AI generation smoke tests."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/workflowStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
         }
       ]
     },
@@ -54,6 +61,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "BAS workflow validates AI-generated workflow compilation, node references, and execution plan consistency."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/workflowStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
         }
       ]
     }

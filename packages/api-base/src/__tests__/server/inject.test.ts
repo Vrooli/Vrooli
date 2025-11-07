@@ -7,6 +7,7 @@ import {
   buildProxyMetadata,
   injectProxyMetadata,
   injectScenarioConfig,
+  injectBaseTag,
 } from '../../server/inject.js'
 import type { PortEntry, ProxyMetadataOptions, ScenarioConfig } from '../../shared/types.js'
 
@@ -411,5 +412,183 @@ describe('injectScenarioConfig', () => {
     expect(result).toContain('"version":"1.2.3"')
     expect(result).toContain('"service":"test-scenario"')
     expect(result).toContain('"customField":"custom-value"')
+  })
+})
+
+describe('injectBaseTag', () => {
+  it('injects base tag into <head>', () => {
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Test</title>
+</head>
+<body>
+  <div>Content</div>
+</body>
+</html>`
+
+    const result = injectBaseTag(html, '/')
+
+    expect(result).toContain('<base')
+    expect(result).toContain('href="/"')
+    expect(result).toContain('data-vrooli-base="injected"')
+
+    // Should be in head
+    const headStart = result.indexOf('<head>')
+    const headEnd = result.indexOf('</head>')
+    const basePos = result.indexOf('<base')
+    expect(basePos).toBeGreaterThan(headStart)
+    expect(basePos).toBeLessThan(headEnd)
+  })
+
+  it('adds trailing slash to base href', () => {
+    const html = '<html><head></head><body></body></html>'
+
+    const result1 = injectBaseTag(html, '/apps/test')
+    const result2 = injectBaseTag(html, '/apps/test/')
+
+    expect(result1).toContain('href="/apps/test/"')
+    expect(result2).toContain('href="/apps/test/"')
+  })
+
+  it('injects into <html> if <head> is missing', () => {
+    const html = '<html><body>Content</body></html>'
+
+    const result = injectBaseTag(html, '/')
+
+    expect(result).toContain('<html>')
+    expect(result).toContain('<base')
+    expect(result.indexOf('<base')).toBeGreaterThan(result.indexOf('<html>'))
+  })
+
+  it('prepends to document if no tags found', () => {
+    const html = '<div>Simple HTML</div>'
+
+    const result = injectBaseTag(html, '/')
+
+    expect(result).toContain('<base')
+    expect(result.startsWith('<base')).toBe(true)
+  })
+
+  it('skips injection if base tag exists (when skipIfExists is true)', () => {
+    const html = '<html><head><base href="/existing/"></head><body></body></html>'
+
+    const result = injectBaseTag(html, '/new/', { skipIfExists: true })
+
+    // Should not inject a second base tag
+    expect(result).toBe(html)
+    expect(result).toContain('href="/existing/"')
+    expect(result).not.toContain('href="/new/"')
+  })
+
+  it('injects even if base tag exists (when skipIfExists is false)', () => {
+    const html = '<html><head><base href="/existing/"></head><body></body></html>'
+
+    const result = injectBaseTag(html, '/new/', { skipIfExists: false })
+
+    // Should inject a second base tag
+    expect(result).toContain('href="/existing/"')
+    expect(result).toContain('href="/new/"')
+  })
+
+  it('uses custom data attribute', () => {
+    const html = '<html><head></head><body></body></html>'
+
+    const result = injectBaseTag(html, '/', {
+      dataAttribute: 'data-custom-marker',
+    })
+
+    expect(result).toContain('data-custom-marker="injected"')
+    expect(result).not.toContain('data-vrooli-base')
+  })
+
+  it('handles complex real-world HTML', () => {
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test App</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="root"></div>
+  <script src="main.js"></script>
+</body>
+</html>`
+
+    const result = injectBaseTag(html, '/apps/test-app/proxy/')
+
+    expect(result).toContain('<base')
+    expect(result).toContain('href="/apps/test-app/proxy/"')
+
+    // Should be injected right after <head>
+    const headPos = result.indexOf('<head>')
+    const basePos = result.indexOf('<base')
+    const metaPos = result.indexOf('<meta')
+    expect(basePos).toBeGreaterThan(headPos)
+    expect(basePos).toBeLessThan(metaPos)
+  })
+
+  it('handles multiple head tags (edge case)', () => {
+    const html = '<html><head></head><body><head></head></body></html>'
+
+    const result = injectBaseTag(html, '/')
+
+    // Should inject into first head only
+    const firstHeadEnd = result.indexOf('</head>')
+    const basePos = result.indexOf('<base')
+    expect(basePos).toBeLessThan(firstHeadEnd)
+  })
+
+  it('handles HTML with existing base tag with different attributes', () => {
+    const html = '<html><head><base target="_blank"></head><body></body></html>'
+
+    const result = injectBaseTag(html, '/', { skipIfExists: true })
+
+    // Should skip because base tag exists (even without href)
+    expect(result).toBe(html)
+  })
+
+  it('works with minimal HTML', () => {
+    const html = '<head></head>'
+
+    const result = injectBaseTag(html, '/test/')
+
+    expect(result).toContain('<base')
+    expect(result).toContain('href="/test/"')
+  })
+
+  it('escapes special characters in base path', () => {
+    const html = '<html><head></head><body></body></html>'
+
+    // Note: Base href doesn't need HTML escaping for forward slashes
+    const result = injectBaseTag(html, '/apps/test-app/proxy/')
+
+    expect(result).toContain('href="/apps/test-app/proxy/"')
+  })
+
+  it('handles empty base path', () => {
+    const html = '<html><head></head><body></body></html>'
+
+    const result = injectBaseTag(html, '')
+
+    // Should still add trailing slash
+    expect(result).toContain('href="/"')
+  })
+
+  it('provides data attribute for debugging', () => {
+    const html = '<html><head></head><body></body></html>'
+
+    const result1 = injectBaseTag(html, '/', {
+      dataAttribute: 'data-app-monitor-self',
+    })
+
+    const result2 = injectBaseTag(html, '/apps/test/proxy/', {
+      dataAttribute: 'data-app-monitor',
+    })
+
+    expect(result1).toContain('data-app-monitor-self="injected"')
+    expect(result2).toContain('data-app-monitor="injected"')
   })
 })

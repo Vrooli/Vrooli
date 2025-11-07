@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-05T05:23:41.036Z"
+    "last_synced_at": "2025-11-07T13:58:40.590Z"
   },
   "requirements": [
     {
@@ -47,6 +47,20 @@
         {
           "type": "test",
           "ref": "ui/src/stores/__tests__/projectStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/projectStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/workflowStore.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Auto-added from vitest evidence"
