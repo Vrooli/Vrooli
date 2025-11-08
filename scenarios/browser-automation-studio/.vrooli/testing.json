@@ -6,13 +6,8 @@
   },
   "version": "1.0.0",
   "structure": {
-    "additional_files": [
-      "ui/package.json",
-      "ui/vite.config.ts"
-    ],
     "additional_dirs": [
-      "ui",
-      "initialization"
+      "ui"
     ]
   },
   "unit": {
@@ -55,7 +50,10 @@
             "path": "ui/dist",
             "max_size_kb": 1000,
             "warn_size_kb": 800,
-            "exclude_patterns": ["*.map", "*.LICENSE.txt"]
+            "exclude_patterns": [
+              "*.map",
+              "*.LICENSE.txt"
+            ]
           }
         ]
       },

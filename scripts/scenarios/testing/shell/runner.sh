@@ -770,7 +770,7 @@ testing::runner::execute() {
     local VERBOSE=false
     local PARALLEL=false
     local DRY_RUN=false
-    local CONTINUE_ON_FAILURE=false
+    local CONTINUE_ON_FAILURE=true
     local JUNIT_OUTPUT=false
     local COVERAGE=false
     local TIMEOUT_MULTIPLIER="$TESTING_RUNNER_DEFAULT_TIMEOUT_MULTIPLIER"

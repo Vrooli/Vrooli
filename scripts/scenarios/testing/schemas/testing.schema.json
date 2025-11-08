@@ -182,6 +182,51 @@
         }
       }
     },
+    "business": {
+      "type": "object",
+      "description": "Business logic validation phase configuration. Validates that core business capabilities are implemented and wired correctly. Uses .vrooli/endpoints.json as primary source of truth.",
+      "properties": {
+        "checks": {
+          "type": "object",
+          "description": "Business validation checks. Each check can be independently enabled/disabled.",
+          "properties": {
+            "endpoints": {
+              "type": "object",
+              "description": "Validate API endpoint presence in codebase",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable endpoint validation from .vrooli/endpoints.json"
+                }
+              }
+            },
+            "cli_commands": {
+              "type": "object",
+              "description": "Validate CLI command presence",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable CLI command validation from .vrooli/endpoints.json"
+                }
+              }
+            },
+            "websockets": {
+              "type": "object",
+              "description": "Validate WebSocket endpoint presence",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Enable WebSocket validation from .vrooli/endpoints.json"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "performance": {
       "type": "object",
       "description": "Performance validation phase configuration. Presence of this section enables performance testing. Individual checks can be enabled/disabled.",
