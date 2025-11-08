@@ -16,10 +16,6 @@ describe('WebSockets: Host and Child', () => {
 
   // WebSocket servers
   let hostWsServer: WebSocket.Server
-  let childWsServer: WebSocket.Server
-
-  // Track messages for verification
-  const testMessages: string[] = []
 
   beforeAll(async () => {
     ctx = await setupTestEnvironment(2000) // Use port offset to avoid conflicts
@@ -27,16 +23,9 @@ describe('WebSockets: Host and Child', () => {
     // Setup Host WebSocket server
     hostWsServer = new WebSocket.Server({ noServer: true })
     hostWsServer.on('connection', (ws) => {
-      testMessages.push('host-ws-connected')
-
       ws.on('message', (data) => {
         const message = data.toString()
-        testMessages.push(`host-ws-received:${message}`)
         ws.send(`host-echo:${message}`)
-      })
-
-      ws.on('close', () => {
-        testMessages.push('host-ws-disconnected')
       })
 
       ws.send('host-welcome')
@@ -46,34 +35,6 @@ describe('WebSockets: Host and Child', () => {
       if (request.url?.startsWith('/api/v1/ws')) {
         hostWsServer.handleUpgrade(request, socket, head, (ws) => {
           hostWsServer.emit('connection', ws, request)
-        })
-      } else {
-        socket.destroy()
-      }
-    })
-
-    // Setup Child WebSocket server
-    childWsServer = new WebSocket.Server({ noServer: true })
-    childWsServer.on('connection', (ws) => {
-      testMessages.push('child-ws-connected')
-
-      ws.on('message', (data) => {
-        const message = data.toString()
-        testMessages.push(`child-ws-received:${message}`)
-        ws.send(`child-echo:${message}`)
-      })
-
-      ws.on('close', () => {
-        testMessages.push('child-ws-disconnected')
-      })
-
-      ws.send('child-welcome')
-    })
-
-    ctx.childApiServer.on('upgrade', (request, socket, head) => {
-      if (request.url?.startsWith('/api/v1/ws')) {
-        childWsServer.handleUpgrade(request, socket, head, (ws) => {
-          childWsServer.emit('connection', ws, request)
         })
       } else {
         socket.destroy()
@@ -109,9 +70,7 @@ describe('WebSockets: Host and Child', () => {
   afterAll(async () => {
     await new Promise<void>((resolve) => {
       hostWsServer.close(() => {
-        childWsServer.close(() => {
-          resolve()
-        })
+        resolve()
       })
     })
 
@@ -182,8 +141,19 @@ describe('WebSockets: Host and Child', () => {
       })
     })
 
-    expect(messages).toContain('child-welcome')
-    expect(messages).toContain('child-echo:child-test')
+    const parsedMessages = messages.map((message) => {
+      try {
+        return JSON.parse(message)
+      } catch (error) {
+        return { raw: message }
+      }
+    })
+
+    const welcome = parsedMessages.find((msg: any) => msg.type === 'welcome')
+    const echo = parsedMessages.find((msg: any) => msg.type === 'echo')
+
+    expect(welcome?.source).toBe('child-api')
+    expect(echo?.payload?.raw).toBe('child-test')
   }, 30000)
 
   it('should handle simultaneous WebSocket connections without interference', async () => {
@@ -242,9 +212,19 @@ describe('WebSockets: Host and Child', () => {
     expect(hostMessages).toContain('host-welcome')
     expect(hostMessages).toContain('host-echo:host-concurrent')
 
-    // Child received its own messages
-    expect(childMessages).toContain('child-welcome')
-    expect(childMessages).toContain('child-echo:child-concurrent')
+    const parsedChildMessages = childMessages.map((message) => {
+      try {
+        return JSON.parse(message)
+      } catch (error) {
+        return { raw: message }
+      }
+    })
+
+    const childWelcome = parsedChildMessages.find((msg: any) => msg.type === 'welcome')
+    const childEcho = parsedChildMessages.find((msg: any) => msg.type === 'echo')
+
+    expect(childWelcome?.source).toBe('child-api')
+    expect(childEcho?.payload?.raw).toBe('child-concurrent')
 
     // No cross-contamination
     expect(hostMessages).not.toContain('child-welcome')

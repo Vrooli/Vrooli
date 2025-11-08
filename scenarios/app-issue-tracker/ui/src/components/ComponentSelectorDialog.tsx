@@ -4,19 +4,8 @@ import { Modal } from './Modal';
 import type { Target } from '../types/issue';
 import type { Component } from '../types/component';
 import { useComponentStore } from '../stores/componentStore';
-import { resolveApiBase } from '@vrooli/api-base';
+import { useIssueTrackerData } from '../hooks/useIssueTrackerData';
 import '../styles/component-selector.css';
-
-declare const __API_PORT__: string | undefined;
-
-const FALLBACK_API_PORT =
-  typeof __API_PORT__ === 'string' && __API_PORT__.trim().length > 0 ? __API_PORT__ : '15000';
-
-const API_BASE_URL = resolveApiBase({
-  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
-  defaultPort: FALLBACK_API_PORT,
-  appendSuffix: true,
-});
 
 interface ComponentSelectorDialogProps {
   selectedTargets: Target[];
@@ -29,6 +18,7 @@ export function ComponentSelectorDialog({
   onSelectTargets,
   onClose,
 }: ComponentSelectorDialogProps) {
+  const { apiBaseUrl } = useIssueTrackerData();
   const { scenarios, resources, loading, error, fetchComponents } = useComponentStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -104,11 +94,11 @@ export function ComponentSelectorDialog({
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await fetchComponents(API_BASE_URL);
+      await fetchComponents(apiBaseUrl);
     } finally {
       setIsRefreshing(false);
     }
-  }, [fetchComponents]);
+  }, [fetchComponents, apiBaseUrl]);
 
   const hasResults = filteredScenarios.length > 0 || filteredResources.length > 0;
 

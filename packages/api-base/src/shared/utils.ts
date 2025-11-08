@@ -348,3 +348,111 @@ export function escapeForInlineScript(value: string): string {
     .replace(/<!--/g, '\\u003C!--')
     .replace(/-->/g, '--\\u003E')
 }
+
+/**
+ * Check if path has an asset file extension
+ *
+ * Checks if the path ends with a known asset extension like .js, .css, .png, etc.
+ * Handles query strings and hash fragments correctly.
+ *
+ * @param path - URL path to check
+ * @param extensions - Set of extensions to check (default: ASSET_EXTENSIONS)
+ * @returns True if path has an asset extension
+ *
+ * @example
+ * ```typescript
+ * hasAssetExtension('/assets/main.js') // true
+ * hasAssetExtension('/assets/main.js?v=123') // true
+ * hasAssetExtension('/api/users') // false
+ * hasAssetExtension('/apps/preview') // false
+ * ```
+ */
+export function hasAssetExtension(path: string, extensions?: Set<string>): boolean {
+  if (typeof path !== 'string') {
+    return false
+  }
+
+  // Use provided extensions or import dynamically to avoid circular dependency
+  const extensionsToCheck = extensions || new Set([
+    '.js', '.mjs', '.ts', '.tsx', '.jsx', '.css', '.map', '.json',
+    '.svg', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp',
+    '.woff', '.woff2', '.ttf', '.eot', '.wasm',
+    '.mp3', '.mp4', '.webm', '.ogg', '.wav',
+    '.pdf', '.zip', '.tar', '.gz',
+  ])
+
+  // Remove query string and hash
+  let cleanPath = path
+  const questionIndex = path.indexOf('?')
+  if (questionIndex !== -1) {
+    cleanPath = path.slice(0, questionIndex)
+  }
+  const hashIndex = cleanPath.indexOf('#')
+  if (hashIndex !== -1) {
+    cleanPath = cleanPath.slice(0, hashIndex)
+  }
+
+  // Extract filename from path
+  const lastSlash = cleanPath.lastIndexOf('/')
+  const filename = lastSlash === -1 ? cleanPath : cleanPath.slice(lastSlash + 1)
+
+  // Check if filename has extension
+  const dotIndex = filename.lastIndexOf('.')
+  if (dotIndex === -1 || dotIndex === filename.length - 1) {
+    return false
+  }
+
+  const ext = filename.slice(dotIndex).toLowerCase()
+  return extensionsToCheck.has(ext)
+}
+
+/**
+ * Check if path starts with a known asset prefix
+ *
+ * Detects paths that start with common asset prefixes like /@vite, /assets/, etc.
+ *
+ * @param path - URL path to check
+ * @param prefixes - Array of prefixes to check (default: ASSET_PATH_PREFIXES)
+ * @returns True if path starts with an asset prefix
+ *
+ * @example
+ * ```typescript
+ * startsWithAssetPrefix('/@vite/client') // true
+ * startsWithAssetPrefix('/assets/logo.png') // true
+ * startsWithAssetPrefix('/api/users') // false
+ * ```
+ */
+export function startsWithAssetPrefix(path: string, prefixes?: string[]): boolean {
+  if (typeof path !== 'string') {
+    return false
+  }
+
+  const prefixesToCheck = prefixes || [
+    '/@vite', '/@react-refresh', '/@fs/', '/src/', '/node_modules/.vite/',
+    '/assets/', '/static/', '/public/', '/_next/', '/__webpack_hmr',
+  ]
+
+  return prefixesToCheck.some(prefix => path.startsWith(prefix))
+}
+
+/**
+ * Check if path looks like an asset request
+ *
+ * Combines extension and prefix checks to determine if a path is likely
+ * requesting an asset file (not an HTML page).
+ *
+ * @param path - URL path to check
+ * @returns True if path looks like an asset request
+ *
+ * @example
+ * ```typescript
+ * isAssetRequest('/assets/main.js') // true
+ * isAssetRequest('/logo.png') // true
+ * isAssetRequest('/@vite/client') // true
+ * isAssetRequest('/apps/preview') // false
+ * isAssetRequest('/api/users') // false
+ * ```
+ */
+export function isAssetRequest(path: string): boolean {
+  return hasAssetExtension(path) || startsWithAssetPrefix(path)
+}

@@ -25,26 +25,41 @@ import type {
 import { logger } from '@/services/logger';
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base';
 
-// App-monitor is special: it hosts other scenarios but is never itself proxied
-// We must use explicitUrl to prevent api-base from detecting proxy context
-// when viewing URLs like /apps/scenario-name/preview
-const API_BASE_URL = resolveApiBase({
-  explicitUrl: typeof window !== 'undefined' && window.location
-    ? window.location.origin
-    : undefined,
-  appendSuffix: true,
-});
+// Lazy resolution of API base URL
+// CRITICAL: Must not call resolveApiBase() at module level in production builds
+// because the module may load before any proxy metadata is injected.
+// Instead, we resolve on first use.
+let API_BASE_URL: string | null = null;
 
-export const buildApiUrlWithBase = (path: string) => buildApiUrl(path, { baseUrl: API_BASE_URL });
+function getApiBaseUrl(): string {
+  if (API_BASE_URL === null) {
+    API_BASE_URL = resolveApiBase({ appendSuffix: true });
+    logger.debug('[api] Resolved API base URL:', API_BASE_URL);
+  }
+  return API_BASE_URL;
+}
 
-// Create axios instance with default config
+export const buildApiUrlWithBase = (path: string) => buildApiUrl(path, { baseUrl: getApiBaseUrl() });
+
+// Create axios instance with lazy baseURL resolution
 const api = axios.create({
-  baseURL: API_BASE_URL,
   timeout: 75000, // 75s to accommodate 90s backend write timeout for browserless fallback diagnostics
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Interceptor to set baseURL on first request
+api.interceptors.request.use(
+  (config) => {
+    // Ensure baseURL is set before making request
+    if (!config.baseURL) {
+      config.baseURL = getApiBaseUrl();
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 // Request interceptor for debugging
 api.interceptors.request.use(

@@ -29,9 +29,6 @@ import type { SnackVariant } from './notifications/snackBus';
 import { resolveApiBase } from '@vrooli/api-base';
 import { useComponentStore } from './stores/componentStore';
 
-// Automatically resolves API base URL for all deployment contexts
-// Works in localhost, direct tunnel, and proxied/embedded scenarios
-const API_BASE_URL = resolveApiBase({ appendSuffix: true });
 const ISSUE_FETCH_LIMIT = 200;
 const SNACK_IDS = {
   loading: 'snack:data-loading',
@@ -50,6 +47,17 @@ function IssueAppProviders({ children }: { children: ReactNode }) {
 
 function SnackAwareIssueTracker({ children }: { children: ReactNode }) {
   const { publish } = useSnackPublisher();
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>('');
+
+  // CRITICAL: Resolve API base URL after component mounts
+  // This ensures proxy metadata (window.__VROOLI_PROXY_INFO__) is available
+  // when the scenario is embedded/proxied through app-monitor or similar hosts.
+  // Module-level resolution fails because it runs before proxy metadata injection.
+  useEffect(() => {
+    const resolved = resolveApiBase({ appendSuffix: true });
+    console.log('[app-issue-tracker] Resolved API base URL:', resolved);
+    setApiBaseUrl(resolved);
+  }, []);
 
   const showSnackbar = useCallback(
     (message: string, tone: SnackVariant = 'info') => {
@@ -62,9 +70,25 @@ function SnackAwareIssueTracker({ children }: { children: ReactNode }) {
     [publish],
   );
 
+  // Wait for API base URL to be resolved before rendering data provider
+  if (!apiBaseUrl) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        color: '#666'
+      }}>
+        Initializing...
+      </div>
+    );
+  }
+
   return (
     <IssueTrackerDataProvider
-      apiBaseUrl={API_BASE_URL}
+      apiBaseUrl={apiBaseUrl}
       issueFetchLimit={ISSUE_FETCH_LIMIT}
       showSnackbar={showSnackbar}
     >
@@ -333,10 +357,11 @@ function AppContent() {
   }, []);
 
   // Load components globally on mount (for target selector)
+  const { apiBaseUrl } = useIssueTrackerData();
   const fetchComponents = useComponentStore((state) => state.fetchComponents);
   useEffect(() => {
-    void fetchComponents(API_BASE_URL);
-  }, [fetchComponents]);
+    void fetchComponents(apiBaseUrl);
+  }, [fetchComponents, apiBaseUrl]);
 
   useEffect(() => {
     setParams((params) => {
@@ -637,7 +662,7 @@ function AppContent() {
       {showIssueDetailModal && selectedIssue && (
         <IssueDetailsModal
           issue={selectedIssue}
-          apiBaseUrl={API_BASE_URL}
+          apiBaseUrl={apiBaseUrl}
           onClose={handleIssueDetailClose}
           onStatusChange={updateIssueStatusAction}
           onEdit={handleStartEditIssue}
@@ -673,7 +698,7 @@ function AppContent() {
 
       {settingsDialogOpen && (
         <SettingsDialog
-          apiBaseUrl={API_BASE_URL}
+          apiBaseUrl={apiBaseUrl}
           processor={processorSettings}
           agent={agentSettings}
           display={displaySettings}

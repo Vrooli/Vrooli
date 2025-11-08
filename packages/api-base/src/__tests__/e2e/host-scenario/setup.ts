@@ -5,16 +5,17 @@
  * This reduces duplication and makes tests easier to maintain.
  */
 
+import type { Server } from 'node:http'
+import * as http from 'node:http'
 import { chromium, type Browser, type Page } from 'playwright'
 import {
+  buildProxyMetadata,
   createScenarioServer,
   injectBaseTag,
-  buildProxyMetadata,
   injectProxyMetadata,
+  proxyWebSocketUpgrade,
 } from '../../../server/index.js'
-import * as http from 'node:http'
-import type { Server } from 'node:http'
-import type { Express } from 'express'
+import { isAssetRequest } from '../../../shared/utils.js'
 
 /**
  * Find available port for testing
@@ -43,6 +44,21 @@ export async function findAvailablePort(startPort: number): Promise<number> {
       }
     })
   })
+}
+
+function extractProxyRelativeUrl(originalUrl: string): string {
+  const target = originalUrl || '/'
+  const marker = '/proxy'
+  const queryIndex = target.indexOf('?')
+  const search = queryIndex >= 0 ? target.slice(queryIndex) : ''
+  const withoutQuery = queryIndex >= 0 ? target.slice(0, queryIndex) : target
+  const markerIndex = withoutQuery.lastIndexOf(marker)
+  if (markerIndex === -1) {
+    return `/${search || ''}`
+  }
+  const remainder = withoutQuery.slice(markerIndex + marker.length)
+  const normalizedPath = remainder && remainder.length > 0 ? (remainder.startsWith('/') ? remainder : `/${remainder}`) : '/'
+  return `${normalizedPath || '/'}${search}`
 }
 
 /**
@@ -81,6 +97,23 @@ export async function setupChildScenario(
     if (req.url === '/api/v1/data') {
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ data: 'child-data', timestamp: Date.now() }))
+      return
+    }
+
+    if (req.url?.startsWith('/api/v1/issues')) {
+      const issuesUrl = new URL(`http://127.0.0.1${req.url}`)
+      const parsedLimit = Number(issuesUrl.searchParams.get('limit') ?? '20')
+      const limit = Number.isFinite(parsedLimit) ? parsedLimit : 20
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ limit, count: limit, service: 'child-api' }))
+      return
+    }
+
+    // Child should NOT have /summary or /resources endpoints
+    // If these are called, it means routing is broken (host requests going to child)
+    if (req.url === '/api/v1/summary' || req.url === '/api/v1/resources') {
+      res.writeHead(404, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Endpoint not found in child API', service: 'child-api' }))
       return
     }
 
@@ -200,6 +233,20 @@ export async function setupHostScenario(
       return
     }
 
+    // Mock /summary endpoint (host-specific)
+    if (req.url === '/api/v1/summary') {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ summary: 'host-summary', apps: [], service: 'host-api' }))
+      return
+    }
+
+    // Mock /resources endpoint (host-specific)
+    if (req.url === '/api/v1/resources') {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ resources: ['postgres', 'redis'], service: 'host-api' }))
+      return
+    }
+
     res.writeHead(404)
     res.end()
   })
@@ -217,6 +264,31 @@ export async function setupHostScenario(
     verbose: false,
     setupRoutes: (app) => {
       // Host's own base tag injection
+      // Add additional proxy routes like app-monitor has
+      const additionalProxyRoutes = [
+        '/scenarios',
+        '/metadata',
+        '/logs',
+        '/health-aggregate',
+        '/orchestrator',
+        '/docker',
+        '/timeline',
+        '/resources',
+      ]
+
+      additionalProxyRoutes.forEach((route) => {
+        app.use(route, (req, res, next) => {
+          // Proxy to host API (just like createProxyMiddleware would)
+          const targetUrl = `http://127.0.0.1:${hostApiPort}${req.url}`
+          http.get(targetUrl, (apiRes) => {
+            res.writeHead(apiRes.statusCode || 500, apiRes.headers)
+            apiRes.pipe(res)
+          }).on('error', (err) => {
+            res.status(502).json({ error: 'Proxy failed', details: err.message })
+          })
+        })
+      })
+
       app.use((req, res, next) => {
         if (req.path.startsWith('/apps/') && req.path.includes('/proxy')) {
           return next()
@@ -304,15 +376,83 @@ export async function setupHostScenario(
         res.send('console.log("Host main.js loaded");')
       })
 
+      // SPA Fallback for nested host routes (like /apps/:id/preview, /dashboard, etc.)
+      // This must come BEFORE the proxy route so it doesn't catch everything
+      // This simulates the SPA fallback that would normally serve dist/index.html
+      const hostHtmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Host Scenario</title>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="host-styles.css">
+</head>
+<body>
+  <div id="host-app" data-testid="host-content">
+    <h1>Host Scenario</h1>
+    <p>This is the host application</p>
+  </div>
+
+  <iframe
+    id="child-iframe"
+    src="/apps/${childId}/proxy/index.html"
+    width="800"
+    height="600"
+    data-testid="child-iframe"
+  ></iframe>
+
+  <script src="host-main.js"></script>
+  <script>
+    window.hostLoaded = true;
+    console.log('Host scenario loaded');
+
+    // Test that base tag is correct
+    const base = document.querySelector('base');
+    if (base) {
+      window.hostBasePath = base.getAttribute('href');
+      console.log('Host base path:', window.hostBasePath);
+    } else {
+      console.error('Host: No base tag found!');
+    }
+
+    // Wait for iframe to load
+    const iframe = document.getElementById('child-iframe');
+    iframe.addEventListener('load', () => {
+      console.log('Child iframe loaded');
+      window.iframeLoaded = true;
+    });
+  </script>
+</body>
+</html>`
+
+      // SPA Fallback for nested host routes (before proxy route)
+      // This handles routes like /apps/:id/preview, /dashboard, etc.
+      // Must come AFTER specific routes but BEFORE proxy route
+      app.get('*', (req, res, next) => {
+        // Skip proxy routes (let proxy handler deal with them)
+        if (req.path.includes('/proxy')) {
+          return next()
+        }
+
+        // Skip asset routes (let createScenarioServer's SPA fallback handle 404s)
+        if (isAssetRequest(req.path)) {
+          return next()
+        }
+
+        // Serve host HTML for everything else (SPA fallback)
+        // This simulates what would happen in production with dist/index.html
+        res.setHeader('Content-Type', 'text/html')
+        res.send(hostHtmlContent)
+      })
+
       // Child proxy route
       app.all(`/apps/${childId}/proxy/*`, async (req, res) => {
-        const targetPath = req.params[0] || ''
+        const relativeUrl = extractProxyRelativeUrl(req.originalUrl || req.url || '/')
 
         try {
           const isHtmlRequest = req.headers.accept?.includes('text/html')
 
           if (isHtmlRequest && req.method === 'GET') {
-            const targetUrl = `http://127.0.0.1:${childUiPort}/${targetPath}`
+            const targetUrl = `http://127.0.0.1:${childUiPort}${relativeUrl}`
 
             const childResponse = await new Promise<{
               data: string
@@ -387,7 +527,7 @@ export async function setupHostScenario(
             res.send(html)
           } else {
             // Proxy non-HTML requests
-            const targetUrl = `http://127.0.0.1:${childUiPort}/${targetPath}`
+            const targetUrl = `http://127.0.0.1:${childUiPort}${relativeUrl}`
 
             const proxyReq = http.request(
               targetUrl,
@@ -420,6 +560,24 @@ export async function setupHostScenario(
   const uiServer = await new Promise<Server>((resolve) => {
     const server = hostApp.listen(hostUiPort, '127.0.0.1', () => {
       resolve(server)
+    })
+  })
+
+  uiServer.on('upgrade', (req, socket, head) => {
+    if (!req.url || !req.url.includes('/proxy')) {
+      socket.destroy()
+      return
+    }
+
+    const relativeUrl = extractProxyRelativeUrl(req.url)
+    const targetPort = relativeUrl.startsWith('/api') ? childApiPort : childUiPort
+    const proxyReq = Object.create(req)
+    proxyReq.url = relativeUrl
+
+    proxyWebSocketUpgrade(proxyReq, socket, head, {
+      apiPort: targetPort,
+      apiHost: '127.0.0.1',
+      verbose: false,
     })
   })
 

@@ -1,2818 +1,580 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const WebSocket = require('ws');
-const http = require('http');
-const axios = require('axios');
-const net = require('net');
-const parse5 = require('parse5');
-require('dotenv').config();
+import {
+  buildProxyMetadata,
+  createProxyMiddleware,
+  createScenarioServer,
+  injectProxyMetadata,
+  injectBaseTag,
+  proxyToApi,
+  proxyWebSocketUpgrade,
+} from '@vrooli/api-base/server'
+import axios from 'axios'
+import http from 'http'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { WebSocketServer } from 'ws'
 
-const app = express();
-const jsonBodyParser = express.json({ limit: '256kb' });
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-const CLIENT_DEBUG_EVENTS = [];
+const LOOPBACK_HOST = '127.0.0.1'
+const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '::1', '[::1]', '0.0.0.0']
+const HOST_SCENARIO = 'app-monitor'
+const CACHE_TTL_MS = 30_000
+const DEFAULT_TIMEOUT_MS = 30_000
+const SLUGIFY_REGEX = /[^a-z0-9]+/g
 
-app.post('/__debug/client-event', jsonBodyParser, (req, res) => {
-    const { event, detail, timestamp, userAgent } = req.body || {};
-    const entry = {
-        event: typeof event === 'string' ? event : 'unknown',
-        timestamp: typeof timestamp === 'number' ? new Date(timestamp).toISOString() : new Date().toISOString(),
-        detail: detail || null,
-        userAgent: userAgent || req.headers['user-agent'] || null,
-        ip: req.ip,
-    };
-    CLIENT_DEBUG_EVENTS.push(entry);
-    if (CLIENT_DEBUG_EVENTS.length > 250) {
-        CLIENT_DEBUG_EVENTS.splice(0, CLIENT_DEBUG_EVENTS.length - 250);
-    }
-    console.log('[CLIENT_EVENT]', JSON.stringify(entry));
-    res.status(204).end();
-});
-
-app.get('/__debug/client-event', (_req, res) => {
-    res.json({ events: CLIENT_DEBUG_EVENTS });
-});
-
-// Ensure required environment variables are set
 if (!process.env.UI_PORT) {
-    console.error('Error: UI_PORT environment variable is required');
-    process.exit(1);
+  console.error('Error: UI_PORT environment variable is required')
+  process.exit(1)
 }
 if (!process.env.API_PORT) {
-    console.error('Error: API_PORT environment variable is required');
-    process.exit(1);
+  console.error('Error: API_PORT environment variable is required')
+  process.exit(1)
 }
 
-const PORT = process.env.UI_PORT;
-const API_PORT = process.env.API_PORT;
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ noServer: true });
+const PORT = process.env.UI_PORT
+const API_PORT = process.env.API_PORT
+const API_BASE = `http://${LOOPBACK_HOST}:${API_PORT}`
 
-const LOOPBACK_HOST = '127.0.0.1';
-const API_BASE = `http://${LOOPBACK_HOST}:${API_PORT}`;
-const APP_PROXY_PREFIX = '/apps';
-const APP_PROXY_SEGMENT = 'proxy';
-const APP_PORTS_SEGMENT = 'ports';
-const APP_ASSET_SEGMENT = 'assets';
+const appMetadataCache = new Map()
+const proxyContextCache = new Map()
+const CLIENT_DEBUG_EVENTS = []
+const MAX_CLIENT_EVENTS = 250
 
-// App-monitor's own API routes (never proxy these to scenarios)
-const APP_MONITOR_API_PREFIXES = [
-    '/api/v1',      // Versioned API routes
-    '/api/health',  // Health check endpoint
-    '/api',         // Legacy/fallback API routes
-];
+function normalizePortKey(value) {
+  if (value === undefined || value === null) {
+    return ''
+  }
+  if (typeof value === 'number') {
+    return String(value)
+  }
+  return value.trim().toLowerCase().replace(SLUGIFY_REGEX, '-')
+}
 
-// Helper to check if a path is an app-monitor API route
-const isAppMonitorApiRoute = (path) => {
-    if (!path || typeof path !== 'string') {
-        return false;
+function slugifyPortKey(value) {
+  if (!value) {
+    return ''
+  }
+  const normalized = value.trim().toLowerCase().replace(SLUGIFY_REGEX, '-')
+  return normalized || `port-${Math.random().toString(36).slice(2, 8)}`
+}
+
+function parsePortNumber(value) {
+  if (value === undefined || value === null) {
+    return null
+  }
+  const port = Number(value)
+  if (!Number.isFinite(port) || port <= 0) {
+    return null
+  }
+  return port
+}
+
+function isLikelyUiKey(key) {
+  return /(ui|front|preview|web|vite)/i.test(key)
+}
+
+function buildAliases(key, slug, port) {
+  const aliases = new Set()
+  aliases.add(key)
+  aliases.add(key.toLowerCase())
+  aliases.add(key.toUpperCase())
+  aliases.add(slug)
+  aliases.add(slug.replace(/-/g, '_'))
+  aliases.add(String(port))
+  if (key.toLowerCase().includes('api')) {
+    aliases.add('api')
+    aliases.add('api-port')
+  }
+  if (key.toLowerCase().includes('ui')) {
+    aliases.add('ui')
+    aliases.add('ui-port')
+  }
+  return Array.from(aliases).filter(Boolean)
+}
+
+function extractProxyRelativeUrl(originalUrl = '/') {
+  const target = originalUrl || '/'
+  const marker = '/proxy'
+  const queryIndex = target.indexOf('?')
+  const search = queryIndex >= 0 ? target.slice(queryIndex) : ''
+  const withoutQuery = queryIndex >= 0 ? target.slice(0, queryIndex) : target
+  const markerIndex = withoutQuery.lastIndexOf(marker)
+  if (markerIndex === -1) {
+    return `/${search || ''}`
+  }
+  const remainder = withoutQuery.slice(markerIndex + marker.length)
+  const normalizedPath = remainder && remainder.length > 0 ? (remainder.startsWith('/') ? remainder : `/${remainder}`) : '/'
+  return `${normalizedPath || '/'}${search}`
+}
+
+function isApiPath(relativeUrl) {
+  const pathname = (relativeUrl || '/').split('?')[0].replace(/^\/+/, '').toLowerCase()
+  return pathname === 'api' || pathname.startsWith('api/')
+}
+
+function isHtmlLikeRequest(req, relativeUrl) {
+  if (req.method !== 'GET') {
+    return false
+  }
+  const acceptHeader = req.headers.accept
+  if (typeof acceptHeader === 'string' && acceptHeader.includes('text/html')) {
+    return true
+  }
+  const pathOnly = (relativeUrl || '/').split('?')[0].toLowerCase()
+  return pathOnly === '/' || pathOnly.endsWith('.html') || pathOnly.endsWith('.htm')
+}
+
+async function getAppMetadata(appId) {
+  const now = Date.now()
+  const cached = appMetadataCache.get(appId)
+  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data
+  }
+
+  const metadataUrl = `${API_BASE}/api/v1/apps/${encodeURIComponent(appId)}`
+  const response = await axios.get(metadataUrl, { timeout: DEFAULT_TIMEOUT_MS })
+  const appData = response.data?.data || response.data
+  if (!appData) {
+    throw new Error(`App ${appId} not found`)
+  }
+
+  appMetadataCache.set(appId, { data: appData, timestamp: now })
+  return appData
+}
+
+function buildProxyContext(appId, appData) {
+  const portMappings = appData?.port_mappings || {}
+  const entries = []
+
+  Object.entries(portMappings).forEach(([key, value]) => {
+    const port = parsePortNumber(value)
+    if (!port) {
+      return
     }
-    return APP_MONITOR_API_PREFIXES.some(prefix =>
-        path === prefix || path.startsWith(`${prefix}/`)
-    );
-};
-const LOOPBACK_HOSTS = new Set([LOOPBACK_HOST, 'localhost', '::1', '[::1]', '0.0.0.0']);
-const LOOPBACK_HOST_ARRAY = Array.from(LOOPBACK_HOSTS);
-const PORT_LABEL_SANITIZE_REGEX = /[^a-z0-9]+/g;
-const DEFAULT_PRIMARY_LABEL = 'ui';
-const HOP_BY_HOP_HEADERS = new Set([
-    'connection',
-    'keep-alive',
-    'proxy-authenticate',
-    'proxy-authorization',
-    'te',
-    'trailers',
-    'transfer-encoding',
-    'upgrade',
-    'sec-websocket-key',
-    'sec-websocket-accept',
-    'sec-websocket-version',
-    'sec-websocket-protocol',
-    'sec-websocket-extensions'
-]);
+    entries.push({ key, port, normalized: key.toLowerCase() })
+  })
 
-const APP_CACHE_TTL_MS = 120_000; // 2 minutes - app metadata rarely changes during a session
-const APP_PROXY_CACHE = new Map();
-const APP_PROXY_INFLIGHT = new Map();
+  if (entries.length === 0) {
+    throw new Error(`App ${appId} has no port mappings`)
+  }
 
-const PROXY_AFFINITY_TTL_MS = 120_000;
-const PROXY_AFFINITY_MAX_ENTRIES = 5_000;
-const DEFAULT_REF_KEY = '__NO_REF__';
-// Map of request key -> Map of referer key -> affinity metadata
-const proxyAffinity = new Map();
-let proxyAffinityEntryCount = 0;
+  let uiPort = null
+  let apiPort = null
 
-// Force HTTPS for browsers accessing via Cloudflare tunnel to avoid mixed-protocol issues
-app.use((req, res, next) => {
-    const forwardedProtoHeader = req.headers['x-forwarded-proto'];
-    if (forwardedProtoHeader) {
-        const forwardedProto = Array.isArray(forwardedProtoHeader)
-            ? forwardedProtoHeader[0]
-            : String(forwardedProtoHeader).split(',')[0].trim().toLowerCase();
-
-        if (forwardedProto && forwardedProto !== 'https') {
-            const host = req.headers.host;
-            if (host && (req.method === 'GET' || req.method === 'HEAD')) {
-                const redirectUrl = `https://${host}${req.originalUrl || ''}`;
-                res.redirect(301, redirectUrl);
-                return;
-            }
-        }
+  for (const entry of entries) {
+    if (!uiPort && isLikelyUiKey(entry.normalized)) {
+      uiPort = entry.port
     }
-
-    next();
-});
-
-const candidatePortKeys = [
-    'ui_port',
-    'ui',
-    'app_port',
-    'web_port',
-    'client_port',
-    'frontend_port',
-    'preview_port',
-    'vite_port',
-    'http_port',
-    'http',
-    'port'
-];
-
-const ROOT_ASSET_PREFIXES = [
-    '/@vite',
-    '/@react-refresh',
-    '/@fs/',
-    '/src/',
-    '/node_modules/.vite/',
-    '/assets/'
-];
-
-const ROOT_ASSET_EXTENSIONS = new Set([
-    '.js',
-    '.mjs',
-    '.ts',
-    '.tsx',
-    '.jsx',
-    '.css',
-    '.map',
-    '.json',
-    '.svg',
-    '.png',
-    '.jpg',
-    '.jpeg',
-    '.gif',
-    '.ico',
-    '.webp',
-    '.woff',
-    '.woff2',
-    '.ttf',
-    '.eot',
-    '.wasm'
-]);
-
-const hasAssetExtension = (path) => {
-    if (typeof path !== 'string') {
-        return false;
+    if (!apiPort && entry.normalized.includes('api')) {
+      apiPort = entry.port
     }
-    const questionIndex = path.indexOf('?');
-    const hashIndex = path.indexOf('#');
-    let clean = path;
-    if (questionIndex !== -1) {
-        clean = clean.slice(0, questionIndex);
+  }
+
+  if (!uiPort) {
+    uiPort = parsePortNumber(appData?.config?.primary_port) || entries[0].port
+  }
+
+  if (!apiPort) {
+    apiPort = parsePortNumber(appData?.config?.api_port) || entries.find((entry) => entry.normalized.includes('api'))?.port || uiPort
+  }
+
+  const portLookup = new Map()
+  const ports = entries.map(({ key, port, normalized }) => {
+    const slug = slugifyPortKey(key)
+    const isPrimary = port === uiPort
+    const basePath = isPrimary ? `/apps/${appId}/proxy` : `/apps/${appId}/ports/${slug}/proxy`
+    const aliases = buildAliases(key, slug, port)
+
+    aliases.forEach((alias) => {
+      portLookup.set(normalizePortKey(alias), port)
+    })
+
+    return {
+      appId,
+      port,
+      label: key,
+      normalizedLabel: normalized,
+      slug,
+      source: 'port_mappings',
+      isPrimary,
+      path: basePath,
+      aliases,
+      assetNamespace: `${basePath}/assets`,
     }
-    if (hashIndex !== -1) {
-        clean = clean.slice(0, hashIndex);
-    }
-    const lastSlash = clean.lastIndexOf('/');
-    const fileName = lastSlash === -1 ? clean : clean.slice(lastSlash + 1);
-    const dotIndex = fileName.lastIndexOf('.');
-    if (dotIndex === -1) {
-        return false;
-    }
-    const ext = fileName.slice(dotIndex).toLowerCase();
-    return ROOT_ASSET_EXTENSIONS.has(ext);
-};
+  })
 
-const startsWithAssetPrefix = (path) => {
-    if (typeof path !== 'string') {
-        return false;
-    }
-    return ROOT_ASSET_PREFIXES.some((prefix) => path.startsWith(prefix));
-};
+  const primaryPort = ports.find((entry) => entry.isPrimary) || ports[0]
+  if (!primaryPort) {
+    throw new Error(`Unable to determine primary port for ${appId}`)
+  }
 
-const isProxiableRootAssetRequest = (path) => {
-    if (typeof path !== 'string') {
-        return false;
-    }
-    if (path.startsWith(`${APP_PROXY_PREFIX}/`)) {
-        const assetPattern = new RegExp(`^${APP_PROXY_PREFIX}/[^/]+/(?:${APP_PORTS_SEGMENT}/[^/]+/)?${APP_PROXY_SEGMENT}/${APP_ASSET_SEGMENT}/`);
-        return assetPattern.test(path);
-    }
-    // Exclude app-monitor's own API routes and WebSocket endpoint
-    if (isAppMonitorApiRoute(path) || path.startsWith('/ws') || path === '/ws') {
-        return false;
-    }
-    return startsWithAssetPrefix(path) || hasAssetExtension(path);
-};
-
-const ensureTrailingSlash = (value = '/') => {
-    if (typeof value !== 'string' || value.length === 0) {
-        return '/';
-    }
-    return value.endsWith('/') ? value : `${value}/`;
-};
-
-const trimTrailingSlash = (value = '/') => {
-    if (typeof value !== 'string') {
-        return '';
-    }
-    return value.replace(/\/+$/, '');
-};
-
-const joinAssetNamespacePath = (assetNamespace, resourcePath) => {
-    if (typeof assetNamespace !== 'string' || typeof resourcePath !== 'string') {
-        return resourcePath;
-    }
-    if (!resourcePath.startsWith('/')) {
-        return resourcePath;
-    }
-    if (resourcePath.startsWith('//')) {
-        return resourcePath;
-    }
-    const normalizedNamespace = trimTrailingSlash(assetNamespace) || '/';
-    const normalizedResource = resourcePath.startsWith('/') ? resourcePath : `/${resourcePath}`;
-    return `${normalizedNamespace}${normalizedResource}`;
-};
-
-const shouldSkipAssetRewrite = (resourcePath, assetNamespace) => {
-    if (typeof resourcePath !== 'string') {
-        return true;
-    }
-    if (!resourcePath.startsWith('/')) {
-        return true;
-    }
-    if (resourcePath.startsWith('//')) {
-        return true;
-    }
-    const normalizedNamespace = trimTrailingSlash(assetNamespace || '');
-    if (normalizedNamespace && resourcePath.startsWith(`${normalizedNamespace}/`)) {
-        return true;
-    }
-    if (resourcePath.startsWith(`${APP_PROXY_PREFIX}/`)) {
-        return true;
-    }
-    return false;
-};
-
-const namespaceAssetPath = (resourcePath, assetNamespace) => {
-    if (shouldSkipAssetRewrite(resourcePath, assetNamespace)) {
-        return resourcePath;
-    }
-    return joinAssetNamespacePath(assetNamespace, resourcePath);
-};
-
-const rewriteHtmlAssetReferences = (html, assetNamespace, basePath) => {
-    if (typeof html !== 'string' || !assetNamespace) {
-        return html;
-    }
-
-    let document;
-    try {
-        document = parse5.parse(html);
-    } catch (error) {
-        return html;
-    }
-
-    let hasBaseTag = false;
-
-    const getAttr = (node, name) => {
-        if (!node || !Array.isArray(node.attrs)) {
-            return null;
-        }
-        const lowerName = name.toLowerCase();
-        return node.attrs.find((attr) => attr.name && attr.name.toLowerCase() === lowerName) || null;
-    };
-
-    const rewriteSimpleAttribute = (node, name) => {
-        const attr = getAttr(node, name);
-        if (!attr || typeof attr.value !== 'string' || attr.value.length === 0) {
-            return;
-        }
-        const rewritten = namespaceAssetPath(attr.value, assetNamespace);
-        if (rewritten !== attr.value) {
-            attr.value = rewritten;
-        }
-    };
-
-    const rewriteSrcsetAttribute = (node, name) => {
-        const attr = getAttr(node, name);
-        if (!attr || typeof attr.value !== 'string' || attr.value.length === 0) {
-            return;
-        }
-        const rewritten = attr.value
-            .split(',')
-            .map((part) => {
-                const trimmed = part.trim();
-                if (!trimmed) {
-                    return trimmed;
-                }
-                const match = trimmed.match(/^(\S+)(\s+.*)?$/);
-                if (!match) {
-                    return trimmed;
-                }
-                const urlPart = match[1];
-                const descriptor = match[2] || '';
-                const rewrittenUrl = namespaceAssetPath(urlPart, assetNamespace);
-                return `${rewrittenUrl}${descriptor}`;
-            })
-            .join(', ');
-        attr.value = rewritten;
-    };
-
-    const shouldRewriteLink = (node) => {
-        const relAttr = getAttr(node, 'rel');
-        if (!relAttr || typeof relAttr.value !== 'string') {
-            return false;
-        }
-        const tokens = relAttr.value
-            .split(/\s+/)
-            .map((token) => token.trim().toLowerCase())
-            .filter(Boolean);
-        if (tokens.length === 0) {
-            return false;
-        }
-        if (tokens.includes('stylesheet') || tokens.includes('modulepreload') || tokens.includes('preload')) {
-            return true;
-        }
-        if (tokens.includes('icon') || tokens.includes('shortcut') || tokens.includes('apple-touch-icon')) {
-            return true;
-        }
-        if (tokens.includes('manifest') || tokens.includes('prefetch')) {
-            return true;
-        }
-        return false;
-    };
-
-    const processNode = (node) => {
-        if (!node || typeof node !== 'object') {
-            return;
-        }
-
-        if (node.tagName) {
-            const tagName = node.tagName.toLowerCase();
-            if (tagName === 'base') {
-                hasBaseTag = true;
-            }
-
-            switch (tagName) {
-                case 'script':
-                    rewriteSimpleAttribute(node, 'src');
-                    rewriteSimpleAttribute(node, 'data-src');
-                    break;
-                case 'img':
-                case 'iframe':
-                case 'audio':
-                case 'embed':
-                    rewriteSimpleAttribute(node, 'src');
-                    rewriteSimpleAttribute(node, 'data-src');
-                    rewriteSrcsetAttribute(node, 'srcset');
-                    rewriteSrcsetAttribute(node, 'data-srcset');
-                    break;
-                case 'video':
-                    rewriteSimpleAttribute(node, 'src');
-                    rewriteSimpleAttribute(node, 'data-src');
-                    rewriteSimpleAttribute(node, 'poster');
-                    rewriteSrcsetAttribute(node, 'srcset');
-                    rewriteSrcsetAttribute(node, 'data-srcset');
-                    break;
-                case 'source':
-                case 'track':
-                    rewriteSimpleAttribute(node, 'src');
-                    rewriteSrcsetAttribute(node, 'srcset');
-                    rewriteSrcsetAttribute(node, 'data-srcset');
-                    break;
-                case 'object':
-                    rewriteSimpleAttribute(node, 'data');
-                    break;
-                case 'link':
-                    if (shouldRewriteLink(node)) {
-                        rewriteSimpleAttribute(node, 'href');
-                        rewriteSrcsetAttribute(node, 'imagesrcset');
-                    }
-                    break;
-                case 'use':
-                    rewriteSimpleAttribute(node, 'href');
-                    rewriteSimpleAttribute(node, 'xlink:href');
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        if (Array.isArray(node.childNodes)) {
-            node.childNodes.forEach(processNode);
-        }
-    };
-
-    processNode(document);
-
-    if (!hasBaseTag && basePath) {
-        const ensureHead = () => {
-            const findNode = (root, predicate) => {
-                if (!root || typeof root !== 'object') {
-                    return null;
-                }
-                if (predicate(root)) {
-                    return root;
-                }
-                if (Array.isArray(root.childNodes)) {
-                    for (const child of root.childNodes) {
-                        const found = findNode(child, predicate);
-                        if (found) {
-                            return found;
-                        }
-                    }
-                }
-                return null;
-            };
-
-            let headNode = findNode(document, (node) => node.tagName && node.tagName.toLowerCase() === 'head');
-            if (headNode) {
-                return headNode;
-            }
-            const htmlNode = findNode(document, (node) => node.tagName && node.tagName.toLowerCase() === 'html');
-            if (!htmlNode) {
-                return null;
-            }
-            if (!Array.isArray(htmlNode.childNodes)) {
-                htmlNode.childNodes = [];
-            }
-            headNode = {
-                nodeName: 'head',
-                tagName: 'head',
-                namespaceURI: htmlNode.namespaceURI || 'http://www.w3.org/1999/xhtml',
-                attrs: [],
-                childNodes: [],
-                parentNode: htmlNode,
-            };
-            htmlNode.childNodes.unshift(headNode);
-            return headNode;
-        };
-
-        const headNode = ensureHead();
-        if (headNode && Array.isArray(headNode.childNodes)) {
-            const baseNode = {
-                nodeName: 'base',
-                tagName: 'base',
-                namespaceURI: headNode.namespaceURI || 'http://www.w3.org/1999/xhtml',
-                attrs: [
-                    { name: 'data-app-monitor', value: 'asset-base' },
-                    { name: 'href', value: ensureTrailingSlash(basePath) },
-                ],
-                childNodes: [],
-                parentNode: headNode,
-            };
-            headNode.childNodes.unshift(baseNode);
-        } else {
-            const baseTag = `<base data-app-monitor="asset-base" href="${ensureTrailingSlash(basePath)}">`;
-            return `${baseTag}${html}`;
-        }
-    }
-
-    return parse5.serialize(document);
-};
-
-const rewriteJavascriptAssetReferences = (code, assetNamespace) => {
-    if (typeof code !== 'string' || !assetNamespace) {
-        return code;
-    }
-    let transformed = code.replace(/(from\s+["'])(\/(?!\/)[^"'\n\r]*)(["'])/g, (match, prefix, url, suffix) => {
-        return `${prefix}${namespaceAssetPath(url, assetNamespace)}${suffix}`;
-    });
-
-    transformed = transformed.replace(/(import\(\s*["'])(\/(?!\/)[^"']*)(["']\s*\))/g, (match, prefix, url, suffix) => {
-        return `${prefix}${namespaceAssetPath(url, assetNamespace)}${suffix}`;
-    });
-
-    return transformed;
-};
-
-const rewriteCssAssetReferences = (css, assetNamespace) => {
-    if (typeof css !== 'string' || !assetNamespace) {
-        return css;
-    }
-    let transformed = css.replace(/(url\(\s*["']?)(\/(?!\/)[^\)"']*)(["']?\s*\))/g, (match, prefix, url, suffix) => {
-        return `${prefix}${namespaceAssetPath(url, assetNamespace)}${suffix}`;
-    });
-    transformed = transformed.replace(/(@import\s+["'])(\/(?!\/)[^"']*)(["'])/g, (match, prefix, url, suffix) => {
-        return `${prefix}${namespaceAssetPath(url, assetNamespace)}${suffix}`;
-    });
-    return transformed;
-};
-
-const buildAssetNamespaceForEntry = (entry) => {
-    if (!entry || typeof entry !== 'object' || typeof entry.path !== 'string') {
-        return null;
-    }
-    const normalizedPath = trimTrailingSlash(entry.path);
-    return `${normalizedPath}/${APP_ASSET_SEGMENT}`;
-};
-
-const buildProxyVaryHeader = (headers = {}) => {
-    const varyValues = [];
-    const varyValue = headers['Vary'] ?? headers['vary'];
-    if (Array.isArray(varyValue)) {
-        for (const item of varyValue) {
-            if (typeof item === 'string') {
-                varyValues.push(item);
-            }
-        }
-    } else if (typeof varyValue === 'string') {
-        varyValues.push(varyValue);
-    }
-
-    const varySet = new Set();
-    for (const entry of varyValues) {
-        entry.split(',').map((part) => part.trim()).filter(Boolean).forEach((part) => varySet.add(part));
-    }
-    ['Referer', 'Cookie', 'X-App-Monitor-App'].forEach((part) => varySet.add(part));
-
-    return varySet.size > 0 ? Array.from(varySet).join(', ') : null;
-};
-
-const ensureProxyIdentityHeaders = (headers = {}, appId = null) => {
-    const next = { ...headers };
-    const varyHeader = buildProxyVaryHeader(headers);
-    if (varyHeader) {
-        next['Vary'] = varyHeader;
-        delete next.vary;
-    }
-    if (appId) {
-        next['X-App-Monitor-App'] = appId;
-    }
-    return next;
-};
-
-const ensureProxyCacheHeaders = (headers = {}, appId = null) => {
-    const next = ensureProxyIdentityHeaders(headers, appId);
-
-    delete next['cache-control'];
-    delete next['Cache-control'];
-    delete next['Cache-Control'];
-    delete next.pragma;
-    delete next.Pragma;
-    delete next.expires;
-    delete next.Expires;
-
-    next['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0';
-    next['Pragma'] = 'no-cache';
-    next['Expires'] = '0';
-
-    return next;
-};
-
-const parseNumericPort = (value) => {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) {
-        return null;
-    }
-    if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) {
-        return null;
-    }
-    return parsed;
-};
-
-const unwrapValue = (value, depth = 0) => {
-    if (depth > 4 || value == null) {
-        return value;
-    }
-    if (Array.isArray(value) && value.length > 0) {
-        return unwrapValue(value[0], depth + 1);
-    }
-    if (typeof value === 'object') {
-        if (Object.prototype.hasOwnProperty.call(value, 'value')) {
-            return unwrapValue(value.value, depth + 1);
-        }
-        if (Object.prototype.hasOwnProperty.call(value, 'port')) {
-            return unwrapValue(value.port, depth + 1);
-        }
-    }
-    return value;
-};
-
-const parsePortField = (value) => {
-    const unwrapped = unwrapValue(value);
-    if (typeof unwrapped === 'number') {
-        return parseNumericPort(unwrapped);
-    }
-    if (typeof unwrapped === 'string') {
-        const trimmed = unwrapped.trim();
-        if (!trimmed) {
-            return null;
-        }
-        if (/^\d+$/.test(trimmed)) {
-            return parseNumericPort(Number(trimmed));
-        }
-        try {
-            const url = new URL(trimmed, trimmed.startsWith('http') ? undefined : 'http://placeholder');
-            if (url.port) {
-                return parseNumericPort(Number(url.port));
-            }
-        } catch (error) {
-            const match = trimmed.match(/:(\d+)(?!.*:\d+)/);
-            if (match) {
-                return parseNumericPort(Number(match[1]));
-            }
-        }
-    }
-    return null;
-};
-
-const getPortFromMappings = (portMappings = {}, key) => {
-    const normalizedKey = key.toLowerCase();
-    for (const [label, value] of Object.entries(portMappings)) {
-        if (label.toLowerCase() === normalizedKey) {
-            const parsed = parsePortField(value);
-            if (parsed !== null) {
-                return parsed;
-            }
-        }
-    }
-    return null;
-};
-
-const getPortFromEnvironment = (environment = {}, key) => {
-    const normalizedKey = key.toLowerCase();
-    for (const [label, value] of Object.entries(environment)) {
-        const normalizedLabel = label.toLowerCase();
-        if (
-            normalizedLabel === normalizedKey ||
-            normalizedLabel.endsWith(`_${normalizedKey}`) ||
-            normalizedLabel.endsWith(`-${normalizedKey}`) ||
-            normalizedLabel.includes(normalizedKey)
-        ) {
-            const parsed = parsePortField(value);
-            if (parsed !== null) {
-                return parsed;
-            }
-        }
-    }
-    return null;
-};
-
-const findFallbackEnvironmentPort = (environment = {}) => {
-    let fallback = null;
-    for (const [label, value] of Object.entries(environment)) {
-        const parsed = parsePortField(value);
-        if (parsed === null) {
-            continue;
-        }
-        const normalizedLabel = label.toLowerCase();
-        if (normalizedLabel.includes('ui') && normalizedLabel.includes('port')) {
-            return parsed;
-        }
-        if (fallback === null) {
-            fallback = parsed;
-        }
-    }
-    return fallback;
-};
-
-const computeAppUIPort = (app) => {
-    if (!app || typeof app !== 'object') {
-        return null;
-    }
-
-    const portMappings = app.port_mappings || {};
-    const environment = app.environment || {};
-    const config = app.config || {};
-
-    const primaryPort = parsePortField(config.primary_port);
-    if (primaryPort !== null) {
-        return primaryPort;
-    }
-
-    if (typeof config.primary_port_label === 'string') {
-        const labeled = getPortFromMappings(portMappings, config.primary_port_label);
-        if (labeled !== null) {
-            return labeled;
-        }
-    }
-
-    for (const key of candidatePortKeys) {
-        const fromMappings = getPortFromMappings(portMappings, key);
-        if (fromMappings !== null) {
-            return fromMappings;
-        }
-        const fromEnv = getPortFromEnvironment(environment, key);
-        if (fromEnv !== null) {
-            return fromEnv;
-        }
-    }
-
-    for (const value of Object.values(portMappings)) {
-        const parsed = parsePortField(value);
-        if (parsed !== null) {
-            return parsed;
-        }
-    }
-
-    const envFallback = findFallbackEnvironmentPort(environment);
-    if (envFallback !== null) {
-        return envFallback;
-    }
-
-    const generalPort = parsePortField(app.port);
-    if (generalPort !== null) {
-        return generalPort;
-    }
-
-    return null;
-};
-
-const normalizePortLabel = (label) => {
-    if (typeof label !== 'string') {
-        return null;
-    }
-    const trimmed = label.trim();
-    if (!trimmed) {
-        return null;
-    }
-    return trimmed.toLowerCase();
-};
-
-const slugifyPortLabel = (label, port) => {
-    const normalized = normalizePortLabel(label);
-    if (normalized && normalized !== String(port)) {
-        const slug = normalized.replace(PORT_LABEL_SANITIZE_REGEX, '-').replace(/^-+|-+$/g, '');
-        if (slug) {
-            return slug;
-        }
-    }
-    return `port-${port}`;
-};
-
-const createPortEntry = ({
+  const metadata = buildProxyMetadata({
     appId,
-    port,
-    label,
-    source,
-    priority = 0,
-    kind = null,
-}) => {
-    if (typeof port !== 'number' || !Number.isInteger(port) || port <= 0 || port > 65535) {
-        throw new Error(`Invalid port for ${appId}: ${port}`);
-    }
-
-    const normalizedLabel = normalizePortLabel(label);
-    const entry = {
-        appId,
-        port,
-        label: typeof label === 'string' && label.trim() ? label.trim() : null,
-        normalizedLabel,
-        slug: slugifyPortLabel(label, port),
-        source: source || 'unknown',
-        priority: Number.isFinite(priority) ? priority : 0,
-        kind,
-        isPrimary: false,
-        path: null,
-        aliases: [],
-    };
-
-    return entry;
-};
-
-const buildPortAliasIndex = (entries) => {
-    const aliasIndex = new Map();
-    for (const entry of entries) {
-        const aliases = new Set();
-        if (entry.label) {
-            aliases.add(entry.label);
-        }
-        if (entry.normalizedLabel) {
-            aliases.add(entry.normalizedLabel);
-        }
-        if (entry.slug) {
-            aliases.add(entry.slug);
-        }
-        aliases.add(String(entry.port));
-        if (entry.isPrimary) {
-            aliases.add(DEFAULT_PRIMARY_LABEL);
-            aliases.add('primary');
-            aliases.add('default');
-        }
-
-        entry.aliases = Array.from(aliases);
-
-        for (const alias of entry.aliases) {
-            const normalized = normalizePortLabel(alias);
-            if (!normalized) {
-                continue;
-            }
-            if (!aliasIndex.has(normalized)) {
-                aliasIndex.set(normalized, entry);
-            }
-        }
-    }
-
-    return aliasIndex;
-};
-
-const buildAppProxyState = (appId, metadata) => {
-    const entries = [];
-    const entryKeySet = new Set();
-    const portIndex = new Map();
-
-    const registerEntry = (draftEntry) => {
-        const key = `${draftEntry.port}:${draftEntry.slug}`;
-        if (entryKeySet.has(key)) {
-            return entries.find((entry) => entry.port === draftEntry.port && entry.slug === draftEntry.slug);
-        }
-
-        entries.push(draftEntry);
-        entryKeySet.add(key);
-
-        if (!portIndex.has(draftEntry.port)) {
-            portIndex.set(draftEntry.port, []);
-        }
-        portIndex.get(draftEntry.port).push(draftEntry);
-        return draftEntry;
-    };
-
-    const portMappings = metadata?.port_mappings || {};
-    const environment = metadata?.environment || {};
-    const config = metadata?.config || {};
-
-    for (const [label, value] of Object.entries(portMappings)) {
-        const port = parsePortField(value);
-        if (port === null) {
-            continue;
-        }
-        registerEntry(
-            createPortEntry({
-                appId,
-                port,
-                label,
-                source: 'port_mappings',
-                priority: 30,
-            })
-        );
-    }
-
-    for (const [label, value] of Object.entries(environment)) {
-        const normalizedLabel = normalizePortLabel(label);
-        if (!normalizedLabel || (!normalizedLabel.includes('port') && !normalizedLabel.includes('url'))) {
-            continue;
-        }
-        const port = parsePortField(value);
-        if (port === null) {
-            continue;
-        }
-        registerEntry(
-            createPortEntry({
-                appId,
-                port,
-                label,
-                source: 'environment',
-                priority: normalizedLabel.includes('ui') ? 15 : 10,
-            })
-        );
-    }
-
-    const configPrimaryPort = parsePortField(config.primary_port);
-    if (configPrimaryPort !== null) {
-        registerEntry(
-            createPortEntry({
-                appId,
-                port: configPrimaryPort,
-                label: normalizePortLabel(config.primary_port_label) || 'primary',
-                source: 'config.primary_port',
-                priority: 80,
-            })
-        );
-    }
-
-    if (typeof config.primary_port_label === 'string') {
-        const labeledPort =
-            getPortFromMappings(portMappings, config.primary_port_label) ??
-            getPortFromEnvironment(environment, config.primary_port_label);
-        if (labeledPort !== null) {
-            registerEntry(
-                createPortEntry({
-                    appId,
-                    port: labeledPort,
-                    label: config.primary_port_label,
-                    source: 'config.primary_port_label',
-                    priority: 70,
-                })
-            );
-        }
-    }
-
-    const fallbackPort = parsePortField(metadata?.port);
-    if (fallbackPort !== null) {
-        registerEntry(
-            createPortEntry({
-                appId,
-                port: fallbackPort,
-                label: 'port',
-                source: 'metadata.port',
-                priority: 5,
-            })
-        );
-    }
-
-    const primaryPort = computeAppUIPort(metadata);
-    if (primaryPort === null) {
-        throw new Error(`App ${appId} does not expose a preview port`);
-    }
-
-    const existingPrimaryCandidates = portIndex.get(primaryPort) || [];
-    let primaryEntry = existingPrimaryCandidates.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0] ?? null;
-
-    if (!primaryEntry) {
-        primaryEntry = registerEntry(
-            createPortEntry({
-                appId,
-                port: primaryPort,
-                label: DEFAULT_PRIMARY_LABEL,
-                source: 'heuristic',
-                priority: 90,
-            })
-        );
-    }
-
-    primaryEntry.isPrimary = true;
-    const encodedAppId = encodeURIComponent(appId);
-    const defaultPath = `${APP_PROXY_PREFIX}/${encodedAppId}/${APP_PROXY_SEGMENT}`;
-    primaryEntry.path = defaultPath;
-
-    const slugUsage = new Map();
-    for (const entry of entries) {
-        if (entry === primaryEntry) {
-            continue;
-        }
-
-        let slug = entry.slug;
-        const usageKey = `${entry.port}:${slug}`;
-        let suffix = 1;
-        while (slugUsage.has(usageKey)) {
-            suffix += 1;
-            slug = `${entry.slug}-${suffix}`;
-        }
-        slugUsage.set(usageKey, true);
-        entry.slug = slug;
-        entry.path = `${APP_PROXY_PREFIX}/${encodedAppId}/${APP_PORTS_SEGMENT}/${encodeURIComponent(slug)}/${APP_PROXY_SEGMENT}`;
-    }
-
-    const aliasIndex = buildPortAliasIndex(entries);
-
-    return {
-        appId,
-        fetchedAt: Date.now(),
-        entries,
-        primaryEntry,
-        aliasIndex,
-        metadata,
-    };
-};
-
-const selectPortEntry = (state, portKey) => {
-    if (!state) {
-        return null;
-    }
-    if (portKey == null || (typeof portKey === 'string' && portKey.trim() === '')) {
-        return state.primaryEntry;
-    }
-
-    const normalizedKey = normalizePortLabel(portKey);
-    if (normalizedKey && state.aliasIndex.has(normalizedKey)) {
-        return state.aliasIndex.get(normalizedKey);
-    }
-
-    const numericPort = parseNumericPort(portKey);
-    if (numericPort !== null) {
-        const match = state.entries.find((entry) => entry.port === numericPort);
-        if (match) {
-            return match;
-        }
-    }
-
-    return null;
-};
-
-const buildProxyBootstrapPayload = (state) => {
-    const payloadEntries = state.entries.map((entry) => ({
-        port: entry.port,
-        label: entry.label,
-        slug: entry.slug,
-        path: entry.path,
-        assetNamespace: buildAssetNamespaceForEntry(entry),
-        aliases: entry.aliases,
-        source: entry.source,
-        isPrimary: entry.isPrimary,
-    }));
-
-    return {
-        appId: state.appId,
-        generatedAt: Date.now(),
-        hosts: LOOPBACK_HOST_ARRAY,
-        primary: {
-            port: state.primaryEntry.port,
-            label: state.primaryEntry.label,
-            slug: state.primaryEntry.slug,
-            path: state.primaryEntry.path,
-            assetNamespace: buildAssetNamespaceForEntry(state.primaryEntry),
-            aliases: state.primaryEntry.aliases,
-        },
-        ports: payloadEntries,
-    };
-};
-
-const escapeForInlineScript = (value) => value.replace(/<\//g, '\\u003C/');
-
-const buildProxyBootstrapScript = (state) => {
-    const payload = buildProxyBootstrapPayload(state);
-    const serialized = escapeForInlineScript(JSON.stringify(payload));
-
-    return `;(() => {\n` +
-        `  const INFO_KEY = '__APP_MONITOR_PROXY_INFO__';\n` +
-        `  const INDEX_KEY = '__APP_MONITOR_PROXY_INDEX__';\n` +
-        `  const payload = ${serialized};\n` +
-        `  if (typeof window === 'undefined') {\n` +
-        `    return;\n` +
-        `  }\n` +
-        `  window[INFO_KEY] = payload;\n` +
-        `  const buildIndex = (data) => {\n` +
-        `    if (!data || !Array.isArray(data.ports)) {\n` +
-        `      return null;\n` +
-        `    }\n` +
-        `    const aliasMap = new Map();\n` +
-        `    for (const entry of data.ports) {\n` +
-        `      if (!entry || typeof entry.port !== 'number') {\n` +
-        `        continue;\n` +
-        `      }\n` +
-        `      const aliases = Array.isArray(entry.aliases) ? entry.aliases : [];\n` +
-        `      aliases.push(String(entry.port));\n` +
-        `      for (const alias of aliases) {\n` +
-        `        if (typeof alias !== 'string') {\n` +
-        `          continue;\n` +
-        `        }\n` +
-        `        const key = alias.trim().toLowerCase();\n` +
-        `        if (key && !aliasMap.has(key)) {\n` +
-        `          aliasMap.set(key, entry);\n` +
-        `        }\n` +
-        `      }\n` +
-        `    }\n` +
-        `    return {\n` +
-        `      appId: data.appId,\n` +
-        `      generatedAt: data.generatedAt,\n` +
-        `      aliasMap,\n` +
-        `      primary: data.primary,\n` +
-        `      hosts: new Set(Array.isArray(data.hosts) ? data.hosts.map((host) => host.toLowerCase()) : []),\n` +
-        `    };\n` +
-        `  };\n` +
-        `  const getIndex = () => {\n` +
-        `    const latest = window[INFO_KEY];\n` +
-        `    if (!latest) {\n` +
-        `      return null;\n` +
-        `    }\n` +
-        `    const existing = window[INDEX_KEY];\n` +
-        `    if (!existing || existing.appId !== latest.appId || existing.generatedAt !== latest.generatedAt) {\n` +
-        `      const nextIndex = buildIndex(latest);\n` +
-        `      window[INDEX_KEY] = nextIndex;\n` +
-        `      return nextIndex;\n` +
-        `    }\n` +
-        `    return existing;\n` +
-        `  };\n` +
-        `  const joinPath = (basePath, nextPath) => {\n` +
-        `    const trimmedBase = typeof basePath === 'string' ? basePath.replace(/\\/$/, '') : '';\n` +
-        `    const normalizedNext = typeof nextPath === 'string' ? nextPath : '';\n` +
-        `    if (!normalizedNext || normalizedNext === '/') {\n` +
-        `      return trimmedBase + '/';\n` +
-        `    }\n` +
-        `    return trimmedBase + (normalizedNext.startsWith('/') ? normalizedNext : '/' + normalizedNext);\n` +
-        `  };\n` +
-        `  const resolveTarget = (href, scheme) => {\n` +
-        `    if (!href) {\n` +
-        `      return null;\n` +
-        `    }\n` +
-        `    let url;\n` +
-        `    try {\n` +
-        `      url = new URL(href, window.location.href);\n` +
-        `    } catch (error) {\n` +
-        `      return null;\n` +
-        `    }\n` +
-        `    const index = getIndex();\n` +
-        `    if (!index || !index.hosts.has(url.hostname.toLowerCase())) {\n` +
-        `      return null;\n` +
-        `    }\n` +
-        `    const portKey = url.port ? url.port : '';\n` +
-        `    let entry = portKey ? index.aliasMap.get(portKey.toLowerCase()) : null;\n` +
-        `    if (!entry && !portKey) {\n` +
-        `      entry = index.primary;\n` +
-        `    }\n` +
-        `    if (!entry) {\n` +
-        `      return null;\n` +
-        `    }\n` +
-        `    const basePath = entry.path || index.primary?.path;\n` +
-        `    if (!basePath) {\n` +
-        `      return null;\n` +
-        `    }\n` +
-        `    const protocol = scheme === 'ws'\n` +
-        `      ? (window.location.protocol === 'https:' ? 'wss:' : 'ws:')\n` +
-        `      : window.location.protocol;\n` +
-        `    const host = window.location.host;\n` +
-        `    const path = joinPath(basePath, url.pathname || '/');\n` +
-        `    const search = url.search || '';\n` +
-        `    const hash = scheme === 'ws' ? '' : (url.hash || '');\n` +
-        `    return protocol + '//' + host + path + search + hash;\n` +
-        `  };\n` +
-        `  const ensurePatched = () => {\n` +
-        `    if (window.__APP_MONITOR_PROXY_SHIMMED__) {\n` +
-        `      return;\n` +
-        `    }\n` +
-        `    window.__APP_MONITOR_PROXY_SHIMMED__ = true;\n` +
-        `    const originalFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;\n` +
-        `    if (originalFetch) {\n` +
-        `      window.fetch = function(resource, init) {\n` +
-        `        let rewritten = null;\n` +
-        `        if (typeof resource === 'string' || resource instanceof URL) {\n` +
-        `          rewritten = resolveTarget(resource.toString(), 'http');\n` +
-        `          if (rewritten) {\n` +
-        `            return originalFetch.call(this, rewritten, init);\n` +
-        `          }\n` +
-        `        } else if (resource instanceof Request) {\n` +
-        `          rewritten = resolveTarget(resource.url, 'http');\n` +
-        `          if (rewritten) {\n` +
-        `            const cloned = resource.clone();\n` +
-        `            const { method } = cloned;\n` +
-        `            const headers = new Headers(cloned.headers);\n` +
-        `            const bodyUsed = method && (method.toUpperCase() === 'GET' || method.toUpperCase() === 'HEAD');\n` +
-        `            const initOptions = {\n` +
-        `              method,\n` +
-        `              headers,\n` +
-        `              cache: cloned.cache,\n` +
-        `              credentials: cloned.credentials,\n` +
-        `              integrity: cloned.integrity,\n` +
-        `              keepalive: cloned.keepalive,\n` +
-        `              mode: cloned.mode,\n` +
-        `              redirect: cloned.redirect,\n` +
-        `              referrer: cloned.referrer && cloned.referrer !== 'about:client' ? cloned.referrer : undefined,\n` +
-        `              referrerPolicy: cloned.referrerPolicy,\n` +
-        `              signal: cloned.signal,\n` +
-        `            };\n` +
-        `            if (!bodyUsed) {\n` +
-        `              initOptions.body = cloned.body;\n` +
-        `            }\n` +
-        `            if ('duplex' in cloned) {\n` +
-        `              initOptions.duplex = cloned.duplex;\n` +
-        `            }\n` +
-        `            const rewrittenRequest = new Request(rewritten, initOptions);\n` +
-        `            return originalFetch.call(this, rewrittenRequest, init);\n` +
-        `          }\n` +
-        `        }\n` +
-        `        return originalFetch.call(this, resource, init);\n` +
-        `      };\n` +
-        `    }\n` +
-        `    if (typeof window.Request === 'function') {\n` +
-        `      const OriginalRequest = window.Request;\n` +
-        `      const PatchedRequest = function(input, init) {\n` +
-        `        let updatedInput = input;\n` +
-        `        if (typeof input === 'string' || input instanceof URL) {\n` +
-        `          const rewritten = resolveTarget(input.toString(), 'http');\n` +
-        `          if (rewritten) {\n` +
-        `            updatedInput = rewritten;\n` +
-        `          }\n` +
-        `        }\n` +
-        `        return new OriginalRequest(updatedInput, init);\n` +
-        `      };\n` +
-        `      PatchedRequest.prototype = OriginalRequest.prototype;\n` +
-        `      Object.setPrototypeOf(PatchedRequest, OriginalRequest);\n` +
-        `      window.Request = PatchedRequest;\n` +
-        `    }\n` +
-        `    if (typeof window.XMLHttpRequest === 'function') {\n` +
-        `      const originalOpen = window.XMLHttpRequest.prototype.open;\n` +
-        `      window.XMLHttpRequest.prototype.open = function(method, url, async, user, password) {\n` +
-        `        let rewrittenUrl = url;\n` +
-        `        if (typeof url === 'string') {\n` +
-        `          const rewritten = resolveTarget(url, 'http');\n` +
-        `          if (rewritten) {\n` +
-        `            rewrittenUrl = rewritten;\n` +
-        `          }\n` +
-        `        }\n` +
-        `        return originalOpen.call(this, method, rewrittenUrl, async, user, password);\n` +
-        `      };\n` +
-        `    }\n` +
-        `    if (typeof window.WebSocket === 'function') {\n` +
-        `      const OriginalWebSocket = window.WebSocket;\n` +
-        `      const PatchedWebSocket = function(target, protocols) {\n` +
-        `        let url = target;\n` +
-        `        if (typeof target === 'string' || target instanceof URL) {\n` +
-        `          const rewritten = resolveTarget(target.toString(), 'ws');\n` +
-        `          if (rewritten) {\n` +
-        `            url = rewritten;\n` +
-        `          }\n` +
-        `        }\n` +
-        `        if (protocols === undefined) {\n` +
-        `          return new OriginalWebSocket(url);\n` +
-        `        }\n` +
-        `        return new OriginalWebSocket(url, protocols);\n` +
-        `      };\n` +
-        `      Object.setPrototypeOf(PatchedWebSocket, OriginalWebSocket);\n` +
-        `      PatchedWebSocket.prototype = OriginalWebSocket.prototype;\n` +
-        `      window.WebSocket = PatchedWebSocket;\n` +
-        `    }\n` +
-        `    if (typeof window.EventSource === 'function') {\n` +
-        `      const OriginalEventSource = window.EventSource;\n` +
-        `      const PatchedEventSource = function(url, config) {\n` +
-        `        let rewrittenUrl = url;\n` +
-        `        if (typeof url === 'string' || url instanceof URL) {\n` +
-        `          const rewritten = resolveTarget(url.toString(), 'http');\n` +
-        `          if (rewritten) {\n` +
-        `            rewrittenUrl = rewritten;\n` +
-        `          }\n` +
-        `        }\n` +
-        `        return new OriginalEventSource(rewrittenUrl, config);\n` +
-        `      };\n` +
-        `      PatchedEventSource.prototype = OriginalEventSource.prototype;\n` +
-        `      Object.setPrototypeOf(PatchedEventSource, OriginalEventSource);\n` +
-        `      window.EventSource = PatchedEventSource;\n` +
-        `    }\n` +
-        `    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {\n` +
-        `      const originalSendBeacon = navigator.sendBeacon.bind(navigator);\n` +
-        `      navigator.sendBeacon = function(url, data) {\n` +
-        `        const rewritten = resolveTarget(url, 'http');\n` +
-        `        const targetUrl = rewritten || url;\n` +
-        `        return originalSendBeacon(targetUrl, data);\n` +
-        `      };\n` +
-        `    }\n` +
-        `  };\n` +
-        `  ensurePatched();\n` +
-        `})();`;
-};
-
-const fetchAppMetadata = async (appId) => {
-    const url = `${API_BASE}/api/v1/apps/${encodeURIComponent(appId)}`;
-    try {
-        const response = await axios.get(url, { timeout: 10000 });
-        if (response.data && typeof response.data === 'object') {
-            if (response.data.success === false) {
-                throw new Error(response.data.error || 'App lookup failed');
-            }
-            return response.data.data ?? response.data;
-        }
-        return response.data;
-    } catch (error) {
-        const status = error.response?.status;
-        if (status === 404) {
-            throw new Error(`App ${appId} not found`);
-        }
-        throw new Error(`Failed to fetch app metadata: ${error.message}`);
-    }
-};
-
-const resolveAppProxyState = async (appId) => {
-    const cached = APP_PROXY_CACHE.get(appId);
-    if (cached && Date.now() - cached.fetchedAt < APP_CACHE_TTL_MS) {
-        return cached;
-    }
-
-    if (APP_PROXY_INFLIGHT.has(appId)) {
-        return APP_PROXY_INFLIGHT.get(appId);
-    }
-
-    const lookupPromise = (async () => {
-        const metadata = await fetchAppMetadata(appId);
-        const state = buildAppProxyState(appId, metadata);
-        APP_PROXY_CACHE.set(appId, state);
-        return state;
-    })().finally(() => {
-        APP_PROXY_INFLIGHT.delete(appId);
-    });
-
-    APP_PROXY_INFLIGHT.set(appId, lookupPromise);
-    return lookupPromise;
-};
-
-const resolveAppProxyTarget = async (appId, portKey = null) => {
-    const state = await resolveAppProxyState(appId);
-    const entry = selectPortEntry(state, portKey);
-    if (!entry) {
-        throw new Error(portKey ? `App ${appId} does not expose a port matching "${portKey}"` : `App ${appId} does not expose a preview port`);
-    }
-    return {
-        port: entry.port,
-        entry,
-        state,
-    };
-};
-
-const sanitizeRequestHeaders = (headers = {}, port, req) => {
-    const sanitized = {};
-    for (const [key, value] of Object.entries(headers)) {
-        if (HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
-            continue;
-        }
-        sanitized[key] = value;
-    }
-
-    sanitized.host = `${LOOPBACK_HOST}:${port}`;
-    sanitized.connection = 'close';
-    const originalHost = headers.host || req?.headers?.host || `${LOOPBACK_HOST}:${PORT}`;
-    sanitized['x-forwarded-host'] = originalHost;
-    const protoHeader = headers['x-forwarded-proto'] || (req?.socket?.encrypted ? 'https' : 'http');
-    sanitized['x-forwarded-proto'] = protoHeader;
-    const remoteAddr = headers['x-forwarded-for'] || req?.socket?.remoteAddress || LOOPBACK_HOST;
-    sanitized['x-forwarded-for'] = remoteAddr;
-    sanitized['accept-encoding'] = 'identity';
-    return sanitized;
-};
-
-const rewriteContentSecurityPolicy = (value) => {
-    if (!value || typeof value !== 'string') {
-        return "frame-ancestors 'self'";
-    }
-    const directives = value.split(';').map(part => part.trim()).filter(Boolean);
-    const filtered = directives.filter(directive => !/^frame-ancestors\b/i.test(directive));
-    filtered.push("frame-ancestors 'self'");
-    return filtered.join('; ');
-};
-
-const rewriteLocationHeader = (location, appId, port) => {
-    if (!location || typeof location !== 'string') {
-        return location;
-    }
-    const appPrefix = `${APP_PROXY_PREFIX}/${encodeURIComponent(appId)}/${APP_PROXY_SEGMENT}`;
-    try {
-        const absolute = new URL(location, `http://${LOOPBACK_HOST}:${port}`);
-        if (LOOPBACK_HOSTS.has(absolute.hostname) && Number(absolute.port || port) === Number(port)) {
-            const path = absolute.pathname.startsWith('/') ? absolute.pathname : `/${absolute.pathname}`;
-            return `${appPrefix}${path}${absolute.search || ''}${absolute.hash || ''}`;
-        }
-    } catch (error) {
-        // If not a valid URL, fall back below
-    }
-    if (location.startsWith('/')) {
-        return `${appPrefix}${location}`;
-    }
-    return location;
-};
-
-const rewriteSetCookieHeaders = (setCookie, appId) => {
-    if (!setCookie) {
-        return undefined;
-    }
-    const appPrefix = `${APP_PROXY_PREFIX}/${encodeURIComponent(appId)}/${APP_PROXY_SEGMENT}`;
-    const ensureArray = Array.isArray(setCookie) ? setCookie : [setCookie];
-    return ensureArray.map(cookie => {
-        let rewritten = cookie.replace(/;\s*Domain=[^;]+/gi, '');
-        if (/;\s*Path=/i.test(rewritten)) {
-            rewritten = rewritten.replace(/;\s*Path=[^;]*/i, `; Path=${appPrefix}/`);
-        } else {
-            rewritten = `${rewritten}; Path=${appPrefix}/`;
-        }
-        return rewritten;
-    });
-};
-
-const rewriteResponseHeaders = (headers, appId, port) => {
-    const rewritten = {};
-    let hasContentSecurityPolicy = false;
-
-    for (const [key, value] of Object.entries(headers || {})) {
-        const lower = key.toLowerCase();
-        if (lower === 'x-frame-options') {
-            continue;
-        }
-        if (lower === 'content-security-policy') {
-            rewritten[key] = rewriteContentSecurityPolicy(value);
-            hasContentSecurityPolicy = true;
-            continue;
-        }
-        if (lower === 'location') {
-            rewritten[key] = rewriteLocationHeader(value, appId, port);
-            continue;
-        }
-        if (lower === 'set-cookie') {
-            const cookies = rewriteSetCookieHeaders(value, appId);
-            if (cookies) {
-                rewritten[key] = cookies;
-            }
-            continue;
-        }
-        rewritten[key] = value;
-    }
-
-    if (!hasContentSecurityPolicy) {
-        rewritten['Content-Security-Policy'] = "frame-ancestors 'self'";
-    }
-
-    return rewritten;
-};
-
-const stripProxyPrefix = (fullPath) => {
-    if (!fullPath || typeof fullPath !== 'string') {
-        return '/';
-    }
-
-    const portPattern = new RegExp(`^${APP_PROXY_PREFIX}/[^/]+/${APP_PORTS_SEGMENT}/[^/]+/${APP_PROXY_SEGMENT}`);
-    const basePattern = new RegExp(`^${APP_PROXY_PREFIX}/[^/]+/${APP_PROXY_SEGMENT}`);
-
-    let stripped = fullPath.replace(portPattern, '');
-    if (stripped === fullPath) {
-        stripped = fullPath.replace(basePattern, '');
-    }
-
-    // Note: Do NOT strip /assets prefix - scenarios using api-base with base: './'
-    // need the full path to be forwarded to their UI server which serves from dist/assets/
-
-    if (!stripped) {
-        return '/';
-    }
-    return stripped.startsWith('/') ? stripped : `/${stripped}`;
-};
-
-const normalizeHost = (host) => {
-    if (typeof host !== 'string') {
-        return '';
-    }
-    return host.trim().toLowerCase();
-};
-
-const ensureLeadingSlash = (value = '/') => {
-    if (typeof value !== 'string') {
-        return '/';
-    }
-    if (!value) {
-        return '/';
-    }
-    return value.startsWith('/') ? value : `/${value}`;
-};
-
-const parseForAffinity = (value, fallbackHost = '') => {
-    const normalizedFallbackHost = normalizeHost(fallbackHost);
-    if (typeof value !== 'string' || value.length === 0) {
-        return {
-            host: normalizedFallbackHost,
-            path: '/',
-            search: '',
-        };
-    }
-
-    try {
-        const base = normalizedFallbackHost ? `http://${normalizedFallbackHost}` : 'http://placeholder';
-        const parsed = new URL(value, base);
-        return {
-            host: normalizeHost(parsed.host || normalizedFallbackHost),
-            path: parsed.pathname || '/',
-            search: parsed.search || '',
-        };
-    } catch (error) {
-        const questionIndex = value.indexOf('?');
-        const pathPart = questionIndex === -1 ? value : value.slice(0, questionIndex);
-        const searchPart = questionIndex === -1 ? '' : value.slice(questionIndex);
-        return {
-            host: normalizedFallbackHost,
-            path: ensureLeadingSlash(pathPart || value),
-            search: typeof searchPart === 'string' ? searchPart : '',
-        };
-    }
-};
-
-const extractProxyContextFromPath = (path) => {
-    if (typeof path !== 'string') {
-        return null;
-    }
-    const portMatch = path.match(new RegExp(`^${APP_PROXY_PREFIX}/([^/]+)/${APP_PORTS_SEGMENT}/([^/]+)/${APP_PROXY_SEGMENT}`));
-    if (portMatch) {
-        let appId = portMatch[1];
-        let portKey = portMatch[2];
-        try {
-            appId = decodeURIComponent(appId);
-        } catch (error) {
-            // noop
-        }
-        try {
-            portKey = decodeURIComponent(portKey);
-        } catch (error) {
-            // noop
-        }
-        return { appId, portKey };
-    }
-    const baseMatch = path.match(new RegExp(`^${APP_PROXY_PREFIX}/([^/]+)/${APP_PROXY_SEGMENT}`));
-    const match = baseMatch;
-    if (!match) {
-        return null;
-    }
-    try {
-        return { appId: decodeURIComponent(match[1]), portKey: null };
-    } catch (error) {
-        return { appId: match[1], portKey: null };
-    }
-};
-
-const buildAffinityKey = ({ host, path, search }) => {
-    const normalizedHost = normalizeHost(host);
-    const normalizedPath = path || '/';
-    return `${normalizedHost}||${normalizedPath}||${search || ''}`;
-};
-
-const normalizeRefererKey = (value, fallbackHost = '') => {
-    if (typeof value !== 'string' || value.length === 0) {
-        return null;
-    }
-    const details = parseForAffinity(value, fallbackHost);
-    if (!details.host && (!details.path || details.path === '/')) {
-        return null;
-    }
-    return buildAffinityKey(details);
-};
-
-const cleanupProxyAffinity = () => {
-    if (proxyAffinityEntryCount === 0) {
-        return;
-    }
-
-    const now = Date.now();
-
-    for (const [key, bucket] of proxyAffinity.entries()) {
-        for (const [refKey, entry] of Array.from(bucket.entries())) {
-            if (entry.expiresAt <= now) {
-                bucket.delete(refKey);
-                proxyAffinityEntryCount -= 1;
-            }
-        }
-
-        if (bucket.size === 0) {
-            proxyAffinity.delete(key);
-        }
-    }
-
-    if (proxyAffinityEntryCount <= PROXY_AFFINITY_MAX_ENTRIES) {
-        return;
-    }
-
-    const entries = [];
-    for (const [key, bucket] of proxyAffinity.entries()) {
-        for (const [refKey, entry] of bucket.entries()) {
-            entries.push({ key, refKey, entry });
-        }
-    }
-
-    entries.sort((a, b) => a.entry.lastSeen - b.entry.lastSeen);
-    const excess = proxyAffinityEntryCount - PROXY_AFFINITY_MAX_ENTRIES;
-
-    for (let index = 0; index < excess && index < entries.length; index += 1) {
-        const { key, refKey } = entries[index];
-        const bucket = proxyAffinity.get(key);
-        if (!bucket) {
-            continue;
-        }
-        if (bucket.delete(refKey)) {
-            proxyAffinityEntryCount -= 1;
-        }
-        if (bucket.size === 0) {
-            proxyAffinity.delete(key);
-        }
-    }
-};
-
-const registerProxyAffinityEntry = ({ host, path, search, refererKey, appId }) => {
-    const normalizedHost = normalizeHost(host);
-    if (!normalizedHost || !path) {
-        return;
-    }
-
-    const key = buildAffinityKey({ host: normalizedHost, path, search });
-    const normalizedRefKey = refererKey ?? DEFAULT_REF_KEY;
-    const now = Date.now();
-
-    let bucket = proxyAffinity.get(key);
-    if (!bucket) {
-        bucket = new Map();
-        proxyAffinity.set(key, bucket);
-    }
-
-    const existing = bucket.get(normalizedRefKey);
-    if (!existing) {
-        proxyAffinityEntryCount += 1;
-    }
-
-    bucket.set(normalizedRefKey, {
-        appId,
-        expiresAt: now + PROXY_AFFINITY_TTL_MS,
-        lastSeen: now,
-    });
-
-    cleanupProxyAffinity();
-};
-
-const recordProxyAffinityForRequest = ({ req, appId, targetPath }) => {
-    if (!req || !appId) {
-        return;
-    }
-
-    const hostHeader = normalizeHost(req.headers.host || '');
-    if (!hostHeader) {
-        return;
-    }
-
-    const requestParts = parseForAffinity(req.originalUrl, hostHeader);
-    if (!requestParts || !requestParts.path) {
-        return;
-    }
-
-    const refererKey = normalizeRefererKey(req.headers.referer || req.headers.referrer, hostHeader);
-
-    const requestKey = buildAffinityKey({
-        host: hostHeader,
-        path: requestParts.path,
-        search: requestParts.search,
-    });
-
-    registerProxyAffinityEntry({
-        host: hostHeader,
-        path: requestParts.path,
-        search: requestParts.search,
-        refererKey,
-        appId,
-    });
-
-    if (targetPath && typeof targetPath === 'string') {
-        const targetParts = parseForAffinity(targetPath, hostHeader);
-        if (
-            targetParts &&
-            targetParts.path &&
-            (targetParts.path !== requestParts.path || targetParts.search !== requestParts.search)
-        ) {
-            const usesProxyPrefix =
-                requestParts.path.startsWith(`${APP_PROXY_PREFIX}/`) &&
-                requestParts.path.includes(`/${APP_PROXY_SEGMENT}`);
-            const targetRefererKey = usesProxyPrefix ? requestKey : refererKey;
-            registerProxyAffinityEntry({
-                host: hostHeader,
-                path: targetParts.path,
-                search: targetParts.search,
-                refererKey: targetRefererKey ?? refererKey,
-                appId,
-            });
-        }
-    }
-};
-
-const resolveAppIdForKey = (key, refererKey, visited = new Set()) => {
-    cleanupProxyAffinity();
-
-    if (!key || visited.has(key)) {
-        return null;
-    }
-
-    visited.add(key);
-
-    const bucket = proxyAffinity.get(key);
-    if (!bucket) {
-        return null;
-    }
-
-    const now = Date.now();
-    const normalizedRefKey = refererKey ?? DEFAULT_REF_KEY;
-    const direct = bucket.get(normalizedRefKey);
-    if (direct && direct.expiresAt > now) {
-        return direct.appId;
-    }
-
-    let freshest = null;
-
-    for (const [storedRefKey, entry] of bucket.entries()) {
-        if (entry.expiresAt <= now) {
-            continue;
-        }
-
-        if (refererKey && storedRefKey === refererKey) {
-            return entry.appId;
-        }
-
-        if (storedRefKey !== DEFAULT_REF_KEY && !visited.has(storedRefKey)) {
-            const resolved = resolveAppIdForKey(storedRefKey, null, visited);
-            if (resolved && resolved === entry.appId) {
-                return entry.appId;
-            }
-        }
-
-        if (!freshest || entry.lastSeen > freshest.lastSeen) {
-            freshest = entry;
-        }
-    }
-
-    return freshest ? freshest.appId : null;
-};
-
-const resolveProxyContextFromRequest = (req) => {
-    if (!req) {
-        return null;
-    }
-
-    const hostHeader = normalizeHost(req.headers.host || '');
-    if (!hostHeader) {
-        return null;
-    }
-
-    const requestParts = parseForAffinity(req.originalUrl, hostHeader);
-    if (!requestParts || !requestParts.path) {
-        return null;
-    }
-
-    const requestContext = extractProxyContextFromPath(requestParts.path);
-    if (requestContext?.appId) {
-        return requestContext;
-    }
-
-    const refererHeader = req.headers.referer || req.headers.referrer;
-    let refererParts = null;
-    let refererKey = null;
-    let refererContext = null;
-    if (typeof refererHeader === 'string' && refererHeader.length > 0) {
-        refererParts = parseForAffinity(refererHeader, hostHeader);
-        if (refererParts) {
-            refererKey = buildAffinityKey(refererParts);
-            refererContext = extractProxyContextFromPath(refererParts.path);
-            if (refererContext?.appId) {
-                return refererContext;
-            }
-        }
-    }
-
-    const requestInProxyNamespace =
-        typeof requestParts.path === 'string' &&
-        requestParts.path.startsWith(`${APP_PROXY_PREFIX}/`) &&
-        requestParts.path.includes(`/${APP_PROXY_SEGMENT}`);
-    const refererInProxyNamespace =
-        refererParts &&
-        typeof refererParts.path === 'string' &&
-        refererParts.path.startsWith(`${APP_PROXY_PREFIX}/`) &&
-        refererParts.path.includes(`/${APP_PROXY_SEGMENT}`);
-
-    if (!requestInProxyNamespace && !refererInProxyNamespace) {
-        return null;
-    }
-
-    const requestKey = buildAffinityKey({
-        host: hostHeader,
-        path: requestParts.path,
-        search: requestParts.search,
-    });
-
-    const direct = resolveAppIdForKey(requestKey, refererKey);
-    if (direct) {
-        return { appId: direct, portKey: refererContext?.portKey ?? requestContext?.portKey ?? null };
-    }
-
-    if (refererKey) {
-        const refererAppId = resolveAppIdForKey(refererKey, null);
-        if (refererAppId) {
-            return { appId: refererAppId, portKey: refererContext?.portKey ?? null };
-        }
-    }
-
-    return null;
-};
-
-const sanitizeWebSocketHeaders = (headers = {}, port, req) => {
-    const sanitized = {};
-    for (const [key, value] of Object.entries(headers)) {
-        if (key.toLowerCase() === 'host') {
-            continue;
-        }
-        sanitized[key] = value;
-    }
-
-    sanitized.host = `${LOOPBACK_HOST}:${port}`;
-    sanitized.connection = 'Upgrade';
-    sanitized.upgrade = 'websocket';
-    const originalHost = headers.host || req?.headers?.host || `${LOOPBACK_HOST}:${PORT}`;
-    sanitized['x-forwarded-host'] = originalHost;
-    const protoHeader = headers['x-forwarded-proto'] || (req?.socket?.encrypted ? 'https' : 'http');
-    sanitized['x-forwarded-proto'] = protoHeader;
-    sanitized['x-forwarded-for'] = headers['x-forwarded-for'] || req?.socket?.remoteAddress || LOOPBACK_HOST;
-
-    if (typeof headers.origin === 'string') {
-        try {
-            const originUrl = new URL(headers.origin);
-            originUrl.host = `${LOOPBACK_HOST}:${port}`;
-            sanitized.origin = originUrl.toString();
-        } catch (error) {
-            sanitized.origin = headers.origin;
-        }
-    }
-
-    return sanitized;
-};
-
-const abortWebSocketUpgrade = (socket, statusCode, message) => {
-    try {
-        socket.write(`HTTP/1.1 ${statusCode} ${message}\r\nConnection: close\r\n\r\n`);
-    } catch (error) {
-        // ignore write errors during abort
-    }
-    socket.destroy();
-};
-
-const proxyWebSocketUpgrade = async ({ req, socket, head, appId, portKey, targetPath }) => {
-    let target;
-    try {
-        target = await resolveAppProxyTarget(appId, portKey);
-    } catch (error) {
-        console.error('[APP PROXY][WS] Failed to resolve app:', error.message);
-        abortWebSocketUpgrade(socket, 502, 'Bad Gateway');
-        return;
-    }
-
-    const headers = sanitizeWebSocketHeaders(req.headers, target.port, req);
-    const requestPath = targetPath && targetPath.length > 0 ? targetPath : '/';
-    const requestLine = `${req.method} ${requestPath} HTTP/${req.httpVersion}\r\n`;
-
-    const upstream = net.connect(target.port, LOOPBACK_HOST);
-
-    upstream.on('connect', () => {
-        upstream.write(requestLine);
-        for (const [headerKey, headerValue] of Object.entries(headers)) {
-            if (Array.isArray(headerValue)) {
-                headerValue.forEach((entry) => {
-                    upstream.write(`${headerKey}: ${entry}\r\n`);
-                });
-            } else {
-                upstream.write(`${headerKey}: ${headerValue}\r\n`);
-            }
-        }
-        upstream.write('\r\n');
-        if (head && head.length > 0) {
-            upstream.write(head);
-        }
-
-        upstream.pipe(socket);
-        socket.pipe(upstream);
-    });
-
-    upstream.on('error', (error) => {
-        console.error('[APP PROXY][WS] Upstream error:', error.message);
-        if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
-            APP_PROXY_CACHE.delete(appId);
-        }
-        socket.destroy();
-    });
-
-    socket.on('error', () => {
-        upstream.destroy();
-    });
-};
-
-const proxyHttpRequest = async ({ req, res, appId, portKey, targetPath }) => {
-    let target;
-    try {
-        target = await resolveAppProxyTarget(appId, portKey);
-    } catch (error) {
-        console.error('[APP PROXY] Failed to resolve target:', error.message);
-        res.status(502).json({
-            error: 'Application preview unavailable',
-            details: error.message,
-            appId,
-            port: portKey ?? undefined,
-        });
-        return;
-    }
-
-    const { port, state, entry } = target;
-    const sanitizedHeaders = sanitizeRequestHeaders(req.headers, port, req);
-    sanitizedHeaders['accept-encoding'] = 'identity';
-    const requestPath = targetPath && targetPath.length > 0 ? targetPath : '/';
-
-    const portLabel = entry?.label || entry?.slug || String(entry?.port);
-    console.log(
-        `[APP PROXY] ${req.method} ${req.originalUrl} -> http://${LOOPBACK_HOST}:${port}${requestPath}` +
-            (portLabel ? ` [${portLabel}]` : '')
-    );
-
-    return new Promise((resolve) => {
-        const proxyReq = http.request(
-            {
-                hostname: LOOPBACK_HOST,
-                port,
-                method: req.method,
-                path: requestPath,
-                headers: sanitizedHeaders,
-            },
-            (proxyRes) => {
-                recordProxyAffinityForRequest({ req, appId, targetPath: requestPath });
-                let rewrittenHeaders = rewriteResponseHeaders(proxyRes.headers, appId, port);
-                rewrittenHeaders = ensureProxyCacheHeaders(rewrittenHeaders, appId);
-                const contentTypeHeader = proxyRes.headers['content-type'] || proxyRes.headers['Content-Type'];
-                const shouldInjectBootstrap =
-                    typeof contentTypeHeader === 'string' && /text\/html/i.test(contentTypeHeader);
-                const assetNamespace = buildAssetNamespaceForEntry(entry);
-                const basePath = entry?.path ?? state.primaryEntry?.path ?? null;
-
-                if (shouldInjectBootstrap) {
-                    delete rewrittenHeaders['content-length'];
-                    delete rewrittenHeaders['Content-Length'];
-                }
-
-                res.status(proxyRes.statusCode ?? 502);
-                for (const [headerKey, headerValue] of Object.entries(rewrittenHeaders)) {
-                    if (typeof headerValue === 'undefined') {
-                        continue;
-                    }
-                    res.setHeader(headerKey, headerValue);
-                }
-
-                if (!shouldInjectBootstrap) {
-                    proxyRes.pipe(res);
-                    proxyRes.on('end', resolve);
-                    return;
-                }
-
-                const chunks = [];
-                proxyRes.on('data', (chunk) => {
-                    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-                });
-                proxyRes.on('end', () => {
-                    try {
-                        const bodyBuffer = Buffer.concat(chunks);
-                        let rendered = bodyBuffer.toString('utf8');
-                        if (assetNamespace) {
-                            rendered = rewriteHtmlAssetReferences(rendered, assetNamespace, basePath);
-                        }
-                        const script = buildProxyBootstrapScript(state);
-                        const scriptTag = `<script data-app-monitor="proxy-bootstrap">${script}</script>`;
-
-                        let injected = rendered;
-                        if (rendered.includes('</head>')) {
-                            injected = rendered.replace('</head>', `${scriptTag}</head>`);
-                        } else if (rendered.includes('<body')) {
-                            const bodyIndex = rendered.indexOf('<body');
-                            const closeIndex = rendered.indexOf('>', bodyIndex);
-                            if (closeIndex !== -1) {
-                                injected = `${rendered.slice(0, closeIndex + 1)}${scriptTag}${rendered.slice(closeIndex + 1)}`;
-                            } else {
-                                injected = `${scriptTag}${rendered}`;
-                            }
-                        } else {
-                            injected = `${scriptTag}${rendered}`;
-                        }
-
-                        res.send(injected);
-                    } catch (error) {
-                        console.error('[APP PROXY] Failed to inject bootstrap script:', error.message);
-                        res.send(Buffer.concat(chunks));
-                    }
-                    resolve();
-                });
-            }
-        );
-
-        proxyReq.on('error', (err) => {
-            console.error('[APP PROXY] error:', err.message);
-            if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET') {
-                APP_PROXY_CACHE.delete(appId);
-            }
-            if (!res.headersSent) {
-                res.status(502).json({
-                    error: 'Preview target unavailable',
-                    details: err.message,
-                    appId,
-                });
-            } else {
-                res.end();
-            }
-            resolve();
-        });
-
-        const method = (req.method || 'GET').toUpperCase();
-        if (method !== 'GET' && method !== 'HEAD') {
-            req.pipe(proxyReq);
-        } else {
-            proxyReq.end();
-        }
-    });
-};
-
-const proxyStaticAssetRequest = async ({ req, res, appId, portKey }) => {
-    let target;
-    try {
-        target = await resolveAppProxyTarget(appId, portKey ?? null);
-    } catch (error) {
-        return false;
-    }
-
-    const { port, entry } = target;
-    const sanitizedHeaders = sanitizeRequestHeaders(req.headers, port, req);
-    sanitizedHeaders['accept-encoding'] = 'identity';
-    const assetNamespace = buildAssetNamespaceForEntry(entry);
-    const upstreamPath = stripProxyPrefix(req.originalUrl) || '/';
-
-    return await new Promise((resolve) => {
-        const upstreamReq = http.request(
-            {
-                hostname: LOOPBACK_HOST,
-                port,
-                method: req.method,
-                path: upstreamPath,
-                headers: sanitizedHeaders,
-            },
-            (upstreamRes) => {
-                const contentTypeHeader = upstreamRes.headers['content-type'] || upstreamRes.headers['Content-Type'];
-                if (typeof contentTypeHeader === 'string' && /text\/html/i.test(contentTypeHeader)) {
-                    upstreamRes.resume();
-                    upstreamRes.on('end', () => resolve(false));
-                    return;
-                }
-
-                recordProxyAffinityForRequest({ req, appId, targetPath: upstreamPath });
-                let rewrittenHeaders = rewriteResponseHeaders(upstreamRes.headers, appId, port);
-                rewrittenHeaders = ensureProxyIdentityHeaders(rewrittenHeaders, appId);
-                const methodUpper = (req.method || 'GET').toUpperCase();
-                const isJavascript = typeof contentTypeHeader === 'string' && /(javascript|ecmascript)/i.test(contentTypeHeader);
-                const isStylesheet = typeof contentTypeHeader === 'string' && /text\/css/i.test(contentTypeHeader);
-                const shouldRewrite = methodUpper !== 'HEAD' && Boolean(assetNamespace) && (isJavascript || isStylesheet);
-
-                if (shouldRewrite) {
-                    delete rewrittenHeaders['content-length'];
-                    delete rewrittenHeaders['Content-Length'];
-                }
-
-                res.status(upstreamRes.statusCode ?? 200);
-                for (const [headerKey, headerValue] of Object.entries(rewrittenHeaders)) {
-                    if (typeof headerValue === 'undefined') {
-                        continue;
-                    }
-                    res.setHeader(headerKey, headerValue);
-                }
-
-                if (!shouldRewrite) {
-                    upstreamRes.pipe(res);
-                    upstreamRes.on('end', () => resolve(true));
-                    return;
-                }
-
-                const chunks = [];
-                upstreamRes.on('data', (chunk) => {
-                    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-                });
-                upstreamRes.on('end', () => {
-                    const buffer = Buffer.concat(chunks);
-                    try {
-                        let content = buffer.toString('utf8');
-                        if (isJavascript) {
-                            content = rewriteJavascriptAssetReferences(content, assetNamespace);
-                        } else if (isStylesheet) {
-                            content = rewriteCssAssetReferences(content, assetNamespace);
-                        }
-                        res.send(content);
-                    } catch (error) {
-                        console.error('[APP PROXY] Asset rewrite failed:', error.message);
-                        res.send(buffer);
-                    }
-                    resolve(true);
-                });
-            }
-        );
-
-        upstreamReq.on('error', (error) => {
-            if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
-                APP_PROXY_CACHE.delete(appId);
-            }
-            resolve(false);
-        });
-
-        const method = (req.method || 'GET').toUpperCase();
-        if (method === 'GET' || method === 'HEAD') {
-            upstreamReq.end();
-        } else {
-            req.pipe(upstreamReq);
-        }
-    });
-};
-
-app.use(async (req, res, next) => {
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-        return next();
-    }
-
-    const path = req.path || req.originalUrl || '';
-
-    // CRITICAL: Skip app-monitor's own API routes to prevent them from being proxied to scenarios
-    // This fixes the bug where /api/v1/apps/summary gets routed to /apps/<scenario>/api/v1/apps/summary
-    // Uses explicit registry (APP_MONITOR_API_PREFIXES) to avoid blocking scenario APIs
-    if (isAppMonitorApiRoute(path)) {
-        return next();
-    }
-
-    if (!isProxiableRootAssetRequest(path)) {
-        return next();
-    }
-
-    const context = resolveProxyContextFromRequest(req);
-    if (!context?.appId) {
-        return next();
-    }
-
-    try {
-        const served = await proxyStaticAssetRequest({
-            req,
-            res,
-            appId: context.appId,
-            portKey: context.portKey ?? null,
-        });
-        if (served) {
-            return;
-        }
-    } catch (error) {
-        console.error('[APP PROXY] Root asset proxy failed:', error.message);
-    }
-
-    return next();
-});
-
-app.use(`${APP_PROXY_PREFIX}/:appId/${APP_PORTS_SEGMENT}/:portKey/${APP_PROXY_SEGMENT}`, async (req, res, next) => {
-    try {
-        const targetPath = stripProxyPrefix(req.originalUrl);
-        await proxyHttpRequest({
-            req,
-            res,
-            appId: req.params.appId,
-            portKey: req.params.portKey,
-            targetPath,
-        });
-        return;
-    } catch (error) {
-        console.error('[APP PROXY] Failed to proxy request:', error.message);
-        if (!res.headersSent) {
-            res.status(502).json({ error: 'Application preview unavailable', details: error.message });
-        }
-    }
-    if (!res.headersSent) {
-        next();
-    }
-});
-
-app.get(`${APP_PROXY_PREFIX}/:appId/_proxy/metadata`, async (req, res) => {
-    try {
-        const state = await resolveAppProxyState(req.params.appId);
-        res.json({
-            success: true,
-            data: buildProxyBootstrapPayload(state),
-        });
-    } catch (error) {
-        res.status(404).json({
-            success: false,
-            error: error.message,
-        });
-    }
-});
-
-app.use(`${APP_PROXY_PREFIX}/:appId/${APP_PROXY_SEGMENT}`, async (req, res, next) => {
-    try {
-        const targetPath = stripProxyPrefix(req.originalUrl);
-        await proxyHttpRequest({
-            req,
-            res,
-            appId: req.params.appId,
-            portKey: null,
-            targetPath,
-        });
-        return;
-    } catch (error) {
-        console.error('[APP PROXY] Failed to proxy request:', error.message);
-        if (!res.headersSent) {
-            res.status(502).json({ error: 'Application preview unavailable', details: error.message });
-        }
-    }
-    if (!res.headersSent) {
-        next();
-    }
-});
-
-app.use(async (req, res, next) => {
-    const originalUrl = req.originalUrl || req.url || '';
-    // Skip app-monitor's own API routes
-    if (isAppMonitorApiRoute(originalUrl)) {
-        return next();
-    }
-
-    if (req.originalUrl.startsWith(`${APP_PROXY_PREFIX}/`) && req.originalUrl.includes(`/${APP_PROXY_SEGMENT}`)) {
-        return next();
-    }
-
-    const targetPath = stripProxyPrefix(req.originalUrl);
-    const hostHeader = normalizeHost(req.headers.host || '');
-
-    const refererHeader = req.headers.referer || req.headers.referrer;
-    const fetchSite = req.headers['sec-fetch-site'];
-    const acceptHeader = typeof req.headers.accept === 'string' ? req.headers.accept : '';
-    const secFetchMode = typeof req.headers['sec-fetch-mode'] === 'string'
-        ? req.headers['sec-fetch-mode'].toLowerCase()
-        : '';
-    const secFetchDest = typeof req.headers['sec-fetch-dest'] === 'string'
-        ? req.headers['sec-fetch-dest'].toLowerCase()
-        : '';
-    const isNavigationRequest =
-        req.method === 'GET' &&
-        acceptHeader.includes('text/html') &&
-        (secFetchMode === 'navigate' || secFetchMode === '' || secFetchDest === 'document' || secFetchDest === '');
-    if (isNavigationRequest && targetPath === '/') {
-        return next();
-    }
-    const refererDetails =
-        typeof refererHeader === 'string' && refererHeader.length > 0
-            ? parseForAffinity(refererHeader, hostHeader)
-            : null;
-    const refererContext = refererDetails ? extractProxyContextFromPath(refererDetails.path) : null;
-
-    const affinityContext = resolveProxyContextFromRequest(req);
-    if (affinityContext?.appId) {
-        try {
-            await proxyHttpRequest({
-                req,
-                res,
-                appId: affinityContext.appId,
-                portKey: affinityContext.portKey ?? refererContext?.portKey ?? null,
-                targetPath,
-            });
-            return;
-        } catch (error) {
-            console.error('[APP PROXY] Affinity proxy failed:', error.message);
-            if (res.headersSent) {
-                return;
-            }
-        }
-    }
-
-    if (
-        !refererDetails ||
-        !refererContext ||
-        (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'same-site' && fetchSite !== 'none')
-    ) {
-        return next();
-    }
-
-    if (refererDetails.host && hostHeader && refererDetails.host !== hostHeader) {
-        return next();
-    }
-
-    const refererKey = buildAffinityKey(refererDetails);
-    const refererAffinityAppId = resolveAppIdForKey(refererKey, null);
-    if (refererAffinityAppId) {
-        try {
-            await proxyHttpRequest({
-                req,
-                res,
-                appId: refererAffinityAppId,
-                portKey: refererContext.portKey ?? null,
-                targetPath,
-            });
-            return;
-        } catch (error) {
-            console.error('[APP PROXY] Referer-affinity proxy failed:', error.message);
-            if (res.headersSent) {
-                return;
-            }
-        }
-    }
-
-    if (!refererContext.appId) {
-        return next();
-    }
-
-    try {
-        await proxyHttpRequest({
-            req,
-            res,
-            appId: refererContext.appId,
-            portKey: refererContext.portKey ?? null,
-            targetPath,
-        });
-        return;
-    } catch (error) {
-        console.error('[APP PROXY] Referer-based proxy failed:', error.message);
-        if (!res.headersSent) {
-            res.status(502).json({
-                error: 'Application preview unavailable',
-                details: error.message,
-                appId: refererContext.appId,
-            });
-        }
-    }
-    if (!res.headersSent) {
-        next();
-    }
-});
-
-// Manual proxy function for API calls
-function proxyToApi(req, res, apiPath) {
-    const options = {
-        hostname: LOOPBACK_HOST,
-        port: API_PORT,
-        path: apiPath || req.url,
-        method: req.method,
-        headers: {
-            ...req.headers,
-            host: `${LOOPBACK_HOST}:${API_PORT}`
-        }
-    };
-
-    console.log(`[PROXY] ${req.method} ${req.url} -> http://${LOOPBACK_HOST}:${API_PORT}${options.path}`);
-
-    const proxyReq = http.request(options, (proxyRes) => {
-        res.status(proxyRes.statusCode);
-        Object.keys(proxyRes.headers).forEach(key => {
-            res.setHeader(key, proxyRes.headers[key]);
-        });
-        proxyRes.pipe(res);
-    });
-
-    proxyReq.on('error', (err) => {
-        console.error('Proxy error:', err.message);
-        res.status(502).json({
-            error: 'API server unavailable',
-            details: err.message,
-            target: `http://${LOOPBACK_HOST}:${API_PORT}${options.path}`
-        });
-    });
-
-    const method = (req.method || 'GET').toUpperCase();
-    const allowsBody = method !== 'GET' && method !== 'HEAD';
-
-    if (allowsBody) {
-        if (req.readable && !req.readableEnded) {
-            req.pipe(proxyReq);
-            return;
-        }
-
-        const resolvedBody = (() => {
-            const body = req.body;
-            if (Buffer.isBuffer(body)) {
-                return body;
-            }
-            if (typeof body === 'string') {
-                return Buffer.from(body);
-            }
-            if (body && typeof body === 'object') {
-                try {
-                    return Buffer.from(JSON.stringify(body));
-                } catch (error) {
-                    console.warn('proxyToApi could not serialize parsed body:', error.message);
-                }
-            }
-            const rawBody = req.rawBody;
-            if (Buffer.isBuffer(rawBody)) {
-                return rawBody;
-            }
-            if (typeof rawBody === 'string') {
-                return Buffer.from(rawBody);
-            }
-            return null;
-        })();
-
-        if (resolvedBody && resolvedBody.length > 0) {
-            proxyReq.setHeader('content-length', resolvedBody.length);
-            proxyReq.write(resolvedBody);
-        } else {
-            proxyReq.removeHeader('content-length');
-        }
-    }
-
-    proxyReq.end();
+    hostScenario: HOST_SCENARIO,
+    targetScenario: appData?.scenario_name || appId,
+    ports,
+    primaryPort,
+    loopbackHosts: LOOPBACK_HOSTS,
+  })
+
+  return {
+    metadata,
+    uiPort,
+    apiPort,
+    portLookup,
+  }
 }
 
-// API endpoints proxy - support both versioned and unversioned for backward compatibility
-app.use('/api/v1', (req, res) => {
-    const fullApiPath = '/api/v1' + (req.url.startsWith('/') ? req.url : '/' + req.url);
-    proxyToApi(req, res, fullApiPath);
-});
+async function getProxyContext(appId) {
+  const now = Date.now()
+  const cached = proxyContextCache.get(appId)
+  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return cached.context
+  }
 
-// Legacy API proxy (redirect to v1)
-app.use('/api', (req, res) => {
-    // Skip if already versioned
-    if (req.url.startsWith('/health')) {
-        const fullApiPath = '/api' + req.url;
-        proxyToApi(req, res, fullApiPath);
-        return;
+  const appData = await getAppMetadata(appId)
+  const context = buildProxyContext(appId, appData)
+  proxyContextCache.set(appId, { context, timestamp: now })
+  return context
+}
+
+function resolvePortFromKey(context, portKey) {
+  if (!portKey) {
+    return null
+  }
+  const normalized = normalizePortKey(portKey)
+  return context.portLookup.get(normalized) || null
+}
+
+async function forwardHttpRequest(req, res, relativeUrl, targetPort) {
+  const normalizedUrl = relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`
+  const proxyReq = Object.create(req)
+  proxyReq.url = normalizedUrl
+  await proxyToApi(proxyReq, res, normalizedUrl, {
+    apiPort: targetPort,
+    apiHost: LOOPBACK_HOST,
+    timeout: DEFAULT_TIMEOUT_MS,
+    verbose: true,
+  })
+}
+
+async function proxyHtmlFromUi({ appId, uiPort, relativeUrl, req, res, metadata }) {
+  const targetUrl = `http://${LOOPBACK_HOST}:${uiPort}${relativeUrl}`
+  const response = await axios.get(targetUrl, {
+    timeout: DEFAULT_TIMEOUT_MS,
+    headers: {
+      ...req.headers,
+      host: `${LOOPBACK_HOST}:${uiPort}`,
+    },
+    responseType: 'text',
+    validateStatus: () => true,
+  })
+
+  let html = response.data
+  const contentType = response.headers['content-type'] || 'text/html'
+
+  if (typeof html === 'string' && contentType.includes('text/html')) {
+    const metadataPayload = {
+      ...metadata,
+      generatedAt: Date.now(),
     }
 
-    if (req.url.startsWith('/v1')) {
-        const fullApiPath = '/api' + req.url;
-        proxyToApi(req, res, fullApiPath);
-    } else {
-        // Redirect to v1
-        const fullApiPath = '/api/v1' + (req.url.startsWith('/') ? req.url : '/' + req.url);
-        proxyToApi(req, res, fullApiPath);
+    html = injectProxyMetadata(html, metadataPayload, {
+      patchFetch: false,
+    })
+
+    html = injectBaseTag(html, `/apps/${appId}/proxy/`, {
+      skipIfExists: true,
+      dataAttribute: 'data-app-monitor',
+    })
+  }
+
+  res.set('Content-Type', contentType)
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+  res.set('X-App-Monitor-App', appId)
+  res.status(response.status).send(html)
+}
+
+async function handlePortProxyRequest(req, res) {
+  const { appId, portKey } = req.params
+  const relativeUrl = extractProxyRelativeUrl(req.originalUrl || req.url || '/')
+  console.log(`[PORT PROXY] ${appId}/${portKey} -> ${relativeUrl}`)
+
+  try {
+    const context = await getProxyContext(appId)
+    const targetPort = resolvePortFromKey(context, portKey)
+    if (!targetPort) {
+      res.status(404).json({ error: `Port ${portKey} not found for ${appId}` })
+      return
     }
-});
 
-// WebSocket handling
-wss.on('connection', (ws) => {
-    console.log('New WebSocket client connected');
+    await forwardHttpRequest(req, res, relativeUrl, targetPort)
+  } catch (error) {
+    console.error(`[PORT PROXY] Failed for ${appId}/${portKey}:`, error.message)
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Failed to proxy port', details: error.message })
+    }
+  }
+}
 
-    // Add error handling to prevent crashes
-    ws.on('error', (error) => {
-        console.error('WebSocket error:', error.message);
-        // Don't crash the server on WebSocket errors
-    });
+async function handleScenarioProxyRequest(req, res) {
+  const { appId } = req.params
+  const relativeUrl = extractProxyRelativeUrl(req.originalUrl || req.url || '/')
+  console.log(`[APP PROXY] ${appId} -> ${relativeUrl}`)
 
-    // Send initial connection message (wrapped in try-catch)
+  try {
+    const context = await getProxyContext(appId)
+
+    if (!context.uiPort) {
+      res.status(502).json({ error: 'App has no UI port configured' })
+      return
+    }
+
+    if (isApiPath(relativeUrl)) {
+      const targetPort = context.apiPort || context.uiPort
+      await forwardHttpRequest(req, res, relativeUrl, targetPort)
+      return
+    }
+
+    if (isHtmlLikeRequest(req, relativeUrl)) {
+      await proxyHtmlFromUi({
+        appId,
+        uiPort: context.uiPort,
+        relativeUrl,
+        req,
+        res,
+        metadata: context.metadata,
+      })
+      return
+    }
+
+    await forwardHttpRequest(req, res, relativeUrl, context.uiPort)
+  } catch (error) {
+    console.error(`[APP PROXY] Error proxying ${appId}:`, error.message)
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Failed to proxy application', details: error.message })
+    }
+  }
+}
+
+async function handleProxyWebSocket(req, socket, head) {
+  if (!req.url) {
+    return false
+  }
+
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`)
+  const pathname = url.pathname
+  const search = url.search || ''
+
+  const portMatch = pathname.match(/^\/apps\/([^/]+)\/ports\/([^/]+)\/proxy(\/.*)?$/)
+  if (portMatch) {
+    const [, appId, portKey, remainder = '/'] = portMatch
     try {
-        ws.send(JSON.stringify({
-            type: 'connection',
-            payload: { status: 'connected' }
-        }));
+      const context = await getProxyContext(appId)
+      const targetPort = resolvePortFromKey(context, portKey)
+      if (!targetPort) {
+        throw new Error(`Port ${portKey} not found`)
+      }
+      const relativeUrl = (remainder || '/') + search
+      const proxyReq = Object.create(req)
+      proxyReq.url = relativeUrl
+      proxyWebSocketUpgrade(proxyReq, socket, head, {
+        apiPort: targetPort,
+        apiHost: LOOPBACK_HOST,
+        verbose: true,
+      })
+      return true
     } catch (error) {
-        console.error('Failed to send initial message:', error.message);
-        return;
+      console.error(`[WS PORT PROXY] ${appId}/${portKey} failed:`, error.message)
+      socket.destroy()
+      return true
     }
+  }
 
-    // Real-time metric updates removed - UI now uses initial API fetch for accurate data
-    // Mock setInterval was sending memory values up to 2048, causing >100% displays
+  const appMatch = pathname.match(/^\/apps\/([^/]+)\/proxy(\/.*)?$/)
+  if (appMatch) {
+    const [, appId, remainder = '/'] = appMatch
+    try {
+      const context = await getProxyContext(appId)
+      const relativeUrl = (remainder || '/') + search
+      const targetPort = isApiPath(relativeUrl) ? context.apiPort || context.uiPort : context.uiPort
+      if (!targetPort) {
+        throw new Error('No target port available')
+      }
+      const proxyReq = Object.create(req)
+      proxyReq.url = relativeUrl
+      proxyWebSocketUpgrade(proxyReq, socket, head, {
+        apiPort: targetPort,
+        apiHost: LOOPBACK_HOST,
+        verbose: true,
+      })
+      return true
+    } catch (error) {
+      console.error(`[WS APP PROXY] ${appId} failed:`, error.message)
+      socket.destroy()
+      return true
+    }
+  }
 
-    // Handle client messages
-    ws.on('message', (message) => {
-        try {
-            const data = JSON.parse(message);
-            console.log('Received:', data);
+  return false
+}
 
-            // Handle different message types
-            switch (data.type) {
-                case 'subscribe':
-                    // Subscribe to specific app updates
-                    console.log(`Client subscribed to: ${data.appId}`);
-                    break;
-                case 'command':
-                    // Execute command and send response
-                    handleCommand(data.command, ws);
-                    break;
-            }
-        } catch (error) {
-            console.error('WebSocket message error:', error);
+const app = createScenarioServer({
+  uiPort: PORT,
+  apiPort: API_PORT,
+  apiHost: LOOPBACK_HOST,
+  distDir: path.join(__dirname, 'dist'),
+  serviceName: 'app-monitor-ui',
+  version: '1.0.0',
+  corsOrigins: '*',
+  verbose: true,
+  setupRoutes: (expressApp) => {
+    expressApp.use((req, res, next) => {
+      if (req.path.startsWith('/apps/') && req.path.includes('/proxy')) {
+        return next()
+      }
+
+      const originalSend = res.send
+      res.send = function sendWithBase(body) {
+        const contentType = res.getHeader('content-type')
+        const isHtml = contentType && typeof contentType === 'string' && contentType.includes('text/html')
+
+        if (isHtml && typeof body === 'string') {
+          const modified = injectBaseTag(body, '/', {
+            skipIfExists: true,
+            dataAttribute: 'data-app-monitor-self',
+          })
+          return originalSend.call(this, modified)
         }
-    });
 
-    ws.on('close', () => {
-        console.log('WebSocket client disconnected');
-        // No intervals to clear - metrics come from API calls
-    });
+        return originalSend.call(this, body)
+      }
 
-    ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
-    });
-});
+      next()
+    })
 
-server.on('upgrade', async (req, socket, head) => {
-    const hostHeader = req.headers.host || `localhost:${PORT}`;
-    let parsed;
+    const additionalProxyRoutes = [
+      '/scenarios',
+      '/metadata',
+      '/logs',
+      '/health-aggregate',
+      '/orchestrator',
+      '/docker',
+      '/timeline',
+      '/resources',
+    ]
+
+    additionalProxyRoutes.forEach((route) => {
+      expressApp.use(route, createProxyMiddleware({
+        apiPort: API_PORT,
+        apiHost: LOOPBACK_HOST,
+        timeout: DEFAULT_TIMEOUT_MS,
+        verbose: true,
+      }))
+    })
+
+    expressApp.all('/apps/:appId/ports/:portKey/proxy/*', (req, res) => {
+      handlePortProxyRequest(req, res)
+    })
+
+    expressApp.all('/apps/:appId/proxy/*', (req, res) => {
+      handleScenarioProxyRequest(req, res)
+    })
+
+    expressApp.post('/__debug/client-event', (req, res) => {
+      const payload = req.body || {}
+      const enriched = {
+        event: typeof payload.event === 'string' ? payload.event : 'unknown',
+        detail: payload.detail ?? null,
+        timestamp: typeof payload.timestamp === 'number' ? payload.timestamp : Date.now(),
+        userAgent: payload.userAgent || req.headers['user-agent'] || null,
+        ip: req.ip,
+      }
+
+      CLIENT_DEBUG_EVENTS.push(enriched)
+      if (CLIENT_DEBUG_EVENTS.length > MAX_CLIENT_EVENTS) {
+        CLIENT_DEBUG_EVENTS.splice(0, CLIENT_DEBUG_EVENTS.length - MAX_CLIENT_EVENTS)
+      }
+
+      console.log(`[CLIENT_EVENT] ${JSON.stringify(enriched)}`)
+      res.status(204).end()
+    })
+
+    expressApp.get('/__debug/client-event', (_req, res) => {
+      res.json({ events: CLIENT_DEBUG_EVENTS })
+    })
+  },
+})
+
+const server = http.createServer(app)
+const wss = new WebSocketServer({ noServer: true })
+
+wss.on('connection', (ws, req) => {
+  const clientIp = req.socket.remoteAddress
+  console.log(`[WS] Client connected from ${clientIp}`)
+
+  ws.on('message', async (message) => {
     try {
-        parsed = new URL(req.url, `http://${hostHeader}`);
+      const data = JSON.parse(message.toString())
+      console.log(`[WS] Received: ${JSON.stringify(data)}`)
+      ws.send(JSON.stringify({ type: 'ack', payload: data }))
     } catch (error) {
-        socket.destroy();
-        return;
+      console.error('[WS] Error processing message:', error.message)
+      ws.send(JSON.stringify({ type: 'error', message: error.message }))
     }
+  })
 
-    if (parsed.pathname === '/ws') {
+  ws.on('close', () => {
+    console.log(`[WS] Client disconnected from ${clientIp}`)
+  })
+
+  ws.on('error', (error) => {
+    console.error('[WS] WebSocket error:', error.message)
+  })
+})
+
+server.on('upgrade', (req, socket, head) => {
+  (async () => {
+    try {
+      const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
+      if (url.pathname === '/ws') {
         wss.handleUpgrade(req, socket, head, (ws) => {
-            wss.emit('connection', ws, req);
-        });
-        return;
-    }
+          wss.emit('connection', ws, req)
+        })
+        return
+      }
 
-    if (parsed.pathname.startsWith(`${APP_PROXY_PREFIX}/`) && parsed.pathname.includes(`/${APP_PROXY_SEGMENT}`)) {
-        const context = extractProxyContextFromPath(parsed.pathname);
-        if (!context?.appId) {
-            abortWebSocketUpgrade(socket, 400, 'Bad Request');
-            return;
-        }
-
-        const strippedPath = stripProxyPrefix(parsed.pathname);
-        const targetPath = `${strippedPath}${parsed.search || ''}`;
-
-        await proxyWebSocketUpgrade({
-            req,
-            socket,
-            head,
-            appId: context.appId,
-            portKey: context.portKey ?? null,
-            targetPath,
-        });
-        return;
-    }
-
-    socket.destroy();
-});
-
-// Handle commands from WebSocket
-async function handleCommand(command, ws) {
-    try {
-        // Process command and send response
-        const result = await processCommand(command);
-        ws.send(JSON.stringify({
-            type: 'command_response',
-            payload: result
-        }));
+      const handled = await handleProxyWebSocket(req, socket, head)
+      if (!handled) {
+        socket.destroy()
+      }
     } catch (error) {
-        ws.send(JSON.stringify({
-            type: 'error',
-            payload: { message: error.message }
-        }));
+      console.error('[WS] Upgrade handling failed:', error.message)
+      socket.destroy()
     }
-}
+  })()
+})
 
-async function processCommand(command) {
-    // This would integrate with the actual system
-    // For now, return mock responses
-    const [cmd, ...args] = command.split(' ');
-
-    switch (cmd) {
-        case 'status':
-            return { status: 'System operational', apps: 5, resources: 8 };
-        case 'list':
-            if (args[0] === 'apps') {
-                return { apps: ['app1', 'app2', 'app3'] };
-            }
-            break;
-        default:
-            throw new Error(`Unknown command: ${cmd}`);
-    }
-}
-
-// WebSocket broadcasts removed - all real-time data comes from actual system events
-// Mock broadcasts were causing fake metric data (memory > 100%) to be sent to clients
-
-// Set up periodic broadcasts
-// Note: Real-time updates should be triggered by actual events from the system,
-// not by periodic intervals with mock data
-// setInterval(broadcastAppUpdate, 10000);  // DISABLED - should use real events
-// setInterval(broadcastLogEntry, 15000);   // DISABLED - should use real events
-
-// Health check endpoint (before static files)
-app.get('/health', async (req, res) => {
-    const healthResponse = {
-        status: 'healthy',
-        service: 'app-monitor-ui',
-        timestamp: new Date().toISOString(),
-        readiness: true,
-        api_connectivity: {
-            connected: false,
-            api_url: `http://${LOOPBACK_HOST}:${API_PORT}`,
-            last_check: new Date().toISOString(),
-            error: null,
-            latency_ms: null
-        }
-    };
-    
-    // Test API connectivity
-    if (API_PORT) {
-        const startTime = Date.now();
-        
-        try {
-            await new Promise((resolve, reject) => {
-                const options = {
-                    hostname: LOOPBACK_HOST,
-                    port: API_PORT,
-                    path: '/health',
-                    method: 'GET',
-                    timeout: 5000,
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                };
-                
-                const req = http.request(options, (res) => {
-                    const endTime = Date.now();
-                    healthResponse.api_connectivity.latency_ms = endTime - startTime;
-                    
-                    if (res.statusCode >= 200 && res.statusCode < 300) {
-                        healthResponse.api_connectivity.connected = true;
-                        healthResponse.api_connectivity.error = null;
-                    } else {
-                        healthResponse.api_connectivity.connected = false;
-                        healthResponse.api_connectivity.error = {
-                            code: `HTTP_${res.statusCode}`,
-                            message: `API returned status ${res.statusCode}: ${res.statusMessage}`,
-                            category: 'network',
-                            retryable: res.statusCode >= 500 && res.statusCode < 600
-                        };
-                        healthResponse.status = 'degraded';
-                    }
-                    resolve();
-                });
-                
-                req.on('error', (error) => {
-                    const endTime = Date.now();
-                    healthResponse.api_connectivity.latency_ms = endTime - startTime;
-                    healthResponse.api_connectivity.connected = false;
-                    
-                    let errorCode = 'CONNECTION_FAILED';
-                    let category = 'network';
-                    let retryable = true;
-                    
-                    if (error.code === 'ECONNREFUSED') {
-                        errorCode = 'CONNECTION_REFUSED';
-                    } else if (error.code === 'ENOTFOUND') {
-                        errorCode = 'HOST_NOT_FOUND';
-                        category = 'configuration';
-                    } else if (error.code === 'ETIMEOUT') {
-                        errorCode = 'TIMEOUT';
-                    }
-                    
-                    healthResponse.api_connectivity.error = {
-                        code: errorCode,
-                        message: `Failed to connect to API: ${error.message}`,
-                        category: category,
-                        retryable: retryable,
-                        details: {
-                            error_code: error.code
-                        }
-                    };
-                    healthResponse.status = 'unhealthy';
-                    resolve();
-                });
-                
-                req.on('timeout', () => {
-                    const endTime = Date.now();
-                    healthResponse.api_connectivity.latency_ms = endTime - startTime;
-                    healthResponse.api_connectivity.connected = false;
-                    healthResponse.api_connectivity.error = {
-                        code: 'TIMEOUT',
-                        message: 'API health check timed out after 5 seconds',
-                        category: 'network',
-                        retryable: true
-                    };
-                    healthResponse.status = 'unhealthy';
-                    req.destroy();
-                    resolve();
-                });
-                
-                req.end();
-            });
-        } catch (error) {
-            const endTime = Date.now();
-            healthResponse.api_connectivity.latency_ms = endTime - startTime;
-            healthResponse.api_connectivity.connected = false;
-            healthResponse.api_connectivity.error = {
-                code: 'UNEXPECTED_ERROR',
-                message: `Unexpected error: ${error.message}`,
-                category: 'internal',
-                retryable: true
-            };
-            healthResponse.status = 'unhealthy';
-        }
-    } else {
-        // No API_PORT configured
-        healthResponse.api_connectivity.connected = false;
-        healthResponse.api_connectivity.error = {
-            code: 'MISSING_CONFIG',
-            message: 'API_PORT environment variable not configured',
-            category: 'configuration',
-            retryable: false
-        };
-        healthResponse.status = 'degraded';
-    }
-    
-    // Check WebSocket server health
-    healthResponse.websocket = {
-        connected: true,
-        active_connections: wss.clients.size,
-        error: null
-    };
-    
-    // Verify WebSocket server is actually working
-    if (!wss || typeof wss.clients === 'undefined') {
-        healthResponse.websocket.connected = false;
-        healthResponse.websocket.error = {
-            code: 'WEBSOCKET_SERVER_DOWN',
-            message: 'WebSocket server not initialized',
-            category: 'internal',
-            retryable: false
-        };
-        if (healthResponse.status === 'healthy') {
-            healthResponse.status = 'degraded';
-        }
-    }
-    
-    // Check static file availability (in production)
-    if (process.env.NODE_ENV === 'production') {
-        const staticPath = path.join(__dirname, 'dist');
-        const indexPath = path.join(staticPath, 'index.html');
-        
-        healthResponse.static_files = {
-            available: false,
-            error: null
-        };
-        
-        try {
-            if (fs.existsSync(indexPath)) {
-                healthResponse.static_files.available = true;
-            } else {
-                healthResponse.static_files.error = {
-                    code: 'STATIC_FILES_MISSING',
-                    message: 'Production build files not found',
-                    category: 'resource',
-                    retryable: false
-                };
-                if (healthResponse.status === 'healthy') {
-                    healthResponse.status = 'degraded';
-                }
-            }
-        } catch (error) {
-            healthResponse.static_files.error = {
-                code: 'STATIC_FILES_CHECK_FAILED',
-                message: `Cannot check static files: ${error.message}`,
-                category: 'resource',
-                retryable: false
-            };
-        }
-    }
-    
-    // Add server metrics
-    healthResponse.metrics = {
-        uptime_seconds: process.uptime(),
-        memory_usage_mb: process.memoryUsage().heapUsed / 1024 / 1024,
-        websocket_clients: wss.clients.size
-    };
-    
-    res.json(healthResponse);
-});
-
-// Serve built React files (Vrooli scenarios ALWAYS serve production bundles)
-const staticPath = path.join(__dirname, 'dist');
-app.use(express.static(staticPath));
-
-// Catch all routes for client-side routing (SPA fallback)
-app.get('*', (req, res) => {
-    // Skip API routes - return 404 for unknown API endpoints
-    if (isAppMonitorApiRoute(req.path)) {
-        return res.status(404).json({ error: 'Not found' });
-    }
-
-    // Read and modify index.html to inject <base> tag for correct asset resolution
-    const indexPath = path.join(staticPath, 'index.html');
-    fs.readFile(indexPath, 'utf8', (err, html) => {
-        if (err) {
-            console.error('Error reading index.html:', err);
-            return res.status(500).send('Internal server error');
-        }
-
-        // Inject <base href="/"> to ensure assets are loaded from root
-        // This is necessary because Vite uses base: './' for relative paths,
-        // but we need assets to always resolve from the root URL
-        const modifiedHtml = html.replace(
-            '<head>',
-            '<head>\n  <base href="/">'
-        );
-
-        res.send(modifiedHtml);
-    });
-});
-
-// Start server
 server.listen(PORT, () => {
-    console.log(`
+  console.log(`
 ╔════════════════════════════════════════════╗
-║     VROOLI APP MONITOR - MATRIX UI        ║
-║                                            ║
-║  UI Server running on port ${PORT}           ║
-║  WebSocket server active                   ║
-║  API proxy to port ${API_PORT}                ║
-║                                            ║
-║  Access dashboard at:                      ║
-║  http://localhost:${PORT}                     ║
+║     VROOLI APP MONITOR - MATRIX UI         ║
+║                                             ║
+║  UI Server running on port ${PORT}            ║
+║  WebSocket server active                    ║
+║  API proxy to port ${API_PORT}                 ║
+║                                             ║
+║  Access dashboard at:                       ║
+║  http://localhost:${PORT}                      ║
 ╚════════════════════════════════════════════╝
-    
-🔍 DIAGNOSTIC INFO:
-Working Directory: ${process.cwd()}
-Script Path: ${__filename}
-Process ID: ${process.pid}
-Node Version: ${process.version}
-Arguments: ${process.argv.join(' ')}
-Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}`);
-});
+    `)
+})
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
-    console.log('SIGTERM received, closing server...');
-    wss.clients.forEach((client) => {
-        client.close();
-    });
-    server.close(() => {
-        console.log('Server closed');
-        process.exit(0);
-    });
-});
-
-process.on('SIGINT', () => {
-    console.log('\nSIGINT received, closing server...');
-    wss.clients.forEach((client) => {
-        client.close();
-    });
-    server.close(() => {
-        console.log('Server closed');
-        process.exit(0);
-    });
-});
+  console.log('SIGTERM received, closing server...')
+  server.close(() => {
+    console.log('Server closed')
+    process.exit(0)
+  })
+})

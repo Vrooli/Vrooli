@@ -74,6 +74,7 @@ interface IssueTrackerDataProviderProps {
 }
 
 interface IssueTrackerDataContextValue {
+  apiBaseUrl: string;
   issues: Issue[];
   dashboardStats: DashboardStats;
   loading: boolean;
@@ -309,6 +310,7 @@ export function IssueTrackerDataProvider({
 
   const contextValue = useMemo<IssueTrackerDataContextValue>(
     () => ({
+      apiBaseUrl,
       issues,
       dashboardStats,
       loading,

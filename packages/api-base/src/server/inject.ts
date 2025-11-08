@@ -179,7 +179,7 @@ function buildProxyBootstrapScript(info: ProxyInfo, options: {
   if (patchFetch) {
     script += `
 
-  // Patch fetch and XMLHttpRequest to rewrite localhost URLs
+  // Patch fetch and XMLHttpRequest to rewrite localhost URLs and relative API requests
   const joinPath = (base, path) => {
     const trimmedBase = base.endsWith('/') ? base.slice(0, -1) : base;
     const trimmedPath = path.startsWith('/') ? path : '/' + path;
@@ -195,32 +195,66 @@ function buildProxyBootstrapScript(info: ProxyInfo, options: {
     }
 
     const index = getIndex();
-    if (!index || !index.hosts.has(url.hostname.toLowerCase())) {
+    if (!index) {
       return null;
     }
 
-    const portKey = url.port ? url.port : '';
-    let entry = portKey ? index.aliasMap.get(portKey.toLowerCase()) : null;
-    if (!entry && !portKey) {
-      entry = index.primary;
-    }
-    if (!entry) {
-      return null;
+    // Check if this is a localhost URL (absolute localhost request to a DIFFERENT port)
+    const isLocalhost = index.hosts.has(url.hostname.toLowerCase());
+    const isSamePort = url.port === window.location.port || (!url.port && !window.location.port);
+
+    if (isLocalhost && !isSamePort) {
+      // For localhost URLs to different ports, use port-based routing
+      const portKey = url.port ? url.port : '';
+      let entry = portKey ? index.aliasMap.get(portKey.toLowerCase()) : null;
+      if (!entry && !portKey) {
+        entry = index.primary;
+      }
+      if (!entry) {
+        return null;
+      }
+
+      const basePath = entry.path || index.primary?.path;
+      if (!basePath) {
+        return null;
+      }
+
+      const protocol = scheme === 'ws'
+        ? (window.location.protocol === 'https:' ? 'wss:' : 'ws:')
+        : window.location.protocol;
+      const host = window.location.host;
+      const path = joinPath(basePath, url.pathname || '/');
+      const search = url.search || '';
+      const hash = scheme === 'ws' ? '' : (url.hash || '');
+      return protocol + '//' + host + path + search + hash;
     }
 
-    const basePath = entry.path || index.primary?.path;
-    if (!basePath) {
-      return null;
+    // Check if this is a same-origin request from proxied iframe
+    // When child iframe at /apps/child/proxy/index.html makes fetch('/api/v1/data'),
+    // it resolves to http://host/api/v1/data (NOT /apps/child/proxy/api/v1/data)
+    // because fetch uses window.location, not <base> tag
+    const isSameOrigin = url.hostname === window.location.hostname &&
+                         url.port === window.location.port;
+
+    if (isSameOrigin && index.primary?.path) {
+      const proxyPath = index.primary.path;
+      const currentPath = window.location.pathname;
+
+      // Only rewrite if we're in a proxied context and request path doesn't already include proxy path
+      if (currentPath.startsWith(proxyPath) && !url.pathname.startsWith(proxyPath)) {
+        // Rewrite to go through proxy path
+        const protocol = scheme === 'ws'
+          ? (window.location.protocol === 'https:' ? 'wss:' : 'ws:')
+          : window.location.protocol;
+        const host = window.location.host;
+        const path = joinPath(proxyPath, url.pathname || '/');
+        const search = url.search || '';
+        const hash = scheme === 'ws' ? '' : (url.hash || '');
+        return protocol + '//' + host + path + search + hash;
+      }
     }
 
-    const protocol = scheme === 'ws'
-      ? (window.location.protocol === 'https:' ? 'wss:' : 'ws:')
-      : window.location.protocol;
-    const host = window.location.host;
-    const path = joinPath(basePath, url.pathname || '/');
-    const search = url.search || '';
-    const hash = scheme === 'ws' ? '' : (url.hash || '');
-    return protocol + '//' + host + path + search + hash;
+    return null;
   };
 
   const ensurePatched = () => {
@@ -418,4 +452,65 @@ export function injectScenarioConfig(
 
   // Fallback: prepend to entire document
   return `<script id="${SCENARIO_CONFIG_SCRIPT_ID}">${script}</script>\n${html}`
+}
+
+/**
+ * Inject base tag into HTML
+ *
+ * Injects a `<base href="...">` tag into HTML to control how relative URLs are resolved.
+ * This is critical for scenarios that act as hosts (like app-monitor) to ensure their
+ * own assets load correctly even when accessed via nested URLs.
+ *
+ * @param html - HTML content
+ * @param basePath - Base path to inject (e.g., "/" for root, or "/apps/scenario/proxy/" for proxied)
+ * @param options - Injection options
+ * @returns Modified HTML with base tag
+ *
+ * @example
+ * ```typescript
+ * // For a host scenario accessed at any URL, inject "/" to ensure assets load from root
+ * const html = '<html><head></head><body>...</body></html>'
+ * const modified = injectBaseTag(html, '/')
+ * // Result: <html><head><base href="/"></head><body>...</body></html>
+ *
+ * // For a proxied scenario, inject the proxy path
+ * const modified = injectBaseTag(html, '/apps/scenario-auditor/proxy/')
+ * ```
+ */
+export function injectBaseTag(
+  html: string,
+  basePath: string,
+  options: {
+    /** Skip injection if base tag already exists */
+    skipIfExists?: boolean
+    /** Data attribute to add to base tag for identification */
+    dataAttribute?: string
+  } = {}
+): string {
+  const {
+    skipIfExists = true,
+    dataAttribute = 'data-vrooli-base',
+  } = options
+
+  // Check if base tag already exists
+  if (skipIfExists && /<base\s+[^>]*>/i.test(html)) {
+    return html
+  }
+
+  // Ensure trailing slash for base href
+  const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`
+  const baseTag = `<base ${dataAttribute}="injected" href="${normalizedBase}">`
+
+  // Try to inject into <head>
+  if (html.includes('<head>')) {
+    return html.replace('<head>', `<head>\n${baseTag}`)
+  }
+
+  // Try to inject at start of <html>
+  if (html.includes('<html>')) {
+    return html.replace('<html>', `<html>\n${baseTag}`)
+  }
+
+  // Fallback: prepend to entire document
+  return `${baseTag}\n${html}`
 }

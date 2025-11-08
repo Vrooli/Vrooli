@@ -25,6 +25,7 @@ export {
   buildProxyMetadata,
   injectProxyMetadata,
   injectScenarioConfig,
+  injectBaseTag,
 } from './inject.js'
 
 // Proxy middleware

@@ -152,3 +152,60 @@ export const PROXY_METADATA_SCRIPT_ID = 'vrooli-proxy-metadata' as const
  * ID for injected scenario config script tag
  */
 export const SCENARIO_CONFIG_SCRIPT_ID = 'vrooli-scenario-config' as const
+
+/**
+ * Common asset file extensions
+ *
+ * Used to detect asset requests and prevent SPA fallback from serving
+ * index.html for these requests.
+ */
+export const ASSET_EXTENSIONS = new Set([
+  '.js',
+  '.mjs',
+  '.ts',
+  '.tsx',
+  '.jsx',
+  '.css',
+  '.map',
+  '.json',
+  '.svg',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.ico',
+  '.webp',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.wasm',
+  '.mp3',
+  '.mp4',
+  '.webm',
+  '.ogg',
+  '.wav',
+  '.pdf',
+  '.zip',
+  '.tar',
+  '.gz',
+])
+
+/**
+ * Common asset path prefixes
+ *
+ * Paths starting with these prefixes are typically assets from dev servers
+ * or build tools.
+ */
+export const ASSET_PATH_PREFIXES = [
+  '/@vite',
+  '/@react-refresh',
+  '/@fs/',
+  '/src/',
+  '/node_modules/.vite/',
+  '/assets/',
+  '/static/',
+  '/public/',
+  '/_next/',
+  '/__webpack_hmr',
+]

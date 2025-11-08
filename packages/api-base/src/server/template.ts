@@ -15,7 +15,7 @@ import { createConfigEndpoint } from './config.js'
 import { createHealthEndpoint } from './health.js'
 import { proxyToApi, createProxyMiddleware, proxyWebSocketUpgrade } from './proxy.js'
 import { injectProxyMetadata, injectScenarioConfig } from './inject.js'
-import { parsePort } from '../shared/utils.js'
+import { parsePort, isAssetRequest } from '../shared/utils.js'
 
 /**
  * Default allowed CORS origins
@@ -277,6 +277,9 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
   // Create Express app
   const app = express()
 
+  // Disable X-Powered-By header for security
+  app.disable('x-powered-by')
+
   // JSON body parser for API routes
   app.use(express.json({ limit: '10mb' }))
 
@@ -347,7 +350,33 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
   app.use(express.static(absoluteDistDir))
 
   // SPA fallback - serve index.html for all other routes
+  // IMPORTANT: This must be smart about assets to avoid returning HTML for .js/.css/etc requests
   app.get('*', (req: Request, res: Response) => {
+    const requestPath = req.path
+
+    // CRITICAL: Skip proxy routes - they should be handled by custom route handlers
+    // Proxy routes contain '/proxy' in the path (e.g., /apps/scenario/proxy/*)
+    if (requestPath.includes('/proxy')) {
+      // Don't serve index.html for proxy routes - let them 404 or be handled by custom routes
+      if (verbose) {
+        console.log(`[server] Skipping SPA fallback for proxy route: ${requestPath}`)
+      }
+      res.status(404).type('text/plain').send('Proxy route not handled')
+      return
+    }
+
+    // If this looks like an asset request (has .js, .css, etc extension or asset prefix),
+    // return 404 instead of index.html. This prevents the browser from receiving HTML
+    // when it expects a JavaScript file, which would break the app.
+    if (isAssetRequest(requestPath)) {
+      if (verbose) {
+        console.log(`[server] Asset not found (404): ${requestPath}`)
+      }
+      res.status(404).type('text/plain').send('Not found')
+      return
+    }
+
+    // For non-asset routes, serve index.html (SPA fallback)
     const indexPath = path.join(absoluteDistDir, 'index.html')
 
     if (!fs.existsSync(indexPath)) {
@@ -355,7 +384,22 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
       return
     }
 
-    res.sendFile(indexPath)
+    if (verbose) {
+      console.log(`[server] SPA fallback: ${requestPath} -> index.html`)
+    }
+
+    // CRITICAL: Use res.send() instead of res.sendFile() so that any middleware
+    // that wraps res.send (like base tag injection) will be triggered.
+    // sendFile() bypasses wrapped send() interceptors!
+    try {
+      const htmlContent = fs.readFileSync(indexPath, 'utf-8')
+      res.type('text/html').send(htmlContent)
+    } catch (error) {
+      if (verbose) {
+        console.error(`[server] Error reading index.html:`, error)
+      }
+      res.status(500).send('Failed to serve application')
+    }
   })
 
   // Log configuration
