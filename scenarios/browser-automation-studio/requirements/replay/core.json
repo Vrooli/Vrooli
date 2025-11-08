@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-06T02:22:19.969Z"
+    "last_synced_at": "2025-11-08T02:32:14.183Z"
   },
   "requirements": [
     {
@@ -38,14 +38,14 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Replay exports portable bundles for marketing and sharing",
       "description": "Confirms the export endpoint generates self-contained bundles (screenshots, timeline JSON, metadata) that work offline.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "validation": [
         {
           "type": "test",
           "ref": "api/services/exporter.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Exporter generates ReplayMovieSpec with execution metadata."
         },
         {
@@ -59,14 +59,14 @@
           "type": "test",
           "ref": "api/services/replay_renderer.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "ReplayRenderer generates video/gif from replay specs via Browserless (tested in unit phase)."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/replay/render-check.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "End-to-end validation of replay export and rendering workflow."
         }
       ]

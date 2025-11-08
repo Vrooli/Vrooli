@@ -49,17 +49,24 @@
       "validation": [
         {
           "type": "test",
-          "ref": "test/phases/test-integration.sh",
-          "phase": "integration",
+          "ref": "api/handlers/handlers_test.go",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "Integration phase runs workflow version history contract via Node automation."
+          "notes": "TestListWorkflowVersionsHandlerSuccess, TestGetWorkflowVersionHandlerSuccess, TestRestoreWorkflowVersionConflict validate API endpoints."
         },
         {
           "type": "test",
-          "ref": "test/integration/workflow-version-history.test.mjs",
-          "phase": "integration",
+          "ref": "api/services/workflow_service_test.go",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "Validates API restore endpoints and CLI parity through Node integration script (not a BAS workflow)."
+          "notes": "TestListWorkflowVersionsSummaries, TestRestoreWorkflowVersionAppliesHistoricDefinition validate service layer."
+        },
+        {
+          "type": "test",
+          "ref": "api/database/repository_extended_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestWorkflowVersionOperations validates version CRUD operations at repository layer."
         },
         {
           "type": "manual",

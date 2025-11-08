@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -10,6 +11,18 @@ func buildStepScript(instruction Instruction, viewportWidth, viewportHeight int)
 	payload, err := json.Marshal(instruction)
 	if err != nil {
 		return "", err
+	}
+
+	// Debug: Log if preloadHTML is present in the instruction struct
+	if instruction.PreloadHTML != "" {
+		// Also check if it's actually in the marshalled JSON
+		var check map[string]interface{}
+		json.Unmarshal(payload, &check)
+		if preloadHtml, ok := check["preloadHtml"].(string); ok {
+			fmt.Printf("[BAS-SCRIPT-DEBUG] PreloadHTML in JSON: %d bytes\n", len(preloadHtml))
+		} else {
+			fmt.Printf("[BAS-SCRIPT-DEBUG] PreloadHTML field exists (%d bytes) but NOT in JSON!\n", len(instruction.PreloadHTML))
+		}
 	}
 
 	if viewportWidth <= 0 {
@@ -112,51 +125,63 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
     await new Promise((resolve) => setTimeout(resolve, duration));
   };
 
-  const rehydrateFromPreload = () => {
-    if (!preloadHTML) {
-      return;
-    }
+  // Rehydration must run in the page context to access document/window
+  if (preloadHTML) {
     try {
-      const parser = typeof DOMParser === 'function' ? new DOMParser() : null;
-      if (!parser) {
-        if (document && document.body && (!document.body.children || document.body.children.length === 0)) {
-          document.body.innerHTML = preloadHTML;
-        }
-        return;
-      }
-      const parsed = parser.parseFromString(preloadHTML, 'text/html');
-      if (!parsed || !parsed.documentElement) {
-        if (document && document.body && (!document.body.children || document.body.children.length === 0)) {
-          document.body.innerHTML = preloadHTML;
-        }
-        return;
-      }
-      if (!document || !document.documentElement) {
-        return;
-      }
-      const newDoc = parsed.documentElement;
-      const current = document.documentElement;
-      if (current.innerHTML && current.innerHTML.trim().length > 0) {
-        return;
-      }
-      const attrs = current.getAttributeNames();
-      for (const name of attrs) {
-        if (!newDoc.hasAttribute(name)) {
-          current.removeAttribute(name);
-        }
-      }
-      for (const attr of Array.from(newDoc.attributes || [])) {
-        current.setAttribute(attr.name, attr.value);
-      }
-      current.innerHTML = newDoc.innerHTML;
-    } catch {}
-  };
+      await page.evaluate((htmlContent) => {
+        try {
+          // Check if we're at about:blank - if so, always inject regardless of existing content
+          const currentUrl = window.location.href;
+          const isBlankPage = currentUrl === 'about:blank' || currentUrl === '';
 
-  rehydrateFromPreload();
+          console.log('[BAS][rehydrate] URL:', currentUrl, 'isBlank:', isBlankPage, 'contentLength:', document.documentElement.innerHTML.length);
+
+          const parser = new DOMParser();
+          const parsed = parser.parseFromString(htmlContent, 'text/html');
+          if (!parsed || !parsed.documentElement) {
+            console.log('[BAS][rehydrate] Parse failed');
+            return;
+          }
+
+          const newDoc = parsed.documentElement;
+          const current = document.documentElement;
+
+          // Skip injection only if we have content AND we're not at about:blank
+          // This allows us to override browserless loader HTML when starting fresh
+          if (!isBlankPage && current.innerHTML && current.innerHTML.trim().length > 0) {
+            console.log('[BAS][rehydrate] Skipping - has content and not blank');
+            return;
+          }
+
+          console.log('[BAS][rehydrate] Injecting', htmlContent.length, 'bytes');
+
+          // Copy attributes
+          const attrs = current.getAttributeNames();
+          for (const name of attrs) {
+            if (!newDoc.hasAttribute(name)) {
+              current.removeAttribute(name);
+            }
+          }
+          for (const attr of Array.from(newDoc.attributes || [])) {
+            current.setAttribute(attr.name, attr.value);
+          }
+
+          // Inject content
+          current.innerHTML = newDoc.innerHTML;
+          console.log('[BAS][rehydrate] Complete - new length:', current.innerHTML.length);
+        } catch (err) {
+          console.log('[BAS][rehydrate] Error:', err.message);
+        }
+      }, preloadHTML);
+    } catch (err) {
+      // Rehydration is best-effort, continue even if it fails
+    }
+  }
 
   try {
     const currentUrl = typeof page.url === 'function' ? page.url() : 'unknown';
     console.log('[BAS][debug] step start url:', currentUrl);
+    console.log('[BAS][debug] preloadHTML length:', preloadHTML ? preloadHTML.length : 0);
   } catch {}
 
   const flushTelemetry = () => {
@@ -688,6 +713,15 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
           }
         } else {
           extras = { finalUrl: finalUrl || page.url() || rawUrl };
+        }
+        // Capture DOM snapshot for next step's preload
+        try {
+          const domSnapshot = await page.content();
+          if (typeof domSnapshot === 'string' && domSnapshot.length > 0) {
+            extras.domSnapshot = domSnapshot;
+          }
+        } catch (snapshotError) {
+          // DOM snapshot is optional, continue without it
         }
         await storeReplaySnapshot('navigate');
         break;
@@ -1841,14 +1875,69 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
         let actualValue = null;
         let failureDetail = '';
 
-        if (mode === 'exists' || mode === 'not_exists') {
+        if (mode === 'exists_or_not') {
+          // exists_or_not mode always passes - used for optional elements that may or may not appear
+          requireSelector();
+          let handle = null;
+          try {
+            // Try to find the element with a short timeout (just poll once)
+            handle = await page.$(selector);
+            if (handle) {
+              await recordBoundingBox(handle);
+            }
+          } finally {
+            if (handle && typeof handle.dispose === 'function') {
+              await handle.dispose();
+            }
+          }
+          actualValue = Boolean(handle);
+          passed = true; // Always pass regardless of element existence
+        } else if (mode === 'exists' || mode === 'not_exists') {
           requireSelector();
           let lastExists = false;
           let satisfied = false;
+          let debugInfo = '';
+
           while (Date.now() <= deadline) {
             let handle = null;
             try {
-              handle = await page.$(selector);
+              // Try page.waitForSelector first (same as wait node uses)
+              const remainingTime = Math.max(100, deadline - Date.now());
+              try {
+                handle = await page.waitForSelector(selector, {
+                  timeout: Math.min(remainingTime, pollDelay),
+                  visible: false // Don't require visibility, just existence in DOM
+                });
+              } catch (waitErr) {
+                // waitForSelector timed out, check if element exists via evaluate
+                const pageUrl = await page.url();
+                const elemInfo = await page.evaluate((sel) => {
+                  const el = document.querySelector(sel);
+                  if (!el) {
+                    return {
+                      exists: false,
+                      url: window.location.href,
+                      readyState: document.readyState,
+                      allTestIds: Array.from(document.querySelectorAll('[data-testid]')).map(e => e.getAttribute('data-testid')).slice(0, 10)
+                    };
+                  }
+                  return {
+                    exists: true,
+                    url: window.location.href,
+                    tagName: el.tagName,
+                    visible: el.offsetParent !== null,
+                    display: window.getComputedStyle(el).display
+                  };
+                }, selector);
+
+                debugInfo = JSON.stringify({...elemInfo, cdpUrl: pageUrl});
+
+                if (elemInfo.exists) {
+                  // Element exists in DOM but waitForSelector failed - try page.$()
+                  handle = await page.$(selector);
+                }
+              }
+
               lastExists = Boolean(handle);
               if (handle) {
                 await recordBoundingBox(handle);
@@ -1868,9 +1957,10 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
           actualValue = mode === 'exists' ? Boolean(elementBoundingBox) : lastExists;
           passed = satisfied;
           if (!passed) {
-            failureDetail = mode === 'exists'
+            const baseMsg = mode === 'exists'
               ? 'Expected selector "' + selector + '" to exist'
               : 'Expected selector "' + selector + '" to be absent';
+            failureDetail = debugInfo ? baseMsg + ' [DEBUG: ' + debugInfo + ']' : baseMsg;
           }
         } else if (mode === 'text_equals' || mode === 'text_contains') {
           requireSelector();

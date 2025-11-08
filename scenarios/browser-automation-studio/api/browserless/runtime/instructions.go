@@ -441,7 +441,7 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		}
 
 		switch mode {
-		case "exists", "not_exists", "text_equals", "text_contains", "attribute_equals", "attribute_contains", "expression":
+		case "exists", "not_exists", "exists_or_not", "text_equals", "text_contains", "attribute_equals", "attribute_contains", "expression":
 		default:
 			return Instruction{}, fmt.Errorf("assert node %s has unsupported mode %q", step.NodeID, mode)
 		}

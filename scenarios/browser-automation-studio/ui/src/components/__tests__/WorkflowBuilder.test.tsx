@@ -93,13 +93,11 @@ const mockUseReactFlow = vi.fn(() => ({
 }));
 
 const mockUseNodesState = vi.fn((initialNodes: Node[]) => {
-  const [nodes, setNodes] = vi.fn(() => [initialNodes, vi.fn(), vi.fn()]);
-  return [nodes, setNodes, vi.fn()];
+  return [initialNodes, vi.fn(), vi.fn()];
 });
 
 const mockUseEdgesState = vi.fn((initialEdges: Edge[]) => {
-  const [edges, setEdges] = vi.fn(() => [initialEdges, vi.fn(), vi.fn()]);
-  return [edges, setEdges, vi.fn()];
+  return [initialEdges, vi.fn(), vi.fn()];
 });
 
 vi.mock('reactflow', async () => {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -152,7 +153,7 @@ func (h *ElementAnalysisHandler) getElementAtCoordinate(ctx context.Context, url
 				errMsg = trimmed
 			}
 		}
-		return nil, fmt.Errorf(errMsg)
+		return nil, errors.New(errMsg)
 	}
 
 	probeInstruction := runtime.Instruction{
@@ -179,7 +180,7 @@ func (h *ElementAnalysisHandler) getElementAtCoordinate(ctx context.Context, url
 	probeStep := probeResponse.Steps[0]
 	if !probeStep.Success {
 		if trimmed := strings.TrimSpace(probeStep.Error); trimmed != "" {
-			return nil, fmt.Errorf(trimmed)
+			return nil, errors.New(trimmed)
 		}
 		return nil, fmt.Errorf("element probe unsuccessful")
 	}

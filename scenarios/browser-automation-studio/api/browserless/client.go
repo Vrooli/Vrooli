@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/browserless/cdp"
 	"github.com/vrooli/browser-automation-studio/browserless/compiler"
 	"github.com/vrooli/browser-automation-studio/browserless/events"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
@@ -38,6 +40,15 @@ type Client struct {
 	httpClient        *http.Client
 	heartbeatInterval time.Duration
 	recordingsRoot    string
+}
+
+type cdpSession interface {
+	ExecuteInstruction(ctx context.Context, instruction runtime.Instruction) (*runtime.ExecutionResponse, error)
+	Close() error
+}
+
+var newCDPSession = func(ctx context.Context, browserlessURL string, viewportWidth, viewportHeight int, log *logrus.Entry) (cdpSession, error) {
+	return cdp.NewSession(ctx, browserlessURL, viewportWidth, viewportHeight, log)
 }
 
 const (
@@ -247,10 +258,22 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 		activeNodes[plan.Steps[0].NodeID] = true
 	}
 
-	session := runtime.NewSession(c.browserless, c.httpClient, c.log)
-	if width, height := extractPlanViewport(plan); width > 0 && height > 0 {
-		session.SetViewport(width, height)
+	// Create CDP session for persistent browser connection
+	sessionLogger := c.log.WithField("execution_id", execution.ID)
+	viewportWidth, viewportHeight := extractPlanViewport(plan)
+	if viewportWidth == 0 {
+		viewportWidth = 1920
 	}
+	if viewportHeight == 0 {
+		viewportHeight = 1080
+	}
+
+	session, err := newCDPSession(ctx, c.browserless, viewportWidth, viewportHeight, sessionLogger)
+	if err != nil {
+		return fmt.Errorf("failed to create CDP session: %w", err)
+	}
+	defer session.Close()
+
 	totalSteps := len(plan.Steps)
 	if totalSteps == 0 {
 		totalSteps = len(instructions)
@@ -301,11 +324,7 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 			retryBackoffFactor = 1
 		}
 
-		if instruction.Type != "navigate" {
-			instruction.PreloadHTML = session.LastHTML()
-		} else {
-			instruction.PreloadHTML = ""
-		}
+		// CDP mode: No need for PreloadHTML - browser state persists naturally
 
 		stepRecord := &database.ExecutionStep{
 			ExecutionID: execution.ID,
@@ -415,15 +434,15 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 				}
 				if !attemptStep.Success {
 					if attemptStep.Error != "" {
-						lastErr = fmt.Errorf(attemptStep.Error)
+						lastErr = errors.New(attemptStep.Error)
 					} else if response.Error != "" {
-						lastErr = fmt.Errorf(response.Error)
+						lastErr = errors.New(response.Error)
 					}
 				} else if response != nil && !response.Success {
 					attemptStep.Success = false
 					if response.Error != "" {
 						attemptStep.Error = response.Error
-						lastErr = fmt.Errorf(response.Error)
+						lastErr = errors.New(response.Error)
 					}
 				}
 			}
@@ -451,15 +470,7 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 			step = attemptStep
 
 			if step.Success {
-				if instruction.Type == "navigate" {
-					html, decodeErr := decodeDataHTML(instruction.Params.URL)
-					if decodeErr != nil {
-						c.log.WithError(decodeErr).Debug("Failed to decode data URL for preload")
-						session.SetLastHTML("")
-					} else {
-						session.SetLastHTML(html)
-					}
-				}
+				// CDP mode: Browser state persists automatically, no need to save DOM
 				lastErr = nil
 				break
 			}

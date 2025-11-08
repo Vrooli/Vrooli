@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-05T23:34:09.300Z"
+    "last_synced_at": "2025-11-08T02:32:25.508Z"
   },
   "meta": {
     "scenario": "browser-automation-studio",
@@ -50,7 +50,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Stream execution telemetry (screenshots, progress, logs) while runs are active",
       "description": "Aggregates execution runtime behaviours, including websocket telemetry, CLI observability, and automation coverage.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "children": [
         "BAS-EXEC-TELEMETRY-STREAM",
@@ -65,7 +65,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Persist normalized execution artifacts for replay & video rendering",
       "description": "Ensures replay artifacts are persisted, queryable, and exportable for downstream renderers.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "children": [
         "BAS-REPLAY-TIMELINE-PERSISTENCE",
@@ -78,7 +78,7 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI-generated workflows validated against the execution plan",
       "description": "Validates that AI prompts produce executable workflows with deterministic smoke coverage.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "children": [
         "BAS-AI-GENERATION-SMOKE",

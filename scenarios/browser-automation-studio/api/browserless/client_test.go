@@ -284,139 +284,139 @@ func TestBuildInstructions(t *testing.T) {
 		client, _ := newTestClient()
 
 		workflow := &database.Workflow{
-		ID: uuid.New(),
-		FlowDefinition: database.JSONMap{
-			"nodes": []any{
-				map[string]any{
-					"id":   "node-1",
-					"type": "navigate",
-					"data": map[string]any{
-						"url":       "https://example.com",
-						"waitUntil": "domcontentloaded",
-						"timeoutMs": 10000,
+			ID: uuid.New(),
+			FlowDefinition: database.JSONMap{
+				"nodes": []any{
+					map[string]any{
+						"id":   "node-1",
+						"type": "navigate",
+						"data": map[string]any{
+							"url":       "https://example.com",
+							"waitUntil": "domcontentloaded",
+							"timeoutMs": 10000,
+						},
+					},
+					map[string]any{
+						"id":   "node-2",
+						"type": "wait",
+						"data": map[string]any{
+							"type":     "time",
+							"duration": 1500,
+						},
+					},
+					map[string]any{
+						"id":   "node-3",
+						"type": "click",
+						"data": map[string]any{
+							"selector":   "#login",
+							"button":     "left",
+							"clickCount": 1,
+						},
+					},
+					map[string]any{
+						"id":   "node-4",
+						"type": "type",
+						"data": map[string]any{
+							"selector": "input[name=email]",
+							"text":     "user@example.com",
+							"delayMs":  25,
+						},
+					},
+					map[string]any{
+						"id":   "node-5",
+						"type": "extract",
+						"data": map[string]any{
+							"selector":    "#headline",
+							"extractType": "text",
+						},
+					},
+					map[string]any{
+						"id":   "node-6",
+						"type": "screenshot",
+						"data": map[string]any{
+							"name":                  "after",
+							"viewportWidth":         1280,
+							"viewportHeight":        720,
+							"waitForMs":             500,
+							"focusSelector":         "#hero",
+							"highlightSelectors":    []any{"#hero", ".cta"},
+							"highlightColor":        "#ff00ff",
+							"highlightPadding":      12,
+							"highlightBorderRadius": 18,
+							"maskSelectors":         []any{".mask"},
+							"maskOpacity":           0.55,
+							"background":            "#111111",
+							"zoomFactor":            1.25,
+						},
 					},
 				},
-				map[string]any{
-					"id":   "node-2",
-					"type": "wait",
-					"data": map[string]any{
-						"type":     "time",
-						"duration": 1500,
-					},
-				},
-				map[string]any{
-					"id":   "node-3",
-					"type": "click",
-					"data": map[string]any{
-						"selector":   "#login",
-						"button":     "left",
-						"clickCount": 1,
-					},
-				},
-				map[string]any{
-					"id":   "node-4",
-					"type": "type",
-					"data": map[string]any{
-						"selector": "input[name=email]",
-						"text":     "user@example.com",
-						"delayMs":  25,
-					},
-				},
-				map[string]any{
-					"id":   "node-5",
-					"type": "extract",
-					"data": map[string]any{
-						"selector":    "#headline",
-						"extractType": "text",
-					},
-				},
-				map[string]any{
-					"id":   "node-6",
-					"type": "screenshot",
-					"data": map[string]any{
-						"name":                  "after",
-						"viewportWidth":         1280,
-						"viewportHeight":        720,
-						"waitForMs":             500,
-						"focusSelector":         "#hero",
-						"highlightSelectors":    []any{"#hero", ".cta"},
-						"highlightColor":        "#ff00ff",
-						"highlightPadding":      12,
-						"highlightBorderRadius": 18,
-						"maskSelectors":         []any{".mask"},
-						"maskOpacity":           0.55,
-						"background":            "#111111",
-						"zoomFactor":            1.25,
-					},
+				"edges": []any{
+					map[string]any{"id": "edge-1", "source": "node-1", "target": "node-2"},
+					map[string]any{"id": "edge-2", "source": "node-2", "target": "node-3"},
+					map[string]any{"id": "edge-3", "source": "node-3", "target": "node-4"},
+					map[string]any{"id": "edge-4", "source": "node-4", "target": "node-5"},
+					map[string]any{"id": "edge-5", "source": "node-5", "target": "node-6"},
 				},
 			},
-			"edges": []any{
-				map[string]any{"id": "edge-1", "source": "node-1", "target": "node-2"},
-				map[string]any{"id": "edge-2", "source": "node-2", "target": "node-3"},
-				map[string]any{"id": "edge-3", "source": "node-3", "target": "node-4"},
-				map[string]any{"id": "edge-4", "source": "node-4", "target": "node-5"},
-				map[string]any{"id": "edge-5", "source": "node-5", "target": "node-6"},
-			},
-		},
-	}
+		}
 
-	instr, err := client.buildInstructions(workflow)
-	if err != nil {
-		t.Fatalf("buildInstructions failed: %v", err)
-	}
+		instr, err := client.buildInstructions(workflow)
+		if err != nil {
+			t.Fatalf("buildInstructions failed: %v", err)
+		}
 
-	if len(instr) != 6 {
-		t.Fatalf("expected 6 instructions, got %d", len(instr))
-	}
+		if len(instr) != 6 {
+			t.Fatalf("expected 6 instructions, got %d", len(instr))
+		}
 
-	if instr[0].Params.URL != "https://example.com" {
-		t.Errorf("navigate url not parsed: %+v", instr[0].Params)
-	}
+		if instr[0].Params.URL != "https://example.com" {
+			t.Errorf("navigate url not parsed: %+v", instr[0].Params)
+		}
 
-	if instr[1].Params.DurationMs != 1500 {
-		t.Errorf("wait duration mismatch: %+v", instr[1].Params)
-	}
+		if instr[1].Params.DurationMs != 1500 {
+			t.Errorf("wait duration mismatch: %+v", instr[1].Params)
+		}
 
-	if instr[2].Params.Selector != "#login" {
-		t.Errorf("click selector not parsed: %+v", instr[2].Params)
-	}
+		if instr[2].Params.Selector != "#login" {
+			t.Errorf("click selector not parsed: %+v", instr[2].Params)
+		}
 
-	if instr[3].Params.Selector != "input[name=email]" || instr[3].Params.Text != "user@example.com" {
-		t.Errorf("type params mismatch: %+v", instr[3].Params)
-	}
+		if instr[3].Params.Selector != "input[name=email]" || instr[3].Params.Text != "user@example.com" {
+			t.Errorf("type params mismatch: %+v", instr[3].Params)
+		}
 
-	if instr[4].Params.Selector != "#headline" || instr[4].Params.ExtractType != "text" {
-		t.Errorf("extract params mismatch: %+v", instr[4].Params)
-	}
+		if instr[4].Params.Selector != "#headline" || instr[4].Params.ExtractType != "text" {
+			t.Errorf("extract params mismatch: %+v", instr[4].Params)
+		}
 
-	if instr[5].Params.Name != "after" || instr[5].Params.ViewportWidth != 1280 || instr[5].Params.WaitForMs != 500 {
-		t.Errorf("screenshot params mismatch: %+v", instr[5].Params)
-	}
+		if instr[5].Params.Name != "after" || instr[5].Params.ViewportWidth != 1280 || instr[5].Params.WaitForMs != 500 {
+			t.Errorf("screenshot params mismatch: %+v", instr[5].Params)
+		}
 
-	if instr[5].Params.FocusSelector != "#hero" {
-		t.Errorf("expected focus selector parsed")
-	}
-	if len(instr[5].Params.HighlightSelectors) != 2 || instr[5].Params.HighlightSelectors[0] != "#hero" {
-		t.Errorf("highlight selectors not normalized: %+v", instr[5].Params.HighlightSelectors)
-	}
-	if instr[5].Params.HighlightColor != "#ff00ff" {
-		t.Errorf("highlight color not parsed: %s", instr[5].Params.HighlightColor)
-	}
-	if instr[5].Params.HighlightPadding != 12 {
-		t.Errorf("highlight padding mismatch: %d", instr[5].Params.HighlightPadding)
-	}
-	if instr[5].Params.HighlightBorderRadius != 18 {
-		t.Errorf("highlight border radius mismatch: %d", instr[5].Params.HighlightBorderRadius)
-	}
-	if len(instr[5].Params.MaskSelectors) != 1 || instr[5].Params.MaskSelectors[0] != ".mask" {
-		t.Errorf("mask selectors not parsed: %+v", instr[5].Params.MaskSelectors)
-	}
-	if math.Abs(instr[5].Params.MaskOpacity-0.55) > 0.0001 {
-		t.Errorf("mask opacity not parsed: %f", instr[5].Params.MaskOpacity)
-	}
-	if instr[5].Params.Background != "#111111" {
-		t.Errorf("background not parsed: %s", instr[5].Params.Background)
-	}
+		if instr[5].Params.FocusSelector != "#hero" {
+			t.Errorf("expected focus selector parsed")
+		}
+		if len(instr[5].Params.HighlightSelectors) != 2 || instr[5].Params.HighlightSelectors[0] != "#hero" {
+			t.Errorf("highlight selectors not normalized: %+v", instr[5].Params.HighlightSelectors)
+		}
+		if instr[5].Params.HighlightColor != "#ff00ff" {
+			t.Errorf("highlight color not parsed: %s", instr[5].Params.HighlightColor)
+		}
+		if instr[5].Params.HighlightPadding != 12 {
+			t.Errorf("highlight padding mismatch: %d", instr[5].Params.HighlightPadding)
+		}
+		if instr[5].Params.HighlightBorderRadius != 18 {
+			t.Errorf("highlight border radius mismatch: %d", instr[5].Params.HighlightBorderRadius)
+		}
+		if len(instr[5].Params.MaskSelectors) != 1 || instr[5].Params.MaskSelectors[0] != ".mask" {
+			t.Errorf("mask selectors not parsed: %+v", instr[5].Params.MaskSelectors)
+		}
+		if math.Abs(instr[5].Params.MaskOpacity-0.55) > 0.0001 {
+			t.Errorf("mask opacity not parsed: %f", instr[5].Params.MaskOpacity)
+		}
+		if instr[5].Params.Background != "#111111" {
+			t.Errorf("background not parsed: %s", instr[5].Params.Background)
+		}
 		if math.Abs(instr[5].Params.ZoomFactor-1.25) > 0.0001 {
 			t.Errorf("zoom factor not parsed: %f", instr[5].Params.ZoomFactor)
 		}
@@ -453,52 +453,52 @@ func TestBuildInstructionsAssertStep(t *testing.T) {
 		client, _ := newTestClient()
 
 		workflow := &database.Workflow{
-		ID: uuid.New(),
-		FlowDefinition: database.JSONMap{
-			"nodes": []any{
-				map[string]any{
-					"id":   "node-assert",
-					"type": "assert",
-					"data": map[string]any{
-						"assertMode":     "text_equals",
-						"selector":       "#status",
-						"expectedValue":  "Ready",
-						"caseSensitive":  false,
-						"negate":         false,
-						"timeoutMs":      4500,
-						"failureMessage": "Status indicator missing",
+			ID: uuid.New(),
+			FlowDefinition: database.JSONMap{
+				"nodes": []any{
+					map[string]any{
+						"id":   "node-assert",
+						"type": "assert",
+						"data": map[string]any{
+							"assertMode":     "text_equals",
+							"selector":       "#status",
+							"expectedValue":  "Ready",
+							"caseSensitive":  false,
+							"negate":         false,
+							"timeoutMs":      4500,
+							"failureMessage": "Status indicator missing",
+						},
 					},
 				},
+				"edges": []any{},
 			},
-			"edges": []any{},
-		},
-	}
+		}
 
-	instructions, err := client.buildInstructions(workflow)
-	if err != nil {
-		t.Fatalf("buildInstructions returned error: %v", err)
-	}
+		instructions, err := client.buildInstructions(workflow)
+		if err != nil {
+			t.Fatalf("buildInstructions returned error: %v", err)
+		}
 
-	if len(instructions) != 1 {
-		t.Fatalf("expected 1 instruction, got %d", len(instructions))
-	}
+		if len(instructions) != 1 {
+			t.Fatalf("expected 1 instruction, got %d", len(instructions))
+		}
 
-	assertStep := instructions[0]
-	if assertStep.Type != "assert" {
-		t.Fatalf("expected assert instruction, got %s", assertStep.Type)
-	}
-	if assertStep.Params.AssertMode != "text_equals" {
-		t.Fatalf("unexpected assert mode: %s", assertStep.Params.AssertMode)
-	}
-	if assertStep.Params.Selector != "#status" {
-		t.Fatalf("selector not propagated: %s", assertStep.Params.Selector)
-	}
-	if assertStep.Params.ExpectedValue != "Ready" {
-		t.Fatalf("expected value not propagated: %+v", assertStep.Params.ExpectedValue)
-	}
-	if assertStep.Params.TimeoutMs != 4500 {
-		t.Fatalf("timeout not parsed: %d", assertStep.Params.TimeoutMs)
-	}
+		assertStep := instructions[0]
+		if assertStep.Type != "assert" {
+			t.Fatalf("expected assert instruction, got %s", assertStep.Type)
+		}
+		if assertStep.Params.AssertMode != "text_equals" {
+			t.Fatalf("unexpected assert mode: %s", assertStep.Params.AssertMode)
+		}
+		if assertStep.Params.Selector != "#status" {
+			t.Fatalf("selector not propagated: %s", assertStep.Params.Selector)
+		}
+		if assertStep.Params.ExpectedValue != "Ready" {
+			t.Fatalf("expected value not propagated: %+v", assertStep.Params.ExpectedValue)
+		}
+		if assertStep.Params.TimeoutMs != 4500 {
+			t.Fatalf("timeout not parsed: %d", assertStep.Params.TimeoutMs)
+		}
 		if assertStep.Params.FailureMessage != "Status indicator missing" {
 			t.Fatalf("failure message not parsed: %s", assertStep.Params.FailureMessage)
 		}
@@ -513,20 +513,7 @@ func TestExecuteWorkflowPersistsTelemetry(t *testing.T) {
 			`{"success":true,"steps":[{"index":0,"nodeId":"node-1","type":"navigate","success":true,"durationMs":1200,"finalUrl":"https://example.com/home","consoleLogs":[{"type":"log","text":"navigated","timestamp":25}]}]}`,
 			`{"success":true,"steps":[{"index":1,"nodeId":"node-2","type":"extract","success":true,"durationMs":800,"extractedData":"Headline text","elementBoundingBox":{"x":10,"y":20,"width":100,"height":30}}]}`,
 		}
-
-		var call int
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if call >= len(responses) {
-				t.Fatalf("unexpected additional call %d", call)
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(responses[call]))
-			call++
-		}))
-		defer server.Close()
-
-		client.browserless = server.URL
-		client.httpClient = server.Client()
+		fakeSession := stubSessionFromPayloads(t, responses)
 
 		exec := &database.Execution{
 			ID:         uuid.New(),
@@ -586,8 +573,8 @@ func TestExecuteWorkflowPersistsTelemetry(t *testing.T) {
 			t.Fatalf("execution result not persisted: %+v", exec.Result)
 		}
 
-		if call != len(responses) {
-			t.Fatalf("expected %d browserless invocations, got %d", len(responses), call)
+		if fakeSession.callCount != len(responses) {
+			t.Fatalf("expected %d session invocations, got %d", len(responses), fakeSession.callCount)
 		}
 	})
 }
@@ -596,117 +583,104 @@ func TestExecuteWorkflowRetriesOnFailure(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] retries failed steps and persists retry metadata", func(t *testing.T) {
 		client, repo := newTestClient()
 
-	responses := []string{
-		`{"success":false,"error":"timeout","steps":[{"index":0,"nodeId":"node-1","type":"navigate","success":false,"durationMs":700,"error":"timeout"}]}`,
-		`{"success":true,"steps":[{"index":0,"nodeId":"node-1","type":"navigate","success":true,"durationMs":400,"finalUrl":"https://example.com/home"}]}`,
-	}
-
-	var callCount int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if callCount >= len(responses) {
-			t.Fatalf("unexpected additional call %d", callCount)
+		responses := []string{
+			`{"success":false,"error":"timeout","steps":[{"index":0,"nodeId":"node-1","type":"navigate","success":false,"durationMs":700,"error":"timeout"}]}`,
+			`{"success":true,"steps":[{"index":0,"nodeId":"node-1","type":"navigate","success":true,"durationMs":400,"finalUrl":"https://example.com/home"}]}`,
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(responses[callCount]))
-		callCount++
-	}))
-	defer server.Close()
+		fakeSession := stubSessionFromPayloads(t, responses)
 
-	client.browserless = server.URL
-	client.httpClient = server.Client()
+		exec := &database.Execution{
+			ID:         uuid.New(),
+			WorkflowID: uuid.New(),
+			StartedAt:  time.Now().Add(-time.Minute),
+		}
 
-	exec := &database.Execution{
-		ID:         uuid.New(),
-		WorkflowID: uuid.New(),
-		StartedAt:  time.Now().Add(-time.Minute),
-	}
-
-	workflow := &database.Workflow{
-		ID: uuid.New(),
-		FlowDefinition: database.JSONMap{
-			"nodes": []any{
-				map[string]any{
-					"id":   "node-1",
-					"type": "navigate",
-					"data": map[string]any{
-						"url":           "https://example.com",
-						"retryAttempts": 1,
-						"retryDelayMs":  0,
+		workflow := &database.Workflow{
+			ID: uuid.New(),
+			FlowDefinition: database.JSONMap{
+				"nodes": []any{
+					map[string]any{
+						"id":   "node-1",
+						"type": "navigate",
+						"data": map[string]any{
+							"url":           "https://example.com",
+							"retryAttempts": 1,
+							"retryDelayMs":  0,
+						},
 					},
 				},
+				"edges": []any{},
 			},
-			"edges": []any{},
-		},
-	}
-
-	if err := client.ExecuteWorkflow(context.Background(), exec, workflow, nil); err != nil {
-		t.Fatalf("ExecuteWorkflow returned error: %v", err)
-	}
-
-	if callCount != len(responses) {
-		t.Fatalf("expected %d browserless invocations, got %d", len(responses), callCount)
-	}
-
-	if len(repo.executionSteps) != 1 {
-		t.Fatalf("expected 1 execution step, got %d", len(repo.executionSteps))
-	}
-	stepRecord := repo.executionSteps[0]
-	retryMeta, ok := stepRecord.Metadata["retry"].(database.JSONMap)
-	if !ok {
-		t.Fatalf("expected retry metadata on execution step: %+v", stepRecord.Metadata)
-	}
-	if attempt := toIntTest(retryMeta["attempt"]); attempt != 2 {
-		t.Fatalf("expected retry attempt 2, got %d", attempt)
-	}
-	if configured := toIntTest(retryMeta["configuredRetries"]); configured != 1 {
-		t.Fatalf("expected configured retries 1, got %d", configured)
-	}
-	if maxAttempts := toIntTest(retryMeta["maxAttempts"]); maxAttempts != 2 {
-		t.Fatalf("expected max attempts 2, got %d", maxAttempts)
-	}
-	var retryHistory []map[string]any
-	switch entries := retryMeta["history"].(type) {
-	case []map[string]any:
-		retryHistory = entries
-	case []database.JSONMap:
-		for _, item := range entries {
-			retryHistory = append(retryHistory, map[string]any(item))
 		}
-	case []any:
-		for _, item := range entries {
-			if entryMap, ok := item.(map[string]any); ok {
-				retryHistory = append(retryHistory, entryMap)
+
+		if err := client.ExecuteWorkflow(context.Background(), exec, workflow, nil); err != nil {
+			t.Fatalf("ExecuteWorkflow returned error: %v", err)
+		}
+
+		if fakeSession.callCount != len(responses) {
+			t.Fatalf("expected %d session invocations, got %d", len(responses), fakeSession.callCount)
+		}
+
+		if len(repo.executionSteps) != 1 {
+			t.Fatalf("expected 1 execution step, got %d", len(repo.executionSteps))
+		}
+		stepRecord := repo.executionSteps[0]
+		retryMeta, ok := stepRecord.Metadata["retry"].(database.JSONMap)
+		if !ok {
+			t.Fatalf("expected retry metadata on execution step: %+v", stepRecord.Metadata)
+		}
+		if attempt := toIntTest(retryMeta["attempt"]); attempt != 2 {
+			t.Fatalf("expected retry attempt 2, got %d", attempt)
+		}
+		if configured := toIntTest(retryMeta["configuredRetries"]); configured != 1 {
+			t.Fatalf("expected configured retries 1, got %d", configured)
+		}
+		if maxAttempts := toIntTest(retryMeta["maxAttempts"]); maxAttempts != 2 {
+			t.Fatalf("expected max attempts 2, got %d", maxAttempts)
+		}
+		var retryHistory []map[string]any
+		switch entries := retryMeta["history"].(type) {
+		case []map[string]any:
+			retryHistory = entries
+		case []database.JSONMap:
+			for _, item := range entries {
+				retryHistory = append(retryHistory, map[string]any(item))
+			}
+		case []any:
+			for _, item := range entries {
+				if entryMap, ok := item.(map[string]any); ok {
+					retryHistory = append(retryHistory, entryMap)
+				}
 			}
 		}
-	}
-	if len(retryHistory) != 2 {
-		t.Fatalf("expected retry history with 2 entries, got %+v", retryMeta["history"])
-	}
-	firstAttempt := retryHistory[0]
-	if success := firstAttempt["success"]; success != false {
-		t.Fatalf("expected first attempt to be marked failure, got %+v", success)
-	}
-	secondAttempt := retryHistory[1]
-	if success := secondAttempt["success"]; success != true {
-		t.Fatalf("expected second attempt to be marked success, got %+v", success)
-	}
-
-	var timelinePayload database.JSONMap
-	for _, artifact := range repo.executionArtifacts {
-		if artifact.ArtifactType == "timeline_frame" {
-			timelinePayload = artifact.Payload
-			break
+		if len(retryHistory) != 2 {
+			t.Fatalf("expected retry history with 2 entries, got %+v", retryMeta["history"])
 		}
-	}
-	if timelinePayload == nil {
-		t.Fatalf("expected timeline artifact to be created")
-	}
-	if attempt := toIntTest(timelinePayload["retryAttempt"]); attempt != 2 {
-		t.Fatalf("expected timeline retryAttempt 2, got %d", attempt)
-	}
-	if max := toIntTest(timelinePayload["retryMaxAttempts"]); max != 2 {
-		t.Fatalf("expected timeline retryMaxAttempts 2, got %d", max)
-	}
+		firstAttempt := retryHistory[0]
+		if success := firstAttempt["success"]; success != false {
+			t.Fatalf("expected first attempt to be marked failure, got %+v", success)
+		}
+		secondAttempt := retryHistory[1]
+		if success := secondAttempt["success"]; success != true {
+			t.Fatalf("expected second attempt to be marked success, got %+v", success)
+		}
+
+		var timelinePayload database.JSONMap
+		for _, artifact := range repo.executionArtifacts {
+			if artifact.ArtifactType == "timeline_frame" {
+				timelinePayload = artifact.Payload
+				break
+			}
+		}
+		if timelinePayload == nil {
+			t.Fatalf("expected timeline artifact to be created")
+		}
+		if attempt := toIntTest(timelinePayload["retryAttempt"]); attempt != 2 {
+			t.Fatalf("expected timeline retryAttempt 2, got %d", attempt)
+		}
+		if max := toIntTest(timelinePayload["retryMaxAttempts"]); max != 2 {
+			t.Fatalf("expected timeline retryMaxAttempts 2, got %d", max)
+		}
 		if total := toIntTest(timelinePayload["totalDurationMs"]); total <= 0 {
 			t.Fatalf("expected total duration to be recorded, got %d", total)
 		}
@@ -717,211 +691,199 @@ func TestExecuteWorkflowCreatesTimelineArtifactWithHighlightMetadata(t *testing.
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] creates timeline artifacts with highlight metadata", func(t *testing.T) {
 		client, repo := newTestClient()
 
-	const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQYV2P4//8/AwAI/AL+fK5OAAAAAElFTkSuQmCC"
-	responses := []string{
-		fmt.Sprintf(`{"success":true,"steps":[{"index":0,"nodeId":"node-1","type":"screenshot","success":true,"durationMs":250,"screenshotBase64":"%s","domSnapshot":"<html><body>snapshot</body></html>","focusedElement":{"selector":"#hero","boundingBox":{"x":10,"y":20,"width":200,"height":120}},"highlightRegions":[{"selector":"#hero","boundingBox":{"x":10,"y":20,"width":200,"height":120},"padding":12,"color":"#ff00ff"}],"maskRegions":[{"selector":".mask","boundingBox":{"x":0,"y":0,"width":320,"height":180},"opacity":0.5}],"zoomFactor":1.4,"consoleLogs":[{"type":"log","text":"shot","timestamp":5}]}]}`, pngBase64),
-	}
-
-	var call int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if call >= len(responses) {
-			t.Fatalf("unexpected additional call %d", call)
+		const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQYV2P4//8/AwAI/AL+fK5OAAAAAElFTkSuQmCC"
+		responses := []string{
+			fmt.Sprintf(`{"success":true,"steps":[{"index":0,"nodeId":"node-1","type":"screenshot","success":true,"durationMs":250,"screenshotBase64":"%s","domSnapshot":"<html><body>snapshot</body></html>","focusedElement":{"selector":"#hero","boundingBox":{"x":10,"y":20,"width":200,"height":120}},"highlightRegions":[{"selector":"#hero","boundingBox":{"x":10,"y":20,"width":200,"height":120},"padding":12,"color":"#ff00ff"}],"maskRegions":[{"selector":".mask","boundingBox":{"x":0,"y":0,"width":320,"height":180},"opacity":0.5}],"zoomFactor":1.4,"consoleLogs":[{"type":"log","text":"shot","timestamp":5}]}]}`, pngBase64),
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(responses[call]))
-		call++
-	}))
-	defer server.Close()
 
-	client.browserless = server.URL
-	client.httpClient = server.Client()
-	client.storage = nil
+		fakeSession := stubSessionFromPayloads(t, responses)
+		client.storage = nil
 
-	if err := os.RemoveAll(filepath.Join(os.TempDir(), "browser-automation-studio")); err != nil {
-		t.Fatalf("failed to cleanup temp dir: %v", err)
-	}
-	t.Setenv("TMPDIR", t.TempDir())
+		if err := os.RemoveAll(filepath.Join(os.TempDir(), "browser-automation-studio")); err != nil {
+			t.Fatalf("failed to cleanup temp dir: %v", err)
+		}
+		t.Setenv("TMPDIR", t.TempDir())
 
-	exec := &database.Execution{
-		ID:         uuid.New(),
-		WorkflowID: uuid.New(),
-		StartedAt:  time.Now().Add(-time.Minute),
-	}
+		exec := &database.Execution{
+			ID:         uuid.New(),
+			WorkflowID: uuid.New(),
+			StartedAt:  time.Now().Add(-time.Minute),
+		}
 
-	workflow := &database.Workflow{
-		ID: uuid.New(),
-		FlowDefinition: database.JSONMap{
-			"nodes": []any{
-				map[string]any{
-					"id":   "node-1",
-					"type": "screenshot",
-					"data": map[string]any{
-						"name":          "marketing",
-						"waitForMs":     250,
-						"focusSelector": "#hero",
+		workflow := &database.Workflow{
+			ID: uuid.New(),
+			FlowDefinition: database.JSONMap{
+				"nodes": []any{
+					map[string]any{
+						"id":   "node-1",
+						"type": "screenshot",
+						"data": map[string]any{
+							"name":          "marketing",
+							"waitForMs":     250,
+							"focusSelector": "#hero",
+						},
 					},
 				},
 			},
-		},
-	}
-
-	if err := client.ExecuteWorkflow(context.Background(), exec, workflow, nil); err != nil {
-		t.Fatalf("ExecuteWorkflow returned error: %v", err)
-	}
-
-	if call != len(responses) {
-		t.Fatalf("expected %d browserless invocations, got %d", len(responses), call)
-	}
-
-	var timeline *database.ExecutionArtifact
-	var screenshotArtifact *database.ExecutionArtifact
-	var domArtifact *database.ExecutionArtifact
-	for _, artifact := range repo.executionArtifacts {
-		switch artifact.ArtifactType {
-		case "timeline_frame":
-			timeline = artifact
-		case "screenshot":
-			screenshotArtifact = artifact
-		case "dom_snapshot":
-			domArtifact = artifact
 		}
-	}
 
-	if timeline == nil {
-		t.Fatalf("expected timeline artifact to be created")
-	}
-	if screenshotArtifact == nil {
-		t.Fatalf("expected screenshot artifact to be created")
-	}
-	if domArtifact == nil {
-		t.Fatalf("expected DOM snapshot artifact to be created")
-	}
+		if err := client.ExecuteWorkflow(context.Background(), exec, workflow, nil); err != nil {
+			t.Fatalf("ExecuteWorkflow returned error: %v", err)
+		}
 
-	if payload := timeline.Payload; payload == nil {
-		t.Fatalf("timeline payload missing")
-	} else {
-		checkHighlight := func(value any) {
-			switch regions := value.(type) {
-			case []runtime.HighlightRegion:
-				if len(regions) != 1 || regions[0].Selector != "#hero" {
-					t.Fatalf("unexpected highlight regions payload: %+v", regions)
+		if fakeSession.callCount != len(responses) {
+			t.Fatalf("expected %d session invocations, got %d", len(responses), fakeSession.callCount)
+		}
+
+		var timeline *database.ExecutionArtifact
+		var screenshotArtifact *database.ExecutionArtifact
+		var domArtifact *database.ExecutionArtifact
+		for _, artifact := range repo.executionArtifacts {
+			switch artifact.ArtifactType {
+			case "timeline_frame":
+				timeline = artifact
+			case "screenshot":
+				screenshotArtifact = artifact
+			case "dom_snapshot":
+				domArtifact = artifact
+			}
+		}
+
+		if timeline == nil {
+			t.Fatalf("expected timeline artifact to be created")
+		}
+		if screenshotArtifact == nil {
+			t.Fatalf("expected screenshot artifact to be created")
+		}
+		if domArtifact == nil {
+			t.Fatalf("expected DOM snapshot artifact to be created")
+		}
+
+		if payload := timeline.Payload; payload == nil {
+			t.Fatalf("timeline payload missing")
+		} else {
+			checkHighlight := func(value any) {
+				switch regions := value.(type) {
+				case []runtime.HighlightRegion:
+					if len(regions) != 1 || regions[0].Selector != "#hero" {
+						t.Fatalf("unexpected highlight regions payload: %+v", regions)
+					}
+				case []any:
+					if len(regions) != 1 {
+						t.Fatalf("unexpected highlight regions payload: %+v", regions)
+					}
+					region, _ := regions[0].(map[string]any)
+					if region == nil || region["selector"] != "#hero" {
+						t.Fatalf("unexpected highlight region payload: %+v", region)
+					}
+				default:
+					t.Fatalf("highlight region type mismatch: %T", value)
 				}
-			case []any:
-				if len(regions) != 1 {
-					t.Fatalf("unexpected highlight regions payload: %+v", regions)
+			}
+
+			checkMask := func(value any) {
+				switch regions := value.(type) {
+				case []runtime.MaskRegion:
+					if len(regions) != 1 || regions[0].Selector != ".mask" {
+						t.Fatalf("unexpected mask regions payload: %+v", regions)
+					}
+				case []any:
+					if len(regions) != 1 {
+						t.Fatalf("unexpected mask regions payload: %+v", regions)
+					}
+					region, _ := regions[0].(map[string]any)
+					if region == nil || region["selector"] != ".mask" {
+						t.Fatalf("unexpected mask region payload: %+v", region)
+					}
+				default:
+					t.Fatalf("mask region type mismatch: %T", value)
 				}
-				region, _ := regions[0].(map[string]any)
-				if region == nil || region["selector"] != "#hero" {
-					t.Fatalf("unexpected highlight region payload: %+v", region)
+			}
+
+			checkHighlight(payload["highlightRegions"])
+			checkMask(payload["maskRegions"])
+			if zoom, ok := payload["zoomFactor"].(float64); !ok || math.Abs(zoom-1.4) > 0.0001 {
+				t.Fatalf("unexpected zoom factor: %+v", payload["zoomFactor"])
+			}
+			if id, ok := payload["screenshotArtifactId"].(string); !ok || id != screenshotArtifact.ID.String() {
+				t.Fatalf("timeline payload missing screenshot reference: %+v", payload["screenshotArtifactId"])
+			}
+			if preview, ok := payload["domSnapshotPreview"].(string); !ok || !strings.Contains(preview, "snapshot") {
+				t.Fatalf("timeline payload missing DOM snapshot preview: %+v", payload["domSnapshotPreview"])
+			}
+			if id, ok := payload["domSnapshotArtifactId"].(string); !ok || id != domArtifact.ID.String() {
+				t.Fatalf("timeline payload missing dom snapshot reference: %+v", payload["domSnapshotArtifactId"])
+			}
+		}
+
+		if payload := screenshotArtifact.Payload; payload == nil {
+			t.Fatalf("screenshot payload missing")
+		} else {
+			checkHighlight := func(value any) {
+				switch regions := value.(type) {
+				case []runtime.HighlightRegion:
+					if len(regions) == 0 || regions[0].Selector != "#hero" {
+						t.Fatalf("unexpected highlight regions payload: %+v", regions)
+					}
+				case []any:
+					if len(regions) == 0 {
+						t.Fatalf("unexpected highlight regions payload: %+v", regions)
+					}
+				default:
+					t.Fatalf("highlight region type mismatch: %T", value)
+				}
+			}
+			checkMask := func(value any) {
+				switch regions := value.(type) {
+				case []runtime.MaskRegion:
+					if len(regions) == 0 || regions[0].Selector != ".mask" {
+						t.Fatalf("unexpected mask regions payload: %+v", regions)
+					}
+				case []any:
+					if len(regions) == 0 {
+						t.Fatalf("unexpected mask regions payload: %+v", regions)
+					}
+				default:
+					t.Fatalf("mask region type mismatch: %T", value)
+				}
+			}
+
+			switch focus := payload["focusedElement"].(type) {
+			case *runtime.ElementFocus:
+				if focus == nil || focus.Selector != "#hero" {
+					t.Fatalf("expected focused element metadata: %+v", focus)
+				}
+			case map[string]any:
+				if focus["selector"] != "#hero" {
+					t.Fatalf("expected focused element selector: %+v", focus)
 				}
 			default:
-				t.Fatalf("highlight region type mismatch: %T", value)
+				t.Fatalf("unexpected focused element type: %T", payload["focusedElement"])
+			}
+			checkHighlight(payload["highlightRegions"])
+			checkMask(payload["maskRegions"])
+			if zoom, ok := payload["zoomFactor"].(float64); !ok || math.Abs(zoom-1.4) > 0.0001 {
+				t.Fatalf("unexpected screenshot zoom factor: %+v", payload["zoomFactor"])
 			}
 		}
 
-		checkMask := func(value any) {
-			switch regions := value.(type) {
-			case []runtime.MaskRegion:
-				if len(regions) != 1 || regions[0].Selector != ".mask" {
-					t.Fatalf("unexpected mask regions payload: %+v", regions)
-				}
-			case []any:
-				if len(regions) != 1 {
-					t.Fatalf("unexpected mask regions payload: %+v", regions)
-				}
-				region, _ := regions[0].(map[string]any)
-				if region == nil || region["selector"] != ".mask" {
-					t.Fatalf("unexpected mask region payload: %+v", region)
-				}
-			default:
-				t.Fatalf("mask region type mismatch: %T", value)
-			}
+		if len(repo.executionSteps) != 1 {
+			t.Fatalf("expected one execution step, got %d", len(repo.executionSteps))
 		}
-
-		checkHighlight(payload["highlightRegions"])
-		checkMask(payload["maskRegions"])
-		if zoom, ok := payload["zoomFactor"].(float64); !ok || math.Abs(zoom-1.4) > 0.0001 {
-			t.Fatalf("unexpected zoom factor: %+v", payload["zoomFactor"])
+		stepMetadata := repo.executionSteps[0].Metadata
+		if stepMetadata == nil || stepMetadata["focusedElement"] == nil {
+			t.Fatalf("focused element metadata missing from execution step: %+v", stepMetadata)
 		}
-		if id, ok := payload["screenshotArtifactId"].(string); !ok || id != screenshotArtifact.ID.String() {
-			t.Fatalf("timeline payload missing screenshot reference: %+v", payload["screenshotArtifactId"])
+		artifactIDs, ok := stepMetadata["artifactIds"].([]string)
+		if !ok {
+			t.Fatalf("expected artifactIds slice in step metadata, got %+v", stepMetadata["artifactIds"])
 		}
-		if preview, ok := payload["domSnapshotPreview"].(string); !ok || !strings.Contains(preview, "snapshot") {
-			t.Fatalf("timeline payload missing DOM snapshot preview: %+v", payload["domSnapshotPreview"])
+		if len(artifactIDs) < 3 {
+			t.Fatalf("expected artifact ids to include dom snapshot, got %+v", artifactIDs)
 		}
-		if id, ok := payload["domSnapshotArtifactId"].(string); !ok || id != domArtifact.ID.String() {
-			t.Fatalf("timeline payload missing dom snapshot reference: %+v", payload["domSnapshotArtifactId"])
+		if preview, ok := stepMetadata["domSnapshotPreview"].(string); !ok || !strings.Contains(preview, "snapshot") {
+			t.Fatalf("expected dom snapshot preview in step metadata, got %+v", stepMetadata["domSnapshotPreview"])
 		}
-	}
-
-	if payload := screenshotArtifact.Payload; payload == nil {
-		t.Fatalf("screenshot payload missing")
-	} else {
-		checkHighlight := func(value any) {
-			switch regions := value.(type) {
-			case []runtime.HighlightRegion:
-				if len(regions) == 0 || regions[0].Selector != "#hero" {
-					t.Fatalf("unexpected highlight regions payload: %+v", regions)
-				}
-			case []any:
-				if len(regions) == 0 {
-					t.Fatalf("unexpected highlight regions payload: %+v", regions)
-				}
-			default:
-				t.Fatalf("highlight region type mismatch: %T", value)
-			}
-		}
-		checkMask := func(value any) {
-			switch regions := value.(type) {
-			case []runtime.MaskRegion:
-				if len(regions) == 0 || regions[0].Selector != ".mask" {
-					t.Fatalf("unexpected mask regions payload: %+v", regions)
-				}
-			case []any:
-				if len(regions) == 0 {
-					t.Fatalf("unexpected mask regions payload: %+v", regions)
-				}
-			default:
-				t.Fatalf("mask region type mismatch: %T", value)
-			}
-		}
-
-		switch focus := payload["focusedElement"].(type) {
-		case *runtime.ElementFocus:
-			if focus == nil || focus.Selector != "#hero" {
-				t.Fatalf("expected focused element metadata: %+v", focus)
-			}
-		case map[string]any:
-			if focus["selector"] != "#hero" {
-				t.Fatalf("expected focused element selector: %+v", focus)
-			}
-		default:
-			t.Fatalf("unexpected focused element type: %T", payload["focusedElement"])
-		}
-		checkHighlight(payload["highlightRegions"])
-		checkMask(payload["maskRegions"])
-		if zoom, ok := payload["zoomFactor"].(float64); !ok || math.Abs(zoom-1.4) > 0.0001 {
-			t.Fatalf("unexpected screenshot zoom factor: %+v", payload["zoomFactor"])
-		}
-	}
-
-	if len(repo.executionSteps) != 1 {
-		t.Fatalf("expected one execution step, got %d", len(repo.executionSteps))
-	}
-	stepMetadata := repo.executionSteps[0].Metadata
-	if stepMetadata == nil || stepMetadata["focusedElement"] == nil {
-		t.Fatalf("focused element metadata missing from execution step: %+v", stepMetadata)
-	}
-	artifactIDs, ok := stepMetadata["artifactIds"].([]string)
-	if !ok {
-		t.Fatalf("expected artifactIds slice in step metadata, got %+v", stepMetadata["artifactIds"])
-	}
-	if len(artifactIDs) < 3 {
-		t.Fatalf("expected artifact ids to include dom snapshot, got %+v", artifactIDs)
-	}
-	if preview, ok := stepMetadata["domSnapshotPreview"].(string); !ok || !strings.Contains(preview, "snapshot") {
-		t.Fatalf("expected dom snapshot preview in step metadata, got %+v", stepMetadata["domSnapshotPreview"])
-	}
 
 		if len(repo.executionLogs) == 0 {
 			t.Fatalf("expected console log artifact to be created")
@@ -933,90 +895,77 @@ func TestExecuteWorkflowPersistsAssertionArtifacts(t *testing.T) {
 	t.Run("[REQ:BAS-REPLAY-TIMELINE-PERSISTENCE] persists assertion artifacts to timeline", func(t *testing.T) {
 		client, repo := newTestClient()
 
-	responses := []string{
-		`{"success":true,"steps":[{"index":0,"nodeId":"node-assert","type":"assert","success":true,"durationMs":180,"assertion":{"mode":"exists","selector":"#status","success":true,"actual":true}}]}`,
-	}
-
-	var call int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if call >= len(responses) {
-			t.Fatalf("unexpected additional call %d", call)
+		responses := []string{
+			`{"success":true,"steps":[{"index":0,"nodeId":"node-assert","type":"assert","success":true,"durationMs":180,"assertion":{"mode":"exists","selector":"#status","success":true,"actual":true}}]}`,
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(responses[call]))
-		call++
-	}))
-	defer server.Close()
+		stubSessionFromPayloads(t, responses)
 
-	client.browserless = server.URL
-	client.httpClient = server.Client()
+		exec := &database.Execution{
+			ID:         uuid.New(),
+			WorkflowID: uuid.New(),
+			StartedAt:  time.Now(),
+		}
 
-	exec := &database.Execution{
-		ID:         uuid.New(),
-		WorkflowID: uuid.New(),
-		StartedAt:  time.Now(),
-	}
-
-	workflow := &database.Workflow{
-		ID: uuid.New(),
-		FlowDefinition: database.JSONMap{
-			"nodes": []any{
-				map[string]any{
-					"id":   "node-assert",
-					"type": "assert",
-					"data": map[string]any{
-						"assertMode":     "exists",
-						"selector":       "#status",
-						"failureMessage": "Status indicator missing",
+		workflow := &database.Workflow{
+			ID: uuid.New(),
+			FlowDefinition: database.JSONMap{
+				"nodes": []any{
+					map[string]any{
+						"id":   "node-assert",
+						"type": "assert",
+						"data": map[string]any{
+							"assertMode":     "exists",
+							"selector":       "#status",
+							"failureMessage": "Status indicator missing",
+						},
 					},
 				},
 			},
-		},
-	}
-
-	if err := client.ExecuteWorkflow(context.Background(), exec, workflow, nil); err != nil {
-		t.Fatalf("ExecuteWorkflow returned error: %v", err)
-	}
-
-	var assertionArtifact *database.ExecutionArtifact
-	var timelineArtifact *database.ExecutionArtifact
-	for _, artifact := range repo.executionArtifacts {
-		switch artifact.ArtifactType {
-		case "assertion":
-			assertionArtifact = artifact
-		case "timeline_frame":
-			timelineArtifact = artifact
 		}
-	}
 
-	if assertionArtifact == nil {
-		t.Fatalf("expected assertion artifact to be created")
-	}
-	if assertionArtifact.Payload == nil || assertionArtifact.Payload["assertion"] == nil {
-		t.Fatalf("assertion payload missing: %+v", assertionArtifact.Payload)
-	}
-
-	if timelineArtifact == nil {
-		t.Fatalf("expected timeline artifact to be created")
-	}
-	if timelineArtifact.Payload == nil || timelineArtifact.Payload["assertion"] == nil {
-		t.Fatalf("timeline assertion metadata missing: %+v", timelineArtifact.Payload)
-	}
-
-	if len(repo.executionSteps) != 1 {
-		t.Fatalf("expected one execution step, got %d", len(repo.executionSteps))
-	}
-	if repo.executionSteps[0].Metadata == nil || repo.executionSteps[0].Metadata["assertion"] == nil {
-		t.Fatalf("execution step metadata missing assertion")
-	}
-
-	assertLog := false
-	for _, entry := range repo.executionLogs {
-		if strings.Contains(entry.Message, "assert") {
-			assertLog = true
-			break
+		if err := client.ExecuteWorkflow(context.Background(), exec, workflow, nil); err != nil {
+			t.Fatalf("ExecuteWorkflow returned error: %v", err)
 		}
-	}
+
+		var assertionArtifact *database.ExecutionArtifact
+		var timelineArtifact *database.ExecutionArtifact
+		for _, artifact := range repo.executionArtifacts {
+			switch artifact.ArtifactType {
+			case "assertion":
+				assertionArtifact = artifact
+			case "timeline_frame":
+				timelineArtifact = artifact
+			}
+		}
+
+		if assertionArtifact == nil {
+			t.Fatalf("expected assertion artifact to be created")
+		}
+		if assertionArtifact.Payload == nil || assertionArtifact.Payload["assertion"] == nil {
+			t.Fatalf("assertion payload missing: %+v", assertionArtifact.Payload)
+		}
+
+		if timelineArtifact == nil {
+			t.Fatalf("expected timeline artifact to be created")
+		}
+		if timelineArtifact.Payload == nil || timelineArtifact.Payload["assertion"] == nil {
+			t.Fatalf("timeline assertion metadata missing: %+v", timelineArtifact.Payload)
+		}
+
+		if len(repo.executionSteps) != 1 {
+			t.Fatalf("expected one execution step, got %d", len(repo.executionSteps))
+		}
+		if repo.executionSteps[0].Metadata == nil || repo.executionSteps[0].Metadata["assertion"] == nil {
+			t.Fatalf("execution step metadata missing assertion")
+		}
+
+		assertLog := false
+		for _, entry := range repo.executionLogs {
+			if strings.Contains(entry.Message, "assert") {
+				assertLog = true
+				break
+			}
+		}
 		if !assertLog {
 			t.Fatalf("expected assertion log message, got %+v", repo.executionLogs)
 		}
@@ -1031,21 +980,8 @@ func TestExecuteWorkflowEmitsHeartbeats(t *testing.T) {
 		responses := []string{
 			`{"success":true,"steps":[{"index":0,"nodeId":"node-1","type":"wait","success":true,"durationMs":500}]}`,
 		}
-
-		var call int
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			time.Sleep(35 * time.Millisecond)
-			if call >= len(responses) {
-				t.Fatalf("unexpected additional call %d", call)
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(responses[call]))
-			call++
-		}))
-		defer server.Close()
-
-		client.browserless = server.URL
-		client.httpClient = server.Client()
+		fakeSession := stubSessionFromPayloads(t, responses)
+		fakeSession.delays = []time.Duration{35 * time.Millisecond}
 
 		exec := &database.Execution{
 			ID:         uuid.New(),
@@ -1136,20 +1072,7 @@ func TestExecuteWorkflowRoutesToFailureBranch(t *testing.T) {
 		`{"success":true,"steps":[{"index":1,"nodeId":"node-assert","type":"assert","success":false,"durationMs":400,"error":"assertion failed","assertion":{"mode":"exists","selector":"#status","success":false,"message":"assertion failed"}}]}`,
 		`{"success":true,"steps":[{"index":2,"nodeId":"node-failure","type":"screenshot","success":true,"durationMs":600,"screenshotBase64":"ZmFrZQ=="}]}`,
 	}
-
-	var call int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if call >= len(responses) {
-			t.Fatalf("unexpected additional call %d", call)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(responses[call]))
-		call++
-	}))
-	defer server.Close()
-
-	client.browserless = server.URL
-	client.httpClient = server.Client()
+	fakeSession := stubSessionFromPayloads(t, responses)
 
 	exec := &database.Execution{
 		ID:         uuid.New(),
@@ -1204,8 +1127,8 @@ func TestExecuteWorkflowRoutesToFailureBranch(t *testing.T) {
 		t.Fatalf("ExecuteWorkflow returned error: %v", err)
 	}
 
-	if call != len(responses) {
-		t.Fatalf("expected %d browserless calls, got %d", len(responses), call)
+	if fakeSession.callCount != len(responses) {
+		t.Fatalf("expected %d session calls, got %d", len(responses), fakeSession.callCount)
 	}
 
 	if exec.Result == nil {
@@ -1247,20 +1170,7 @@ func TestExecuteWorkflowContinuesWithoutFailureEdge(t *testing.T) {
 		`{"success":true,"steps":[{"index":1,"nodeId":"node-assert","type":"assert","success":false,"durationMs":350,"error":"not visible","assertion":{"mode":"exists","selector":"#status","success":false,"message":"not visible"}}]}`,
 		`{"success":true,"steps":[{"index":2,"nodeId":"node-after","type":"wait","success":true,"durationMs":150}]}`,
 	}
-
-	var call int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if call >= len(responses) {
-			t.Fatalf("unexpected additional call %d", call)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(responses[call]))
-		call++
-	}))
-	defer server.Close()
-
-	client.browserless = server.URL
-	client.httpClient = server.Client()
+	fakeSession := stubSessionFromPayloads(t, responses)
 
 	exec := &database.Execution{
 		ID:         uuid.New(),
@@ -1308,8 +1218,8 @@ func TestExecuteWorkflowContinuesWithoutFailureEdge(t *testing.T) {
 		t.Fatalf("ExecuteWorkflow returned error: %v", err)
 	}
 
-	if call != len(responses) {
-		t.Fatalf("expected %d browserless calls, got %d", len(responses), call)
+	if fakeSession.callCount != len(responses) {
+		t.Fatalf("expected %d session calls, got %d", len(responses), fakeSession.callCount)
 	}
 	if len(repo.executionSteps) != 3 {
 		t.Fatalf("expected 3 execution steps recorded, got %d", len(repo.executionSteps))
@@ -1342,20 +1252,7 @@ func TestExecuteWorkflowStopsOnFatalFailure(t *testing.T) {
 		`{"success":true,"steps":[{"index":0,"nodeId":"node-start","type":"navigate","success":true,"durationMs":400}]}`,
 		`{"success":false,"error":"element missing","steps":[{"index":1,"nodeId":"node-extract","type":"extract","success":false,"durationMs":120,"error":"element missing"}]}`,
 	}
-
-	var call int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if call >= len(responses) {
-			t.Fatalf("unexpected additional call %d", call)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(responses[call]))
-		call++
-	}))
-	defer server.Close()
-
-	client.browserless = server.URL
-	client.httpClient = server.Client()
+	fakeSession := stubSessionFromPayloads(t, responses)
 
 	exec := &database.Execution{
 		ID:         uuid.New(),
@@ -1392,8 +1289,8 @@ func TestExecuteWorkflowStopsOnFatalFailure(t *testing.T) {
 		t.Fatalf("expected fatal failure to bubble up as error")
 	}
 
-	if call != len(responses) {
-		t.Fatalf("expected %d browserless calls, got %d", len(responses), call)
+	if fakeSession.callCount != len(responses) {
+		t.Fatalf("expected %d session calls, got %d", len(responses), fakeSession.callCount)
 	}
 	if len(repo.executionSteps) != 2 {
 		t.Fatalf("expected 2 execution steps recorded, got %d", len(repo.executionSteps))
@@ -1629,4 +1526,74 @@ func TestNewClient(t *testing.T) {
 	if client.httpClient == nil {
 		t.Fatalf("expected http client to be configured")
 	}
+}
+
+type fakeSession struct {
+	t         *testing.T
+	responses []*runtime.ExecutionResponse
+	errs      []error
+	delays    []time.Duration
+	callCount int
+}
+
+func (f *fakeSession) ExecuteInstruction(ctx context.Context, instruction runtime.Instruction) (*runtime.ExecutionResponse, error) {
+	if f.callCount >= len(f.responses) {
+		f.t.Fatalf("unexpected ExecuteInstruction call %d for node %s", f.callCount, instruction.NodeID)
+	}
+	idx := f.callCount
+	f.callCount++
+	if delay := f.delayForCall(idx); delay > 0 {
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+	var err error
+	if idx < len(f.errs) {
+		err = f.errs[idx]
+	}
+	return f.responses[idx], err
+}
+
+func (f *fakeSession) Close() error { return nil }
+
+func (f *fakeSession) delayForCall(idx int) time.Duration {
+	if idx < len(f.delays) {
+		return f.delays[idx]
+	}
+	return 0
+}
+
+func stubSessionFromPayloads(t *testing.T, payloads []string) *fakeSession {
+	t.Helper()
+	responses := make([]*runtime.ExecutionResponse, len(payloads))
+	for i, raw := range payloads {
+		responses[i] = mustParseRuntimeResponse(t, raw)
+	}
+	return stubSessionResponses(t, responses)
+}
+
+func stubSessionResponses(t *testing.T, responses []*runtime.ExecutionResponse, errs ...error) *fakeSession {
+	t.Helper()
+	fake := &fakeSession{t: t, responses: responses, errs: errs}
+	original := newCDPSession
+	newCDPSession = func(ctx context.Context, browserlessURL string, viewportWidth, viewportHeight int, log *logrus.Entry) (cdpSession, error) {
+		return fake, nil
+	}
+	t.Cleanup(func() {
+		newCDPSession = original
+	})
+	return fake
+}
+
+func mustParseRuntimeResponse(t *testing.T, raw string) *runtime.ExecutionResponse {
+	t.Helper()
+	var resp runtime.ExecutionResponse
+	if err := json.Unmarshal([]byte(raw), &resp); err != nil {
+		t.Fatalf("failed to parse runtime response: %v", err)
+	}
+	return &resp
 }

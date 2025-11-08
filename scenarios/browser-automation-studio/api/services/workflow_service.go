@@ -979,11 +979,15 @@ func (s *WorkflowService) ExecuteAdhocWorkflow(ctx context.Context, flowDefiniti
 		return nil, errors.New("flow_definition must contain 'edges' array")
 	}
 
-	// Create ephemeral workflow struct (not saved to DB)
-	// This workflow exists only in memory for the duration of execution
+	// Create ephemeral workflow (temporarily persisted to satisfy FK constraint)
+	// This workflow will be auto-deleted when execution is cleaned up (ON DELETE CASCADE)
+	// Add timestamp to name to avoid unique constraint violations on (name, folder_path)
+	ephemeralID := uuid.New()
+	ephemeralName := fmt.Sprintf("%s [adhoc-%s]", name, ephemeralID.String()[:8])
+
 	ephemeralWorkflow := &database.Workflow{
-		ID:             uuid.New(), // Generate ID for execution reference
-		Name:           name,
+		ID:             ephemeralID,
+		Name:           ephemeralName,
 		FlowDefinition: database.JSONMap(flowDefinition),
 		Version:        0, // Version 0 indicates adhoc/ephemeral workflow
 		CreatedAt:      time.Now(),
@@ -991,8 +995,13 @@ func (s *WorkflowService) ExecuteAdhocWorkflow(ctx context.Context, flowDefiniti
 		// ProjectID is intentionally nil - adhoc workflows have no project context
 	}
 
-	// Create execution record (this DOES persist for telemetry/replay)
-	// Even though the workflow is ephemeral, we want to track execution history
+	// Temporarily persist ephemeral workflow to satisfy executions.workflow_id FK constraint
+	// This allows executions table to maintain referential integrity while still being ephemeral
+	if err := s.repo.CreateWorkflow(ctx, ephemeralWorkflow); err != nil {
+		return nil, fmt.Errorf("failed to create ephemeral workflow: %w", err)
+	}
+
+	// Create execution record (persists for telemetry/replay)
 	execution := &database.Execution{
 		ID:              uuid.New(),
 		WorkflowID:      ephemeralWorkflow.ID, // Reference ephemeral workflow ID
@@ -1006,7 +1015,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflow(ctx context.Context, flowDefiniti
 	}
 
 	if err := s.repo.CreateExecution(ctx, execution); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create execution: %w", err)
 	}
 
 	// Execute asynchronously (same pattern as normal workflow execution)

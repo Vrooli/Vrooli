@@ -114,50 +114,45 @@ const createMockScreenshot = (overrides: Partial<Screenshot> = {}): Screenshot =
   ...overrides,
 });
 
-describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREENSHOT-VIEW]', () => {
-  let mockExecutionStore: ReturnType<typeof vi.fn>;
+// Mock executionStore at module level
+const mockExecutionStoreState = {
+  currentExecution: null,
+  viewerWorkflowId: null,
+  executions: [],
+  closeViewer: vi.fn(),
+  openViewer: vi.fn(),
+  startExecution: vi.fn(),
+  stopExecution: vi.fn(),
+  refreshTimeline: vi.fn(),
+  loadExecution: vi.fn(),
+  loadExecutions: vi.fn(),
+};
 
+vi.mock('../../stores/executionStore', () => ({
+  useExecutionStore: vi.fn((selector) => {
+    return selector ? selector(mockExecutionStoreState) : mockExecutionStoreState;
+  }),
+}));
+
+// Import component after mocks are set up
+import ExecutionViewer from '../ExecutionViewer';
+
+describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREENSHOT-VIEW]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Default mock for executionStore
-    mockExecutionStore = vi.fn((selector) => {
-      const state = {
-        currentExecution: null,
-        viewerWorkflowId: null,
-        executions: [],
-        closeViewer: vi.fn(),
-        openViewer: vi.fn(),
-        startExecution: vi.fn(),
-        stopExecution: vi.fn(),
-        refreshTimeline: vi.fn(),
-        loadExecution: vi.fn(),
-        loadExecutions: vi.fn(),
-      };
-      return selector ? selector(state) : state;
-    });
-
-    vi.doMock('../../stores/executionStore', () => ({
-      useExecutionStore: mockExecutionStore,
-    }));
+    // Reset state
+    mockExecutionStoreState.currentExecution = null;
+    mockExecutionStoreState.viewerWorkflowId = null;
+    mockExecutionStoreState.executions = [];
   });
 
   describe('Basic Rendering', () => {
-    it('renders null when no workflowId provided', async () => {
-      const { useExecutionStore } = await import('../../stores/executionStore');
-      vi.mocked(useExecutionStore).mockImplementation(mockExecutionStore);
-
-      const ExecutionViewer = (await import('../ExecutionViewer')).default;
+    it('renders null when no workflowId provided', () => {
       const { container } = render(<ExecutionViewer workflowId="" execution={null} />);
-
       expect(container.firstChild).toBeNull();
     });
 
-    it('renders execution history when no current execution [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {
-      const { useExecutionStore } = await import('../../stores/executionStore');
-      vi.mocked(useExecutionStore).mockImplementation(mockExecutionStore);
-
-      const ExecutionViewer = (await import('../ExecutionViewer')).default;
+    it('renders execution history when no current execution [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
       const { container } = render(
         <ExecutionViewer workflowId="workflow-1" execution={null} />
       );
@@ -166,27 +161,14 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
       expect(container.firstChild).not.toBeNull();
     });
 
-    it('renders active execution viewer when execution provided [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {
+    it('renders active execution viewer when execution provided [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
       const mockExecution = createMockExecution();
 
-      const { useExecutionStore } = await import('../../stores/executionStore');
-      vi.mocked(useExecutionStore).mockImplementation((selector) => {
-        const state = {
-          currentExecution: mockExecution,
-          viewerWorkflowId: 'workflow-1',
-          executions: [mockExecution],
-          closeViewer: vi.fn(),
-          openViewer: vi.fn(),
-          startExecution: vi.fn(),
-          stopExecution: vi.fn(),
-          refreshTimeline: vi.fn(),
-          loadExecution: vi.fn(),
-          loadExecutions: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      });
+      // Update mock state
+      mockExecutionStoreState.currentExecution = mockExecution;
+      mockExecutionStoreState.viewerWorkflowId = 'workflow-1';
+      mockExecutionStoreState.executions = [mockExecution];
 
-      const ExecutionViewer = (await import('../ExecutionViewer')).default;
       const { container } = render(
         <ExecutionViewer
           workflowId="workflow-1"
@@ -201,27 +183,11 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
   });
 
   describe('ExecutionHistory Integration', () => {
-    it('loads execution history for workflow [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {
+    it('loads execution history for workflow [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
       const loadExecutions = vi.fn();
+      mockExecutionStoreState.loadExecutions = loadExecutions;
+      mockExecutionStoreState.viewerWorkflowId = 'workflow-1';
 
-      const { useExecutionStore } = await import('../../stores/executionStore');
-      vi.mocked(useExecutionStore).mockImplementation((selector) => {
-        const state = {
-          currentExecution: null,
-          viewerWorkflowId: 'workflow-1',
-          executions: [],
-          closeViewer: vi.fn(),
-          openViewer: vi.fn(),
-          startExecution: vi.fn(),
-          stopExecution: vi.fn(),
-          refreshTimeline: vi.fn(),
-          loadExecution: vi.fn(),
-          loadExecutions,
-        };
-        return selector ? selector(state) : state;
-      });
-
-      const ExecutionViewer = (await import('../ExecutionViewer')).default;
       render(<ExecutionViewer workflowId="workflow-1" execution={null} />);
 
       // ExecutionHistory component should be rendered and load executions
@@ -230,27 +196,13 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
   });
 
   describe('Execution Status Display', () => {
-    it('displays running execution status [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {
+    it('displays running execution status [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
       const mockExecution = createMockExecution({ status: 'running' });
 
-      const { useExecutionStore } = await import('../../stores/executionStore');
-      vi.mocked(useExecutionStore).mockImplementation((selector) => {
-        const state = {
-          currentExecution: mockExecution,
-          viewerWorkflowId: 'workflow-1',
-          executions: [mockExecution],
-          closeViewer: vi.fn(),
-          openViewer: vi.fn(),
-          startExecution: vi.fn(),
-          stopExecution: vi.fn(),
-          refreshTimeline: vi.fn(),
-          loadExecution: vi.fn(),
-          loadExecutions: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      });
+      mockExecutionStoreState.currentExecution = mockExecution;
+      mockExecutionStoreState.viewerWorkflowId = 'workflow-1';
+      mockExecutionStoreState.executions = [mockExecution];
 
-      const ExecutionViewer = (await import('../ExecutionViewer')).default;
       render(
         <ExecutionViewer workflowId="workflow-1" execution={mockExecution} />
       );
@@ -259,31 +211,17 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
       // Detailed status icon/badge testing belongs in ActiveExecutionViewer tests
     });
 
-    it('displays completed execution status [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {
+    it('displays completed execution status [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
       const mockExecution = createMockExecution({
         status: 'completed',
         progress: 100,
         completedAt: new Date('2025-01-01T00:05:00Z'),
       });
 
-      const { useExecutionStore } = await import('../../stores/executionStore');
-      vi.mocked(useExecutionStore).mockImplementation((selector) => {
-        const state = {
-          currentExecution: mockExecution,
-          viewerWorkflowId: 'workflow-1',
-          executions: [mockExecution],
-          closeViewer: vi.fn(),
-          openViewer: vi.fn(),
-          startExecution: vi.fn(),
-          stopExecution: vi.fn(),
-          refreshTimeline: vi.fn(),
-          loadExecution: vi.fn(),
-          loadExecutions: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      });
+      mockExecutionStoreState.currentExecution = mockExecution;
+      mockExecutionStoreState.viewerWorkflowId = 'workflow-1';
+      mockExecutionStoreState.executions = [mockExecution];
 
-      const ExecutionViewer = (await import('../ExecutionViewer')).default;
       render(
         <ExecutionViewer workflowId="workflow-1" execution={mockExecution} />
       );
@@ -291,36 +229,23 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
       // ActiveExecutionViewer should render with completed execution
     });
 
-    it('displays failed execution with error [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {
+    it('displays failed execution with error [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
       const mockExecution = createMockExecution({
         status: 'failed',
         error: 'Selector not found: .submit-button',
         completedAt: new Date('2025-01-01T00:03:00Z'),
       });
 
-      const { useExecutionStore } = await import('../../stores/executionStore');
-      vi.mocked(useExecutionStore).mockImplementation((selector) => {
-        const state = {
-          currentExecution: mockExecution,
-          viewerWorkflowId: 'workflow-1',
-          executions: [mockExecution],
-          closeViewer: vi.fn(),
-          openViewer: vi.fn(),
-          startExecution: vi.fn(),
-          stopExecution: vi.fn(),
-          refreshTimeline: vi.fn(),
-          loadExecution: vi.fn(),
-          loadExecutions: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      });
+      mockExecutionStoreState.currentExecution = mockExecution;
+      mockExecutionStoreState.viewerWorkflowId = 'workflow-1';
+      mockExecutionStoreState.executions = [mockExecution];
 
-      const ExecutionViewer = (await import('../ExecutionViewer')).default;
       render(
         <ExecutionViewer workflowId="workflow-1" execution={mockExecution} />
       );
 
-      // ActiveExecutionViewer should render with failed execution and error
+      // ActiveExecutionViewer should render with failed execution
+      // Error message display tested in ActiveExecutionViewer tests
     });
   });
 
