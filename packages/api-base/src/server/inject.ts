@@ -241,6 +241,25 @@ function buildProxyBootstrapScript(info: ProxyInfo, options: {
       const currentPath = window.location.pathname;
 
       // Only rewrite if we're in a proxied context and request path doesn't already include proxy path
+      // Skip rewriting if the request already points at any known proxy path
+      const knownProxyPaths = new Set()
+      if (typeof proxyPath === 'string') {
+        knownProxyPaths.add(proxyPath)
+      }
+      if (index.aliasMap && typeof index.aliasMap.forEach === 'function') {
+        index.aliasMap.forEach((entry) => {
+          if (entry && typeof entry.path === 'string') {
+            knownProxyPaths.add(entry.path)
+          }
+        })
+      }
+
+      for (const candidatePath of knownProxyPaths) {
+        if (url.pathname.startsWith(candidatePath)) {
+          return null
+        }
+      }
+
       if (currentPath.startsWith(proxyPath) && !url.pathname.startsWith(proxyPath)) {
         // Rewrite to go through proxy path
         const protocol = scheme === 'ws'

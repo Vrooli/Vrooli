@@ -9,11 +9,10 @@ import type { Server } from 'node:http'
 import * as http from 'node:http'
 import { chromium, type Browser, type Page } from 'playwright'
 import {
-  buildProxyMetadata,
   createScenarioServer,
   injectBaseTag,
-  injectProxyMetadata,
-  proxyWebSocketUpgrade,
+  createScenarioProxyHost,
+  type ScenarioProxyHostController,
 } from '../../../server/index.js'
 import { isAssetRequest } from '../../../shared/utils.js'
 
@@ -44,21 +43,6 @@ export async function findAvailablePort(startPort: number): Promise<number> {
       }
     })
   })
-}
-
-function extractProxyRelativeUrl(originalUrl: string): string {
-  const target = originalUrl || '/'
-  const marker = '/proxy'
-  const queryIndex = target.indexOf('?')
-  const search = queryIndex >= 0 ? target.slice(queryIndex) : ''
-  const withoutQuery = queryIndex >= 0 ? target.slice(0, queryIndex) : target
-  const markerIndex = withoutQuery.lastIndexOf(marker)
-  if (markerIndex === -1) {
-    return `/${search || ''}`
-  }
-  const remainder = withoutQuery.slice(markerIndex + marker.length)
-  const normalizedPath = remainder && remainder.length > 0 ? (remainder.startsWith('/') ? remainder : `/${remainder}`) : '/'
-  return `${normalizedPath || '/'}${search}`
 }
 
 /**
@@ -207,6 +191,7 @@ export async function setupHostScenario(
   hostUiPort: number,
   hostApiPort: number
 ): Promise<{ uiServer: Server; apiServer: Server }> {
+  let hostProxyController: ScenarioProxyHostController | null = null
   // Host API server
   const apiServer = http.createServer((req, res) => {
     if (req.url === '/api/v1/health') {
@@ -438,122 +423,29 @@ export async function setupHostScenario(
           return next()
         }
 
-        // Serve host HTML for everything else (SPA fallback)
-        // This simulates what would happen in production with dist/index.html
-        res.setHeader('Content-Type', 'text/html')
-        res.send(hostHtmlContent)
+      // Serve host HTML for everything else (SPA fallback)
+      // This simulates what would happen in production with dist/index.html
+      res.setHeader('Content-Type', 'text/html')
+      res.send(hostHtmlContent)
       })
 
-      // Child proxy route
-      app.all(`/apps/${childId}/proxy/*`, async (req, res) => {
-        const relativeUrl = extractProxyRelativeUrl(req.originalUrl || req.url || '/')
-
-        try {
-          const isHtmlRequest = req.headers.accept?.includes('text/html')
-
-          if (isHtmlRequest && req.method === 'GET') {
-            const targetUrl = `http://127.0.0.1:${childUiPort}${relativeUrl}`
-
-            const childResponse = await new Promise<{
-              data: string
-              headers: http.IncomingHttpHeaders
-            }>((resolve, reject) => {
-              http.get(
-                targetUrl,
-                {
-                  headers: {
-                    ...req.headers,
-                    host: `127.0.0.1:${childUiPort}`,
-                  },
-                },
-                (childRes) => {
-                  let data = ''
-                  childRes.on('data', (chunk) => {
-                    data += chunk
-                  })
-                  childRes.on('end', () => {
-                    resolve({ data, headers: childRes.headers })
-                  })
-                }
-              ).on('error', reject)
-            })
-
-            let html = childResponse.data
-            const contentType = childResponse.headers['content-type'] || ''
-
-            if (contentType.includes('text/html') && typeof html === 'string') {
-              const metadata = buildProxyMetadata({
-                appId: childId,
-                hostScenario: 'host-scenario',
-                targetScenario: childId,
-                ports: [
-                  {
-                    port: childUiPort,
-                    label: 'UI_PORT',
-                    slug: 'ui-port',
-                    path: `/apps/${childId}/proxy`,
-                    assetNamespace: `/apps/${childId}/proxy/assets`,
-                    aliases: ['UI_PORT', 'primary'],
-                    source: 'port_mappings',
-                    isPrimary: true,
-                    priority: 80,
-                  },
-                ],
-                primaryPort: {
-                  port: childUiPort,
-                  label: 'UI_PORT',
-                  slug: 'ui-port',
-                  path: `/apps/${childId}/proxy`,
-                  assetNamespace: `/apps/${childId}/proxy/assets`,
-                  aliases: ['UI_PORT', 'primary'],
-                  source: 'port_mappings',
-                  isPrimary: true,
-                  priority: 80,
-                },
-                loopbackHosts: ['127.0.0.1', 'localhost'],
-              })
-
-              html = injectProxyMetadata(html, metadata, {
-                patchFetch: true,
-              })
-
-              html = injectBaseTag(html, `/apps/${childId}/proxy/`, {
-                skipIfExists: true,
-                dataAttribute: 'data-host-proxy',
-              })
-            }
-
-            res.setHeader('Content-Type', contentType)
-            res.send(html)
-          } else {
-            // Proxy non-HTML requests
-            const targetUrl = `http://127.0.0.1:${childUiPort}${relativeUrl}`
-
-            const proxyReq = http.request(
-              targetUrl,
-              {
-                method: req.method,
-                headers: {
-                  ...req.headers,
-                  host: `127.0.0.1:${childUiPort}`,
-                },
-              },
-              (proxyRes) => {
-                res.writeHead(proxyRes.statusCode || 500, proxyRes.headers)
-                proxyRes.pipe(res)
-              }
-            )
-
-            proxyReq.on('error', (err) => {
-              res.status(502).json({ error: 'Proxy failed', details: err.message })
-            })
-
-            req.pipe(proxyReq)
+      const controller = createScenarioProxyHost({
+        hostScenario: 'host-scenario',
+        patchFetch: true,
+        childBaseTagAttribute: 'data-host-proxy',
+        fetchAppMetadata: async (appId) => {
+          const result = await makeRequest(hostApiPort, `/api/v1/apps/${appId}`)
+          try {
+            const parsed = JSON.parse(result.body || '{}')
+            return parsed.data || parsed
+          } catch {
+            return null
           }
-        } catch (error: any) {
-          res.status(502).json({ error: 'Proxy failed', details: error.message })
-        }
+        },
       })
+
+      hostProxyController = controller
+      app.use(controller.router)
     },
   })
 
@@ -563,22 +455,11 @@ export async function setupHostScenario(
     })
   })
 
-  uiServer.on('upgrade', (req, socket, head) => {
-    if (!req.url || !req.url.includes('/proxy')) {
-      socket.destroy()
+  uiServer.on('upgrade', async (req, socket, head) => {
+    if (hostProxyController && (await hostProxyController.handleUpgrade(req, socket, head))) {
       return
     }
-
-    const relativeUrl = extractProxyRelativeUrl(req.url)
-    const targetPort = relativeUrl.startsWith('/api') ? childApiPort : childUiPort
-    const proxyReq = Object.create(req)
-    proxyReq.url = relativeUrl
-
-    proxyWebSocketUpgrade(proxyReq, socket, head, {
-      apiPort: targetPort,
-      apiHost: '127.0.0.1',
-      verbose: false,
-    })
+    socket.destroy()
   })
 
   return { uiServer, apiServer }

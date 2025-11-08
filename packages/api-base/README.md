@@ -358,6 +358,57 @@ app.use('/api', createProxyMiddleware({
 }))
 ```
 
+#### `createScenarioProxyHost(options): ScenarioProxyHostController`
+
+Complete proxy stack for host scenarios like **app-monitor** that need to embed
+other scenarios via `/apps/:id/proxy/*`.
+
+```typescript
+import { createScenarioProxyHost } from '@vrooli/api-base/server'
+import axios from 'axios'
+
+const proxyHost = createScenarioProxyHost({
+  hostScenario: 'app-monitor',
+  cacheTtlMs: 30_000,
+  fetchAppMetadata: async (appId) => {
+    const response = await axios.get(`${API_BASE}/api/v1/apps/${encodeURIComponent(appId)}`)
+    return response.data?.data
+  },
+})
+
+app.use(proxyHost.router)
+
+server.on('upgrade', async (req, socket, head) => {
+  if (await proxyHost.handleUpgrade(req, socket, head)) {
+    return
+  }
+  // Host-specific WebSocket handling here
+})
+```
+
+Features:
+
+- App metadata loading + caching
+- Automatic UI/API port detection
+- `/apps/:id/proxy/*` and `/apps/:id/ports/:portKey/proxy/*` routes
+- HTML injection (proxy metadata + `<base>` tag) with optional `patchFetch`
+- Asset + API proxying, including custom port aliases
+- Built-in WebSocket upgrade handling for proxied apps
+
+Common options:
+
+- `appsPathPrefix` (default: `/apps`)
+- `proxyPathSegment` (default: `proxy`)
+- `portsPathSegment` (default: `ports`)
+- `cacheTtlMs` (default: 30000)
+- `loopbackHosts` (defaults to standard localhost values)
+- `patchFetch` (default: `false`)
+- `childBaseTagAttribute` (default: `data-proxy-host`)
+- `proxiedAppHeader` (default: `x-vrooli-proxied-app`)
+
+The returned controller exposes `router`, `handleUpgrade`, `invalidate(appId?)`,
+and `clearCache()` so hosts can manage state explicitly.
+
 #### `injectProxyMetadata(html, metadata, options?): string`
 
 Injects proxy metadata into HTML for hosting embedded scenarios.

@@ -224,6 +224,78 @@ export interface ProxyOptions {
 }
 
 /**
+ * Raw app metadata returned by host API for proxying
+ */
+export interface ScenarioProxyAppMetadata {
+  /** Application identifier */
+  id?: string
+  /** Alternate application identifier */
+  appId?: string
+  /** Scenario name */
+  scenario?: string
+  /** Scenario name (snake_case) */
+  scenario_name?: string
+  /** Scenario name (camelCase) */
+  scenarioName?: string
+  /** Human readable name */
+  name?: string
+  /** Port mappings */
+  port_mappings?: Record<string, unknown>
+  /** Alternate port mappings */
+  portMappings?: Record<string, unknown>
+  /** Additional configuration */
+  config?: Record<string, unknown>
+  /** Allow arbitrary fields */
+  [key: string]: unknown
+}
+
+/**
+ * Options for configuring scenario proxy hosts (e.g., app-monitor)
+ */
+export interface ScenarioProxyHostOptions {
+  /** Host scenario identifier */
+  hostScenario: string
+  /** Function that returns app metadata used to build proxy context */
+  fetchAppMetadata: (appId: string) => Promise<ScenarioProxyAppMetadata | null | undefined>
+  /** Base path prefix for hosted apps */
+  appsPathPrefix?: string
+  /** Segment used for proxy routes (default: "proxy") */
+  proxyPathSegment?: string
+  /** Segment used for explicit port routes (default: "ports") */
+  portsPathSegment?: string
+  /** Loopback hosts allowed for proxy metadata */
+  loopbackHosts?: string[]
+  /** Cache TTL for metadata lookups */
+  cacheTtlMs?: number
+  /** Upstream host that runs the scenarios (default: 127.0.0.1) */
+  upstreamHost?: string
+  /** Timeout for upstream requests */
+  timeoutMs?: number
+  /** Enable verbose logging */
+  verbose?: boolean
+  /** Whether to patch fetch/XMLHttpRequest in injected metadata */
+  patchFetch?: boolean
+  /** Custom data attribute for injected base tag */
+  childBaseTagAttribute?: string
+  /** Header name set on proxied HTML responses */
+  proxiedAppHeader?: string
+}
+
+/**
+ * Controller returned by createScenarioProxyHost
+ */
+export interface ScenarioProxyHostController {
+  /** Express router that registers proxy routes */
+  router: any
+  /** Handles WebSocket upgrade events. Returns true if handled. */
+  handleUpgrade: (req: any, socket: any, head: any) => Promise<boolean>
+  /** Invalidate cache for single app or all apps */
+  invalidate: (appId?: string) => void
+  /** Clear entire cache */
+  clearCache: () => void
+}
+
+/**
  * Options for config endpoint
  */
 export interface ConfigEndpointOptions {

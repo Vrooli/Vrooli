@@ -17,9 +17,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import {
   createScenarioServer,
   injectBaseTag,
-  buildProxyMetadata,
-  injectProxyMetadata,
-  proxyToApi,
+  createScenarioProxyHost,
+  type ScenarioProxyHostController,
 } from '../../server/index.js'
 import * as http from 'node:http'
 import * as fs from 'node:fs'
@@ -113,6 +112,7 @@ describe('Host Scenario Pattern Integration', () => {
   let hostUiServer: Server
   let hostApiServer: Server
   let hostWsServer: WebSocket.Server
+  let hostProxyController: ScenarioProxyHostController | null = null
 
   // Port assignments
   let childUiPort: number
@@ -361,135 +361,17 @@ describe('Host Scenario Pattern Integration', () => {
           res.send('console.log("Host app loaded");')
         })
 
-        // ========================================
-        // CHILD PROXY ROUTES
-        // ========================================
-        app.all(`/apps/${childId}/proxy/*`, async (req, res) => {
-          const targetPath = req.params[0] || ''
-
-          try {
-            // For HTML requests, intercept and inject metadata
-            const isHtmlRequest = req.headers.accept?.includes('text/html')
-
-            if (isHtmlRequest && req.method === 'GET') {
-              // Fetch HTML from child
-              const targetUrl = `http://127.0.0.1:${childUiPort}/${targetPath}`
-
-              const childResponse = await new Promise<{
-                data: string
-                headers: http.IncomingHttpHeaders
-              }>((resolve, reject) => {
-                http.get(
-                  targetUrl,
-                  {
-                    headers: {
-                      ...req.headers,
-                      host: `127.0.0.1:${childUiPort}`,
-                    },
-                  },
-                  (childRes) => {
-                    let data = ''
-                    childRes.on('data', (chunk) => {
-                      data += chunk
-                    })
-                    childRes.on('end', () => {
-                      resolve({ data, headers: childRes.headers })
-                    })
-                  }
-                ).on('error', reject)
-              })
-
-              let html = childResponse.data
-              const contentType = childResponse.headers['content-type'] || ''
-
-              // Inject metadata if it's HTML
-              if (contentType.includes('text/html') && typeof html === 'string') {
-                // Build proxy metadata
-                const metadata = buildProxyMetadata({
-                  appId: childId,
-                  hostScenario: 'host-scenario',
-                  targetScenario: childId,
-                  ports: [
-                    {
-                      port: childUiPort,
-                      label: 'UI_PORT',
-                      slug: 'ui-port',
-                      path: `/apps/${childId}/proxy`,
-                      assetNamespace: `/apps/${childId}/proxy/assets`,
-                      aliases: ['UI_PORT', 'ui_port', 'primary'],
-                      source: 'port_mappings',
-                      isPrimary: true,
-                      priority: 80,
-                    },
-                    {
-                      port: childApiPort,
-                      label: 'API_PORT',
-                      slug: 'api-port',
-                      path: `/apps/${childId}/ports/api-port/proxy`,
-                      assetNamespace: `/apps/${childId}/ports/api-port/proxy/assets`,
-                      aliases: ['API_PORT', 'api_port'],
-                      source: 'port_mappings',
-                      isPrimary: false,
-                      priority: 30,
-                    },
-                  ],
-                  primaryPort: {
-                    port: childUiPort,
-                    label: 'UI_PORT',
-                    slug: 'ui-port',
-                    path: `/apps/${childId}/proxy`,
-                    assetNamespace: `/apps/${childId}/proxy/assets`,
-                    aliases: ['UI_PORT', 'ui_port', 'primary'],
-                    source: 'port_mappings',
-                    isPrimary: true,
-                    priority: 80,
-                  },
-                  loopbackHosts: ['127.0.0.1', 'localhost'],
-                })
-
-                // Inject proxy metadata
-                html = injectProxyMetadata(html, metadata, {
-                  patchFetch: true,
-                })
-
-                // Inject base tag for child
-                html = injectBaseTag(html, `/apps/${childId}/proxy/`, {
-                  skipIfExists: true,
-                  dataAttribute: 'data-host-proxy',
-                })
-              }
-
-              res.setHeader('Content-Type', contentType)
-              res.send(html)
-            } else {
-              // For non-HTML requests, proxy directly
-              const targetUrl = `http://127.0.0.1:${childUiPort}/${targetPath}`
-
-              const proxyReq = http.request(
-                targetUrl,
-                {
-                  method: req.method,
-                  headers: {
-                    ...req.headers,
-                    host: `127.0.0.1:${childUiPort}`,
-                  },
-                },
-                (proxyRes) => {
-                  res.writeHead(proxyRes.statusCode || 500, proxyRes.headers)
-                  proxyRes.pipe(res)
-                }
-              )
-
-              proxyReq.on('error', (err) => {
-                res.status(502).json({ error: 'Proxy failed', details: err.message })
-              })
-
-              req.pipe(proxyReq)
-            }
-          } catch (error: any) {
-            res.status(502).json({ error: 'Proxy failed', details: error.message })
-          }
+        hostProxyController = createScenarioProxyHost({
+          hostScenario: 'host-scenario',
+          patchFetch: true,
+          childBaseTagAttribute: 'data-host-proxy',
+          fetchAppMetadata: async (appId) => {
+            const result = await makeRequest(hostApiPort, `/api/v1/apps/${appId}`)
+            return JSON.parse(result.body).data
+          },
         })
+
+        app.use(hostProxyController.router)
       },
     })
 
@@ -501,15 +383,18 @@ describe('Host Scenario Pattern Integration', () => {
 
     // Setup WebSocket upgrade handlers
     hostUiServer.on('upgrade', async (req, socket, head) => {
+      if (hostProxyController && (await hostProxyController.handleUpgrade(req, socket, head))) {
+        return
+      }
       if (req.url?.startsWith('/api')) {
         const { proxyWebSocketUpgrade } = await import('../../server/proxy.js')
         proxyWebSocketUpgrade(req, socket, head, {
           apiPort: hostApiPort,
           verbose: false,
         })
-      } else {
-        socket.destroy()
+        return
       }
+      socket.destroy()
     })
 
     childUiServer.on('upgrade', async (req, socket, head) => {

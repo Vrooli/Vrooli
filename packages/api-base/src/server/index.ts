@@ -54,6 +54,11 @@ export {
   startScenarioServer,
 } from './template.js'
 
+// Host scenario helpers
+export {
+  createScenarioProxyHost,
+} from './host.js'
+
 // Re-export types that are useful for server code
 export type {
   ProxyInfo,
@@ -65,4 +70,7 @@ export type {
   HealthOptions,
   HealthCheckResult,
   ServerTemplateOptions,
+  ScenarioProxyHostOptions,
+  ScenarioProxyHostController,
+  ScenarioProxyAppMetadata,
 } from '../shared/types.js'
