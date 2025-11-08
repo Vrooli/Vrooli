@@ -410,3 +410,74 @@ export -f testing::business::is_enabled
 export -f testing::business::validate_endpoints
 export -f testing::business::validate_cli_commands
 export -f testing::business::validate_websockets
+testing::business::validate_all() {
+    local summary="Business logic validation completed"
+    testing::phase::auto_lifecycle_start \
+        --phase-name "business" \
+        --default-target-time "90s" \
+        --summary "$summary" \
+        --config-phase-key "business" \
+        || true
+
+    local testing_config="${TESTING_PHASE_SCENARIO_DIR}/.vrooli/testing.json"
+    local -a requested_checks=("$@")
+
+    if [ ${#requested_checks[@]} -eq 0 ]; then
+        if [ -f "$testing_config" ] && command -v jq >/dev/null 2>&1; then
+            mapfile -t requested_checks < <(
+                jq -r '.business.checks // {} | to_entries[] | select(.value.enabled != false) | .key' "$testing_config"
+            )
+        fi
+    fi
+
+    if [ ${#requested_checks[@]} -eq 0 ]; then
+        requested_checks=(
+            "endpoints"
+            "cli_commands"
+            "websockets"
+        )
+    fi
+
+    if [ ${#requested_checks[@]} -eq 0 ]; then
+        testing::phase::add_warning "No business checks defined; skipping business validation"
+        testing::phase::auto_lifecycle_end "$summary"
+        return 0
+    fi
+
+    local executed=0
+    declare -A seen=()
+
+    for check in "${requested_checks[@]}"; do
+        # Skip duplicates to avoid double-running the same validator
+        if [ -n "${seen[$check]+1}" ]; then
+            continue
+        fi
+        seen[$check]=1
+
+        case "$check" in
+            endpoints)
+                testing::business::validate_endpoints
+                executed=$((executed + 1))
+                ;;
+            cli_commands)
+                testing::business::validate_cli_commands
+                executed=$((executed + 1))
+                ;;
+            websockets)
+                testing::business::validate_websockets
+                executed=$((executed + 1))
+                ;;
+            *)
+                testing::phase::add_warning "Unknown business check '$check'; skipping"
+                ;;
+        esac
+    done
+
+    if [ "$executed" -eq 0 ]; then
+        testing::phase::add_warning "No business validation checks executed"
+    fi
+
+    testing::phase::auto_lifecycle_end "$summary"
+}
+
+export -f testing::business::validate_all

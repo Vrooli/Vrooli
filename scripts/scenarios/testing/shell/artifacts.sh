@@ -161,6 +161,36 @@ testing::artifacts::archive() {
     fi
 }
 
+# Normalize scenario workspace artifacts (e.g., Playwright outputs) into coverage directory
+testing::artifacts::finalize_workspace() {
+    local scenario_dir="${TESTING_RUNNER_SCENARIO_DIR:-}"
+    local scenario_name="${TESTING_RUNNER_SCENARIO_NAME:-}"
+
+    if [ -z "$scenario_dir" ] || [ -z "$scenario_name" ]; then
+        return 0
+    fi
+
+    local dest_root="$scenario_dir/coverage/${scenario_name}/playwright"
+    local moved=false
+    local rel_paths=("ui/test-results" "ui/trace-out" "ui/playwright-report")
+
+    for rel_path in "${rel_paths[@]}"; do
+        local source_path="$scenario_dir/$rel_path"
+        if [ -d "$source_path" ]; then
+            mkdir -p "$dest_root"
+            local target_path="$dest_root/$(basename "$rel_path")"
+            rm -rf "$target_path"
+            mv "$source_path" "$target_path"
+            moved=true
+            log::info "📦 Moved ${rel_path} → coverage/${scenario_name}/playwright/$(basename "$rel_path")"
+        fi
+    done
+
+    if [ "$moved" = true ]; then
+        log::info "📁 Playwright artifacts centralized under coverage/${scenario_name}/playwright"
+    fi
+}
+
 # Generate artifact summary report
 # Usage: testing::artifacts::summary
 testing::artifacts::summary() {

@@ -8,8 +8,6 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-testing::phase::init --target-time "60s"
-
 # ONE-LINER: Validate all dependencies automatically
 # This helper:
 # - Detects tech stack from service.json and file structure
@@ -20,7 +18,4 @@ testing::phase::init --target-time "60s"
 #
 # All powered by `vrooli scenario status --json` with fallbacks to file detection
 
-testing::dependencies::validate_all \
-  --scenario "$TESTING_PHASE_SCENARIO_NAME"
-
-testing::phase::end_with_summary "Dependency validation completed"
+testing::dependencies::validate_all

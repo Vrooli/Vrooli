@@ -8,12 +8,8 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/structure.sh"
 
-testing::phase::init --target-time "30s"
-
 # ONE-LINER: Validate standard structure with config-driven exceptions
-testing::structure::validate_all --scenario "$TESTING_PHASE_SCENARIO_NAME"
+testing::structure::validate_all
 
 # Optional: Add custom structure checks here if needed
 # Example: testing::phase::check "Custom file exists" test -f custom/file.txt
-
-testing::phase::end_with_summary "Structure validation completed"

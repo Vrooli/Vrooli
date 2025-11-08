@@ -26,7 +26,8 @@ testing::unit::run_node_tests() {
     # Reset any previously exported coverage metadata
     unset -v TESTING_NODE_COVERAGE_COLLECTED TESTING_NODE_COVERAGE_PERCENT \
         TESTING_NODE_COVERAGE_TOTALS_JSON TESTING_NODE_COVERAGE_SUMMARY_PATH \
-        TESTING_NODE_COVERAGE_LCOV_PATH 2>/dev/null || true
+        TESTING_NODE_COVERAGE_LCOV_PATH TESTING_NODE_COVERAGE_DIR \
+        TESTING_NODE_COVERAGE_LINK_PATH 2>/dev/null || true
     TESTING_NODE_REQUIREMENT_STATUS=()
     TESTING_NODE_REQUIREMENT_EVIDENCE=()
 
@@ -85,7 +86,22 @@ testing::unit::run_node_tests() {
     
     # Save current directory and change to Node directory
     local original_dir=$(pwd)
-    cd "$node_dir"
+    local node_abs_dir
+    node_abs_dir=$(cd "$node_dir" && pwd)
+    cd "$node_abs_dir"
+
+    local coverage_root_on_disk="$node_abs_dir/coverage"
+    local coverage_storage_root="$coverage_root_on_disk"
+    if [ -n "${TESTING_UNIT_WORK_DIR:-}" ]; then
+        coverage_storage_root="${TESTING_UNIT_WORK_DIR%/}/node"
+        rm -rf "$coverage_root_on_disk"
+        mkdir -p "$coverage_storage_root"
+        ln -s "$coverage_storage_root" "$coverage_root_on_disk"
+        declare -g TESTING_NODE_COVERAGE_LINK_PATH="$coverage_root_on_disk"
+    else
+        mkdir -p "$coverage_storage_root"
+    fi
+    declare -g TESTING_NODE_COVERAGE_DIR="$coverage_storage_root"
     
     # Check if test script is defined in package.json
     if [ -z "$test_cmd" ]; then
@@ -233,7 +249,7 @@ testing::unit::run_node_tests() {
 
         # Prefer structured coverage data; fall back to parsing stdout
         local coverage_percent=""
-        if [ -f "coverage/coverage-summary.json" ]; then
+        if [ -f "$coverage_storage_root/coverage-summary.json" ]; then
             coverage_percent=$(node -e "const summary=require('./coverage/coverage-summary.json'); const pct=summary?.total?.statements?.pct; if (typeof pct === 'number') { process.stdout.write(pct.toString()); }" 2>/dev/null || echo "")
         fi
 
@@ -274,9 +290,8 @@ testing::unit::run_node_tests() {
             declare -g TESTING_NODE_COVERAGE_PERCENT="$coverage_percent"
         fi
 
-        if [ -f "coverage/coverage-summary.json" ]; then
-            local summary_rel="${node_dir%/}/coverage/coverage-summary.json"
-            declare -g TESTING_NODE_COVERAGE_SUMMARY_PATH="$summary_rel"
+        if [ -f "$coverage_storage_root/coverage-summary.json" ]; then
+            declare -g TESTING_NODE_COVERAGE_SUMMARY_PATH="$coverage_storage_root/coverage-summary.json"
             local totals_json
             totals_json=$(node -e "const summary=require('./coverage/coverage-summary.json'); const totals=(summary && summary.total) || {}; const pct=value=> (value && typeof value.pct === 'number') ? value.pct : null; const result={statements:pct(totals.statements), branches:pct(totals.branches), functions:pct(totals.functions), lines:pct(totals.lines)}; process.stdout.write(JSON.stringify(result));" 2>/dev/null || echo "")
             if [ -n "$totals_json" ]; then
@@ -284,8 +299,8 @@ testing::unit::run_node_tests() {
             fi
         fi
 
-        if [ -f "coverage/lcov.info" ]; then
-            declare -g TESTING_NODE_COVERAGE_LCOV_PATH="${node_dir%/}/coverage/lcov.info"
+        if [ -f "$coverage_storage_root/lcov.info" ]; then
+            declare -g TESTING_NODE_COVERAGE_LCOV_PATH="$coverage_storage_root/lcov.info"
         fi
 
         cd "$original_dir"

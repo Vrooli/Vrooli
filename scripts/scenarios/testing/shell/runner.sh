@@ -918,6 +918,10 @@ testing::runner::execute() {
         log::info "📄 JUnit results written to: $junit_file"
     fi
 
+    if declare -F testing::artifacts::finalize_workspace >/dev/null 2>&1; then
+        testing::artifacts::finalize_workspace
+    fi
+
     return $execution_result
 }
 

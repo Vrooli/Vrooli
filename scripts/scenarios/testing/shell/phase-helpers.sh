@@ -23,6 +23,10 @@ TESTING_PHASE_EXPECTED_REQUIREMENTS=()
 declare -A TESTING_PHASE_EXPECTED_CRITICALITY=()
 declare -A TESTING_PHASE_EXPECTED_VALIDATIONS=()
 
+TESTING_PHASE_INITIALIZED=false
+TESTING_PHASE_AUTO_MANAGED=false
+TESTING_PHASE_AUTO_SUMMARY=""
+
 # Initialize phase environment
 # Usage: testing::phase::init [options]
 # Options:
@@ -62,7 +66,9 @@ testing::phase::init() {
     done
     
     # Auto-detect directories
-    local phase_script_dir="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
+    local phase_script_path
+    phase_script_path="$(testing::phase::_detect_phase_script_path)"
+    local phase_script_dir="$(cd "$(dirname "$phase_script_path")" && pwd)"
     TESTING_PHASE_SCENARIO_DIR="$(cd "$phase_script_dir/../.." && pwd)"
     TESTING_PHASE_APP_ROOT="${APP_ROOT:-$(builtin cd "${TESTING_PHASE_SCENARIO_DIR}/../.." && builtin pwd)}"
     export APP_ROOT="$TESTING_PHASE_APP_ROOT"
@@ -131,6 +137,8 @@ testing::phase::init() {
 
     # Set up cleanup trap
     trap 'testing::phase::cleanup' EXIT
+    TESTING_PHASE_INITIALIZED=true
+    TESTING_PHASE_AUTO_MANAGED=false
 }
 
 # Add a test result
@@ -445,6 +453,9 @@ JSON
         else
             log::success "✅ ${TESTING_PHASE_NAME^} phase completed successfully in ${duration}s${summary}${time_warning}"
         fi
+        TESTING_PHASE_INITIALIZED=false
+        TESTING_PHASE_AUTO_MANAGED=false
+        TESTING_PHASE_AUTO_SUMMARY=""
         exit 0
     else
         if [ -n "$custom_message" ]; then
@@ -452,6 +463,9 @@ JSON
         else
             log::error "❌ ${TESTING_PHASE_NAME^} phase failed in ${duration}s${summary}${time_warning}"
         fi
+        TESTING_PHASE_INITIALIZED=false
+        TESTING_PHASE_AUTO_MANAGED=false
+        TESTING_PHASE_AUTO_SUMMARY=""
         exit 1
     fi
 }
@@ -882,3 +896,159 @@ export -f testing::phase::run_workflow_validations
 # Backward compatibility alias
 testing::phase::run_bas_automation_validations() { testing::phase::run_workflow_validations "$@"; }
 export -f testing::phase::run_bas_automation_validations
+
+# --- Lifecycle automation helpers ---
+
+testing::phase::_detect_phase_script_path() {
+    local idx
+    for ((idx=${#BASH_SOURCE[@]}-1; idx>=0; idx--)); do
+        local candidate="${BASH_SOURCE[$idx]}"
+        if [[ "$candidate" == */test/phases/test-* ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    if [ ${#BASH_SOURCE[@]} -gt 0 ]; then
+        printf '%s\n' "${BASH_SOURCE[${#BASH_SOURCE[@]}-1]}"
+    fi
+}
+
+testing::phase::_detect_scenario_dir() {
+    local script_path
+    script_path="$(testing::phase::_detect_phase_script_path)"
+    if [ -z "$script_path" ]; then
+        printf '%s\n' "$(pwd)"
+        return 0
+    fi
+
+    local script_dir
+    script_dir="$(cd "$(dirname "$script_path")" && pwd)"
+    if [ -z "$script_dir" ]; then
+        printf '%s\n' "$(pwd)"
+        return 0
+    fi
+
+    (
+        cd "$script_dir/../.." >/dev/null 2>&1 && pwd
+    )
+}
+
+testing::phase::_read_phase_timeout() {
+    local phase_key="${1:-}"
+    if [ -z "$phase_key" ]; then
+        return 0
+    fi
+
+    local scenario_dir
+    scenario_dir="$(testing::phase::_detect_scenario_dir)"
+    if [ -z "$scenario_dir" ]; then
+        return 0
+    fi
+
+    local config_file="$scenario_dir/.vrooli/testing.json"
+    if [ ! -f "$config_file" ]; then
+        return 0
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local configured
+    configured=$(jq -r ".phases.${phase_key}.timeout // empty" "$config_file" 2>/dev/null || echo "")
+    if [ -n "$configured" ] && [ "$configured" != "null" ]; then
+        printf '%s\n' "$configured"
+    fi
+}
+
+testing::phase::auto_lifecycle_start() {
+    local phase_name=""
+    local default_target=""
+    local summary=""
+    local require_runtime=false
+    local skip_runtime_check=false
+    local config_phase_key=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --phase-name)
+                phase_name="$2"
+                shift 2
+                ;;
+            --default-target-time)
+                default_target="$2"
+                shift 2
+                ;;
+            --summary)
+                summary="$2"
+                shift 2
+                ;;
+            --require-runtime)
+                require_runtime=true
+                shift
+                ;;
+            --skip-runtime-check)
+                skip_runtime_check=true
+                shift
+                ;;
+            --config-phase-key)
+                config_phase_key="$2"
+                shift 2
+                ;;
+            *)
+                echo "Unknown option to testing::phase::auto_lifecycle_start: $1" >&2
+                return 1
+                ;;
+        esac
+    done
+
+    if [ "$TESTING_PHASE_INITIALIZED" = true ]; then
+        TESTING_PHASE_AUTO_MANAGED=false
+        return 1
+    fi
+
+    local resolved_target="$default_target"
+    local configured_target=""
+    if [ -n "$config_phase_key" ]; then
+        configured_target="$(testing::phase::_read_phase_timeout "$config_phase_key")"
+    fi
+    if [ -n "$configured_target" ]; then
+        resolved_target="$configured_target"
+    fi
+
+    local init_args=()
+    if [ -n "$phase_name" ]; then
+        init_args+=(--phase-name "$phase_name")
+    fi
+    if [ -n "$resolved_target" ]; then
+        init_args+=(--target-time "$resolved_target")
+    fi
+    if [ "$require_runtime" = true ]; then
+        init_args+=(--require-runtime)
+    fi
+    if [ "$skip_runtime_check" = true ]; then
+        init_args+=(--skip-runtime-check)
+    fi
+
+    testing::phase::init "${init_args[@]}"
+
+    TESTING_PHASE_AUTO_MANAGED=true
+    TESTING_PHASE_AUTO_SUMMARY="$summary"
+    return 0
+}
+
+testing::phase::auto_lifecycle_end() {
+    local summary_override="${1:-}"
+    if [ "$TESTING_PHASE_AUTO_MANAGED" = true ]; then
+        local summary_to_use="$summary_override"
+        if [ -z "$summary_to_use" ]; then
+            summary_to_use="$TESTING_PHASE_AUTO_SUMMARY"
+        fi
+        TESTING_PHASE_AUTO_MANAGED=false
+        testing::phase::end_with_summary "$summary_to_use"
+    fi
+}
+
+export -f testing::phase::auto_lifecycle_start
+export -f testing::phase::auto_lifecycle_end

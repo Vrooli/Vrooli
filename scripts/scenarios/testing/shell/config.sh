@@ -117,3 +117,29 @@ testing::config::get_unit_test_args() {
 
 export -f testing::config::get
 export -f testing::config::get_unit_test_args
+
+testing::config::get_phase_timeout() {
+  local phase_name="$1"
+  local default_value="${2:-}"
+  local config_file="${TESTING_PHASE_SCENARIO_DIR}/.vrooli/testing.json"
+
+  if [ ! -f "$config_file" ]; then
+    printf '%s\n' "$default_value"
+    return 0
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    printf '%s\n' "$default_value"
+    return 0
+  fi
+
+  local configured
+  configured=$(jq -r ".phases.${phase_name}.timeout // empty" "$config_file" 2>/dev/null || echo "")
+  if [ -n "$configured" ] && [ "$configured" != "null" ]; then
+    printf '%s\n' "$configured"
+  else
+    printf '%s\n' "$default_value"
+  fi
+}
+
+export -f testing::config::get_phase_timeout

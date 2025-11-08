@@ -107,8 +107,16 @@ testing::unit::run_go_tests() {
         test_cmd="$test_cmd -v"
     fi
     test_cmd="$test_cmd ./... -timeout $timeout"
+    local coverage_profile_path="coverage.out"
+    local coverage_html_path="coverage.html"
     if [ "$coverage" = true ]; then
-        test_cmd="$test_cmd -cover -coverprofile=coverage.out"
+        if [ -n "${TESTING_UNIT_WORK_DIR:-}" ]; then
+            local go_work_dir="${TESTING_UNIT_WORK_DIR%/}/go"
+            mkdir -p "$go_work_dir"
+            coverage_profile_path="$go_work_dir/coverage.out"
+            coverage_html_path="$go_work_dir/coverage.html"
+        fi
+        test_cmd="$test_cmd -cover -coverprofile=$coverage_profile_path"
     fi
     
     echo "🧪 Running Go tests..."
@@ -136,7 +144,7 @@ testing::unit::run_go_tests() {
         if [ "$coverage" = true ] && [ -f "coverage.out" ]; then
             echo ""
             echo "📊 Go Test Coverage Summary:"
-            local coverage_line=$(go tool cover -func=coverage.out | tail -1)
+            local coverage_line=$(go tool cover -func="$coverage_profile_path" | tail -1)
             echo "$coverage_line"
 
             # Extract coverage percentage
@@ -167,13 +175,23 @@ testing::unit::run_go_tests() {
 
             # Always record artifact paths so they can be copied later
             declare -g TESTING_GO_COVERAGE_COLLECTED="true"
-            local coverage_profile_rel="${api_dir%/}/coverage.out"
-            declare -g TESTING_GO_COVERAGE_PROFILE="$coverage_profile_rel"
-            # Generate HTML coverage report for manual inspection
-            if go tool cover -html=coverage.out -o coverage.html 2>/dev/null; then
-                local coverage_html_rel="${api_dir%/}/coverage.html"
-                declare -g TESTING_GO_COVERAGE_HTML="$coverage_html_rel"
-                echo "ℹ️  HTML coverage report generated: $coverage_html_rel"
+            local profile_abs_path="$coverage_profile_path"
+            if [[ "$profile_abs_path" != /* ]]; then
+                profile_abs_path="$PWD/$profile_abs_path"
+            fi
+            declare -g TESTING_GO_COVERAGE_PROFILE="$profile_abs_path"
+
+            if go tool cover -html="$coverage_profile_path" -o "$coverage_html_path" 2>/dev/null; then
+                local html_abs_path="$coverage_html_path"
+                if [[ "$html_abs_path" != /* ]]; then
+                    html_abs_path="$PWD/$html_abs_path"
+                fi
+                declare -g TESTING_GO_COVERAGE_HTML="$html_abs_path"
+                local html_display="$html_abs_path"
+                if [[ "$html_display" == "$original_dir/"* ]]; then
+                    html_display="${html_display#$original_dir/}"
+                fi
+                echo "ℹ️  HTML coverage report generated: ${html_display:-$html_abs_path}"
             fi
         fi
 

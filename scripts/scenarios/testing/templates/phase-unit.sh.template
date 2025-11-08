@@ -12,7 +12,7 @@ source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 testing::phase::init --target-time "60s"
 
 # Source centralized testing library
-source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/unit.sh"
 
 # Change to scenario directory
 cd "$TESTING_PHASE_SCENARIO_DIR"

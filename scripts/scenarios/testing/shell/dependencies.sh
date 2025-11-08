@@ -11,6 +11,14 @@ source "$SHELL_DIR/phase-helpers.sh"
 # === Main Dependency Validation Function ===
 
 testing::dependencies::validate_all() {
+    local summary="Dependency validation completed"
+    testing::phase::auto_lifecycle_start \
+        --phase-name "dependencies" \
+        --default-target-time "60s" \
+        --summary "$summary" \
+        --config-phase-key "dependencies" \
+        || true
+
     local scenario_name=""
     local enforce_resources=false
     local enforce_runtimes=false
@@ -32,6 +40,7 @@ testing::dependencies::validate_all() {
                 ;;
             *)
                 echo "Unknown option: $1" >&2
+                testing::phase::auto_lifecycle_end "$summary"
                 return 1
                 ;;
         esac
@@ -79,9 +88,11 @@ testing::dependencies::validate_all() {
         else
             echo "✅ Dependency checks completed with $total_skipped warning(s) ($total_passed/$total_tests passed)"
         fi
+        testing::phase::auto_lifecycle_end "$summary"
         return 0
     else
         echo "❌ $error_count dependency check(s) failed ($total_passed/$total_tests passed, $total_skipped skipped)"
+        testing::phase::auto_lifecycle_end "$summary"
         return 1
     fi
 }

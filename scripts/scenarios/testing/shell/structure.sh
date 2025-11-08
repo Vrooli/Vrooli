@@ -39,6 +39,14 @@ declare -ga TESTING_STRUCTURE_STANDARD_DIRS=(
 # Main validation function
 testing::structure::validate_all() {
   local scenario_name=""
+  local summary="Structure validation completed"
+
+  testing::phase::auto_lifecycle_start \
+    --phase-name "structure" \
+    --default-target-time "30s" \
+    --summary "$summary" \
+    --config-phase-key "structure" \
+    || true
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -48,6 +56,7 @@ testing::structure::validate_all() {
         ;;
       *)
         echo "Unknown option to testing::structure::validate_all: $1" >&2
+        testing::phase::auto_lifecycle_end "$summary"
         return 1
         ;;
     esac
@@ -162,6 +171,8 @@ testing::structure::validate_all() {
   echo ""
   local total_checks=$((${#dirs_to_check[@]} + ${#files_to_check[@]} + 2))
   echo "✅ Structure validation completed ($total_checks checks)"
+
+  testing::phase::auto_lifecycle_end "$summary"
 }
 
 # Private helper: Validate service.json name matches directory

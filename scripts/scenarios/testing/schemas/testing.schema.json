@@ -272,9 +272,33 @@
           }
         }
       }
+    },
+    "phases": {
+      "type": "object",
+      "description": "Per-phase execution overrides such as timeout targets",
+      "properties": {
+        "structure": { "$ref": "#/definitions/phase_options" },
+        "dependencies": { "$ref": "#/definitions/phase_options" },
+        "unit": { "$ref": "#/definitions/phase_options" },
+        "integration": { "$ref": "#/definitions/phase_options" },
+        "business": { "$ref": "#/definitions/phase_options" },
+        "performance": { "$ref": "#/definitions/phase_options" }
+      },
+      "additionalProperties": { "$ref": "#/definitions/phase_options" }
     }
   },
   "definitions": {
+    "phase_options": {
+      "type": "object",
+      "description": "Phase-level preferences",
+      "properties": {
+        "timeout": {
+          "type": "string",
+          "pattern": "^[0-9]+(s|m|h)$",
+          "description": "Target execution time for the phase (e.g., '30s', '2m', '1h')"
+        }
+      }
+    },
     "language_config": {
       "type": "object",
       "description": "Configuration for a specific language's tests. Presence of this object implies enabled=true. All properties optional with convention defaults.",

@@ -8,6 +8,15 @@ set -euo pipefail
 # Usage: testing::performance::validate_all --scenario SCENARIO_NAME
 testing::performance::validate_all() {
   local scenario_name=""
+  local summary="Performance validation completed"
+
+  testing::phase::auto_lifecycle_start \
+    --phase-name "performance" \
+    --default-target-time "180s" \
+    --summary "$summary" \
+    --config-phase-key "performance" \
+    --require-runtime \
+    || true
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -17,6 +26,7 @@ testing::performance::validate_all() {
         ;;
       *)
         echo "Unknown option to testing::performance::validate_all: $1" >&2
+        testing::phase::auto_lifecycle_end "$summary"
         return 1
         ;;
     esac
@@ -28,6 +38,7 @@ testing::performance::validate_all() {
   if [ ! -f "$config_file" ]; then
     log::warning "No .vrooli/testing.json found; checking for standalone Lighthouse config"
     _performance_basic_checks
+    testing::phase::auto_lifecycle_end "$summary"
     return 0
   fi
 
@@ -38,6 +49,7 @@ testing::performance::validate_all() {
   if [ "$perf_exists" != "true" ]; then
     log::info "No performance section in testing.json; checking for standalone Lighthouse config"
     _performance_basic_checks
+    testing::phase::auto_lifecycle_end "$summary"
     return 0
   fi
 
@@ -52,6 +64,7 @@ testing::performance::validate_all() {
     overall_status=1
     if [ "$continue_on_failure" != "true" ]; then
       log::error "Lighthouse failed; stopping performance tests (continue_on_failure=false)"
+      testing::phase::auto_lifecycle_end "$summary"
       return 1
     fi
   fi
@@ -60,6 +73,7 @@ testing::performance::validate_all() {
     overall_status=1
     if [ "$continue_on_failure" != "true" ]; then
       log::error "Bundle size check failed; stopping performance tests"
+      testing::phase::auto_lifecycle_end "$summary"
       return 1
     fi
   fi
@@ -68,6 +82,7 @@ testing::performance::validate_all() {
     overall_status=1
     if [ "$continue_on_failure" != "true" ]; then
       log::error "API benchmarks failed; stopping performance tests"
+      testing::phase::auto_lifecycle_end "$summary"
       return 1
     fi
   fi
@@ -76,6 +91,7 @@ testing::performance::validate_all() {
     overall_status=1
     if [ "$continue_on_failure" != "true" ]; then
       log::error "Response time tests failed; stopping performance tests"
+      testing::phase::auto_lifecycle_end "$summary"
       return 1
     fi
   fi
@@ -84,6 +100,7 @@ testing::performance::validate_all() {
     overall_status=1
     if [ "$continue_on_failure" != "true" ]; then
       log::error "Concurrent load test failed; stopping performance tests"
+      testing::phase::auto_lifecycle_end "$summary"
       return 1
     fi
   fi
@@ -92,10 +109,12 @@ testing::performance::validate_all() {
     overall_status=1
     if [ "$continue_on_failure" != "true" ]; then
       log::error "Memory usage check failed; stopping performance tests"
+      testing::phase::auto_lifecycle_end "$summary"
       return 1
     fi
   fi
 
+  testing::phase::auto_lifecycle_end "$summary"
   return $overall_status
 }
 
