@@ -273,6 +273,32 @@
         }
       }
     },
+    "requirements": {
+      "type": "object",
+      "description": "Requirements tracking preferences",
+      "properties": {
+        "enforce": {
+          "type": "boolean",
+          "default": false,
+          "description": "Treat missing requirement coverage as failures"
+        },
+        "sync": {
+          "type": "boolean",
+          "default": true,
+          "description": "Sync requirements registry after test runs"
+        }
+      }
+    },
+    "presets": {
+      "type": "object",
+      "description": "Named phase presets for the test runner",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
     "phases": {
       "type": "object",
       "description": "Per-phase execution overrides such as timeout targets",
@@ -296,6 +322,16 @@
           "type": "string",
           "pattern": "^[0-9]+(s|m|h)$",
           "description": "Target execution time for the phase (e.g., '30s', '2m', '1h')"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable this phase"
+        },
+        "require_runtime": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this phase requires the scenario runtime to be running"
         }
       }
     },

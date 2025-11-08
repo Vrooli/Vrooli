@@ -19,7 +19,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
-scenarios/system-monitor/investigations/results/
 
 # Source map analytics
 source-tree*.html
@@ -78,8 +77,6 @@ v8-compile-cache-*/
 # Other caches
 __test/cache/
 scenarios/**/test/artifacts/
-scenarios/web-console/ui/dist/
-scenarios/workflow-scheduler/ui/dist/
 .lycheecache
 
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
@@ -96,32 +93,6 @@ build/Release
 
 # Dependency directories
 node_modules/
-# Allow iframe bridge symlinks for targeted scenarios
-!scenarios/recommendation-engine/ui/node_modules/
-!scenarios/recommendation-engine/ui/node_modules/@vrooli/
-!scenarios/recommendation-engine/ui/node_modules/.gitignore
-!scenarios/recommendation-engine/ui/node_modules/@vrooli/.gitignore
-!scenarios/recommendation-engine/ui/node_modules/@vrooli/iframe-bridge
-!scenarios/resource-experimenter/ui/node_modules/
-!scenarios/resource-experimenter/ui/node_modules/@vrooli/
-!scenarios/resource-experimenter/ui/node_modules/.gitignore
-!scenarios/resource-experimenter/ui/node_modules/@vrooli/.gitignore
-!scenarios/resource-experimenter/ui/node_modules/@vrooli/iframe-bridge
-!scenarios/resume-screening-assistant/ui/node_modules/
-!scenarios/resume-screening-assistant/ui/node_modules/@vrooli/
-!scenarios/resume-screening-assistant/ui/node_modules/.gitignore
-!scenarios/resume-screening-assistant/ui/node_modules/@vrooli/.gitignore
-!scenarios/resume-screening-assistant/ui/node_modules/@vrooli/iframe-bridge
-!scenarios/retro-game-launcher/ui/node_modules/
-!scenarios/retro-game-launcher/ui/node_modules/@vrooli/
-!scenarios/retro-game-launcher/ui/node_modules/.gitignore
-!scenarios/retro-game-launcher/ui/node_modules/@vrooli/.gitignore
-!scenarios/retro-game-launcher/ui/node_modules/@vrooli/iframe-bridge
-!scenarios/roi-fit-analysis/ui/node_modules/
-!scenarios/roi-fit-analysis/ui/node_modules/@vrooli/
-!scenarios/roi-fit-analysis/ui/node_modules/.gitignore
-!scenarios/roi-fit-analysis/ui/node_modules/@vrooli/.gitignore
-!scenarios/roi-fit-analysis/ui/node_modules/@vrooli/iframe-bridge
 jspm_packages/
 
 # TypeScript v1 declaration files
@@ -226,32 +197,6 @@ temp/
 **/.~lock.*
 
 node_modules
-# Allow iframe bridge symlinks for targeted scenarios
-!scenarios/recommendation-engine/ui/node_modules/
-!scenarios/recommendation-engine/ui/node_modules/@vrooli/
-!scenarios/recommendation-engine/ui/node_modules/.gitignore
-!scenarios/recommendation-engine/ui/node_modules/@vrooli/.gitignore
-!scenarios/recommendation-engine/ui/node_modules/@vrooli/iframe-bridge
-!scenarios/resource-experimenter/ui/node_modules/
-!scenarios/resource-experimenter/ui/node_modules/@vrooli/
-!scenarios/resource-experimenter/ui/node_modules/.gitignore
-!scenarios/resource-experimenter/ui/node_modules/@vrooli/.gitignore
-!scenarios/resource-experimenter/ui/node_modules/@vrooli/iframe-bridge
-!scenarios/resume-screening-assistant/ui/node_modules/
-!scenarios/resume-screening-assistant/ui/node_modules/@vrooli/
-!scenarios/resume-screening-assistant/ui/node_modules/.gitignore
-!scenarios/resume-screening-assistant/ui/node_modules/@vrooli/.gitignore
-!scenarios/resume-screening-assistant/ui/node_modules/@vrooli/iframe-bridge
-!scenarios/retro-game-launcher/ui/node_modules/
-!scenarios/retro-game-launcher/ui/node_modules/@vrooli/
-!scenarios/retro-game-launcher/ui/node_modules/.gitignore
-!scenarios/retro-game-launcher/ui/node_modules/@vrooli/.gitignore
-!scenarios/retro-game-launcher/ui/node_modules/@vrooli/iframe-bridge
-!scenarios/roi-fit-analysis/ui/node_modules/
-!scenarios/roi-fit-analysis/ui/node_modules/@vrooli/
-!scenarios/roi-fit-analysis/ui/node_modules/.gitignore
-!scenarios/roi-fit-analysis/ui/node_modules/@vrooli/.gitignore
-!scenarios/roi-fit-analysis/ui/node_modules/@vrooli/iframe-bridge
 
 *.sublime*
 
