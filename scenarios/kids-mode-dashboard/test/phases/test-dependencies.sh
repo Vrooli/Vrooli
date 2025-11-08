@@ -1,16 +1,9 @@
 #!/bin/bash
-set -e
+# Validates runtimes, package managers, resources, and connectivity
 
-echo "=== Dependency Tests for Kids Mode Dashboard ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-echo "1. Verifying Go modules..."
-go mod tidy
-
-echo "2. Checking for unused dependencies..."
-go mod why -m github.com/some/unused || echo "No unused dependencies found"
-
-echo "3. Verifying no external binary dependencies..."
-# Check for no vendor/lock issues
-echo "Dependency check passed"
-
-echo "All dependency tests passed ✅"
+testing::dependencies::validate_all

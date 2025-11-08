@@ -1,71 +1,9 @@
 #!/bin/bash
-# Ensures language runtimes and package manifests resolve without installing
+# Validates runtimes, package managers, resources, and connectivity
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-testing::phase::init --target-time "60s"
-
-run_go_dependency_check() {
-  if [ ! -f "api/go.mod" ]; then
-    testing::phase::add_warning "Go module not detected; skipping Go dependency check"
-    testing::phase::add_test skipped
-    return 0
-  fi
-
-  if ! command -v go >/dev/null 2>&1; then
-    testing::phase::add_warning "Go toolchain not available; cannot verify Go dependencies"
-    testing::phase::add_test skipped
-    return 0
-  fi
-
-  testing::phase::check "Go module graph resolves" bash -c 'cd api && go list ./... >/dev/null'
-}
-
-run_cli_dependency_check() {
-  if [ ! -x "cli/symbol-search" ]; then
-    testing::phase::add_warning "CLI binary missing or not executable"
-    testing::phase::add_test skipped
-    return 0
-  fi
-
-  testing::phase::check "CLI help command runs" bash -c '(cd cli && ./symbol-search --help >/dev/null)'
-}
-
-run_ui_dependency_check() {
-  if [ ! -f "ui/package.json" ]; then
-    testing::phase::add_warning "UI package.json missing; skipping Node dependency check"
-    testing::phase::add_test skipped
-    return 0
-  fi
-
-  local installer="npm"
-  if command -v pnpm >/dev/null 2>&1 && grep -q '"packageManager"' ui/package.json; then
-    installer="pnpm"
-  elif command -v yarn >/dev/null 2>&1 && grep -q '"yarn"' ui/package.json; then
-    installer="yarn"
-  elif ! command -v npm >/dev/null 2>&1; then
-    testing::phase::add_warning "npm not available; skipping Node dependency check"
-    testing::phase::add_test skipped
-    return 0
-  fi
-
-  case "$installer" in
-    pnpm)
-      testing::phase::check "pnpm install --lockfile-only" bash -c 'cd ui && pnpm install --lockfile-only >/dev/null'
-      ;;
-    yarn)
-      testing::phase::check "yarn install --mode=skip-build" bash -c 'cd ui && YARN_ENABLE_IMMUTABLE_INSTALLS=0 yarn install --mode=skip-build >/dev/null'
-      ;;
-    *)
-      testing::phase::check "npm install --dry-run" bash -c 'cd ui && npm install --dry-run >/dev/null'
-      ;;
-  esac
-}
-
-run_go_dependency_check || true
-run_cli_dependency_check || true
-run_ui_dependency_check || true
-
-testing::phase::end_with_summary "Dependency validation completed"
+testing::dependencies::validate_all

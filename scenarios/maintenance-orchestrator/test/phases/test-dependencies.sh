@@ -1,70 +1,9 @@
 #!/bin/bash
-set -euo pipefail
+# Validates runtimes, package managers, resources, and connectivity
 
-echo "=== Dependency Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-failed=0
-
-# Check Go
-if command -v go &> /dev/null; then
-  go_version=$(go version)
-  echo "✅ Go: $go_version"
-else
-  echo "❌ Go not found"
-  failed=1
-fi
-
-# Check Node.js
-if command -v node &> /dev/null; then
-  node_version=$(node --version)
-  echo "✅ Node.js: $node_version"
-else
-  echo "❌ Node.js not found"
-  failed=1
-fi
-
-# Check npm
-if command -v npm &> /dev/null; then
-  npm_version=$(npm --version)
-  echo "✅ npm: $npm_version"
-else
-  echo "❌ npm not found"
-  failed=1
-fi
-
-# Check jq (required for CLI)
-if command -v jq &> /dev/null; then
-  jq_version=$(jq --version)
-  echo "✅ jq: $jq_version"
-else
-  echo "❌ jq not found (required for CLI)"
-  failed=1
-fi
-
-# Check curl
-if command -v curl &> /dev/null; then
-  curl_version=$(curl --version | head -1)
-  echo "✅ curl: $curl_version"
-else
-  echo "❌ curl not found"
-  failed=1
-fi
-
-# Check Go modules
-if [ -f "api/go.mod" ]; then
-  echo "✅ Go modules file exists"
-  cd api && go mod verify &> /dev/null && echo "   Go modules verified" || echo "   ⚠️  Go modules verification failed"
-  cd ..
-fi
-
-# Check UI dependencies
-if [ -f "ui/package.json" ]; then
-  echo "✅ UI package.json exists"
-  if [ -d "ui/node_modules" ]; then
-    echo "   Node modules installed"
-  else
-    echo "   ⚠️  Node modules not installed (run: cd ui && npm install)"
-  fi
-fi
-
-exit $failed
+testing::dependencies::validate_all

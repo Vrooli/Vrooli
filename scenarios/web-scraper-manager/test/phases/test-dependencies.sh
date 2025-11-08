@@ -1,42 +1,9 @@
 #!/bin/bash
-set -e
+# Validates runtimes, package managers, resources, and connectivity
 
-echo "=== Testing Dependencies ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-# Test Go dependencies
-if [ -d "api" ] && [ -f "api/go.mod" ]; then
-    echo "Testing Go module dependencies..."
-    cd api
-    go mod tidy
-
-    if ! go mod verify; then
-        echo "❌ Go dependency verification failed"
-        exit 1
-    fi
-    cd ..
-    echo "✓ Go dependencies verified"
-fi
-
-# Test Node.js dependencies
-if [ -d "ui" ] && [ -f "ui/package.json" ]; then
-    echo "Testing Node.js dependencies..."
-    if [ ! -d "ui/node_modules" ]; then
-        echo "⚠️  Node modules not installed, skipping dependency check"
-    else
-        echo "✓ Node.js dependencies present"
-    fi
-fi
-
-# Test CLI dependencies
-echo "Testing CLI dependencies..."
-if ! command -v jq &> /dev/null; then
-    echo "❌ jq not found"
-    exit 1
-fi
-if ! command -v curl &> /dev/null; then
-    echo "❌ curl not found"
-    exit 1
-fi
-echo "✓ CLI dependencies (jq, curl) present"
-
-echo "✅ Dependencies tests passed"
+testing::dependencies::validate_all

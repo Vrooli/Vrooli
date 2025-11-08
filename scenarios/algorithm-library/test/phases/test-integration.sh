@@ -1,13 +1,9 @@
 #!/bin/bash
-set -euo pipefail
+# Runs Browser Automation Studio workflow automations from requirements registry.
 
-echo "=== Integration Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/integration.sh"
 
-if [ -f tests/test-judge0-integration.sh ]; then
-  bash tests/test-judge0-integration.sh || { echo "Integration tests failed ❌"; exit 1; }
-  echo "✅ Integration tests completed"
-else
-  echo "No integration tests found, skipping"
-fi
-
-# Additional integration tests can be added here
+testing::integration::validate_all

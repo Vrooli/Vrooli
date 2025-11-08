@@ -1,9 +1,9 @@
 #!/bin/bash
-set -euo pipefail
+# Performance validation including Lighthouse, bundle size, and response time checks
 
-echo "=== Performance Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/performance.sh"
 
-# Placeholder for performance tests
-# e.g., run load tests, check response times
-
-echo "✅ Performance tests passed (placeholder - add real tests as needed)"
+testing::performance::validate_all

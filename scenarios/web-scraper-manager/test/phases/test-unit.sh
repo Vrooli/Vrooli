@@ -1,26 +1,9 @@
 #!/bin/bash
-set -e
+# Orchestrates language unit tests with coverage thresholds.
 
-echo "=== Running Unit Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/unit.sh"
 
-# Run Go unit tests
-if [ -d "api" ] && [ -f "api/go.mod" ]; then
-    echo "Running Go unit tests..."
-    cd api
-
-    # Run tests with coverage
-    if ! go test -v -race -coverprofile=coverage.out ./...; then
-        echo "❌ Go unit tests failed"
-        exit 1
-    fi
-
-    # Show coverage summary
-    go tool cover -func=coverage.out | tail -1
-
-    cd ..
-    echo "✓ Go unit tests passed"
-else
-    echo "⚠️  No Go tests found"
-fi
-
-echo "✅ Unit tests passed"
+testing::unit::validate_all

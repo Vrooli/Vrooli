@@ -1,22 +1,9 @@
 #!/bin/bash
-set -euo pipefail
+# Business-layer validation: ensure core workflow capabilities are wired correctly
 
-echo "=== Test Business Logic ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/business.sh"
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-
-# Check core business requirements
-# For Vrooli Bridge: project management, doc injection, etc.
-
-# Minimal: check if key files exist
-if [[ ! -f "${SCENARIO_DIR}/initialization/templates/CLAUDE_ADDITIONS.md.template" ]]; then
-  echo "❌ Missing CLAUDE_ADDITIONS template"
-  exit 1
-fi
-
-if [[ ! -f "${SCENARIO_DIR}/initialization/templates/VROOLI_INTEGRATION.md.template" ]]; then
-  echo "❌ Missing VROOLI_INTEGRATION template"
-  exit 1
-fi
-
-echo "✅ Business logic structure tests passed"
+testing::business::validate_all

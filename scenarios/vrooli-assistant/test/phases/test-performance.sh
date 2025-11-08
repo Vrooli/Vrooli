@@ -1,32 +1,9 @@
 #!/bin/bash
-set -euo pipefail
+# Performance validation including Lighthouse, bundle size, and response time checks
 
-echo "=== Performance Tests Phase for Vrooli Assistant ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/performance.sh"
 
-# Basic performance checks (lightweight)
-echo "Checking API response time..."
-if command -v curl >/dev/null 2>&1; then
-  if curl -s -w "Time: %{time_total}s\n" -o /dev/null http://localhost:${API_PORT:-8080}/health 2>/dev/null | grep -q "Time: [0-9]\+\.[0-9]\+s"; then
-    echo "✅ API response time measured"
-  else
-    echo "⚠️  Could not measure API performance (service not running)"
-  fi
-else
-  echo "ℹ️  curl not available, skipping performance test"
-fi
-
-# Check binary sizes if built
-if [ -f "../../api/vrooli-assistant-api" ]; then
-  size=$(stat -f%z ../../api/vrooli-assistant-api 2>/dev/null || stat -c%s ../../api/vrooli-assistant-api 2>/dev/null)
-  echo "API binary size: $size bytes"
-  if [ "$size" -lt 50000000 ]; then  # 50MB threshold
-    echo "✅ API binary size acceptable"
-  else
-    echo "⚠️  API binary size large: $size bytes"
-  fi
-fi
-
-# Memory usage placeholder
-echo "ℹ️  Detailed memory profiling would require running the service"
-
-echo "✅ Performance tests phase completed"
+testing::performance::validate_all

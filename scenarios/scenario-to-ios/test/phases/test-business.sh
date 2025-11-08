@@ -1,40 +1,9 @@
 #!/bin/bash
-set -e
+# Business-layer validation: ensure core workflow capabilities are wired correctly
 
-echo "=== Business Logic Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/business.sh"
 
-# Navigate to scenario root
-cd "$(dirname "$0")/../.."
-
-# Always try to detect the correct port for THIS scenario first
-if command -v vrooli &> /dev/null; then
-    DETECTED_PORT=$(vrooli scenario status scenario-to-ios --json 2>/dev/null | grep -o '"API_PORT":[[:space:]]*[0-9]*' | head -1 | grep -o '[0-9]*' || echo "")
-    # Only use detected port if it's not empty
-    if [ -n "$DETECTED_PORT" ]; then
-        API_PORT="$DETECTED_PORT"
-    else
-        API_PORT="${API_PORT:-18570}"
-    fi
-else
-    API_PORT="${API_PORT:-18570}"
-fi
-
-# Test health check returns correct service name
-echo "Testing service identification on port ${API_PORT}..."
-RESPONSE=$(curl -sf http://localhost:${API_PORT}/health)
-if echo "$RESPONSE" | grep -q "scenario-to-ios"; then
-    echo "✅ Service correctly identifies as scenario-to-ios"
-else
-    echo "❌ Service identification failed"
-    exit 1
-fi
-
-# Test health status
-if echo "$RESPONSE" | grep -q '"status":"healthy"'; then
-    echo "✅ Service reports healthy status"
-else
-    echo "❌ Service health status check failed"
-    exit 1
-fi
-
-echo "✅ All business tests completed"
+testing::business::validate_all

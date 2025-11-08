@@ -1,13 +1,9 @@
 #!/bin/bash
-# Integration phase placeholder
+# Runs Browser Automation Studio workflow automations from requirements registry.
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/integration.sh"
 
-testing::phase::init --target-time "180s"
-
-testing::phase::add_warning "Integration tests not yet implemented; add end-to-end download workflow coverage."
-testing::phase::add_test skipped
-
-testing::phase::end_with_summary "Integration phase placeholder"
+testing::integration::validate_all

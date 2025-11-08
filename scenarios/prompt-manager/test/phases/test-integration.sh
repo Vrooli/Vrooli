@@ -1,59 +1,9 @@
 #!/bin/bash
-# Integration test phase - tests API endpoints with real database
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+# Runs Browser Automation Studio workflow automations from requirements registry.
 
-# shellcheck disable=SC1091
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
-# shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/integration.sh"
 
-# Initialize phase with 120-second target
-testing::phase::init --target-time "120s"
-
-# Change to scenario directory
-cd "$TESTING_PHASE_SCENARIO_DIR"
-
-log::info "Running integration tests for prompt-manager..."
-
-# Test database connection
-if [ -z "${TEST_POSTGRES_URL:-}" ]; then
-    log::warn "TEST_POSTGRES_URL not configured - skipping database integration tests"
-    log::info "Set TEST_POSTGRES_URL to enable full integration testing"
-    # Continue with available integration tests (API endpoints)
-fi
-
-# Run Go integration tests if TEST_POSTGRES_URL is configured
-if [ -n "${TEST_POSTGRES_URL:-}" ]; then
-    log::info "Running Go integration tests..."
-    if (cd api && go test -v -tags=integration -run="TestCampaign|TestPrompt|TestSearch|TestExport" -timeout=120s) 2>&1 | tee /tmp/integration-test-output.txt; then
-        log::success "Integration tests passed"
-    else
-        testing::phase::add_error "Integration tests failed"
-        cat /tmp/integration-test-output.txt
-    fi
-else
-    log::info "Skipping Go integration tests (TEST_POSTGRES_URL not set)"
-fi
-
-# Test API health endpoint
-log::info "Testing API health endpoint..."
-if curl -sf "http://localhost:${API_PORT:-15280}/health" &> /dev/null; then
-    log::success "API health check passed"
-else
-    log::warn "API not running - skipping live endpoint tests"
-fi
-
-# Test campaigns endpoint if API_PORT is set
-if [ -n "${API_PORT:-}" ]; then
-    log::info "Testing campaigns endpoint..."
-    if curl -sf "http://localhost:${API_PORT}/api/v1/campaigns" &> /dev/null; then
-        log::success "Campaigns endpoint accessible"
-    else
-        testing::phase::add_error "Campaigns endpoint not accessible"
-    fi
-else
-    log::info "API_PORT not set - skipping campaigns endpoint test"
-fi
-
-# End with summary
-testing::phase::end_with_summary "Integration tests completed"
+testing::integration::validate_all

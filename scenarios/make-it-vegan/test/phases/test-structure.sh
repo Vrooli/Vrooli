@@ -1,13 +1,9 @@
 #!/bin/bash
-set -e
+# Validates scenario structure
 
-echo "=== Testing Structure ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/structure.sh"
 
-cd ../../api
-
-if ! go vet ./...; then
-  echo "❌ Structure (vet) tests failed"
-  exit 1
-fi
-
-echo "✅ Structure tests passed"
+testing::structure::validate_all

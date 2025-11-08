@@ -1,14 +1,9 @@
 #!/bin/bash
-set -euo pipefail
+# Performance validation including Lighthouse, bundle size, and response time checks
 
-echo "=== Test Performance ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/performance.sh"
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-
-# Basic performance checks
-# TODO: Add benchmarks, load tests
-
-# Check build time or something simple
-time cd "${SCENARIO_DIR}/api" && go build -o /dev/null . >/dev/null 2>&1
-
-echo "✅ Performance tests passed (basic)"
+testing::performance::validate_all

@@ -1,23 +1,9 @@
-#!/usr/bin/env bash
-# Test Integration Phase - Basic integration tests
+#!/bin/bash
+# Runs Browser Automation Studio workflow automations from requirements registry.
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/integration.sh"
 
-SCENARIO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-
-echo "Testing Git Control Tower integration..."
-
-# Test API binary exists after build
-if [[ ! -f "${SCENARIO_ROOT}/api/git-control-tower-api" ]]; then
-    echo "⚠️  API binary not built yet (run 'make setup' first)"
-    echo "✅ Integration tests skipped (binary not built)"
-    exit 0
-fi
-
-# Test CLI can be executed
-if ! "${SCENARIO_ROOT}/cli/git-control-tower" help &> /dev/null; then
-    echo "❌ CLI help command failed"
-    exit 1
-fi
-
-echo "✅ Integration validation passed"
+testing::integration::validate_all

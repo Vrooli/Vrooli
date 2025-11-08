@@ -1,18 +1,9 @@
 #!/bin/bash
-set -e
-echo "=== Structure Tests ==="
-required_files=( "api/main.go" ".vrooli/service.json" "Makefile" "cli/file-tools" )
-for file in "${required_files[@]}"; do
-  if [ ! -f "$file" ]; then
-    echo "❌ Missing required file: $file"
-    exit 1
-  fi
-done
-required_dirs=( "api" "cli" "initialization" )
-for dir in "${required_dirs[@]}"; do
-  if [ ! -d "$dir" ]; then
-    echo "❌ Missing required directory: $dir"
-    exit 1
-  fi
-done
-echo "✅ Structure tests passed"
+# Validates scenario structure
+
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/structure.sh"
+
+testing::structure::validate_all

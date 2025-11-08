@@ -1,9 +1,9 @@
 #!/bin/bash
-set -e
+# Validates runtimes, package managers, resources, and connectivity
 
-echo "Running dependency checks for Typing Test"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-# Check dependencies
-echo "Dependencies verified"
-
-exit 0
+testing::dependencies::validate_all

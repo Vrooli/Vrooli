@@ -1,11 +1,9 @@
 #!/bin/bash
-set -e
+# Business-layer validation: ensure core workflow capabilities are wired correctly
 
-echo "Running business logic tests for Typing Test"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/business.sh"
 
-# Example business logic tests
-echo "Testing WPM and accuracy calculations..."
-# Add actual business logic test commands
-echo "Business logic tests passed"
-
-exit 0
+testing::business::validate_all

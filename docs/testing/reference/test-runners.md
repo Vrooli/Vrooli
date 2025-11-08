@@ -5,11 +5,13 @@ This document provides a complete reference for available test runners in Vrooli
 ## Universal Test Runner
 
 ### Location
-`/scripts/scenarios/testing/unit/run-all.sh`
+Primary helper: `/scripts/scenarios/testing/shell/unit.sh`
+
+Compatibility entrypoint: `/scripts/scenarios/testing/unit/run-all.sh` (sources the helper above)
 
 ### Usage
 ```bash
-source "$APP_ROOT/scripts/scenarios/testing/unit/run-all.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/unit.sh"
 testing::unit::run_all_tests [options]
 ```
 

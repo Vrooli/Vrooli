@@ -1,6 +1,5 @@
 #!/bin/bash
-# Validates end-to-end business workflows or API contracts.
-set -euo pipefail
+# Business-layer validation: ensure core workflow capabilities are wired correctly
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"

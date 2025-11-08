@@ -1,33 +1,9 @@
 #!/bin/bash
-set -e
+# Business-layer validation: ensure core workflow capabilities are wired correctly
 
-echo "=== Testing Business Logic ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/business.sh"
 
-# Test agent management through CLI
-echo "Testing agent listing..."
-result=$(web-scraper-manager agents list 2>&1 || true)
-if echo "$result" | grep -q "id\|No agents found\|agents"; then
-    echo "✓ Agent listing works"
-else
-    echo "⚠️  Agent listing returned unexpected output: $result"
-fi
-
-# Test platform capabilities
-echo "Testing platform capabilities..."
-result=$(web-scraper-manager platforms list 2>&1 || true)
-if echo "$result" | grep -q "huginn\|browserless\|agent-s2\|platform"; then
-    echo "✓ Platform listing works"
-else
-    echo "⚠️  Platform listing returned unexpected output: $result"
-fi
-
-# Test status check
-echo "Testing status check..."
-result=$(web-scraper-manager status 2>&1 || true)
-if echo "$result" | grep -q "healthy\|running\|API"; then
-    echo "✓ Status check works"
-else
-    echo "⚠️  Status check returned unexpected output: $result"
-fi
-
-echo "✅ Business tests passed"
+testing::business::validate_all

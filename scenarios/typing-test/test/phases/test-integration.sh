@@ -1,11 +1,9 @@
 #!/bin/bash
-set -e
+# Runs Browser Automation Studio workflow automations from requirements registry.
 
-echo "Running integration tests for Typing Test"
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/integration.sh"
 
-# Example integration tests
-echo "Testing API endpoints..."
-# Add actual integration test commands
-echo "Integration tests passed"
-
-exit 0
+testing::integration::validate_all

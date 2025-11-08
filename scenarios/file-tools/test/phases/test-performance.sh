@@ -1,9 +1,9 @@
 #!/bin/bash
-set -e
-echo "=== Performance Tests ==="
-if command -v hey >/dev/null; then
-  hey -n 10 -c 1 http://localhost:${API_PORT:-8080}/health || echo "Load test failed or API not running"
-else
-  echo "hey not installed, skipping load test"
-fi
-echo "✅ Performance tests completed"
+# Performance validation including Lighthouse, bundle size, and response time checks
+
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/performance.sh"
+
+testing::performance::validate_all

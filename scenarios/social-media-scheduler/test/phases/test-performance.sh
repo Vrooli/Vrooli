@@ -1,13 +1,9 @@
 #!/bin/bash
-# Placeholder for future performance baselines
+# Performance validation including Lighthouse, bundle size, and response time checks
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/performance.sh"
 
-testing::phase::init --target-time "60s" --require-runtime
-
-testing::phase::add_warning "Performance baselines not yet implemented; add load targets for API and job queue throughput"
-testing::phase::add_test skipped
-
-testing::phase::end_with_summary "Performance phase skipped"
+testing::performance::validate_all

@@ -1,9 +1,9 @@
 #!/bin/bash
-set -e
+# Performance validation including Lighthouse, bundle size, and response time checks
 
-echo "=== Testing Performance ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/performance.sh"
 
-# Mock performance test
-echo "Performance within acceptable limits"
-
-echo "✅ Performance tests passed"
+testing::performance::validate_all

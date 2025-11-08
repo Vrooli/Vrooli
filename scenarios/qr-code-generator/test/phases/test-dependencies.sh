@@ -1,38 +1,9 @@
 #!/bin/bash
-# Ensures language toolchains and package manifests resolve without fetching new artefacts.
+# Validates runtimes, package managers, resources, and connectivity
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-testing::phase::init --target-time "60s"
-
-if [ -f "api/go.mod" ]; then
-  if command -v go >/dev/null 2>&1; then
-    testing::phase::check "Go module graph resolves" bash -c 'cd api && go list ./... >/dev/null'
-  else
-    testing::phase::add_warning "Go toolchain not available; skipping Go dependency check"
-    testing::phase::add_test skipped
-  fi
-else
-  testing::phase::add_warning "Go module not detected; skipping Go dependency check"
-  testing::phase::add_test skipped
-fi
-
-if [ -f "ui/package.json" ]; then
-  if command -v npm >/dev/null 2>&1; then
-    testing::phase::check "npm install --dry-run" bash -c 'cd ui && npm install --dry-run >/dev/null'
-  else
-    testing::phase::add_warning "npm CLI not available; skipping UI dependency check"
-    testing::phase::add_test skipped
-  fi
-else
-  testing::phase::add_warning "UI package.json not found; skipping Node dependency check"
-  testing::phase::add_test skipped
-fi
-
-if [ -d "cli" ] && command -v bash >/dev/null 2>&1; then
-  testing::phase::check "CLI install script parses" bash -c 'cd cli && bash -n install.sh'
-fi
-
-testing::phase::end_with_summary "Dependency validation completed"
+testing::dependencies::validate_all

@@ -82,7 +82,11 @@ Located in `/scripts/scenarios/testing/`:
 # Source what you need
 source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
 source "$APP_ROOT/scripts/scenarios/testing/shell/dependencies.sh"
-source "$APP_ROOT/scripts/scenarios/testing/unit/run-all.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/unit.sh"
+
+#> Note: `scripts/scenarios/testing/unit/run-all.sh` now simply sources the
+#> canonical helper at `scripts/scenarios/testing/shell/unit.sh` for backwards
+#> compatibility with older guides and scripts.
 ```
 
 ### Safety Linter
@@ -109,7 +113,7 @@ vrooli test static --parallel
 vrooli test unit --no-cache
 
 # Or use the testing library directly
-source "$APP_ROOT/scripts/scenarios/testing/unit/run-all.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/unit.sh"
 testing::unit::run_all_tests --coverage-warn 80
 ```
 

@@ -1,6 +1,5 @@
 #!/bin/bash
-# Exercises end-to-end workflows against a running scenario.
-set -euo pipefail
+# Runs Browser Automation Studio workflow automations from requirements registry.
 
 APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"

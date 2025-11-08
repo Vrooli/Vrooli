@@ -1,14 +1,9 @@
 #!/bin/bash
-set -e
+# Validates runtimes, package managers, resources, and connectivity
 
-echo "=== Testing Dependencies ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/dependencies.sh"
 
-cd ../../api
-go mod tidy
-
-if ! go mod verify; then
-  echo "❌ Dependency verification failed"
-  exit 1
-fi
-
-echo "✅ Dependencies tests passed"
+testing::dependencies::validate_all

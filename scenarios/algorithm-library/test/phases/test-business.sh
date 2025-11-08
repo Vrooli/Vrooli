@@ -1,13 +1,9 @@
 #!/bin/bash
-set -euo pipefail
+# Business-layer validation: ensure core workflow capabilities are wired correctly
 
-echo "=== Business Logic Tests ==="
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/business.sh"
 
-# Test core business rules for algorithm library
-# e.g., verify algorithm implementations, API responses
-
-if [ -d api ]; then
-  cd api && go test -v ./... -run TestBusiness || echo "No business tests, skipping"
-fi
-
-echo "✅ Business tests passed (add specific tests as needed)"
+testing::business::validate_all

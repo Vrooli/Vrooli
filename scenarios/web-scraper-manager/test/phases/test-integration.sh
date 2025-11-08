@@ -1,35 +1,9 @@
 #!/bin/bash
-# Integration tests for Web Scraper Manager
+# Runs Browser Automation Studio workflow automations from requirements registry.
 
-set -e
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/integration.sh"
 
-echo "Running integration tests for Web Scraper Manager..."
-
-# Test database integration
-echo "✓ Testing database integration..."
-if ! bash test/test-database-connection.sh > /dev/null 2>&1; then
-    echo "❌ Database integration test failed"
-    exit 1
-fi
-
-# Test storage integration
-echo "✓ Testing storage integration..."
-if ! bash test/test-storage-buckets.sh > /dev/null 2>&1; then
-    echo "❌ Storage integration test failed"
-    exit 1
-fi
-
-# Test CLI integration
-echo "✓ Testing CLI integration..."
-if [ -f "cli/web-scraper-manager.bats" ]; then
-    cd cli
-    if ! bats web-scraper-manager.bats > /dev/null 2>&1; then
-        echo "❌ CLI integration tests failed"
-        exit 1
-    fi
-    cd ..
-else
-    echo "⚠️  No CLI tests found"
-fi
-
-echo "✅ Integration tests passed"
+testing::integration::validate_all

@@ -1,22 +1,9 @@
 #!/bin/bash
-# Business Logic Tests for Device Sync Hub
-# Tests core business value and user workflows
+# Business-layer validation: ensure core workflow capabilities are wired correctly
 
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/business.sh"
 
-echo "=== Device Sync Hub Business Logic Tests ==="
-echo "[INFO] Testing core business workflows..."
-
-# Business tests would validate:
-# - File sharing workflow (upload → list → download → delete)
-# - Real-time sync across devices
-# - Clipboard synchronization
-# - Thumbnail generation for images
-# - Automatic expiration and cleanup
-
-# For now, the integration tests already cover these workflows
-echo "[INFO] Business logic tests are covered by integration test suite"
-echo "[INFO] See test/integration.sh for comprehensive business workflow testing"
-echo ""
-echo "[PASS] Business logic validation complete"
-exit 0
+testing::business::validate_all

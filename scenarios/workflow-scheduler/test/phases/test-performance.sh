@@ -1,6 +1,9 @@
 #!/bin/bash
-set -e
-echo "=== Performance Tests ==="
-# Performance tests for workflow-scheduler
-echo "Performance tests would go here"
-echo "✅ Performance tests completed"
+# Performance validation including Lighthouse, bundle size, and response time checks
+
+APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../../.." && pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/performance.sh"
+
+testing::performance::validate_all
