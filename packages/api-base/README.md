@@ -77,7 +77,9 @@ Vrooli scenarios always serve production bundles, even in local development. Thi
 3. **Server proxies API requests** from `/api/*` to API server
 4. **No dev servers** like `vite dev` (too slow, cache issues)
 
-This is why `@vrooli/api-base` defaults to using `window.location.origin` - it assumes requests go through your server's proxy.
+This is why `@vrooli/api-base` defaults to using `window.location.origin`—every request should travel through the UI server's proxy. Even on localhost the resolver now returns the UI origin (for example `http://localhost:3000`) so that your browser, Cloudflare tunnel, or future VPS/Kubernetes ingress all behave the same. Never hard-code `API_PORT` into client code; let `resolveApiBase`/`resolveWsBase` decide so the single tunnel keeps working.
+
+> **Note on WebSockets:** In proxied contexts `resolveWsBase` may return an origin-relative path such as `/apps/scenario/proxy`. Pass it directly to `new WebSocket(...)` or your WebSocket client—the browser will automatically prefix the current host and keep the socket inside the proxy path.
 
 ### Why Production Bundles?
 

@@ -46,22 +46,21 @@ describe('resolveApiBase', () => {
   })
 
   describe('localhost context', () => {
-    it('uses default port for localhost', () => {
+    it('uses UI origin for localhost scenarios', () => {
       const result = resolveApiBase({
         windowObject: mockLocalhost('3000', '/'),
         defaultPort: '8080',
       })
 
-      expect(result).toBe('http://127.0.0.1:8080')
+      expect(result).toBe('http://localhost:3000')
     })
 
-    it('uses loopback IP instead of localhost hostname', () => {
+    it('keeps localhost hostname so requests stay inside the UI proxy', () => {
       const result = resolveApiBase({
         windowObject: mockLocalhost(),
       })
 
-      expect(result).toContain('127.0.0.1')
-      expect(result).not.toContain('localhost')
+      expect(result).toBe('http://localhost:3000')
     })
 
     it('appends suffix when requested for localhost', () => {
@@ -71,7 +70,7 @@ describe('resolveApiBase', () => {
         appendSuffix: true,
       })
 
-      expect(result).toBe('http://127.0.0.1:8080/api/v1')
+      expect(result).toBe('http://localhost:3000/api/v1')
     })
   })
 
@@ -126,7 +125,7 @@ describe('resolveApiBase', () => {
         }),
       })
 
-      expect(result).toBe('https://example.com/apps/test/proxy')
+      expect(result).toBe('/apps/test/proxy')
     })
 
     it('works with legacy __APP_MONITOR_PROXY_INFO__', () => {
@@ -152,7 +151,7 @@ describe('resolveApiBase', () => {
         }),
       })
 
-      expect(result).toBe('https://example.com/apps/legacy/proxy')
+      expect(result).toBe('/apps/legacy/proxy')
     })
 
     it('supports custom proxy global names', () => {
@@ -179,7 +178,7 @@ describe('resolveApiBase', () => {
         proxyGlobalNames: ['__CUSTOM_PROXY__'],
       })
 
-      expect(result).toBe('https://example.com/custom/proxy')
+      expect(result).toBe('/custom/proxy')
     })
   })
 
@@ -222,20 +221,23 @@ describe('resolveApiBase', () => {
   })
 
   describe('fallback behavior', () => {
-    it('falls back to localhost with default port when no context detected', () => {
-      const result = resolveApiBase({
-        windowObject: undefined,
-      })
-
-      expect(result).toBe('http://127.0.0.1:15000')
+    it('uses UI origin when a browser window exists', () => {
+      const result = resolveApiBase({ windowObject: undefined })
+      expect(result).toBe('http://localhost:3000')
     })
 
-    it('uses custom default port in fallback', () => {
-      const result = resolveApiBase({
-        defaultPort: '9999',
-      })
+    it('falls back to loopback when no window is available', () => {
+      const originalWindow = (globalThis as any).window
+      delete (globalThis as any).window
 
-      expect(result).toBe('http://127.0.0.1:9999')
+      try {
+        const result = resolveApiBase({ windowObject: undefined, defaultPort: '9999' })
+        expect(result).toBe('http://127.0.0.1:9999')
+      } finally {
+        if (originalWindow) {
+          (globalThis as any).window = originalWindow
+        }
+      }
     })
   })
 
@@ -247,7 +249,7 @@ describe('resolveApiBase', () => {
         appendSuffix: true,
       })
 
-      expect(result).toBe('http://127.0.0.1:8080/api/v1')
+      expect(result).toBe('http://localhost:3000/api/v1')
     })
 
     it('uses custom suffix', () => {
@@ -258,7 +260,7 @@ describe('resolveApiBase', () => {
         apiSuffix: '/v2/api',
       })
 
-      expect(result).toBe('http://127.0.0.1:8080/v2/api')
+      expect(result).toBe('http://localhost:3000/v2/api')
     })
 
     it('does not append suffix by default', () => {
@@ -279,7 +281,7 @@ describe('resolveWsBase', () => {
       defaultPort: '8080',
     })
 
-    expect(result).toBe('ws://127.0.0.1:8080')
+    expect(result).toBe('ws://localhost:3000')
   })
 
   it('converts https to wss', () => {
@@ -297,7 +299,7 @@ describe('resolveWsBase', () => {
       appendSuffix: true,
     })
 
-    expect(result).toBe('ws://127.0.0.1:8080/ws')
+    expect(result).toBe('ws://localhost:3000/ws')
   })
 
   it('works with proxy context', () => {
@@ -323,6 +325,7 @@ describe('resolveWsBase', () => {
       }),
     })
 
-    expect(result).toBe('wss://example.com/apps/test/proxy')
+    // Proxy metadata returns an origin-relative path so the request stays on the host origin
+    expect(result).toBe('/apps/test/proxy')
   })
 })

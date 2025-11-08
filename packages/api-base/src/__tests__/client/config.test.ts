@@ -201,13 +201,14 @@ describe('resolveWithConfig', () => {
   })
 
   it('falls back to standard resolution when no config', async () => {
+    const win = mockWindow({ hostname: 'localhost', origin: 'http://localhost:3000', port: '3000', host: 'localhost:3000' })
     const result = await resolveWithConfig({
       defaultPort: '8080',
-      windowObject: mockWindow({ hostname: 'localhost' }),
+      windowObject: win,
     })
 
-    // Should fall back to standard resolution
-    expect(result).toBe('http://127.0.0.1:8080')
+    // Should fall back to standard resolution (UI origin on localhost)
+    expect(result).toBe('http://localhost:3000')
     expect(global.fetch).not.toHaveBeenCalled()
   })
 
@@ -265,7 +266,7 @@ describe('resolveWithConfig', () => {
       windowObject: win,
     })
 
-    // Should fall back to localhost resolution
+    // With no reliable origin, fall back to loopback API port
     expect(result).toBe('http://127.0.0.1:8080')
   })
 

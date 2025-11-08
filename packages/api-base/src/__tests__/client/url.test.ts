@@ -38,8 +38,8 @@ describe('buildApiUrl', () => {
       defaultPort: '8080',
     })
 
-    expect(result).toContain('127.0.0.1:8080')
-    expect(result).toContain('/health')
+    // Localhost scenarios should go through the UI origin so they inherit proxy routing
+    expect(result).toBe('http://localhost:3000/health')
   })
 
   it('handles query parameters', () => {
@@ -98,8 +98,7 @@ describe('buildWsUrl', () => {
       defaultPort: '8080',
     })
 
-    expect(result).toContain('ws://127.0.0.1:8080')
-    expect(result).toContain('/stream')
+    expect(result).toBe('ws://localhost:3000/stream')
   })
 
   it('handles wss for https origins', () => {

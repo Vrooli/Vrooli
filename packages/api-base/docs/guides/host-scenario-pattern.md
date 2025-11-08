@@ -215,6 +215,49 @@ setupRoutes: (app) => {
 }
 ```
 
+### Step 4: Always route API + WebSocket traffic through the host UI
+
+- Use `proxyToApi` (or `createProxyMiddleware`) so every HTTP request flows through the host before touching the child scenario. This keeps Cloudflare/SSH/VPS tunnels happy and prevents "Bad Gateway" surprises when the child API isn't publicly reachable.
+- When you need to forward to a specific child port, fetch the app metadata once, cache it, and resolve the correct UI/API port before proxying (exactly like the new `scenarios/app-monitor/ui/server.js`).
+- Preserve query strings and HTTP verbs by rewriting the Express `req.url` (e.g., `modifiedReq.url = relativeUrl`) before handing it to `proxyToApi`.
+
+```ts
+await proxyToApi(modifiedReq, res, relativeUrl, {
+  apiPort: targetPort,
+  apiHost: '127.0.0.1',
+  timeout: 30_000,
+})
+```
+
+### Step 5: Bridge WebSocket upgrades
+
+Host dashboards like app-monitor often need to show another scenario's WebSocket stream (issue trackers, consoles, etc.). Attach `proxyWebSocketUpgrade` to your HTTP server so `/apps/:id/proxy/...` sockets ride the same path as HTTP:
+
+```ts
+server.on('upgrade', async (req, socket, head) => {
+  if (!req.url?.includes('/proxy')) {
+    socket.destroy()
+    return
+  }
+
+  const relativeUrl = extractProxyRelativeUrl(req.url)
+  const targetPort = relativeUrl.startsWith('/api') ? apiPort : uiPort
+  const proxyReq = Object.create(req)
+  proxyReq.url = relativeUrl
+
+  proxyWebSocketUpgrade(proxyReq, socket, head, {
+    apiPort: targetPort,
+    apiHost: '127.0.0.1',
+  })
+})
+```
+
+👉 **Important:** Clients should never hard-code `API_PORT`. The browser must call `resolveApiBase`/`resolveWsBase` so requests stay inside the host UI origin (even on localhost). This is mandatory when the host is exposed through Cloudflare tunnels, reverse proxies, or Kubernetes ingresses.
+
+### Step 6: Restart via lifecycle commands
+
+Whenever you tweak the host server (routing, caching, WS handling), run `vrooli scenario restart <scenario>` so both the API and UI are rebuilt and redeployed with the lifecycle hooks. This flushes stale processes and ensures your proxy code is the one actually running.
+
 ## Complete Example: app-monitor
 
 See `/scenarios/app-monitor/ui/server.js` for the full implementation, which includes:
