@@ -150,12 +150,74 @@ _performance_run_lighthouse() {
   if lighthouse::run_audits; then
     log::success "✅ Lighthouse audits passed"
     testing::phase::add_test passed
-    return 0
   else
     log::error "❌ Lighthouse audits failed (see test/artifacts/lighthouse/)"
     testing::phase::add_test failed
+  fi
+
+  _performance_record_lighthouse_requirements "$lighthouse_path"
+
+  if [ "$TESTING_PHASE_ERROR_COUNT" -gt 0 ]; then
     return 1
   fi
+  return 0
+}
+
+_performance_record_lighthouse_requirements() {
+  local lighthouse_config_path="$1"
+  local results_file="${TESTING_PHASE_RESULTS_DIR}/lighthouse.json"
+
+  if ! command -v jq >/dev/null 2>&1; then
+    log::warning "jq not available; skipping Lighthouse requirement recording"
+    return 0
+  fi
+
+  declare -A expected_requirements=()
+  if [ -n "$lighthouse_config_path" ] && [ -f "$lighthouse_config_path" ]; then
+    while IFS= read -r req_id; do
+      [ -n "$req_id" ] && expected_requirements["$req_id"]=1
+    done < <(jq -r '.pages[]?.requirements[]? // empty' "$lighthouse_config_path" 2>/dev/null || true)
+  fi
+
+  if [ ! -f "$results_file" ]; then
+    for req_id in "${!expected_requirements[@]}"; do
+      testing::phase::add_requirement --id "$req_id" --status failed --evidence "No Lighthouse results recorded"
+    done
+    return 0
+  fi
+
+  declare -A reported_requirements=()
+  while IFS= read -r entry; do
+    [ -z "$entry" ] && continue
+    local req_id status evidence
+    req_id=$(echo "$entry" | jq -r '.id // ""')
+    [ -z "$req_id" ] && continue
+    status=$(echo "$entry" | jq -r '.status // "passed"')
+    evidence=$(echo "$entry" | jq -r '.evidence // "Lighthouse audit"')
+
+    local normalized_status="passed"
+    case "$status" in
+      failed|error)
+        normalized_status="failed"
+        ;;
+      warned|warning)
+        normalized_status="passed"
+        ;;
+    esac
+
+    testing::phase::add_requirement \
+      --id "$req_id" \
+      --status "$normalized_status" \
+      --evidence "$evidence"
+
+    reported_requirements["$req_id"]=1
+  done < <(jq -c '.requirements[]?' "$results_file" 2>/dev/null || true)
+
+  for req_id in "${!expected_requirements[@]}"; do
+    if [ -z "${reported_requirements[$req_id]+x}" ]; then
+      testing::phase::add_requirement --id "$req_id" --status failed --evidence "No Lighthouse result recorded"
+    fi
+  done
 }
 
 # Check bundle sizes against configured limits
