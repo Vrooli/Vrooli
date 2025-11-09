@@ -1,16 +1,11 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "Running tests for local-info-scout"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-# Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
 
-cd "$SCRIPT_DIR/phases"
-./test-structure.sh
-./test-dependencies.sh
-./test-business.sh
-./test-integration.sh
-./test-performance.sh
-
-echo "All tests passed!"
+testing::suite::run --scenario-dir "$SCENARIO_DIR" -- "$@"
+exit $?

@@ -1,15 +1,11 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo \"Running tests for scenario-to-ios\"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-cd test/phases
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
 
-./test-unit.sh
-./test-integration.sh
-./test-structure.sh
-./test-dependencies.sh
-./test-performance.sh
-./test-business.sh
-
-echo \"All tests completed successfully\"
+testing::suite::run --scenario-dir "$SCENARIO_DIR" -- "$@"
+exit $?

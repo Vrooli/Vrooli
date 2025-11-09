@@ -1,14 +1,11 @@
 #!/bin/bash
-set -e
-SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-echo "=== Running standard scenario tests for file-tools ==="
-cd "$SCRIPT_DIR/phases"
-for phase in test-*.sh; do
-  if [ -f "$phase" ]; then
-    echo "Running $phase..."
-    bash "$phase"
-  else
-    echo "Phase $phase not found, skipping"
-  fi
-done
-echo "✅ All standard tests completed"
+set -euo pipefail
+
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
+
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
+
+testing::suite::run --scenario-dir "$SCENARIO_DIR" -- "$@"
+exit $?

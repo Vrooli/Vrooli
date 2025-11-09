@@ -1,16 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-echo "=== Running Vrooli Bridge Tests ==="
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
 
-"${SCRIPT_DIR}/phases/test-structure.sh"
-"${SCRIPT_DIR}/phases/test-dependencies.sh"
-"${SCRIPT_DIR}/phases/test-unit.sh"
-"${SCRIPT_DIR}/phases/test-integration.sh"
-"${SCRIPT_DIR}/phases/test-performance.sh"
-"${SCRIPT_DIR}/phases/test-business.sh"
-
-echo "✅ All Vrooli Bridge tests passed!"
+testing::suite::run --scenario-dir "$SCENARIO_DIR" -- "$@"
+exit $?

@@ -1,22 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.."
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-SCENARIO_NAME="$(basename "$PWD")"
-echo "Running all test phases for $SCENARIO_NAME"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
 
-PHASES_DIR="$SCRIPT_DIR/phases"
-if [ -d "$PHASES_DIR" ]; then
-  for phase in "$PHASES_DIR"/test-*.sh; do
-    if [ -f "$phase" ]; then
-      echo "=== Running $(basename $phase) ==="
-      bash "$phase"
-    fi
-  done
-  echo "All tests passed ✅"
-else
-  echo "No phases directory found"
-  exit 1
-fi
+testing::suite::run --scenario-dir "$SCENARIO_DIR" -- "$@"
+exit $?

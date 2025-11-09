@@ -1,31 +1,11 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "Running comprehensive tests for Typing Test scenario"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-# Run unit tests
-echo "Running unit tests..."
-bash test/phases/test-unit.sh
-echo "Unit tests completed"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
 
-# Run integration tests
-echo "Running integration tests..."
-bash test/phases/test-integration.sh
-echo "Integration tests completed"
-
-# Run business logic tests
-echo "Running business logic tests..."
-bash test/phases/test-business.sh
-echo "Business logic tests completed"
-
-# Run dependency tests
-echo "Running dependency tests..."
-bash test/phases/test-dependencies.sh
-echo "Dependency tests completed"
-
-# Run performance tests
-echo "Running performance tests..."
-bash test/phases/test-performance.sh
-echo "Performance tests completed"
-
-echo "All tests completed successfully!"
+testing::suite::run --scenario-dir "$SCENARIO_DIR" -- "$@"
+exit $?

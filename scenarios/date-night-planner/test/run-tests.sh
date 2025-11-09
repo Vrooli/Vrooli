@@ -1,11 +1,11 @@
 #!/bin/bash
-set -e
-echo "Running Date Night Planner tests"
-cd "$(dirname "$0")/phases"
-for test in test-*.sh; do
-  if [ -f "$test" ]; then
-    echo "Running $test"
-    ./"$test"
-  fi
-done
-echo "All tests passed"
+set -euo pipefail
+
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
+
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
+
+testing::suite::run --scenario-dir "$SCENARIO_DIR" -- "$@"
+exit $?

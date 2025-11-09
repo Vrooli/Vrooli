@@ -1,32 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PHASES_DIR="$SCRIPT_DIR/phases"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-echo "=== Running Vrooli Assistant Standard Tests ==="
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
 
-if [ ! -d "$PHASES_DIR" ]; then
-  echo "❌ Test phases directory not found: $PHASES_DIR"
-  exit 1
-fi
-
-cd "$PHASES_DIR"
-
-for phase in test-*.sh; do
-  if [ -f "$phase" ]; then
-    echo ""
-    echo "🔄 Running $phase..."
-    if bash "$phase"; then
-      echo "✅ $phase completed successfully"
-    else
-      echo "❌ $phase failed"
-      exit 1
-    fi
-  else
-    echo "⚠️  Phase script not found: $phase"
-  fi
-done
-
-echo ""
-echo "🎉 All standard test phases completed successfully!"
+testing::suite::run --scenario-dir "$SCENARIO_DIR" -- "$@"
+exit $?

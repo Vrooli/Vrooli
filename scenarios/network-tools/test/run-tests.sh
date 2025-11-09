@@ -1,11 +1,11 @@
 #!/bin/bash
-# run-tests.sh - Test runner that delegates to run-all-tests.sh
-# This file exists to satisfy v2.0 contract requirements for test/run-tests.sh
-# The actual implementation is in test/run-all-tests.sh
+set -euo pipefail
 
-set -e
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(cd "$TEST_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/suite.sh"
 
-# Delegate to the actual test runner
-exec "${SCRIPT_DIR}/run-all-tests.sh" "$@"
+testing::suite::run --scenario-dir "$SCENARIO_DIR" -- "$@"
+exit $?
