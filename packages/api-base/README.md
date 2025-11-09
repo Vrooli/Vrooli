@@ -291,6 +291,7 @@ const app = createScenarioServer({
   version: '1.0.0',
   corsOrigins: '*',
   verbose: false,
+  proxyTimeoutMs: 60000, // Optional: extend API proxy timeout for long-running requests
 
   // Custom config builder
   configBuilder: (env) => ({

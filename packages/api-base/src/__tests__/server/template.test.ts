@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createScenarioServer, startScenarioServer } from '../../server/template.js'
+import * as proxyModule from '../../server/proxy.js'
 import type { ServerTemplateOptions } from '../../shared/types.js'
 import type { Server } from 'node:http'
 import * as http from 'node:http'
@@ -85,6 +86,25 @@ describe('createScenarioServer', () => {
     }
 
     expect(() => createScenarioServer(options)).toThrow('API_PORT')
+  })
+
+  it('passes proxyTimeoutMs to createProxyMiddleware', () => {
+    const spy = vi.spyOn(proxyModule, 'createProxyMiddleware')
+
+    createScenarioServer({
+      uiPort: '3000',
+      apiPort: '8080',
+      distDir: './dist',
+      proxyTimeoutMs: 60000,
+    })
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeout: 60000,
+      })
+    )
+
+    spy.mockRestore()
   })
 
   it('accepts string ports', () => {

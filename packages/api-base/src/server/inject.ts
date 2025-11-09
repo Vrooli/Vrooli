@@ -42,6 +42,7 @@ export function buildProxyMetadata(options: ProxyMetadataOptions): ProxyInfo {
     ports,
     primaryPort,
     loopbackHosts = Array.from(LOOPBACK_HOSTS),
+    hostEndpoints,
   } = options
 
   return {
@@ -52,6 +53,7 @@ export function buildProxyMetadata(options: ProxyMetadataOptions): ProxyInfo {
     hosts: loopbackHosts,
     primary: primaryPort,
     ports: ports,
+    hostEndpoints,
   }
 }
 
@@ -111,7 +113,8 @@ function buildProxyBootstrapScript(info: ProxyInfo, options: {
 
   const serialized = escapeForInlineScript(JSON.stringify(info))
 
-  let script = `;(() => {
+  let script = String.raw`;(() => {
+  try {
   const INFO_KEY = ${JSON.stringify(infoGlobalName)};
   const INDEX_KEY = ${JSON.stringify(indexGlobalName)};
   const payload = ${serialized};
@@ -121,6 +124,74 @@ function buildProxyBootstrapScript(info: ProxyInfo, options: {
   }
 
   window[INFO_KEY] = payload;
+
+  const HOST_ENDPOINTS = Array.isArray(payload.hostEndpoints) ? payload.hostEndpoints : [];
+
+  const buildHostEndpointMatchers = () => {
+    if (!Array.isArray(HOST_ENDPOINTS) || HOST_ENDPOINTS.length === 0) {
+      return [];
+    }
+
+    const escapeRegex = (value) => {
+      if (typeof value !== 'string') {
+        return '';
+      }
+      return value.replace(/[.*+?^$(){}|\[\]\\]/g, '\\$&');
+    };
+
+    const segmentToRegex = (segment) => {
+      if (!segment) {
+        return '';
+      }
+      if (segment.startsWith(':')) {
+        return '[^/]+';
+      }
+      if (segment.startsWith('*')) {
+        return '.*';
+      }
+      if (segment.startsWith('{') && segment.endsWith('}')) {
+        const inner = segment.slice(1, -1).trim();
+        return inner.startsWith('*') ? '.*' : '[^/]+';
+      }
+      return escapeRegex(segment);
+    };
+
+    const toPathRegex = (pattern) => {
+      if (typeof pattern !== 'string') {
+        return null;
+      }
+      const trimmed = pattern.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const normalized = trimmed.startsWith('/') ? trimmed : '/' + trimmed.replace(/^\/+/, '');
+      const segments = normalized.replace(/^\/+/, '').split('/');
+      const regexSegments = segments.map(segmentToRegex);
+      const body = regexSegments.join('/');
+      if (!body) {
+        return new RegExp('^/?$');
+      }
+      return new RegExp('^/' + body + '/?$');
+    };
+
+    return HOST_ENDPOINTS.map((endpoint) => {
+      const regex = toPathRegex(endpoint && endpoint.path);
+      if (!regex) {
+        return null;
+      }
+      const method = typeof endpoint?.method === 'string' ? endpoint.method.toUpperCase() : undefined;
+      return { regex, method };
+    }).filter(Boolean);
+  };
+
+  const hostEndpointMatchers = buildHostEndpointMatchers();
+
+  const matchesHostEndpoint = (pathname) => {
+    if (!pathname || hostEndpointMatchers.length === 0) {
+      return false;
+    }
+    return hostEndpointMatchers.some((entry) => entry.regex.test(pathname));
+  };
 
   // Build index for fast lookups
   const buildIndex = (data) => {
@@ -177,7 +248,7 @@ function buildProxyBootstrapScript(info: ProxyInfo, options: {
   getIndex();`
 
   if (patchFetch) {
-    script += `
+    script += String.raw`
 
   // Patch fetch and XMLHttpRequest to rewrite localhost URLs and relative API requests
   const joinPath = (base, path) => {
@@ -239,6 +310,10 @@ function buildProxyBootstrapScript(info: ProxyInfo, options: {
     if (isSameOrigin && index.primary?.path) {
       const proxyPath = index.primary.path;
       const currentPath = window.location.pathname;
+
+      if (matchesHostEndpoint(url.pathname || '')) {
+        return null;
+      }
 
       // Only rewrite if we're in a proxied context and request path doesn't already include proxy path
       // Skip rewriting if the request already points at any known proxy path
@@ -363,7 +438,14 @@ function buildProxyBootstrapScript(info: ProxyInfo, options: {
   ensurePatched();`
   }
 
-  script += `
+  script += String.raw`
+  } catch (error) {
+    if (typeof window !== 'undefined') {
+      window.__PROXY_BOOTSTRAP_ERROR__ = error?.stack || error?.message || String(error);
+    }
+    console.error('[proxy-bootstrap] runtime error', error);
+    throw error;
+  }
 })();`
 
   return script
@@ -397,7 +479,11 @@ export function injectProxyMetadata(
     patchFetch?: boolean
   } = {}
 ): string {
-  const script = buildProxyBootstrapScript(metadata, options)
+  const rawScript = buildProxyBootstrapScript(metadata, options)
+  const script = rawScript
+    .replace(/<\/(script)/gi, '<\\/$1')
+    .replace(/<\/(head)/gi, '<\\/$1')
+    .replace(/\$/g, '$$$$')
 
   // Inject into <head> if present, otherwise at start of <body>
   if (html.includes('<head>')) {

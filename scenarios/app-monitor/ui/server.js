@@ -6,6 +6,7 @@ import {
 } from '@vrooli/api-base/server'
 import axios from 'axios'
 import http from 'http'
+import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
@@ -18,6 +19,7 @@ const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '::1', '[::1]', '0.0.0.0']
 const HOST_SCENARIO = 'app-monitor'
 const CACHE_TTL_MS = 30_000
 const DEFAULT_TIMEOUT_MS = 30_000
+const API_PROXY_TIMEOUT_MS = 90_000
 const CLIENT_DEBUG_EVENTS = []
 const MAX_CLIENT_EVENTS = 250
 
@@ -34,6 +36,53 @@ const PORT = process.env.UI_PORT
 const API_PORT = process.env.API_PORT
 const API_BASE = `http://${LOOPBACK_HOST}:${API_PORT}`
 
+function loadHostEndpoints() {
+  try {
+    const endpointsPath = path.resolve(__dirname, '../.vrooli/endpoints.json')
+    const raw = fs.readFileSync(endpointsPath, 'utf-8')
+    const parsed = JSON.parse(raw)
+    const httpEndpoints = Array.isArray(parsed?.endpoints) ? parsed.endpoints : []
+    const wsEndpoints = Array.isArray(parsed?.websockets) ? parsed.websockets : []
+    const toEntry = (entry, methodOverride) => {
+      if (!entry || typeof entry.path !== 'string') {
+        return null
+      }
+      const trimmed = entry.path.trim()
+      if (!trimmed) {
+        return null
+      }
+      const normalizedPath = trimmed.startsWith('/') ? trimmed : `/${trimmed.replace(/^\/+/, '')}`
+      const methodValue = methodOverride || entry.method
+      return {
+        path: normalizedPath,
+        method: typeof methodValue === 'string' && methodValue.trim() ? methodValue.trim().toUpperCase() : undefined,
+      }
+    }
+
+    const combined = [
+      ...httpEndpoints.map((endpoint) => toEntry(endpoint)),
+      ...wsEndpoints.map((endpoint) => toEntry(endpoint, 'WS')),
+    ].filter((entry) => entry && entry.path)
+
+    const deduped = []
+    const seen = new Set()
+    for (const entry of combined) {
+      const key = `${entry.method || 'ANY'} ${entry.path}`
+      if (seen.has(key)) {
+        continue
+      }
+      seen.add(key)
+      deduped.push(entry)
+    }
+    return deduped
+  } catch (error) {
+    console.warn('[app-monitor] Failed to load host endpoints registry:', error instanceof Error ? error.message : error)
+    return []
+  }
+}
+
+const HOST_ENDPOINTS = loadHostEndpoints()
+
 const proxyHost = createScenarioProxyHost({
   hostScenario: HOST_SCENARIO,
   loopbackHosts: LOOPBACK_HOSTS,
@@ -42,6 +91,7 @@ const proxyHost = createScenarioProxyHost({
   proxiedAppHeader: 'X-App-Monitor-App',
   childBaseTagAttribute: 'data-app-monitor',
   patchFetch: true,
+  hostEndpoints: HOST_ENDPOINTS,
   verbose: true,
   fetchAppMetadata: async (appId) => {
     const response = await axios.get(`${API_BASE}/api/v1/apps/${encodeURIComponent(appId)}`, {
@@ -71,6 +121,7 @@ const app = createScenarioServer({
   version: '1.0.0',
   corsOrigins: '*',
   verbose: true,
+  proxyTimeoutMs: API_PROXY_TIMEOUT_MS,
   setupRoutes: (expressApp) => {
     // Ensure host HTML always has base href="/" while leaving proxied apps untouched
     expressApp.use((req, res, next) => {
@@ -101,7 +152,7 @@ const app = createScenarioServer({
       expressApp.use(route, createProxyMiddleware({
         apiPort: API_PORT,
         apiHost: LOOPBACK_HOST,
-        timeout: DEFAULT_TIMEOUT_MS,
+        timeout: API_PROXY_TIMEOUT_MS,
         verbose: true,
       }))
     })

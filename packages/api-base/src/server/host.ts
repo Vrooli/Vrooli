@@ -6,6 +6,7 @@ import type {
   ScenarioProxyAppMetadata,
   PortEntry,
   ProxyInfo,
+  HostEndpointDefinition,
 } from '../shared/types.js'
 import {
   LOOPBACK_HOST,
@@ -197,6 +198,39 @@ function pickApiPort(entries: Array<{ key: string; port: number }>, metadata?: S
   return null
 }
 
+function normalizeHostEndpoints(entries?: HostEndpointDefinition[]): HostEndpointDefinition[] {
+  if (!Array.isArray(entries)) {
+    return []
+  }
+
+  const seen = new Set<string>()
+  const normalized: HostEndpointDefinition[] = []
+
+  for (const entry of entries) {
+    if (!entry || typeof entry.path !== 'string') {
+      continue
+    }
+    const trimmedPath = entry.path.trim()
+    if (!trimmedPath) {
+      continue
+    }
+    const normalizedPath = trimmedPath.startsWith('/')
+      ? trimmedPath
+      : `/${trimmedPath.replace(/^\/+/, '')}`
+    const method = typeof entry.method === 'string' && entry.method.trim()
+      ? entry.method.trim().toUpperCase()
+      : undefined
+    const key = `${method || 'ANY'} ${normalizedPath}`
+    if (seen.has(key)) {
+      continue
+    }
+    seen.add(key)
+    normalized.push({ path: normalizedPath, method })
+  }
+
+  return normalized
+}
+
 function buildProxyContext(
   appIdParam: string,
   metadata: ScenarioProxyAppMetadata,
@@ -206,6 +240,7 @@ function buildProxyContext(
     appsPrefix: string
     proxySegment: string
     portsSegment: string
+    hostEndpoints: HostEndpointDefinition[]
   }
 ): ProxyContext {
   const portMappings = readPortMappings(metadata)
@@ -275,6 +310,7 @@ function buildProxyContext(
     ports,
     primaryPort,
     loopbackHosts: options.loopbackHosts,
+    hostEndpoints: options.hostEndpoints,
   })
 
   return {
@@ -370,6 +406,7 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
     throw new Error('fetchAppMetadata option is required')
   }
 
+  const hostEndpoints = normalizeHostEndpoints(options.hostEndpoints)
   const appsPrefix = normalizePrefix(options.appsPathPrefix ?? '/apps')
   const proxySegment = normalizeSegment(options.proxyPathSegment ?? 'proxy', 'proxy')
   const portsSegment = normalizeSegment(options.portsPathSegment ?? 'ports', 'ports')
@@ -404,6 +441,7 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
       appsPrefix,
       proxySegment,
       portsSegment,
+      hostEndpoints,
     })
 
     cache.set(appId, { context, timestamp: now })

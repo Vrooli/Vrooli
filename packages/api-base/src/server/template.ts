@@ -260,6 +260,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     wsPathPrefix,
     wsPathTransform,
     proxyHeaders,
+    proxyTimeoutMs,
   } = options
 
   // Parse ports
@@ -297,6 +298,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     apiHost,
     verbose,
     headers: proxyHeaders,
+    timeout: proxyTimeoutMs,
   }))
 
   // Config endpoint

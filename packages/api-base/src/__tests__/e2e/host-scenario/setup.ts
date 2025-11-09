@@ -13,6 +13,7 @@ import {
   injectBaseTag,
   createScenarioProxyHost,
   type ScenarioProxyHostController,
+  type HostEndpointDefinition,
 } from '../../../server/index.js'
 import { isAssetRequest } from '../../../shared/utils.js'
 
@@ -60,6 +61,10 @@ export interface TestContext {
   hostUiPort: number
   hostApiPort: number
   childId: string
+}
+
+interface HostScenarioOptions {
+  hostEndpoints?: HostEndpointDefinition[]
 }
 
 /**
@@ -189,7 +194,8 @@ export async function setupHostScenario(
   childUiPort: number,
   childApiPort: number,
   hostUiPort: number,
-  hostApiPort: number
+  hostApiPort: number,
+  hostOptions?: HostScenarioOptions
 ): Promise<{ uiServer: Server; apiServer: Server }> {
   let hostProxyController: ScenarioProxyHostController | null = null
   // Host API server
@@ -433,6 +439,7 @@ export async function setupHostScenario(
         hostScenario: 'host-scenario',
         patchFetch: true,
         childBaseTagAttribute: 'data-host-proxy',
+        hostEndpoints: hostOptions?.hostEndpoints,
         fetchAppMetadata: async (appId) => {
           const result = await makeRequest(hostApiPort, `/api/v1/apps/${appId}`)
           try {
@@ -470,7 +477,7 @@ export async function setupHostScenario(
  *
  * @param portOffset - Offset to add to base ports (for parallel test execution)
  */
-export async function setupTestEnvironment(portOffset = 0): Promise<TestContext> {
+export async function setupTestEnvironment(portOffset = 0, options?: HostScenarioOptions): Promise<TestContext> {
   // Launch browser
   const browser = await chromium.launch({
     headless: true, // Set to false for debugging
@@ -494,7 +501,8 @@ export async function setupTestEnvironment(portOffset = 0): Promise<TestContext>
     childUiPort,
     childApiPort,
     hostUiPort,
-    hostApiPort
+    hostApiPort,
+    options
   )
 
   return {

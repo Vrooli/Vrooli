@@ -82,6 +82,18 @@ export interface ProxyInfo {
   ports: PortEntry[]
   /** Base path for proxy (e.g., "/apps/scenario-name/proxy") */
   basePath?: string
+  /** Host-owned endpoints that should bypass proxy rewriting */
+  hostEndpoints?: HostEndpointDefinition[]
+}
+
+/**
+ * Host endpoint definition for bypass rules
+ */
+export interface HostEndpointDefinition {
+  /** Path pattern beginning with / */
+  path: string
+  /** Optional HTTP method */
+  method?: string
 }
 
 /**
@@ -205,6 +217,8 @@ export interface ProxyMetadataOptions {
   primaryPort: PortEntry
   /** Loopback hostnames to proxy */
   loopbackHosts?: string[]
+  /** Host-owned endpoints for patching */
+  hostEndpoints?: HostEndpointDefinition[]
 }
 
 /**
@@ -279,6 +293,8 @@ export interface ScenarioProxyHostOptions {
   childBaseTagAttribute?: string
   /** Header name set on proxied HTML responses */
   proxiedAppHeader?: string
+  /** Host-owned endpoints that should never be rewritten */
+  hostEndpoints?: HostEndpointDefinition[]
 }
 
 /**
@@ -381,6 +397,8 @@ export interface ServerTemplateOptions {
   wsPathTransform?: (path: string) => string
   /** Additional headers to inject into proxied requests */
   proxyHeaders?: Record<string, string> | ((req: any) => Record<string, string>)
+  /** Override default 15s API proxy timeout (in milliseconds) */
+  proxyTimeoutMs?: number
 }
 
 /**

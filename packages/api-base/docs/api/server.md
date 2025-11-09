@@ -122,6 +122,9 @@ const app = createScenarioServer({
   // Debugging
   verbose: process.env.NODE_ENV === 'development',
 
+  // Extend API proxy timeout (default 15s)
+  proxyTimeoutMs: 60000,
+
   // Custom config
   configBuilder: (env) => ({
     apiUrl: `http://localhost:${env.API_PORT}/api/v1`,

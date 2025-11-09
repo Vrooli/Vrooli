@@ -106,6 +106,34 @@ describe('buildProxyMetadata', () => {
     expect(result.generatedAt).toBeGreaterThanOrEqual(before)
     expect(result.generatedAt).toBeLessThanOrEqual(after)
   })
+
+  it('captures host endpoints when provided', () => {
+    const port: PortEntry = {
+      port: 3000,
+      label: 'ui',
+      slug: 'ui',
+      path: '/test',
+      aliases: [],
+      isPrimary: true,
+      source: 'manual',
+      priority: 100,
+    }
+
+    const metadata = buildProxyMetadata({
+      appId: 'test',
+      hostScenario: 'host',
+      targetScenario: 'target',
+      ports: [port],
+      primaryPort: port,
+      hostEndpoints: [
+        { path: '/api/v1/apps/{id}/diagnostics', method: 'GET' },
+      ],
+    })
+
+    expect(metadata.hostEndpoints).toEqual([
+      { path: '/api/v1/apps/{id}/diagnostics', method: 'GET' },
+    ])
+  })
 })
 
 // Note: buildProxyBootstrapScript is not exported - it's an internal implementation detail

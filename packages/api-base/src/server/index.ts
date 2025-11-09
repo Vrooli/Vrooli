@@ -73,4 +73,5 @@ export type {
   ScenarioProxyHostOptions,
   ScenarioProxyHostController,
   ScenarioProxyAppMetadata,
+  HostEndpointDefinition,
 } from '../shared/types.js'

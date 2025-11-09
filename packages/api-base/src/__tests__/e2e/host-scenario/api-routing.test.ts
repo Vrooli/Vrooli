@@ -44,7 +44,7 @@ describe('API Request Routing', () => {
     })
 
     const iframe = ctx.page.frameLocator('[data-testid="child-iframe"]')
-    await iframe.locator('[data-testid="child-content"]').waitFor({ timeout: 10000 })
+    await iframe.locator('[data-testid="child-content"]').first().waitFor({ timeout: 10000 })
 
     // Make API request from child iframe context
     const apiResponse = await iframe.locator('body').evaluate(async () => {
@@ -77,7 +77,7 @@ describe('API Request Routing', () => {
     })
 
     const iframe = ctx.page.frameLocator('[data-testid="child-iframe"]')
-    await iframe.locator('[data-testid="child-content"]').waitFor({ timeout: 10000 })
+    await iframe.locator('[data-testid="child-content"]').first().waitFor({ timeout: 10000 })
 
     // Try to access host-only endpoint from child (should fail or return 404)
     const apiResponse = await iframe.locator('body').evaluate(async () => {
@@ -123,7 +123,7 @@ describe('API Request Routing', () => {
     })
 
     const iframe = ctx.page.frameLocator('[data-testid="child-iframe"]')
-    await iframe.locator('[data-testid="child-content"]').waitFor({ timeout: 10000 })
+    await iframe.locator('[data-testid="child-content"]').first().waitFor({ timeout: 10000 })
 
     const apiResponse = await iframe.locator('body').evaluate(async () => {
       try {
@@ -174,7 +174,7 @@ describe('API Request Routing', () => {
       })
 
       const iframe = ctx.page.frameLocator('[data-testid="child-iframe"]')
-      await iframe.locator('[data-testid="child-content"]').waitFor({ timeout: 10000 })
+      await iframe.locator('[data-testid="child-content"]').first().waitFor({ timeout: 10000 })
 
       const wsResult = await iframe.locator('body').evaluate(async () => {
         return await new Promise<{ welcome: any; echo: any }>((resolve, reject) => {
@@ -238,7 +238,7 @@ describe('API Request Routing', () => {
     })
 
     const iframe = ctx.page.frameLocator('[data-testid="child-iframe"]')
-    await iframe.locator('[data-testid="child-content"]').waitFor({ timeout: 10000 })
+    await iframe.locator('[data-testid="child-content"]').first().waitFor({ timeout: 10000 })
 
     // Make absolute URL request (should work regardless of proxy)
     // NOTE: Passing port as string to avoid Playwright serialization issues
@@ -269,7 +269,7 @@ describe('API Request Routing', () => {
     })
 
     const iframe = ctx.page.frameLocator('[data-testid="child-iframe"]')
-    await iframe.locator('[data-testid="child-content"]').waitFor({ timeout: 10000 })
+    await iframe.locator('[data-testid="child-content"]').first().waitFor({ timeout: 10000 })
 
     // Check that child has access to proxy metadata
     const hasProxyInfo = await iframe.locator('body').evaluate(() => {
@@ -522,7 +522,7 @@ describe('API Request Routing', () => {
       })
 
       const iframe = ctx.page.frameLocator('[data-testid="child-iframe"]')
-      await iframe.locator('[data-testid="child-content"]').waitFor({ timeout: 10000 })
+      await iframe.locator('[data-testid="child-content"]').first().waitFor({ timeout: 10000 })
 
       const proxyApiResponse = await iframe.locator('body').evaluate(async () => {
         try {
