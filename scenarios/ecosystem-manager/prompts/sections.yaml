@@ -6,20 +6,8 @@ type: unified
 target: ecosystem
 description: Unified system for generating and improving resources and scenarios
 
-# Base sections used by all operations
-base_sections:
-  # Core knowledge (all operations need these)
-  # Note: validation-gates are now operation-specific (see each operation below)
-  - shared/core/prd-protocol
-  - shared/core/security-requirements
-  
-  # Methodologies (shared across all operations)
-  - shared/methodologies/implementation-methodology
-  
-  # Operational procedures (shared across all operations)
-  - shared/operational/failure-recovery
-  - shared/operational/collision-avoidance
-  - shared/operational/task-completion-protocol
+# Base sections are unused when dedicated templates are provided
+base_sections: []
 
 # Operation-specific section configurations
 operations:
@@ -28,25 +16,8 @@ operations:
     type: generator
     target: resources
     description: Creates new resources with v2.0 contract compliance and proper scaffolding
-    
-    additional_sections:
-      # Resource-specific validation gates
-      - shared/core/resource-validation-gates
-      
-      # Testing reference for resources
-      - shared/testing/resource-testing-reference
-      
-      # Research methodology (comprehensive research approach)
-      - shared/methodologies/research-methodology
-      
-      # Generator-specific sections
-      - shared/generator-specific/duplicate-detection
-      - shared/generator-specific/scaffolding-phase
-      - shared/generator-specific/seeding-guidelines
-      
-      # Resource-specific knowledge
-      - shared/resource-specific/v2-contract
-      - shared/resource-specific/port-allocation
+    template: templates/resource-generator
+    additional_sections: []
     
     variables:
       scenario_type: "resource"
@@ -76,21 +47,8 @@ operations:
     type: improver
     target: resources
     description: Iteratively improves existing resources for v2.0 compliance and reliability
-    
-    additional_sections:
-      # Resource-specific validation gates
-      - shared/core/resource-validation-gates
-      
-      # Testing reference for resources
-      - shared/testing/resource-testing-reference
-      
-      # Improver-specific sections
-      - shared/improver-specific/progress-verification
-      - shared/improver-specific/prioritization-phase
-      
-      # Resource-specific knowledge
-      - shared/resource-specific/v2-contract
-      - shared/resource-specific/port-allocation
+    template: templates/resource-improver
+    additional_sections: []
     
     variables:
       scenario_type: "resource"
@@ -121,24 +79,8 @@ operations:
     type: generator
     target: scenarios
     description: Creates new scenarios from scratch with comprehensive PRDs
-    
-    additional_sections:
-      # Scenario-specific validation gates
-      - shared/core/scenario-validation-gates
-      
-      # Testing reference for scenarios
-      - shared/testing/scenario-testing-reference
-      
-      # Research methodology (comprehensive research approach)
-      - shared/methodologies/research-methodology
-      
-      # Generator-specific sections
-      - shared/generator-specific/duplicate-detection
-      - shared/generator-specific/scaffolding-phase
-      - shared/generator-specific/seeding-guidelines
-      
-      # Scenario-specific knowledge
-      - shared/scenario-specific/cross-impact
+    template: templates/scenario-generator
+    additional_sections: []
     
     variables:
       scenario_type: "scenario"
@@ -167,22 +109,8 @@ operations:
     type: improver
     target: scenarios
     description: Iteratively improves existing scenarios to advance PRD completion
-    
-    additional_sections:
-      # Scenario-specific validation gates
-      - shared/core/scenario-validation-gates
-      
-      # Testing reference for scenarios
-      - shared/testing/scenario-testing-reference
-      
-      # Improver-specific sections
-      - shared/improver-specific/progress-verification
-      - shared/improver-specific/prioritization-phase
-      
-      # Scenario-specific knowledge
-      - shared/scenario-specific/cross-impact
-      - shared/scenario-specific/shared-workflows
-      # Note: Value generation guidance integrated into principles
+    template: templates/scenario-improver
+    additional_sections: []
     
     variables:
       scenario_type: "scenario"
