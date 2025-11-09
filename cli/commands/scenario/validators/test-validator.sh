@@ -18,6 +18,15 @@ scenario::test::absolute_path() {
     printf '%s/%s' "$base_dir" "$relative_path"
 }
 
+scenario::test::has_ui_component() {
+    local scenario_path="$1"
+    if [[ -d "$scenario_path/ui" ]] && [[ -f "$scenario_path/ui/package.json" ]]; then
+        echo "true"
+    else
+        echo "false"
+    fi
+}
+
 # Validate test infrastructure for a scenario
 # Usage: scenario::test::validate_infrastructure <scenario_name> <scenario_path>
 scenario::test::validate_infrastructure() {
@@ -25,10 +34,16 @@ scenario::test::validate_infrastructure() {
     local scenario_path="$2"
     
     local validation_result="{}"
+    local has_ui
+    has_ui=$(scenario::test::has_ui_component "$scenario_path")
     
     # Check test lifecycle event
     local test_lifecycle_status
     test_lifecycle_status=$(scenario::test::check_test_lifecycle "$scenario_path")
+    
+    # Check required configs
+    local config_status
+    config_status=$(scenario::test::check_required_configs "$scenario_path" "$has_ui")
     
     # Check phased testing structure  
     local phased_structure_status
@@ -44,26 +59,34 @@ scenario::test::validate_infrastructure() {
     
     # Check UI tests
     local ui_tests_status
-    ui_tests_status=$(scenario::test::check_ui_tests "$scenario_path")
+    ui_tests_status=$(scenario::test::check_ui_tests "$scenario_path" "$has_ui")
+    
+    # Coverage artifacts
+    local coverage_status
+    coverage_status=$(scenario::test::check_coverage_status "$scenario_name" "$scenario_path")
     
     # Calculate overall completeness
     local overall_status
-    overall_status=$(scenario::test::calculate_overall_status "$test_lifecycle_status" "$phased_structure_status" "$unit_tests_status" "$cli_tests_status" "$ui_tests_status")
+    overall_status=$(scenario::test::calculate_overall_status "$test_lifecycle_status" "$config_status" "$phased_structure_status" "$unit_tests_status" "$cli_tests_status" "$ui_tests_status")
     
     # Build comprehensive validation result JSON
     validation_result=$(jq -n \
         --argjson test_lifecycle "$test_lifecycle_status" \
+        --argjson configs "$config_status" \
         --argjson phased_structure "$phased_structure_status" \
         --argjson unit_tests "$unit_tests_status" \
         --argjson cli_tests "$cli_tests_status" \
         --argjson ui_tests "$ui_tests_status" \
+        --argjson coverage "$coverage_status" \
         --argjson overall "$overall_status" \
         '{
             test_lifecycle: $test_lifecycle,
+            configs: $configs,
             phased_structure: $phased_structure,
             unit_tests: $unit_tests,
             cli_tests: $cli_tests,
             ui_tests: $ui_tests,
+            coverage: $coverage,
             overall: $overall
         }')
     
@@ -113,11 +136,79 @@ scenario::test::check_test_lifecycle() {
         fi
         
         if [[ "$test_script" != "null" && -n "$test_script" ]]; then
-            echo '{"status": "present", "message": "Test lifecycle event defined", "script": "'"$test_script"'"}'
+            if [[ "$test_script" != *"test/run-tests.sh"* ]]; then
+                echo '{"status": "invalid", "message": "Test lifecycle does not invoke test/run-tests.sh", "script": "'"$test_script"'", "recommendation": "Point lifecycle.test to test/run-tests.sh"}'
+            else
+                echo '{"status": "present", "message": "Test lifecycle event defined", "script": "'"$test_script"'"}'
+            fi
         else
             echo '{"status": "invalid", "message": "Test lifecycle event malformed", "recommendation": "Fix test lifecycle event structure in .vrooli/service.json"}'
         fi
     fi
+}
+
+scenario::test::check_required_configs() {
+    local scenario_path="$1"
+    local has_ui="$2"
+
+    local required_total=2
+    local present_count=0
+    local missing_items=()
+    local details=()
+
+    local testing_path="$scenario_path/.vrooli/testing.json"
+    if [[ -f "$testing_path" ]]; then
+        present_count=$((present_count + 1))
+        details+=(".vrooli/testing.json:present")
+    else
+        missing_items+=(".vrooli/testing.json")
+        details+=(".vrooli/testing.json:missing")
+    fi
+
+    local endpoints_path="$scenario_path/.vrooli/endpoints.json"
+    if [[ -f "$endpoints_path" ]]; then
+        present_count=$((present_count + 1))
+        details+=(".vrooli/endpoints.json:present")
+    else
+        missing_items+=(".vrooli/endpoints.json")
+        details+=(".vrooli/endpoints.json:missing")
+    fi
+
+    if [[ "$has_ui" == "true" ]]; then
+        required_total=$((required_total + 1))
+        local lighthouse_path="$scenario_path/.vrooli/lighthouse.json"
+        if [[ -f "$lighthouse_path" ]]; then
+            present_count=$((present_count + 1))
+            details+=(".vrooli/lighthouse.json:present")
+        else
+            missing_items+=(".vrooli/lighthouse.json")
+            details+=(".vrooli/lighthouse.json:missing")
+        fi
+    fi
+
+    local status="missing"
+    local message="No required testing configs found"
+    if [[ $present_count -eq 0 ]]; then
+        status="missing"
+        message="Required testing configs missing"
+    elif [[ $present_count -lt $required_total ]]; then
+        status="partial"
+        message="Missing $((${required_total} - present_count)) config(s): ${missing_items[*]}"
+    else
+        status="complete"
+        message="All required testing configs present"
+    fi
+
+    local missing_json
+    if [[ ${#missing_items[@]} -gt 0 ]]; then
+        missing_json=$(printf '%s\n' "${missing_items[@]}" | jq -R . | jq -s .)
+    else
+        missing_json='[]'
+    fi
+
+    local details_json=$(printf '%s\n' "${details[@]}" | jq -R . | jq -s .)
+
+    echo "{\"status\": \"$status\", \"message\": \"$message\", \"missing_items\": $missing_json, \"details\": $details_json, \"present\": $present_count, \"required\": $required_total}"
 }
 
 # Check phased testing structure
@@ -139,12 +230,17 @@ scenario::test::check_phased_structure() {
     found_components+=("test_directory")
     
     # Check for main test runner
-    if [[ -x "$test_dir/run-tests.sh" ]]; then
-        found_components+=("test_runner")
+    local runner_path="$test_dir/run-tests.sh"
+    if [[ -x "$runner_path" ]]; then
         status="partial"
         message="Basic test structure present"
+        if grep -q 'testing::suite::run' "$runner_path" 2>/dev/null; then
+            found_components+=("test_runner")
+        else
+            recommendations+=("Update test/run-tests.sh to invoke testing::suite::run")
+        fi
     else
-        recommendations+=("Create executable test/run-tests.sh")
+        recommendations+=("Create executable test/run-tests.sh using the shared runner")
     fi
     
     # Check for phases directory
@@ -153,25 +249,57 @@ scenario::test::check_phased_structure() {
         
         # Check for specific phase scripts
         local phases=("structure" "dependencies" "unit" "integration" "business" "performance")
+        declare -A helper_map=(
+            [structure]="testing::structure::validate_all"
+            [dependencies]="testing::dependencies::validate_all"
+            [unit]="testing::unit::validate_all"
+            [integration]="testing::integration::validate_all"
+            [business]="testing::business::validate_all"
+            [performance]="testing::performance::validate_all"
+        )
         local found_phases=()
+        local missing_phases=()
+        local non_exec_phases=()
+        local helper_warnings=()
         
         for phase in "${phases[@]}"; do
-            if [[ -f "$test_dir/phases/test-${phase}.sh" ]]; then
+            local script_path="$test_dir/phases/test-${phase}.sh"
+            if [[ -f "$script_path" ]]; then
                 found_phases+=("$phase")
+                if [[ ! -x "$script_path" ]]; then
+                    non_exec_phases+=("$phase")
+                fi
+                local helper="${helper_map[$phase]}"
+                if [[ -n "$helper" ]] && ! grep -q "$helper" "$script_path" 2>/dev/null; then
+                    helper_warnings+=("$phase")
+                fi
+            else
+                missing_phases+=("$phase")
             fi
         done
         
-        if [[ ${#found_phases[@]} -gt 0 ]]; then
+        if [[ ${#found_phases[@]} -eq ${#phases[@]} ]]; then
             found_components+=("phase_scripts")
-            if [[ ${#found_phases[@]} -ge 4 ]]; then
-                status="complete"
-                message="Comprehensive phased testing structure"
-            else
-                status="partial"
-                message="Some phase scripts present (${#found_phases[@]}/6)"
-            fi
+            status="complete"
+            message="All 6 phase scripts present"
         else
-            recommendations+=("Add phase scripts to test/phases/")
+            if [[ ${#found_phases[@]} -gt 0 ]]; then
+                found_components+=("phase_scripts")
+            fi
+            status="partial"
+            message="Missing phases: ${missing_phases[*]}"
+        fi
+
+        if [[ ${#non_exec_phases[@]} -gt 0 ]]; then
+            recommendations+=("Make phase scripts executable: ${non_exec_phases[*]}")
+        fi
+
+        if [[ ${#helper_warnings[@]} -gt 0 ]]; then
+            recommendations+=("Ensure phases call shared helpers (missing in: ${helper_warnings[*]})")
+        fi
+
+        if [[ ${#missing_phases[@]} -gt 0 ]]; then
+            recommendations+=("Add missing phase scripts: ${missing_phases[*]}")
         fi
     else
         recommendations+=("Create test/phases/ directory with phase scripts")
@@ -204,7 +332,7 @@ scenario::test::check_unit_tests() {
     local message="No unit tests found"
     
     # Check for Go tests
-    if find "$scenario_path" -name "*_test.go" -type f | head -1 | grep -q .; then
+    if [[ -d "$scenario_path/api" ]] && find "$scenario_path/api" -name "*_test.go" -type f | head -1 | grep -q .; then
         found_types+=("go")
     fi
     
@@ -214,7 +342,13 @@ scenario::test::check_unit_tests() {
             local test_script
             test_script=$(jq -r '.scripts.test // ""' "$scenario_path/ui/package.json" 2>/dev/null)
             if [[ -n "$test_script" && "$test_script" != "null" ]]; then
-                found_types+=("node")
+                local ui_test_dir="$scenario_path/ui"
+                if [[ -d "$scenario_path/ui/src" ]]; then
+                    ui_test_dir="$scenario_path/ui/src"
+                fi
+                if find "$ui_test_dir" \( -path '*/node_modules/*' -o -path '*/dist/*' \) -prune -o \( -name '*.test.tsx' -o -name '*.test.ts' -o -name '*.test.jsx' -o -name '*.test.js' -o -name '*.test.mjs' \) -type f -print -quit | grep -q .; then
+                    found_types+=("node")
+                fi
             fi
         fi
     fi
@@ -269,15 +403,18 @@ scenario::test::check_cli_tests() {
 # Check UI tests
 scenario::test::check_ui_tests() {
     local scenario_path="$1"
+    local has_ui_override="${2:-}"
     local ui_test_dir="$scenario_path/test/ui"
-    local workflow_dir="$ui_test_dir/workflows"
+    local workflow_dir="$scenario_path/test/playbooks"
     local found_workflows=()
     local status="none"
     local message="No UI automation tests found"
     
     # Check if scenario has UI component first
     local has_ui=false
-    if [[ -d "$scenario_path/ui" ]] && [[ -f "$scenario_path/ui/package.json" ]]; then
+    if [[ -n "$has_ui_override" ]]; then
+        has_ui="$has_ui_override"
+    elif [[ -d "$scenario_path/ui" ]] && [[ -f "$scenario_path/ui/package.json" ]]; then
         has_ui=true
     fi
     
@@ -286,46 +423,104 @@ scenario::test::check_ui_tests() {
         return
     fi
     
-    # Check for UI test workflows
+    local workflow_count=0
     if [[ -d "$workflow_dir" ]]; then
         while IFS= read -r -d '' workflow_file; do
             local filename=$(basename "$workflow_file")
             found_workflows+=("$filename")
         done < <(find "$workflow_dir" -name "*.json" -type f -print0 2>/dev/null)
-        
-        if [[ ${#found_workflows[@]} -gt 0 ]]; then
-            status="present"
-            message="UI workflow tests found: ${#found_workflows[@]} workflow(s)"
-        fi
+        workflow_count=${#found_workflows[@]}
     fi
-    
-    # If has UI but no tests, provide recommendation
-    if [[ "$status" == "none" ]]; then
-        message="UI component present but no automation tests found"
+
+    if [[ $workflow_count -gt 0 ]]; then
+        status="present"
+        message="BAS workflows available: $workflow_count"
+    else
         status="missing"
+        message="Export workflows to test/playbooks/ for UI automation"
     fi
     
     local workflows_json=$(printf '%s\n' "${found_workflows[@]}" | jq -R . | jq -s .)
-    echo "{\"status\": \"$status\", \"message\": \"$message\", \"workflows\": $workflows_json}"
+    echo "{\"status\": \"$status\", \"message\": \"$message\", \"workflows\": $workflows_json, \"workflow_count\": $workflow_count}"
+}
+
+scenario::test::check_coverage_status() {
+    local scenario_name="$1"
+    local scenario_path="$2"
+
+    local repo_root
+    repo_root=$(builtin cd "$scenario_path/../.." && pwd -P)
+    local aggregate_path="$repo_root/coverage/${scenario_name}/aggregate.json"
+
+    if [[ -f "$scenario_path/.coverage/aggregate.json" ]]; then
+        aggregate_path="$scenario_path/.coverage/aggregate.json"
+    fi
+
+    if [[ ! -f "$aggregate_path" ]]; then
+        echo '{"status": "missing", "message": "Coverage artifacts not generated"}'
+        return
+    fi
+
+    local generated_at
+    generated_at=$(jq -r '.generated_at // ""' "$aggregate_path" 2>/dev/null)
+    if [[ -z "$generated_at" || "$generated_at" == "null" ]]; then
+        generated_at="$(date -u -r "$aggregate_path" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    fi
+
+    local languages_json
+    languages_json=$(jq -c '.languages // []' "$aggregate_path" 2>/dev/null || echo '[]')
+
+    local summaries=()
+    if [[ "$languages_json" != "[]" ]]; then
+        while IFS= read -r entry; do
+            [[ -z "$entry" ]] && continue
+            local lang
+            lang=$(echo "$entry" | jq -r '.language // "unknown"')
+            local percent
+            percent=$(echo "$entry" | jq -r '.metrics.statements // .metrics.lines // .metrics.coverage // empty')
+            if [[ -n "$percent" && "$percent" != "null" ]]; then
+                if echo "$percent" | grep -Eq '^[0-9]+(\.[0-9]+)?$'; then
+                    percent=$(printf '%.1f%%' "$percent" 2>/dev/null || echo "$percent%")
+                fi
+            else
+                percent="n/a"
+            fi
+            summaries+=("$lang $percent")
+        done < <(echo "$languages_json" | jq -c '.[]')
+    fi
+
+    local summary_message
+    if [[ ${#summaries[@]} -gt 0 ]]; then
+        summary_message=$(printf '%s' "${summaries[0]}")
+        for ((i=1; i<${#summaries[@]}; i++)); do
+            summary_message+=" | ${summaries[$i]}"
+        done
+    else
+        summary_message="Coverage generated"
+    fi
+
+    local rel_path="${aggregate_path#$repo_root/}"
+    echo "{\"status\": \"present\", \"message\": \"$summary_message\", \"generated_at\": \"$generated_at\", \"path\": \"$rel_path\", \"languages\": $languages_json}"
 }
 
 # Calculate overall test infrastructure status
 scenario::test::calculate_overall_status() {
     local test_lifecycle="$1"
-    local phased_structure="$2"
-    local unit_tests="$3"
-    local cli_tests="$4" 
-    local ui_tests="$5"
+    local configs="$2"
+    local phased_structure="$3"
+    local unit_tests="$4"
+    local cli_tests="$5" 
+    local ui_tests="$6"
 
     local phased_docs_path
     phased_docs_path=$(scenario::test::absolute_path "docs/testing/architecture/PHASED_TESTING.md")
     
     local score=0
-    local max_score=5
+    local max_score=6
     local status="incomplete"
     local message=""
     local recommendations=()
-    
+
     # Score each component
     local lifecycle_status=$(echo "$test_lifecycle" | jq -r '.status')
     if [[ "$lifecycle_status" == "present" ]]; then
@@ -339,6 +534,36 @@ scenario::test::calculate_overall_status() {
         recommendations+=("Define test lifecycle event in .vrooli/service.json")
     fi
     
+    local config_status=$(echo "$configs" | jq -r '.status')
+    case "$config_status" in
+        complete)
+            ((score++))
+            ;;
+        partial)
+            score=$((score + 1))
+            local missing_configs
+            missing_configs=$(echo "$configs" | jq -r '.missing_items[]?' 2>/dev/null)
+            if [[ -n "$missing_configs" ]]; then
+                while IFS= read -r item; do
+                    [[ -z "$item" ]] && continue
+                    recommendations+=("Add $item to align with phased testing architecture")
+                done <<< "$missing_configs"
+            fi
+            ;;
+        *)
+            local missing_configs
+            missing_configs=$(echo "$configs" | jq -r '.missing_items[]?' 2>/dev/null)
+            if [[ -n "$missing_configs" ]]; then
+                while IFS= read -r item; do
+                    [[ -z "$item" ]] && continue
+                    recommendations+=("Add $item to align with phased testing architecture")
+                done <<< "$missing_configs"
+            else
+                recommendations+=("Define required configs in .vrooli/ (testing.json, endpoints.json)")
+            fi
+            ;;
+    esac
+
     local structure_status=$(echo "$phased_structure" | jq -r '.status')
     case "$structure_status" in
         complete) ((score++)) ;;
@@ -385,7 +610,12 @@ scenario::test::calculate_overall_status() {
         message="Minimal test infrastructure ($score/$max_score components)"
     fi
     
-    local recommendations_json=$(printf '%s\n' "${recommendations[@]}" | jq -R . | jq -s .)
+    local recommendations_json
+    if [[ ${#recommendations[@]} -gt 0 ]]; then
+        recommendations_json=$(printf '%s\n' "${recommendations[@]}" | jq -R . | jq -s .)
+    else
+        recommendations_json='[]'
+    fi
     
     echo "{\"status\": \"$status\", \"message\": \"$message\", \"score\": $score, \"max_score\": $max_score, \"percentage\": $percentage, \"recommendations\": $recommendations_json}"
 }
@@ -424,6 +654,21 @@ scenario::test::display_validation() {
             ;;
     esac
     
+    # Configs
+    local config_status=$(echo "$validation_data" | jq -r '.configs.status')
+    local config_message=$(echo "$validation_data" | jq -r '.configs.message')
+    case "$config_status" in
+        complete)
+            echo "├── Configs: ✅ $config_message"
+            ;;
+        partial)
+            echo "├── Configs: 🟡 $config_message"
+            ;;
+        *)
+            echo "├── Configs: ⚠️  $config_message"
+            ;;
+    esac
+
     # Test lifecycle
     local lifecycle_status=$(echo "$validation_data" | jq -r '.test_lifecycle.status')
     local lifecycle_message=$(echo "$validation_data" | jq -r '.test_lifecycle.message')
@@ -494,18 +739,41 @@ scenario::test::display_validation() {
     
     case "$ui_status" in
         present)
-            echo "└── UI Tests: ✅ $ui_message"
+            echo "├── UI Tests: ✅ $ui_message"
             ;;
         not_applicable)
-            echo "└── UI Tests: ℹ️  $ui_message"
+            echo "├── UI Tests: ℹ️  $ui_message"
             ;;
         missing)
-            echo "└── UI Tests: ⚠️  $ui_message"
+            echo "├── UI Tests: ⚠️  $ui_message"
             ;;
         *)
-            echo "└── UI Tests: ⚠️  $ui_message"
+            echo "├── UI Tests: ⚠️  $ui_message"
             ;;
     esac
+
+    # Coverage
+    local coverage_status=$(echo "$validation_data" | jq -r '.coverage.status')
+    local coverage_message=$(echo "$validation_data" | jq -r '.coverage.message')
+    local coverage_generated_at=$(echo "$validation_data" | jq -r '.coverage.generated_at // empty')
+    if [[ -z "$coverage_message" || "$coverage_message" == "null" ]]; then
+        coverage_message="Coverage artifacts not generated"
+    fi
+
+    local coverage_line="Coverage: ⚠️  $coverage_message"
+    case "$coverage_status" in
+        present)
+            if [[ -n "$coverage_generated_at" && "$coverage_generated_at" != "null" ]]; then
+                coverage_line="Coverage: ✅ $coverage_message (generated $coverage_generated_at)"
+            else
+                coverage_line="Coverage: ✅ $coverage_message"
+            fi
+            ;;
+        *)
+            coverage_line="Coverage: ⚠️  $coverage_message"
+            ;;
+    esac
+    echo "└── $coverage_line"
     
     # Show recommendations if any
     local recommendations_count
