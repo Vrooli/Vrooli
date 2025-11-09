@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -42,12 +44,17 @@ type Response struct {
 
 // NewServer creates a new server instance
 func NewServer() (*Server, error) {
+	databaseURL, err := resolveDatabaseURL()
+	if err != nil {
+		return nil, err
+	}
+
 	config := &Config{
-		Port:        getEnv("PORT", "API_PORT_PLACEHOLDER"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/SCENARIO_ID_PLACEHOLDER"),
-		N8NURL:      getEnv("N8N_BASE_URL", "http://localhost:5678"),
-		WindmillURL: getEnv("WINDMILL_BASE_URL", "http://localhost:5681"),
-		APIToken:    getEnv("API_TOKEN", "API_TOKEN_PLACEHOLDER"),
+		Port:        requireEnv("API_PORT"),
+		DatabaseURL: databaseURL,
+		N8NURL:      requireEnv("N8N_BASE_URL"),
+		WindmillURL: requireEnv("WINDMILL_BASE_URL"),
+		APIToken:    requireEnv("API_TOKEN"),
 	}
 
 	// Connect to database
@@ -148,7 +155,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	health := map[string]interface{}{
 		"status":    "healthy",
 		"timestamp": time.Now().Unix(),
-		"service":   "SCENARIO_NAME_PLACEHOLDER API",
+		"service":   "{{SCENARIO_DISPLAY_NAME}} API",
 		"version":   "1.0.0",
 	}
 
@@ -443,9 +450,9 @@ func (s *Server) handleGetExecution(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDocs(w http.ResponseWriter, r *http.Request) {
 	docs := map[string]interface{}{
-		"name":        "SCENARIO_NAME_PLACEHOLDER API",
+		"name":        "{{SCENARIO_DISPLAY_NAME}} API",
 		"version":     "1.0.0",
-		"description": "SCENARIO_DESCRIPTION_PLACEHOLDER",
+		"description": "{{SCENARIO_DESCRIPTION}}",
 		"endpoints": []map[string]string{
 			{"method": "GET", "path": "/health", "description": "Health check"},
 			{"method": "GET", "path": "/api/v1/resources", "description": "List resources"},
@@ -481,11 +488,41 @@ func (s *Server) sendError(w http.ResponseWriter, status int, message string) {
 	})
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+func requireEnv(key string) string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
 	}
-	return defaultValue
+	return value
+}
+
+func resolveDatabaseURL() (string, error) {
+	if raw := strings.TrimSpace(os.Getenv("DATABASE_URL")); raw != "" {
+		return raw, nil
+	}
+
+	host := strings.TrimSpace(os.Getenv("POSTGRES_HOST"))
+	port := strings.TrimSpace(os.Getenv("POSTGRES_PORT"))
+	user := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
+	password := strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD"))
+	name := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
+
+	if host == "" || port == "" || user == "" || password == "" || name == "" {
+		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
+	}
+
+	pgURL := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(user, password),
+		Host:   fmt.Sprintf("%s:%s", host, port),
+		Path:   name,
+	}
+	values := pgURL.Query()
+	if values.Get("sslmode") == "" {
+		values.Set("sslmode", "disable")
+	}
+	pgURL.RawQuery = values.Encode()
+	return pgURL.String(), nil
 }
 
 // Run starts the server
@@ -523,7 +560,7 @@ func (s *Server) Run() error {
 }
 
 func main() {
-	log.Println("Starting SCENARIO_NAME_PLACEHOLDER API...")
+	log.Println("Starting {{SCENARIO_DISPLAY_NAME}} API...")
 
 	server, err := NewServer()
 	if err != nil {

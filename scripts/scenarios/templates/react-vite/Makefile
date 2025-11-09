@@ -79,7 +79,7 @@ test-api: ## Run API tests
 test-ui: ## Run UI tests
 	@echo "$(BLUE)🧪 Testing UI...$(RESET)"
 	@if [ -f ui/package.json ]; then \
-		cd ui && npm test; \
+		cd ui && pnpm test; \
 	else \
 		echo "$(YELLOW)No UI tests found$(RESET)"; \
 	fi
@@ -121,7 +121,7 @@ build: ## Build the scenario
 build-api: ## Build API
 	@if [ -f api/go.mod ]; then \
 		echo "$(BLUE)Building Go API...$(RESET)"; \
-		cd api && go build -o $(SCENARIO_NAME)-api ./cmd/server/main.go 2>/dev/null || go build -o $(SCENARIO_NAME)-api main.go; \
+		cd api && go build -o $(SCENARIO_NAME)-api ./cmd/server; \
 		echo "$(GREEN)✓ Built api/$(SCENARIO_NAME)-api$(RESET)"; \
 	elif [ -f api/package.json ]; then \
 		echo "$(BLUE)Building Node.js API...$(RESET)"; \
@@ -134,7 +134,7 @@ build-api: ## Build API
 build-ui: ## Build UI
 	@if [ -f ui/package.json ]; then \
 		echo "$(BLUE)Building UI...$(RESET)"; \
-		cd ui && npm run build; \
+		cd ui && pnpm run build; \
 		echo "$(GREEN)✓ Built UI$(RESET)"; \
 	else \
 		echo "$(YELLOW)No UI to build$(RESET)"; \
@@ -167,11 +167,8 @@ install-deps: ## Install dependencies
 	@if [ -f api/go.mod ]; then \
 		cd api && go mod download; \
 	fi
-	@if [ -f api/package.json ]; then \
-		cd api && npm install; \
-	fi
 	@if [ -f ui/package.json ]; then \
-		cd ui && npm install; \
+		cd ui && pnpm install; \
 	fi
 	@echo "$(GREEN)✓ Dependencies installed$(RESET)"
 

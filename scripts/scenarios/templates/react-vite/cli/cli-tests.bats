@@ -1,9 +1,9 @@
 #!/usr/bin/env bats
-# Tests for CLI_NAME_PLACEHOLDER CLI
+# Tests for {{CLI_NAME}} CLI
 
 # Test configuration
 readonly TEST_CLI="./cli.sh"
-readonly TEST_CONFIG_DIR="$HOME/.CLI_NAME_PLACEHOLDER"
+readonly TEST_CONFIG_DIR="$HOME/.{{CLI_NAME}}"
 readonly TEST_CONFIG_FILE="$TEST_CONFIG_DIR/config.json"
 
 # Setup and teardown

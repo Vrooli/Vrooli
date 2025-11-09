@@ -21,6 +21,7 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 ## Research & Template Selection
 - Run `rg -l '{{TARGET}}' {{PROJECT_PATH}}/scenarios/` (or use scenario catalog) to ensure the capability doesn’t already exist.
 - Note which resources/scenarios this effort will depend on or augment.
+- Use the web to find more information about the problem scope and implementation approach, if relevant
 - Copy the official template from `{{PROJECT_PATH}}/scripts/scenarios/templates/react-vite/` into `{{PROJECT_PATH}}/scenarios/{{TARGET}}/` and customize from there—do not create new template variants.
 
 ---
@@ -32,7 +33,7 @@ Capture **what** we want, not detailed implementation instructions. Use this out
   - Purpose (1-2 sentences)
   - Target users / verticals
   - Intended usage (internal tool, SaaS, microservice, etc.)
-  - Deployment surfaces (Web, iOS, CLI, combos)
+  - Deployment surfaces (Web, iOS, Desktop, etc.)
   - Value proposition (qualitative impact, not $$ estimates)
 
 # Operational Targets

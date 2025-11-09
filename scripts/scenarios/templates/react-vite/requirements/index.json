@@ -1,25 +1,18 @@
 {
   "_metadata": {
-    "description": "Operational targets mapped to technical validations",
+    "description": "Parent registry linking operational targets to technical requirements",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
-      "id": "SCENARIO-P0-FOUNDATION",
-      "title": "Baseline experience scaffolding",
+      "id": "SCENARIO-OT-P0",
+      "title": "Technical requirement placeholder",
       "status": "planned",
       "criticality": "P0",
-      "prd_ref": "Operational Targets > P0 > Foundational Experience",
-      "description": "Placeholder requirement showing how operational targets map to validation assets.",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "structure",
-          "ref": "test/phases/test-structure.sh",
-          "status": "not_implemented",
-          "notes": "Tag future tests with [REQ:SCENARIO-P0-FOUNDATION]"
-        }
+      "prd_ref": "Operational Targets > P0",
+      "children": [
+        "SCENARIO-FEATURE-FOUNDATION"
       ]
     }
   ]

@@ -1,16 +1,18 @@
 #!/bin/bash
-# CLI_NAME_PLACEHOLDER - Command-line interface for SCENARIO_NAME_PLACEHOLDER
+# {{CLI_NAME}} - Command-line interface for {{SCENARIO_DISPLAY_NAME}}
 # This is a thin wrapper around the API, following the agent-metareasoning-manager pattern
 
 set -euo pipefail
 
 # Configuration
-readonly CLI_NAME="CLI_NAME_PLACEHOLDER"
+readonly CLI_NAME="{{CLI_NAME}}"
 readonly CLI_VERSION="1.0.0"
 readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
 readonly CONFIG_FILE="$CONFIG_DIR/config.json"
-readonly DEFAULT_API_BASE="http://localhost:API_PORT_PLACEHOLDER"
-readonly DEFAULT_TOKEN="CLI_TOKEN_PLACEHOLDER"
+readonly DEFAULT_TOKEN="{{CLI_TOKEN}}"
+readonly SCENARIO_ID="{{SCENARIO_ID}}"
+CONFIG_API_BASE=""
+API_BASE=""
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -28,27 +30,80 @@ init_config() {
     if [[ ! -f "$CONFIG_FILE" ]]; then
         cat > "$CONFIG_FILE" <<EOF
 {
-    "api_base": "$DEFAULT_API_BASE",
+    "api_base": "",
     "api_token": "$DEFAULT_TOKEN",
     "output_format": "table",
     "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 }
 EOF
         echo -e "${GREEN}✓${NC} Configuration initialized at $CONFIG_FILE"
+        echo "API base will be auto-detected from the running scenario unless you override it via '$CLI_NAME configure api_base <url>'."
     fi
 }
 
 # Load configuration
 load_config() {
     if [[ -f "$CONFIG_FILE" ]]; then
-        API_BASE=$(jq -r '.api_base // "'$DEFAULT_API_BASE'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_API_BASE")
+        CONFIG_API_BASE=$(jq -r '.api_base // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
         API_TOKEN=$(jq -r '.api_token // "'$DEFAULT_TOKEN'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_TOKEN")
         OUTPUT_FORMAT=$(jq -r '.output_format // "table"' "$CONFIG_FILE" 2>/dev/null || echo "table")
     else
-        API_BASE="$DEFAULT_API_BASE"
+        CONFIG_API_BASE=""
         API_TOKEN="$DEFAULT_TOKEN"
         OUTPUT_FORMAT="table"
     fi
+}
+
+detect_api_port() {
+    if command -v vrooli >/dev/null 2>&1; then
+        vrooli scenario port "$SCENARIO_ID" API_PORT 2>/dev/null || true
+    fi
+}
+
+detect_api_base() {
+    if [[ -n "${API_BASE_URL:-}" ]]; then
+        echo "${API_BASE_URL%/}"
+        return 0
+    fi
+
+    if [[ -n "${API_PORT:-}" ]]; then
+        echo "http://${API_HOST:-localhost}:${API_PORT}/api/v1"
+        return 0
+    fi
+
+    local detected_port
+    detected_port="$(detect_api_port)"
+    if [[ -n "$detected_port" ]]; then
+        echo "http://localhost:${detected_port}/api/v1"
+        return 0
+    fi
+
+    return 1
+}
+
+normalize_api_base() {
+    local value="$1"
+    if [[ -z "$value" || "$value" == "null" ]]; then
+        return 1
+    fi
+    echo "${value%/}"
+}
+
+resolve_api_base() {
+    local candidate
+
+    if candidate=$(normalize_api_base "$1" 2>/dev/null); then
+        echo "$candidate"
+        return 0
+    fi
+
+    local detected
+    if detected=$(detect_api_base); then
+        echo "$detected"
+        return 0
+    fi
+
+    return 1
 }
 
 # Make API request
@@ -57,6 +112,11 @@ api_request() {
     local endpoint="$2"
     local data="${3:-}"
     
+    if [[ -z "${API_BASE:-}" ]]; then
+        echo -e "${RED}✗${NC} API base URL is not configured. Run '$CLI_NAME configure api_base <url>' or start the scenario via the lifecycle so the CLI can auto-detect it." >&2
+        return 1
+    fi
+
     local url="${API_BASE}${endpoint}"
     local curl_opts=(-s -X "$method" -H "Authorization: Bearer $API_TOKEN")
     
@@ -300,14 +360,17 @@ cmd_configure() {
         api|api_base)
             jq --arg v "$value" '.api_base = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
             echo -e "${GREEN}✓${NC} API base set to: $value"
+            CONFIG_API_BASE="$value"
             ;;
         token|api_token)
             jq --arg v "$value" '.api_token = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
             echo -e "${GREEN}✓${NC} API token updated"
+            API_TOKEN="$value"
             ;;
         format|output_format)
             jq --arg v "$value" '.output_format = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
             echo -e "${GREEN}✓${NC} Output format set to: $value"
+            OUTPUT_FORMAT="$value"
             ;;
         *)
             echo -e "${RED}✗${NC} Unknown configuration key: $key"
@@ -320,13 +383,17 @@ cmd_configure() {
 # Command: version
 cmd_version() {
     echo "$CLI_NAME version $CLI_VERSION"
-    echo "API endpoint: $API_BASE"
+    if [[ -n "${API_BASE:-}" ]]; then
+        echo "API endpoint: $API_BASE"
+    else
+        echo "API endpoint: (auto-detect when scenario is running)"
+    fi
 }
 
 # Command: help
 cmd_help() {
     cat <<EOF
-$CLI_NAME - Command-line interface for SCENARIO_NAME_PLACEHOLDER
+$CLI_NAME - Command-line interface for {{SCENARIO_DISPLAY_NAME}}
 
 Usage: $CLI_NAME <command> [options]
 
@@ -344,9 +411,10 @@ Commands:
 
 Configuration:
     The CLI stores its configuration in: $CONFIG_FILE
+    By default it auto-detects the API base URL from the running scenario via `vrooli scenario port $SCENARIO_ID API_PORT`.
     
-    Configure API endpoint:
-        $CLI_NAME configure api_base http://localhost:8090
+    Configure API endpoint manually (only needed for remote deployments):
+        $CLI_NAME configure api_base http://localhost:<api-port>/api/v1
     
     Configure API token:
         $CLI_NAME configure api_token your-token-here
@@ -371,12 +439,14 @@ Examples:
     $CLI_NAME execute workflow-1 "Process this data"
     
     # Update configuration
-    $CLI_NAME configure api_base http://api.example.com:8090
+    $CLI_NAME configure api_base https://api.example.com/v1
 
 Environment Variables:
     ${CLI_NAME^^}_API_BASE    Override API base URL
     ${CLI_NAME^^}_API_TOKEN   Override API token
     ${CLI_NAME^^}_FORMAT      Override output format
+    API_BASE_URL              Force API base (used before auto-detection)
+    API_PORT                  Lifecycle-provided API port (used for auto-detection)
 
 For more information, visit: https://github.com/Vrooli/Vrooli
 EOF
@@ -390,14 +460,46 @@ main() {
     # Load configuration
     load_config
     
-    # Override with environment variables if set
-    API_BASE="${CLI_NAME^^}_API_BASE:-$API_BASE}"
-    API_TOKEN="${CLI_NAME^^}_API_TOKEN:-$API_TOKEN}"
-    OUTPUT_FORMAT="${CLI_NAME^^}_FORMAT:-$OUTPUT_FORMAT}"
-    
-    # Parse command
+    # Parse command early so we know whether API access is required
     local command="${1:-help}"
     shift || true
+
+    local env_prefix="$(echo "$CLI_NAME" | tr '[:lower:]' '[:upper:]')"
+    local env_api_base_var="${env_prefix}_API_BASE"
+    local env_api_token_var="${env_prefix}_API_TOKEN"
+    local env_format_var="${env_prefix}_FORMAT"
+
+    local env_api_base="${!env_api_base_var:-}"
+    local env_api_token="${!env_api_token_var:-}"
+    local env_format="${!env_format_var:-}"
+
+    if [[ -n "$env_api_token" ]]; then
+        API_TOKEN="$env_api_token"
+    fi
+
+    if [[ -n "$env_format" ]]; then
+        OUTPUT_FORMAT="$env_format"
+    fi
+
+    local requires_api=1
+    case "$command" in
+        help|--help|-h|version|--version|-v|configure|config)
+            requires_api=0
+            ;;
+    esac
+
+    if [[ -n "$env_api_base" ]]; then
+        API_BASE="${env_api_base%/}"
+    fi
+
+    if (( requires_api )); then
+        if [[ -z "${API_BASE:-}" ]]; then
+            if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
+                echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it manually with '$CLI_NAME configure api_base <url>'."
+                exit 1
+            fi
+        fi
+    fi
     
     case "$command" in
         health)

@@ -1,4 +1,4 @@
-module API_MODULE_NAME_PLACEHOLDER
+module {{API_MODULE_NAME}}
 
 go 1.21
 
