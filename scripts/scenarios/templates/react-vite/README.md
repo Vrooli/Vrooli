@@ -1,4 +1,4 @@
-# {{ scenario.name }} - Full Scenario Template with API & CLI
+# {{ scenario.name }} - React + Vite Scenario Template (Go API + CLI)
 
 > **Enterprise-grade scenario template with Go API server, CLI tool, and complete deployment orchestration**
 
@@ -25,6 +25,7 @@ This template includes the **modern scenario architecture** based on agent-metar
 - ✅ **`service.json`** - Unified configuration with lifecycle management
 - ✅ **PostgreSQL Integration** - Database-driven architecture
 - ✅ **Complete Testing** - API, CLI, and integration tests
+- ✅ **Seeded Requirements Registry** - `requirements/index.json` demonstrates how operational targets link to validations
 - ✅ **One-command deployment** via scenario lifecycle phases
 
 ## 🎯 **Business Overview**
@@ -416,7 +417,7 @@ psql -h localhost -p 5433 -U postgres
 ## 🎯 **Next Steps**
 
 ### **For Development**
-1. Copy this template: `cp -r templates/full/ scenarios/your-scenario/`
+1. Copy this template: `cp -r scripts/scenarios/templates/react-vite/ scenarios/your-scenario/`
 2. Update `.vrooli/service.json` with your scenario details
 3. Customize API endpoints in `api/cmd/server/main.go`
 4. Update CLI commands in `cli/cli.sh`

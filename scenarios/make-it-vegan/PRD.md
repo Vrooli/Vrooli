@@ -580,7 +580,7 @@ All endpoints return JSON with standard format:
 
 ### Documentation
 - [Make It Vegan README](README.md)
-- [Vrooli Scenario Template](../../scripts/scenarios/templates/full/)
+- [Vrooli Scenario Template](../../scripts/scenarios/templates/react-vite/)
 - [Phased Testing Architecture](../../docs/testing/architecture/PHASED_TESTING.md)
 
 ### External Resources

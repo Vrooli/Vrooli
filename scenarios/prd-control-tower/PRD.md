@@ -605,7 +605,7 @@ Commands:
 
 ### Internal Documentation
 - `/docs/scenarios/README.md` - Scenario development standards
-- `/scripts/scenarios/templates/full/PRD.md` - PRD template structure
+- `/scripts/scenarios/templates/react-vite/PRD.md` - PRD template structure
 - `/scenarios/scenario-auditor/PRD.md` - Auditor integration details
 - `/docs/context.md` - Vrooli ecosystem overview
 

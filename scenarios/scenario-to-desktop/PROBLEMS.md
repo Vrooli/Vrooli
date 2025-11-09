@@ -283,7 +283,7 @@ response := map[string]interface{}{
 **Impact**: Test suite reporting 24/27 passing (88.9%), blocking confidence in changes.
 
 **Fix Applied**:
-1. **Route Tests**: Updated `TestServerRoutes` to allow 404 for routes with path parameters (e.g., `/api/v1/templates/basic`, `/api/v1/desktop/status/test-id`) since these return 404 when resource doesn't exist, which is valid behavior
+1. **Route Tests**: Updated `TestServerRoutes` to allow 404 for routes with path parameters (e.g., `/api/v1/templates/react-vite`, `/api/v1/desktop/status/test-id`) since these return 404 when resource doesn't exist, which is valid behavior
 2. **CORS Test**: Updated `TestCORSMiddleware` to accept any CORS origin value instead of requiring `*`, since the middleware correctly sets specific origins based on request
 
 **Verification**:
@@ -609,7 +609,7 @@ templateFiles := map[string]string{
 
 **Problems**:
 1. **Route Discovery Tests**: 2 route tests fail with 404 even though routes work correctly
-   - `/api/v1/templates/basic` returns 404 in test but 200 in actual API calls
+   - `/api/v1/templates/react-vite` returns 404 in test but 200 in actual API calls
    - `/api/v1/desktop/status/test-id` returns 404 in test framework
 2. **CORS Middleware Test**: Test expects CORS headers but middleware may not be active in test mode
 3. **Concurrent Generation Test**: Race condition under heavy concurrent load (9/10 succeed)

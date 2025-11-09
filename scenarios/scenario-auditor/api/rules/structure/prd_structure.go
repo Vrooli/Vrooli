@@ -350,7 +350,7 @@ func newPRDStructureViolation(path string, line int, message string) rules.Viola
 		LineNumber:     line,
 		Category:       "structure",
 		Standard:       "prd-structure-v1",
-		Recommendation: "Update PRD.md to match scripts/scenarios/templates/full/PRD.md",
+		Recommendation: "Update PRD.md to match scripts/scenarios/templates/react-vite/PRD.md",
 	}
 }
 

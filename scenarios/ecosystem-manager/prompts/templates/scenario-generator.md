@@ -21,7 +21,7 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 ## Research & Template Selection
 - Run `rg -l '{{TARGET}}' {{PROJECT_PATH}}/scenarios/` (or use scenario catalog) to ensure the capability doesn’t already exist.
 - Note which resources/scenarios this effort will depend on or augment.
-- Choose the closest scenario template (modular, dashboard, automator, etc.) and clone it as your starting point.
+- Copy the official template from `{{PROJECT_PATH}}/scripts/scenarios/templates/react-vite/` into `{{PROJECT_PATH}}/scenarios/{{TARGET}}/` and customize from there—do not create new template variants.
 
 ---
 

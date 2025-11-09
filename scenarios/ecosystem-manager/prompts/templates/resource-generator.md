@@ -581,10 +581,8 @@ Think of scaffolding as **planting a seed**:
 Based on research, choose approach:
 
 ```bash
-# Option A: Copy from template
-cp -r scripts/scenarios/templates/[template-type]/* scenarios/[new-name]/
-# OR
-cp -r scripts/resources/templates/[template-type]/* resources/[new-name]/
+# Option A: Copy from the official scenario template
+cp -r {{PROJECT_PATH}}/scripts/scenarios/templates/react-vite/ {{PROJECT_PATH}}/scenarios/{{TARGET}}/
 
 # Option B: Copy from similar existing
 cp -r scenarios/[similar-scenario]/* scenarios/[new-name]/
@@ -795,4 +793,3 @@ For scenarios, the overwhelming majority will have API_PORT and UI_PORT defined 
 
 ### Notes
 {{NOTES}}
-

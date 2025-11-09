@@ -414,7 +414,7 @@ psql -h localhost -p 5433 -U postgres
 ## 🎯 **Next Steps**
 
 ### **For Development**
-1. Copy this template: `cp -r templates/full/ scenarios/your-scenario/`
+1. Copy this template: `cp -r scripts/scenarios/templates/react-vite/ scenarios/your-scenario/`
 2. Update `.vrooli/service.json` with your scenario details
 3. Customize API endpoints in `api/cmd/server/main.go`
 4. Update CLI commands in `cli/cli.sh`

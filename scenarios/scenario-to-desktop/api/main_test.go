@@ -170,7 +170,7 @@ func TestGetTemplateHandler(t *testing.T) {
 	defer env.Cleanup()
 
 	t.Run("BasicTemplate", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/v1/templates/basic", nil)
+		req := httptest.NewRequest("GET", "/api/v1/templates/react-vite", nil)
 		req = mux.SetURLVars(req, map[string]string{"type": "basic"})
 		w := httptest.NewRecorder()
 
@@ -1036,7 +1036,7 @@ func TestServerRoutes(t *testing.T) {
 		{"GET", "/api/v1/health", false},
 		{"GET", "/api/v1/status", false},
 		{"GET", "/api/v1/templates", false},
-		{"GET", "/api/v1/templates/basic", true}, // Template file might not exist in test env
+		{"GET", "/api/v1/templates/react-vite", true}, // Template file might not exist in test env
 		{"POST", "/api/v1/desktop/generate", false},
 		{"GET", "/api/v1/desktop/status/test-id", true}, // Build ID doesn't exist
 		{"POST", "/api/v1/desktop/build", false},

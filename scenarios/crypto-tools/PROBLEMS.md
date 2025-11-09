@@ -142,7 +142,7 @@
 ### Previous Update (2025-10-11)
 **Fixed CLI Installation Script Path Issue (P0 - RESOLVED)**
 - **Problem**: CLI install script referenced non-existent template path causing setup failures
-- **Root Cause**: Hardcoded path `/scripts/scenarios/templates/full/scripts/lib/utils/cli-install.sh` instead of actual location
+- **Root Cause**: Hardcoded path `/scripts/scenarios/templates/react-vite/scripts/lib/utils/cli-install.sh` instead of actual location
 - **Solution**: Updated `cli/install.sh` to correctly calculate APP_ROOT and use `/scripts/lib/utils/cli-install.sh`
 - **Impact**: Scenario now starts successfully, CLI installs properly
 - **Status**: ✅ Resolved (2025-10-11)

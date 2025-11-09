@@ -94,9 +94,9 @@ vrooli scenario test secure-document-processing
 # 1. Explore existing scenarios
 ls -la scripts/                             # See all available scenarios
 
-# 2. Create a new scenario using the unified template
-cp -r templates/full/ scripts/my-new-scenario/
-cd scripts/my-new-scenario/
+# 2. Create a new scenario using the unified React + Vite template
+cp -r scripts/scenarios/templates/react-vite/ scenarios/my-new-scenario/
+cd scenarios/my-new-scenario/
 # Edit service.json and initialization files
 # Template supports both manual editing AND AI generation patterns
 
@@ -113,9 +113,9 @@ vrooli scenario run my-new-scenario
 **✅ All scenarios now use the unified template structure:**
 
 - **Before**: Conflicting templates scattered across different locations
-- **After**: Clean organization in `templates/` directory
-- **Migration**: All 13 scenarios automatically upgraded to full structure  
-- **Current**: `templates/full/` (comprehensive) + `templates/basic/` (simple testing)
+- **After**: Clean organization in `scripts/scenarios/templates/`
+- **Migration**: All scenarios automatically upgraded to the React + Vite archetype  
+- **Current**: `templates/react-vite/` (React UI + Go API) — the only supported scenario template
 
 **Benefits**:
 - 🎯 **Single source of truth** for all scenario creation
@@ -132,9 +132,8 @@ scenarios/
 │   ├── campaign-content-studio/   # Content creation
 │   ├── research-assistant/             # Knowledge management
 │   └── ... (8 more scenarios)
-├── templates/                # Templates for creating new scenarios
-│   ├── full/                # Complete application template (use this)
-│   └── basic/               # Simple testing template
+├── scripts/scenarios/templates/   # Scenario templates (copy from here!)
+│   └── react-vite/                # React + Vite + Go API archetype
 ├── tools/                    # Management and validation tools
 │   └── validate-scenario.sh  # Validate scenario structure
 ├── injection/               # Resource injection system
@@ -332,10 +331,9 @@ Scenarios are designed for reliable AI generation:
 
 | Template | Use Case | Complexity | Features | AI-Generation Ready |
 |----------|----------|------------|----------|-------------------|
-| [**full/**](templates/full/) | Complete app blueprint | ⭐⭐ Moderate | Full deployment orchestration | ✅ Optimized |
-| [**basic/**](templates/basic/) | Resource integration testing | ⭐ Simple | Basic structure only | ✅ Yes |
+| [**react-vite/**](templates/react-vite/) | Complete app blueprint | ⭐⭐ Moderate | Full deployment orchestration | ✅ Optimized |
 
-**🎯 Recommended**: Use `templates/full/` for all new scenarios - it includes the complete deployment orchestration layer for direct execution with service.json.
+**🎯 Recommended**: Always use `templates/react-vite/` for new scenarios. This is the only supported archetype and includes the complete deployment orchestration layer for direct execution with service.json.
 
 📋 **Detailed Template Guide**: [docs/template-guide.md](docs/template-guide.md)
 
