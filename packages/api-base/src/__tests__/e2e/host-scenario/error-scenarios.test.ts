@@ -6,8 +6,42 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import * as net from 'node:net'
 import type { TestContext } from './setup.js'
 import { setupTestEnvironment, cleanupTestEnvironment } from './setup.js'
+
+async function sendRawRequest(port: number, rawPath: string): Promise<number> {
+  return await new Promise((resolve, reject) => {
+    let buffer = ''
+    const socket = net.createConnection({ host: '127.0.0.1', port }, () => {
+      socket.write(
+        `GET ${rawPath} HTTP/1.1\r\n` +
+        `Host: 127.0.0.1:${port}\r\n` +
+        'Connection: close\r\n' +
+        '\r\n'
+      )
+    })
+
+    socket.setEncoding('utf8')
+
+    socket.on('data', (chunk) => {
+      buffer += chunk
+    })
+
+    socket.on('error', (error) => {
+      reject(error)
+    })
+
+    socket.on('end', () => {
+      const match = buffer.match(/^HTTP\/\d\.\d\s+(\d+)/)
+      if (!match) {
+        reject(new Error('Unable to parse status line from response'))
+        return
+      }
+      resolve(Number(match[1]))
+    })
+  })
+}
 
 describe('Error Scenarios', () => {
   let ctx: TestContext
@@ -41,13 +75,8 @@ describe('Error Scenarios', () => {
     ]
 
     for (const maliciousPath of testCases) {
-      const response = await ctx.page.goto(
-        `http://127.0.0.1:${ctx.hostUiPort}${maliciousPath}`,
-        { waitUntil: 'domcontentloaded', timeout: 5000 }
-      ).catch(() => ({ status: () => 404 }))
-
-      // Should either 404 or block the request
-      expect(response?.status()).toBeGreaterThanOrEqual(400)
+      const status = await sendRawRequest(ctx.hostUiPort, maliciousPath)
+      expect(status).toBeGreaterThanOrEqual(400)
     }
   }, 30000)
 

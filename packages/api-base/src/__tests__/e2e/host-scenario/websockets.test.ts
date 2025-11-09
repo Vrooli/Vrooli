@@ -14,66 +14,11 @@ import { setupTestEnvironment, cleanupTestEnvironment } from './setup.js'
 describe('WebSockets: Host and Child', () => {
   let ctx: TestContext
 
-  // WebSocket servers
-  let hostWsServer: WebSocket.Server
-
   beforeAll(async () => {
-    ctx = await setupTestEnvironment(2000) // Use port offset to avoid conflicts
-
-    // Setup Host WebSocket server
-    hostWsServer = new WebSocket.Server({ noServer: true })
-    hostWsServer.on('connection', (ws) => {
-      ws.on('message', (data) => {
-        const message = data.toString()
-        ws.send(`host-echo:${message}`)
-      })
-
-      ws.send('host-welcome')
-    })
-
-    ctx.hostApiServer.on('upgrade', (request, socket, head) => {
-      if (request.url?.startsWith('/api/v1/ws')) {
-        hostWsServer.handleUpgrade(request, socket, head, (ws) => {
-          hostWsServer.emit('connection', ws, request)
-        })
-      } else {
-        socket.destroy()
-      }
-    })
-
-    // Setup WebSocket proxy upgrade handlers
-    ctx.hostUiServer.on('upgrade', async (req, socket, head) => {
-      if (req.url?.startsWith('/api')) {
-        const { proxyWebSocketUpgrade } = await import('../../../server/proxy.js')
-        proxyWebSocketUpgrade(req, socket, head, {
-          apiPort: ctx.hostApiPort,
-          verbose: false,
-        })
-      } else {
-        socket.destroy()
-      }
-    })
-
-    ctx.childUiServer.on('upgrade', async (req, socket, head) => {
-      if (req.url?.startsWith('/api')) {
-        const { proxyWebSocketUpgrade } = await import('../../../server/proxy.js')
-        proxyWebSocketUpgrade(req, socket, head, {
-          apiPort: ctx.childApiPort,
-          verbose: false,
-        })
-      } else {
-        socket.destroy()
-      }
-    })
+    ctx = await setupTestEnvironment(2000)
   }, 60000)
 
   afterAll(async () => {
-    await new Promise<void>((resolve) => {
-      hostWsServer.close(() => {
-        resolve()
-      })
-    })
-
     await cleanupTestEnvironment(ctx)
   })
 

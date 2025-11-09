@@ -5,6 +5,15 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Host scenario E2E tests spin up real HTTP/WebSocket servers.
+    // Running files in parallel leads to port conflicts and flaky failures,
+    // so force single-thread execution.
+    fileParallelism: false,
+    poolOptions: {
+      threads: {
+        singleThread: true,
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

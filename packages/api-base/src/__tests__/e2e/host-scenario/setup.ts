@@ -12,10 +12,28 @@ import {
   createScenarioServer,
   injectBaseTag,
   createScenarioProxyHost,
+  proxyWebSocketUpgrade,
   type ScenarioProxyHostController,
   type HostEndpointDefinition,
 } from '../../../server/index.js'
+import { WebSocketServer } from 'ws'
 import { isAssetRequest } from '../../../shared/utils.js'
+
+function hasPathTraversal(value: string | undefined | null): boolean {
+  if (!value) {
+    return false
+  }
+  let decoded = value
+  try {
+    decoded = decodeURIComponent(value)
+  } catch {
+    decoded = value
+  }
+  const normalized = decoded
+    .replace(/\\/g, '/')
+    .replace(new RegExp('/+', 'g'), '/')
+  return normalized.split('/').some((segment) => segment === '..')
+}
 
 /**
  * Find available port for testing
@@ -56,6 +74,8 @@ export interface TestContext {
   childApiServer: Server
   hostUiServer: Server
   hostApiServer: Server
+  childWsServer?: WebSocketServer
+  hostWsServer?: WebSocketServer
   childUiPort: number
   childApiPort: number
   hostUiPort: number
@@ -74,7 +94,7 @@ export async function setupChildScenario(
   childId: string,
   childUiPort: number,
   childApiPort: number
-): Promise<{ uiServer: Server; apiServer: Server }> {
+): Promise<{ uiServer: Server; apiServer: Server; wsServer: WebSocketServer }> {
   // Child API server
   const apiServer = http.createServer((req, res) => {
     if (req.url === '/api/v1/health') {
@@ -108,6 +128,30 @@ export async function setupChildScenario(
 
     res.writeHead(404)
     res.end()
+  })
+
+  const childWsServer = new WebSocketServer({ noServer: true })
+  childWsServer.on('connection', (ws) => {
+    ws.send(JSON.stringify({ type: 'welcome', source: 'child-api' }))
+    ws.on('message', (data) => {
+      ws.send(
+        JSON.stringify({
+          type: 'echo',
+          source: 'child-api',
+          payload: { raw: data.toString() },
+        })
+      )
+    })
+  })
+
+  apiServer.on('upgrade', (req, socket, head) => {
+    if (req.url?.startsWith('/api/v1/ws')) {
+      childWsServer.handleUpgrade(req, socket, head, (ws) => {
+        childWsServer.emit('connection', ws, req)
+      })
+    } else {
+      socket.destroy()
+    }
   })
 
   await new Promise<void>((resolve) => {
@@ -183,7 +227,19 @@ export async function setupChildScenario(
     })
   })
 
-  return { uiServer, apiServer }
+  uiServer.on('upgrade', (req, socket, head) => {
+    if (req.url?.startsWith('/api')) {
+      proxyWebSocketUpgrade(req as any, socket, head, {
+        apiPort: childApiPort,
+        apiHost: '127.0.0.1',
+        verbose: false,
+      })
+    } else {
+      socket.destroy()
+    }
+  })
+
+  return { uiServer, apiServer, wsServer: childWsServer }
 }
 
 /**
@@ -196,8 +252,15 @@ export async function setupHostScenario(
   hostUiPort: number,
   hostApiPort: number,
   hostOptions?: HostScenarioOptions
-): Promise<{ uiServer: Server; apiServer: Server }> {
+): Promise<{ uiServer: Server; apiServer: Server; wsServer: WebSocketServer }> {
   let hostProxyController: ScenarioProxyHostController | null = null
+  const hostWsServer = new WebSocketServer({ noServer: true })
+  hostWsServer.on('connection', (ws) => {
+    ws.send('host-welcome')
+    ws.on('message', (data) => {
+      ws.send(`host-echo:${data.toString()}`)
+    })
+  })
   // Host API server
   const apiServer = http.createServer((req, res) => {
     if (req.url === '/api/v1/health') {
@@ -213,7 +276,7 @@ export async function setupHostScenario(
         JSON.stringify({
           data: {
             id: childId,
-            name: 'Test Child',
+            name: childId,
             port_mappings: {
               UI_PORT: childUiPort,
               API_PORT: childApiPort,
@@ -242,6 +305,16 @@ export async function setupHostScenario(
     res.end()
   })
 
+  apiServer.on('upgrade', (req, socket, head) => {
+    if (req.url?.startsWith('/api/v1/ws')) {
+      hostWsServer.handleUpgrade(req, socket, head, (ws) => {
+        hostWsServer.emit('connection', ws, req)
+      })
+    } else {
+      socket.destroy()
+    }
+  })
+
   await new Promise<void>((resolve) => {
     apiServer.listen(hostApiPort, '127.0.0.1', resolve)
   })
@@ -254,6 +327,15 @@ export async function setupHostScenario(
     serviceName: 'host-scenario',
     verbose: false,
     setupRoutes: (app) => {
+      app.use((req, res, next) => {
+        const target = req.originalUrl || req.url || req.path
+        if (hasPathTraversal(target)) {
+          res.status(400).json({ error: 'Invalid path' })
+          return
+        }
+        next()
+      })
+
       // Host's own base tag injection
       // Add additional proxy routes like app-monitor has
       const additionalProxyRoutes = [
@@ -269,6 +351,11 @@ export async function setupHostScenario(
 
       additionalProxyRoutes.forEach((route) => {
         app.use(route, (req, res, next) => {
+          const candidatePath = req.originalUrl || req.url || req.path
+          if (hasPathTraversal(candidatePath)) {
+            res.status(400).json({ error: 'Invalid path' })
+            return
+          }
           // Proxy to host API (just like createProxyMiddleware would)
           const targetUrl = `http://127.0.0.1:${hostApiPort}${req.url}`
           http.get(targetUrl, (apiRes) => {
@@ -283,6 +370,12 @@ export async function setupHostScenario(
       app.use((req, res, next) => {
         if (req.path.startsWith('/apps/') && req.path.includes('/proxy')) {
           return next()
+        }
+
+        const candidatePath = req.originalUrl || req.url || req.path
+        if (hasPathTraversal(candidatePath)) {
+          res.status(400).json({ error: 'Invalid path' })
+          return
         }
 
         const originalSend = res.send
@@ -429,10 +522,16 @@ export async function setupHostScenario(
           return next()
         }
 
-      // Serve host HTML for everything else (SPA fallback)
-      // This simulates what would happen in production with dist/index.html
-      res.setHeader('Content-Type', 'text/html')
-      res.send(hostHtmlContent)
+        const candidatePath = req.originalUrl || req.url || req.path
+        if (hasPathTraversal(candidatePath)) {
+          res.status(400).send('Invalid path')
+          return
+        }
+
+        // Serve host HTML for everything else (SPA fallback)
+        // This simulates what would happen in production with dist/index.html
+        res.setHeader('Content-Type', 'text/html')
+        res.send(hostHtmlContent)
       })
 
       const controller = createScenarioProxyHost({
@@ -466,10 +565,18 @@ export async function setupHostScenario(
     if (hostProxyController && (await hostProxyController.handleUpgrade(req, socket, head))) {
       return
     }
+    if (req.url?.startsWith('/api')) {
+      proxyWebSocketUpgrade(req as any, socket, head, {
+        apiPort: hostApiPort,
+        apiHost: '127.0.0.1',
+        verbose: false,
+      })
+      return
+    }
     socket.destroy()
   })
 
-  return { uiServer, apiServer }
+  return { uiServer, apiServer, wsServer: hostWsServer }
 }
 
 /**
@@ -510,8 +617,10 @@ export async function setupTestEnvironment(portOffset = 0, options?: HostScenari
     page,
     childUiServer: child.uiServer,
     childApiServer: child.apiServer,
+    childWsServer: child.wsServer,
     hostUiServer: host.uiServer,
     hostApiServer: host.apiServer,
+    hostWsServer: host.wsServer,
     childUiPort,
     childApiPort,
     hostUiPort,
@@ -525,6 +634,18 @@ export async function setupTestEnvironment(portOffset = 0, options?: HostScenari
  */
 export async function cleanupTestEnvironment(ctx: TestContext): Promise<void> {
   await ctx.browser.close()
+
+  if (ctx.hostWsServer) {
+    await new Promise<void>((resolve) => {
+      ctx.hostWsServer!.close(() => resolve())
+    })
+  }
+
+  if (ctx.childWsServer) {
+    await new Promise<void>((resolve) => {
+      ctx.childWsServer!.close(() => resolve())
+    })
+  }
 
   await new Promise<void>((resolve) => {
     ctx.hostApiServer.close(() => {

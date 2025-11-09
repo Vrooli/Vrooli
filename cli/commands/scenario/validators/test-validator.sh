@@ -805,6 +805,22 @@ scenario::test::display_validation() {
             doc_links+=("$prod_bundle_doc")
         fi
 
+        if [[ -n "${SCENARIO_STATUS_EXTRA_DOC_LINKS:-}" ]]; then
+            while IFS= read -r extra_doc; do
+                [[ -z "$extra_doc" ]] && continue
+                local already_present="false"
+                for existing in "${doc_links[@]}"; do
+                    if [[ "$existing" == "$extra_doc" ]]; then
+                        already_present="true"
+                        break
+                    fi
+                done
+                if [[ "$already_present" == "false" ]]; then
+                    doc_links+=("$extra_doc")
+                fi
+            done < <(printf '%s\n' "${SCENARIO_STATUS_EXTRA_DOC_LINKS}" | sed '/^$/d')
+        fi
+
         if [[ ${#doc_links[@]} -gt 0 ]]; then
             echo "📚 Further reading:"
             for doc in "${doc_links[@]}"; do
@@ -814,4 +830,5 @@ scenario::test::display_validation() {
     fi
 
     SCENARIO_STATUS_EXTRA_RECOMMENDATIONS=""
+    SCENARIO_STATUS_EXTRA_DOC_LINKS=""
 }

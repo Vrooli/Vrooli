@@ -587,6 +587,22 @@ scenario::requirements::display_summary() {
     local status
     status=$(echo "$summary_json" | jq -r '.status // "unknown"')
 
+    if [[ "$status" == "missing" ]]; then
+        local requirements_doc_path="${APP_ROOT}/docs/testing/guides/requirement-tracking.md"
+        if [[ -f "$requirements_doc_path" ]]; then
+            local already_listed="false"
+            if [[ -n "${SCENARIO_STATUS_EXTRA_DOC_LINKS:-}" ]]; then
+                if printf '%s\n' "${SCENARIO_STATUS_EXTRA_DOC_LINKS}" | grep -Fxq "$requirements_doc_path"; then
+                    already_listed="true"
+                fi
+            fi
+
+            if [[ "$already_listed" == "false" ]]; then
+                printf -v SCENARIO_STATUS_EXTRA_DOC_LINKS "%s%s\n" "${SCENARIO_STATUS_EXTRA_DOC_LINKS:-}" "$requirements_doc_path"
+            fi
+        fi
+    fi
+
     local coverage
     coverage=$(echo "$summary_json" | jq -r '.summary.coverage_ratio // 0')
 

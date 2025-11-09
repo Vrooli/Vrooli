@@ -154,6 +154,7 @@ scenario::status::format_json_individual() {
 
     SCENARIO_STATUS_REQUIREMENTS_SUMMARY=""
     SCENARIO_STATUS_EXTRA_RECOMMENDATIONS=""
+    SCENARIO_STATUS_EXTRA_DOC_LINKS=""
 
     # Extract status from response
     local status
@@ -251,6 +252,7 @@ scenario::status::format_display_individual() {
 
     SCENARIO_STATUS_REQUIREMENTS_SUMMARY=""
     SCENARIO_STATUS_EXTRA_RECOMMENDATIONS=""
+    SCENARIO_STATUS_EXTRA_DOC_LINKS=""
 
     # Parse and display detailed status from native Go API format
     local status pid started_at stopped_at restart_count port_info runtime_formatted

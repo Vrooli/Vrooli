@@ -141,96 +141,63 @@ describe('API Request Routing', () => {
   }, 30000)
 
   it('should proxy child WebSocket connections through the host', async () => {
-    const { WebSocketServer } = await import('ws')
-    const childWsServer = new WebSocketServer({ noServer: true })
-    childWsServer.on('connection', (socket) => {
-      socket.send(JSON.stringify({ type: 'welcome', source: 'child-api' }))
-      socket.on('message', (raw) => {
-        let payload: unknown
+    await ctx.page.goto(`http://127.0.0.1:${ctx.hostUiPort}/index.html`, {
+      waitUntil: 'networkidle',
+    })
+
+    const iframe = ctx.page.frameLocator('[data-testid="child-iframe"]')
+    await iframe.locator('[data-testid="child-content"]').first().waitFor({ timeout: 10000 })
+
+    const wsResult = await iframe.locator('body').evaluate(async () => {
+      return await new Promise<{ welcome: any; echo: any }>((resolve, reject) => {
         try {
-          payload = JSON.parse(raw.toString())
+          const ws = new (window as any).WebSocket('/api/v1/ws')
+          const result: { welcome: any; echo: any } = { welcome: null, echo: null }
+          const timeout = setTimeout(() => {
+            ws.close()
+            reject(new Error('WebSocket timeout'))
+          }, 5000)
+
+          ws.addEventListener('open', () => {
+            ws.send(JSON.stringify({ type: 'ping', source: 'child-ui' }))
+          })
+
+          ws.addEventListener('message', (event) => {
+            let payload: any
+            try {
+              payload = JSON.parse(event.data)
+            } catch (error) {
+              payload = { raw: event.data }
+            }
+
+            if (payload.type === 'welcome') {
+              result.welcome = payload
+              ws.send(JSON.stringify({ type: 'ping', payload: 'via-proxy' }))
+            }
+
+            if (payload.type === 'echo') {
+              result.echo = payload
+              clearTimeout(timeout)
+              ws.close()
+              resolve(result)
+            }
+          })
+
+          ws.addEventListener('error', () => {
+            clearTimeout(timeout)
+            reject(new Error('WebSocket error'))
+          })
         } catch (error) {
-          payload = { raw: raw.toString() }
+          reject(error)
         }
-        socket.send(JSON.stringify({ type: 'echo', source: 'child-api', payload }))
       })
     })
 
-    const upgradeHandler = (request: any, socket: any, head: Buffer) => {
-      if (request.url?.startsWith('/api/v1/ws')) {
-        childWsServer.handleUpgrade(request, socket, head, (ws) => {
-          childWsServer.emit('connection', ws, request)
-        })
-      } else {
-        socket.destroy()
-      }
-    }
-
-    ctx.childApiServer.on('upgrade', upgradeHandler)
-
-    try {
-      await ctx.page.goto(`http://127.0.0.1:${ctx.hostUiPort}/index.html`, {
-        waitUntil: 'networkidle',
-      })
-
-      const iframe = ctx.page.frameLocator('[data-testid="child-iframe"]')
-      await iframe.locator('[data-testid="child-content"]').first().waitFor({ timeout: 10000 })
-
-      const wsResult = await iframe.locator('body').evaluate(async () => {
-        return await new Promise<{ welcome: any; echo: any }>((resolve, reject) => {
-          try {
-            const ws = new (window as any).WebSocket('/api/v1/ws')
-            const result: { welcome: any; echo: any } = { welcome: null, echo: null }
-            const timeout = setTimeout(() => {
-              ws.close()
-              reject(new Error('WebSocket timeout'))
-            }, 5000)
-
-            ws.addEventListener('open', () => {
-              ws.send(JSON.stringify({ type: 'ping', source: 'child-ui' }))
-            })
-
-            ws.addEventListener('message', (event) => {
-              let payload: any
-              try {
-                payload = JSON.parse(event.data)
-              } catch (error) {
-                payload = { raw: event.data }
-              }
-
-              if (payload.type === 'welcome') {
-                result.welcome = payload
-                ws.send(JSON.stringify({ type: 'ping', payload: 'via-proxy' }))
-              }
-
-              if (payload.type === 'echo') {
-                result.echo = payload
-                clearTimeout(timeout)
-                ws.close()
-                resolve(result)
-              }
-            })
-
-            ws.addEventListener('error', () => {
-              clearTimeout(timeout)
-              reject(new Error('WebSocket error'))
-            })
-          } catch (error) {
-            reject(error)
-          }
-        })
-      })
-
-      expect(wsResult.welcome?.source).toBe('child-api')
-      expect(wsResult.echo?.source).toBe('child-api')
-      expect(wsResult.echo?.payload).toBeDefined()
-    } finally {
-      ctx.childApiServer.removeListener('upgrade', upgradeHandler)
-      await new Promise<void>((resolve) => {
-        childWsServer.close(() => resolve())
-      })
-    }
+    expect(wsResult.welcome?.source).toBe('child-api')
+    expect(wsResult.echo?.source).toBe('child-api')
+    expect(wsResult.echo?.payload).toBeDefined()
   }, 40000)
+
 
   it('should support absolute URL API requests from child', async () => {
     await ctx.page.goto(`http://127.0.0.1:${ctx.hostUiPort}/index.html`, {

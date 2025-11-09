@@ -111,7 +111,7 @@ Edit `.lighthouse/config.json`:
 If your scenario doesn't have `test/phases/test-performance.sh`, copy from the template:
 
 ```bash
-cp ../../scripts/scenarios/templates/full/test/phases/test-performance.sh test/phases/
+cp ../../scripts/scenarios/templates/react-vite/test/phases/test-performance.sh test/phases/
 ```
 
 The template already includes Lighthouse integration. If you have an existing file, ensure it includes:

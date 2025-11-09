@@ -103,18 +103,11 @@ test_scenario
 
 ### Choose Your Template
 
-Vrooli provides two starter templates:
-
-| Template | Best For | Complexity |
-|----------|----------|------------|
-| **basic** | Resource integration testing | ⭐ Simple |
-| **full** | Customer applications | ⭐⭐ Moderate |
-
-**For this tutorial, we'll use the full template:**
+Vrooli currently ships a single, production-ready template optimized for React + TypeScript + Vite + shadcn/ui + lucide (UI) with a Go API backend: `scripts/scenarios/templates/react-vite/`. Always start from an existing template rather than inventing a new one. We may add new ones in the future if the need arises.
 
 ```bash
-# 1. Copy the full template
-cp -r templates/full/ scenarios/my-customer-portal/
+# 1. Copy the React + Vite template from the repo root
+cp -r scripts/scenarios/templates/react-vite/ scenarios/my-customer-portal/
 cd scenarios/my-customer-portal/
 
 # 2. Examine the template structure

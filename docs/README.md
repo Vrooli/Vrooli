@@ -118,14 +118,14 @@ Scenarios are complete business applications that orchestrate resources. Each sc
 ```bash
 # List and explore available scenarios
 vrooli scenario list                    # See all available scenarios
-vrooli scenario info <name>             # Get details about a specific scenario
+vrooli scenario status <name>           # Get live status + remediation tips
 
 # Run scenarios directly (no build needed!)
 vrooli scenario run research-assistant  # Run a scenario
 vrooli scenario test <name>             # Test scenario integration
 
-# Create new scenarios from templates
-cp -r scenarios/templates/basic scenarios/my-new-app
+# Create new scenarios from the React + Vite template
+cp -r scripts/scenarios/templates/react-vite scenarios/my-new-app
 cd scenarios/my-new-app
 vrooli scenario run <scenario-name>      # Run scenario directly
 ```
@@ -231,7 +231,7 @@ test-genie generate my-scenario --types unit,integration
 ## Common Tasks
 
 ### Creating a New Scenario
-1. Use scenario templates: `cp -r scenarios/templates/basic scenarios/my-scenario`
+1. Use the official template: `cp -r scripts/scenarios/templates/react-vite scenarios/my-scenario`
 2. Edit `service.json` to define resource dependencies
 3. Implement business logic using resource orchestration
 4. Add integration tests in `test.sh`

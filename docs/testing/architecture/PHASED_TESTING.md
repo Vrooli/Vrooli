@@ -324,7 +324,7 @@ All scenarios configure testing via `.vrooli/service.json`:
 ```
 
 ### 4. Template System Integration  
-**Location**: `/scripts/scenarios/templates/full/`
+**Location**: `/scripts/scenarios/templates/react-vite/`
 **Approach**: Single comprehensive template rather than parallel templates
 **Benefits**:
 - Consistent testing patterns
@@ -380,7 +380,7 @@ scenario/
 ### Template Usage
 ```bash
 # Create new scenario from template
-cp -r scripts/scenarios/templates/full scenarios/new-scenario
+cp -r scripts/scenarios/templates/react-vite scenarios/new-scenario
 cd scenarios/new-scenario
 
 # Customize for specific scenario

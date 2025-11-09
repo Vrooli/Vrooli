@@ -18,6 +18,7 @@ import { proxyToApi, proxyWebSocketUpgrade } from './proxy.js'
 
 const DEFAULT_CACHE_TTL_MS = 30_000
 const SLUGIFY_REGEX = /[^a-z0-9]+/g
+const PATH_TRAVERSAL_PATTERN = /(^|\/|\\)\.\.(?=\/|\\|$)/
 
 interface ProxyContext {
   metadata: ProxyInfo
@@ -110,8 +111,29 @@ function extractProxyRelativeUrl(originalUrl: string, proxySegment: string): str
     return `/${search || ''}`
   }
   const remainder = withoutQuery.slice(markerIndex + marker.length)
-  const normalized = remainder && remainder.length > 0 ? (remainder.startsWith('/') ? remainder : `/${remainder}`) : '/'
+  const normalized = (
+    remainder && remainder.length > 0
+      ? (remainder.startsWith('/') ? remainder : `/${remainder}`)
+      : '/'
+  )
   return `${normalized || '/'}${search}`
+}
+
+function hasPathTraversal(value: string | undefined | null): boolean {
+  if (!value) {
+    return false
+  }
+  let decoded = value
+  try {
+    decoded = decodeURIComponent(value)
+  } catch {
+    decoded = value
+  }
+  let normalized = decoded.split('\\').join('/')
+  while (normalized.includes('//')) {
+    normalized = normalized.replace('//', '/')
+  }
+  return PATH_TRAVERSAL_PATTERN.test(normalized)
 }
 
 function isApiPath(relativeUrl: string): boolean {
@@ -450,7 +472,15 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
 
   async function handleScenarioProxyRequest(req: Request, res: Response): Promise<void> {
     const appId = req.params.appId
+    if (hasPathTraversal(appId)) {
+      res.status(400).json({ error: 'Invalid proxy path' })
+      return
+    }
     const relativeUrl = extractProxyRelativeUrl(req.originalUrl || req.url || '/', proxySegment)
+    if (hasPathTraversal(relativeUrl)) {
+      res.status(400).json({ error: 'Invalid proxy path' })
+      return
+    }
     if (verbose) {
       console.log(`[proxy-host] ${appId} -> ${relativeUrl}`)
     }
@@ -522,7 +552,15 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
   async function handlePortProxyRequest(req: Request, res: Response): Promise<void> {
     const appId = req.params.appId
     const portKey = req.params.portKey
+    if (hasPathTraversal(appId)) {
+      res.status(400).json({ error: 'Invalid proxy path' })
+      return
+    }
     const relativeUrl = extractProxyRelativeUrl(req.originalUrl || req.url || '/', proxySegment)
+    if (hasPathTraversal(relativeUrl) || hasPathTraversal(portKey)) {
+      res.status(400).json({ error: 'Invalid proxy path' })
+      return
+    }
     if (verbose) {
       console.log(`[proxy-host] ${appId}/${portKey} -> ${relativeUrl}`)
     }
@@ -549,6 +587,27 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
   }
 
   function registerRoutes(): void {
+    router.use((req, res, next) => {
+      const rawUrl = typeof req.originalUrl === 'string'
+        ? req.originalUrl
+        : (req.url || '')
+
+      if (!rawUrl) {
+        next()
+        return
+      }
+
+      const pathOnly = rawUrl.split('?')[0] || '/'
+      const hitsAppsPrefix = pathOnly === appsPrefix || pathOnly.startsWith(`${appsPrefix}/`)
+
+      if (hitsAppsPrefix && hasPathTraversal(rawUrl)) {
+        res.status(400).json({ error: 'Invalid proxy path' })
+        return
+      }
+
+      next()
+    })
+
     const portRoute = `${appsPrefix}/:appId/${portsSegment}/:portKey/${proxySegment}`
     const appRoute = `${appsPrefix}/:appId/${proxySegment}`
 
@@ -589,7 +648,19 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
       // /apps/:appId/ports/:portKey/proxy/... pattern
       if (segments.length >= 4 && segments[1] === portsSegment && segments[3] === proxySegment) {
         const [appId, , portKey, , ...rest] = segments
+        if (hasPathTraversal(appId)) {
+          socket.destroy()
+          return true
+        }
+        if (hasPathTraversal(portKey) || rest.some((segment) => hasPathTraversal(segment))) {
+          socket.destroy()
+          return true
+        }
         const relativePath = rest.length > 0 ? `/${rest.join('/')}${search}` : `/${search || ''}`
+        if (hasPathTraversal(relativePath)) {
+          socket.destroy()
+          return true
+        }
         const context = await getProxyContext(decodeURIComponent(appId))
         const targetPort = context.portLookup.get(normalizePortKey(portKey))
         if (!targetPort) {
@@ -609,7 +680,19 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
       // /apps/:appId/proxy/... pattern
       if (segments.length >= 2 && segments[1] === proxySegment) {
         const [appId, , ...rest] = segments
+        if (hasPathTraversal(appId)) {
+          socket.destroy()
+          return true
+        }
+        if (rest.some((segment) => hasPathTraversal(segment))) {
+          socket.destroy()
+          return true
+        }
         const relativePath = rest.length > 0 ? `/${rest.join('/')}${search}` : `/${search || ''}`
+        if (hasPathTraversal(relativePath)) {
+          socket.destroy()
+          return true
+        }
         const context = await getProxyContext(decodeURIComponent(appId))
         const targetPort = isApiPath(relativePath) ? context.apiPort || context.uiPort : context.uiPort
         const proxyReq = Object.create(req)

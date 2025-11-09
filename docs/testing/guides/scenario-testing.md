@@ -127,7 +127,7 @@ scenario/
 
 ### Test Orchestrator Pattern
 
-**Canonical Implementation**: [/scripts/scenarios/templates/full/test/run-tests.sh](/scripts/scenarios/templates/full/test/run-tests.sh)
+**Canonical Implementation**: [/scripts/scenarios/templates/react-vite/test/run-tests.sh](/scripts/scenarios/templates/react-vite/test/run-tests.sh)
 
 The test orchestrator (`test/run-tests.sh`) is the main entry point for scenario testing. It follows a consistent pattern across all scenarios:
 
@@ -192,7 +192,7 @@ Most orchestrators support:
 #### Customization Points
 
 When creating your orchestrator:
-1. **Copy template**: `cp scripts/scenarios/templates/full/test/run-tests.sh scenarios/my-scenario/test/`
+1. **Copy template**: `cp scripts/scenarios/templates/react-vite/test/run-tests.sh scenarios/my-scenario/test/`
 2. **Adjust phases**: Add/remove/reorder phases based on scenario needs
 3. **Configure timeouts**: Adjust based on scenario complexity
 4. **Add custom options**: Extend CLI parsing for scenario-specific needs
@@ -201,7 +201,7 @@ When creating your orchestrator:
 
 ### Phase 1: Structure Validation Pattern
 
-**Canonical Implementation**: [/scripts/scenarios/templates/full/test/phases/test-structure.sh](/scripts/scenarios/templates/full/test/phases/test-structure.sh)
+**Canonical Implementation**: [/scripts/scenarios/templates/react-vite/test/phases/test-structure.sh](/scripts/scenarios/templates/react-vite/test/phases/test-structure.sh)
 
 Structure validation ensures the scenario has all required files, correct directory layout, and valid configuration. This phase runs first (target: <15 seconds) and catches basic setup issues before running expensive tests.
 

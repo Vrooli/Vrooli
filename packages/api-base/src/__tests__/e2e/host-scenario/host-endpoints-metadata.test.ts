@@ -1,20 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import type { Server } from 'node:http'
-import {
-  setupChildScenario,
-  setupHostScenario,
-  makeRequest,
-} from './setup.js'
+import { setupTestEnvironment, cleanupTestEnvironment, makeRequest } from './setup.js'
+import type { TestContext } from './setup.js'
 import type { HostEndpointDefinition } from '../../../server/index.js'
-
-interface HarnessContext {
-  childUiServer: Server
-  childApiServer: Server
-  hostUiServer: Server
-  hostApiServer: Server
-  hostUiPort: number
-  childId: string
-}
 
 describe('Host scenario host-endpoint metadata', () => {
   const childId = 'test-child'
@@ -23,39 +10,14 @@ describe('Host scenario host-endpoint metadata', () => {
     { path: '/api/v1/apps/{id}/diagnostics', method: 'GET' },
   ]
 
-  let ctx: HarnessContext
+  let ctx: TestContext
 
   beforeAll(async () => {
-    const childUiPort = 46000
-    const childApiPort = 46050
-    const hostUiPort = 46100
-    const hostApiPort = 46150
-
-    const child = await setupChildScenario(childId, childUiPort, childApiPort)
-    const host = await setupHostScenario(
-      childId,
-      childUiPort,
-      childApiPort,
-      hostUiPort,
-      hostApiPort,
-      { hostEndpoints }
-    )
-
-    ctx = {
-      childUiServer: child.uiServer,
-      childApiServer: child.apiServer,
-      hostUiServer: host.uiServer,
-      hostApiServer: host.apiServer,
-      hostUiPort,
-      childId,
-    }
+    ctx = await setupTestEnvironment(5000, { hostEndpoints })
   }, 60000)
 
   afterAll(async () => {
-    await new Promise<void>((resolve) => ctx.childUiServer.close(() => resolve()))
-    await new Promise<void>((resolve) => ctx.childApiServer.close(() => resolve()))
-    await new Promise<void>((resolve) => ctx.hostUiServer.close(() => resolve()))
-    await new Promise<void>((resolve) => ctx.hostApiServer.close(() => resolve()))
+    await cleanupTestEnvironment(ctx)
   })
 
   it('injects host endpoint metadata into proxied HTML', async () => {
