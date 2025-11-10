@@ -90,18 +90,20 @@ operations:
     # Time allocation: See global_config.time_allocations.generators
     
     success_criteria:
-      - "Template scaffold generated via `vrooli scenario generate` with api/, ui/, cli/, initialization/, docs/, requirements/, .vrooli/"
-      - "Operational Targets PRD present: Overview + P0/P1/P2 sections tied to requirement IDs"
-      - "Requirements registry seeded with valid IDs, criticality, prd_ref, and documentation in requirements/README.md"
-      - "Lifecycle metadata configured: `.vrooli/service.json` (plus required files) allows `vrooli scenario status <name>` to run without schema errors"
-      - "Baseline documentation created: README.md, docs/PROGRESS.md, docs/PROBLEMS.md, docs/RESEARCH.md with initial entries"
+      - "Official template scaffold created via `vrooli scenario generate react-vite ...` with api/, ui/, cli/, initialization/, docs/, requirements/, and `.vrooli/` directories intact"
+      - "Lifecycle metadata validated: `vrooli scenario status <name>` runs without schema errors and results are summarized in the handoff"
+      - "Operational Targets PRD authored with Overview + P0/P1/P2 sections and each target mapped to requirement IDs"
+      - "Requirements registry (requirements/index.json + README) seeded with valid IDs, `prd_ref`, `criticality`, and instructions for tagging `[REQ:ID]` in future tests"
+      - "Baseline documentation set (README, docs/PROGRESS.md, docs/PROBLEMS.md, docs/RESEARCH.md) populated with uniqueness research, table entries, and next-agent guidance"
+      - "Scenario-auditor executed via `scenario-auditor audit <name> --timeout 240`; output path or key failures captured for improvers"
+      - "Final handoff includes the Quick Validation commands, deliverables list, and open risks per generator template"
     
     principles:
-      - "Research prevents duplication"
-      - "PRD is the primary deliverable"
-      - "Quality over completeness"
-      - "Enable future improvements"
-      - "Focus on solving real problems"
+      - "Stay within the scenario directory and stop at initialization—no P0 implementation"
+      - "Research-first: prove uniqueness before scaffolding"
+      - "Lifecycle commands (`scenario status`, `scenario-auditor`) are the source of truth"
+      - "Documentation quality and PRD clarity outweigh adding placeholder code"
+      - "Every artifact must brief the next agent on what to do next"
 
   scenario-improver:
     name: scenario-improver
@@ -119,21 +121,21 @@ operations:
     # Time allocation: See global_config.time_allocations.improvers
     
     success_criteria:
-      - "PRD accuracy validated: Each checked ✅ requirement tested and verified working"
-      - "Progress measurable: At least one P0/P1 operational target has linked requirements/tests moved to passing status and logged in docs/PROGRESS.md"
-      - "No regressions verified: All previously working features tested and still functional"
-      - "Security & standards baseline captured: `scenario-auditor audit NAME --timeout 240` recorded before changes"
-      - "Validation gates pass: Health, functionality, security, and integration tests all succeed"
-      - "Cross-scenario impacts assessed: Dependencies checked, no breaking changes to other scenarios"
-      - "Documentation updated: README + docs/PROBLEMS.md reflect new findings and outstanding work"
+      - "Quick Validation Loop completed: `vrooli scenario status <name>`, `scenario-auditor audit <name> --timeout 240`, and the scenario test command all run after changes with results captured"
+      - "At least one operational target (P0/P1) advanced end-to-end with linked requirements updated and `[REQ:ID]` tests proving the outcome"
+      - "Scenario test suite (or targeted phase script) passes after changes; any inherited failures are documented with evidence"
+      - "docs/PROGRESS.md gains a new dated row, docs/PROBLEMS.md lists unresolved issues, and README/test instructions reflect the current state"
+      - "Requirements registry/README updated when new requirements or modules are added so coverage tracking stays accurate"
+      - "No regressions: previously passing tests remain green or are explicitly documented with cause and next steps"
+      - "Final handoff enumerates validation commands, touched files, and remaining risks per improver template"
     
     principles:
-      - "Trust but verify everything"
-      - "Incremental progress is permanent"
-      - "PRD accuracy is sacred"
-      - "Expose existing security debt before implementing fixes"
-      - "Small focused changes win"
-      - "Learn from past attempts"
+      - "Fix lifecycle/security failures before chasing new features"
+      - "Advance one operational target at a time and prove it with requirements-linked tests"
+      - "Respect the generator scaffold and treat PRD checkboxes as read-only evidence markers"
+      - "Document every change in the scenario docs so the next agent has context"
+      - "Use repo-wide consumers and dependency searches before changing APIs/CLI outputs"
+      - "Leave clear next steps whenever work cannot be finished"
 
 # Global configuration
 global_config:

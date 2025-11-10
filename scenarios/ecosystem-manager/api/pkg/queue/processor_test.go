@@ -34,7 +34,7 @@ func setupTestProcessor(t *testing.T) (*Processor, string, func()) {
 	}
 
 	storage := tasks.NewStorage(queueDir)
-	assembler, err := prompts.NewAssembler(promptsDir)
+	assembler, err := prompts.NewAssembler(promptsDir, tempDir)
 	if err != nil {
 		t.Fatalf("Failed to create assembler: %v", err)
 	}

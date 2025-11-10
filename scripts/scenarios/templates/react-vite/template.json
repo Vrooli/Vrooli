@@ -52,8 +52,8 @@
   },
   "postHooks": [
     {
-      "description": "Install UI dependencies (pnpm install --dir ui)",
-      "cmd": "pnpm install",
+      "description": "Install UI dependencies (corepack pnpm install --ignore-workspace)",
+      "cmd": "corepack pnpm install --ignore-workspace",
       "cwd": "ui"
     },
     {

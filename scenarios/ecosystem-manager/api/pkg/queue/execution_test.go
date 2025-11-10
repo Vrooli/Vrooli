@@ -38,7 +38,7 @@ func setupExecutionTestProcessor(t *testing.T) (*Processor, *tasks.Storage, stri
 	}
 
 	storage := tasks.NewStorage(queueDir)
-	assembler, err := prompts.NewAssembler(promptsDir)
+	assembler, err := prompts.NewAssembler(promptsDir, tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,6 +8,7 @@ readonly CLI_VERSION="1.0.0"
 readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
 readonly CONFIG_FILE="$CONFIG_DIR/config.json"
 readonly SCENARIO_ID="{{SCENARIO_ID}}"
+readonly DEFAULT_TOKEN=""
 CONFIG_API_BASE=""
 API_BASE=""
 
@@ -195,7 +196,7 @@ main() {
     local command="${1:-help}"
     shift || true
 
-    local env_prefix="$(echo "$CLI_NAME" | tr '[:lower:]' '[:upper:]')"
+    local env_prefix="$(echo "$CLI_NAME" | tr '[:lower:]' '[:upper:]' | tr -c 'A-Z0-9' '_')"
     local env_api_base_var="${env_prefix}_API_BASE"
     local env_api_token_var="${env_prefix}_API_TOKEN"
 

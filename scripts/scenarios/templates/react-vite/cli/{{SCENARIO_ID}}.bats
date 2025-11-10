@@ -60,21 +60,12 @@ teardown() {
     [[ "$output" =~ "test.example.com" ]]
 }
 
-# Test: Health command structure
-@test "health command sends correct request" {
-    # This would need a mock server or API to test properly
-    # For now, just test that the command exists
+# Test: Help lists supported commands
+@test "help output lists supported commands" {
     run $TEST_CLI help
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "health" ]]
-}
-
-# Test: List command structure
-@test "list command accepts resource parameter" {
-    # Test command structure without actual API
-    run $TEST_CLI help
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "list" ]]
+    [[ "$output" =~ "status" ]]
+    [[ "$output" =~ "configure" ]]
 }
 
 # Test: Invalid command
