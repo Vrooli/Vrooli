@@ -1,4 +1,5 @@
 // Ecosystem Manager - Main Application
+import { resolveApiBase, resolveWsBase } from '@vrooli/api-base';
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
 import { ApiClient } from './modules/ApiClient.js';
 import { TaskManager } from './modules/TaskManager.js';
@@ -11,145 +12,8 @@ import { RECYCLER_TEST_PRESETS } from './data/recycler-test-presets.js';
 import { TagMultiSelect } from './components/TagMultiSelect.js';
 
 const BRIDGE_FLAG = '__ecosystemManagerBridgeInitialized';
-const joinLocalhost = () => ['local', 'host'].join('');
-
-const stripTrailingSlash = (value) => {
-    if (!value) {
-        return '';
-    }
-    return value.replace(/\/+$/, '');
-};
-
-const ensureApiSegment = (base) => {
-    const normalized = stripTrailingSlash(base);
-    if (/\/api(\/|$)/i.test(normalized)) {
-        return normalized;
-    }
-    return `${normalized}/api`;
-};
-
-const collectProxyEntries = (win) => {
-    if (!win) {
-        return [];
-    }
-
-    const entries = [];
-    const pushEntry = (entry) => {
-        if (entry && typeof entry === 'object') {
-            entries.push(entry);
-        }
-    };
-
-    const info = win.__APP_MONITOR_PROXY_INFO__;
-    if (info?.primary) {
-        pushEntry(info.primary);
-    }
-    if (Array.isArray(info?.ports)) {
-        info.ports.forEach(pushEntry);
-    }
-
-    const index = win.__APP_MONITOR_PROXY_INDEX__;
-    if (index?.aliasMap instanceof Map) {
-        index.aliasMap.forEach(pushEntry);
-    }
-
-    return entries;
-};
-
-const deriveBaseFromEntry = (entry, win) => {
-    if (!entry) {
-        return null;
-    }
-
-    const baseCandidates = [entry.url, entry.target, entry.origin, entry.href]
-        .map((candidate) => (typeof candidate === 'string' ? candidate.trim() : ''))
-        .filter(Boolean);
-
-    for (const candidate of baseCandidates) {
-        try {
-            return stripTrailingSlash(new URL(candidate).toString());
-        } catch (error) {
-            // continue
-        }
-    }
-
-    if (typeof entry.path === 'string' && entry.path.trim()) {
-        try {
-            const relative = new URL(entry.path, win?.location?.origin || win?.location?.href || window.location.origin);
-            return stripTrailingSlash(relative.toString());
-        } catch (error) {
-            // continue
-        }
-    }
-
-    if (typeof entry.port === 'number' && entry.port > 0) {
-        const host = entry.host || entry.hostname || win?.location?.hostname || joinLocalhost();
-        const protocol = entry.protocol || (win?.location?.protocol === 'https:' ? 'https' : 'http');
-        return stripTrailingSlash(`${protocol}://${host}:${entry.port}`);
-    }
-
-    return null;
-};
-
-const resolveProxyAwareApiBase = () => {
-    if (typeof window === 'undefined') {
-        return '/api';
-    }
-
-    const entries = collectProxyEntries(window);
-    const aliasCandidates = new Set([
-        'api',
-        'backend',
-        'service',
-        'ecosystem-manager-api',
-        'ecosystem-manager-backend',
-        'ecosystem-manager-service'
-    ]);
-
-    for (const entry of entries) {
-        const aliases = new Set();
-
-        const pushAlias = (value) => {
-            if (typeof value === 'string' && value.trim()) {
-                aliases.add(value.trim().toLowerCase());
-            }
-        };
-
-        if (Array.isArray(entry.aliases)) {
-            entry.aliases.forEach(pushAlias);
-        }
-        pushAlias(entry.name);
-        pushAlias(entry.label);
-        pushAlias(entry.slug);
-
-        const hasAliasMatch = Array.from(aliases).some((alias) => aliasCandidates.has(alias));
-        if (!hasAliasMatch) {
-            continue;
-        }
-
-        const derived = deriveBaseFromEntry(entry, window);
-        if (derived) {
-            return ensureApiSegment(derived);
-        }
-    }
-
-    try {
-        const base = new URL('.', window.location.href);
-        return ensureApiSegment(base.toString());
-    } catch (error) {
-        // continue to final fallback
-    }
-
-    const fallbackPort =
-        (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_PORT) ||
-        window.__APP_MONITOR_PROXY_INFO__?.ports?.find((entry) => typeof entry?.port === 'number')?.port;
-
-    if (fallbackPort) {
-        return ensureApiSegment(`http://${joinLocalhost()}:${fallbackPort}`);
-    }
-
-    return '/api';
-};
+const API_BASE = resolveApiBase({ appendSuffix: true, apiSuffix: '/api' });
+const WS_BASE = resolveWsBase({ appendSuffix: true, apiSuffix: '/ws' });
 
 const bootstrapIframeBridge = () => {
     if (typeof window === 'undefined') {
@@ -179,8 +43,9 @@ bootstrapIframeBridge();
 
 class EcosystemManager {
     constructor() {
-        // API Configuration - Resolve via App Monitor proxy metadata when available
-        this.apiBase = resolveProxyAwareApiBase();
+        // API configuration - resolve via shared api-base utilities
+        this.apiBase = API_BASE;
+        this.wsBase = WS_BASE;
 
         // Initialize API client
         this.api = new ApiClient(this.apiBase);
@@ -194,7 +59,7 @@ class EcosystemManager {
         this.settingsManager = new SettingsManager(this.apiBase, this.showToast.bind(this));
         this.processMonitor = new ProcessMonitor(this.apiBase, this.showToast.bind(this));
         this.webSocketHandler = new WebSocketHandler(
-            this.apiBase,
+            this.wsBase,
             this.handleWebSocketMessage.bind(this)
         );
         this.dragDropHandler = new DragDropHandler(this.handleTaskDrop.bind(this));

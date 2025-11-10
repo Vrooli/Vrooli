@@ -2,8 +2,8 @@
 import { logger } from '../utils/logger.js';
 
 export class WebSocketHandler {
-    constructor(apiBase, onMessage) {
-        this.apiBase = apiBase;
+    constructor(wsBase, onMessage) {
+        this.wsBase = wsBase;
         this.onMessage = onMessage;
         this.ws = null;
         this.reconnectAttempts = 0;
@@ -12,9 +12,11 @@ export class WebSocketHandler {
     }
 
     connect() {
-        // Use relative WebSocket path so Vite proxy handles it
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+        const wsUrl = this.wsBase || this.buildFallbackUrl();
+        if (!wsUrl) {
+            logger.error('WebSocket URL unavailable');
+            return;
+        }
 
         logger.ws('Connecting to WebSocket:', wsUrl);
 
@@ -50,6 +52,15 @@ export class WebSocketHandler {
             logger.error('Failed to create WebSocket:', error);
             this.attemptReconnect();
         }
+    }
+
+    buildFallbackUrl() {
+        if (typeof window === 'undefined' || !window.location) {
+            return null;
+        }
+
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${wsProtocol}//${window.location.host}/ws`;
     }
 
     attemptReconnect() {
