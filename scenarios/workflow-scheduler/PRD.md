@@ -15,7 +15,7 @@
 - [x] **Database Persistence**: Store schedules and history in PostgreSQL (✅ Auto-initialization working, schema created successfully)
 - [x] **Health Monitoring**: Health check endpoint responding < 100ms (✅ /health endpoint working, returns in ~50ms)
 - [x] **Execution History**: Track all execution attempts with status and timing (✅ /api/executions and /api/schedules/{id}/executions working)
-- [x] **CLI Tool**: Command-line interface for schedule management (✅ Installed to ~/.local/bin/scheduler-cli)
+- [x] **CLI Tool**: Command-line interface for schedule management (✅ Installs `workflow-scheduler` with backward-compatible `scheduler-cli` alias)
 - [x] **API Endpoints**: REST API for full CRUD operations on schedules (✅ Core endpoints working: schedules, cron validation, system status)
 
 ### P1 Requirements (Should Have)
@@ -35,7 +35,7 @@
 - **API**: Go REST API on configurable port (15000-19999 range)
 - **Storage**: PostgreSQL for schedules, Redis for locks/caching
 - **UI**: Node.js server with HTML dashboard (35000-39999 range)
-- **CLI**: Bash-based scheduler-cli tool installed globally
+- **CLI**: Bash-based `workflow-scheduler` tool installed globally (alias: `scheduler-cli`)
 
 ### Dependencies
 - PostgreSQL (required): Schedule and history storage
@@ -91,7 +91,7 @@ GET    /api/schedules/{id}/metrics      - Performance metrics
   - Fixed health endpoint configuration in service.json (added UI health endpoint)
   - Enhanced Makefile with all required targets (start, fmt, lint, etc.)
   - Fixed UI server to require critical environment variables (no dangerous defaults)
-  - Created CLI symlink (cli/workflow-scheduler → scheduler-cli)
+  - Installer now copies `cli/workflow-scheduler` and also registers the `scheduler-cli` alias for compatibility
   - Verified execution history endpoints working correctly
   - **Standards Compliance**: Reduced violations from 319 to 313 (0 critical, 3 high, 309 medium)
   - **Security**: 0 vulnerabilities detected

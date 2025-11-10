@@ -96,7 +96,7 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	promptsDir := filepath.Join(tempDir, "prompts")
 
 	storage := tasks.NewStorage(queueDir)
-	assembler, err := prompts.NewAssembler(promptsDir)
+	assembler, err := prompts.NewAssembler(promptsDir, tempDir)
 	if err != nil {
 		t.Fatalf("Failed to create assembler: %v", err)
 	}

@@ -137,7 +137,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x chore-tracker && ln -sf $(pwd)/chore-tracker ~/.local/bin/chore-tracker",
+          "run": "cd cli && chmod +x chore-tracking && ln -sf $(pwd)/chore-tracking ~/.local/bin/chore-tracking",
           "description": "Install CLI command globally"
         },
         {

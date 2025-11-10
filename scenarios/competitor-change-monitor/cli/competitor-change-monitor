@@ -10,6 +10,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 SCRIPT_DIR="${APP_ROOT}/scenarios/competitor-change-monitor/cli"
 PROJECT_ROOT="${APP_ROOT}"
 API_URL="${API_URL:-http://localhost:8140}"
+CLI_NAME="$(basename "$0")"
 
 # Color codes
 RED='\033[0;31m'
@@ -33,7 +34,7 @@ show_usage() {
 $(print_color "$CYAN" "🔍 Competitor Change Monitor CLI")
 
 $(print_color "$GREEN" "USAGE:")
-    competitor-monitor <command> [options]
+    ${CLI_NAME} <command> [options]
 
 $(print_color "$GREEN" "COMMANDS:")
     list                    List all competitors
@@ -47,13 +48,13 @@ $(print_color "$GREEN" "COMMANDS:")
     help                   Show this help message
 
 $(print_color "$GREEN" "EXAMPLES:")
-    competitor-monitor list
-    competitor-monitor add "TechCorp" "https://techcorp.com"
-    competitor-monitor targets abc-123
-    competitor-monitor add-target abc-123 "https://techcorp.com/pricing"
-    competitor-monitor alerts --status=unread
-    competitor-monitor scan
-    competitor-monitor analyses --id=abc-123
+    ${CLI_NAME} list
+    ${CLI_NAME} add "TechCorp" "https://techcorp.com"
+    ${CLI_NAME} targets abc-123
+    ${CLI_NAME} add-target abc-123 "https://techcorp.com/pricing"
+    ${CLI_NAME} alerts --status=unread
+    ${CLI_NAME} scan
+    ${CLI_NAME} analyses --id=abc-123
 
 $(print_color "$YELLOW" "ENVIRONMENT:")
     API_URL: $API_URL
@@ -67,7 +68,7 @@ list_competitors() {
     response=$(curl -s "$API_URL/api/competitors")
     
     if [ -z "$response" ] || [ "$response" = "[]" ]; then
-        print_color "$YELLOW" "No competitors found. Add one with: competitor-monitor add <name> <url>"
+        print_color "$YELLOW" "No competitors found. Add one with: ${CLI_NAME} add <name> <url>"
         return
     fi
     
@@ -81,7 +82,7 @@ add_competitor() {
     
     if [ -z "$name" ]; then
         print_color "$RED" "Error: Name is required"
-        echo "Usage: competitor-monitor add <name> <description>"
+        echo "Usage: ${CLI_NAME} add <name> <description>"
         exit 1
     fi
     
@@ -110,7 +111,7 @@ show_targets() {
     
     if [ -z "$competitor_id" ]; then
         print_color "$RED" "Error: Competitor ID is required"
-        echo "Usage: competitor-monitor targets <competitor_id>"
+        echo "Usage: ${CLI_NAME} targets <competitor_id>"
         exit 1
     fi
     
@@ -134,7 +135,7 @@ add_target() {
     
     if [ -z "$competitor_id" ] || [ -z "$url" ]; then
         print_color "$RED" "Error: Competitor ID and URL are required"
-        echo "Usage: competitor-monitor add-target <competitor_id> <url> [type]"
+        echo "Usage: ${CLI_NAME} add-target <competitor_id> <url> [type]"
         exit 1
     fi
     

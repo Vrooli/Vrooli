@@ -132,6 +132,7 @@ func initializeComponents() error {
 	// The ecosystem-manager structure has queue and prompts at the scenario root
 	// The API binary is in scenarios/ecosystem-manager/api/
 	scenarioRoot := filepath.Join(execDir, "..")
+	projectRoot := filepath.Clean(filepath.Join(scenarioRoot, "..", ".."))
 	queueDir := filepath.Join(scenarioRoot, "queue")
 	promptsDir := filepath.Join(scenarioRoot, "prompts")
 
@@ -154,7 +155,7 @@ func initializeComponents() error {
 	}
 
 	// Initialize prompts assembler
-	assembler, err = prompts.NewAssembler(promptsDir)
+	assembler, err = prompts.NewAssembler(promptsDir, projectRoot)
 	if err != nil {
 		return err
 	}

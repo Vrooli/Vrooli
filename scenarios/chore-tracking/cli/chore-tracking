@@ -23,7 +23,7 @@ show_help() {
     echo -e "${PURPLE}🎮 ChoreQuest CLI${NC}"
     echo -e "${CYAN}Gamified chore tracking and management${NC}"
     echo ""
-    echo "Usage: chore-tracker [command] [options]"
+    echo "Usage: chore-tracking [command] [options]"
     echo ""
     echo "Commands:"
     echo "  list              List all available chores"
@@ -38,10 +38,10 @@ show_help() {
     echo "  stats             View user statistics"
     echo ""
     echo "Examples:"
-    echo "  chore-tracker list --category kitchen"
-    echo "  chore-tracker complete --chore-id chore-001 --quality 5"
-    echo "  chore-tracker schedule --user user-001 --week current"
-    echo "  chore-tracker redeem --reward-id reward-003"
+    echo "  chore-tracking list --category kitchen"
+    echo "  chore-tracking complete --chore-id chore-001 --quality 5"
+    echo "  chore-tracking schedule --user user-001 --week current"
+    echo "  chore-tracking redeem --reward-id reward-003"
 }
 
 # List chores
@@ -228,6 +228,6 @@ case "$1" in
         ;;
     *)
         echo -e "${YELLOW}ChoreQuest CLI - Making chores fun! 🎮${NC}"
-        echo "Use 'chore-tracker help' for usage information"
+        echo "Use 'chore-tracking help' for usage information"
         ;;
 esac

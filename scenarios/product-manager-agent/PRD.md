@@ -248,14 +248,14 @@ consumed_events:
 
 ### Command Structure
 ```yaml
-cli_binary: product-manager
+    cli_binary: product-manager-agent
 install_script: cli/install.sh
 
 required_commands:
   - name: status
     description: Show product management system status
     flags: [--json, --verbose]
-    example: product-manager status
+    example: product-manager-agent status
     
   - name: help
     description: Display comprehensive help
@@ -278,7 +278,7 @@ custom_commands:
       - name: --output
         description: Output format (table|json|csv)
         default: table
-    example: product-manager prioritize features.json --output csv
+    example: product-manager-agent prioritize features.json --output csv
     
   - name: roadmap
     description: Generate product roadmap
@@ -295,7 +295,7 @@ custom_commands:
       - name: --capacity
         description: Team capacity (story points)
         default: 100
-    example: product-manager roadmap 2025-02-01 --duration 12
+    example: product-manager-agent roadmap 2025-02-01 --duration 12
     
   - name: analyze-competitor
     description: Research competitor features
@@ -308,7 +308,7 @@ custom_commands:
       - name: --depth
         description: Analysis depth (quick|standard|deep)
         default: standard
-    example: product-manager analyze-competitor "Acme Corp" --depth deep
+    example: product-manager-agent analyze-competitor "Acme Corp" --depth deep
     
   - name: sprint-plan
     description: Plan next sprint
@@ -320,7 +320,7 @@ custom_commands:
       - name: --velocity
         description: Average story points per sprint
         default: 40
-    example: product-manager sprint-plan --team-size 8 --velocity 60
+    example: product-manager-agent sprint-plan --team-size 8 --velocity 60
 ```
 
 ### CLI-API Parity Requirements
@@ -349,7 +349,7 @@ implementation_requirements:
 installation:
   - install_script: Symlinks to ~/.vrooli/bin/
   - permissions: 755 on binary
-  - documentation: product-manager help --all
+  - documentation: product-manager-agent help --all
 ```
 
 ## 🎨 Style and Branding Requirements
@@ -465,7 +465,7 @@ discovery:
       - ROI calculation
     interfaces:
       - api: http://localhost:8084/api/v1
-      - cli: product-manager
+      - cli: product-manager-agent
       - events: product.*
       
   metadata:
@@ -542,7 +542,7 @@ structure:
     - README.md
     - api/main.go
     - api/go.mod
-    - cli/product-manager
+    - cli/product-manager-agent
     - cli/install.sh
     - initialization/storage/postgres/schema.sql
     - initialization/automation/n8n/rice-calculator.json
@@ -582,7 +582,7 @@ tests:
         
   - name: "CLI Prioritize Command"
     type: exec
-    command: ./cli/product-manager prioritize test.json --output json
+    command: ./cli/product-manager-agent prioritize test.json --output json
     expect:
       exit_code: 0
       output_contains: ["rice_score", "rank"]

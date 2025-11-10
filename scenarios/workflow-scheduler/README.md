@@ -11,7 +11,7 @@ The Workflow Scheduler provides a professional scheduling infrastructure for all
 ```mermaid
 flowchart TB
     subgraph "Client Layer"
-        CLI[CLI Client<br/>scheduler-cli]
+        CLI[CLI Client<br/>workflow-scheduler<br/>(alias: scheduler-cli)]
         API_CLIENT[API Clients<br/>HTTP/REST]
         DASHBOARD[Windmill Dashboard<br/>Visual Management]
     end
@@ -133,6 +133,7 @@ vrooli scenario develop workflow-scheduler
 ```
 
 ## 🔧 **CLI Usage**
+> Preferred command name is `workflow-scheduler`; the installer also creates a `scheduler-cli` alias for backwards compatibility, so existing scripts keep working.
 
 ### Schedule Management
 ```bash

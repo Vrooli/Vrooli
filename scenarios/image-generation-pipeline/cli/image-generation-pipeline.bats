@@ -6,7 +6,7 @@ setup() {
     export IMAGE_GENERATION_PIPELINE_API_BASE="http://localhost:${API_PORT:-8090}"
     
     # CLI location
-    CLI_SCRIPT="$BATS_TEST_DIRNAME/image-generation-pipeline-cli.sh"
+    CLI_SCRIPT="$BATS_TEST_DIRNAME/image-generation-pipeline"
     
     # Skip if service is not running
     if ! curl -sf "$IMAGE_GENERATION_PIPELINE_API_BASE/health" >/dev/null 2>&1; then

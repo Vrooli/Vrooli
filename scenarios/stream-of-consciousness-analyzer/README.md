@@ -60,16 +60,16 @@ Access the mindful UI at `http://localhost:8091` to:
 ### CLI Usage
 ```bash
 # Process a stream of text
-soc-analyzer process "Just had a great idea about..."
+stream-of-consciousness-analyzer process "Just had a great idea about..."
 
 # Process with specific campaign
-soc-analyzer process --campaign work "Meeting notes: discussed roadmap..."
+stream-of-consciousness-analyzer process --campaign work "Meeting notes: discussed roadmap..."
 
 # Search notes
-soc-analyzer search "onboarding improvements"
+stream-of-consciousness-analyzer search "onboarding improvements"
 
 # Extract insights from recent entries
-soc-analyzer insights --days 7
+stream-of-consciousness-analyzer insights --days 7
 ```
 
 ### API Endpoints

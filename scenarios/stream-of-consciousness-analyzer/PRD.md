@@ -288,7 +288,7 @@ consumed_events:
 
 ### Command Structure
 ```yaml
-cli_binary: soc-analyzer
+cli_binary: stream-of-consciousness-analyzer
 install_script: cli/install.sh
 
 required_commands:
@@ -320,7 +320,7 @@ custom_commands:
       - name: --mode
         description: Processing mode (realtime|batch)
         default: realtime
-    example: soc-analyzer process "Just had a meeting about the new feature..." --campaign work
+    example: stream-of-consciousness-analyzer process "Just had a meeting about the new feature..." --campaign work
     
   - name: search
     description: Semantic search through processed thoughts
@@ -339,7 +339,7 @@ custom_commands:
       - name: --limit
         description: Maximum results to return
         default: 10
-    example: soc-analyzer search "onboarding improvements" --campaign work --days 7
+    example: stream-of-consciousness-analyzer search "onboarding improvements" --campaign work --days 7
     
   - name: insights
     description: Extract insights from thought patterns
@@ -354,14 +354,14 @@ custom_commands:
       - name: --focus
         description: Insight focus (topics|mood|actions|patterns)
         default: topics
-    example: soc-analyzer insights --campaign personal --days 30 --focus mood
+    example: stream-of-consciousness-analyzer insights --campaign personal --days 30 --focus mood
     
   - name: campaigns
     description: Manage thought campaigns
     subcommands:
       - name: list
         description: List all campaigns
-        example: soc-analyzer campaigns list
+        example: stream-of-consciousness-analyzer campaigns list
       - name: create
         arguments:
           - name: name
@@ -372,7 +372,7 @@ custom_commands:
             description: Campaign description
           - name: --context
             description: Campaign context for AI
-        example: soc-analyzer campaigns create "Book Ideas" --context "Creative writing"
+        example: stream-of-consciousness-analyzer campaigns create "Book Ideas" --context "Creative writing"
     
   - name: export
     description: Export processed thoughts
@@ -385,7 +385,7 @@ custom_commands:
         default: markdown
       - name: --output
         description: Output file path
-    example: soc-analyzer export --campaign work --format markdown --output thoughts.md
+    example: stream-of-consciousness-analyzer export --campaign work --format markdown --output thoughts.md
 ```
 
 ### CLI-API Parity Requirements
@@ -414,7 +414,7 @@ implementation_requirements:
 installation:
   - install_script: Creates symlink in ~/.vrooli/bin/
   - permissions: 755 on binary
-  - documentation: soc-analyzer help --all
+  - documentation: stream-of-consciousness-analyzer help --all
   - progress_indicators: Show processing status for long operations
 ```
 
@@ -544,7 +544,7 @@ discovery:
       - Multi-modal input processing
     interfaces:
       - api: http://localhost:8080/api
-      - cli: soc-analyzer
+      - cli: stream-of-consciousness-analyzer
       - events: thought.*
       - ui: http://localhost:8091
       

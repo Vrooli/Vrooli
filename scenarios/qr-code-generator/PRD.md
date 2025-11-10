@@ -40,9 +40,9 @@ Agents can now autonomously create QR codes for sharing data, creating event mat
   - Features: Text input, generate button, display result
   - Verified: Retro-style UI accessible and functional
 - [✅] **CLI Tool**: Command-line QR generation
-  - Command: `qr-generator generate "text" --output file.png`
+  - Command: `qr-code-generator generate "text" --output file.png`
   - Output: PNG file with QR code
-  - Test: `qr-generator generate "Hello" --output /tmp/test.png`
+  - Test: `qr-code-generator generate "Hello" --output /tmp/test.png`
 - [✅] **Batch Processing**: Generate multiple QR codes
   - Endpoint: POST /batch with array of items
   - Returns: Array of generated QR codes
@@ -153,7 +153,7 @@ endpoints:
 
 ### Command Structure
 ```yaml
-cli_binary: qr-generator
+cli_binary: qr-code-generator
 install_script: cli/install.sh
 
 required_commands:
@@ -299,7 +299,7 @@ discovery:
     capabilities: [qr-generation, batch-processing, customization]
     interfaces:
       - api: http://localhost:${API_PORT}
-      - cli: qr-generator
+      - cli: qr-code-generator
 ```
 
 ## 🚨 Risk Mitigation
@@ -525,7 +525,7 @@ curl http://localhost:17315/health
 {"features":{"batch":true,"formats":true,"generate":true},"service":"qr-code-generator","status":"healthy","timestamp":"2025-10-28T01:41:45-04:00"}
 
 # CLI Auto-Detection Works
-qr-generator generate "Test CLI" --output /tmp/test.png
+qr-code-generator generate "Test CLI" --output /tmp/test.png
 # Output: Generating QR code...
 #         QR code saved to: /tmp/test.png
 
@@ -598,7 +598,7 @@ vrooli resource browserless screenshot --scenario qr-code-generator
 **Technical Debt (Non-Blocking):**
 - Test coverage at 58.3% (target: 80%+) - functionality fully verified
 - Legacy scenario-test.yaml removed; phased test suite now authoritative
-- Legacy cli/qr-code-generator placeholder (active CLI is qr-generator)
+- Canonical CLI: cli/qr-code-generator
 
 **Overall Status:** Production-ready with excellent quality. All P0 requirements verified working. Configuration now accurately reflects optional resource dependencies. No functional issues. Documentation comprehensive and accurate. Ready for deployment and integration with other scenarios.
 
@@ -636,7 +636,7 @@ curl http://localhost:17315/formats
 # Returns: {"formats":["png","base64"],"sizes":[128,256,512,1024],"errorCorrections":["Low","Medium","High","Highest"]}
 
 # CLI Auto-Detection & Generation
-qr-generator generate "CLI Validation Test" --output /tmp/qr-cli-validation.png
+qr-code-generator generate "CLI Validation Test" --output /tmp/qr-cli-validation.png
 # Output: QR code saved to: /tmp/qr-cli-validation.png (427 bytes)
 
 # Full Test Suite

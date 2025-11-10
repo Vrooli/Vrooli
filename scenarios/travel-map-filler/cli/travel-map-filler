@@ -10,6 +10,7 @@ set -e
 
 # Configuration
 SCENARIO_NAME="travel-map-filler"
+CLI_NAME="travel-map-filler"
 
 # Colors for output
 RED='\033[0;31m'
@@ -43,7 +44,7 @@ usage() {
     echo -e "${CYAN}Travel Map Filler CLI${NC}"
     echo "Interactive world map for tracking your travel history and bucket list"
     echo ""
-    echo "Usage: travel-map [COMMAND] [OPTIONS]"
+    echo "Usage: ${CLI_NAME} [COMMAND] [OPTIONS]"
     echo ""
     echo "Commands:"
     echo -e "  ${GREEN}travels${NC}        Manage travel history"
@@ -55,17 +56,17 @@ usage() {
     echo -e "  ${GREEN}health${NC}         Check service health"
     echo ""
     echo "Examples:"
-    echo "  travel-map travels add \"Paris, France\" --date 2024-01-15 --type vacation"
-    echo "  travel-map travels list --year 2024"
-    echo "  travel-map bucket add \"Machu Picchu, Peru\" --priority 5"
-    echo "  travel-map stats"
-    echo "  travel-map achievements"
+    echo "  ${CLI_NAME} travels add \"Paris, France\" --date 2024-01-15 --type vacation"
+    echo "  ${CLI_NAME} travels list --year 2024"
+    echo "  ${CLI_NAME} bucket add \"Machu Picchu, Peru\" --priority 5"
+    echo "  ${CLI_NAME} stats"
+    echo "  ${CLI_NAME} achievements"
     echo ""
     echo "Options:"
     echo "  --help, -h       Show help for any command"
     echo "  --json           Output in JSON format (most commands)"
     echo ""
-    echo "For more information: travel-map <command> --help"
+    echo "For more information: ${CLI_NAME} <command> --help"
 }
 
 # Format JSON output if jq is available
@@ -117,13 +118,13 @@ cmd_travels() {
             cmd_travels_list "$@"
             ;;
         --help|-h)
-            echo "Usage: travel-map travels [COMMAND] [OPTIONS]"
+            echo "Usage: ${CLI_NAME} travels [COMMAND] [OPTIONS]"
             echo ""
             echo "Commands:"
             echo "  add <location>    Add a new travel location"
             echo "  list              List all travel locations"
             echo ""
-            echo "For more information: travel-map travels <command> --help"
+            echo "For more information: ${CLI_NAME} travels <command> --help"
             ;;
         *)
             echo -e "${RED}❌ Unknown travels command: $subcommand${NC}" >&2
@@ -174,7 +175,7 @@ cmd_travels_add() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: travel-map travels add <location> [OPTIONS]"
+                echo "Usage: ${CLI_NAME} travels add <location> [OPTIONS]"
                 echo ""
                 echo "Add a new travel location to your map"
                 echo ""
@@ -187,8 +188,8 @@ cmd_travels_add() {
                 echo "  --json              Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  travel-map travels add \"Paris, France\" --date 2024-01-15 --type vacation"
-                echo "  travel-map travels add \"Tokyo, Japan\" --rating 5 --notes \"Amazing culture\""
+                echo "  ${CLI_NAME} travels add \"Paris, France\" --date 2024-01-15 --type vacation"
+                echo "  ${CLI_NAME} travels add \"Tokyo, Japan\" --rating 5 --notes \"Amazing culture\""
                 return 0
                 ;;
             *)
@@ -277,7 +278,7 @@ cmd_travels_list() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: travel-map travels list [OPTIONS]"
+                echo "Usage: ${CLI_NAME} travels list [OPTIONS]"
                 echo ""
                 echo "List all travel locations with optional filters"
                 echo ""
@@ -287,9 +288,9 @@ cmd_travels_list() {
                 echo "  --json           Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  travel-map travels list"
-                echo "  travel-map travels list --year 2024"
-                echo "  travel-map travels list --type vacation"
+                echo "  ${CLI_NAME} travels list"
+                echo "  ${CLI_NAME} travels list --year 2024"
+                echo "  ${CLI_NAME} travels list --type vacation"
                 return 0
                 ;;
             *)
@@ -339,13 +340,13 @@ cmd_bucket() {
             cmd_bucket_list "$@"
             ;;
         --help|-h)
-            echo "Usage: travel-map bucket [COMMAND] [OPTIONS]"
+            echo "Usage: ${CLI_NAME} bucket [COMMAND] [OPTIONS]"
             echo ""
             echo "Commands:"
             echo "  add <location>    Add location to bucket list"
             echo "  list              View bucket list destinations"
             echo ""
-            echo "For more information: travel-map bucket <command> --help"
+            echo "For more information: ${CLI_NAME} bucket <command> --help"
             ;;
         *)
             echo -e "${RED}❌ Unknown bucket command: $subcommand${NC}" >&2
@@ -381,7 +382,7 @@ cmd_bucket_add() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: travel-map bucket add <location> [OPTIONS]"
+                echo "Usage: ${CLI_NAME} bucket add <location> [OPTIONS]"
                 echo ""
                 echo "Add a destination to your travel bucket list"
                 echo ""
@@ -391,8 +392,8 @@ cmd_bucket_add() {
                 echo "  --json                Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  travel-map bucket add \"Machu Picchu, Peru\" --priority 5"
-                echo "  travel-map bucket add \"Iceland\" --notes \"Northern Lights season\""
+                echo "  ${CLI_NAME} bucket add \"Machu Picchu, Peru\" --priority 5"
+                echo "  ${CLI_NAME} bucket add \"Iceland\" --notes \"Northern Lights season\""
                 return 0
                 ;;
             *)
@@ -429,7 +430,7 @@ cmd_bucket_list() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: travel-map bucket list [OPTIONS]"
+                echo "Usage: ${CLI_NAME} bucket list [OPTIONS]"
                 echo ""
                 echo "View your travel bucket list destinations"
                 echo ""
@@ -459,7 +460,7 @@ cmd_bucket_list() {
             echo "$response" | jq -r '.[] | "⭐\(.priority) - \(.location)" + (if .notes != "" then " (\(.notes))" else "" end)' 2>/dev/null
         else
             echo -e "${YELLOW}No destinations in bucket list${NC}"
-            echo "   Add your first dream destination: travel-map bucket add \"<location>\""
+            echo "   Add your first dream destination: ${CLI_NAME} bucket add \"<location>\""
         fi
     fi
 }
@@ -475,7 +476,7 @@ cmd_stats() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: travel-map stats [OPTIONS]"
+                echo "Usage: ${CLI_NAME} stats [OPTIONS]"
                 echo ""
                 echo "View comprehensive travel statistics and insights"
                 echo ""
@@ -526,7 +527,7 @@ cmd_achievements() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: travel-map achievements [OPTIONS]"
+                echo "Usage: ${CLI_NAME} achievements [OPTIONS]"
                 echo ""
                 echo "View your unlocked travel achievements and progress"
                 echo ""
@@ -584,7 +585,7 @@ cmd_search() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: travel-map search <query> [OPTIONS]"
+                echo "Usage: ${CLI_NAME} search <query> [OPTIONS]"
                 echo ""
                 echo "Search through your travel history"
                 echo ""
@@ -593,8 +594,8 @@ cmd_search() {
                 echo "  --json           Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  travel-map search \"paris\""
-                echo "  travel-map search \"vacation\" --limit 5"
+                echo "  ${CLI_NAME} search \"paris\""
+                echo "  ${CLI_NAME} search \"vacation\" --limit 5"
                 return 0
                 ;;
             *)
@@ -638,7 +639,7 @@ cmd_export() {
                 shift 2
                 ;;
             --help|-h)
-                echo "Usage: travel-map export [OPTIONS]"
+                echo "Usage: ${CLI_NAME} export [OPTIONS]"
                 echo ""
                 echo "Export your travel data to a file"
                 echo ""
@@ -684,7 +685,7 @@ cmd_health() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: travel-map health [OPTIONS]"
+                echo "Usage: ${CLI_NAME} health [OPTIONS]"
                 echo ""
                 echo "Check the health status of the Travel Map service"
                 echo ""

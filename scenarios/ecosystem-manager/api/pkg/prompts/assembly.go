@@ -22,6 +22,7 @@ import (
 type Assembler struct {
 	PromptsConfig tasks.PromptsConfig
 	PromptsDir    string
+	ProjectRoot   string
 }
 
 // SectionDetail captures metadata for each assembled prompt section.
@@ -41,9 +42,10 @@ type PromptAssembly struct {
 }
 
 // NewAssembler creates a new prompt assembler
-func NewAssembler(promptsDir string) (*Assembler, error) {
+func NewAssembler(promptsDir string, projectRoot string) (*Assembler, error) {
 	assembler := &Assembler{
-		PromptsDir: promptsDir,
+		PromptsDir:  promptsDir,
+		ProjectRoot: projectRoot,
 	}
 
 	// Load prompts configuration
@@ -506,6 +508,18 @@ func (a *Assembler) applyTemplatePlaceholders(template string, task tasks.TaskIt
 		"{{COMPLETED_AT}}":      placeholderValue(task.CompletedAt, ""),
 		"{{CREATED_BY}}":        placeholderValue(task.CreatedBy, ""),
 	}
+
+	projectRoot := placeholderValue(a.ProjectRoot, "")
+	if projectRoot == "" {
+		projectRoot = "."
+	}
+	replacements["{{PROJECT_PATH}}"] = projectRoot
+
+	scenarioPath := ""
+	if projectRoot != "" && projectRoot != "." && strings.TrimSpace(task.Target) != "" {
+		scenarioPath = filepath.Join(projectRoot, "scenarios", task.Target)
+	}
+	replacements["{{SCENARIO_PATH}}"] = scenarioPath
 
 	rendered := template
 	for placeholder, value := range replacements {

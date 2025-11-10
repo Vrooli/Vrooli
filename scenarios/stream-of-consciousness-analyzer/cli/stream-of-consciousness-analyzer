@@ -7,12 +7,13 @@ set -e
 
 API_URL="${SOC_API_URL:-http://localhost:8049}"
 DEFAULT_CAMPAIGN="general"
+CLI_NAME="$(basename "$0")"
 
 show_help() {
     cat << EOF
 Stream of Consciousness Analyzer CLI
 
-Usage: soc-analyzer <command> [options]
+Usage: $CLI_NAME <command> [options]
 
 Commands:
     capture <text>           Capture a stream of consciousness entry
@@ -30,11 +31,11 @@ Options:
     --json                Output in JSON format
 
 Examples:
-    soc-analyzer capture "Had an idea about improving the onboarding flow"
-    soc-analyzer capture "Meeting notes: discussed API redesign" -c work
-    soc-analyzer search "onboarding" -c work
-    soc-analyzer insights work --json
-    soc-analyzer export work > work-notes.md
+    $CLI_NAME capture "Had an idea about improving the onboarding flow"
+    $CLI_NAME capture "Meeting notes: discussed API redesign" -c work
+    $CLI_NAME search "onboarding" -c work
+    $CLI_NAME insights work --json
+    $CLI_NAME export work > work-notes.md
 
 EOF
 }
@@ -269,7 +270,7 @@ case "$COMMAND" in
         ;;
     *)
         echo "Unknown command: $COMMAND"
-        echo "Run 'soc-analyzer help' for usage information"
+        echo "Run '$CLI_NAME help' for usage information"
         exit 1
         ;;
 esac

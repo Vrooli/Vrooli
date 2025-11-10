@@ -5,4 +5,4 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 CLI_DIR="${APP_ROOT}/scenarios/stream-of-consciousness-analyzer/cli"
 source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/soc-analyzer" "soc-analyzer"
+install_cli "$CLI_DIR/stream-of-consciousness-analyzer" "stream-of-consciousness-analyzer"

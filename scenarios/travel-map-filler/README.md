@@ -44,16 +44,16 @@ Interactive world map application for tracking and visualizing your travel histo
 ## CLI Commands
 ```bash
 # Add a new travel location
-travel-map add "Paris, France" --date "2024-06-15" --type vacation
+travel-map-filler add "Paris, France" --date "2024-06-15" --type vacation
 
 # Search travel memories
-travel-map search "beach sunset"
+travel-map-filler search "beach sunset"
 
 # View statistics
-travel-map stats
+travel-map-filler stats
 
 # List all travels
-travel-map list --year 2024
+travel-map-filler list --year 2024
 ```
 
 ## API Endpoints
@@ -72,8 +72,8 @@ travel-map list --year 2024
 ## Testing
 ```bash
 # Test via CLI
-travel-map add "Tokyo, Japan" --type business
-travel-map stats
+travel-map-filler add "Tokyo, Japan" --type business
+travel-map-filler stats
 
 # Test via API
 curl -X POST http://localhost:8760/api/travels \

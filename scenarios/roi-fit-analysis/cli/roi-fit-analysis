@@ -10,6 +10,7 @@ set -e
 
 # Configuration
 SCENARIO_NAME="roi-fit-analysis"
+CLI_NAME="roi-fit-analysis"
 
 # Colors for output
 RED='\033[0;31m'
@@ -44,7 +45,7 @@ usage() {
     echo -e "${CYAN}ROI Fit Analysis CLI${NC}"
     echo "Comprehensive ROI and investment opportunity analysis"
     echo ""
-    echo "Usage: roi-fit [COMMAND] [OPTIONS]"
+    echo "Usage: ${CLI_NAME} [COMMAND] [OPTIONS]"
     echo ""
     echo "Commands:"
     echo -e "  ${GREEN}analyze${NC}        Analyze ROI for a business idea"
@@ -57,16 +58,16 @@ usage() {
     echo -e "  ${GREEN}status${NC}         Show service status"
     echo ""
     echo "Examples:"
-    echo "  roi-fit analyze \"AI-powered CRM\" 75000 --timeline \"12 months\""
-    echo "  roi-fit comprehensive \"E-commerce platform\" --budget 50000 --market B2B"
-    echo "  roi-fit list --min-roi 70"
-    echo "  roi-fit report --format summary"
+    echo "  ${CLI_NAME} analyze \"AI-powered CRM\" 75000 --timeline \"12 months\""
+    echo "  ${CLI_NAME} comprehensive \"E-commerce platform\" --budget 50000 --market B2B"
+    echo "  ${CLI_NAME} list --min-roi 70"
+    echo "  ${CLI_NAME} report --format summary"
     echo ""
     echo "Options:"
     echo "  --help, -h       Show help for any command"
     echo "  --json           Output in JSON format (most commands)"
     echo ""
-    echo "For more information: roi-fit <command> --help"
+    echo "For more information: ${CLI_NAME} <command> --help"
 }
 
 # Format JSON output if jq is available
@@ -134,7 +135,7 @@ cmd_analyze() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: roi-fit analyze <idea> <budget> [OPTIONS]"
+                echo "Usage: ${CLI_NAME} analyze <idea> <budget> [OPTIONS]"
                 echo ""
                 echo "Analyze ROI for a business idea"
                 echo ""
@@ -149,9 +150,9 @@ cmd_analyze() {
                 echo "  --json                  Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  roi-fit analyze \"AI-powered CRM\" 75000"
-                echo "  roi-fit analyze \"E-commerce platform\" 50000 --timeline \"18 months\""
-                echo "  roi-fit analyze \"SaaS product\" 100000 --skills \"development,marketing\""
+                echo "  ${CLI_NAME} analyze \"AI-powered CRM\" 75000"
+                echo "  ${CLI_NAME} analyze \"E-commerce platform\" 50000 --timeline \"18 months\""
+                echo "  ${CLI_NAME} analyze \"SaaS product\" 100000 --skills \"development,marketing\""
                 return 0
                 ;;
             -*)
@@ -171,7 +172,7 @@ cmd_analyze() {
     
     if [[ -z "$idea" || -z "$budget" ]]; then
         echo -e "${RED}❌ Error: Both idea and budget are required${NC}" >&2
-        echo "Usage: roi-fit analyze <idea> <budget> [OPTIONS]" >&2
+        echo "Usage: ${CLI_NAME} analyze <idea> <budget> [OPTIONS]" >&2
         return 1
     fi
     
@@ -234,7 +235,7 @@ cmd_analyze() {
         if [[ -n "$analysis_id" && "$analysis_id" != "null" ]]; then
             echo ""
             echo -e "${PURPLE}Analysis ID: $analysis_id${NC}"
-            echo "   View full results: roi-fit comprehensive --id $analysis_id"
+            echo "   View full results: ${CLI_NAME} comprehensive --id $analysis_id"
         fi
     fi
 }
@@ -277,7 +278,7 @@ cmd_comprehensive() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: roi-fit comprehensive <idea> [OPTIONS]"
+                echo "Usage: ${CLI_NAME} comprehensive <idea> [OPTIONS]"
                 echo ""
                 echo "Perform comprehensive ROI analysis"
                 echo ""
@@ -293,8 +294,8 @@ cmd_comprehensive() {
                 echo "  --json                  Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  roi-fit comprehensive \"AI chatbot\" --budget 25000"
-                echo "  roi-fit comprehensive \"Mobile app\" --budget 75000 --risk high"
+                echo "  ${CLI_NAME} comprehensive \"AI chatbot\" --budget 25000"
+                echo "  ${CLI_NAME} comprehensive \"Mobile app\" --budget 75000 --risk high"
                 return 0
                 ;;
             -*)
@@ -312,7 +313,7 @@ cmd_comprehensive() {
     
     if [[ -z "$idea" ]]; then
         echo -e "${RED}❌ Error: Business idea is required${NC}" >&2
-        echo "Usage: roi-fit comprehensive <idea> [OPTIONS]" >&2
+        echo "Usage: ${CLI_NAME} comprehensive <idea> [OPTIONS]" >&2
         return 1
     fi
     
@@ -411,7 +412,7 @@ cmd_list() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: roi-fit list [OPTIONS]"
+                echo "Usage: ${CLI_NAME} list [OPTIONS]"
                 echo ""
                 echo "List investment opportunities"
                 echo ""
@@ -422,8 +423,8 @@ cmd_list() {
                 echo "  --json                    Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  roi-fit list --min-roi 70"
-                echo "  roi-fit list --max-investment 50000 --risk-level Low"
+                echo "  ${CLI_NAME} list --min-roi 70"
+                echo "  ${CLI_NAME} list --max-investment 50000 --risk-level Low"
                 return 0
                 ;;
             *)
@@ -499,7 +500,7 @@ cmd_report() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: roi-fit report [OPTIONS]"
+                echo "Usage: ${CLI_NAME} report [OPTIONS]"
                 echo ""
                 echo "Generate analysis report"
                 echo ""
@@ -508,8 +509,8 @@ cmd_report() {
                 echo "  --json             Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  roi-fit report --format summary"
-                echo "  roi-fit report --format detailed --json"
+                echo "  ${CLI_NAME} report --format summary"
+                echo "  ${CLI_NAME} report --format detailed --json"
                 return 0
                 ;;
             *)
@@ -566,7 +567,7 @@ cmd_results() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: roi-fit results [OPTIONS]"
+                echo "Usage: ${CLI_NAME} results [OPTIONS]"
                 echo ""
                 echo "Show analysis results history"
                 echo ""
@@ -575,7 +576,7 @@ cmd_results() {
                 echo "  --json             Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  roi-fit results --limit 10"
+                echo "  ${CLI_NAME} results --limit 10"
                 return 0
                 ;;
             *)

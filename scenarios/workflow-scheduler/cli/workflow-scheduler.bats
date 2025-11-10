@@ -1,18 +1,22 @@
 #!/usr/bin/env bats
 
-# Test suite for scheduler-cli
+# Test suite for workflow-scheduler CLI (alias scheduler-cli)
 
 setup() {
     # Get the directory where the CLI is installed
-    CLI_PATH="${BATS_TEST_DIRNAME}/scheduler-cli"
+    CLI_PATH="${BATS_TEST_DIRNAME}/workflow-scheduler"
 
     # Check if CLI exists
     if [ ! -f "$CLI_PATH" ]; then
-        CLI_PATH="$(which scheduler-cli 2>/dev/null)"
+        if command -v workflow-scheduler >/dev/null 2>&1; then
+            CLI_PATH="$(command -v workflow-scheduler)"
+        else
+            CLI_PATH="$(command -v scheduler-cli 2>/dev/null)"
+        fi
     fi
 
     if [ -z "$CLI_PATH" ] || [ ! -f "$CLI_PATH" ]; then
-        skip "scheduler-cli not found in PATH or test directory"
+        skip "workflow-scheduler (or scheduler-cli alias) not found in PATH or test directory"
     fi
 }
 

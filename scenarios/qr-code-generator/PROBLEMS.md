@@ -30,7 +30,7 @@ curl http://localhost:17315/health
 **Impact**: Medium - CLI might fail silently or connect to wrong port
 
 **Resolution**:
-- Removed hardcoded port fallback from `cli/qr-generator`
+- Removed hardcoded port fallback from `cli/qr-code-generator`
 - Added proper validation with helpful error messages when API is not found
 - CLI now requires either:
   - Running scenario (auto-detects port via `lsof`)
@@ -39,10 +39,10 @@ curl http://localhost:17315/health
 **Verification**:
 ```bash
 # Test CLI auto-detection
-qr-generator generate "test"
+qr-code-generator generate "test"
 
 # Test with explicit port
-API_PORT=17315 qr-generator generate "test"
+API_PORT=17315 qr-code-generator generate "test"
 ```
 
 ## Technical Debt
@@ -50,7 +50,7 @@ API_PORT=17315 qr-generator generate "test"
 ### Legacy CLI Script
 **File**: `cli/qr-code-generator`
 **Status**: Present but unused
-**Recommendation**: Can be removed - `qr-generator` is the active CLI tool
+**Recommendation**: Can be removed - `qr-code-generator` is the active CLI tool
 **Priority**: Low - not impacting functionality
 
 ### Test Coverage
@@ -75,7 +75,7 @@ Most violations are false positives or acceptable patterns:
    - Action: No change needed
 
 2. **Hardcoded URLs in Examples** (3 violations)
-   - Files: `cli/qr-generator` (line 30), `ui/script.js`, `ui/styles.css`
+   - Files: `cli/qr-code-generator` (line 30), `ui/script.js`, `ui/styles.css`
    - Status: Acceptable - documentation examples or CDN links
    - Action: No change needed
 

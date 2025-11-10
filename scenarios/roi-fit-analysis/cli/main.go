@@ -24,7 +24,7 @@ func main() {
 
     if len(os.Args) < 2 {
         fmt.Println("ROI Fit Analysis CLI")
-        fmt.Println("Usage: roi-fit <command> [options]")
+        fmt.Println("Usage: roi-fit-analysis <command> [options]")
         fmt.Println("\nCommands:")
         fmt.Println("  analyze <idea> <budget>  - Analyze ROI for an idea")
         fmt.Println("  list                     - List all opportunities")

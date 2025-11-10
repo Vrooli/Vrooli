@@ -7,7 +7,7 @@ show_help() {
     cat << EOF
 Product Manager Agent CLI
 
-Usage: product-manager [command] [options]
+Usage: product-manager-agent [command] [options]
 
 Commands:
     features        List all features
@@ -17,9 +17,9 @@ Commands:
     help           Show this help message
 
 Examples:
-    product-manager features
-    product-manager prioritize --method RICE
-    product-manager add-feature "Dark Mode" --reach 5000 --impact 4
+    product-manager-agent features
+    product-manager-agent prioritize --method RICE
+    product-manager-agent add-feature "Dark Mode" --reach 5000 --impact 4
 
 EOF
 }
@@ -54,7 +54,7 @@ add_feature() {
     
     if [ -z "$name" ]; then
         echo "Error: Feature name is required"
-        echo "Usage: product-manager add-feature <name> [reach] [impact] [confidence] [effort]"
+        echo "Usage: product-manager-agent add-feature <name> [reach] [impact] [confidence] [effort]"
         exit 1
     fi
     

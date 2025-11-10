@@ -27,16 +27,16 @@ Clean, calming interface with nature-inspired colors. Optimized for mobile use d
 ## CLI Usage
 ```bash
 # Start a conversation
-vision-walk start
+morning-vision-walk start  # alias: vision-walk start
 
 # Review today's insights
-vision-walk insights --today
+morning-vision-walk insights --today
 
 # Export tasks to task-planner
-vision-walk export-tasks
+morning-vision-walk export-tasks
 
 # Search past conversations
-vision-walk search "scenario improvements"
+morning-vision-walk search "scenario improvements"
 ```
 
 ## API Endpoints
