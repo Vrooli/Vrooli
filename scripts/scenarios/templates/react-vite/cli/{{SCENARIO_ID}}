@@ -1,5 +1,5 @@
 #!/bin/bash
-# {{CLI_NAME}} - Command-line interface for {{SCENARIO_DISPLAY_NAME}}
+# {{SCENARIO_ID}} - Command-line interface for {{SCENARIO_DISPLAY_NAME}}
 
 set -euo pipefail
 
@@ -176,9 +176,9 @@ cmd_version() {
 
 cmd_help() {
     cat <<'EOF'
-{{CLI_NAME}} - Command-line interface for {{SCENARIO_DISPLAY_NAME}}
+{{SCENARIO_ID}} - Command-line interface for {{SCENARIO_DISPLAY_NAME}}
 
-Usage: {{CLI_NAME}} <command>
+Usage: {{SCENARIO_ID}} <command>
 
 Commands:
     status          Check API and dependency health

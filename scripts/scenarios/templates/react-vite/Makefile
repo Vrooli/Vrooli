@@ -86,8 +86,8 @@ test-ui: ## Run UI tests
 
 test-cli: ## Run CLI tests (BATS)
 	@echo "$(BLUE)🧪 Testing CLI...$(RESET)"
-	@if [ -f cli/cli-tests.bats ]; then \
-		bats cli/cli-tests.bats; \
+	@if [ -f "cli/$(SCENARIO_NAME).bats" ]; then \
+		( cd cli && bats "$(SCENARIO_NAME).bats" ); \
 	else \
 		echo "$(YELLOW)No CLI tests found$(RESET)"; \
 	fi

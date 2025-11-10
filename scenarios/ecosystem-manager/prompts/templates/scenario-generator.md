@@ -1,108 +1,107 @@
 You are executing a **scenario generation** task for the Ecosystem Manager.
 
 ## Boundaries & Focus
-- Only touch files under `{{PROJECT_PATH}}/scenarios/{{TARGET}}/` (including `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/`, `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/`, `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/`). Leave everything else untouched, even if you notice issues elsewhere.
-- Your job ends once the scenario is fully initialized: research completed, PRD drafted, lifecycle + requirements scaffolding ready. **Do not implement features or deliver a working P0.**
+- Only modify `{{PROJECT_PATH}}/scenarios/{{TARGET}}/` (and its `.vrooli/`, `docs/`, and `requirements/` folders). If you notice bugs elsewhere, log them in your notes rather than editing other directories.
+- Your job stops once the scenario is fully initialized: research completed, PRD drafted, configuration + requirements scaffolding in place. **Do not implement a working P0 or ship business logic.**
+
+## Quick Validation Loop (after scaffolding)
+1. `vrooli scenario status {{TARGET}}`
+   - Confirms scenario is set up correctly. Re-run at the end and capture notable warnings in your summary.
+2. `scenario-auditor audit {{TARGET}} --timeout 240`
+   - Expect failures (no code exists yet). Record the output path or summarize the key gaps for improvers.
 
 ## Generator Deliverables
-1. **Research packet** (`docs/RESEARCH.md`): confirm uniqueness, note overlapping scenarios/resources, capture external references.
-2. **Scenario skeleton**: scaffold from the official template via the CLI (see below), set folder structure, and pick the tech approach without writing business logic.
-3. **`.vrooli/` configuration**: service metadata, resources, testing config, etc. at `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/` so lifecycle commands work immediately.
-4. **Operational Targets PRD** (`PRD.md`): see structure below.
-5. **Requirements registry** (`requirements/index.json` + optional modules) plus a `requirements/README.md` describing the organization.
-6. **Documentation set**: baseline `README.md`, `docs/PROGRESS.md`, `docs/PROBLEMS.md`, `docs/RESEARCH.md`, and `requirements/README.md` per the checklist below.
-
-Only produce these files; do not invent ad-hoc documentation outside `README.md`, `docs/`, or `requirements/`.
+1. **Research packet** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/RESEARCH.md`
+   - Uniqueness check within the repo (`rg -l '{{TARGET}}' {{PROJECT_PATH}}/scenarios/`)
+   - Related scenarios/resources + external references
+2. **Scenario skeleton** – scaffold via the CLI template (see below) and keep the generated structure untouched except for configuration updates.
+3. **Configuration & metadata** – `.vrooli/` directory populated so `vrooli scenario status {{TARGET}}` succeeds (service.json, endpoints.json, testing/lighthouse configs as required by the template).
+4. **Operational Targets PRD** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` following the structure below.
+5. **Requirements registry** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` (+ modules if helpful) plus `requirements/README.md` describing the organization.
+6. **Documentation set** – README.md, docs/PROGRESS.md, docs/PROBLEMS.md, docs/RESEARCH.md initialized with baseline entries and instructions for future agents.
 
 ## Research & Template Selection
-- Run `rg -l '{{TARGET}}' {{PROJECT_PATH}}/scenarios/` (or use scenario catalog) to ensure the capability doesn’t already exist.
-- Note which resources/scenarios this effort will depend on or augment.
-- Use the web to find more information about the problem scope and implementation approach, if relevant.
-- Scaffold via the template CLI:
-  1. `vrooli scenario template list` → confirm available templates (currently `react-vite`).
-  2. `vrooli scenario template show react-vite` → review required/optional variables, stack details, and hooks.
-  3. `vrooli scenario generate react-vite --id {{TARGET}} --display-name "{{TITLE}}" --description "{{SCENARIO_DESCRIPTION}}"` (add `--var KEY=VALUE` for optional placeholders).
-  4. Capture the CLI’s post-generation checklist in your notes and follow it (it mirrors the deliverables below).
-- The generated folder lives at `{{PROJECT_PATH}}/scenarios/{{TARGET}}/`. All subsequent work happens there.
+1. Explore existing scenarios/resources to ensure the capability is unique.
+2. Use public/web research to understand the domain, typical features, and technical constraints.
+3. Scaffold via the official template:
+   - `vrooli scenario template list`
+   - `vrooli scenario template show react-vite`
+   - `vrooli scenario generate react-vite --id {{TARGET}} --display-name "{{TITLE}}" --description "<one sentence purpose>"`
+   - Add `--var KEY=VALUE` for optional template variables (e.g., category, database name).
+4. Follow the template’s post-generation checklist (dependency installs, go mod tidy, etc.) and note anything you skip.
+5. All files now live at `{{PROJECT_PATH}}/scenarios/{{TARGET}}/`; run the rest of the steps from that directory.
 
 ## PRD Structure (Operational Targets Document)
-Capture **what** we want, not detailed implementation instructions. Use this outline:
+Capture **what outcomes** we expect, not implementation details. Recommended outline:
 ```
 # Overview
-  - Purpose (1-2 sentences)
-  - Target users / verticals
-  - Intended usage (internal tool, SaaS, microservice, etc.)
-  - Deployment surfaces (Web, iOS, Desktop, etc.)
-  - Value proposition (qualitative impact, not $$ estimates)
+  - Purpose, target users/verticals, intended usage, deployment surfaces
+  - Value proposition (qualitative impact, not revenue numbers)
 
 # Operational Targets
   ## P0 – Must ship for viability
-    - OT-ID: Title — narrative of the desired outcome
+    - OT-ID: Title — narrative description of the outcome
       - Success signals / acceptance hints
       - Dependencies (resources/scenarios)
-      - Linked technical requirement IDs (from requirements registry)
-  ## P1 – Should have soon after launch
-  ## P2 – Nice to have / future expansion
+      - Linked technical requirement IDs
+  ## P1 – Should have post-launch
+  ## P2 – Future / expansion ideas
 
 # Experience & Interfaces
   - Primary workflows / personas
   - Planned surfaces (UI screens, API endpoints, background jobs)
-  - Access patterns (iframe embedding, standalone portal, automation hooks)
+  - Access patterns (iframe, standalone portal, automation hooks)
 
 # Tech Direction Snapshot
-  - Preferred stacks (UI: React/TS/Vite/shadcn/lucide by default, API language, storage choices)
-  - Integration strategy (how it talks to other scenarios/resources)
-  - Non-goals / out-of-scope notes
+  - Preferred stacks (UI defaults to React/TS/Vite/shadcn/lucide; note API/storage choices)
+  - Integration strategy with other scenarios/resources
+  - Non-goals / out-of-scope statements
 
 # Dependencies & Launch Plan
-  - Required resources (Ollama, Postgres, etc.)
-  - Scenario dependencies (monitoring, auth, etc.)
-  - Open questions / risks
+  - Required resources + scenario dependencies
+  - Operational risks / open questions
 ```
-Keep it readable—use bullet trees, avoid code snippets or API specs.
+Each operational target must name its technical requirement IDs so improvers know what to implement.
 
-### Operational Target Tiers (P0/P1/P2)
-- **P0**: Absolutely necessary outcomes. Without them the scenario fails (e.g., “Operators can schedule recycling pickups”).
-- **P1**: Important enhancements that unblock scale or multi-user workflows.
-- **P2**: Nice-to-have polish or expansion ideas.
-Each target must include: narrative, success indicators, dependencies, and the technical requirement ID(s) that will enforce it.
+### Operational Target Tiers
+- **P0**: Without this outcome the scenario fails (core capability).
+- **P1**: Important enhancements enabling scale, security, multi-user flows, and other professional and mature features
+- **P2**: Nice-to-have polish or expansion ideas. Important for making product unique and enticing for potential customers
+Use concise narratives and focus on measurable outcomes rather than implementation details.
 
 ## `.vrooli/` Setup Checklist
-- `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/service.json`: name, displayName, description, tags, API/UI port ranges, resource dependencies.
-- `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/endpoints.json` or other metadata files required by the lifecycle system.
-- Ensure ports land in the scenario allocation range and never collide with existing services.
+- `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/service.json` – service metadata, tags, port ranges. Keep ports in the scenario allocation bands.
+- `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/endpoints.json` (and any additional files such as testing.json, lighthouse.json) so lifecycle commands know how to monitor/test the scenario.
+- Document any required environment variables or secrets in README.md.
 
 ## Requirements Registry Seeding
-- Create `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` (and modular children if helpful).
-- For every operational target, define at least one requirement with:
-  - `id` (match `[A-Z][A-Z0-9]+-[A-Z0-9-]+`), `title`, `criticality`, `prd_ref` pointing back to the PRD section, and empty `validation` arrays.
-  - Optional grouping via `children` so the parent covers the full operational target.
-- Document the expected test phases (unit/integration/business) even though tests don’t exist yet.
-- Include instructions in README/PRD for improvers on how to tag tests with `[REQ:ID]` and run `{{PROJECT_PATH}}/scripts/requirements/report.js --scenario {{TARGET}} --mode sync` once real tests appear.
+- Create `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` (break into modules if helpful).
+- For every operational target, add requirement entries with:
+  - `id` (pattern `[A-Z][A-Z0-9]+-[A-Z0-9-]+`), title, `prd_ref`, `criticality`, optional children/dependencies, empty `validation` array.
+  - Notes on which phases (unit/integration/business/performance) should validate the requirement once implemented.
+- In README/PRD, instruct improvers to tag tests with `[REQ:ID]` and run the scenario’s test phases; the lifecycle automatically syncs requirement coverage when tests execute (no manual `report.js` calls).
 
 ## Documentation Checklist
-- **README.md** (at scenario root):
-  - Purpose + operational summary
-  - How to run (`vrooli scenario run`, ports) and test commands (even if placeholders)
-  - Reference to `PRD.md`, `docs/PROGRESS.md`, `docs/PROBLEMS.md`, and requirements directory
-- **docs/PROGRESS.md**: initialize with a table, e.g.
+- **README.md**
+  - Purpose summary, how to run (`vrooli scenario run {{TARGET}}`), how to test once code exists, link to PRD + docs
+- **docs/PROGRESS.md**
   ```
   | Date | Author | Status Snapshot | Notes |
   |------|--------|-----------------|-------|
-  | {{today}} | {{your_name}} | Initialization complete | Scenario scaffold + PRD seeded |
+  | YYYY-MM-DD | Generator Agent | Initialization complete | Scenario scaffold + PRD seeded |
   ```
-- **docs/PROBLEMS.md**: create sections for "Open Issues" and "Deferred Ideas"; list bullet items with context and links back to PRD targets.
-- **docs/RESEARCH.md**: summarize repo findings, overlapping scenarios/resources, and external links that informed the PRD.
-- **requirements/README.md**: describe how the registry is organized (modules, naming pattern, how to tag tests, command to sync).
+- **docs/PROBLEMS.md** – sections for “Open Issues” and “Deferred Ideas” with bullets describing known risks.
+- **docs/RESEARCH.md** – uniqueness check, overlapping scenarios/resources, external references.
+- **requirements/README.md** – explain module layout, naming pattern, how to tag tests, and which commands run the phases.
 
-Future agents will append to PROGRESS/PROBLEMS/RESEARCH—call out in README that these are the canonical outlets for updates.
+Future agents append to these files; call that out in README.md so progress remains centralized.
 
 ## Collision Avoidance & Validation
-- Stay inside `{{PROJECT_PATH}}/scenarios/{{TARGET}}/`. If you uncover bugs elsewhere, note them in your summary but leave the files untouched.
-- After scaffolding, run:
-  1. `vrooli scenario status {{TARGET}}` – confirm lifecycle metadata is discoverable and note any missing files.
-  2. `scenario-auditor audit {{TARGET}} --timeout 240` – expect gaps, but document them so improvers know where to start.
-- Capture these outputs (or summaries) in your final handoff.
+- Stay inside `{{PROJECT_PATH}}/scenarios/{{TARGET}}/`. Mention any repo-wide issues in your summary.
+- At the end, run:
+  1. `vrooli scenario status {{TARGET}}` – confirm lifecycle metadata loads without schema errors.
+  2. `scenario-auditor audit {{TARGET}} --timeout 240` – capture the output path or summarize the gaps for improvers.
+- Include the command outputs (or summaries) in your final handoff so the next agent knows the exact starting point.
 
 ## Task Context
 
