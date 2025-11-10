@@ -1,12 +1,12 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "service": {
     "parent": "vrooli",
     "name": "{{SCENARIO_ID}}",
     "displayName": "{{SCENARIO_DISPLAY_NAME}}",
     "description": "{{SCENARIO_DESCRIPTION}}",
-    "version": "{{SCENARIO_VERSION}}",
+    "version": "0.0.1",
     "type": "business-application",
     "category": "{{SCENARIO_CATEGORY}}",
     "tags": [

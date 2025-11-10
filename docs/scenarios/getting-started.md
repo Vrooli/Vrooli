@@ -106,17 +106,29 @@ test_scenario
 Vrooli currently ships a single, production-ready template optimized for React + TypeScript + Vite + shadcn/ui + lucide (UI) with a Go API backend: `scripts/scenarios/templates/react-vite/`. Always start from an existing template rather than inventing a new one. We may add new ones in the future if the need arises.
 
 ```bash
-# 1. Copy the React + Vite template from the repo root
-cp -r scripts/scenarios/templates/react-vite/ scenarios/my-customer-portal/
+# 1. Inspect the available templates
+vrooli scenario template list
+vrooli scenario template show react-vite
+
+# 2. Generate a new scaffold (fills placeholders automatically)
+vrooli scenario generate react-vite \
+  --id my-customer-portal \
+  --display-name "My Customer Portal" \
+  --description "Self-service customer portal with AI chat support"
+
 cd scenarios/my-customer-portal/
 
-# 2. Examine the template structure
+# 3. Install UI dependencies (pnpm ships with the repo)
+pnpm install --dir ui
+
+# 4. Examine the template structure
 ls -la
-# service.json     # Scenario configuration
-# README.md        # Business documentation
-# test.sh          # Integration test script
-# deployment/      # Deployment scripts
-# initialization/  # Startup data and workflows
+# .vrooli/         # Lifecycle + health metadata
+# api/             # Go API skeleton
+# cli/             # CLI installer + tests
+# docs/            # PROGRESS.md starter
+# requirements/    # Requirement registry seed
+# ui/              # React + Vite front-end
 ```
 
 ### Customize Your Scenario

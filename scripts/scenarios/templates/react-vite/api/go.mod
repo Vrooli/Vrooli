@@ -1,4 +1,4 @@
-module {{API_MODULE_NAME}}
+module {{SCENARIO_ID}}
 
 go 1.21
 

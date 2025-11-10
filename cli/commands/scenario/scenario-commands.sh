@@ -45,6 +45,8 @@ SUBCOMMANDS:
     status [name] [--json]  Show scenario status (includes test infrastructure validation)
     open <name> [options]   Open scenario in browser
     port <name> [port]      Get port number(s) for scenario (use --json for JSON output)
+    template [cmd]          Manage scenario templates (list/show)
+    generate <template>     Scaffold a scenario from a template
     requirements <subcommand> Manage scenario requirements (run `vrooli scenario requirements help`)
 
 OPTIONS FOR START:
@@ -127,6 +129,12 @@ main() {
             ;;
         requirements)
             scenario::requirements::dispatch "$@"
+            ;;
+        template)
+            scenario::template::dispatch "$@"
+            ;;
+        generate)
+            scenario::template::generate "$@"
             ;;
         # Removed: convert, convert-all, validate, enable, disable
         *)

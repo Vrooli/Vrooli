@@ -82,7 +82,7 @@ rules:
       type: file-existence
       required_file: "PRD.md"
       scope: scenario-root
-    message: "Scenario missing PRD.md. Create from template at scripts/scenarios/templates/full/PRD.md"
+    message: "Scenario missing PRD.md. Create from template at scripts/scenarios/templates/react-vite/PRD.md"
 
   - id: resource-api-instead-of-cli
     name: "Direct Resource API Instead of CLI"

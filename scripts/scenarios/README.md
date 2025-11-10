@@ -95,7 +95,7 @@ vrooli scenario test secure-document-processing
 ls -la scripts/                             # See all available scenarios
 
 # 2. Create a new scenario using the unified React + Vite template
-cp -r scripts/scenarios/templates/react-vite/ scenarios/my-new-scenario/
+vrooli scenario generate react-vite --id my-new-scenario --display-name "My New Scenario" --description "One sentence summary"
 cd scenarios/my-new-scenario/
 # Edit service.json and initialization files
 # Template supports both manual editing AND AI generation patterns

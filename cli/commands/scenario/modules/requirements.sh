@@ -370,7 +370,7 @@ __REQ_PHASE_HELP__
 scenario::requirements::init() {
     local scenario_name=""
     local force=false
-    local template_name="modular"
+    local template_name="react-vite"
     local owner_contact=""
 
     while [[ $# -gt 0 ]]; do
@@ -419,10 +419,10 @@ __REQ_INIT_HELP__
         return 1
     fi
 
-    local template_dir="${APP_ROOT}/scripts/scenarios/templates/requirements/${template_name}"
+    local template_dir="${APP_ROOT}/scripts/scenarios/templates/react-vite/requirements"
     if [ ! -d "$template_dir" ]; then
-        log::error "Unknown requirements template '${template_name}'."
-        log::info "Available templates: $(ls "${APP_ROOT}/scripts/scenarios/templates/requirements" 2>/dev/null | tr '\n' ' ')"
+        log::error "Cannot locate requirements template at $template_dir"
+        log::info "Ensure the repository includes scripts/scenarios/templates/react-vite/requirements"
         return 1
     fi
 
@@ -469,8 +469,12 @@ $replace_script
 PY
     done < <(find "$target_dir" -type f -name '*.yaml' -print0)
 
-    log::success "Initialized requirements/ registry for ${scenario_name} using '${template_name}' template"
+    log::success "Initialized requirements/ registry for ${scenario_name} using ${template_name} template"
     log::info "Edit files under ${target_dir} to map PRD items to technical requirements."
+    log::info "Next steps:"$'\n'
+    log::info "  • Read docs/testing/guides/requirement-tracking-quick-start.md for how to structure requirements and tag tests"
+    log::info "  • Review docs/testing/architecture/REQUIREMENT_FLOW.md for the full PRD → requirement → validation flow"
+    log::info "  • After tagging tests with [REQ:ID], run 'node scripts/requirements/report.js --scenario ${scenario_name} --mode sync' to propagate results"
 }
 
 scenario::requirements::quick_check() {

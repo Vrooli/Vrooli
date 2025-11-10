@@ -125,8 +125,9 @@ vrooli scenario run research-assistant  # Run a scenario
 vrooli scenario test <name>             # Test scenario integration
 
 # Create new scenarios from the React + Vite template
-cp -r scripts/scenarios/templates/react-vite scenarios/my-new-app
+vrooli scenario generate react-vite --id my-new-app --display-name "My New App" --description "Business-ready scenario"
 cd scenarios/my-new-app
+pnpm install --dir ui
 vrooli scenario run <scenario-name>      # Run scenario directly
 ```
 
@@ -231,7 +232,7 @@ test-genie generate my-scenario --types unit,integration
 ## Common Tasks
 
 ### Creating a New Scenario
-1. Use the official template: `cp -r scripts/scenarios/templates/react-vite scenarios/my-scenario`
+1. Use the official template: `vrooli scenario generate react-vite --id my-scenario --display-name "My Scenario" --description "One sentence summary"`
 2. Edit `service.json` to define resource dependencies
 3. Implement business logic using resource orchestration
 4. Add integration tests in `test.sh`

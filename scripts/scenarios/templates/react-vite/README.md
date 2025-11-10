@@ -11,10 +11,14 @@ Use this template to bootstrap every new scenario. It mirrors the patterns from 
 ## Copy the Template
 ```bash
 # From the repo root
-cp -r scripts/scenarios/templates/react-vite/ scenarios/<your-scenario>/
+vrooli scenario generate react-vite \
+  --id <your-scenario> \
+  --display-name "Your Scenario" \
+  --description "One sentence summary"
+cd scenarios/<your-scenario>/
 ```
 
-Immediately replace `{{PLACEHOLDER}}` tokens (scenario name, description, maintainer info, etc.).
+Immediately replace placeholder tokens (scenario name, description, maintainer info, etc.).
 
 ## What You Get
 - **Clean UI scaffold**: Vite + Tailwind + shadcn-style primitives, pnpm-based scripts, Vitest + Testing Library pre-configured, `.env.example` for API URL.
@@ -24,6 +28,7 @@ Immediately replace `{{PLACEHOLDER}}` tokens (scenario name, description, mainta
 - **Iframe-ready UI**: Automatically initializes `@vrooli/iframe-bridge` so App Monitor and other hosts can embed the scenario without extra work.
 - **Smart API resolution**: UI uses `@vrooli/api-base` to resolve the correct API + WebSocket URLs across localhost/dev/proxy contexts.
 - **Requirements seed**: `requirements/index.json` + `requirements/modules/foundation.json` show how operational targets trace to technical requirements.
+- **Lifecycle metadata seed**: `.vrooli/service.json`, `endpoints.json`, `testing.json`, and `lighthouse.json` so status/health/testing commands work immediately after copy.
 - **Progress log**: `docs/PROGRESS.md` so improvers track deltas outside PRD.md.
 - **Database placeholder**: `initialization/storage/postgres/seed.sql` to remind agents where to place migrations/seeds without shipping fake data.
 
@@ -70,8 +75,8 @@ cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev --
 - All API calls go through `@vrooli/api-base`, which means the UI works no matter where it’s served (localhost dev server, Cloudflare tunnel, proxied iframe, production ingress). Just keep `VITE_API_BASE_URL` pointed at `http://localhost:${API_PORT}/api/v1` during local work.
 
 ## CLI Auto-Detection
-- The CLI writes `~/.{{CLI_NAME}}/config.json` on first run. Leave `api_base` blank to let it auto-detect the correct URL from `vrooli scenario port` output.
-- If you point the API at a remote host, run `{{CLI_NAME}} configure api_base https://api.example.com/v1` to override detection.
+- The CLI writes `~/.{{SCENARIO_ID}}/config.json` on first run. Leave `api_base` blank to let it auto-detect the correct URL from `vrooli scenario port` output.
+- If you point the API at a remote host, run `{{SCENARIO_ID}} configure api_base https://api.example.com/v1` to override detection.
 - The CLI requires the scenario to be running through the lifecycle; otherwise it will warn that it cannot discover the API.
 
 ## Customize Safely

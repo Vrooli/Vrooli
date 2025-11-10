@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="${VROOLI_BIN_DIR:-${HOME}/.vrooli/bin}"
-CLI_NAME="{{CLI_NAME}}"
+CLI_NAME="{{SCENARIO_ID}}"
 TARGET="${INSTALL_DIR}/${CLI_NAME}"
 
 mkdir -p "$INSTALL_DIR"

@@ -380,7 +380,7 @@ scenario/
 ### Template Usage
 ```bash
 # Create new scenario from template
-cp -r scripts/scenarios/templates/react-vite scenarios/new-scenario
+vrooli scenario generate react-vite --id new-scenario --display-name "New Scenario" --description "One sentence summary"
 cd scenarios/new-scenario
 
 # Customize for specific scenario
