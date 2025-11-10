@@ -90,12 +90,11 @@ operations:
     # Time allocation: See global_config.time_allocations.generators
     
     success_criteria:
-      - "Unique scenario verified: `grep -r 'scenario_name' scenarios/` returns no existing matches"
-      - "Complete PRD: PRD.md has Executive Summary, P0/P1/P2 sections, Technical Specs, Success Metrics"
-      - "Health checks respond: `timeout 5 curl -sf http://localhost:${PORT}/api/health` returns 200 OK"
-      - "Structure matches templates: Directory has api/, ui/, cli/, initialization/, PRD.md, README.md"
-      - "One P0 implemented and testable: Specific P0 requirement works with documented test command"
-      - "Memory updated: `vrooli resource qdrant search 'scenario_name'` returns new scenario info"
+      - "Template scaffold generated via `vrooli scenario generate` with api/, ui/, cli/, initialization/, docs/, requirements/, .vrooli/"
+      - "Operational Targets PRD present: Overview + P0/P1/P2 sections tied to requirement IDs"
+      - "Requirements registry seeded with valid IDs, criticality, prd_ref, and documentation in requirements/README.md"
+      - "Lifecycle metadata configured: `.vrooli/service.json` (plus required files) allows `vrooli scenario status <name>` to run without schema errors"
+      - "Baseline documentation created: README.md, docs/PROGRESS.md, docs/PROBLEMS.md, docs/RESEARCH.md with initial entries"
     
     principles:
       - "Research prevents duplication"
@@ -121,12 +120,12 @@ operations:
     
     success_criteria:
       - "PRD accuracy validated: Each checked ✅ requirement tested and verified working"
-      - "Progress measurable: At least one P0/P1 requirement moves from ☐ to ✅ with completion date"
+      - "Progress measurable: At least one P0/P1 operational target has linked requirements/tests moved to passing status and logged in docs/PROGRESS.md"
       - "No regressions verified: All previously working features tested and still functional"
       - "Security & standards baseline captured: `scenario-auditor audit NAME --timeout 240` recorded before changes"
       - "Validation gates pass: Health, functionality, security, and integration tests all succeed"
       - "Cross-scenario impacts assessed: Dependencies checked, no breaking changes to other scenarios"
-      - "Memory updated: `vrooli resource qdrant search 'scenario improvements'` includes recent work"
+      - "Documentation updated: README + docs/PROBLEMS.md reflect new findings and outstanding work"
     
     principles:
       - "Trust but verify everything"

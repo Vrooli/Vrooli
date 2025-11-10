@@ -1,60 +1,60 @@
 You are executing a **scenario improvement** task for the Ecosystem Manager.
 
 ## Boundaries & Focus
-- Work strictly inside `{{PROJECT_PATH}}/scenarios/{{TARGET}}/` (including `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/`, `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/`, `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/`). Log any off-scenario issues in your summary instead of fixing them.
-- Respect the generator’s scaffold: you enhance operational targets, fix regressions, and prove them with tests.
+- Work strictly inside `{{PROJECT_PATH}}/scenarios/{{TARGET}}/` (and its `.vrooli/`, `docs/`, and `requirements/` folders). If you uncover problems elsewhere, record them in your notes instead of editing unrelated paths.
+- Respect the generator’s scaffold. Your goal is to advance operational targets, close regressions, and prove them with tests—not to redesign the scenario from scratch.
 
-## Quick Validation Loop (run in this order)
+## Quick Validation Loop (repeat until green)
 1. `vrooli scenario status {{TARGET}}`
-   - Shows failing checks, missing files, stale ports, and suggested fixes. Use it to prioritize work and to verify progress before handoff.
+   - Shows failing checks, missing files, stale ports, and remediation hints. Use it to prioritize work and verify progress before handoff.
 2. `scenario-auditor audit {{TARGET}} --timeout 240`
    - Capture the JSON (or summary) and explain any remaining security/standards violations.
-3. Scenario test runner (list the exact command you executed).
-   - The task is incomplete if tests fail after your change or you cannot justify why they remain failing.
-Re-run the loop until the sections you touched are green.
+3. Scenario test runner (document the exact command).
+   - Tests must pass after your change, or you must clearly explain why they remain failing. Phase scripts automatically sync requirement coverage when tests run.
 
-- `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` is read-only unless task notes explicitly grant edit permission. Fix code/tests so PRD statements become true.
-- Operational targets (P0/P1/P2) flip to ✅ automatically via requirement tracking. If status looks wrong, update requirements/tests—not the checkbox.
-- Append dated progress entries to `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/PROGRESS.md` instead of editing PRD: include date, author, % change, and a short summary of what moved.
-- Flag inconsistencies (e.g., PRD promises a feature that still fails) in your final report; do **not** silently alter the doc.
-
-- Requirements live in `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/` (or `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json`). Follow the schema in `docs/testing/guides/requirement-tracking-quick-start.md`.
-- When implementing an operational target, reuse or extend the existing requirement IDs. Create new IDs only when the PRD calls for a distinct outcome.
-- Tag every validating test with `[REQ:ID]`. Multiple test commands can back a single requirement; all must pass for the requirement to reach `complete`.
-- Document each command you ran in PRD/Test Commands and in your summary so future agents can reproduce the validation.
-- After tests run, sync results (`node {{PROJECT_PATH}}/scripts/requirements/report.js --scenario {{TARGET}} --mode sync` or the scenario’s helper) so dashboards + checkboxes update automatically.
+## Working with PRD & Requirements
+- `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` is read-only unless the task explicitly grants edit access. Fix code/tests so the PRD reflects reality; don’t toggle checkboxes manually.
+- Operational targets (P0/P1/P2) gain ✅ status automatically when their linked requirements’ tests pass. Confirm each target you touch is mapped to requirement IDs in `requirements/index.json` (or modules). Add/link requirements if needed.
+- When you run tests, ensure the commands cover the `[REQ:ID]` tags for the target you’re improving. Document the commands in PRD/Test Commands and your summary so future agents can reproduce the evidence. Running the full suite triggers automatic requirement sync.
 
 ## Documentation Updates
-- **docs/PROGRESS.md**: append a new row for your work session (date, author, status snapshot, notes). This is the only place progress is tracked on-disk.
-- **docs/PROBLEMS.md**: log unresolved bugs, technical debt, or follow-up ideas using the existing sections so the next agent can triage them quickly.
-- **docs/RESEARCH.md**: add any new references, comparable scenarios, or external docs you discovered while solving the task.
-- **README.md**: update run/test instructions or dependency notes if your change alters how the scenario is operated.
-- **requirements/README.md**: keep the description of modules/patterns up to date when you add new requirement files.
-
-Do not create ad-hoc documentation elsewhere—these files are the canonical outlets.
+- **docs/PROGRESS.md** – append a new row with date, author, % change, and short description (this is the on-disk progress log).
+- **docs/PROBLEMS.md** – log unresolved issues or follow-up tasks under the existing sections.
+- **docs/RESEARCH.md** – add any new references or learnings if you discover them while fixing the scenario.
+- **README.md** – update run/test instructions or dependencies if your change alters how the scenario operates.
+- **requirements/README.md** – keep module descriptions current when you add requirement files.
+These files are the canonical documentation sources for future scenario improvement agents to read.
 
 ## Improvement Priorities
-1. **Broken or failing checks** from `scenario status` and `scenario-auditor`.
-2. **Unimplemented P0/P1 operational targets** (focus on completing or unblocking one target at a time).
-3. **Experience polish / performance / docs** once the above are stable.
-Always fix regressions you introduce before picking a new target.
+1. **Failing checks** from `scenario status` / `scenario-auditor` (structure, lifecycle, security).
+2. **Unimplemented P0/P1 operational targets** – focus on completing one target end-to-end (requirements + tests) before switching context.
+3. **Experience polish / performance / docs** once critical gaps are resolved.
+Always fix regressions you introduce before starting a new target.
 
 ## Implementation & Stack Expectations
-- Honor the existing architecture. If you add UI pieces, prefer React + TypeScript + Vite + shadcn/ui + lucide unless the scenario already uses a different stack.
-- Keep changes surgical: update one operational target, prove it with tests, log the result in `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/PROGRESS.md`, and leave clear TODOs for remaining work.
-- When editing tests, keep `[REQ:ID]` tags intact so requirement tracking stays accurate.
+- Honor the existing architecture. If you add UI, default to React + TypeScript + Vite + shadcn/ui + lucide unless the scenario already uses another stack.
+- Keep changes surgical: address one operational target, prove it with requirements-linked tests, log the result in `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/PROGRESS.md`, and leave TODOs for remaining gaps.
+- Preserve `[REQ:ID]` annotations in tests so requirement tracking stays accurate.
 
 ## Security & Standards Guardrails
 - `scenario-auditor` output defines pass/fail. If violations remain, explain why and what follow-up is required.
-- Health checks must include `timeout 5` and meaningful bodies. Ports must stay inside the scenario’s allocation range.
+- Health checks must include `timeout 5` and meaningful responses; ports must stay within the scenario’s allocation range.
 
 ## Failure Recovery Snapshot
-- If you cannot finish a fix, log it (component, severity 1-5, attempts, blockers) in your summary and optionally `docs/PROGRESS.md`. Future agents depend on this context.
-- Never ignore a failing test; either fix it or state why it cannot yet be resolved.
+- If you cannot finish a fix, log it (component, severity 1-5, attempts, blockers) in your summary and `docs/PROGRESS.md`. Future agents depend on this context.
+- Never ignore a failing test—either resolve it or document why it cannot yet be fixed.
 
 ## Cross-Scenario Awareness
-- Before changing APIs/CLI outputs, check downstream consumers (search the repo + inspect status output). Prefer additive or versioned endpoints.
-- For integration testing, resolve ports dynamically via `vrooli scenario port <name> API_PORT` instead of hard-coding.
+- Before changing APIs/CLI outputs, search the repo and review `scenario status` to see who consumes them. Prefer additive or versioned endpoints.
+- For integration testing, resolve other scenarios’ ports dynamically via `vrooli scenario port <name> API_PORT`.
+
+## Final Handoff (Required Format)
+1. **Validation Evidence** – Re-run the Quick Validation Loop (status, auditor, tests) and list the exact commands plus where logs/output are stored.
+2. **Changes & Files** – Enumerate the operational targets/requirements you advanced and which files you touched (PRD notes, README, requirements modules, docs/PROGRESS.md, code/tests).
+3. **Current Scenario Health** – State what now works, what still fails, and any regressions you observed.
+4. **Next Steps / Risks** – Capture follow-up tasks, blockers, or recommendations so the next agent can pick up instantly.
+
+Use this structure for your final response; ecosystem-manager relies on it to track progress and plan the next iteration.
 
 ## Task Context
 

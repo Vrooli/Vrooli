@@ -79,7 +79,7 @@ Use concise narratives and focus on measurable outcomes rather than implementati
 - For every operational target, add requirement entries with:
   - `id` (pattern `[A-Z][A-Z0-9]+-[A-Z0-9-]+`), title, `prd_ref`, `criticality`, optional children/dependencies, empty `validation` array.
   - Notes on which phases (unit/integration/business/performance) should validate the requirement once implemented.
-- In README/PRD, instruct improvers to tag tests with `[REQ:ID]` and run the scenario’s test phases; the lifecycle automatically syncs requirement coverage when tests execute (no manual `report.js` calls).
+- In README/PRD, instruct improvers to tag tests with `[REQ:ID]` and run the scenario’s full test suite; requirement coverage automatically syncs when tests execute.
 
 ## Documentation Checklist
 - **README.md**
@@ -102,6 +102,14 @@ Future agents append to these files; call that out in README.md so progress rema
   1. `vrooli scenario status {{TARGET}}` – confirm lifecycle metadata loads without schema errors.
   2. `scenario-auditor audit {{TARGET}} --timeout 240` – capture the output path or summarize the gaps for improvers.
 - Include the command outputs (or summaries) in your final handoff so the next agent knows the exact starting point.
+
+## Final Handoff (Required Format)
+1. **Validation Evidence** – Re-run the Quick Validation Loop (status, auditor, tests) and list the exact commands plus where logs/output are stored.
+2. **Deliverables & Files** – Enumerate the docs/configs you created or edited (PRD, README, `requirements/index.json`, `docs/PROGRESS.md`, etc.). Mention any template steps you intentionally skipped.
+3. **Scenario Status** – Summarize what’s complete (research, scaffold, requirements), what remains open, and any known failures or blockers.
+4. **Next Iteration Notes** – Capture learnings, open questions, or prioritized recommendations so the next agent can continue seamlessly.
+
+Use this block as your final response structure; ecosystem-manager parses it to gauge readiness and queue the next iteration.
 
 ## Task Context
 
