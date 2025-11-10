@@ -152,6 +152,7 @@ const healthEndpointPlugin = (): Plugin => ({
 });
 
 export default defineConfig({
+  base: './',
   plugins: [react(), healthEndpointPlugin()],
   resolve: {
     alias: {
@@ -221,14 +222,6 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-  },
-  define: {
-    // Pass environment variables to the client with VITE_ prefix for dev mode
-    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.API_PORT ? `http://${API_HOST}:${process.env.API_PORT}/api/v1` : undefined),
-    'import.meta.env.VITE_WS_URL': JSON.stringify(process.env.WS_PORT ? `ws://${WS_HOST}:${process.env.WS_PORT}` : undefined),
-    'import.meta.env.VITE_API_PORT': JSON.stringify(process.env.API_PORT || undefined),
-    'import.meta.env.VITE_UI_PORT': JSON.stringify(process.env.UI_PORT || undefined),
-    'import.meta.env.VITE_WS_PORT': JSON.stringify(process.env.WS_PORT || undefined),
   },
   build: {
     outDir: 'dist',

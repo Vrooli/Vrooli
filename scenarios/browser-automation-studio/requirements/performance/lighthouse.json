@@ -5,7 +5,7 @@
     "last_validated_at": "2025-11-05T00:00:00Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-06T05:24:17.681Z"
+    "last_synced_at": "2025-11-10T18:00:16.716Z"
   },
   "requirements": [
     {
@@ -56,7 +56,7 @@
       "prd_ref": "Performance Requirements > Workflow Builder Interactivity",
       "title": "Workflow builder becomes interactive within acceptable timeframe",
       "description": "Workflow builder page achieves Lighthouse performance score of 0.65+. Lower threshold accounts for heavy Monaco editor and React Flow canvas initialization. Focus on Time to Interactive (TTI) and Total Blocking Time (TBT).",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "validation": [
         {
@@ -66,7 +66,7 @@
           "category": "performance",
           "threshold": 0.65,
           "phase": "performance",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Lower threshold due to canvas + Monaco editor. Focus on interactivity metrics."
         }
       ]

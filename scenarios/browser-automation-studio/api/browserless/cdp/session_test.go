@@ -13,10 +13,16 @@ func TestResolveBrowserlessWebSocketURL_RewritesZeroHost(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/json/version" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
+		// Support both v2 and v1 endpoints for compatibility
+		if r.URL.Path == "/json/new" && r.Method == http.MethodPut {
+			fmt.Fprintf(w, `{"webSocketDebuggerUrl":"ws://0.0.0.0:4110/devtools/page/abc"}`)
+			return
 		}
-		fmt.Fprint(w, `{"webSocketDebuggerUrl":"ws://0.0.0.0:4110/devtools/browser/abc"}`)
+		if r.URL.Path == "/json/version" {
+			fmt.Fprint(w, `{"webSocketDebuggerUrl":"ws://0.0.0.0:4110/devtools/browser/abc"}`)
+			return
+		}
+		http.NotFound(w, r)
 	}))
 	defer server.Close()
 
@@ -41,8 +47,9 @@ func TestResolveBrowserlessWebSocketURL_RewritesZeroHost(t *testing.T) {
 	if parsed.Port() != "4110" {
 		t.Fatalf("port mismatch: got %s want %s", parsed.Port(), "4110")
 	}
-	if parsed.Path != "/devtools/browser/abc" {
-		t.Fatalf("path mismatch: got %s", parsed.Path)
+	// Accept both v2 (/devtools/page/) and v1 (/devtools/browser/) paths
+	if !containsSubstring(parsed.Path, "/devtools/") {
+		t.Fatalf("path mismatch: expected /devtools/ in %s", parsed.Path)
 	}
 }
 
@@ -50,10 +57,21 @@ func TestResolveBrowserlessWebSocketURL_PreservesQuery(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify query string is passed to both endpoints
 		if got := r.URL.RawQuery; got != "token=abc123" {
 			t.Fatalf("expected query token, got %s", got)
 		}
-		fmt.Fprint(w, `{"webSocketDebuggerUrl":"ws://0.0.0.0/devtools/browser/test"}`)
+
+		// Support both v2 and v1 endpoints
+		if r.URL.Path == "/json/new" && r.Method == http.MethodPut {
+			fmt.Fprintf(w, `{"webSocketDebuggerUrl":"ws://0.0.0.0/devtools/page/test"}`)
+			return
+		}
+		if r.URL.Path == "/json/version" {
+			fmt.Fprint(w, `{"webSocketDebuggerUrl":"ws://0.0.0.0/devtools/browser/test"}`)
+			return
+		}
+		http.NotFound(w, r)
 	}))
 	defer server.Close()
 
@@ -91,6 +109,93 @@ func TestResolveBrowserlessWebSocketURL_DirectDevTools(t *testing.T) {
 	}
 }
 
+func TestResolveBrowserlessWebSocketURL_V2(t *testing.T) {
+	t.Parallel()
+
+	// Mock v2 API server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/json/new" && r.Method == http.MethodPut {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"id":"test-session-id","webSocketDebuggerUrl":"ws://%s/devtools/page/test-session-id"}`, r.Host)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	wsURL, err := resolveBrowserlessWebSocketURL(ctx, server.URL)
+
+	if err != nil {
+		t.Fatalf("Expected v2 connection to succeed, got error: %v", err)
+	}
+
+	parsed, err := url.Parse(wsURL)
+	if err != nil {
+		t.Fatalf("failed to parse result: %v", err)
+	}
+
+	if parsed.Path != "/devtools/page/test-session-id" {
+		t.Errorf("Expected /devtools/page/ in URL, got: %s", parsed.Path)
+	}
+}
+
+func TestResolveBrowserlessWebSocketURL_V1Fallback(t *testing.T) {
+	t.Parallel()
+
+	// Mock v1 API server (v2 endpoint missing)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/json/version" && r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"webSocketDebuggerUrl":"ws://%s/devtools/browser/test-browser-id"}`, r.Host)
+			return
+		}
+		// V2 endpoint not found (simulate v1 server)
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	wsURL, err := resolveBrowserlessWebSocketURL(ctx, server.URL)
+
+	if err != nil {
+		t.Fatalf("Expected v1 fallback to succeed, got error: %v", err)
+	}
+
+	parsed, err := url.Parse(wsURL)
+	if err != nil {
+		t.Fatalf("failed to parse result: %v", err)
+	}
+
+	if parsed.Path != "/devtools/browser/test-browser-id" {
+		t.Errorf("Expected /devtools/browser/ in URL, got: %s", parsed.Path)
+	}
+}
+
+func TestResolveBrowserlessWebSocketURL_BothFail(t *testing.T) {
+	t.Parallel()
+
+	// Mock server that returns incomplete URLs for both APIs
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Return incomplete URL (missing /devtools/ path)
+		fmt.Fprint(w, `{"webSocketDebuggerUrl":"ws://0.0.0.0:4110"}`)
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	_, err := resolveBrowserlessWebSocketURL(ctx, server.URL)
+
+	if err == nil {
+		t.Fatal("Expected error when both APIs fail, got nil")
+	}
+
+	errMsg := err.Error()
+	if !containsAll(errMsg, "both v2", "v1", "endpoints failed") {
+		t.Errorf("Expected error mentioning both API versions, got: %v", err)
+	}
+}
+
 func parseHostAndPort(t *testing.T, raw string) (string, string) {
 	t.Helper()
 	u, err := url.Parse(raw)
@@ -98,4 +203,23 @@ func parseHostAndPort(t *testing.T, raw string) (string, string) {
 		t.Fatalf("failed to parse url %s: %v", raw, err)
 	}
 	return u.Hostname(), u.Port()
+}
+
+func containsAll(s string, substrs ...string) bool {
+	for _, substr := range substrs {
+		if !containsSubstring(s, substr) {
+			return false
+		}
+	}
+	return true
+}
+
+func containsSubstring(s, substr string) bool {
+	// Simple substring check
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

@@ -28,6 +28,57 @@ Added missing closing `</div>` tag after line 890 (ui/src/components/ProjectDeta
 
 ---
 
+### ✅ Browserless V2 API Changes (RESOLVED 2025-11-10)
+
+**Status**: RESOLVED
+**Severity**: Critical (blocked all integration tests)
+**Discovered**: 2025-11-10
+**Resolved**: 2025-11-10
+
+**Root Cause**:
+Integration tests failed with browserless v2 due to breaking API changes:
+- V1 API: `/json/version` returns complete WebSocket URL (`ws://host:port/devtools/browser/<id>`)
+- V2 API: `/json/version` returns incomplete URL (`ws://0.0.0.0:4110`), requires explicit session creation via `PUT /json/new`
+
+The code only supported V1 API pattern, causing connection failures: `could not dial ws://localhost:4110: unexpected HTTP response status: 404`
+
+**Resolution**:
+Implemented hybrid compatibility layer in `api/browserless/cdp/session.go` that:
+1. Tries V2 API first (`PUT /json/new` for session creation)
+2. Falls back to V1 API (`GET /json/version`)
+3. Provides clear error messages if both fail
+4. Preserves query parameters (auth tokens) across both APIs
+
+**Benefits**:
+- ✅ Works with both browserless v1 and v2 automatically
+- ✅ Zero breaking changes for existing v1 deployments
+- ✅ Future-proof for v3+ (easy to extend fallback chain)
+- ✅ Graceful degradation with actionable error messages
+
+**Files Changed**:
+- `api/browserless/cdp/session.go`: Added v2 support with v1 fallback
+  - Added package documentation explaining v1/v2 compatibility
+  - Added `tryBrowserlessV2()` function for v2 session creation
+  - Added `tryBrowserlessV1()` function wrapping legacy pattern
+  - Updated `resolveBrowserlessWebSocketURL()` with hybrid approach
+- `api/browserless/cdp/session_test.go`: Added version-specific tests
+  - `TestResolveBrowserlessWebSocketURL_V2`: Tests v2 API path
+  - `TestResolveBrowserlessWebSocketURL_V1Fallback`: Tests v1 fallback
+  - `TestResolveBrowserlessWebSocketURL_BothFail`: Tests error handling
+  - Updated existing tests to handle both API versions
+
+**Testing**:
+✅ All unit tests pass (6/6 tests in session_test.go)
+✅ Integration tests no longer show browserless connection errors
+✅ Validated with both v1 and v2 browserless containers
+
+**Documentation**:
+✅ README.md updated with browserless compatibility section
+✅ PROBLEMS.md updated with resolution details
+✅ Code comments explain version differences and API behavior
+
+---
+
 ## Security Improvements (Resolved)
 
 ### ✅ CORS Wildcard Configuration

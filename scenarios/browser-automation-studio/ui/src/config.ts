@@ -1,320 +1,95 @@
-// Simplified configuration for browser-automation-studio
-import { resolveProxyPathForPort } from './utils/proxyResolver';
-import type { Config, ConfigResponse } from './types/config';
+import { resolveApiBase, resolveWsBase } from '@vrooli/api-base'
+import type { Config } from './types/config'
 
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]']);
-const API_SUFFIX = '/api/v1';
-
-let cachedConfig: Config | null = null;
-
-function isLoopbackHost(value?: string | null): boolean {
-  return value ? LOOPBACK_HOSTS.has(value.toLowerCase()) : false;
-}
-
-function optionalString(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
+declare global {
+  interface Window {
+    __BAS_EXPORT_API_BASE__?: string
   }
-  const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed.toLowerCase() !== 'undefined' && trimmed.toLowerCase() !== 'null'
-    ? trimmed
-    : null;
 }
 
-function extractPort(urlString: string, fallback: string): string {
-  if (!urlString) {
-    return fallback;
+const ensureTrailingSlash = (value: string): string => {
+  if (!value) {
+    return value
+  }
+  return value.endsWith('/') ? value : `${value}/`
+}
+
+const normalizeForUrlParsing = (value: string): string => {
+  if (!value) {
+    return value
+  }
+  if (value.startsWith('ws://')) {
+    return value.replace('ws://', 'http://')
+  }
+  if (value.startsWith('wss://')) {
+    return value.replace('wss://', 'https://')
+  }
+  return value
+}
+
+const safeParsePort = (value: string): string => {
+  if (!value) {
+    return ''
   }
   try {
-    const parsed = new URL(urlString);
-    return parsed.port || fallback;
+    const base = typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'http://127.0.0.1'
+    const parsed = new URL(normalizeForUrlParsing(value), base)
+    return parsed.port || ''
   } catch {
-    return fallback;
+    return ''
   }
 }
 
-function createUrlFromString(raw?: string): URL | null {
-  if (!raw) {
-    return null;
+const getWindowPort = (): string => {
+  if (typeof window === 'undefined' || !window.location) {
+    return ''
   }
-
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  // Try with protocol
-  const attempts = [trimmed];
-  if (!/^[a-zA-Z][a-zA-Z0-9+-.]*:/u.test(trimmed)) {
-    attempts.push(`http://${trimmed}`);
-  }
-
-  for (const attempt of attempts) {
-    try {
-      return new URL(attempt);
-    } catch {
-      if (typeof window !== 'undefined' && window.location) {
-        try {
-          return new URL(attempt, window.location.origin);
-        } catch {
-          // Try next
-        }
-      }
-    }
-  }
-
-  return null;
+  return window.location.port || ''
 }
 
-function stripApiSuffix(url: URL): void {
-  const trimmed = (url.pathname || '').replace(/\/+$/u, '');
-  if (trimmed.toLowerCase().endsWith(API_SUFFIX)) {
-    url.pathname = trimmed.slice(0, -API_SUFFIX.length) || '/';
-  } else {
-    url.pathname = trimmed || '/';
-  }
-}
-
-function ensureTrailingSlash(url: URL): void {
-  if (!url.pathname || !url.pathname.endsWith('/')) {
-    url.pathname = (url.pathname || '') + '/';
-  }
-}
-
-function resolveWebSocketUrl(explicitWs?: string, apiUrl?: string): string {
-  const candidates = [explicitWs, apiUrl].filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
-
-  for (const candidate of candidates) {
-    const url = createUrlFromString(candidate);
-    if (!url) {
-      continue;
-    }
-
-    stripApiSuffix(url);
-
-    // Try proxy path resolution
-    let proxyPath: string | null = null;
-    if (typeof window !== 'undefined' && window.location) {
-      proxyPath = resolveProxyPathForPort(url.port || undefined);
-      if (proxyPath) {
-        url.hostname = window.location.hostname || url.hostname;
-        url.port = window.location.port ?? '';
-        url.pathname = proxyPath;
-        url.search = '';
-      }
-    }
-
-    ensureTrailingSlash(url);
-
-    // Set WebSocket protocol
-    if (typeof window !== 'undefined' && window.location) {
-      url.protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    } else {
-      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-    }
-
-    // Skip if remote host but url is loopback and no proxy
-    if (typeof window !== 'undefined' && window.location) {
-      const remoteHost = !isLoopbackHost(window.location.hostname);
-      if (remoteHost && isLoopbackHost(url.hostname) && !proxyPath) {
-        continue;
-      }
-    }
-
-    return url.toString();
-  }
-
-  // Fallback to current location
-  if (typeof window !== 'undefined' && window.location) {
-    const url = new URL(window.location.origin);
-    url.protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ensureTrailingSlash(url);
-    return url.toString();
-  }
-
-  return '';
-}
-
-function combineProxyPath(proxyPath: string | null, path: string): string {
-  const normalizedPath = path.startsWith('/') ? path.slice(1) : path;
-  if (!proxyPath) {
-    return `/${normalizedPath}`;
-  }
-
-  const trimmedProxy = proxyPath.endsWith('/') ? proxyPath.slice(0, -1) : proxyPath;
-  const combined = `${trimmedProxy}/${normalizedPath}`.replace(/\/+/gu, '/');
-  return combined.startsWith('/') ? combined : `/${combined}`;
-}
-
-function normalizeUrlForBrowser(rawUrl: string, portHint?: string): string {
+const getExportApiOverride = (): string | undefined => {
   if (typeof window === 'undefined') {
-    return rawUrl;
+    return undefined
   }
-
-  const parsed = createUrlFromString(rawUrl);
-  if (!parsed) {
-    return rawUrl;
+  const candidate = window.__BAS_EXPORT_API_BASE__
+  if (typeof candidate !== 'string') {
+    return undefined
   }
-
-  const location = window.location;
-  const windowHost = location.hostname ?? '';
-  const sameHost = parsed.hostname === windowHost;
-  const bothLoopback = isLoopbackHost(parsed.hostname) && isLoopbackHost(windowHost);
-  const proxyPath = resolveProxyPathForPort(parsed.port || portHint);
-
-  if (!proxyPath && !sameHost && !bothLoopback) {
-    return parsed.toString();
-  }
-
-  const baseOrigin = location.origin;
-  const combinedPath = combineProxyPath(proxyPath, parsed.pathname || '/');
-  const search = parsed.search ?? '';
-  const hash = parsed.hash ?? '';
-
-  return `${baseOrigin}${combinedPath}${search}${hash}`;
+  const trimmed = candidate.trim()
+  return trimmed.length > 0 ? trimmed : undefined
 }
 
-function normalizeWsUrlForBrowser(rawUrl: string, portHint?: string): string {
-  if (typeof window === 'undefined') {
-    return rawUrl;
-  }
+const API_OVERRIDE = getExportApiOverride()
 
-  try {
-    const httpEquivalent = normalizeUrlForBrowser(rawUrl, portHint);
-    const url = new URL(httpEquivalent);
-    url.protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return url.toString();
-  } catch {
-    return rawUrl;
-  }
+const API_URL = resolveApiBase({
+  appendSuffix: true,
+  explicitUrl: API_OVERRIDE,
+})
+
+const WS_ROOT = ensureTrailingSlash(
+  resolveWsBase({
+    appendSuffix: false,
+    explicitUrl: API_OVERRIDE,
+  })
+)
+
+const runtimeConfig: Config = {
+  API_URL,
+  WS_URL: WS_ROOT,
+  API_PORT: safeParsePort(API_URL),
+  UI_PORT: getWindowPort(),
+  WS_PORT: safeParsePort(WS_ROOT),
 }
 
-/**
- * Builds config object from environment variables (shared between sync and async)
- */
-function buildConfigFromEnv(): Config | null {
-  if (!import.meta.env.VITE_API_URL) {
-    return null;
-  }
-
-  const apiUrl = import.meta.env.VITE_API_URL;
-  const parsedApiUrl = createUrlFromString(apiUrl);
-  const explicitApiPort = parsedApiUrl?.port ?? optionalString(import.meta.env.VITE_API_PORT) ?? '';
-  const alignedApiUrl = normalizeUrlForBrowser(apiUrl, explicitApiPort);
-
-  const wsBaseRaw = resolveWebSocketUrl(import.meta.env.VITE_WS_URL, apiUrl);
-  const explicitWsPort = optionalString(import.meta.env.VITE_WS_PORT) ?? extractPort(wsBaseRaw, '');
-  const alignedWsUrl = normalizeWsUrlForBrowser(wsBaseRaw, explicitWsPort);
-  const resolvedUiPort = optionalString(import.meta.env.VITE_UI_PORT)
-    ?? (typeof window !== 'undefined' && window.location ? window.location.port || '' : '');
-
-  return {
-    API_URL: alignedApiUrl,
-    WS_URL: alignedWsUrl,
-    API_PORT: explicitApiPort,
-    UI_PORT: resolvedUiPort,
-    WS_PORT: explicitWsPort,
-  };
+export async function getConfig(): Promise<Config> {
+  return runtimeConfig
 }
 
-async function getConfig(): Promise<Config> {
-  if (cachedConfig) {
-    return cachedConfig;
-  }
-
-  // Dev mode - use build-time env variables
-  const envConfig = buildConfigFromEnv();
-  if (envConfig) {
-    cachedConfig = envConfig;
-    return cachedConfig;
-  }
-
-  // Production mode - fetch runtime config
-  const basePath = import.meta.env.BASE_URL || '/';
-  const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-  const configPath = `${normalizedBase}config`;
-
-  try {
-    const response = await fetch(configPath, {
-      headers: { accept: 'application/json' },
-    });
-    if (!response.ok) {
-      throw new Error(`Config fetch failed: ${response.status}`);
-    }
-
-    const raw = await response.text();
-    let data: ConfigResponse;
-
-    try {
-      data = JSON.parse(raw) as ConfigResponse;
-    } catch (parseError) {
-      const isHtml = raw.trim().startsWith('<');
-      const hint = isHtml
-        ? 'Received HTML instead of JSON. Run the scenario via "make start" or ensure the production server (node server.js) is serving /config.'
-        : `Response body: ${raw.slice(0, 120)}`;
-      throw new Error(`Config endpoint did not return JSON. ${hint}`);
-    }
-
-    if (!data.apiUrl) {
-      throw new Error('API URL not configured');
-    }
-
-    const apiUrlRaw = String(data.apiUrl);
-    const parsedApiUrl = createUrlFromString(apiUrlRaw);
-    const apiPortHint = parsedApiUrl?.port ?? optionalString(data.apiPort) ?? '';
-    const apiUrl = normalizeUrlForBrowser(apiUrlRaw, apiPortHint);
-    const wsBaseRaw = resolveWebSocketUrl(data.wsUrl, apiUrl);
-    const apiPort = parsedApiUrl?.port ?? apiPortHint;
-    const wsPort = optionalString(data.wsPort) ?? extractPort(wsBaseRaw, '');
-    const wsBase = normalizeWsUrlForBrowser(wsBaseRaw, wsPort);
-    const uiPort = optionalString(data.uiPort)
-      ?? (typeof window !== 'undefined' && window.location ? window.location.port || '' : '');
-
-    cachedConfig = {
-      API_URL: apiUrl,
-      WS_URL: wsBase,
-      API_PORT: apiPort,
-      UI_PORT: uiPort,
-      WS_PORT: wsPort,
-    };
-    return cachedConfig;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    throw new Error(`Failed to load configuration: ${message}`);
-  }
-}
-
-function getConfigSync(): Config {
-  if (cachedConfig) {
-    return cachedConfig;
-  }
-
-  const envConfig = buildConfigFromEnv();
-  if (envConfig) {
-    return envConfig;
-  }
-
-  throw new Error('Configuration not loaded. Call getConfig() first.');
-}
-
-export { getConfig };
-export const getCachedConfig = () => cachedConfig;
-export const config = getConfigSync;
-export const getApiBase = () => config().API_URL;
-export const getWsBase = () => config().WS_URL;
-
-export const API_BASE = (() => {
-  try {
-    return getApiBase();
-  } catch {
-    return '';
-  }
-})();
-
-export const WS_BASE = (() => {
-  try {
-    return getWsBase();
-  } catch {
-    return '';
-  }
-})();
+export const getCachedConfig = (): Config => runtimeConfig
+export const config = (): Config => runtimeConfig
+export const getApiBase = (): string => runtimeConfig.API_URL
+export const getWsBase = (): string => runtimeConfig.WS_URL
+export const API_BASE = runtimeConfig.API_URL
+export const WS_BASE = runtimeConfig.WS_URL
