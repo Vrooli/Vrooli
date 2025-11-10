@@ -44,6 +44,7 @@ type OperationConfig struct {
 	Type               string            `json:"type" yaml:"type"`
 	Target             string            `json:"target" yaml:"target"`
 	Description        string            `json:"description" yaml:"description"`
+	Template           string            `json:"template,omitempty" yaml:"template,omitempty"`
 	AdditionalSections []string          `json:"additional_sections" yaml:"additional_sections"`
 	Variables          map[string]any    `json:"variables" yaml:"variables"`
 	EffortAllocation   map[string]string `json:"effort_allocation" yaml:"effort_allocation"`

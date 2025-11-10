@@ -5,18 +5,25 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 - Your job ends once the scenario is fully initialized: research completed, PRD drafted, lifecycle + requirements scaffolding ready. **Do not implement features or deliver a working P0.**
 
 ## Generator Deliverables
-1. **Research packet**: confirm the scenario is unique, note overlapping capabilities, and capture any reference resources/scenarios.
-2. **Scenario skeleton**: copy the appropriate template, set folder structure, choose tech approach (API, UI, CLI, storage) without writing business logic.
-3. **`.vrooli/` configuration**: service metadata, ports, resources, lifecycle hooks at `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/` so the platform can run health/status checks immediately.
-4. **PRD.md (Operational Targets Document)**: authoritative description of what success looks like (see structure below).
-5. **Requirements registry**: seed `requirements/index.json` (and child modules if needed) so each operational target maps to technical requirement placeholders.
-6. **Progress log**: create `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/PROGRESS.md` with a starter table to track future work (generators only add the initial entry describing the scaffold).
+1. **Research packet** (`docs/RESEARCH.md`): confirm uniqueness, note overlapping scenarios/resources, capture external references.
+2. **Scenario skeleton**: scaffold from the official template via the CLI (see below), set folder structure, and pick the tech approach without writing business logic.
+3. **`.vrooli/` configuration**: service metadata, resources, testing config, etc. at `{{PROJECT_PATH}}/scenarios/{{TARGET}}/.vrooli/` so lifecycle commands work immediately.
+4. **Operational Targets PRD** (`PRD.md`): see structure below.
+5. **Requirements registry** (`requirements/index.json` + optional modules) plus a `requirements/README.md` describing the organization.
+6. **Documentation set**: baseline `README.md`, `docs/PROGRESS.md`, `docs/PROBLEMS.md`, `docs/RESEARCH.md`, and `requirements/README.md` per the checklist below.
+
+Only produce these files; do not invent ad-hoc documentation outside `README.md`, `docs/`, or `requirements/`.
 
 ## Research & Template Selection
 - Run `rg -l '{{TARGET}}' {{PROJECT_PATH}}/scenarios/` (or use scenario catalog) to ensure the capability doesn’t already exist.
 - Note which resources/scenarios this effort will depend on or augment.
-- Use the web to find more information about the problem scope and implementation approach, if relevant
-- Copy the official template from `{{PROJECT_PATH}}/scripts/scenarios/templates/react-vite/` into `{{PROJECT_PATH}}/scenarios/{{TARGET}}/` and customize from there—do not create new template variants.
+- Use the web to find more information about the problem scope and implementation approach, if relevant.
+- Scaffold via the template CLI:
+  1. `vrooli scenario template list` → confirm available templates (currently `react-vite`).
+  2. `vrooli scenario template show react-vite` → review required/optional variables, stack details, and hooks.
+  3. `vrooli scenario generate react-vite --id {{TARGET}} --display-name "{{TITLE}}" --description "{{SCENARIO_DESCRIPTION}}"` (add `--var KEY=VALUE` for optional placeholders).
+  4. Capture the CLI’s post-generation checklist in your notes and follow it (it mirrors the deliverables below).
+- The generated folder lives at `{{PROJECT_PATH}}/scenarios/{{TARGET}}/`. All subsequent work happens there.
 
 ## PRD Structure (Operational Targets Document)
 Capture **what** we want, not detailed implementation instructions. Use this outline:
@@ -73,14 +80,22 @@ Each target must include: narrative, success indicators, dependencies, and the t
 - Document the expected test phases (unit/integration/business) even though tests don’t exist yet.
 - Include instructions in README/PRD for improvers on how to tag tests with `[REQ:ID]` and run `{{PROJECT_PATH}}/scripts/requirements/report.js --scenario {{TARGET}} --mode sync` once real tests appear.
 
-## Progress Tracking
-- Create `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/PROGRESS.md` with a template such as:
-```
-| Date | Author | Status Snapshot | Notes |
-|------|--------|-----------------|-------|
-| {{today}} | {{your_name}} | Initialization complete | Scenario scaffold + PRD seeded |
-```
-Future agents will append rows; do not track progress inside PRD.md anymore.
+## Documentation Checklist
+- **README.md** (at scenario root):
+  - Purpose + operational summary
+  - How to run (`vrooli scenario run`, ports) and test commands (even if placeholders)
+  - Reference to `PRD.md`, `docs/PROGRESS.md`, `docs/PROBLEMS.md`, and requirements directory
+- **docs/PROGRESS.md**: initialize with a table, e.g.
+  ```
+  | Date | Author | Status Snapshot | Notes |
+  |------|--------|-----------------|-------|
+  | {{today}} | {{your_name}} | Initialization complete | Scenario scaffold + PRD seeded |
+  ```
+- **docs/PROBLEMS.md**: create sections for "Open Issues" and "Deferred Ideas"; list bullet items with context and links back to PRD targets.
+- **docs/RESEARCH.md**: summarize repo findings, overlapping scenarios/resources, and external links that informed the PRD.
+- **requirements/README.md**: describe how the registry is organized (modules, naming pattern, how to tag tests, command to sync).
+
+Future agents will append to PROGRESS/PROBLEMS/RESEARCH—call out in README that these are the canonical outlets for updates.
 
 ## Collision Avoidance & Validation
 - Stay inside `{{PROJECT_PATH}}/scenarios/{{TARGET}}/`. If you uncover bugs elsewhere, note them in your summary but leave the files untouched.

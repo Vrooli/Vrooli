@@ -24,6 +24,15 @@ Re-run the loop until the sections you touched are green.
 - Document each command you ran in PRD/Test Commands and in your summary so future agents can reproduce the validation.
 - After tests run, sync results (`node {{PROJECT_PATH}}/scripts/requirements/report.js --scenario {{TARGET}} --mode sync` or the scenario’s helper) so dashboards + checkboxes update automatically.
 
+## Documentation Updates
+- **docs/PROGRESS.md**: append a new row for your work session (date, author, status snapshot, notes). This is the only place progress is tracked on-disk.
+- **docs/PROBLEMS.md**: log unresolved bugs, technical debt, or follow-up ideas using the existing sections so the next agent can triage them quickly.
+- **docs/RESEARCH.md**: add any new references, comparable scenarios, or external docs you discovered while solving the task.
+- **README.md**: update run/test instructions or dependency notes if your change alters how the scenario is operated.
+- **requirements/README.md**: keep the description of modules/patterns up to date when you add new requirement files.
+
+Do not create ad-hoc documentation elsewhere—these files are the canonical outlets.
+
 ## Improvement Priorities
 1. **Broken or failing checks** from `scenario status` and `scenario-auditor`.
 2. **Unimplemented P0/P1 operational targets** (focus on completing or unblocking one target at a time).

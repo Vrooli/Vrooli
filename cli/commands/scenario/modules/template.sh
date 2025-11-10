@@ -147,7 +147,7 @@ scenario::template::show() {
 scenario::template::format_required_flags() {
     local manifest="$1"
     local parts
-    parts=$(jq -r '.requiredVars // {} | to_entries | map(" --" + (.value.flag // "id") + " <" + (.key | ascii_downcase) + ">") | join("")' "$manifest")
+    parts=$(jq -r '.requiredVars // {} | to_entries | map(" --" + (.value.flag // .key | ascii_downcase) + " <" + (.key | ascii_downcase) + ">") | join("")' "$manifest")
     echo "${parts:- --id <slug>}"
 }
 
