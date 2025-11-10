@@ -1,39 +1,14 @@
 #!/usr/bin/env bash
-
-# Swarm Manager Installation Script
-# Adds swarm-manager to the system PATH
-
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_PATH="${SCRIPT_DIR}/../cli.sh"
-INSTALL_DIR="${HOME}/.local/bin"
-SYMLINK_NAME="swarm-manager"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/swarm-manager/cli"
+CLI_SCRIPT="$CLI_DIR/../cli.sh"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-# Colors
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-echo -e "${BLUE}Installing Swarm Manager...${NC}"
-
-# Create .local/bin if it doesn't exist
-mkdir -p "$INSTALL_DIR"
-
-# Create symlink
-ln -sf "$CLI_PATH" "${INSTALL_DIR}/${SYMLINK_NAME}"
-
-# Check if .local/bin is in PATH
-if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-    echo ""
-    echo -e "${BLUE}Note: Add ${INSTALL_DIR} to your PATH:${NC}"
-    echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc"
-    echo "  source ~/.bashrc"
+if [[ ! -f "$CLI_SCRIPT" ]]; then
+    echo "❌ CLI script not found at $CLI_SCRIPT" >&2
+    exit 1
 fi
 
-echo -e "${GREEN}✓ Swarm Manager installed successfully${NC}"
-echo ""
-echo "Usage:"
-echo "  swarm-manager start    # Start the service"
-echo "  swarm-manager status   # Check status"
-echo "  swarm-manager help     # Show all commands"
+install_cli "$CLI_SCRIPT" "swarm-manager"

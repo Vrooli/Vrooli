@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLI_NAME="code-tidiness-manager"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_PATH="${SCRIPT_DIR}/${CLI_NAME}"
-INSTALL_DIR="${HOME}/.vrooli/bin"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_PATH="${APP_ROOT}/scenarios/code-tidiness-manager/cli/code-tidiness-manager"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-mkdir -p "${INSTALL_DIR}"
-
-if [[ -f "${CLI_PATH}" ]]; then
-  chmod +x "${CLI_PATH}"
-  ln -sf "${CLI_PATH}" "${INSTALL_DIR}/${CLI_NAME}"
-  echo "${CLI_NAME} CLI installed at ${INSTALL_DIR}/${CLI_NAME}"
-else
-  echo "[setup] CLI script ${CLI_PATH} not found; skipping install" >&2
+if [[ ! -f "$CLI_PATH" ]]; then
+    echo "⚠️  CLI script not found at $CLI_PATH; skipping install" >&2
+    exit 0
 fi
+
+install_cli "$CLI_PATH" "code-tidiness-manager"

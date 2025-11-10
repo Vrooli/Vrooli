@@ -1,28 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_NAME="data-tools"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/data-tools/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-echo "Installing ${CLI_NAME} CLI..."
-
-if [[ ! -f "${SCRIPT_DIR}/${CLI_NAME}" ]]; then
-    echo "❌ CLI script not found: ${SCRIPT_DIR}/${CLI_NAME}"
-    exit 1
-fi
-
-chmod +x "${SCRIPT_DIR}/${CLI_NAME}"
-
-INSTALL_DIR="${HOME}/.local/bin"
-mkdir -p "${INSTALL_DIR}"
-
-cp "${SCRIPT_DIR}/${CLI_NAME}" "${INSTALL_DIR}/${CLI_NAME}"
-
-if ! command -v "${CLI_NAME}" &>/dev/null; then
-    if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
-        echo "⚠️  ${INSTALL_DIR} is not in your PATH"
-        echo "   Add it with: export PATH=\"\$PATH:${INSTALL_DIR}\""
-    fi
-fi
-
-echo "✅ ${CLI_NAME} CLI installed to ${INSTALL_DIR}"
+install_cli "$CLI_DIR/data-tools" "data-tools"

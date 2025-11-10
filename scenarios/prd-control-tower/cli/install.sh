@@ -1,25 +1,8 @@
 #!/usr/bin/env bash
-#
-# Install PRD Control Tower CLI to user's bin directory
-#
+set -euo pipefail
 
-set -eo pipefail
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/prd-control-tower/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_NAME="prd-control-tower"
-INSTALL_DIR="${HOME}/.local/bin"
-
-# Create install directory if it doesn't exist
-mkdir -p "${INSTALL_DIR}"
-
-# Copy CLI script
-cp "${SCRIPT_DIR}/${CLI_NAME}" "${INSTALL_DIR}/${CLI_NAME}"
-chmod +x "${INSTALL_DIR}/${CLI_NAME}"
-
-echo "✓ Installed ${CLI_NAME} to ${INSTALL_DIR}/${CLI_NAME}"
-echo ""
-echo "Make sure ${INSTALL_DIR} is in your PATH:"
-echo "  export PATH=\"\${HOME}/.local/bin:\${PATH}\""
-echo ""
-echo "Try it out:"
-echo "  ${CLI_NAME} help"
+install_cli "$CLI_DIR/prd-control-tower" "prd-control-tower"

@@ -1,7 +1,13 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "Installing test-scenario CLI tools"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_PATH="${APP_ROOT}/scenarios/test-scenario/cli/test-scenario"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-# Placeholder installation steps
-echo "Installation complete"
+if [[ ! -f "$CLI_PATH" ]]; then
+    echo "⚠️  CLI script not found at $CLI_PATH; skipping install" >&2
+    exit 0
+fi
+
+install_cli "$CLI_PATH" "test-scenario"

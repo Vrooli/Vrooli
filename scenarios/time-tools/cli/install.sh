@@ -1,30 +1,8 @@
-#!/bin/bash
-# Install time-tools CLI command globally
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/time-tools/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_NAME="time-tools"
-CLI_PATH="$SCRIPT_DIR/$CLI_NAME"
-INSTALL_DIR="$HOME/.local/bin"
-
-# Create install directory if it doesn't exist
-mkdir -p "$INSTALL_DIR"
-
-# Create or update symlink
-if [[ -L "$INSTALL_DIR/$CLI_NAME" ]]; then
-    rm "$INSTALL_DIR/$CLI_NAME"
-fi
-
-ln -s "$CLI_PATH" "$INSTALL_DIR/$CLI_NAME"
-
-# Check if install directory is in PATH
-if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-    echo "Warning: $INSTALL_DIR is not in your PATH"
-    echo "Add the following to your shell configuration:"
-    echo "  export PATH=\"\$PATH:$INSTALL_DIR\""
-fi
-
-echo "✓ $CLI_NAME CLI installed successfully"
-echo "  Location: $INSTALL_DIR/$CLI_NAME"
-echo "  Run 'time-tools help' to get started"
+install_cli "$CLI_DIR/time-tools" "time-tools"

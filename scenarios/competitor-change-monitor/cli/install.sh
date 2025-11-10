@@ -1,22 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_SOURCE="${SCRIPT_DIR}/competitor-monitor"
-INSTALL_DIR="${HOME}/.vrooli/bin"
-PRIMARY_LINK="${INSTALL_DIR}/competitor-monitor"
-ALIAS_LINK="${INSTALL_DIR}/competitor-change-monitor"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/competitor-change-monitor/cli"
+CLI_SCRIPT="$CLI_DIR/competitor-monitor"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-mkdir -p "${INSTALL_DIR}"
-
-if [[ ! -f "${CLI_SOURCE}" ]]; then
-  echo "[setup] CLI script ${CLI_SOURCE} not found; skipping install" >&2
-  exit 0
+if [[ ! -f "$CLI_SCRIPT" ]]; then
+    echo "⚠️  CLI script not found at $CLI_SCRIPT; skipping install" >&2
+    exit 0
 fi
 
-chmod +x "${CLI_SOURCE}"
-ln -sf "${CLI_SOURCE}" "${PRIMARY_LINK}"
-ln -sf "${CLI_SOURCE}" "${ALIAS_LINK}"
-
-echo "competitor-monitor CLI installed to ${PRIMARY_LINK}"
-echo "Alias available via ${ALIAS_LINK}"
+install_cli "$CLI_SCRIPT" "competitor-monitor"
+install_cli "$CLI_SCRIPT" "competitor-change-monitor"

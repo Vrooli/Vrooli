@@ -1,7 +1,8 @@
-#!/bin/bash
-set -e
-echo "Installing dependencies for bedtime-story-generator..."
-# Basic install steps
-# For example, npm install if it's Node, but since unknown, placeholder
-echo "Dependencies installed."
-echo "CLI installed successfully."
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/bedtime-story-generator/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
+
+install_cli "$CLI_DIR/bedtime-story-generator" "bedtime-story-generator"

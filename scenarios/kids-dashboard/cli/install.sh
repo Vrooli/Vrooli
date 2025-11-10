@@ -1,21 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_NAME="kids-dashboard"
-INSTALL_DIR="${HOME}/.vrooli/bin"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+CLI_DIR="${APP_ROOT}/scenarios/kids-dashboard/cli"
+source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-mkdir -p "$INSTALL_DIR"
-chmod +x "$SCRIPT_DIR/$CLI_NAME"
-ln -sf "$SCRIPT_DIR/$CLI_NAME" "$INSTALL_DIR/$CLI_NAME"
-
-if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
-  cat <<NOTICE
-⚠️  $INSTALL_DIR is not in your PATH
-Add the following to your shell profile and re-source it:
-  export PATH="$INSTALL_DIR:\$PATH"
-NOTICE
-fi
-
-echo "✓ Kids Dashboard CLI installed"
-echo "Run 'kids-dashboard help' to explore commands"
+install_cli "$CLI_DIR/kids-dashboard" "kids-dashboard"
