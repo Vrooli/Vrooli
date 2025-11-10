@@ -2,7 +2,7 @@
 # Agent Metareasoning Manager CLI Tests - Ultra-thin API wrapper
 
 setup() {
-    export CLI_PATH="./agent-metareasoning-manager-cli.sh"
+    export CLI_PATH="./agent-metareasoning-manager"
     export AGENT_METAREASONING_MANAGER_API_BASE="http://localhost:8090"
     export AGENT_METAREASONING_MANAGER_TOKEN="test-token"
 }

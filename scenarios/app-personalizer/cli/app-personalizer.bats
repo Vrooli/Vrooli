@@ -4,7 +4,7 @@
 setup() {
     # Set test environment
     export APP_PERSONALIZER_API_BASE="http://localhost:${API_PORT:-8300}"
-    CLI_SCRIPT="${BATS_TEST_FILENAME%/*}/app-personalizer-cli.sh"
+    CLI_SCRIPT="${BATS_TEST_FILENAME%/*}/app-personalizer"
 }
 
 @test "CLI shows version" {

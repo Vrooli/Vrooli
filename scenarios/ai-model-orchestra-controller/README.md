@@ -154,7 +154,7 @@ ai-model-orchestra-controller/
 │   ├── go.mod                         # Go module dependencies
 │   └── go.sum                         # Go module checksums
 ├── cli/                               # Lightweight CLI wrapper
-│   ├── ai-orchestra                  # Main CLI script
+│   ├── ai-model-orchestra-controller # Main CLI script
 │   └── install.sh                     # CLI installation script
 ├── ui/                                # Modular web interface
 │   ├── dashboard.html                 # Main dashboard HTML
@@ -619,7 +619,7 @@ make run
 ### Adding New Features
 
 1. **API Endpoints**: Add to `api/main.go` with versioned routes (`/api/v1/`)
-2. **CLI Commands**: Update `cli/ai-orchestra` script
+2. **CLI Commands**: Update `cli/ai-model-orchestra-controller` script
 3. **UI Components**: Add to modular UI files in `ui/`
 4. **Tests**: Add to appropriate test phase in `test/phases/`
 5. **Documentation**: Update this README and PRD.md
@@ -627,7 +627,7 @@ make run
 ### Code Structure
 
 - **Go API**: `api/main.go` - RESTful API with exponential backoff DB connections
-- **CLI**: `cli/ai-orchestra` - Bash script wrapper around API
+- **CLI**: `cli/ai-model-orchestra-controller` - Bash script wrapper around API
 - **UI**: `ui/dashboard.{html,css,js}` - Modular web interface
 - **Config**: `.vrooli/service.json` - Lifecycle and resource configuration
 - **Tests**: `test/phases/` - Comprehensive phased testing

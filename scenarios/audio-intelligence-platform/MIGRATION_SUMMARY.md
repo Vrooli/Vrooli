@@ -35,7 +35,7 @@ This scenario uses Windmill for UI rather than a custom React application, makin
 ### 3. ✅ CLI Wrapper Created
 - **Directory**: `cli/`
 - **Files**:
-  - `audio-intelligence-platform-cli.sh` - Ultra-thin API wrapper
+  - `audio-intelligence-platform` - Ultra-thin API wrapper
   - `install.sh` - Global CLI installation script
   - `audio-intelligence-platform.bats` - CLI test suite
 - **Commands**: health, list, get, upload, analyze, search, help

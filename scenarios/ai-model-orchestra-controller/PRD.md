@@ -340,7 +340,7 @@ consumed_events:
 
 ### Command Structure
 ```yaml
-cli_binary: ai-orchestra
+cli_binary: ai-model-orchestra-controller
 install_script: cli/install.sh
 
 required_commands:
@@ -635,7 +635,7 @@ structure:
     - PRD.md
     - api/main.go
     - api/go.mod
-    - cli/ai-orchestra
+    - cli/ai-model-orchestra-controller
     - cli/install.sh
     - scenario-test.yaml
     - ui/dashboard.html
@@ -701,7 +701,7 @@ tests:
         
   - name: "CLI model selection works"
     type: exec
-    command: ./cli/ai-orchestra select completion --complexity moderate --json
+    command: ./cli/ai-model-orchestra-controller select completion --complexity moderate --json
     expect:
       exit_code: 0
       output_contains: ["selectedModel", "requestId"]

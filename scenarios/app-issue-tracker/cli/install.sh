@@ -5,4 +5,4 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 CLI_DIR="${APP_ROOT}/scenarios/app-issue-tracker/cli"
 source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/app-issue-tracker.sh" "app-issue-tracker"
+install_cli "$CLI_DIR/app-issue-tracker" "app-issue-tracker"

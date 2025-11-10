@@ -2,7 +2,7 @@
 # Campaign Content Studio CLI Tests - Ultra-thin API wrapper
 
 setup() {
-    export CLI_PATH="./campaign-content-studio.sh"
+    export CLI_PATH="./campaign-content-studio"
     export CAMPAIGN_CONTENT_STUDIO_API_BASE="http://localhost:8090"
     export CAMPAIGN_CONTENT_STUDIO_TOKEN="test-token"
 }

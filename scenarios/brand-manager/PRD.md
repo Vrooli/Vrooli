@@ -448,7 +448,7 @@ structure:
     - PRD.md
     - api/main.go
     - api/go.mod
-    - cli/brand-manager-cli.sh
+    - cli/brand-manager
     - ui/index.html
     - ui/package.json
     - ui/server.js
