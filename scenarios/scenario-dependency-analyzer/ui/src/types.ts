@@ -25,6 +25,8 @@ export interface DependencyGraphEdge {
   metadata?: Record<string, unknown>;
 }
 
+export type EdgeStatusFilter = "all" | "missing" | "declared-only";
+
 export interface DependencyGraph {
   id: string;
   graph_type: GraphType;
@@ -52,6 +54,7 @@ export interface ScenarioSummary {
 }
 
 export interface ScenarioDependencyRecord {
+  id?: string;
   scenario_name: string;
   dependency_type: string;
   dependency_name: string;
@@ -59,6 +62,8 @@ export interface ScenarioDependencyRecord {
   purpose?: string;
   access_method?: string;
   configuration?: Record<string, unknown>;
+  discovered_at?: string;
+  last_verified?: string;
 }
 
 export interface ScenarioDetailResponse {

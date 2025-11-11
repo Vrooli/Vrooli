@@ -15,6 +15,13 @@ interface SelectedNodePanelProps {
 }
 
 export function SelectedNodePanel({ node, connections }: SelectedNodePanelProps) {
+  const formatTimestamp = (value?: unknown) => {
+    if (typeof value !== "string") return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleString();
+  };
+
   return (
     <Card className="glass border border-border/40">
       <CardHeader>
@@ -51,27 +58,45 @@ export function SelectedNodePanel({ node, connections }: SelectedNodePanelProps)
           ) : (
             <ScrollArea className="max-h-[220px] rounded-lg border border-border/40 bg-background/60">
               <ul className="divide-y divide-border/20 text-sm">
-                {connections.map(({ node: peer, edge }) => (
-                  <li key={`${edge.source}-${edge.target}-${edge.label}`} className="flex items-start gap-3 p-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                {connections.map(({ node: peer, edge }) => {
+                  const metadata = (edge.metadata as Record<string, unknown> | undefined) ?? {};
+                  const configuration = (metadata.configuration as Record<string, unknown> | undefined) ?? {};
+                  const foundInFile = typeof configuration.found_in_file === "string" ? configuration.found_in_file : null;
+                  const patternType = typeof configuration.pattern_type === "string" ? configuration.pattern_type : null;
+                  const discoveredAt = formatTimestamp(metadata.discovered_at);
+                  const lastVerified = formatTimestamp(metadata.last_verified);
+                  const accessMethod = typeof metadata.access_method === "string" ? metadata.access_method : null;
+                  const purpose = typeof metadata.purpose === "string" ? metadata.purpose : null;
+
+                  return (
+                    <li key={`${edge.source}-${edge.target}-${edge.label}-${peer.id}`} className="flex items-start gap-3 p-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                       <Link2 className="h-4 w-4" aria-hidden="true" />
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground">{peer.label}</p>
-                        <Badge variant="outline" className="uppercase">
-                          {peer.type}
-                        </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {edge.label || "Dependency relationship"}
-                      </p>
-                      <p className="text-[11px] uppercase tracking-widest text-muted-foreground/80">
-                        {edge.required ? "Required" : "Optional"} · Weight {edge.weight.toFixed(2)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-foreground">{peer.label}</p>
+                          <Badge variant="outline" className="uppercase">
+                            {peer.type}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {purpose || edge.label || "Dependency relationship"}
+                        </p>
+                        <p className="text-[11px] uppercase tracking-widest text-muted-foreground/80">
+                          {edge.required ? "Required" : "Optional"} · Weight {edge.weight.toFixed(2)}
+                        </p>
+                        <div className="mt-2 space-y-1 text-[11px] text-muted-foreground/90">
+                          {accessMethod && <p>Access: {accessMethod}</p>}
+                          {foundInFile && <p>File: {foundInFile}</p>}
+                          {patternType && <p>Pattern: {patternType}</p>}
+                          {discoveredAt && <p>Detected: {discoveredAt}</p>}
+                          {lastVerified && <p>Verified: {lastVerified}</p>}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </ScrollArea>
           )}

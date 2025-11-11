@@ -5,7 +5,8 @@ import type {
   DependencyGraph,
   DependencyGraphNode,
   GraphType,
-  LayoutMode
+  LayoutMode,
+  EdgeStatusFilter
 } from "../types";
 
 interface UseGraphDataProps {
@@ -28,6 +29,7 @@ export function useGraphData({
   const [graphType, setGraphType] = useState<GraphType>(defaultType);
   const [layout, setLayout] = useState<LayoutMode>(defaultLayout);
   const [filter, setFilter] = useState("");
+  const [driftFilter, setDriftFilter] = useState<EdgeStatusFilter>("all");
   const [graph, setGraph] = useState<DependencyGraph | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,6 +143,8 @@ export function useGraphData({
     loading,
     selectedNode,
     setFilter,
+    driftFilter,
+    setDriftFilter,
     setGraphType: (type: GraphType) => fetchGraph(type),
     setLayout,
     setSelectedNode,

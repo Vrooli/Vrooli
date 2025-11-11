@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -211,12 +212,163 @@ var (
 			},
 		},
 	}
+
+	dependencyCatalogMu     sync.RWMutex
+	dependencyCatalogLoaded bool
+	knownScenarioNames      map[string]struct{}
+	knownResourceNames      map[string]struct{}
+
+	skipDirectoryNames = map[string]struct{}{
+		"node_modules":     {},
+		"dist":             {},
+		"build":            {},
+		"coverage":         {},
+		"logs":             {},
+		"tmp":              {},
+		"temp":             {},
+		"vendor":           {},
+		"__pycache__":      {},
+		".pytest_cache":    {},
+		".nyc_output":      {},
+		"storybook-static": {},
+		".next":            {},
+		".nuxt":            {},
+		".svelte-kit":      {},
+		".vercel":          {},
+		".parcel-cache":    {},
+		".turbo":           {},
+		".git":             {},
+		".hg":              {},
+		".svn":             {},
+		".idea":            {},
+		".vscode":          {},
+		".cache":           {},
+		".output":          {},
+		".yalc":            {},
+		".yarn":            {},
+		".pnpm":            {},
+	}
 )
 
 type resourceHeuristic struct {
 	Name     string
 	Type     string
 	Patterns []*regexp.Regexp
+}
+
+func ensureDependencyCatalogs() {
+	dependencyCatalogMu.RLock()
+	if dependencyCatalogLoaded {
+		dependencyCatalogMu.RUnlock()
+		return
+	}
+	dependencyCatalogMu.RUnlock()
+
+	dependencyCatalogMu.Lock()
+	defer dependencyCatalogMu.Unlock()
+	if dependencyCatalogLoaded {
+		return
+	}
+
+	scenariosDir := determineScenariosDir()
+	knownScenarioNames = discoverAvailableScenarios(scenariosDir)
+	resourcesDir := filepath.Join(filepath.Dir(scenariosDir), "resources")
+	knownResourceNames = discoverAvailableResources(resourcesDir)
+	dependencyCatalogLoaded = true
+}
+
+func determineScenariosDir() string {
+	dir := os.Getenv("VROOLI_SCENARIOS_DIR")
+	if dir == "" {
+		dir = "../.."
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return dir
+	}
+	return absDir
+}
+
+func discoverAvailableScenarios(dir string) map[string]struct{} {
+	results := map[string]struct{}{}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		log.Printf("⚠️  Unable to read scenarios directory %s: %v", dir, err)
+		return results
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		servicePath := filepath.Join(dir, entry.Name(), ".vrooli", "service.json")
+		if _, err := os.Stat(servicePath); err == nil {
+			results[normalizeName(entry.Name())] = struct{}{}
+		}
+	}
+	return results
+}
+
+func discoverAvailableResources(dir string) map[string]struct{} {
+	results := map[string]struct{}{}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		log.Printf("⚠️  Unable to read resources directory %s: %v", dir, err)
+		return results
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			results[normalizeName(entry.Name())] = struct{}{}
+		}
+	}
+	return results
+}
+
+func isKnownScenario(name string) bool {
+	ensureDependencyCatalogs()
+	dependencyCatalogMu.RLock()
+	defer dependencyCatalogMu.RUnlock()
+	_, ok := knownScenarioNames[normalizeName(name)]
+	return ok
+}
+
+func isKnownResource(name string) bool {
+	ensureDependencyCatalogs()
+	dependencyCatalogMu.RLock()
+	defer dependencyCatalogMu.RUnlock()
+	_, ok := knownResourceNames[normalizeName(name)]
+	return ok
+}
+
+func refreshDependencyCatalogs() {
+	dependencyCatalogMu.Lock()
+	defer dependencyCatalogMu.Unlock()
+	dependencyCatalogLoaded = false
+	knownScenarioNames = nil
+	knownResourceNames = nil
+}
+
+func normalizeName(name string) string {
+	return strings.TrimSpace(strings.ToLower(name))
+}
+
+func shouldSkipDirectoryEntry(d fs.DirEntry) bool {
+	if !d.IsDir() {
+		return false
+	}
+	name := d.Name()
+	if _, ok := skipDirectoryNames[strings.ToLower(name)]; ok {
+		return true
+	}
+	if strings.HasPrefix(strings.ToLower(name), "node_modules") {
+		return true
+	}
+	if strings.HasPrefix(strings.ToLower(name), ".ignored") {
+		return true
+	}
+	if strings.HasPrefix(name, ".") && name != ".vrooli" {
+		return true
+	}
+	return false
 }
 
 // Configuration
@@ -391,6 +543,8 @@ func analyzeScenario(scenarioName string) (*DependencyAnalysisResponse, error) {
 
 func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioDependency, error) {
 	var dependencies []ScenarioDependency
+	ensureDependencyCatalogs()
+	scenarioNameNormalized := normalizeName(scenarioName)
 
 	// Pattern to match vrooli scenario commands
 	scenarioPattern := regexp.MustCompile(`vrooli\s+scenario\s+(?:run|test|status)\s+([a-z0-9-]+)`)
@@ -402,6 +556,10 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioD
 	err := filepath.WalkDir(scenarioPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // Skip files with errors
+		}
+
+		if d.IsDir() && path != scenarioPath && shouldSkipDirectoryEntry(d) {
+			return filepath.SkipDir
 		}
 
 		// Only scan certain file types
@@ -416,21 +574,29 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioD
 		}
 
 		contentStr := string(content)
+		relPath, relErr := filepath.Rel(scenarioPath, path)
+		if relErr != nil {
+			relPath = path
+		}
 
 		// Find scenario references
 		matches := scenarioPattern.FindAllStringSubmatch(contentStr, -1)
 		for _, match := range matches {
-			if len(match) > 1 && match[1] != scenarioName {
+			if len(match) > 1 {
+				depName := normalizeName(match[1])
+				if depName == scenarioNameNormalized || !isKnownScenario(depName) {
+					continue
+				}
 				dep := ScenarioDependency{
 					ID:             uuid.New().String(),
 					ScenarioName:   scenarioName,
 					DependencyType: "scenario",
-					DependencyName: match[1],
+					DependencyName: depName,
 					Required:       false, // Inter-scenario deps are typically optional
 					Purpose:        fmt.Sprintf("Referenced in %s", filepath.Base(path)),
 					AccessMethod:   "vrooli scenario",
 					Configuration: map[string]interface{}{
-						"found_in_file": strings.TrimPrefix(path, scenarioPath),
+						"found_in_file": relPath,
 						"pattern_type":  "vrooli_cli",
 					},
 					DiscoveredAt: time.Now(),
@@ -450,24 +616,26 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioD
 				scenarioRef = match[2]
 			}
 
-			if scenarioRef != "" && scenarioRef != scenarioName {
-				dep := ScenarioDependency{
-					ID:             uuid.New().String(),
-					ScenarioName:   scenarioName,
-					DependencyType: "scenario",
-					DependencyName: scenarioRef,
-					Required:       false,
-					Purpose:        fmt.Sprintf("CLI reference in %s", filepath.Base(path)),
-					AccessMethod:   "direct_cli",
-					Configuration: map[string]interface{}{
-						"found_in_file": strings.TrimPrefix(path, scenarioPath),
-						"pattern_type":  "cli_reference",
-					},
-					DiscoveredAt: time.Now(),
-					LastVerified: time.Now(),
-				}
-				dependencies = append(dependencies, dep)
+			scenarioRef = normalizeName(scenarioRef)
+			if scenarioRef == "" || scenarioRef == scenarioNameNormalized || !isKnownScenario(scenarioRef) {
+				continue
 			}
+			dep := ScenarioDependency{
+				ID:             uuid.New().String(),
+				ScenarioName:   scenarioName,
+				DependencyType: "scenario",
+				DependencyName: scenarioRef,
+				Required:       false,
+				Purpose:        fmt.Sprintf("CLI reference in %s", filepath.Base(path)),
+				AccessMethod:   "direct_cli",
+				Configuration: map[string]interface{}{
+					"found_in_file": relPath,
+					"pattern_type":  "cli_reference",
+				},
+				DiscoveredAt: time.Now(),
+				LastVerified: time.Now(),
+			}
+			dependencies = append(dependencies, dep)
 		}
 
 		return nil
@@ -546,6 +714,47 @@ func loadServiceConfigFromFile(scenarioPath string) (*ServiceConfig, error) {
 	}
 
 	return &serviceConfig, nil
+}
+
+func collectAnalysisMetrics() (gin.H, error) {
+	metrics := gin.H{
+		"scenarios_found":     0,
+		"resources_available": 0,
+		"database_status":     "unknown",
+		"last_analysis":       nil,
+	}
+
+	if db == nil {
+		return metrics, fmt.Errorf("database connection not initialized")
+	}
+
+	if err := db.Ping(); err != nil {
+		metrics["database_status"] = "unreachable"
+		return metrics, err
+	}
+
+	metrics["database_status"] = "connected"
+
+	var scenarioCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM scenario_metadata").Scan(&scenarioCount); err != nil {
+		metrics["database_status"] = "error"
+		return metrics, err
+	}
+	metrics["scenarios_found"] = scenarioCount
+
+	var resourceCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM scenario_dependencies WHERE dependency_type = 'resource'").Scan(&resourceCount); err != nil {
+		metrics["database_status"] = "error"
+		return metrics, err
+	}
+	metrics["resources_available"] = resourceCount
+
+	var lastAnalysis sql.NullTime
+	if err := db.QueryRow("SELECT MAX(last_scanned) FROM scenario_metadata").Scan(&lastAnalysis); err == nil && lastAnalysis.Valid {
+		metrics["last_analysis"] = lastAnalysis.Time.UTC().Format(time.RFC3339)
+	}
+
+	return metrics, nil
 }
 
 func resolvedResourceMap(cfg *ServiceConfig) map[string]Resource {
@@ -741,17 +950,22 @@ func pqArray(values []string) interface{} {
 
 func scanForResourceUsage(scenarioPath, scenarioName string) ([]ScenarioDependency, error) {
 	results := map[string]ScenarioDependency{}
+	ensureDependencyCatalogs()
 
 	relevantExts := []string{".go", ".js", ".ts", ".tsx", ".sh", ".py", ".md", ".json", ".yml", ".yaml"}
 
 	recordDetection := func(name, method, pattern, file string, resourceType string) {
-		existing, ok := results[name]
+		canonical := normalizeName(name)
+		if canonical == "" || !isKnownResource(canonical) {
+			return
+		}
+		existing, ok := results[canonical]
 		if !ok {
 			existing = ScenarioDependency{
 				ID:             uuid.New().String(),
 				ScenarioName:   scenarioName,
 				DependencyType: "resource",
-				DependencyName: name,
+				DependencyName: canonical,
 				Required:       true,
 				Purpose:        "Detected via static analysis",
 				AccessMethod:   method,
@@ -773,7 +987,7 @@ func scanForResourceUsage(scenarioPath, scenarioName string) ([]ScenarioDependen
 		matches, _ := existing.Configuration["matches"].([]map[string]interface{})
 		matches = append(matches, match)
 		existing.Configuration["matches"] = matches
-		results[name] = existing
+		results[canonical] = existing
 	}
 
 	err := filepath.WalkDir(scenarioPath, func(path string, d fs.DirEntry, err error) error {
@@ -781,6 +995,9 @@ func scanForResourceUsage(scenarioPath, scenarioName string) ([]ScenarioDependen
 			return nil
 		}
 		if d.IsDir() {
+			if path != scenarioPath && shouldSkipDirectoryEntry(d) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(path))
@@ -793,12 +1010,15 @@ func scanForResourceUsage(scenarioPath, scenarioName string) ([]ScenarioDependen
 			return nil
 		}
 		contentStr := string(content)
-		relPath := strings.TrimPrefix(path, scenarioPath)
+		relPath, relErr := filepath.Rel(scenarioPath, path)
+		if relErr != nil {
+			relPath = path
+		}
 
 		cmdMatches := resourceCommandPattern.FindAllStringSubmatch(contentStr, -1)
 		for _, match := range cmdMatches {
 			if len(match) > 1 {
-				resourceName := match[1]
+				resourceName := normalizeName(match[1])
 				recordDetection(resourceName, "resource_cli", "resource-cli", relPath, resourceName)
 			}
 		}
@@ -900,7 +1120,7 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 
 	// Query all dependencies from database
 	rows, err := db.Query(`
-		SELECT scenario_name, dependency_type, dependency_name, required, purpose, access_method
+		SELECT scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration, discovered_at, last_verified
 		FROM scenario_dependencies
 		ORDER BY scenario_name, dependency_type, dependency_name`)
 	if err != nil {
@@ -913,10 +1133,19 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 	for rows.Next() {
 		var scenarioName, depType, depName, purpose, accessMethod string
 		var required bool
+		var configJSON []byte
+		var discoveredAt, lastVerified time.Time
 
-		err := rows.Scan(&scenarioName, &depType, &depName, &required, &purpose, &accessMethod)
+		err := rows.Scan(&scenarioName, &depType, &depName, &required, &purpose, &accessMethod, &configJSON, &discoveredAt, &lastVerified)
 		if err != nil {
 			continue
+		}
+
+		var configuration map[string]interface{}
+		if len(configJSON) > 0 {
+			if err := json.Unmarshal(configJSON, &configuration); err != nil {
+				configuration = map[string]interface{}{}
+			}
 		}
 
 		// Filter by graph type
@@ -980,6 +1209,9 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 			Metadata: map[string]interface{}{
 				"purpose":       purpose,
 				"access_method": accessMethod,
+				"configuration": configuration,
+				"discovered_at": discoveredAt,
+				"last_verified": lastVerified,
 			},
 		})
 	}
@@ -1131,7 +1363,7 @@ func getDependenciesHandler(c *gin.Context) {
 	scenarioName := c.Param("scenario")
 
 	rows, err := db.Query(`
-		SELECT scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration
+		SELECT id, scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration, discovered_at, last_verified
 		FROM scenario_dependencies
 		WHERE scenario_name = $1
 		ORDER BY dependency_type, dependency_name`, scenarioName)
@@ -1146,8 +1378,8 @@ func getDependenciesHandler(c *gin.Context) {
 		var dep ScenarioDependency
 		var configJSON string
 
-		err := rows.Scan(&dep.ScenarioName, &dep.DependencyType, &dep.DependencyName,
-			&dep.Required, &dep.Purpose, &dep.AccessMethod, &configJSON)
+		err := rows.Scan(&dep.ID, &dep.ScenarioName, &dep.DependencyType, &dep.DependencyName,
+			&dep.Required, &dep.Purpose, &dep.AccessMethod, &configJSON, &dep.DiscoveredAt, &dep.LastVerified)
 		if err != nil {
 			continue
 		}
@@ -1383,6 +1615,7 @@ func applyDetectedDiffs(scenarioName string, analysis *DependencyAnalysisRespons
 		if err := updateScenarioMetadata(scenarioName, cfg, scenarioPath); err != nil {
 			return nil, err
 		}
+		refreshDependencyCatalogs()
 	}
 
 	updates["changed"] = changed
@@ -1841,10 +2074,23 @@ func main() {
 			})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
+
+		payload := gin.H{
 			"status":       "healthy",
 			"capabilities": []string{"dependency_analysis", "graph_generation"},
-		})
+		}
+
+		metrics, metricsErr := collectAnalysisMetrics()
+		for k, v := range metrics {
+			payload[k] = v
+		}
+
+		if metricsErr != nil {
+			payload["status"] = "degraded"
+			payload["error"] = metricsErr.Error()
+		}
+
+		c.JSON(http.StatusOK, payload)
 	})
 
 	// API routes

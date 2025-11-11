@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -131,6 +130,170 @@ data-tools-cli.sh process input.csv
 		// Verify we can scan without errors
 		t.Logf("Found %d CLI dependencies", len(deps))
 	})
+}
+
+func TestScanForScenarioDependenciesFiltersNoise(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	configureTestScenariosDir(t, env)
+	keep := createTestScenario(t, env, "other-scenario", map[string]Resource{})
+	defer keep.Cleanup()
+	cliScenario := createTestScenario(t, env, "browser-automation-studio", map[string]Resource{})
+	defer cliScenario.Cleanup()
+	ignored := createTestScenario(t, env, "ignored-scenario", map[string]Resource{})
+	defer ignored.Cleanup()
+
+	subjectPath := filepath.Join(env.ScenariosDir, "subject")
+	os.MkdirAll(subjectPath, 0755)
+	defer os.RemoveAll(subjectPath)
+
+	mainFile := filepath.Join(subjectPath, "script.sh")
+	content := `#!/bin/bash
+vrooli scenario run other-scenario
+vrooli scenario run totally-fake
+`
+	os.WriteFile(mainFile, []byte(content), 0644)
+
+	cliFile := filepath.Join(subjectPath, "cli.sh")
+	os.WriteFile(cliFile, []byte("browser-automation-studio analyze"), 0644)
+
+	nodeModules := filepath.Join(subjectPath, "node_modules", "pkg")
+	os.MkdirAll(nodeModules, 0755)
+	os.WriteFile(filepath.Join(nodeModules, "index.js"), []byte("vrooli scenario run ignored-scenario"), 0644)
+
+	deps, err := scanForScenarioDependencies(subjectPath, "subject")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(deps) != 2 {
+		t.Fatalf("Expected 2 dependencies, got %d", len(deps))
+	}
+
+	found := map[string]bool{}
+	for _, dep := range deps {
+		found[dep.DependencyName] = true
+	}
+
+	if !found["other-scenario"] || !found["browser-automation-studio"] {
+		t.Fatalf("Missing expected dependencies: %v", found)
+	}
+	if found["ignored-scenario"] {
+		t.Fatalf("ignored-scenario should have been excluded")
+	}
+}
+
+func TestScanForResourceUsageFiltersUnknown(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	configureTestScenariosDir(t, env)
+	createTestResourceDirs(t, env, "postgres")
+
+	subjectPath := filepath.Join(env.ScenariosDir, "resource-subject")
+	os.MkdirAll(subjectPath, 0755)
+	defer os.RemoveAll(subjectPath)
+
+	script := `#!/bin/bash
+resource-postgres connect
+PGHOST=localhost
+resource-fake something
+`
+	os.WriteFile(filepath.Join(subjectPath, "main.sh"), []byte(script), 0644)
+
+	nodeModules := filepath.Join(subjectPath, "node_modules", "pkg")
+	os.MkdirAll(nodeModules, 0755)
+	os.WriteFile(filepath.Join(nodeModules, "index.js"), []byte("resource-redis start"), 0644)
+
+	deps, err := scanForResourceUsage(subjectPath, "resource-subject")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(deps) != 1 {
+		t.Fatalf("Expected 1 dependency, got %d", len(deps))
+	}
+	if deps[0].DependencyName != "postgres" {
+		t.Fatalf("Expected postgres dependency, got %s", deps[0].DependencyName)
+	}
+}
+
+func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	t.Setenv("API_PORT", "19999")
+	t.Setenv("DATABASE_URL", "postgres://example:example@localhost:5432/example?sslmode=disable")
+
+	configureTestScenariosDir(t, env)
+	createTestResourceDirs(t, env, "postgres")
+
+	subject := createTestScenario(t, env, "apply-subject", map[string]Resource{})
+	defer subject.Cleanup()
+
+	analysis := &DependencyAnalysisResponse{
+		DetectedResources: []ScenarioDependency{
+			{
+				DependencyName: "postgres",
+				AccessMethod:   "resource_cli",
+				Configuration: map[string]interface{}{
+					"resource_type": "postgres",
+				},
+			},
+		},
+		ResourceDiff: DependencyDiff{Missing: []DependencyDrift{{Name: "postgres"}}},
+		Scenarios: []ScenarioDependency{
+			{
+				DependencyName: "support-scenario",
+				AccessMethod:   "vrooli scenario",
+			},
+		},
+		ScenarioDiff: DependencyDiff{Missing: []DependencyDrift{{Name: "support-scenario"}}},
+	}
+
+	summary, err := applyDetectedDiffs("apply-subject", analysis, true, true)
+	if err != nil {
+		t.Fatalf("applyDetectedDiffs error: %v", err)
+	}
+
+	changed, _ := summary["changed"].(bool)
+	if !changed {
+		t.Fatalf("Expected summary to report changes: %v", summary)
+	}
+
+	servicePath := filepath.Join(env.ScenariosDir, "apply-subject", ".vrooli", "service.json")
+	data, err := os.ReadFile(servicePath)
+	if err != nil {
+		t.Fatalf("Failed to read service.json: %v", err)
+	}
+
+	var cfg ServiceConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("Failed to parse service.json: %v", err)
+	}
+
+	resource, ok := cfg.Dependencies.Resources["postgres"]
+	if !ok {
+		t.Fatalf("postgres resource not added: %+v", cfg.Dependencies.Resources)
+	}
+	if resource.Type != "postgres" {
+		t.Fatalf("Expected postgres type, got %s", resource.Type)
+	}
+
+	scenarioDep, ok := cfg.Dependencies.Scenarios["support-scenario"]
+	if !ok || !scenarioDep.Required {
+		t.Fatalf("support-scenario not added correctly: %+v", cfg.Dependencies.Scenarios)
+	}
 }
 
 // TestScanForSharedWorkflows tests shared workflow detection
@@ -291,8 +454,8 @@ func TestAnalyzeProposedScenario(t *testing.T) {
 
 	t.Run("EmptyDescription", func(t *testing.T) {
 		req := ProposedScenarioRequest{
-			Name:        "empty-scenario",
-			Description: "",
+			Name:         "empty-scenario",
+			Description:  "",
 			Requirements: []string{},
 		}
 

@@ -12,15 +12,17 @@ import {
   SelectTrigger,
   SelectValue
 } from "./ui/select";
-import type { GraphType, LayoutMode } from "../types";
+import type { EdgeStatusFilter, GraphType, LayoutMode } from "../types";
 
 interface ControlPanelProps {
   graphType: GraphType;
   layout: LayoutMode;
   filter: string;
+  driftFilter: EdgeStatusFilter;
   onGraphTypeChange: (value: GraphType) => void;
   onLayoutChange: (value: LayoutMode) => void;
   onFilterChange: (value: string) => void;
+  onDriftFilterChange: (value: EdgeStatusFilter) => void;
   onRefresh: () => void;
   onAnalyzeAll: () => Promise<boolean> | void;
   onExport: () => void;
@@ -39,13 +41,21 @@ const layoutLabels: Record<LayoutMode, string> = {
   grid: "Structured Grid Layout"
 };
 
+const driftLabels: Record<EdgeStatusFilter, string> = {
+  all: "Show all dependencies",
+  missing: "Only missing/undeclared",
+  "declared-only": "Declared but unused"
+};
+
 export function ControlPanel({
   graphType,
   layout,
   filter,
+  driftFilter,
   onGraphTypeChange,
   onLayoutChange,
   onFilterChange,
+  onDriftFilterChange,
   onRefresh,
   onAnalyzeAll,
   onExport,
@@ -108,6 +118,26 @@ export function ControlPanel({
             onChange={(event) => onFilterChange(event.target.value)}
             autoComplete="off"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="drift-filter">Dependency Drift</Label>
+          <Select
+            value={driftFilter}
+            onValueChange={(value) => onDriftFilterChange(value as EdgeStatusFilter)}
+          >
+            <SelectTrigger id="drift-filter" aria-label="Highlight drift status">
+              <SelectValue placeholder="Select drift filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Highlight</SelectLabel>
+                <SelectItem value="all">{driftLabels.all}</SelectItem>
+                <SelectItem value="missing">{driftLabels.missing}</SelectItem>
+                <SelectItem value="declared-only">{driftLabels["declared-only"]}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-1 gap-3 pt-1">

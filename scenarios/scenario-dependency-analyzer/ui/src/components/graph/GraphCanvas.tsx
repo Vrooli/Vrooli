@@ -6,7 +6,8 @@ import type {
   DependencyGraphEdge,
   DependencyGraphNode,
   GraphType,
-  LayoutMode
+  LayoutMode,
+  EdgeStatusFilter
 } from "../../types";
 import { cn } from "../../lib/utils";
 
@@ -14,6 +15,7 @@ interface GraphCanvasProps {
   graph: DependencyGraph | null;
   layout: LayoutMode;
   filter: string;
+  driftFilter: EdgeStatusFilter;
   selectedNodeId?: string | null;
   onSelectNode: (node: DependencyGraphNode | null) => void;
   className?: string;
@@ -21,6 +23,11 @@ interface GraphCanvasProps {
 
 interface HoverState {
   node: DependencyGraphNode;
+  position: { x: number; y: number };
+}
+
+interface EdgeHoverState {
+  edge: DependencyGraphEdge;
   position: { x: number; y: number };
 }
 
@@ -36,6 +43,7 @@ export function GraphCanvas({
   graph,
   layout,
   filter,
+  driftFilter,
   selectedNodeId,
   onSelectNode,
   className
@@ -43,6 +51,7 @@ export function GraphCanvas({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
+  const [edgeHover, setEdgeHover] = useState<EdgeHoverState | null>(null);
   const nodeMapRef = useRef(new Map<string, SimulationNode>());
 
   const filterText = filter.trim().toLowerCase();
@@ -104,7 +113,32 @@ export function GraphCanvas({
     const radiusForNode = (d: SimulationNode) =>
       16 + Math.min((degreeMap.get(d.id) ?? 0) * 1.4, 12);
 
-    const edges: SimulationEdge[] = graph.edges.map((edge) => ({ ...edge }));
+    const matchDrift = (edge: DependencyGraphEdge) => {
+      const metadata = (edge.metadata as Record<string, unknown> | undefined) ?? {};
+      const configuration = (metadata.configuration as Record<string, unknown> | undefined) ?? {};
+      const hasFile = typeof configuration.found_in_file === "string";
+
+      if (driftFilter === "all") return true;
+      if (driftFilter === "missing") {
+        return edge.type === "resource" && hasFile;
+      }
+      if (driftFilter === "declared-only") {
+        return edge.type === "resource" && metadata.access_method === "declared" && !hasFile;
+      }
+      return true;
+    };
+
+    const edges: SimulationEdge[] = graph.edges
+      .filter((edge) => matchDrift(edge))
+      .map((edge) => ({ ...edge }));
+
+    const getRelativePosition = (event: MouseEvent | d3.D3DragEvent<any, any, any>) => {
+      const bounds = containerRef.current?.getBoundingClientRect();
+      return {
+        x: (event as MouseEvent).clientX - (bounds?.left ?? 0) + 12,
+        y: (event as MouseEvent).clientY - (bounds?.top ?? 0) + 12
+      };
+    };
 
     const link = root
       .append("g")
@@ -114,8 +148,20 @@ export function GraphCanvas({
       .data(edges)
       .join("line")
       .attr("stroke-width", (edge) => (edge.required ? 2.4 : 1.4))
-      .attr("stroke", (edge) => (edge.required ? "hsl(0, 78%, 62%)" : "hsl(162, 80%, 48%)"))
-      .attr("stroke-dasharray", (edge) => (edge.required ? null : "5 4"));
+      .attr("stroke", (edge) =>
+        edge.required
+          ? "hsl(0, 78%, 62%)"
+          : driftFilter === "all"
+            ? "hsl(162, 80%, 48%)"
+            : edge.type === "resource"
+              ? "hsl(48, 96%, 62%)"
+              : "hsl(162, 80%, 48%)"
+      )
+      .attr("stroke-dasharray", (edge) => (edge.required ? null : "5 4"))
+      .on("mouseenter", (event: MouseEvent, edge) => {
+        setEdgeHover({ edge, position: getRelativePosition(event) });
+      })
+      .on("mouseleave", () => setEdgeHover(null));
 
     const nodeGroup = root
       .append("g")
@@ -131,22 +177,18 @@ export function GraphCanvas({
       .attr("aria-label", (d) => `${d.label} node`)
       .style("cursor", "pointer")
       .on("mouseenter", (event: MouseEvent, node) => {
-        const bounds = containerRef.current?.getBoundingClientRect();
-        setHover({
-          node,
-          position: {
-            x: event.clientX - (bounds?.left ?? 0) + 12,
-            y: event.clientY - (bounds?.top ?? 0) + 12
-          }
-        });
+        setEdgeHover(null);
+        setHover({ node, position: getRelativePosition(event) });
       })
       .on("mouseleave", () => setHover(null))
       .on("focus", (_event: FocusEvent, node) => {
         setHover(null);
+        setEdgeHover(null);
         onSelectNode(node);
       })
       .on("click", (_event: MouseEvent, node) => {
         setHover(null);
+        setEdgeHover(null);
         onSelectNode(node);
       })
       .on("keydown", (event: KeyboardEvent, node) => {
@@ -354,6 +396,7 @@ export function GraphCanvas({
     <div className={cn("relative h-full w-full overflow-hidden", className)} ref={containerRef}>
       <svg ref={svgRef} className="h-full w-full" role="application" />
       {hover ? <NodeTooltip hover={hover} /> : null}
+      {edgeHover ? <EdgeTooltip hover={edgeHover} /> : null}
     </div>
   );
 }
@@ -378,6 +421,49 @@ function NodeTooltip({ hover }: { hover: HoverState }) {
         <p className="mt-3 text-[11px] uppercase tracking-widest text-primary/80">
           {node.group}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+function EdgeTooltip({ hover }: { hover: EdgeHoverState }) {
+  const { edge, position } = hover;
+  const metadata = (edge.metadata as Record<string, unknown> | undefined) ?? {};
+  const configuration = (metadata.configuration as Record<string, unknown> | undefined) ?? {};
+
+  const formatTimestamp = (value?: unknown) => {
+    if (typeof value !== "string") return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleString();
+  };
+
+  return (
+    <div
+      className="pointer-events-none absolute z-20 min-w-[240px] rounded-lg border border-border/40 bg-background/90 p-4 text-xs shadow-2xl shadow-black/40 backdrop-blur"
+      style={{ left: position.x, top: position.y }}
+    >
+      <p className="font-semibold text-foreground">{edge.label || edge.type}</p>
+      <p className="mt-1 text-[11px] uppercase tracking-widest text-muted-foreground/80">
+        {edge.required ? "Required" : "Optional"} · Weight {edge.weight.toFixed(2)}
+      </p>
+      {metadata.access_method ? (
+        <p className="mt-2 text-muted-foreground">Access: {String(metadata.access_method)}</p>
+      ) : null}
+      {metadata.purpose ? (
+        <p className="mt-1 text-muted-foreground">Purpose: {String(metadata.purpose)}</p>
+      ) : null}
+      {typeof configuration.found_in_file === "string" ? (
+        <p className="mt-1 text-muted-foreground">File: {configuration.found_in_file as string}</p>
+      ) : null}
+      {typeof configuration.pattern_type === "string" ? (
+        <p className="text-muted-foreground">Pattern: {configuration.pattern_type as string}</p>
+      ) : null}
+      {metadata.discovered_at ? (
+        <p className="mt-1 text-muted-foreground">Detected: {formatTimestamp(metadata.discovered_at)}</p>
+      ) : null}
+      {metadata.last_verified ? (
+        <p className="text-muted-foreground">Verified: {formatTimestamp(metadata.last_verified)}</p>
       ) : null}
     </div>
   );

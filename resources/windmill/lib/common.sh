@@ -333,7 +333,7 @@ windmill::create_directories() {
 windmill::update_vrooli_config() {
     local additional_config='{"api":{"version":"v1","workspacesEndpoint":"/api/w/list","scriptsEndpoint":"/api/w/{workspace}/scripts","jobsEndpoint":"/api/w/{workspace}/jobs","authEndpoint":"/api/auth"},"features":{"codeFirst":true,"multiLanguage":true,"workflows":true,"scheduling":true,"webhooks":true}}'
     
-    # Use direct jq to place windmill under resources.windmill (not resources.automation.windmill)
+    # Use direct jq to place windmill under dependencies.resources.windmill
     # The resources::update_config function is designed for nested categories but we need flattened structure
     local resources_config="${VROOLI_RESOURCES_CONFIG}"
     local base_config='{"enabled": true, "healthCheck": {"intervalMs": 60000, "timeoutMs": 5000}}'
@@ -343,15 +343,19 @@ windmill::update_vrooli_config() {
         # Merge base config with additional config
         final_config=$(echo "$base_config" | jq --argjson additional "$additional_config" '. + $additional')
         
-        # Update directly under .resources.windmill
+        # Update directly under dependencies.resources.windmill
         local temp_config
         temp_config=$(mktemp)
-        if jq --argjson config "$final_config" '.resources.windmill = $config' "$resources_config" > "$temp_config" 2>/dev/null; then
+        if jq --argjson config "$final_config" '.dependencies |= (. // {})
+            | .dependencies.resources |= (. // {})
+            | .dependencies.resources.windmill = $config' "$resources_config" > "$temp_config" 2>/dev/null; then
             mv "$temp_config" "$resources_config"
         else
             rm -f "$temp_config"
             # Fallback to basic config
-            jq --argjson config "$base_config" '.resources.windmill = $config' "$resources_config" > "$temp_config" && mv "$temp_config" "$resources_config"
+            jq --argjson config "$base_config" '.dependencies |= (. // {})
+                | .dependencies.resources |= (. // {})
+                | .dependencies.resources.windmill = $config' "$resources_config" > "$temp_config" && mv "$temp_config" "$resources_config"
         fi
     fi
 }
@@ -360,13 +364,14 @@ windmill::update_vrooli_config() {
 # Remove Windmill configuration from Vrooli resources
 #######################################
 windmill::remove_vrooli_config() {
-    # Remove windmill configuration directly from .resources.windmill
+    # Remove windmill configuration directly from dependencies.resources.windmill
     local resources_config="${VROOLI_RESOURCES_CONFIG}"
     
     if [[ -f "$resources_config" ]] && command -v jq >/dev/null 2>&1; then
         local temp_config
         temp_config=$(mktemp)
-        if jq 'del(.resources.windmill)' "$resources_config" > "$temp_config" 2>/dev/null; then
+        if jq '.dependencies.resources |= (. // {})
+            | del(.dependencies.resources.windmill)' "$resources_config" > "$temp_config" 2>/dev/null; then
             mv "$temp_config" "$resources_config"
         else
             rm -f "$temp_config"

@@ -168,11 +168,11 @@ get_resource_url() {
             
             if command -v jq >/dev/null 2>&1; then
                 # Try different path structures in the JSON
-                resource_url=$(jq -r ".\"$resource_name\".url // .resources.\"$resource_name\".url // empty" "$resources_config" 2>/dev/null || echo "")
+                resource_url=$(jq -r ".\"$resource_name\".url // .dependencies.resources.\"$resource_name\".url // empty" "$resources_config" 2>/dev/null || echo "")
                 
                 # If empty, try with enabled resources
                 if [[ -z "$resource_url" ]]; then
-                    resource_url=$(jq -r "to_entries[] | select(.value.enabled == true and .key == \"$resource_name\") | .value.url // empty" "$resources_config" 2>/dev/null || echo "")
+                    resource_url=$(jq -r ".dependencies.resources | to_entries[] | select(.value.enabled == true and .key == \"$resource_name\") | .value.url // empty" "$resources_config" 2>/dev/null || echo "")
                 fi
             else
                 print_debug "jq not available, skipping JSON parsing"

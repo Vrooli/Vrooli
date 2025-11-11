@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -42,12 +41,12 @@ func setupTestLogger() func() {
 
 // TestEnvironment manages isolated test environment
 type TestEnvironment struct {
-	TempDir       string
-	OriginalWD    string
-	Router        *gin.Engine
-	TestDB        *sql.DB
-	ScenariosDir  string
-	Cleanup       func()
+	TempDir      string
+	OriginalWD   string
+	Router       *gin.Engine
+	TestDB       *sql.DB
+	ScenariosDir string
+	Cleanup      func()
 }
 
 // setupTestDirectory creates an isolated test environment with proper cleanup
@@ -194,6 +193,26 @@ func createTestScenario(t *testing.T, env *TestEnvironment, name string, resourc
 			os.RemoveAll(scenarioPath)
 		},
 	}
+}
+
+func configureTestScenariosDir(t *testing.T, env *TestEnvironment) {
+	t.Helper()
+	if err := os.Setenv("VROOLI_SCENARIOS_DIR", env.ScenariosDir); err != nil {
+		t.Fatalf("Failed to set scenarios dir env: %v", err)
+	}
+	refreshDependencyCatalogs()
+}
+
+func createTestResourceDirs(t *testing.T, env *TestEnvironment, names ...string) {
+	t.Helper()
+	base := filepath.Join(filepath.Dir(env.ScenariosDir), "resources")
+	for _, name := range names {
+		path := filepath.Join(base, name)
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatalf("Failed to create resource dir %s: %v", name, err)
+		}
+	}
+	refreshDependencyCatalogs()
 }
 
 // makeHTTPRequest creates and sends an HTTP request for testing

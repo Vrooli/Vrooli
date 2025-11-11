@@ -26,6 +26,8 @@ export var_SCRIPTS_RESOURCES_LIB_DIR="$var_SCRIPTS_RESOURCES_DIR/lib"
 export var_SCRIPTS_RESOURCES_TESTS_LIB_DIR="$var_SCRIPTS_RESOURCES_DIR/tests/lib"
 export var_SCRIPTS_SCENARIOS_DIR="$var_SCRIPTS_DIR/scenarios"
 export var_SCRIPTS_SCENARIOS_INJECTION_DIR="$var_SCRIPTS_SCENARIOS_DIR/injection"
+export var_JQ_RESOURCES_EXPR='(.dependencies.resources // {})'
+export var_JQ_SCENARIO_DEPENDENCIES_EXPR='(.dependencies.scenarios // {})'
 
 # Vrooli configuration directory and files
 export var_VROOLI_CONFIG_DIR="$var_ROOT_DIR/.vrooli"

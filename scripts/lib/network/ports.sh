@@ -378,8 +378,10 @@ ports::allocate_scenario() {
     
     # Add resource ports to environment variables (only for required/enabled resources)
     # Parse resource requirements from service.json
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
     local resources_config
-    resources_config=$(jq -r '.resources // {}' "$service_json_path" 2>/dev/null)
+    resources_config=$(jq -r "$jq_resources" "$service_json_path" 2>/dev/null)
     
     if [[ "$resources_config" != "{}" && "$resources_config" != "null" ]]; then
         # Source port registry if available
@@ -608,6 +610,8 @@ _discover_scenario_ports() {
 _load_resource_environment() {
     local service_json_path="$1"
     local combined_env="{}"
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
     
     if [[ ! -f "$service_json_path" ]] || ! command -v jq >/dev/null 2>&1; then
         echo "$combined_env"
@@ -616,7 +620,7 @@ _load_resource_environment() {
     
     # Parse enabled resources from service.json
     local enabled_resources
-    enabled_resources=$(jq -r '.resources | to_entries[] | select(.value.enabled == true) | .key' "$service_json_path" 2>/dev/null || echo "")
+    enabled_resources=$(jq -r "${jq_resources} | to_entries[] | select(.value.enabled == true) | .key" "$service_json_path" 2>/dev/null || echo "")
     
     while IFS= read -r resource_name; do
         [[ -z "$resource_name" ]] && continue

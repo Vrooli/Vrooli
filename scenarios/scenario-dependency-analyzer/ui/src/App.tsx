@@ -20,12 +20,14 @@ export default function App() {
     error,
     fetchGraph,
     filter,
+    driftFilter,
     graph,
     graphType,
     layout,
     loading,
     selectedNode,
     setFilter,
+    setDriftFilter,
     setGraphType,
     setLayout,
     setSelectedNode,
@@ -149,9 +151,11 @@ export default function App() {
               graphType={graphType}
               layout={layout}
               filter={filter}
+              driftFilter={driftFilter}
               onGraphTypeChange={(value) => setGraphType(value)}
               onLayoutChange={(value) => setLayout(value)}
               onFilterChange={setFilter}
+              onDriftFilterChange={setDriftFilter}
               onRefresh={() => fetchGraph(graphType)}
               onAnalyzeAll={analyzeAll}
               onExport={handleExport}
@@ -180,6 +184,7 @@ export default function App() {
               graph={graph}
               layout={layout}
               filter={filter}
+              driftFilter={driftFilter}
               selectedNodeId={selectedNode?.id}
               onSelectNode={(node) => setSelectedNode(node)}
               className="h-full"

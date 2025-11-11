@@ -1,5 +1,9 @@
 import { AlertTriangle, Loader2, RefreshCw, Sparkles } from "lucide-react";
-import type { ScenarioDetailResponse, DependencyDiffEntry } from "../types";
+import type {
+  ScenarioDetailResponse,
+  DependencyDiffEntry,
+  ScenarioDependencyRecord,
+} from "../types";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -24,6 +28,60 @@ function DiffList({ title, entries, tone }: { title: string; entries: Dependency
           </Badge>
         ))}
       </div>
+    </div>
+  );
+}
+
+function formatTimestamp(timestamp?: string) {
+  if (!timestamp) return null;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString();
+}
+
+function DependencySection({
+  title,
+  dependencies,
+  emptyLabel,
+}: {
+  title: string;
+  dependencies: ScenarioDependencyRecord[];
+  emptyLabel: string;
+}) {
+  return (
+    <div className="space-y-2 text-sm">
+      <p className="text-xs uppercase text-muted-foreground">{title}</p>
+      {dependencies.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{emptyLabel}</p>
+      ) : (
+        <div className="space-y-2">
+          {dependencies.map((dependency) => (
+            <div
+              key={dependency.id ?? `${dependency.dependency_name}-${dependency.access_method}`}
+              className="rounded-lg border border-border/40 bg-background/40 p-3"
+            >
+              <div className="flex items-center justify-between text-sm font-medium">
+                <div>{dependency.dependency_name}</div>
+                <Badge variant={dependency.required ? "default" : "secondary"} className="text-[10px] uppercase">
+                  {dependency.required ? "required" : "optional"}
+                </Badge>
+              </div>
+              {dependency.purpose && <p className="mt-1 text-xs text-muted-foreground">{dependency.purpose}</p>}
+              <div className="mt-2 grid gap-1 text-xs text-muted-foreground md:grid-cols-2">
+                {dependency.access_method && <span>Access: {dependency.access_method}</span>}
+                {typeof dependency.configuration?.found_in_file === "string" && (
+                  <span>File: {dependency.configuration?.found_in_file as string}</span>
+                )}
+                {typeof dependency.configuration?.pattern_type === "string" && (
+                  <span>Pattern: {dependency.configuration?.pattern_type as string}</span>
+                )}
+                {dependency.discovered_at && <span>Detected: {formatTimestamp(dependency.discovered_at)}</span>}
+                {dependency.last_verified && <span>Verified: {formatTimestamp(dependency.last_verified)}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -97,15 +155,17 @@ export function ScenarioDetailPanel({ detail, loading, scanning, onScan }: Scena
           </Card>
         </div>
 
-        <div className="space-y-2 text-sm">
-          <p className="text-xs uppercase text-muted-foreground">Detected scenario dependencies</p>
-          <div className="flex flex-wrap gap-1">
-            {(detail.stored_dependencies?.scenarios ?? []).map((dependency) => (
-              <Badge key={`${dependency.dependency_name}-${dependency.access_method}`} variant="outline">
-                {dependency.dependency_name}
-              </Badge>
-            ))}
-          </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <DependencySection
+            title="Resource dependencies"
+            dependencies={detail.stored_dependencies?.resources ?? []}
+            emptyLabel="No resources detected yet."
+          />
+          <DependencySection
+            title="Scenario dependencies"
+            dependencies={detail.stored_dependencies?.scenarios ?? []}
+            emptyLabel="No scenario interactions detected yet."
+          />
         </div>
       </CardContent>
     </Card>

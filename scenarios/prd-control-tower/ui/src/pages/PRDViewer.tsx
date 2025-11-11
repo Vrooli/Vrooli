@@ -266,7 +266,7 @@ function DiagnosticsPanel({ diagnostics, loading, error, onRunDiagnostics, entit
           {lastRunLabel && (
             <span className="diagnostics__meta">
               Last run {lastRunLabel}
-              {diagnostics.cacheUsed ? ' · served from cache' : ''}
+              {diagnostics?.cacheUsed ? ' · served from cache' : ''}
             </span>
           )}
         </div>

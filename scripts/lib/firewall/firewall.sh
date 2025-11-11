@@ -109,15 +109,17 @@ firewall::is_native_service() {
 #######################################
 firewall::get_enabled_services() {
     local service_file="${VROOLI_ROOT}/.vrooli/service.json"
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
     
     if [[ ! -f "$service_file" ]]; then
         return
     fi
     
-    # Extract enabled services from flattened resources structure
-    # The structure is now: .resources.ollama, .resources.postgres, etc.
+    # Extract enabled services from flattened dependencies.resources structure
+    # The structure is now: .dependencies.resources.ollama, .dependencies.resources.postgres, etc.
     # We get the key names (service names) directly
-    jq -r '.resources | to_entries[] | select(.value.enabled == true) | .key' "$service_file" 2>/dev/null || true
+    jq -r "${jq_resources} | to_entries[] | select(.value.enabled == true) | .key" "$service_file" 2>/dev/null || true
 }
 
 #######################################

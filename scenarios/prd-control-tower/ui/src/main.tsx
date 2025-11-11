@@ -15,11 +15,8 @@ declare global {
   }
 }
 
-const BRIDGE_FLAG = '__prdControlTowerBridgeInitialized'
-
 if (typeof window !== 'undefined' && window.parent !== window) {
-  const globalWindow = window as Window & Record<string, unknown>
-  if (!globalWindow[BRIDGE_FLAG]) {
+  if (!window.__prdControlTowerBridgeInitialized) {
     let parentOrigin: string | undefined
     try {
       if (document.referrer) {
@@ -36,7 +33,7 @@ if (typeof window !== 'undefined' && window.parent !== window) {
         captureLogs: { enabled: true },
         captureNetwork: { enabled: true },
       })
-      globalWindow[BRIDGE_FLAG] = true
+      window.__prdControlTowerBridgeInitialized = true
     } catch (error) {
       console.warn('[prd-control-tower] Unable to initialize iframe bridge', error)
     }

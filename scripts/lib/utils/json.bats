@@ -51,23 +51,25 @@ create_test_configs() {
     "name": "test-service",
     "version": "1.0.0"
   },
-  "resources": {
-    "postgres": {
-      "enabled": true,
-      "required": true,
-      "host": "localhost",
-      "port": 5432
-    },
-    "redis": {
-      "enabled": false,
-      "required": false,
-      "host": "localhost",
-      "port": 6379
-    },
-    "ollama": {
-      "enabled": true,
-      "required": false,
-      "baseUrl": "http://localhost:11434"
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "enabled": true,
+        "required": true,
+        "host": "localhost",
+        "port": 5432
+      },
+      "redis": {
+        "enabled": false,
+        "required": false,
+        "host": "localhost",
+        "port": 6379
+      },
+      "ollama": {
+        "enabled": true,
+        "required": false,
+        "baseUrl": "http://localhost:11434"
+      }
     }
   },
   "lifecycle": {
@@ -106,57 +108,59 @@ EOF
       }
     ]
   },
-  "resources": {
-    "postgres": {
-      "enabled": true,
-      "required": true,
-      "version": "16",
-      "host": "localhost",
-      "port": 5432,
-      "database": "testdb",
-      "healthCheck": {
-        "type": "tcp",
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "enabled": true,
+        "required": true,
+        "version": "16",
+        "host": "localhost",
         "port": 5432,
-        "intervalMs": 30000
+        "database": "testdb",
+        "healthCheck": {
+          "type": "tcp",
+          "port": 5432,
+          "intervalMs": 30000
+        }
+      },
+      "redis": {
+        "enabled": true,
+        "required": true,
+        "version": "7",
+        "host": "localhost",
+        "port": 6379,
+        "healthCheck": {
+          "type": "tcp", 
+          "port": 6379
+        }
+      },
+      "minio": {
+        "enabled": false,
+        "required": false,
+        "endpoint": "localhost:9000"
+      },
+      "ollama": {
+        "enabled": true,
+        "required": false,
+        "baseUrl": "http://localhost:11434",
+        "expectedModels": ["llama3.1:8b"]
+      },
+      "openrouter": {
+        "enabled": false,
+        "required": false,
+        "baseUrl": "https://openrouter.ai/api/v1"
+      },
+      "n8n": {
+        "enabled": true,
+        "required": true,
+        "baseUrl": "http://localhost:5678",
+        "capabilities": ["workflow", "webhook"]
+      },
+      "windmill": {
+        "enabled": false,
+        "required": false,
+        "baseUrl": "http://localhost:5681"
       }
-    },
-    "redis": {
-      "enabled": true,
-      "required": true,
-      "version": "7",
-      "host": "localhost",
-      "port": 6379,
-      "healthCheck": {
-        "type": "tcp", 
-        "port": 6379
-      }
-    },
-    "minio": {
-      "enabled": false,
-      "required": false,
-      "endpoint": "localhost:9000"
-    },
-    "ollama": {
-      "enabled": true,
-      "required": false,
-      "baseUrl": "http://localhost:11434",
-      "expectedModels": ["llama3.1:8b"]
-    },
-    "openrouter": {
-      "enabled": false,
-      "required": false,
-      "baseUrl": "https://openrouter.ai/api/v1"
-    },
-    "n8n": {
-      "enabled": true,
-      "required": true,
-      "baseUrl": "http://localhost:5678",
-      "capabilities": ["workflow", "webhook"]
-    },
-    "windmill": {
-      "enabled": false,
-      "required": false,
-      "baseUrl": "http://localhost:5681"
     }
   },
   "lifecycle": {
@@ -208,6 +212,40 @@ EOF
           "endpoint": "/health",
           "interval": "30s"
         }
+      }
+    }
+  }
+}
+EOF
+
+    # Config that relies solely on the dependencies namespace
+    cat > "$TEST_DIR/dependencies.json" << 'EOF'
+{
+  "service": {
+    "name": "deps-service",
+    "version": "1.2.3"
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "enabled": true,
+        "required": true
+      },
+      "redis": {
+        "enabled": false,
+        "required": false
+      }
+    },
+    "scenarios": {
+      "scenario-authenticator": {
+        "required": true,
+        "version": "1.4.0",
+        "description": "Provides shared authentication APIs"
+      },
+      "scenario-logger": {
+        "required": false,
+        "versionRange": ">=0.5",
+        "description": "Optional audit logging"
       }
     }
   }
@@ -342,7 +380,7 @@ EOF
 }
 
 @test "json::get_value extracts nested values" {
-    run json::get_value '.resources.postgres.enabled' '' "$TEST_DIR/minimal.json"
+    run json::get_value '.dependencies.resources.postgres.enabled' '' "$TEST_DIR/minimal.json"
     [ "$status" -eq 0 ]
     [[ "$output" == "true" ]]
 }
@@ -400,6 +438,14 @@ EOF
     [[ "$output" != *"ollama"* ]]
 }
 
+@test "json::get_enabled_resources reads dependencies namespace" {
+    json::load_service_config "$TEST_DIR/dependencies.json"
+    
+    run json::get_enabled_resources
+    [ "$status" -eq 0 ]
+    [[ "$output" == "postgres" ]]
+}
+
 @test "json::get_required_resources returns only required resources" {
     json::load_service_config "$TEST_DIR/complex.json"
     
@@ -417,6 +463,13 @@ EOF
     [[ "$output" == *"localhost"* ]]
     [[ "$output" == *"5432"* ]]
     [[ "$output" == *"enabled"* ]]
+}
+
+@test "json::get_scenario_dependencies returns declared scenarios" {
+    run json::get_scenario_dependencies "$TEST_DIR/dependencies.json"
+    [ "$status" -eq 0 ]
+    echo "$output" | jq -e '."scenario-authenticator".required == true' >/dev/null
+    echo "$output" | jq -e '."scenario-logger".required == false' >/dev/null
 }
 
 @test "json::get_resource_config handles non-existent resources" {
@@ -480,6 +533,11 @@ EOF
 
 @test "json::validate_config passes for valid configuration" {
     run json::validate_config "$TEST_DIR/minimal.json"
+    [ "$status" -eq 0 ]
+}
+
+@test "json::validate_config accepts dependencies-only configs" {
+    run json::validate_config "$TEST_DIR/dependencies.json"
     [ "$status" -eq 0 ]
 }
 
@@ -607,8 +665,8 @@ EOF
     json::load_service_config "$TEST_DIR/complex.json"
     
     # Extract health check configuration
-    postgres_health=$(json::get_value '.resources.postgres.healthCheck.type')
-    health_port=$(json::get_value '.resources.postgres.healthCheck.port')
+    postgres_health=$(json::get_value '.dependencies.resources.postgres.healthCheck.type')
+    health_port=$(json::get_value '.dependencies.resources.postgres.healthCheck.port')
     
     [[ "$postgres_health" == "tcp" ]]
     [[ "$health_port" == "5432" ]]
