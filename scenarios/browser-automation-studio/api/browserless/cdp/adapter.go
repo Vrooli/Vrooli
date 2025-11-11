@@ -199,6 +199,30 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		}
 		result, err = s.ExecuteDragAndDrop(ctx, opts, timeoutMs)
 
+	case "gesture":
+		opts := gestureOptions{
+			Type:             instruction.Params.GestureType,
+			Direction:        instruction.Params.GestureDirection,
+			StartX:           float64(instruction.Params.GestureStartX),
+			StartY:           float64(instruction.Params.GestureStartY),
+			EndX:             float64(instruction.Params.GestureEndX),
+			EndY:             float64(instruction.Params.GestureEndY),
+			Distance:         instruction.Params.GestureDistance,
+			Scale:            instruction.Params.GestureScale,
+			DurationMs:       instruction.Params.GestureDurationMs,
+			HoldMs:           instruction.Params.GestureHoldMs,
+			Steps:            instruction.Params.GestureSteps,
+			Selector:         instruction.Params.GestureSelector,
+			TimeoutMs:        instruction.Params.TimeoutMs,
+			HasExplicitStart: instruction.Params.GestureHasStart,
+			HasExplicitEnd:   instruction.Params.GestureHasEnd,
+			HasStartX:        instruction.Params.GestureHasStartX,
+			HasStartY:        instruction.Params.GestureHasStartY,
+			HasEndX:          instruction.Params.GestureHasEndX,
+			HasEndY:          instruction.Params.GestureHasEndY,
+		}
+		result, err = s.ExecuteGesture(ctx, opts)
+
 	case "evaluate":
 		script := instruction.Params.Expression
 		timeoutMs := instruction.Params.TimeoutMs
@@ -254,6 +278,15 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		}
 		result, err = s.ExecuteScroll(ctx, opts, timeoutMs)
 
+	case "rotate":
+		orientation := strings.TrimSpace(instruction.Params.RotateOrientation)
+		if orientation == "" {
+			orientation = rotateOrientationPortrait
+		}
+		angle := instruction.Params.RotateAngle
+		waitAfterMs := instruction.Params.WaitForMs
+		result, err = s.ExecuteRotate(ctx, orientation, angle, waitAfterMs)
+
 	case "select":
 		selector := strings.TrimSpace(instruction.Params.Selector)
 		if selector == "" {
@@ -280,6 +313,31 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 			timeoutMs,
 			waitAfterMs,
 		)
+	case "tabSwitch":
+		opts := tabSwitchOptions{
+			SwitchBy:   instruction.Params.TabSwitchBy,
+			Index:      instruction.Params.TabIndex,
+			TitleMatch: instruction.Params.TabTitleMatch,
+			URLMatch:   instruction.Params.TabURLMatch,
+			WaitForNew: instruction.Params.TabWaitForNew,
+			TimeoutMs:  instruction.Params.TimeoutMs,
+			CloseOld:   instruction.Params.TabCloseOld,
+		}
+		result, err = s.ExecuteTabSwitch(ctx, opts)
+	case "conditional":
+		opts := conditionalOptions{
+			Type:           instruction.Params.ConditionType,
+			Expression:     instruction.Params.ConditionExpression,
+			Selector:       instruction.Params.ConditionSelector,
+			Variable:       instruction.Params.ConditionVariable,
+			Operator:       instruction.Params.ConditionOperator,
+			Value:          instruction.Params.ConditionValue,
+			Negate:         boolFromPointer(instruction.Params.ConditionNegate),
+			TimeoutMs:      instruction.Params.TimeoutMs,
+			PollIntervalMs: instruction.Params.ConditionPollIntervalMs,
+			Variables:      instruction.Context,
+		}
+		result, err = s.ExecuteConditional(ctx, opts)
 	case "extract":
 		allMatches := instruction.Params.AllMatches != nil && *instruction.Params.AllMatches
 		result, err = s.ExecuteExtract(ctx, instruction.Params.Selector, instruction.Params.ExtractType, instruction.Params.Attribute, allMatches, instruction.Params.TimeoutMs)
@@ -318,7 +376,8 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 				ElementBoundingBox: result.ElementBoundingBox,
 				ExtractedData:      result.ExtractedData,
 				// Store debug context in assertion for now (could add custom field)
-				Assertion: buildAssertionResult(result.DebugContext),
+				Assertion:       buildAssertionResult(result.DebugContext),
+				ConditionResult: result.Condition,
 				// Note: No DOMSnapshot needed in CDP mode - browser state persists!
 			},
 		},

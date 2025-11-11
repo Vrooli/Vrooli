@@ -7,7 +7,7 @@ Visual browser automation workflow builder with AI-powered generation and debugg
 Browser Automation Studio transforms browser automation from code-based scripts to visual, self-healing workflows. It provides a drag-and-drop interface for creating browser automation workflows, real-time execution monitoring with screenshots, and AI assistance for both generation and debugging.
 
 ## ⚠️ Current Implementation Status (2025-11-14)
-- The Go executor (`api/browserless/client.go`) maintains a persistent Browserless session and executes `navigate`, `wait`, `click`, `type`, `extract`, and `screenshot` nodes in sequence. Step results capture console logs, network events, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata; artifacts persist via `execution_steps` and `execution_artifacts` (including timeline frames). Success/failure/else branching now routes executions conditionally (respecting `continueOnFailure`), and per-node retry/backoff policies record attempt history alongside screenshots and telemetry. Loop constructs and richer conditional expressions remain on the roadmap.
+- The Go executor (`api/browserless/client.go`) maintains a persistent Browserless session and executes `navigate`, `wait`, `click`, `type`, `extract`, `loop`, and `screenshot` nodes in sequence. Step results capture console logs, network events, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata; artifacts persist via `execution_steps` and `execution_artifacts` (including timeline frames). Success/failure/else branching, runtime loop execution (for-each, repeat, and while), and per-node retry/backoff policies record attempt history alongside screenshots and telemetry.
 - Assertion nodes now evaluate selector existence/text/attributes directly in Browserless, emitting structured assertion artifacts, timeline metadata, and CLI/UI logs that short-circuit executions on failure.
 - Structured WebSocket events (`execution.*`, `step.*`) now include mid-step `step.heartbeat` telemetry. The UI panel surfaces the latest heartbeat with elapsed timing while console/network payloads continue streaming via `step.telemetry` events.
 - The CLI watcher attaches to the WebSocket stream when Node.js is available, echoing heartbeats alongside step events and retaining HTTP polling + timeline summary fallbacks. The `execution export` command now streams replay-export packages and can write the JSON payload to disk for automation tooling.
@@ -21,7 +21,7 @@ Browser Automation Studio transforms browser automation from code-based scripts 
 > See `docs/action-plan.md` for the full backlog and execution roadmap.
 
 ### Current Limitations
-- Looping, expression-based branching, and workflow sub-calls are not yet available; complex flows still rely on duplicated node paths.
+- Workflow sub-calls are still on the roadmap, but core looping (for-each, repeat, while) and conditional branching now keep complex flows DRY.
 - The replay pipeline exports interactive HTML packages (`execution render`) and experimental MP4/WEBM bundles (`execution render-video`), but advanced cursor animations, zoom keyframes, and GIF export still require future polish.
 - Chrome extension capture requires the import API—the extension packaging/publishing flow still needs to be integrated into the lifecycle UI/CLI.
 - Requirements coverage now consumes phase result JSON for live pass/fail state, but automation outputs still need to be integrated.
@@ -46,7 +46,7 @@ Status legend: ✅ scaffolding exists • 🚧 active development • 🌀 plann
 
 ## 🚀 Quick Start
 
-> Current executables handle sequential workflows plus conditional success/failure branches (including continue-on-failure assertions). Looping and replay exporters are still in development, so treat this as plumbing validation while the roadmap lands.
+> Current executables handle sequential workflows, conditional branches (including continue-on-failure assertions), and loop constructs that iterate over datasets or while-conditions. Replay exporters are still in development, so treat this as plumbing validation while the roadmap lands.
 
 ### Prerequisites
 
@@ -179,7 +179,9 @@ On first run (or whenever the database is empty) the API seeds a ready-to-run wo
 - **Assert**: Evaluate selector existence, text, or attribute conditions directly in Browserless, surfacing assertion artifacts, execution logs, and replay metadata; failures halt the run unless future branching allows continuations.
 - **Shortcut**: Emits high-level combinations such as `Ctrl+K` or `Cmd+Enter` using Browserless helpers—ideal for triggering global shortcuts or menu accelerators on the focused element.
 - **Keyboard**: Dispatches low-level `keydown`/`keyup`/`keypress` events with optional modifier toggles and hold delays, enabling granular navigation (e.g., arrow keys, Enter on dialogs) without recording a full shortcut sequence.
+- **Tab Switch**: Jumps between existing tabs, OAuth popups, or new windows by newest/oldest ordering, explicit index, title regex, or URL match while optionally waiting for a brand-new tab and closing the previous context after the switch.
 - **Script**: Runs custom JavaScript in the current page context with configurable timeouts, returning values for later nodes and paving the way for variable storage.
+- **Conditional**: Evaluates JavaScript expressions, selector existence, or workflow variables and routes dedicated IF TRUE / IF FALSE edges without mutating browser state, enabling guarded flows and feature-detection branches.
 
 ### Variable System & Picker
 
@@ -280,7 +282,12 @@ vrooli scenario test browser-automation-studio
 
 # Run unit tests
 cd api && go test ./...
-cd ../ui && npm test
+cd ../ui && pnpm test        # runs sharded Vitest suites (stores + component smoke tests)
+
+# Optional: heavyweight WorkflowBuilder Vitest suite (requires lots of RAM)
+pnpm test:workflow-builder   # still memory hungry; consider Playwright for end-to-end coverage
+
+> Note: The WorkflowBuilder Vitest suite currently requires >10GB of heap because of React Flow + Monaco mocks. The default `pnpm test` command runs the lighter shards and skips the builder suite to keep CI stable.
 
 # Run replay renderer automation
 testing::playbooks::bas::run_workflow --file test/playbooks/replay/render-check.json --folder /regression
@@ -309,7 +316,7 @@ Planned controls:
 
 ## 🚧 Known Limitations
 
-- Loop constructs, sub-workflows, and richer conditional expressions are still on the execution roadmap.
+- Sub-workflows and richer expression builders are still on the execution roadmap.
 - Telemetry exports (webhook routing, analytics packages) are not wired; monitoring remains console/CLI only.
 - Replay pipeline outputs interactive HTML packages (including DOM snapshots and animated cursor trails) but MP4/GIF exporters still require advanced motion choreography.
 - Chrome extension capture path is not integrated with the replay/automation pipeline.

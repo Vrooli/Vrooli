@@ -1163,6 +1163,68 @@ func TestExecuteWorkflowRoutesToFailureBranch(t *testing.T) {
 	}
 }
 
+func TestExecuteWorkflowConditionalTrueBranch(t *testing.T) {
+	client, _ := newTestClient()
+	responses := []string{
+		`{"success":true,"steps":[{"index":0,"nodeId":"node-cond","type":"conditional","success":true,"conditionResult":{"type":"expression","outcome":true}}]}`,
+		`{"success":true,"steps":[{"index":1,"nodeId":"node-true","type":"screenshot","success":true}]}`,
+	}
+	fakeSession := stubSessionFromPayloads(t, responses)
+	exec := &database.Execution{ID: uuid.New(), WorkflowID: uuid.New(), StartedAt: time.Now()}
+	workflow := &database.Workflow{
+		ID: uuid.New(),
+		FlowDefinition: database.JSONMap{
+			"nodes": []any{
+				map[string]any{"id": "node-cond", "type": "conditional", "data": map[string]any{"conditionType": "expression", "expression": "true"}},
+				map[string]any{"id": "node-true", "type": "screenshot", "data": map[string]any{"name": "true"}},
+				map[string]any{"id": "node-false", "type": "screenshot", "data": map[string]any{"name": "false"}},
+			},
+			"edges": []any{
+				map[string]any{"id": "edge-true", "source": "node-cond", "target": "node-true", "data": map[string]any{"condition": "if_true"}},
+				map[string]any{"id": "edge-false", "source": "node-cond", "target": "node-false", "data": map[string]any{"condition": "if_false"}},
+			},
+		},
+	}
+
+	if err := client.ExecuteWorkflow(context.Background(), exec, workflow, nil); err != nil {
+		t.Fatalf("ExecuteWorkflow returned error: %v", err)
+	}
+	if fakeSession.callCount != 2 {
+		t.Fatalf("expected 2 session calls, got %d", fakeSession.callCount)
+	}
+}
+
+func TestExecuteWorkflowConditionalFalseBranch(t *testing.T) {
+	client, _ := newTestClient()
+	responses := []string{
+		`{"success":true,"steps":[{"index":0,"nodeId":"node-cond","type":"conditional","success":true,"conditionResult":{"type":"expression","outcome":false}}]}`,
+		`{"success":true,"steps":[{"index":1,"nodeId":"node-false","type":"screenshot","success":true}]}`,
+	}
+	fakeSession := stubSessionFromPayloads(t, responses)
+	exec := &database.Execution{ID: uuid.New(), WorkflowID: uuid.New(), StartedAt: time.Now()}
+	workflow := &database.Workflow{
+		ID: uuid.New(),
+		FlowDefinition: database.JSONMap{
+			"nodes": []any{
+				map[string]any{"id": "node-cond", "type": "conditional", "data": map[string]any{"conditionType": "expression", "expression": "false"}},
+				map[string]any{"id": "node-true", "type": "screenshot", "data": map[string]any{"name": "true"}},
+				map[string]any{"id": "node-false", "type": "screenshot", "data": map[string]any{"name": "false"}},
+			},
+			"edges": []any{
+				map[string]any{"id": "edge-true", "source": "node-cond", "target": "node-true", "data": map[string]any{"condition": "if_true"}},
+				map[string]any{"id": "edge-false", "source": "node-cond", "target": "node-false", "data": map[string]any{"condition": "if_false"}},
+			},
+		},
+	}
+
+	if err := client.ExecuteWorkflow(context.Background(), exec, workflow, nil); err != nil {
+		t.Fatalf("ExecuteWorkflow returned error: %v", err)
+	}
+	if fakeSession.callCount != 2 {
+		t.Fatalf("expected 2 session calls, got %d", fakeSession.callCount)
+	}
+}
+
 func TestExecuteWorkflowContinuesWithoutFailureEdge(t *testing.T) {
 	client, repo := newTestClient()
 
@@ -1546,9 +1608,9 @@ func TestVariableFlowEndToEnd(t *testing.T) {
 		NodeID: "set-1",
 		Type:   string(compiler.StepSetVariable),
 		Params: runtime.InstructionParam{
-			VariableName:  "greeting",
+			VariableName:   "greeting",
 			VariableSource: "static",
-			VariableValue: "Hello {{pageTitle}}!",
+			VariableValue:  "Hello {{pageTitle}}!",
 		},
 	}
 	resolvedSet, missing, err := runtime.InterpolateInstruction(setInstruction, execCtx)
@@ -1605,6 +1667,58 @@ func TestVariableFlowEndToEnd(t *testing.T) {
 		if _, ok := snapshot[key]; !ok {
 			t.Fatalf("expected snapshot to include %s", key)
 		}
+	}
+}
+
+func TestExecuteLoopStepForEach(t *testing.T) {
+	client, _ := newTestClient()
+	execCtx := runtime.NewExecutionContext()
+	if err := execCtx.Set("rows", []string{"alpha", "beta"}); err != nil {
+		t.Fatalf("failed to seed execution context: %v", err)
+	}
+	loopInstruction := runtime.Instruction{
+		Index:  0,
+		NodeID: "loop",
+		Type:   string(compiler.StepLoop),
+		Params: runtime.InstructionParam{
+			LoopType:          "foreach",
+			LoopArraySource:   "rows",
+			LoopMaxIterations: 5,
+		},
+	}
+	bodyPlan := &compiler.ExecutionPlan{
+		Steps: []compiler.ExecutionStep{
+			{Index: 0, NodeID: "body-wait", Type: compiler.StepWait, Params: map[string]any{"type": "time", "duration": 25}},
+		},
+	}
+	stepDef := compiler.ExecutionStep{Index: 0, NodeID: "loop", Type: compiler.StepLoop, LoopPlan: bodyPlan}
+	responses := []*runtime.ExecutionResponse{
+		{Success: true, Steps: []runtime.StepResult{{Success: true, DurationMs: 10}}},
+		{Success: true, Steps: []runtime.StepResult{{Success: true, DurationMs: 10}}},
+	}
+	session := stubSessionResponses(t, responses)
+
+	stepResult, history, attemptsUsed, duration, err := client.executeLoopStep(context.Background(), session, loopInstruction, stepDef, execCtx)
+	if err != nil {
+		t.Fatalf("executeLoopStep returned error: %v", err)
+	}
+	if !stepResult.Success {
+		t.Fatalf("expected loop success, got failure: %v", stepResult.Error)
+	}
+	if attemptsUsed != 1 {
+		t.Fatalf("expected attemptsUsed=1, got %d", attemptsUsed)
+	}
+	if duration <= 0 {
+		t.Fatalf("expected loop duration to be recorded")
+	}
+	if len(history) != 0 {
+		t.Fatalf("expected no retry history, got %v", history)
+	}
+	if session.callCount != len(responses) {
+		t.Fatalf("expected session calls %d, got %d", len(responses), session.callCount)
+	}
+	if iterations, ok := stepResult.ProbeResult["iterations"].(int); !ok || iterations != 2 {
+		t.Fatalf("expected probe iterations=2, got %v", stepResult.ProbeResult)
 	}
 }
 

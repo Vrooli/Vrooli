@@ -21,6 +21,9 @@ describe('NodePalette [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP] [REQ:BAS-WORKFLOW-NOD
     expect(screen.getByText('Call Workflow')).toBeInTheDocument();
     expect(screen.getByText('Drag & Drop')).toBeInTheDocument();
     expect(screen.getByText('Upload File')).toBeInTheDocument();
+    expect(screen.getByText('Rotate')).toBeInTheDocument();
+    expect(screen.getByText('Conditional')).toBeInTheDocument();
+    expect(screen.getByText('Loop')).toBeInTheDocument();
   });
 
   it('renders node descriptions', () => {
@@ -45,7 +48,7 @@ describe('NodePalette [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP] [REQ:BAS-WORKFLOW-NOD
     const draggableNodes = container.querySelectorAll('[draggable="true"]');
 
     // Should have draggable cards for every palette entry
-    expect(draggableNodes).toHaveLength(20);
+    expect(draggableNodes).toHaveLength(24);
   });
 
   it('sets correct data on drag start for navigate node [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', () => {

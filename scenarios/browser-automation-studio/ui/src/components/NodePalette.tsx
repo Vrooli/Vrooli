@@ -1,4 +1,4 @@
-import { Globe, MousePointer, MousePointer2, Keyboard, Command, Camera, Clock, Database, Code, Play, CheckCircle, TerminalSquare, KeySquare, ScrollText, ListFilter, Variable, Recycle, Crosshair, EyeOff, Hand, UploadCloud } from 'lucide-react';
+import { Globe, MousePointer, MousePointer2, Keyboard, Command, Camera, Clock, Database, Code, Play, CheckCircle, TerminalSquare, KeySquare, ScrollText, ListFilter, Variable, Recycle, Crosshair, EyeOff, Hand, UploadCloud, PanelsTopLeft, GitBranch, RefreshCcw, Smartphone } from 'lucide-react';
 
 const nodeTypes = [
   { type: 'navigate', label: 'Navigate', icon: Globe, color: 'text-blue-400', description: 'Navigate to URL or scenario' },
@@ -7,7 +7,9 @@ const nodeTypes = [
   { type: 'dragDrop', label: 'Drag & Drop', icon: Hand, color: 'text-pink-300', description: 'Reorder cards or move files' },
   { type: 'focus', label: 'Focus', icon: Crosshair, color: 'text-emerald-300', description: 'Focus fields before typing' },
   { type: 'blur', label: 'Blur', icon: EyeOff, color: 'text-amber-300', description: 'Trigger blur/onChange handlers' },
+  { type: 'tabSwitch', label: 'Tab Switch', icon: PanelsTopLeft, color: 'text-violet-300', description: 'Switch between tabs or popups' },
   { type: 'scroll', label: 'Scroll', icon: ScrollText, color: 'text-amber-300', description: 'Scroll page, elements, or until visible' },
+  { type: 'rotate', label: 'Rotate', icon: Smartphone, color: 'text-sky-300', description: 'Flip viewport orientation mid-run' },
   { type: 'select', label: 'Select', icon: ListFilter, color: 'text-teal-300', description: 'Choose option(s) in dropdowns' },
   { type: 'uploadFile', label: 'Upload File', icon: UploadCloud, color: 'text-pink-300', description: 'Attach files to inputs' },
   { type: 'setVariable', label: 'Set Variable', icon: Variable, color: 'text-emerald-300', description: 'Store values for reuse' },
@@ -20,6 +22,8 @@ const nodeTypes = [
   { type: 'extract', label: 'Extract', icon: Database, color: 'text-pink-400', description: 'Extract data' },
   { type: 'assert', label: 'Assert', icon: CheckCircle, color: 'text-orange-400', description: 'Verify page conditions' },
   { type: 'useVariable', label: 'Use Variable', icon: Recycle, color: 'text-sky-300', description: 'Transform or require variables' },
+  { type: 'conditional', label: 'Conditional', icon: GitBranch, color: 'text-rose-300', description: 'Branch workflow on true/false' },
+  { type: 'loop', label: 'Loop', icon: RefreshCcw, color: 'text-blue-300', description: 'Repeat a body with datasets or conditions' },
   { type: 'workflowCall', label: 'Call Workflow', icon: Play, color: 'text-violet-400', description: 'Execute another workflow' },
 ];
 

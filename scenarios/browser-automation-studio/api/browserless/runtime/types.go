@@ -35,7 +35,21 @@ type StepResult struct {
 	MaskRegions        []MaskRegion      `json:"maskRegions,omitempty"`
 	ZoomFactor         float64           `json:"zoomFactor,omitempty"`
 	Assertion          *AssertionResult  `json:"assertion,omitempty"`
+	ConditionResult    *ConditionResult  `json:"conditionResult,omitempty"`
 	DOMSnapshot        string            `json:"domSnapshot,omitempty"`
+}
+
+// ConditionResult captures the outcome of a conditional step evaluation.
+type ConditionResult struct {
+	Type       string `json:"type,omitempty"`
+	Outcome    bool   `json:"outcome"`
+	Negated    bool   `json:"negated,omitempty"`
+	Operator   string `json:"operator,omitempty"`
+	Variable   string `json:"variable,omitempty"`
+	Selector   string `json:"selector,omitempty"`
+	Expression string `json:"expression,omitempty"`
+	Actual     any    `json:"actual,omitempty"`
+	Expected   any    `json:"expected,omitempty"`
 }
 
 // AssertionResult captures the outcome of an assert step.

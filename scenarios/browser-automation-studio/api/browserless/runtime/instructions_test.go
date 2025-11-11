@@ -186,6 +186,230 @@ func TestInstructionFromStepUploadFileMultiplePaths(t *testing.T) {
 	}
 }
 
+func TestInstructionFromStepTabSwitchIndex(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  6,
+		NodeID: "tab-switch-1",
+		Type:   compiler.StepTabSwitch,
+		Params: map[string]any{
+			"switchBy":   "INDEX",
+			"index":      2,
+			"timeoutMs":  4500,
+			"waitForNew": true,
+			"closeOld":   true,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating tabSwitch instruction: %v", err)
+	}
+	if inst.Params.TabSwitchBy != "index" {
+		t.Fatalf("expected switchBy=index, got %q", inst.Params.TabSwitchBy)
+	}
+	if inst.Params.TabIndex != 2 {
+		t.Fatalf("expected tab index 2, got %d", inst.Params.TabIndex)
+	}
+	if !inst.Params.TabWaitForNew {
+		t.Fatalf("expected waitForNew to be true")
+	}
+	if !inst.Params.TabCloseOld {
+		t.Fatalf("expected closeOld to be true")
+	}
+	if inst.Params.TimeoutMs != 4500 {
+		t.Fatalf("expected timeout to propagate, got %d", inst.Params.TimeoutMs)
+	}
+}
+
+func TestInstructionFromStepTabSwitchTitleMissingPattern(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  7,
+		NodeID: "tab-switch-2",
+		Type:   compiler.StepTabSwitch,
+		Params: map[string]any{
+			"switchBy": "title",
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when titleMatch missing")
+	}
+}
+
+func TestInstructionFromStepRotateDefaults(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  8,
+		NodeID: "rotate-1",
+		Type:   compiler.StepRotate,
+		Params: map[string]any{},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating rotate instruction: %v", err)
+	}
+	if inst.Params.RotateOrientation != "portrait" {
+		t.Fatalf("expected default orientation portrait, got %q", inst.Params.RotateOrientation)
+	}
+	if inst.Params.RotateAngle != 0 {
+		t.Fatalf("expected default portrait angle 0, got %d", inst.Params.RotateAngle)
+	}
+	if inst.Params.WaitForMs != 0 {
+		t.Fatalf("expected waitForMs to remain unset, got %d", inst.Params.WaitForMs)
+	}
+}
+
+func TestInstructionFromStepRotateLandscapeAngle(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  9,
+		NodeID: "rotate-2",
+		Type:   compiler.StepRotate,
+		Params: map[string]any{
+			"orientation": "landscape",
+			"angle":       270,
+			"waitForMs":   650,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating rotate instruction: %v", err)
+	}
+	if inst.Params.RotateOrientation != "landscape" {
+		t.Fatalf("expected orientation landscape, got %q", inst.Params.RotateOrientation)
+	}
+	if inst.Params.RotateAngle != 270 {
+		t.Fatalf("expected angle 270, got %d", inst.Params.RotateAngle)
+	}
+	if inst.Params.WaitForMs != 650 {
+		t.Fatalf("expected waitForMs to propagate, got %d", inst.Params.WaitForMs)
+	}
+}
+
+func TestInstructionFromStepRotateInvalidOrientation(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  10,
+		NodeID: "rotate-3",
+		Type:   compiler.StepRotate,
+		Params: map[string]any{
+			"orientation": "diagonal",
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error for unsupported orientation")
+	}
+}
+
+func TestInstructionFromStepRotateAngleMismatch(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  11,
+		NodeID: "rotate-4",
+		Type:   compiler.StepRotate,
+		Params: map[string]any{
+			"orientation": "portrait",
+			"angle":       90,
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when angle does not align with orientation")
+	}
+}
+
+func TestInstructionFromStepGestureDefaults(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  12,
+		NodeID: "gesture-1",
+		Type:   compiler.StepGesture,
+		Params: map[string]any{
+			"gestureType": "swipe",
+			"selector":    " #menu ",
+			"direction":   "Left",
+			"distance":    275,
+			"durationMs":  640,
+			"steps":       8,
+			"timeoutMs":   4200,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("[REQ:BAS-NODE-GESTURE-MOBILE] expected gesture node to compile: %v", err)
+	}
+	if inst.Params.GestureType != "swipe" {
+		t.Fatalf("gesture type should normalize to swipe, got %q", inst.Params.GestureType)
+	}
+	if inst.Params.GestureDirection != "left" {
+		t.Fatalf("gesture direction should normalize to left, got %q", inst.Params.GestureDirection)
+	}
+	if inst.Params.GestureSelector != "#menu" {
+		t.Fatalf("selector should be trimmed, got %q", inst.Params.GestureSelector)
+	}
+	if inst.Params.GestureDistance != 275 {
+		t.Fatalf("distance should remain configured, got %d", inst.Params.GestureDistance)
+	}
+	if inst.Params.GestureDurationMs != 640 {
+		t.Fatalf("duration should remain configured, got %d", inst.Params.GestureDurationMs)
+	}
+	if inst.Params.GestureSteps != 8 {
+		t.Fatalf("steps should remain configured, got %d", inst.Params.GestureSteps)
+	}
+	if inst.Params.TimeoutMs != 4200 {
+		t.Fatalf("timeout should propagate, got %d", inst.Params.TimeoutMs)
+	}
+	if inst.Params.GestureHasStart {
+		t.Fatalf("gesture should not mark start coordinates when not provided")
+	}
+}
+
+func TestInstructionFromStepGestureCoordinateFlags(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  13,
+		NodeID: "gesture-2",
+		Type:   compiler.StepGesture,
+		Params: map[string]any{
+			"gestureType": "pinch",
+			"startX":      0,
+			"startY":      0,
+			"endY":        480,
+			"scale":       1.6,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("expected gesture with coordinates to compile: %v", err)
+	}
+	if !inst.Params.GestureHasStart {
+		t.Fatalf("expected gesture to flag explicit start coordinates")
+	}
+	if !inst.Params.GestureHasStartX || !inst.Params.GestureHasStartY {
+		t.Fatalf("expected gesture to record which start axes were provided")
+	}
+	if inst.Params.GestureStartX != 0 || inst.Params.GestureStartY != 0 {
+		t.Fatalf("expected start coordinates to remain zero, got %d,%d", inst.Params.GestureStartX, inst.Params.GestureStartY)
+	}
+	if !inst.Params.GestureHasEnd {
+		t.Fatalf("expected gesture to flag explicit end coordinates")
+	}
+	if inst.Params.GestureHasEndX {
+		t.Fatalf("did not expect endX to be marked when only Y provided")
+	}
+	if !inst.Params.GestureHasEndY {
+		t.Fatalf("expected endY flag to be set")
+	}
+	if inst.Params.GestureEndY != 480 {
+		t.Fatalf("expected endY to propagate, got %d", inst.Params.GestureEndY)
+	}
+	if inst.Params.GestureType != "pinch" {
+		t.Fatalf("expected pinch type, got %q", inst.Params.GestureType)
+	}
+	if inst.Params.GestureScale <= 1 {
+		t.Fatalf("expected pinch scale to remain >1 for zoom out, got %f", inst.Params.GestureScale)
+	}
+}
+
 func TestInstructionFromStepUploadFileValidation(t *testing.T) {
 	step := compiler.ExecutionStep{
 		Index:  7,
@@ -211,6 +435,132 @@ func TestInstructionFromStepUploadFileValidation(t *testing.T) {
 	step.Params["selector"] = ""
 	if _, err := instructionFromStep(context.Background(), step); err == nil {
 		t.Fatalf("expected error when selector missing")
+	}
+}
+
+func TestInstructionFromStepConditionalExpression(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  8,
+		NodeID: "conditional-1",
+		Type:   compiler.StepConditional,
+		Params: map[string]any{
+			"conditionType":  "expression",
+			"expression":     " document.querySelector('#status') !== null ",
+			"timeoutMs":      1500,
+			"pollIntervalMs": 125,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("[REQ:BAS-NODE-CONDITIONAL] expected expression mode to compile, got error: %v", err)
+	}
+	if inst.Params.ConditionType != "expression" {
+		t.Fatalf("expected condition type to normalize, got %q", inst.Params.ConditionType)
+	}
+	if inst.Params.ConditionExpression != "document.querySelector('#status') !== null" {
+		t.Fatalf("expected expression to be trimmed, got %q", inst.Params.ConditionExpression)
+	}
+	if inst.Params.TimeoutMs != 1500 {
+		t.Fatalf("expected timeout 1500, got %d", inst.Params.TimeoutMs)
+	}
+	if inst.Params.ConditionPollIntervalMs != 125 {
+		t.Fatalf("expected poll interval 125, got %d", inst.Params.ConditionPollIntervalMs)
+	}
+}
+
+func TestInstructionFromStepConditionalVariableMissingName(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  9,
+		NodeID: "conditional-2",
+		Type:   compiler.StepConditional,
+		Params: map[string]any{
+			"conditionType": "variable",
+			"operator":      "equals",
+			"value":         "ready",
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("[REQ:BAS-NODE-CONDITIONAL] expected error when variable name missing")
+	}
+}
+
+func TestInstructionFromStepLoopForEach(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  11,
+		NodeID: "loop-foreach",
+		Type:   compiler.StepLoop,
+		Params: map[string]any{
+			"loopType":      "forEach",
+			"arraySource":   "rows",
+			"maxIterations": 250,
+			"itemVariable":  "row",
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("expected forEach loop to compile, got error: %v", err)
+	}
+	if inst.Params.LoopType != "foreach" {
+		t.Fatalf("loop type should normalize to foreach, got %q", inst.Params.LoopType)
+	}
+	if inst.Params.LoopArraySource != "rows" {
+		t.Fatalf("expected array source to propagate, got %q", inst.Params.LoopArraySource)
+	}
+	if inst.Params.LoopItemVariable != "row" {
+		t.Fatalf("expected custom item variable, got %q", inst.Params.LoopItemVariable)
+	}
+	if inst.Params.LoopIndexVariable != defaultLoopIndexVariable {
+		t.Fatalf("expected default index variable, got %q", inst.Params.LoopIndexVariable)
+	}
+	if inst.Params.LoopMaxIterations != 250 {
+		t.Fatalf("expected max iterations to use provided value, got %d", inst.Params.LoopMaxIterations)
+	}
+}
+
+func TestInstructionFromStepLoopRepeatRequiresCount(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  12,
+		NodeID: "loop-repeat",
+		Type:   compiler.StepLoop,
+		Params: map[string]any{
+			"loopType": "repeat",
+		},
+	}
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected repeat loop to require positive count")
+	}
+}
+
+func TestInstructionFromStepLoopWhileMissingCondition(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  13,
+		NodeID: "loop-while",
+		Type:   compiler.StepLoop,
+		Params: map[string]any{
+			"loopType":      "while",
+			"conditionType": "variable",
+		},
+	}
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected while loop to require variable name")
+	}
+
+	step.Params["conditionVariable"] = "continueProcessing"
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("expected while loop with condition variable to compile, got %v", err)
+	}
+	if inst.Params.LoopConditionType != "variable" {
+		t.Fatalf("expected condition type to normalize to variable, got %q", inst.Params.LoopConditionType)
+	}
+	if inst.Params.LoopConditionVariable != "continueProcessing" {
+		t.Fatalf("expected variable name to propagate, got %q", inst.Params.LoopConditionVariable)
+	}
+	if inst.Params.LoopConditionOperator == "" {
+		t.Fatalf("expected default operator to be assigned")
 	}
 }
 

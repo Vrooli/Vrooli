@@ -39,10 +39,14 @@ import DragDropNode from './nodes/DragDropNode';
 import FocusNode from './nodes/FocusNode';
 import BlurNode from './nodes/BlurNode';
 import ScrollNode from './nodes/ScrollNode';
+import RotateNode from './nodes/RotateNode';
 import SelectNode from './nodes/SelectNode';
 import SetVariableNode from './nodes/SetVariableNode';
 import UseVariableNode from './nodes/UseVariableNode';
 import UploadFileNode from './nodes/UploadFileNode';
+import TabSwitchNode from './nodes/TabSwitchNode';
+import ConditionalNode from './nodes/ConditionalNode';
+import LoopNode from './nodes/LoopNode';
 import WorkflowToolbar from './WorkflowToolbar';
 import CustomConnectionLine from './CustomConnectionLine';
 import 'reactflow/dist/style.css';
@@ -59,8 +63,11 @@ const nodeTypes: NodeTypes = {
   focus: FocusNode,
   blur: BlurNode,
   scroll: ScrollNode,
-  select: SelectNode,
-  uploadFile: UploadFileNode,
+	select: SelectNode,
+	uploadFile: UploadFileNode,
+	rotate: RotateNode,
+	tabSwitch: TabSwitchNode,
+  conditional: ConditionalNode,
   setVariable: SetVariableNode,
   type: TypeNode,
   shortcut: ShortcutNode,
@@ -72,6 +79,7 @@ const nodeTypes: NodeTypes = {
   assert: AssertNode,
   useVariable: UseVariableNode,
   workflowCall: WorkflowCallNode,
+  loop: LoopNode,
 };
 
 const defaultEdgeOptions = {
@@ -413,12 +421,63 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     updateWorkflow({ executionViewport: normalizeViewportSetting(viewport) });
   }, [updateWorkflow]);
 
+  const deriveConditionMetadata = useCallback((handleId?: string | null) => {
+    if (!handleId) {
+      return null;
+    }
+    if (handleId === 'ifTrue') {
+      return { condition: 'if_true', label: 'IF TRUE', stroke: '#4ade80' };
+    }
+    if (handleId === 'ifFalse') {
+      return { condition: 'if_false', label: 'IF FALSE', stroke: '#f87171' };
+    }
+    if (handleId === 'loopBody') {
+      return { condition: 'loop_body', label: 'LOOP BODY', stroke: '#38bdf8' };
+    }
+    if (handleId === 'loopAfter') {
+      return { condition: 'loop_next', label: 'AFTER LOOP', stroke: '#7c3aed' };
+    }
+    return null;
+  }, []);
+
+  const deriveTargetConditionMetadata = useCallback((handleId?: string | null) => {
+    if (!handleId) {
+      return null;
+    }
+    if (handleId === 'loopContinue') {
+      return { condition: 'loop_continue', label: 'CONTINUE', stroke: '#22c55e' };
+    }
+    if (handleId === 'loopBreak') {
+      return { condition: 'loop_break', label: 'BREAK', stroke: '#f43f5e' };
+    }
+    return null;
+  }, []);
+
+  const enhanceConnection = useCallback((connection: Connection): Edge => {
+    const meta = deriveConditionMetadata(connection.sourceHandle ?? undefined);
+    const nextEdge: Edge = {
+      ...connection,
+      data: connection.data ? { ...connection.data } : undefined,
+    } as Edge;
+    if (meta) {
+      nextEdge.data = { ...(nextEdge.data ?? {}), condition: meta.condition };
+      nextEdge.label = meta.label;
+      nextEdge.style = { ...(nextEdge.style ?? {}), stroke: meta.stroke };
+    }
+    const targetMeta = deriveTargetConditionMetadata(connection.targetHandle ?? undefined);
+    if (targetMeta) {
+      nextEdge.data = { ...(nextEdge.data ?? {}), condition: targetMeta.condition };
+      nextEdge.label = targetMeta.label;
+      nextEdge.style = { ...(nextEdge.style ?? {}), stroke: targetMeta.stroke };
+    }
+    return nextEdge;
+  }, [deriveConditionMetadata, deriveTargetConditionMetadata]);
+
   const onConnect = useCallback(
     (params: Connection) => {
-      const newEdges = addEdge(params, edges);
-      setEdges(newEdges);
+      setEdges((current) => addEdge(enhanceConnection(params), current));
     },
-    [edges, setEdges]
+    [enhanceConnection, setEdges]
   );
 
   // Track when connection starts

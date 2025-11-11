@@ -122,8 +122,7 @@ const mockUseEdgesState = vi.fn((initialEdges: Edge[]) => {
   return useState(initialEdges);
 });
 
-vi.mock('reactflow', async () => {
-  const actual = await vi.importActual('reactflow');
+vi.mock('reactflow', () => {
   const MockReactFlow = ({ children, onDrop, onDragOver, nodes, edges }: any) => (
     <div
       data-testid="react-flow-canvas"
@@ -140,8 +139,9 @@ vi.mock('reactflow', async () => {
       ))}
     </div>
   );
+
   return {
-    ...actual,
+    __esModule: true,
     default: MockReactFlow,
     ReactFlow: MockReactFlow,
     ReactFlowProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

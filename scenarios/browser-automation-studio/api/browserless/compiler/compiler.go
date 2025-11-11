@@ -24,6 +24,8 @@ const (
 	StepBlur         StepType = "blur"
 	StepScroll       StepType = "scroll"
 	StepSelect       StepType = "select"
+	StepRotate       StepType = "rotate"
+	StepGesture      StepType = "gesture"
 	StepUploadFile   StepType = "uploadFile"
 	StepTypeInput    StepType = "type"
 	StepShortcut     StepType = "shortcut"
@@ -37,6 +39,26 @@ const (
 	StepCustom       StepType = "custom"
 	StepSetVariable  StepType = "setVariable"
 	StepUseVariable  StepType = "useVariable"
+	StepTabSwitch    StepType = "tabSwitch"
+	StepConditional  StepType = "conditional"
+	StepLoop         StepType = "loop"
+)
+
+const (
+	LoopContinueTarget = "__loop_continue__"
+	LoopBreakTarget    = "__loop_break__"
+)
+
+const (
+	loopHandleBody     = "loopbody"
+	loopHandleAfter    = "loopafter"
+	loopHandleBreak    = "loopbreak"
+	loopHandleContinue = "loopcontinue"
+
+	loopConditionBody     = "loop_body"
+	loopConditionAfter    = "loop_next"
+	loopConditionBreak    = "loop_break"
+	loopConditionContinue = "loop_continue"
 )
 
 var supportedStepTypes = map[StepType]struct{}{
@@ -51,6 +73,8 @@ var supportedStepTypes = map[StepType]struct{}{
 	StepKeyboard:     {},
 	StepScroll:       {},
 	StepSelect:       {},
+	StepRotate:       {},
+	StepGesture:      {},
 	StepUploadFile:   {},
 	StepWait:         {},
 	StepScreenshot:   {},
@@ -61,6 +85,9 @@ var supportedStepTypes = map[StepType]struct{}{
 	StepCustom:       {},
 	StepSetVariable:  {},
 	StepUseVariable:  {},
+	StepTabSwitch:    {},
+	StepConditional:  {},
+	StepLoop:         {},
 }
 
 // ExecutionPlan represents a validated sequence of steps derived from a workflow definition.
@@ -79,6 +106,7 @@ type ExecutionStep struct {
 	Params         map[string]any `json:"params"`
 	OutgoingEdges  []EdgeRef      `json:"outgoing_edges"`
 	SourcePosition *Position      `json:"source_position,omitempty"`
+	LoopPlan       *ExecutionPlan `json:"loop_plan,omitempty"`
 }
 
 // EdgeRef references an outgoing connection from a node.
@@ -124,8 +152,7 @@ func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
 		}, nil
 	}
 
-	compiler := newPlanner(raw)
-	steps, err := compiler.buildSteps()
+	plan, err := compileFlow(flowFragment{definition: raw}, workflow.ID, workflow.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -137,13 +164,67 @@ func CompileWorkflow(workflow *database.Workflow) (*ExecutionPlan, error) {
 	if len(metadata) == 0 {
 		metadata = nil
 	}
+	plan.Metadata = metadata
 
-	return &ExecutionPlan{
-		WorkflowID:   workflow.ID,
-		WorkflowName: workflow.Name,
+	return plan, nil
+}
+
+func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName string) (*ExecutionPlan, error) {
+	planner := newPlanner(fragment.definition)
+	loopFragments, err := planner.extractLoopBodies()
+	if err != nil {
+		return nil, err
+	}
+
+	steps, err := planner.buildSteps()
+	if err != nil {
+		return nil, err
+	}
+
+	for idx := range steps {
+		if steps[idx].Type != StepLoop {
+			continue
+		}
+		bodyFragment, ok := loopFragments[steps[idx].NodeID]
+		if !ok {
+			return nil, fmt.Errorf("loop node %s has no body definition", steps[idx].NodeID)
+		}
+		childPlan, err := compileFlow(bodyFragment, workflowID, fmt.Sprintf("%s::%s", workflowName, steps[idx].NodeID))
+		if err != nil {
+			return nil, err
+		}
+		steps[idx].LoopPlan = childPlan
+	}
+
+	plan := &ExecutionPlan{
+		WorkflowID:   workflowID,
+		WorkflowName: workflowName,
 		Steps:        steps,
-		Metadata:     metadata,
-	}, nil
+	}
+
+	if len(fragment.specialEdges) > 0 {
+		applySpecialEdges(plan, fragment.specialEdges)
+	}
+
+	return plan, nil
+}
+
+func applySpecialEdges(plan *ExecutionPlan, special map[string][]EdgeRef) {
+	if plan == nil || len(special) == 0 {
+		return
+	}
+	index := make(map[string]*ExecutionStep, len(plan.Steps))
+	for i := range plan.Steps {
+		step := &plan.Steps[i]
+		index[step.NodeID] = step
+	}
+	for nodeID, edges := range special {
+		step, ok := index[nodeID]
+		if !ok {
+			continue
+		}
+		step.OutgoingEdges = append(step.OutgoingEdges, edges...)
+	}
 }
 
 // flowDefinition mirrors the React Flow payload persisted with workflows.
@@ -151,6 +232,11 @@ type flowDefinition struct {
 	Nodes    []rawNode      `json:"nodes"`
 	Edges    []rawEdge      `json:"edges"`
 	Settings map[string]any `json:"settings"`
+}
+
+type flowFragment struct {
+	definition   flowDefinition
+	specialEdges map[string][]EdgeRef
 }
 
 type rawNode struct {
@@ -263,6 +349,258 @@ func newPlanner(def flowDefinition) *planner {
 	}
 
 	return p
+}
+
+func (p *planner) extractLoopBodies() (map[string]flowFragment, error) {
+	loopFragments := make(map[string]flowFragment)
+	assigned := make(map[string]string)
+
+	for _, node := range p.definition.Nodes {
+		stepType, err := normalizeStepType(node.Type)
+		if err != nil {
+			return nil, err
+		}
+		if stepType != StepLoop {
+			continue
+		}
+		entries := p.loopEntryTargets(node.ID)
+		if len(entries) == 0 {
+			return nil, fmt.Errorf("loop node %s requires at least one body connection", node.ID)
+		}
+		bodyNodes, bodyEdges, specialEdges, err := p.collectLoopBody(node.ID, entries, assigned)
+		if err != nil {
+			return nil, err
+		}
+		fragment := flowFragment{
+			definition: flowDefinition{
+				Nodes: rawNodeMapToSlice(bodyNodes),
+				Edges: bodyEdges,
+			},
+			specialEdges: specialEdges,
+		}
+		loopFragments[node.ID] = fragment
+	}
+
+	if len(assigned) == 0 {
+		return loopFragments, nil
+	}
+
+	if err := p.pruneLoopBodies(assigned); err != nil {
+		return nil, err
+	}
+
+	return loopFragments, nil
+}
+
+func (p *planner) loopEntryTargets(loopNodeID string) []string {
+	edges := p.outgoing[loopNodeID]
+	targets := make([]string, 0)
+	for _, edge := range edges {
+		if isLoopBodyEdge(edge) {
+			targets = append(targets, edge.Target)
+		}
+	}
+	return uniqueStrings(targets)
+}
+
+func (p *planner) collectLoopBody(loopNodeID string, entryTargets []string, assigned map[string]string) (map[string]rawNode, []rawEdge, map[string][]EdgeRef, error) {
+	bodyNodes := make(map[string]rawNode)
+	specialEdges := make(map[string][]EdgeRef)
+	queue := append([]string{}, entryTargets...)
+
+	for len(queue) > 0 {
+		nodeID := queue[0]
+		queue = queue[1:]
+		nodeID = strings.TrimSpace(nodeID)
+		if nodeID == "" {
+			continue
+		}
+		if nodeID == loopNodeID {
+			return nil, nil, nil, fmt.Errorf("loop node %s cannot include itself as part of the body", loopNodeID)
+		}
+		if owner, taken := assigned[nodeID]; taken && owner != loopNodeID {
+			return nil, nil, nil, fmt.Errorf("node %s already belongs to loop %s", nodeID, owner)
+		}
+		if _, exists := bodyNodes[nodeID]; exists {
+			continue
+		}
+		rawNode, ok := p.nodesByID[nodeID]
+		if !ok {
+			return nil, nil, nil, fmt.Errorf("loop node %s references missing node %s", loopNodeID, nodeID)
+		}
+		bodyNodes[nodeID] = rawNode
+		assigned[nodeID] = loopNodeID
+
+		for _, edge := range p.outgoing[nodeID] {
+			if edge.Target == loopNodeID {
+				directive, ok := loopDirectiveFromEdge(edge)
+				if !ok {
+					return nil, nil, nil, fmt.Errorf("loop node %s has invalid return edge from %s; use loopContinue/loopBreak handles", loopNodeID, nodeID)
+				}
+				specialEdges[nodeID] = append(specialEdges[nodeID], directive)
+				continue
+			}
+			if owner, taken := assigned[edge.Target]; taken && owner != loopNodeID {
+				return nil, nil, nil, fmt.Errorf("node %s cannot be shared across loops (already assigned to %s)", edge.Target, owner)
+			}
+			queue = append(queue, edge.Target)
+		}
+	}
+
+	for nodeID := range bodyNodes {
+		incoming := p.findIncomingEdges(nodeID)
+		for _, edge := range incoming {
+			if edge.Source == loopNodeID && isLoopBodyEdge(edge) {
+				continue
+			}
+			if _, ok := bodyNodes[edge.Source]; ok {
+				continue
+			}
+			return nil, nil, nil, fmt.Errorf("node %s inside loop %s receives edges from outside the loop body", nodeID, loopNodeID)
+		}
+	}
+
+	bodyEdges := make([]rawEdge, 0)
+	for source := range bodyNodes {
+		for _, edge := range p.outgoing[source] {
+			if _, ok := bodyNodes[edge.Target]; ok {
+				bodyEdges = append(bodyEdges, edge)
+			}
+		}
+	}
+
+	return bodyNodes, bodyEdges, specialEdges, nil
+}
+
+func (p *planner) pruneLoopBodies(assigned map[string]string) error {
+	if len(assigned) == 0 {
+		return nil
+	}
+
+	for nodeID := range assigned {
+		delete(p.nodesByID, nodeID)
+		delete(p.outgoing, nodeID)
+		delete(p.incomingCount, nodeID)
+	}
+
+	filteredOutgoing := make(map[string][]rawEdge, len(p.outgoing))
+	for source, edges := range p.outgoing {
+		if _, removed := assigned[source]; removed {
+			continue
+		}
+		filtered := make([]rawEdge, 0, len(edges))
+		for _, edge := range edges {
+			if _, removed := assigned[edge.Target]; removed {
+				continue
+			}
+			if isLoopBodyEdge(edge) {
+				continue
+			}
+			filtered = append(filtered, edge)
+		}
+		filteredOutgoing[source] = filtered
+	}
+	p.outgoing = filteredOutgoing
+
+	newIncoming := make(map[string]int, len(p.nodesByID))
+	for nodeID := range p.nodesByID {
+		newIncoming[nodeID] = 0
+	}
+	for source, edges := range p.outgoing {
+		if _, ok := p.nodesByID[source]; !ok {
+			continue
+		}
+		for _, edge := range edges {
+			if _, ok := p.nodesByID[edge.Target]; ok {
+				newIncoming[edge.Target]++
+			}
+		}
+	}
+	p.incomingCount = newIncoming
+	return nil
+}
+
+func rawNodeMapToSlice(m map[string]rawNode) []rawNode {
+	if len(m) == 0 {
+		return nil
+	}
+	result := make([]rawNode, 0, len(m))
+	for _, node := range m {
+		result = append(result, node)
+	}
+	return result
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) <= 1 {
+		return values
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	return result
+}
+
+func loopDirectiveFromEdge(edge rawEdge) (EdgeRef, bool) {
+	handle := normalizeHandle(edge.TargetHandle)
+	condition := strings.ToLower(strings.TrimSpace(extractString(edge.Data, "condition", "label")))
+	if condition == loopConditionContinue || handle == loopHandleContinue {
+		return EdgeRef{
+			ID:         edge.ID,
+			TargetNode: LoopContinueTarget,
+			Condition:  loopConditionContinue,
+			SourcePort: edge.SourceHandle,
+			TargetPort: edge.TargetHandle,
+		}, true
+	}
+	if condition == loopConditionBreak || handle == loopHandleBreak {
+		return EdgeRef{
+			ID:         edge.ID,
+			TargetNode: LoopBreakTarget,
+			Condition:  loopConditionBreak,
+			SourcePort: edge.SourceHandle,
+			TargetPort: edge.TargetHandle,
+		}, true
+	}
+	return EdgeRef{}, false
+}
+
+func isLoopBodyEdge(edge rawEdge) bool {
+	if normalizeHandle(edge.SourceHandle) == loopHandleBody {
+		return true
+	}
+	condition := strings.ToLower(strings.TrimSpace(extractString(edge.Data, "condition", "label")))
+	return condition == loopConditionBody
+}
+
+func normalizeHandle(value string) string {
+	if value == "" {
+		return value
+	}
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func (p *planner) findIncomingEdges(nodeID string) []rawEdge {
+	if nodeID == "" {
+		return nil
+	}
+	result := make([]rawEdge, 0)
+	for _, edge := range p.definition.Edges {
+		if strings.TrimSpace(edge.Target) == nodeID {
+			result = append(result, edge)
+		}
+	}
+	return result
 }
 
 func (p *planner) buildSteps() ([]ExecutionStep, error) {

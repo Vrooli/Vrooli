@@ -21,9 +21,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 	"github.com/sirupsen/logrus"
 )
@@ -35,11 +37,19 @@ type Session struct {
 	allocCtx           context.Context
 	ctx                context.Context
 	cancel             context.CancelFunc
+	logFunc            func(string, ...interface{})
 	viewportWidth      int
 	viewportHeight     int
 	telemetry          *Telemetry
 	log                *logrus.Entry
 	mu                 sync.Mutex
+	ctxMu              sync.RWMutex
+	targetContexts     map[target.ID]context.Context
+	targetCancels      map[target.ID]context.CancelFunc
+	currentTargetID    target.ID
+	tabs               map[target.ID]*tabRecord
+	tabOrder           []target.ID
+	tabMu              sync.RWMutex
 	pointerX           float64
 	pointerY           float64
 	pointerInitialized bool
@@ -69,6 +79,15 @@ type NetworkEvent struct {
 	Timestamp    time.Time `json:"timestamp"`
 }
 
+type tabRecord struct {
+	ID        target.ID
+	Title     string
+	URL       string
+	Attached  bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 // NewSession creates a new CDP session connected to browserless
 func NewSession(ctx context.Context, browserlessURL string, viewportWidth, viewportHeight int, log *logrus.Entry) (*Session, error) {
 	if viewportWidth <= 0 {
@@ -84,6 +103,9 @@ func NewSession(ctx context.Context, browserlessURL string, viewportWidth, viewp
 		viewportHeight: viewportHeight,
 		telemetry:      &Telemetry{},
 		log:            log,
+		targetContexts: make(map[target.ID]context.Context),
+		targetCancels:  make(map[target.ID]context.CancelFunc),
+		tabs:           make(map[target.ID]*tabRecord),
 	}
 
 	wsURL, err := resolveBrowserlessWebSocketURL(ctx, browserlessURL)
@@ -103,16 +125,25 @@ func NewSession(ctx context.Context, browserlessURL string, viewportWidth, viewp
 	if log != nil {
 		logf = log.Debugf
 	}
+	s.logFunc = logf
 	browserCtx, browserCancel := chromedp.NewContext(allocCtx, chromedp.WithLogf(logf))
 	s.ctx = browserCtx
-	s.cancel = func() {
-		browserCancel()
-		cancelAllocator()
-	}
 
 	if err := s.initialize(); err != nil {
-		s.cancel()
+		browserCancel()
+		cancelAllocator()
 		return nil, fmt.Errorf("failed to initialize CDP session: %w", err)
+	}
+
+	if err := s.captureInitialTarget(browserCtx, browserCancel); err != nil {
+		browserCancel()
+		cancelAllocator()
+		return nil, err
+	}
+
+	s.cancel = func() {
+		s.closeAllTargets()
+		cancelAllocator()
 	}
 
 	return s, nil
@@ -122,44 +153,319 @@ func NewSession(ctx context.Context, browserlessURL string, viewportWidth, viewp
 func (s *Session) initialize() error {
 	s.log.Info("Initializing CDP session")
 
-	return chromedp.Run(s.ctx,
-		// Set viewport
-		chromedp.EmulateViewport(int64(s.viewportWidth), int64(s.viewportHeight)),
+	s.installBrowserListeners(s.ctx)
 
-		// Enable necessary CDP domains
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			// Enable console domain
-			if err := runtime.Enable().Do(ctx); err != nil {
+	return s.configureContext(s.ctx)
+}
+
+func (s *Session) captureInitialTarget(ctx context.Context, cancel context.CancelFunc) error {
+	chromedpCtx := chromedp.FromContext(ctx)
+	if chromedpCtx == nil || chromedpCtx.Target == nil {
+		return fmt.Errorf("chromedp context has no active target")
+	}
+	if chromedpCtx.Target.TargetID == "" {
+		return fmt.Errorf("chromedp context returned empty target id")
+	}
+
+	s.ctxMu.Lock()
+	s.targetContexts[chromedpCtx.Target.TargetID] = ctx
+	s.targetCancels[chromedpCtx.Target.TargetID] = cancel
+	s.currentTargetID = chromedpCtx.Target.TargetID
+	s.ctxMu.Unlock()
+
+	s.recordTabInfo(&target.Info{
+		TargetID: chromedpCtx.Target.TargetID,
+		Type:     "page",
+		Attached: true,
+	})
+
+	if err := s.refreshTabInventory(ctx); err != nil {
+		s.log.WithError(err).Debug("failed to seed tab inventory")
+	}
+
+	return nil
+}
+
+func (s *Session) closeAllTargets() {
+	s.ctxMu.Lock()
+	cancels := make([]context.CancelFunc, 0, len(s.targetCancels))
+	for id, cancel := range s.targetCancels {
+		cancels = append(cancels, cancel)
+		delete(s.targetCancels, id)
+		delete(s.targetContexts, id)
+	}
+	s.ctxMu.Unlock()
+	for _, cancel := range cancels {
+		cancel()
+	}
+}
+
+func (s *Session) configureContext(ctx context.Context) error {
+	return chromedp.Run(ctx,
+		chromedp.EmulateViewport(int64(s.viewportWidth), int64(s.viewportHeight)),
+		chromedp.ActionFunc(func(runCtx context.Context) error {
+			if err := runtime.Enable().Do(runCtx); err != nil {
 				return fmt.Errorf("failed to enable runtime: %w", err)
 			}
-
-			// Enable network domain
-			if err := network.Enable().Do(ctx); err != nil {
+			if err := network.Enable().Do(runCtx); err != nil {
 				return fmt.Errorf("failed to enable network: %w", err)
 			}
-
-			// Enable page domain
-			if err := page.Enable().Do(ctx); err != nil {
+			if err := page.Enable().Do(runCtx); err != nil {
 				return fmt.Errorf("failed to enable page: %w", err)
 			}
-
-			// Set up console log listener
-			chromedp.ListenTarget(ctx, func(ev interface{}) {
-				switch ev := ev.(type) {
-				case *runtime.EventConsoleAPICalled:
-					s.handleConsoleLog(ev)
-				case *network.EventRequestWillBeSent:
-					s.handleNetworkRequest(ev)
-				case *network.EventResponseReceived:
-					s.handleNetworkResponse(ev)
-				case *network.EventLoadingFailed:
-					s.handleNetworkFailed(ev)
-				}
-			})
-
+			s.attachTelemetry(runCtx)
 			return nil
 		}),
 	)
+}
+
+func (s *Session) installBrowserListeners(ctx context.Context) {
+	chromedp.ListenBrowser(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *target.EventTargetCreated:
+			s.recordTabInfo(ev.TargetInfo)
+		case *target.EventTargetInfoChanged:
+			s.recordTabInfo(ev.TargetInfo)
+		case *target.EventTargetDestroyed:
+			s.removeTab(ev.TargetID)
+		}
+	})
+}
+
+func (s *Session) attachTelemetry(ctx context.Context) {
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *runtime.EventConsoleAPICalled:
+			s.handleConsoleLog(ev)
+		case *network.EventRequestWillBeSent:
+			s.handleNetworkRequest(ev)
+		case *network.EventResponseReceived:
+			s.handleNetworkResponse(ev)
+		case *network.EventLoadingFailed:
+			s.handleNetworkFailed(ev)
+		}
+	})
+}
+
+func (s *Session) recordTabInfo(info *target.Info) {
+	if info == nil || info.TargetID == "" || info.Type != "page" {
+		return
+	}
+	s.tabMu.Lock()
+	defer s.tabMu.Unlock()
+	record, exists := s.tabs[info.TargetID]
+	if !exists {
+		record = &tabRecord{
+			ID:        info.TargetID,
+			CreatedAt: time.Now(),
+		}
+		s.tabs[info.TargetID] = record
+		if !s.idInOrder(info.TargetID) {
+			s.tabOrder = append(s.tabOrder, info.TargetID)
+		}
+	}
+	record.Title = info.Title
+	record.URL = info.URL
+	record.Attached = info.Attached
+	record.UpdatedAt = time.Now()
+}
+
+func (s *Session) idInOrder(targetID target.ID) bool {
+	for _, existing := range s.tabOrder {
+		if existing == targetID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Session) removeTab(targetID target.ID) {
+	if targetID == "" {
+		return
+	}
+	s.tabMu.Lock()
+	defer s.tabMu.Unlock()
+	delete(s.tabs, targetID)
+	if len(s.tabOrder) == 0 {
+		return
+	}
+	filtered := make([]target.ID, 0, len(s.tabOrder))
+	for _, id := range s.tabOrder {
+		if id != targetID {
+			filtered = append(filtered, id)
+		}
+	}
+	s.tabOrder = filtered
+}
+
+func (s *Session) refreshTabInventory(ctx context.Context) error {
+	var infos []*target.Info
+	action := chromedp.ActionFunc(func(runCtx context.Context) error {
+		executor := cdp.WithExecutor(runCtx, chromedp.FromContext(runCtx).Browser)
+		list, err := target.GetTargets().Do(executor)
+		if err != nil {
+			return err
+		}
+		infos = list
+		return nil
+	})
+	if err := chromedp.Run(ctx, action); err != nil {
+		return err
+	}
+	seen := make(map[target.ID]struct{}, len(infos))
+	for _, info := range infos {
+		if info == nil || info.Type != "page" {
+			continue
+		}
+		seen[info.TargetID] = struct{}{}
+		s.recordTabInfo(info)
+	}
+	s.tabMu.Lock()
+	if len(seen) == 0 && len(s.tabs) == 0 {
+		s.tabMu.Unlock()
+		return nil
+	}
+	filteredOrder := make([]target.ID, 0, len(s.tabOrder))
+	for _, id := range s.tabOrder {
+		if _, ok := seen[id]; ok {
+			filteredOrder = append(filteredOrder, id)
+		} else {
+			delete(s.tabs, id)
+		}
+	}
+	s.tabOrder = filteredOrder
+	for id := range s.tabs {
+		if _, ok := seen[id]; !ok {
+			delete(s.tabs, id)
+		}
+	}
+	s.tabMu.Unlock()
+	return nil
+}
+
+func (s *Session) snapshotTabs() []tabRecord {
+	s.tabMu.RLock()
+	defer s.tabMu.RUnlock()
+	result := make([]tabRecord, 0, len(s.tabOrder))
+	for _, id := range s.tabOrder {
+		if rec, ok := s.tabs[id]; ok {
+			result = append(result, *rec)
+		}
+	}
+	return result
+}
+
+func (s *Session) currentTabSet() map[target.ID]struct{} {
+	s.tabMu.RLock()
+	defer s.tabMu.RUnlock()
+	ids := make(map[target.ID]struct{}, len(s.tabs))
+	for id := range s.tabs {
+		ids[id] = struct{}{}
+	}
+	return ids
+}
+
+func (s *Session) waitForNewTab(ctx context.Context, known map[target.ID]struct{}, timeout time.Duration) (target.ID, error) {
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
+	ticker := time.NewTicker(150 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if err := s.refreshTabInventory(ctx); err != nil {
+			s.log.WithError(err).Warn("tab inventory refresh failed while waiting for new tab")
+		}
+		s.tabMu.RLock()
+		for _, id := range s.tabOrder {
+			if _, ok := known[id]; !ok {
+				s.tabMu.RUnlock()
+				return id, nil
+			}
+		}
+		s.tabMu.RUnlock()
+		if time.Now().After(deadline) {
+			return "", fmt.Errorf("timed out waiting for new tab")
+		}
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Session) getCurrentTargetID() target.ID {
+	s.ctxMu.RLock()
+	defer s.ctxMu.RUnlock()
+	return s.currentTargetID
+}
+
+func (s *Session) ensureTargetContext(targetID target.ID) (context.Context, error) {
+	s.ctxMu.RLock()
+	if ctx, ok := s.targetContexts[targetID]; ok {
+		s.ctxMu.RUnlock()
+		return ctx, nil
+	}
+	s.ctxMu.RUnlock()
+
+	ctx, cancel := chromedp.NewContext(s.allocCtx, chromedp.WithTargetID(targetID), chromedp.WithLogf(s.logFunc))
+	if err := s.configureContext(ctx); err != nil {
+		cancel()
+		return nil, err
+	}
+	s.ctxMu.Lock()
+	s.targetContexts[targetID] = ctx
+	s.targetCancels[targetID] = cancel
+	s.ctxMu.Unlock()
+	return ctx, nil
+}
+
+func (s *Session) activateTargetContext(ctx context.Context, targetID target.ID) error {
+	return chromedp.Run(ctx, chromedp.ActionFunc(func(runCtx context.Context) error {
+		executor := cdp.WithExecutor(runCtx, chromedp.FromContext(runCtx).Browser)
+		return target.ActivateTarget(targetID).Do(executor)
+	}))
+}
+
+func (s *Session) switchToTarget(targetID target.ID, closeOld bool) error {
+	ctx, err := s.ensureTargetContext(targetID)
+	if err != nil {
+		return err
+	}
+	var previous target.ID
+	s.ctxMu.Lock()
+	previous = s.currentTargetID
+	s.ctx = ctx
+	s.currentTargetID = targetID
+	s.ctxMu.Unlock()
+	if err := s.activateTargetContext(ctx, targetID); err != nil {
+		s.log.WithError(err).Warn("failed to activate target")
+	}
+	if closeOld && previous != "" && previous != targetID {
+		go s.closeTarget(previous)
+	}
+	return nil
+}
+
+func (s *Session) closeTarget(targetID target.ID) {
+	s.ctxMu.Lock()
+	cancel, ok := s.targetCancels[targetID]
+	if ok {
+		delete(s.targetCancels, targetID)
+	}
+	if _, exists := s.targetContexts[targetID]; exists {
+		delete(s.targetContexts, targetID)
+	}
+	s.ctxMu.Unlock()
+	if ok {
+		cancel()
+	}
+	s.removeTab(targetID)
+	_ = chromedp.Run(s.ctx, chromedp.ActionFunc(func(runCtx context.Context) error {
+		executor := cdp.WithExecutor(runCtx, chromedp.FromContext(runCtx).Browser)
+		return target.CloseTarget(targetID).Do(executor)
+	}))
 }
 
 // handleConsoleLog processes console.log events

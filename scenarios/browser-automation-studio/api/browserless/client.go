@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -42,6 +43,11 @@ type Client struct {
 	recordingsRoot    string
 }
 
+type loopDirective struct {
+	Continue bool
+	Break    bool
+}
+
 type cdpSession interface {
 	ExecuteInstruction(ctx context.Context, instruction runtime.Instruction) (*runtime.ExecutionResponse, error)
 	Close() error
@@ -57,6 +63,12 @@ const (
 	maxHeartbeatInterval        = 5 * time.Minute
 	heartbeatIntervalEnvVar     = "BROWSERLESS_HEARTBEAT_INTERVAL"
 	domSnapshotPreviewRuneLimit = 2000
+)
+
+const (
+	loopDefaultMaxIterations = 100
+	loopDefaultItemVariable  = "loop.item"
+	loopDefaultIndexVariable = "loop.index"
 )
 
 func decodeDataHTML(raw string) (string, error) {
@@ -398,133 +410,14 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 			)
 		}
 
-		retryHistory := make([]database.JSONMap, 0, maxAttempts)
-		currentDelayMs := retryDelayMs
-		totalAttemptDurationMs := 0
-		attemptsUsed := 0
 		var step runtime.StepResult
-
-		for attempt := 1; attempt <= maxAttempts; attempt++ {
-			attemptsUsed = attempt
-			attemptStart := time.Now()
-			response, callErr := session.ExecuteInstruction(ctx, instruction)
-			callDuration := int(time.Since(attemptStart) / time.Millisecond)
-
-			attemptStep := runtime.StepResult{
-				Index:  instruction.Index,
-				NodeID: instruction.NodeID,
-				Type:   instruction.Type,
-			}
-
-			if callErr != nil || response == nil || len(response.Steps) == 0 {
-				attemptStep.Success = false
-				if callErr != nil {
-					attemptStep.Error = callErr.Error()
-					lastErr = callErr
-				} else {
-					attemptStep.Error = "browserless returned no step result"
-					lastErr = fmt.Errorf("browserless returned no step result for node %s", instruction.NodeID)
-				}
-			} else {
-				attemptStep = response.Steps[0]
-				if strings.TrimSpace(attemptStep.NodeID) == "" {
-					attemptStep.NodeID = instruction.NodeID
-				}
-				if strings.TrimSpace(attemptStep.Type) == "" {
-					attemptStep.Type = instruction.Type
-				}
-				attemptStep.Index = instruction.Index
-				// Preserve scenario information from instruction params for navigate steps
-				if instruction.Type == "navigate" {
-					if instruction.Params.Scenario != "" {
-						attemptStep.Scenario = instruction.Params.Scenario
-					}
-					if instruction.Params.ScenarioPath != "" {
-						attemptStep.ScenarioPath = instruction.Params.ScenarioPath
-					}
-					if instruction.Params.DestinationType != "" {
-						attemptStep.DestinationType = instruction.Params.DestinationType
-					}
-				}
-				if !attemptStep.Success {
-					if attemptStep.Error != "" {
-						lastErr = errors.New(attemptStep.Error)
-					} else if response.Error != "" {
-						lastErr = errors.New(response.Error)
-					}
-				} else if response != nil && !response.Success {
-					attemptStep.Success = false
-					if response.Error != "" {
-						attemptStep.Error = response.Error
-						lastErr = errors.New(response.Error)
-					}
-				}
-			}
-
-			if attemptStep.DurationMs <= 0 && callDuration > 0 {
-				attemptStep.DurationMs = callDuration
-			}
-			totalAttemptDurationMs += attemptStep.DurationMs
-
-			historyEntry := database.JSONMap{
-				"attempt": attempt,
-				"success": attemptStep.Success,
-			}
-			if callDuration > 0 {
-				historyEntry["callDurationMs"] = callDuration
-			}
-			if attemptStep.DurationMs > 0 {
-				historyEntry["durationMs"] = attemptStep.DurationMs
-			}
-			if trimmed := strings.TrimSpace(attemptStep.Error); trimmed != "" {
-				historyEntry["error"] = trimmed
-			}
-			retryHistory = append(retryHistory, historyEntry)
-
-			step = attemptStep
-
-			if step.Success {
-				// CDP mode: Browser state persists automatically, no need to save DOM
-				lastErr = nil
-				break
-			}
-
-			if ctx.Err() != nil {
-				lastErr = ctx.Err()
-				if step.Error == "" && lastErr != nil {
-					step.Error = lastErr.Error()
-				}
-				break
-			}
-
-			if attempt >= maxAttempts {
-				break
-			}
-
-			if currentDelayMs > 0 {
-				delayDuration := time.Duration(currentDelayMs) * time.Millisecond
-				timer := time.NewTimer(delayDuration)
-				select {
-				case <-timer.C:
-				case <-ctx.Done():
-					timer.Stop()
-					lastErr = ctx.Err()
-					if step.Error == "" && lastErr != nil {
-						step.Error = lastErr.Error()
-					}
-					attemptsUsed = attempt
-					attempt = maxAttempts // force exit
-					continue
-				}
-			}
-
-			if currentDelayMs > 0 {
-				nextDelay := int(float64(currentDelayMs) * retryBackoffFactor)
-				if nextDelay <= 0 {
-					nextDelay = currentDelayMs
-				}
-				currentDelayMs = nextDelay
-			}
+		var retryHistory []database.JSONMap
+		var attemptsUsed int
+		var totalAttemptDurationMs int
+		if stepDefinition.Type == compiler.StepLoop {
+			step, retryHistory, attemptsUsed, totalAttemptDurationMs, lastErr = c.executeLoopStep(ctx, session, instruction, stepDefinition, execCtx)
+		} else {
+			step, retryHistory, attemptsUsed, totalAttemptDurationMs, lastErr = c.executeInstructionWithRetries(ctx, session, instruction)
 		}
 
 		if cancelHeartbeat != nil {
@@ -1225,7 +1118,13 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 			}
 		}
 
-		nextTargets, hasFailureEdge := evaluateOutgoingEdges(stepDefinition, step, allowFailure)
+		nextTargets, hasFailureEdge, directive := evaluateOutgoingEdges(stepDefinition, step, allowFailure)
+		if (directive.Continue || directive.Break) && c.log != nil {
+			c.log.WithFields(logrus.Fields{
+				"execution_id": execution.ID,
+				"node_id":      instruction.NodeID,
+			}).Warn("Loop directive emitted outside loop body; ignoring")
+		}
 		for _, targetNode := range nextTargets {
 			if _, exists := stepsByNodeID[targetNode]; !exists {
 				continue
@@ -1365,9 +1264,9 @@ func progressPercent(completed, total int) int {
 	return percent
 }
 
-func evaluateOutgoingEdges(step compiler.ExecutionStep, result runtime.StepResult, allowFailure bool) ([]string, bool) {
+func evaluateOutgoingEdges(step compiler.ExecutionStep, result runtime.StepResult, allowFailure bool) ([]string, bool, loopDirective) {
 	if len(step.OutgoingEdges) == 0 {
-		return nil, false
+		return nil, false, loopDirective{}
 	}
 
 	successTargets := make([]string, 0, len(step.OutgoingEdges))
@@ -1377,9 +1276,21 @@ func evaluateOutgoingEdges(step compiler.ExecutionStep, result runtime.StepResul
 	assertionPassTargets := make([]string, 0)
 	assertionFailTargets := make([]string, 0)
 	fallbackTargets := make([]string, 0)
+	conditionTrueTargets := make([]string, 0)
+	conditionFalseTargets := make([]string, 0)
 	hasFailureEdge := false
+	directive := loopDirective{}
 
 	for _, edge := range step.OutgoingEdges {
+		targetNode := strings.TrimSpace(edge.TargetNode)
+		if targetNode == compiler.LoopContinueTarget {
+			directive.Continue = true
+			continue
+		}
+		if targetNode == compiler.LoopBreakTarget {
+			directive.Break = true
+			continue
+		}
 		condition := strings.TrimSpace(strings.ToLower(edge.Condition))
 		switch condition {
 		case "", "next", "success", "on_success", "pass", "passed", "true", "yes":
@@ -1396,6 +1307,14 @@ func evaluateOutgoingEdges(step compiler.ExecutionStep, result runtime.StepResul
 		case "assert_fail", "assertion_fail", "assert_failure", "assert_false":
 			assertionFailTargets = append(assertionFailTargets, edge.TargetNode)
 			hasFailureEdge = true
+		case "if_true", "condition_true", "true_branch", "branch_true":
+			conditionTrueTargets = append(conditionTrueTargets, edge.TargetNode)
+		case "if_false", "condition_false", "false_branch", "branch_false":
+			conditionFalseTargets = append(conditionFalseTargets, edge.TargetNode)
+		case "loop_continue", "continue_loop":
+			directive.Continue = true
+		case "loop_break", "break_loop":
+			directive.Break = true
 		default:
 			fallbackTargets = append(fallbackTargets, edge.TargetNode)
 		}
@@ -1412,6 +1331,14 @@ func evaluateOutgoingEdges(step compiler.ExecutionStep, result runtime.StepResul
 		for _, node := range nodes {
 			trimmed := strings.TrimSpace(node)
 			if trimmed == "" {
+				continue
+			}
+			if trimmed == compiler.LoopContinueTarget {
+				directive.Continue = true
+				continue
+			}
+			if trimmed == compiler.LoopBreakTarget {
+				directive.Break = true
 				continue
 			}
 			if _, exists := dedup[trimmed]; exists {
@@ -1431,6 +1358,16 @@ func evaluateOutgoingEdges(step compiler.ExecutionStep, result runtime.StepResul
 		}
 	} else if !result.Success {
 		appendTargets(assertionFailTargets)
+	}
+
+	if len(conditionTrueTargets) > 0 || len(conditionFalseTargets) > 0 {
+		if cond := result.ConditionResult; cond != nil {
+			if cond.Outcome {
+				appendTargets(conditionTrueTargets)
+			} else {
+				appendTargets(conditionFalseTargets)
+			}
+		}
 	}
 
 	if result.Success {
@@ -1468,7 +1405,676 @@ func evaluateOutgoingEdges(step compiler.ExecutionStep, result runtime.StepResul
 		appendTargets(fallbackTargets)
 	}
 
-	return targets, hasFailureEdge
+	return targets, hasFailureEdge, directive
+}
+
+func (c *Client) executeInstructionWithRetries(
+	ctx context.Context,
+	session cdpSession,
+	instruction runtime.Instruction,
+) (runtime.StepResult, []database.JSONMap, int, int, error) {
+	maxRetries := instruction.Params.RetryAttempts
+	if maxRetries < 0 {
+		maxRetries = 0
+	}
+	maxAttempts := maxRetries + 1
+	retryDelayMs := instruction.Params.RetryDelayMs
+	if retryDelayMs < 0 {
+		retryDelayMs = 0
+	}
+	currentDelayMs := retryDelayMs
+	retryBackoffFactor := instruction.Params.RetryBackoffFactor
+	if retryBackoffFactor <= 0 {
+		retryBackoffFactor = 1
+	}
+	initialRetryDelayMs := retryDelayMs
+	retryHistory := make([]database.JSONMap, 0, maxAttempts)
+	totalAttemptDurationMs := 0
+	attemptsUsed := 0
+	var lastErr error
+	var step runtime.StepResult
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		attemptsUsed = attempt
+		attemptStart := time.Now()
+		response, callErr := session.ExecuteInstruction(ctx, instruction)
+		callDuration := int(time.Since(attemptStart) / time.Millisecond)
+
+		attemptStep := runtime.StepResult{
+			Index:  instruction.Index,
+			NodeID: instruction.NodeID,
+			Type:   instruction.Type,
+		}
+
+		if callErr != nil || response == nil || len(response.Steps) == 0 {
+			attemptStep.Success = false
+			if callErr != nil {
+				attemptStep.Error = callErr.Error()
+				lastErr = callErr
+			} else {
+				attemptStep.Error = "browserless returned no step result"
+				lastErr = fmt.Errorf("browserless returned no step result for node %s", instruction.NodeID)
+			}
+		} else {
+			attemptStep = response.Steps[0]
+			if strings.TrimSpace(attemptStep.NodeID) == "" {
+				attemptStep.NodeID = instruction.NodeID
+			}
+			if strings.TrimSpace(attemptStep.Type) == "" {
+				attemptStep.Type = instruction.Type
+			}
+			attemptStep.Index = instruction.Index
+			if instruction.Type == "navigate" {
+				if instruction.Params.Scenario != "" {
+					attemptStep.Scenario = instruction.Params.Scenario
+				}
+				if instruction.Params.ScenarioPath != "" {
+					attemptStep.ScenarioPath = instruction.Params.ScenarioPath
+				}
+				if instruction.Params.DestinationType != "" {
+					attemptStep.DestinationType = instruction.Params.DestinationType
+				}
+			}
+			if !attemptStep.Success {
+				if attemptStep.Error != "" {
+					lastErr = errors.New(attemptStep.Error)
+				} else if response.Error != "" {
+					lastErr = errors.New(response.Error)
+				}
+			} else if response != nil && !response.Success {
+				attemptStep.Success = false
+				if response.Error != "" {
+					attemptStep.Error = response.Error
+					lastErr = errors.New(response.Error)
+				}
+			}
+		}
+
+		if attemptStep.DurationMs <= 0 && callDuration > 0 {
+			attemptStep.DurationMs = callDuration
+		}
+		totalAttemptDurationMs += attemptStep.DurationMs
+
+		historyEntry := database.JSONMap{
+			"attempt": attempt,
+			"success": attemptStep.Success,
+		}
+		if callDuration > 0 {
+			historyEntry["callDurationMs"] = callDuration
+		}
+		if attemptStep.DurationMs > 0 {
+			historyEntry["durationMs"] = attemptStep.DurationMs
+		}
+		if trimmed := strings.TrimSpace(attemptStep.Error); trimmed != "" {
+			historyEntry["error"] = trimmed
+		}
+		retryHistory = append(retryHistory, historyEntry)
+
+		step = attemptStep
+
+		if step.Success {
+			lastErr = nil
+			break
+		}
+
+		if ctx.Err() != nil {
+			lastErr = ctx.Err()
+			if step.Error == "" && lastErr != nil {
+				step.Error = lastErr.Error()
+			}
+			break
+		}
+
+		if attempt >= maxAttempts {
+			break
+		}
+
+		if currentDelayMs > 0 {
+			delayDuration := time.Duration(currentDelayMs) * time.Millisecond
+			timer := time.NewTimer(delayDuration)
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				timer.Stop()
+				lastErr = ctx.Err()
+				if step.Error == "" && lastErr != nil {
+					step.Error = lastErr.Error()
+				}
+				attemptsUsed = attempt
+				attempt = maxAttempts
+				continue
+			}
+		}
+
+		if currentDelayMs > 0 && retryBackoffFactor > 1 {
+			currentDelayMs = int(float64(currentDelayMs) * retryBackoffFactor)
+		}
+		if initialRetryDelayMs == 0 && retryDelayMs > 0 {
+			initialRetryDelayMs = retryDelayMs
+		}
+	}
+
+	return step, retryHistory, attemptsUsed, totalAttemptDurationMs, lastErr
+}
+
+type loopBodyOutcome struct {
+	Success    bool
+	Break      bool
+	Continue   bool
+	DurationMs int
+}
+
+func buildInstructionIndex(instructions []runtime.Instruction) map[string]runtime.Instruction {
+	index := make(map[string]runtime.Instruction, len(instructions))
+	for _, instr := range instructions {
+		index[instr.NodeID] = instr
+	}
+	return index
+}
+
+func buildStepIndex(plan *compiler.ExecutionPlan) map[string]compiler.ExecutionStep {
+	index := make(map[string]compiler.ExecutionStep, len(plan.Steps))
+	for _, step := range plan.Steps {
+		index[step.NodeID] = step
+	}
+	return index
+}
+
+func initialActiveNodes(plan *compiler.ExecutionPlan) map[string]bool {
+	active := make(map[string]bool)
+	if plan == nil {
+		return active
+	}
+	incoming := make(map[string]int, len(plan.Steps))
+	for _, step := range plan.Steps {
+		incoming[step.NodeID] = 0
+	}
+	for _, step := range plan.Steps {
+		for _, edge := range step.OutgoingEdges {
+			target := strings.TrimSpace(edge.TargetNode)
+			if target == "" {
+				continue
+			}
+			if target == compiler.LoopBreakTarget || target == compiler.LoopContinueTarget {
+				continue
+			}
+			if _, ok := incoming[target]; ok {
+				incoming[target]++
+			}
+		}
+	}
+	for nodeID, count := range incoming {
+		if count == 0 {
+			active[nodeID] = true
+		}
+	}
+	if len(active) == 0 && len(plan.Steps) > 0 {
+		active[plan.Steps[0].NodeID] = true
+	}
+	return active
+}
+
+func resolveLoopItems(execCtx *runtime.ExecutionContext, source string) ([]any, error) {
+	if execCtx == nil {
+		return nil, fmt.Errorf("loop variable context is not initialized")
+	}
+	value, ok := execCtx.Get(source)
+	if !ok {
+		return nil, fmt.Errorf("variable %s is not defined", source)
+	}
+	if value == nil {
+		return nil, fmt.Errorf("variable %s is nil", source)
+	}
+	rv := reflect.ValueOf(value)
+	kind := rv.Kind()
+	if kind != reflect.Slice && kind != reflect.Array {
+		return nil, fmt.Errorf("variable %s is not iterable", source)
+	}
+	length := rv.Len()
+	items := make([]any, 0, length)
+	for i := 0; i < length; i++ {
+		items = append(items, rv.Index(i).Interface())
+	}
+	return items, nil
+}
+
+func applyLoopVariables(execCtx *runtime.ExecutionContext, instruction runtime.Instruction, iteration, total int, item any) {
+	if execCtx == nil {
+		return
+	}
+	indexVariable := instruction.Params.LoopIndexVariable
+	if indexVariable == "" {
+		indexVariable = loopDefaultIndexVariable
+	}
+	itemVariable := instruction.Params.LoopItemVariable
+	if itemVariable == "" {
+		itemVariable = loopDefaultItemVariable
+	}
+	execCtx.Set(indexVariable, iteration)
+	execCtx.Set(itemVariable, item)
+	execCtx.Set("loop.index", iteration)
+	execCtx.Set("loop.iteration", iteration+1)
+	execCtx.Set("loop.item", item)
+	execCtx.Set("loop.total", total)
+	execCtx.Set("loop.isFirst", iteration == 0)
+	if total > 0 {
+		execCtx.Set("loop.isLast", iteration == total-1)
+	} else {
+		execCtx.Set("loop.isLast", false)
+	}
+}
+
+func clearLoopVariables(execCtx *runtime.ExecutionContext, instruction runtime.Instruction) {
+	if execCtx == nil {
+		return
+	}
+	execCtx.Delete(instruction.Params.LoopIndexVariable)
+	execCtx.Delete(instruction.Params.LoopItemVariable)
+	for _, key := range []string{"loop.index", "loop.iteration", "loop.item", "loop.total", "loop.isFirst", "loop.isLast"} {
+		execCtx.Delete(key)
+	}
+}
+
+func evaluateLoopVariableCondition(execCtx *runtime.ExecutionContext, variable, operator string, expected any) (bool, error) {
+	if execCtx == nil {
+		return false, fmt.Errorf("execution context is nil")
+	}
+	value, ok := execCtx.Get(variable)
+	if !ok {
+		return false, nil
+	}
+	switch strings.ToLower(strings.TrimSpace(operator)) {
+	case "", "truthy":
+		return isTruthy(value), nil
+	case "equals":
+		return valuesEqual(value, expected), nil
+	case "not_equals", "not-equals":
+		return !valuesEqual(value, expected), nil
+	case "contains":
+		return strings.Contains(strings.ToLower(fmt.Sprintf("%v", value)), strings.ToLower(fmt.Sprintf("%v", expected))), nil
+	default:
+		return false, fmt.Errorf("unsupported loop operator %q", operator)
+	}
+}
+
+func (c *Client) evaluateLoopExpression(
+	ctx context.Context,
+	session cdpSession,
+	instruction runtime.Instruction,
+	variation string,
+	execCtx *runtime.ExecutionContext,
+) (bool, error) {
+	if strings.TrimSpace(variation) == "" {
+		return false, fmt.Errorf("loop expression is empty")
+	}
+	timeout := instruction.Params.TimeoutMs
+	if timeout <= 0 {
+		timeout = defaultLoopConditionTimeoutMs
+	}
+	evalInstruction := runtime.Instruction{
+		NodeID: fmt.Sprintf("%s::loop-condition", instruction.NodeID),
+		Type:   string(compiler.StepEvaluate),
+		Params: runtime.InstructionParam{
+			Expression: variation,
+			TimeoutMs:  timeout,
+		},
+	}
+	resolved, missing, err := runtime.InterpolateInstruction(evalInstruction, execCtx)
+	if err != nil {
+		return false, err
+	}
+	if len(missing) > 0 && c.log != nil {
+		c.log.WithFields(logrus.Fields{
+			"node_id":   instruction.NodeID,
+			"variables": missing,
+		}).Warn("Loop expression referenced undefined variables")
+	}
+	step, _, _, _, execErr := c.executeInstructionWithRetries(ctx, session, resolved)
+	if execErr != nil {
+		return false, execErr
+	}
+	if !step.Success {
+		if step.Error != "" {
+			return false, errors.New(step.Error)
+		}
+		return false, fmt.Errorf("loop expression evaluation failed")
+	}
+	return isTruthy(step.ExtractedData), nil
+}
+
+func isTruthy(value any) bool {
+	switch v := value.(type) {
+	case nil:
+		return false
+	case bool:
+		return v
+	case string:
+		return strings.TrimSpace(v) != "" && strings.TrimSpace(strings.ToLower(v)) != "false"
+	case int, int32, int64:
+		return fmt.Sprintf("%v", v) != "0"
+	case float32, float64:
+		return fmt.Sprintf("%v", v) != "0"
+	default:
+		return true
+	}
+}
+
+func valuesEqual(actual, expected any) bool {
+	if actual == nil && expected == nil {
+		return true
+	}
+	if actual == nil || expected == nil {
+		return false
+	}
+	return fmt.Sprintf("%v", actual) == fmt.Sprintf("%v", expected)
+}
+
+const defaultLoopConditionTimeoutMs = 5000
+
+func (c *Client) evaluateLoopCondition(
+	ctx context.Context,
+	session cdpSession,
+	instruction runtime.Instruction,
+	execCtx *runtime.ExecutionContext,
+) (bool, error) {
+	condType := strings.ToLower(strings.TrimSpace(instruction.Params.LoopConditionType))
+	if condType == "" {
+		condType = "variable"
+	}
+	switch condType {
+	case "variable":
+		variable := strings.TrimSpace(instruction.Params.LoopConditionVariable)
+		if variable == "" {
+			return false, fmt.Errorf("while loop requires conditionVariable")
+		}
+		operator := instruction.Params.LoopConditionOperator
+		if operator == "" {
+			operator = "truthy"
+		}
+		return evaluateLoopVariableCondition(execCtx, variable, operator, instruction.Params.LoopConditionValue)
+	case "expression":
+		expression := strings.TrimSpace(instruction.Params.LoopConditionExpression)
+		if expression == "" {
+			return false, fmt.Errorf("while loop requires conditionExpression")
+		}
+		return c.evaluateLoopExpression(ctx, session, instruction, expression, execCtx)
+	default:
+		return false, fmt.Errorf("unsupported loop condition type %q", condType)
+	}
+}
+
+func (c *Client) runLoopBody(
+	ctx context.Context,
+	session cdpSession,
+	plan *compiler.ExecutionPlan,
+	instructions []runtime.Instruction,
+	execCtx *runtime.ExecutionContext,
+) (loopBodyOutcome, error) {
+	outcome := loopBodyOutcome{Success: true}
+	if plan == nil || len(plan.Steps) == 0 {
+		return outcome, nil
+	}
+	stepsIndex := buildStepIndex(plan)
+	instructionOrder := instructions
+	if len(instructionOrder) == 0 {
+		var err error
+		instructionOrder, err = runtime.InstructionsFromPlan(ctx, plan)
+		if err != nil {
+			return outcome, err
+		}
+	}
+	active := initialActiveNodes(plan)
+	if len(active) == 0 {
+		return outcome, fmt.Errorf("loop body has no entry nodes")
+	}
+	start := time.Now()
+	for _, instr := range instructionOrder {
+		if !active[instr.NodeID] {
+			continue
+		}
+		delete(active, instr.NodeID)
+
+		resolved, missing, err := runtime.InterpolateInstruction(instr, execCtx)
+		if err != nil {
+			return outcome, err
+		}
+		if len(missing) > 0 && c.log != nil {
+			c.log.WithFields(logrus.Fields{
+				"node_id":   instr.NodeID,
+				"variables": missing,
+			}).Warn("Loop body referenced undefined variables")
+		}
+
+		stepDef, ok := stepsIndex[instr.NodeID]
+		if !ok {
+			return outcome, fmt.Errorf("loop body missing step definition for node %s", instr.NodeID)
+		}
+
+		stepResult, _, _, durationMs, execErr := c.executeInstructionWithRetries(ctx, session, resolved)
+		outcome.DurationMs += durationMs
+		allowFailure := false
+		if resolved.Params.ContinueOnFailure != nil {
+			allowFailure = *resolved.Params.ContinueOnFailure
+		}
+		if err := applyVariablePostProcessing(execCtx, resolved, stepResult); err != nil && c.log != nil {
+			c.log.WithError(err).Warn("Failed to persist loop variable output")
+		}
+		if execErr != nil && stepResult.Error == "" {
+			stepResult.Error = execErr.Error()
+		}
+		if !stepResult.Success && !allowFailure {
+			outcome.Success = false
+			if execErr != nil {
+				return outcome, execErr
+			}
+			if stepResult.Error != "" {
+				return outcome, errors.New(stepResult.Error)
+			}
+			return outcome, fmt.Errorf("loop body step %s failed", instr.NodeID)
+		}
+
+		nextTargets, _, directive := evaluateOutgoingEdges(stepDef, stepResult, allowFailure)
+		if directive.Break {
+			outcome.Break = true
+			break
+		}
+		if directive.Continue {
+			outcome.Continue = true
+			break
+		}
+		for _, target := range nextTargets {
+			active[target] = true
+		}
+	}
+
+	if outcome.DurationMs <= 0 {
+		outcome.DurationMs = int(time.Since(start) / time.Millisecond)
+	}
+
+	if len(active) > 0 && !outcome.Break && !outcome.Continue {
+		outcome.Success = false
+		return outcome, fmt.Errorf("loop body did not execute %d pending nodes", len(active))
+	}
+
+	return outcome, nil
+}
+
+func (c *Client) executeLoopStep(
+	ctx context.Context,
+	session cdpSession,
+	instruction runtime.Instruction,
+	stepDefinition compiler.ExecutionStep,
+	execCtx *runtime.ExecutionContext,
+) (runtime.StepResult, []database.JSONMap, int, int, error) {
+	result := runtime.StepResult{
+		Index:   instruction.Index,
+		NodeID:  instruction.NodeID,
+		Type:    instruction.Type,
+		Success: true,
+	}
+	retryHistory := []database.JSONMap{}
+	if stepDefinition.LoopPlan == nil {
+		err := fmt.Errorf("loop node %s is missing loop plan", instruction.NodeID)
+		result.Success = false
+		result.Error = err.Error()
+		return result, retryHistory, 1, 0, err
+	}
+	bodyInstructions, err := runtime.InstructionsFromPlan(ctx, stepDefinition.LoopPlan)
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		return result, retryHistory, 1, 0, err
+	}
+	loopType := strings.ToLower(strings.TrimSpace(instruction.Params.LoopType))
+	if loopType == "" {
+		loopType = "foreach"
+	}
+	maxIterations := instruction.Params.LoopMaxIterations
+	if maxIterations <= 0 {
+		maxIterations = loopDefaultMaxIterations
+	}
+	iterations := 0
+	totalDuration := 0
+	start := time.Now()
+	var dataset []any
+	switch loopType {
+	case "foreach":
+		source := strings.TrimSpace(instruction.Params.LoopArraySource)
+		if source == "" {
+			err := fmt.Errorf("loop node %s requires arraySource", instruction.NodeID)
+			result.Success = false
+			result.Error = err.Error()
+			return result, retryHistory, 1, 0, err
+		}
+		dataset, err = resolveLoopItems(execCtx, source)
+		if err != nil {
+			result.Success = false
+			result.Error = err.Error()
+			return result, retryHistory, 1, 0, err
+		}
+		if len(dataset) > maxIterations {
+			err := fmt.Errorf("loop node %s exceeded maxIterations (%d)", instruction.NodeID, maxIterations)
+			result.Success = false
+			result.Error = err.Error()
+			return result, retryHistory, 1, 0, err
+		}
+		for idx, item := range dataset {
+			applyLoopVariables(execCtx, instruction, idx, len(dataset), item)
+			outcome, runErr := c.runLoopBody(ctx, session, stepDefinition.LoopPlan, bodyInstructions, execCtx)
+			iterations++
+			totalDuration += outcome.DurationMs
+			if runErr != nil {
+				result.Success = false
+				result.Error = runErr.Error()
+				clearLoopVariables(execCtx, instruction)
+				return result, retryHistory, 1, totalDuration, runErr
+			}
+			if !outcome.Success {
+				result.Success = false
+				result.Error = "loop body failed"
+				clearLoopVariables(execCtx, instruction)
+				return result, retryHistory, 1, totalDuration, fmt.Errorf("loop body failed")
+			}
+			if outcome.Break {
+				break
+			}
+			if outcome.Continue {
+				continue
+			}
+		}
+	case "repeat":
+		repeatCount := instruction.Params.LoopCount
+		if repeatCount <= 0 {
+			return result, retryHistory, 1, 0, fmt.Errorf("loop node %s requires count > 0", instruction.NodeID)
+		}
+		if repeatCount > maxIterations {
+			maxIterations = repeatCount
+		}
+		for idx := 0; idx < repeatCount; idx++ {
+			applyLoopVariables(execCtx, instruction, idx, repeatCount, idx)
+			outcome, runErr := c.runLoopBody(ctx, session, stepDefinition.LoopPlan, bodyInstructions, execCtx)
+			iterations++
+			totalDuration += outcome.DurationMs
+			if runErr != nil {
+				result.Success = false
+				result.Error = runErr.Error()
+				clearLoopVariables(execCtx, instruction)
+				return result, retryHistory, 1, totalDuration, runErr
+			}
+			if !outcome.Success {
+				result.Success = false
+				result.Error = "loop body failed"
+				clearLoopVariables(execCtx, instruction)
+				return result, retryHistory, 1, totalDuration, fmt.Errorf("loop body failed")
+			}
+			if outcome.Break {
+				break
+			}
+			if outcome.Continue {
+				continue
+			}
+		}
+	case "while":
+		for iterations < maxIterations {
+			conditionMet, condErr := c.evaluateLoopCondition(ctx, session, instruction, execCtx)
+			if condErr != nil {
+				result.Success = false
+				result.Error = condErr.Error()
+				clearLoopVariables(execCtx, instruction)
+				return result, retryHistory, 1, totalDuration, condErr
+			}
+			if !conditionMet {
+				break
+			}
+			applyLoopVariables(execCtx, instruction, iterations, maxIterations, iterations)
+			outcome, runErr := c.runLoopBody(ctx, session, stepDefinition.LoopPlan, bodyInstructions, execCtx)
+			iterations++
+			totalDuration += outcome.DurationMs
+			if runErr != nil {
+				result.Success = false
+				result.Error = runErr.Error()
+				clearLoopVariables(execCtx, instruction)
+				return result, retryHistory, 1, totalDuration, runErr
+			}
+			if !outcome.Success {
+				result.Success = false
+				result.Error = "loop body failed"
+				clearLoopVariables(execCtx, instruction)
+				return result, retryHistory, 1, totalDuration, fmt.Errorf("loop body failed")
+			}
+			if outcome.Break {
+				break
+			}
+			if outcome.Continue {
+				continue
+			}
+		}
+		if iterations >= maxIterations {
+			err := fmt.Errorf("loop node %s exceeded maxIterations (%d)", instruction.NodeID, maxIterations)
+			result.Success = false
+			result.Error = err.Error()
+			clearLoopVariables(execCtx, instruction)
+			return result, retryHistory, 1, totalDuration, err
+		}
+	default:
+		err := fmt.Errorf("loop node %s has unsupported loopType %q", instruction.NodeID, loopType)
+		result.Success = false
+		result.Error = err.Error()
+		return result, retryHistory, 1, 0, err
+	}
+
+	clearLoopVariables(execCtx, instruction)
+	if result.Success {
+		result.ProbeResult = map[string]any{
+			"iterations": iterations,
+			"loopType":   loopType,
+		}
+	}
+	if totalDuration <= 0 {
+		totalDuration = int(time.Since(start) / time.Millisecond)
+	}
+	result.DurationMs = totalDuration
+	return result, retryHistory, 1, totalDuration, nil
 }
 
 func (c *Client) emitStepHeartbeats(

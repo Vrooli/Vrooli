@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/dom"
+	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/chromedp"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
@@ -19,24 +22,29 @@ import (
 
 // StepResult represents the outcome of executing a workflow step
 type StepResult struct {
-	Success            bool                   `json:"success"`
-	Error              string                 `json:"error,omitempty"`
-	DurationMs         int                    `json:"durationMs"`
-	Screenshot         string                 `json:"screenshot,omitempty"` // base64 encoded
-	URL                string                 `json:"url"`
-	Title              string                 `json:"title"`
-	ConsoleLogs        []ConsoleLog           `json:"consoleLogs,omitempty"`
-	NetworkEvents      []NetworkEvent         `json:"networkEvents,omitempty"`
-	DebugContext       map[string]interface{} `json:"debugContext,omitempty"`
-	ElementBoundingBox *runtime.BoundingBox   `json:"elementBoundingBox,omitempty"`
-	ExtractedData      any                    `json:"extractedData,omitempty"`
+	Success            bool                     `json:"success"`
+	Error              string                   `json:"error,omitempty"`
+	DurationMs         int                      `json:"durationMs"`
+	Screenshot         string                   `json:"screenshot,omitempty"` // base64 encoded
+	URL                string                   `json:"url"`
+	Title              string                   `json:"title"`
+	ConsoleLogs        []ConsoleLog             `json:"consoleLogs,omitempty"`
+	NetworkEvents      []NetworkEvent           `json:"networkEvents,omitempty"`
+	DebugContext       map[string]interface{}   `json:"debugContext,omitempty"`
+	ElementBoundingBox *runtime.BoundingBox     `json:"elementBoundingBox,omitempty"`
+	ExtractedData      any                      `json:"extractedData,omitempty"`
+	Condition          *runtime.ConditionResult `json:"conditionResult,omitempty"`
 }
 
 const (
-	defaultScrollAmountPixels     = 400
-	defaultScrollVisibilityChecks = 12
-	scrollVisibilityDelay         = 150 * time.Millisecond
-	defaultVariableTimeoutMs      = 30000
+	defaultScrollAmountPixels      = 400
+	defaultScrollVisibilityChecks  = 12
+	scrollVisibilityDelay          = 150 * time.Millisecond
+	defaultVariableTimeoutMs       = 30000
+	defaultConditionalTimeoutMs    = 10000
+	defaultConditionalPollInterval = 250
+	rotateOrientationPortrait      = "portrait"
+	rotateOrientationLandscape     = "landscape"
 )
 
 type scrollOptions struct {
@@ -63,6 +71,28 @@ type dragDropOptions struct {
 	waitAfterMs    int
 }
 
+type gestureOptions struct {
+	Type             string
+	Direction        string
+	StartX           float64
+	StartY           float64
+	EndX             float64
+	EndY             float64
+	Distance         int
+	Scale            float64
+	DurationMs       int
+	HoldMs           int
+	Steps            int
+	Selector         string
+	TimeoutMs        int
+	HasExplicitStart bool
+	HasExplicitEnd   bool
+	HasStartX        bool
+	HasStartY        bool
+	HasEndX          bool
+	HasEndY          bool
+}
+
 type selectEvalPayload struct {
 	Selector string   `json:"selector"`
 	Mode     string   `json:"mode"`
@@ -77,6 +107,29 @@ type selectEvalResult struct {
 	SelectedValues []string `json:"selectedValues"`
 	SelectedTexts  []string `json:"selectedTexts"`
 	Multiple       bool     `json:"multiple"`
+}
+
+type tabSwitchOptions struct {
+	SwitchBy   string
+	Index      int
+	TitleMatch string
+	URLMatch   string
+	WaitForNew bool
+	TimeoutMs  int
+	CloseOld   bool
+}
+
+type conditionalOptions struct {
+	Type           string
+	Expression     string
+	Selector       string
+	Variable       string
+	Operator       string
+	Value          any
+	Negate         bool
+	TimeoutMs      int
+	PollIntervalMs int
+	Variables      map[string]any
 }
 
 // ExecuteNavigate navigates to a URL
@@ -530,38 +583,9 @@ func (s *Session) ExecuteHover(ctx context.Context, selector string, timeoutMs, 
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
-	var nodes []*cdp.Node
-	err := chromedp.Run(timeoutCtx,
-		chromedp.WaitVisible(selector, chromedp.ByQuery),
-		chromedp.ScrollIntoView(selector, chromedp.ByQuery),
-		chromedp.Nodes(selector, &nodes, chromedp.ByQuery),
-	)
+	box, err := s.resolveElementBox(timeoutCtx, selector)
 	if err != nil {
 		result.Error = fmt.Sprintf("hover target %s unavailable: %v", selector, err)
-		result.DurationMs = int(time.Since(start).Milliseconds())
-		return result, err
-	}
-	if len(nodes) == 0 {
-		err = fmt.Errorf("hover selector %s not found", selector)
-		result.Error = err.Error()
-		result.DurationMs = int(time.Since(start).Milliseconds())
-		return result, err
-	}
-
-	nodeID := nodes[0].NodeID
-	var box *dom.BoxModel
-	err = chromedp.Run(timeoutCtx,
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			model, err := dom.GetBoxModel().WithNodeID(nodeID).Do(ctx)
-			if err != nil {
-				return err
-			}
-			box = model
-			return nil
-		}),
-	)
-	if err != nil {
-		result.Error = fmt.Sprintf("failed to measure hover selector: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err
 	}
@@ -636,72 +660,15 @@ func (s *Session) ExecuteDragAndDrop(ctx context.Context, opts dragDropOptions, 
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
-	waitAndScroll := func(selector string) error {
-		return chromedp.Run(timeoutCtx,
-			chromedp.WaitVisible(selector, chromedp.ByQuery),
-			chromedp.ScrollIntoView(selector, chromedp.ByQuery),
-		)
-	}
-	if err := waitAndScroll(opts.sourceSelector); err != nil {
+	sourceBox, err := s.resolveElementBox(timeoutCtx, opts.sourceSelector)
+	if err != nil {
 		result.Error = fmt.Sprintf("drag source %s unavailable: %v", opts.sourceSelector, err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err
 	}
-	if err := waitAndScroll(opts.targetSelector); err != nil {
+	targetBox, err := s.resolveElementBox(timeoutCtx, opts.targetSelector)
+	if err != nil {
 		result.Error = fmt.Sprintf("drag target %s unavailable: %v", opts.targetSelector, err)
-		result.DurationMs = int(time.Since(start).Milliseconds())
-		return result, err
-	}
-
-	var sourceNodes []*cdp.Node
-	if err := chromedp.Run(timeoutCtx, chromedp.Nodes(opts.sourceSelector, &sourceNodes, chromedp.ByQuery)); err != nil {
-		result.Error = fmt.Sprintf("drag source %s lookup failed: %v", opts.sourceSelector, err)
-		result.DurationMs = int(time.Since(start).Milliseconds())
-		return result, err
-	}
-	if len(sourceNodes) == 0 {
-		err := fmt.Errorf("drag source %s not found", opts.sourceSelector)
-		result.Error = err.Error()
-		result.DurationMs = int(time.Since(start).Milliseconds())
-		return result, err
-	}
-	var targetNodes []*cdp.Node
-	if err := chromedp.Run(timeoutCtx, chromedp.Nodes(opts.targetSelector, &targetNodes, chromedp.ByQuery)); err != nil {
-		result.Error = fmt.Sprintf("drag target %s lookup failed: %v", opts.targetSelector, err)
-		result.DurationMs = int(time.Since(start).Milliseconds())
-		return result, err
-	}
-	if len(targetNodes) == 0 {
-		err := fmt.Errorf("drag target %s not found", opts.targetSelector)
-		result.Error = err.Error()
-		result.DurationMs = int(time.Since(start).Milliseconds())
-		return result, err
-	}
-
-	measure := func(nodeID cdp.NodeID) (*dom.BoxModel, error) {
-		var box *dom.BoxModel
-		err := chromedp.Run(timeoutCtx,
-			chromedp.ActionFunc(func(ctx context.Context) error {
-				model, err := dom.GetBoxModel().WithNodeID(nodeID).Do(ctx)
-				if err != nil {
-					return err
-				}
-				box = model
-				return nil
-			}),
-		)
-		return box, err
-	}
-
-	sourceBox, err := measure(sourceNodes[0].NodeID)
-	if err != nil {
-		result.Error = fmt.Sprintf("failed to measure drag source: %v", err)
-		result.DurationMs = int(time.Since(start).Milliseconds())
-		return result, err
-	}
-	targetBox, err := measure(targetNodes[0].NodeID)
-	if err != nil {
-		result.Error = fmt.Sprintf("failed to measure drag target: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err
 	}
@@ -838,6 +805,88 @@ func (s *Session) ExecuteDragAndDrop(ctx context.Context, opts dragDropOptions, 
 	result.DurationMs = int(time.Since(start).Milliseconds())
 	result.ConsoleLogs, result.NetworkEvents = s.GetTelemetry()
 
+	return result, nil
+}
+
+// ExecuteGesture simulates common mobile/touch gestures. [REQ:BAS-NODE-GESTURE-MOBILE]
+func (s *Session) ExecuteGesture(ctx context.Context, opts gestureOptions) (*StepResult, error) {
+	start := time.Now()
+	gestureType := strings.ToLower(strings.TrimSpace(opts.Type))
+	if gestureType == "" {
+		gestureType = "tap"
+	}
+	if opts.TimeoutMs <= 0 {
+		opts.TimeoutMs = defaultGestureTimeoutMs
+	}
+	if opts.DurationMs <= 0 {
+		opts.DurationMs = defaultGestureDurationMs
+	}
+	if opts.Steps <= 0 {
+		opts.Steps = defaultGestureSteps
+	}
+	if opts.Distance <= 0 {
+		opts.Distance = defaultGestureDistance
+	}
+	if opts.Scale <= 0 {
+		opts.Scale = 1
+	}
+	result := &StepResult{
+		DebugContext: map[string]interface{}{
+			"type":      gestureType,
+			"direction": opts.Direction,
+			"selector":  strings.TrimSpace(opts.Selector),
+			"distance":  opts.Distance,
+			"scale":     opts.Scale,
+			"steps":     opts.Steps,
+			"duration":  opts.DurationMs,
+		},
+	}
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(opts.TimeoutMs)*time.Millisecond)
+	defer cancel()
+
+	anchorX, anchorY, err := s.resolveGestureAnchor(timeoutCtx, opts)
+	if err != nil {
+		result.Error = fmt.Sprintf("failed to resolve gesture anchor: %v", err)
+		result.DurationMs = int(time.Since(start).Milliseconds())
+		return result, err
+	}
+	result.DebugContext["anchorX"] = anchorX
+	result.DebugContext["anchorY"] = anchorY
+
+	var execErr error
+	switch gestureType {
+	case "swipe":
+		startX, startY, endX, endY := s.resolveSwipePath(anchorX, anchorY, opts)
+		result.DebugContext["startX"] = startX
+		result.DebugContext["startY"] = startY
+		result.DebugContext["endX"] = endX
+		result.DebugContext["endY"] = endY
+		execErr = s.dispatchSwipe(timeoutCtx, startX, startY, endX, endY, opts.DurationMs, opts.Steps)
+	case "pinch":
+		execErr = s.dispatchPinch(timeoutCtx, anchorX, anchorY, opts)
+	case "doubletap", "double_tap":
+		execErr = s.dispatchDoubleTap(timeoutCtx, anchorX, anchorY, opts.DurationMs)
+	case "longpress", "long_press", "long-press", "press":
+		execErr = s.dispatchLongPress(timeoutCtx, anchorX, anchorY, opts.HoldMs)
+	default:
+		execErr = s.dispatchTap(timeoutCtx, anchorX, anchorY, opts.DurationMs)
+	}
+	if execErr != nil {
+		result.Error = execErr.Error()
+		result.DurationMs = int(time.Since(start).Milliseconds())
+		return result, execErr
+	}
+
+	if err := chromedp.Run(s.ctx,
+		chromedp.Location(&result.URL),
+		chromedp.Title(&result.Title),
+	); err != nil {
+		s.log.WithError(err).Debug("failed to capture page metadata after gesture")
+	}
+
+	result.Success = true
+	result.DurationMs = int(time.Since(start).Milliseconds())
+	result.ConsoleLogs, result.NetworkEvents = s.GetTelemetry()
 	return result, nil
 }
 
@@ -1014,6 +1063,60 @@ func (s *Session) ExecuteScroll(ctx context.Context, opts scrollOptions, timeout
 	result.Success = true
 	result.DurationMs = int(time.Since(start).Milliseconds())
 	result.ConsoleLogs, result.NetworkEvents = s.GetTelemetry()
+
+	return result, nil
+}
+
+// ExecuteRotate updates the viewport orientation for mobile validation flows.
+// [REQ:BAS-NODE-ROTATE-MOBILE]
+func (s *Session) ExecuteRotate(ctx context.Context, orientation string, angle int, waitAfterMs int) (*StepResult, error) {
+	start := time.Now()
+	result := &StepResult{
+		DebugContext: map[string]interface{}{
+			"orientation": orientation,
+			"angle":       angle,
+		},
+	}
+
+	if orientation == "" {
+		orientation = rotateOrientationPortrait
+	}
+	width, height := resolveViewportForOrientation(s.viewportWidth, s.viewportHeight, orientation)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	orientationType := deriveScreenOrientationType(orientation, angle)
+	cmd := emulation.SetDeviceMetricsOverride(int64(width), int64(height), 1, true).
+		WithScreenOrientation(&emulation.ScreenOrientation{
+			Type:  emulation.OrientationType(orientationType),
+			Angle: int64(angle),
+		})
+
+	err := chromedp.Run(timeoutCtx, chromedp.ActionFunc(func(runCtx context.Context) error {
+		return cmd.Do(runCtx)
+	}))
+	if err != nil {
+		result.Error = fmt.Sprintf("rotate failed: %v", err)
+		result.DurationMs = int(time.Since(start).Milliseconds())
+		return result, err
+	}
+
+	s.SetViewport(width, height)
+	if waitAfterMs > 0 {
+		time.Sleep(time.Duration(waitAfterMs) * time.Millisecond)
+	}
+
+	chromedp.Run(s.ctx,
+		chromedp.Location(&result.URL),
+		chromedp.Title(&result.Title),
+	)
+
+	result.Success = true
+	result.DurationMs = int(time.Since(start).Milliseconds())
+	result.ConsoleLogs, result.NetworkEvents = s.GetTelemetry()
+	result.DebugContext["viewportWidth"] = width
+	result.DebugContext["viewportHeight"] = height
+	result.DebugContext["orientationType"] = orientationType
 
 	return result, nil
 }
@@ -1304,6 +1407,41 @@ func scrollDeltaFromDirection(direction string, amount int) (int, int) {
 	}
 }
 
+func resolveViewportForOrientation(width, height int, orientation string) (int, int) {
+	if width <= 0 {
+		width = 1920
+	}
+	if height <= 0 {
+		height = 1080
+	}
+	switch strings.ToLower(orientation) {
+	case rotateOrientationPortrait:
+		if width > height {
+			return height, width
+		}
+	case rotateOrientationLandscape:
+		if height > width {
+			return height, width
+		}
+	}
+	return width, height
+}
+
+func deriveScreenOrientationType(orientation string, angle int) string {
+	switch strings.ToLower(orientation) {
+	case rotateOrientationLandscape:
+		if angle == 270 {
+			return "landscapeSecondary"
+		}
+		return "landscapePrimary"
+	default:
+		if angle == 180 {
+			return "portraitSecondary"
+		}
+		return "portraitPrimary"
+	}
+}
+
 // ExecuteEvaluate executes arbitrary JavaScript
 func (s *Session) ExecuteEvaluate(ctx context.Context, script string, timeoutMs int) (*StepResult, error) {
 	start := time.Now()
@@ -1381,6 +1519,139 @@ func (s *Session) ExecuteExtract(ctx context.Context, selector, extractType, att
 		chromedp.Title(&result.Title),
 	)
 	result.Success = true
+	result.DurationMs = int(time.Since(start).Milliseconds())
+	result.ConsoleLogs, result.NetworkEvents = s.GetTelemetry()
+	return result, nil
+}
+
+// ExecuteTabSwitch switches the active browser target according to the requested criteria.
+func (s *Session) ExecuteTabSwitch(ctx context.Context, opts tabSwitchOptions) (*StepResult, error) {
+	start := time.Now()
+	result := &StepResult{
+		DebugContext: map[string]interface{}{
+			"switchBy":   opts.SwitchBy,
+			"waitNew":    opts.WaitForNew,
+			"closeOld":   opts.CloseOld,
+			"titleMatch": opts.TitleMatch,
+			"urlMatch":   opts.URLMatch,
+			"index":      opts.Index,
+		},
+	}
+
+	if opts.TimeoutMs <= 0 {
+		opts.TimeoutMs = 30000
+	}
+	if err := s.refreshTabInventory(ctx); err != nil {
+		s.log.WithError(err).Warn("failed to refresh tab inventory before switch")
+	}
+	if opts.WaitForNew {
+		known := s.currentTabSet()
+		waitCtx, cancel := context.WithTimeout(ctx, time.Duration(opts.TimeoutMs)*time.Millisecond)
+		defer cancel()
+		if _, err := s.waitForNewTab(waitCtx, known, time.Duration(opts.TimeoutMs)*time.Millisecond); err != nil {
+			result.Error = err.Error()
+			result.DurationMs = int(time.Since(start).Milliseconds())
+			return result, err
+		}
+	}
+	if err := s.refreshTabInventory(ctx); err != nil {
+		s.log.WithError(err).Warn("failed to refresh tab inventory after wait")
+	}
+	tabs := s.snapshotTabs()
+	if len(tabs) == 0 {
+		err := fmt.Errorf("no browser tabs are available to switch to")
+		result.Error = err.Error()
+		result.DurationMs = int(time.Since(start).Milliseconds())
+		return result, err
+	}
+	selection, err := pickTabTarget(tabs, opts)
+	if err != nil {
+		result.Error = err.Error()
+		result.DurationMs = int(time.Since(start).Milliseconds())
+		return result, err
+	}
+	if err := s.switchToTarget(selection.ID, opts.CloseOld); err != nil {
+		result.Error = fmt.Sprintf("failed to switch tab: %v", err)
+		result.DurationMs = int(time.Since(start).Milliseconds())
+		return result, err
+	}
+	result.Success = true
+	result.URL = selection.URL
+	result.Title = selection.Title
+	result.DebugContext["targetId"] = string(selection.ID)
+	result.DurationMs = int(time.Since(start).Milliseconds())
+	result.ConsoleLogs, result.NetworkEvents = s.GetTelemetry()
+	return result, nil
+}
+
+// ExecuteConditional evaluates branching conditions without mutating page state.
+func (s *Session) ExecuteConditional(ctx context.Context, opts conditionalOptions) (*StepResult, error) {
+	start := time.Now()
+	conditionType := strings.ToLower(strings.TrimSpace(opts.Type))
+	if conditionType == "" {
+		conditionType = "expression"
+	}
+	timeoutMs := opts.TimeoutMs
+	if timeoutMs <= 0 {
+		timeoutMs = defaultConditionalTimeoutMs
+	}
+	pollInterval := opts.PollIntervalMs
+	if pollInterval <= 0 {
+		pollInterval = defaultConditionalPollInterval
+	}
+	debug := map[string]interface{}{
+		"conditionType": conditionType,
+		"selector":      strings.TrimSpace(opts.Selector),
+		"variable":      strings.TrimSpace(opts.Variable),
+		"operator":      normalizeConditionOperatorName(opts.Operator),
+		"negate":        opts.Negate,
+	}
+
+	result := &StepResult{
+		Success:      true,
+		DebugContext: debug,
+	}
+
+	var (
+		outcome bool
+		actual  any
+		evalErr error
+	)
+
+	switch conditionType {
+	case "element", "selector":
+		trimmed := strings.TrimSpace(opts.Selector)
+		outcome, evalErr = s.evaluateElementCondition(ctx, trimmed, timeoutMs, pollInterval)
+		actual = outcome
+	case "variable":
+		outcome, actual, evalErr = evaluateVariableCondition(strings.TrimSpace(opts.Variable), normalizeConditionOperatorName(opts.Operator), opts.Value, opts.Variables)
+	default:
+		outcome, actual, evalErr = s.evaluateExpressionCondition(ctx, strings.TrimSpace(opts.Expression), timeoutMs)
+	}
+
+	if evalErr != nil {
+		result.Success = false
+		result.Error = evalErr.Error()
+		result.DurationMs = int(time.Since(start).Milliseconds())
+		result.ConsoleLogs, result.NetworkEvents = s.GetTelemetry()
+		return result, evalErr
+	}
+
+	if opts.Negate {
+		outcome = !outcome
+	}
+	result.DebugContext["conditionOutcome"] = outcome
+	result.Condition = &runtime.ConditionResult{
+		Type:       conditionType,
+		Outcome:    outcome,
+		Negated:    opts.Negate,
+		Operator:   normalizeConditionOperatorName(opts.Operator),
+		Variable:   strings.TrimSpace(opts.Variable),
+		Selector:   strings.TrimSpace(opts.Selector),
+		Expression: strings.TrimSpace(opts.Expression),
+		Expected:   opts.Value,
+		Actual:     actual,
+	}
 	result.DurationMs = int(time.Since(start).Milliseconds())
 	result.ConsoleLogs, result.NetworkEvents = s.GetTelemetry()
 	return result, nil
@@ -1584,6 +1855,165 @@ func boolFromPointer(value *bool) bool {
 	return value != nil && *value
 }
 
+func (s *Session) evaluateExpressionCondition(ctx context.Context, expression string, timeoutMs int) (bool, any, error) {
+	trimmed := strings.TrimSpace(expression)
+	if trimmed == "" {
+		return false, nil, fmt.Errorf("conditional expression is required")
+	}
+	var evaluation struct {
+		Success bool   `json:"success"`
+		Value   any    `json:"value"`
+		Error   string `json:"error"`
+	}
+	script := fmt.Sprintf(`(function(expr){
+	try {
+		const fn = new Function('return (' + expr + ');');
+		const value = fn();
+		return { success: !!value, value };
+	} catch (err) {
+		return { success: false, error: String(err) };
+	}
+})(%s)`, strconv.Quote(trimmed))
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	defer cancel()
+	if err := chromedp.Run(ctxWithTimeout, chromedp.Evaluate(script, &evaluation)); err != nil {
+		return false, nil, err
+	}
+	if evaluation.Error != "" {
+		return false, nil, fmt.Errorf("expression evaluation failed: %s", evaluation.Error)
+	}
+	return evaluation.Success, evaluation.Value, nil
+}
+
+func (s *Session) evaluateElementCondition(ctx context.Context, selector string, timeoutMs, pollInterval int) (bool, error) {
+	trimmed := strings.TrimSpace(selector)
+	if trimmed == "" {
+		return false, fmt.Errorf("conditional selector is required")
+	}
+	deadline := time.Now().Add(time.Duration(timeoutMs) * time.Millisecond)
+	interval := time.Duration(pollInterval) * time.Millisecond
+	for {
+		var exists bool
+		err := chromedp.Run(ctx, chromedp.Evaluate(fmt.Sprintf("!!document.querySelector(%s)", strconv.Quote(trimmed)), &exists))
+		if err == nil && exists {
+			return true, nil
+		}
+		if err != nil && ctx.Err() != nil {
+			return false, err
+		}
+		if time.Now().After(deadline) {
+			return exists, nil
+		}
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(interval):
+		}
+	}
+}
+
+func evaluateVariableCondition(variableName, operator string, expected any, variables map[string]any) (bool, any, error) {
+	trimmed := strings.TrimSpace(variableName)
+	if trimmed == "" {
+		return false, nil, fmt.Errorf("conditional variable name is required")
+	}
+	if variables == nil {
+		return false, nil, fmt.Errorf("execution context is empty")
+	}
+	actual, ok := variables[trimmed]
+	if !ok {
+		return false, nil, fmt.Errorf("variable %s is not defined", trimmed)
+	}
+	match, err := compareConditionValues(actual, expected, operator)
+	return match, actual, err
+}
+
+func normalizeConditionOperatorName(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "equals", "eq", "==":
+		return "equals"
+	case "not_equals", "!=", "neq":
+		return "not_equals"
+	case "contains", "includes":
+		return "contains"
+	case "starts_with", "prefix":
+		return "starts_with"
+	case "ends_with", "suffix":
+		return "ends_with"
+	case "gt", ">", "greater_than":
+		return "gt"
+	case "lt", "<", "less_than":
+		return "lt"
+	case "gte", ">=", "greater_than_or_equal":
+		return "gte"
+	case "lte", "<=", "less_than_or_equal":
+		return "lte"
+	default:
+		return strings.ToLower(strings.TrimSpace(raw))
+	}
+}
+
+func compareConditionValues(actual, expected any, operator string) (bool, error) {
+	actualStr := fmt.Sprintf("%v", actual)
+	expectedStr := fmt.Sprintf("%v", expected)
+	switch operator {
+	case "equals", "", "eq":
+		return actualStr == expectedStr, nil
+	case "not_equals", "neq":
+		return actualStr != expectedStr, nil
+	case "contains":
+		return strings.Contains(strings.ToLower(actualStr), strings.ToLower(expectedStr)), nil
+	case "starts_with":
+		return strings.HasPrefix(strings.ToLower(actualStr), strings.ToLower(expectedStr)), nil
+	case "ends_with":
+		return strings.HasSuffix(strings.ToLower(actualStr), strings.ToLower(expectedStr)), nil
+	case "gt", "gte", "lt", "lte":
+		actualNum, ok := toFloat64(actual)
+		if !ok {
+			return false, fmt.Errorf("actual value is not numeric")
+		}
+		expectedNum, ok := toFloat64(expected)
+		if !ok {
+			return false, fmt.Errorf("expected value is not numeric")
+		}
+		switch operator {
+		case "gt":
+			return actualNum > expectedNum, nil
+		case "gte":
+			return actualNum >= expectedNum, nil
+		case "lt":
+			return actualNum < expectedNum, nil
+		case "lte":
+			return actualNum <= expectedNum, nil
+		}
+	}
+	return false, fmt.Errorf("unsupported operator %s", operator)
+}
+
+func toFloat64(value any) (float64, bool) {
+	switch typed := value.(type) {
+	case float64:
+		return typed, true
+	case float32:
+		return float64(typed), true
+	case int:
+		return float64(typed), true
+	case int32:
+		return float64(typed), true
+	case int64:
+		return float64(typed), true
+	case string:
+		if parsed, err := strconv.ParseFloat(strings.TrimSpace(typed), 64); err == nil {
+			return parsed, true
+		}
+	case json.Number:
+		if parsed, err := typed.Float64(); err == nil {
+			return parsed, true
+		}
+	}
+	return 0, false
+}
+
 func deriveCodeFromRune(r rune) string {
 	switch {
 	case unicode.IsLetter(r):
@@ -1663,6 +2093,90 @@ func (s *Session) movePointerSmoothWithButtons(ctx context.Context, targetX, tar
 	return nil
 }
 
+func pickTabTarget(tabs []tabRecord, opts tabSwitchOptions) (*tabRecord, error) {
+	if len(tabs) == 0 {
+		return nil, fmt.Errorf("no tabs available")
+	}
+	mode := strings.ToLower(strings.TrimSpace(opts.SwitchBy))
+	switch mode {
+	case "index":
+		if opts.Index < 0 || opts.Index >= len(tabs) {
+			return nil, fmt.Errorf("tab index %d out of range", opts.Index)
+		}
+		return &tabs[opts.Index], nil
+	case "title":
+		pattern := strings.TrimSpace(opts.TitleMatch)
+		if pattern == "" {
+			return nil, fmt.Errorf("title pattern is required for switchBy=title")
+		}
+		for i := range tabs {
+			if matchesPattern(tabs[i].Title, pattern) {
+				return &tabs[i], nil
+			}
+		}
+		return nil, fmt.Errorf("no tab matched title pattern %s", pattern)
+	case "url":
+		pattern := strings.TrimSpace(opts.URLMatch)
+		if pattern == "" {
+			return nil, fmt.Errorf("url pattern is required for switchBy=url")
+		}
+		for i := range tabs {
+			if matchesPattern(tabs[i].URL, pattern) {
+				return &tabs[i], nil
+			}
+		}
+		return nil, fmt.Errorf("no tab matched url pattern %s", pattern)
+	case "oldest":
+		return &tabs[0], nil
+	case "newest", "":
+		return &tabs[len(tabs)-1], nil
+	default:
+		return &tabs[len(tabs)-1], nil
+	}
+}
+
+func matchesPattern(value, pattern string) bool {
+	if value == "" || pattern == "" {
+		return false
+	}
+	if re, err := regexp.Compile(pattern); err == nil {
+		return re.MatchString(value)
+	}
+	return strings.Contains(strings.ToLower(value), strings.ToLower(pattern))
+}
+
+func (s *Session) resolveElementBox(ctx context.Context, selector string) (*dom.BoxModel, error) {
+	trimmed := strings.TrimSpace(selector)
+	if trimmed == "" {
+		return nil, fmt.Errorf("selector is required")
+	}
+	var nodes []*cdp.Node
+	if err := chromedp.Run(ctx,
+		chromedp.WaitVisible(trimmed, chromedp.ByQuery),
+		chromedp.ScrollIntoView(trimmed, chromedp.ByQuery),
+		chromedp.Nodes(trimmed, &nodes, chromedp.ByQuery),
+	); err != nil {
+		return nil, err
+	}
+	if len(nodes) == 0 {
+		return nil, fmt.Errorf("selector %s not found", trimmed)
+	}
+	var box *dom.BoxModel
+	if err := chromedp.Run(ctx,
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			model, err := dom.GetBoxModel().WithNodeID(nodes[0].NodeID).Do(ctx)
+			if err != nil {
+				return err
+			}
+			box = model
+			return nil
+		}),
+	); err != nil {
+		return nil, err
+	}
+	return box, nil
+}
+
 func waitWithContext(ctx context.Context, delay time.Duration) error {
 	if delay <= 0 {
 		return nil
@@ -1675,6 +2189,221 @@ func waitWithContext(ctx context.Context, delay time.Duration) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+func (s *Session) resolveGestureAnchor(ctx context.Context, opts gestureOptions) (float64, float64, error) {
+	trimmed := strings.TrimSpace(opts.Selector)
+	if trimmed != "" {
+		box, err := s.resolveElementBox(ctx, trimmed)
+		if err != nil {
+			return 0, 0, err
+		}
+		x, y, err := centerFromBoxModel(box)
+		if err != nil {
+			return 0, 0, err
+		}
+		return x, y, nil
+	}
+	centerX, centerY := s.viewportCenter()
+	if opts.HasExplicitStart {
+		if opts.HasStartX {
+			centerX = opts.StartX
+		}
+		if opts.HasStartY {
+			centerY = opts.StartY
+		}
+	}
+	return s.clampViewportX(centerX), s.clampViewportY(centerY), nil
+}
+
+func (s *Session) resolveSwipePath(anchorX, anchorY float64, opts gestureOptions) (float64, float64, float64, float64) {
+	startX := anchorX
+	startY := anchorY
+	if opts.HasExplicitStart {
+		if opts.HasStartX {
+			startX = opts.StartX
+		}
+		if opts.HasStartY {
+			startY = opts.StartY
+		}
+	}
+	startX = s.clampViewportX(startX)
+	startY = s.clampViewportY(startY)
+
+	endX := startX
+	endY := startY
+	if opts.HasExplicitEnd {
+		if opts.HasEndX {
+			endX = opts.EndX
+		}
+		if opts.HasEndY {
+			endY = opts.EndY
+		}
+	} else {
+		delta := float64(opts.Distance)
+		if delta <= 0 {
+			delta = float64(defaultGestureDistance)
+		}
+		switch strings.ToLower(strings.TrimSpace(opts.Direction)) {
+		case "up":
+			endY = startY - delta
+		case "left":
+			endX = startX - delta
+		case "right":
+			endX = startX + delta
+		default:
+			endY = startY + delta
+		}
+	}
+	return startX, startY, s.clampViewportX(endX), s.clampViewportY(endY)
+}
+
+func (s *Session) dispatchTap(ctx context.Context, x, y float64, holdMs int) error {
+	if holdMs <= 0 {
+		holdMs = minGestureDurationMs
+	}
+	point := s.touchPoint(1, x, y)
+	if err := input.DispatchTouchEvent(input.TouchStart, []*input.TouchPoint{point}).Do(ctx); err != nil {
+		return err
+	}
+	if err := waitWithContext(ctx, time.Duration(holdMs)*time.Millisecond); err != nil {
+		return err
+	}
+	return input.DispatchTouchEvent(input.TouchEnd, []*input.TouchPoint{}).Do(ctx)
+}
+
+func (s *Session) dispatchDoubleTap(ctx context.Context, x, y float64, durationMs int) error {
+	if err := s.dispatchTap(ctx, x, y, durationMs); err != nil {
+		return err
+	}
+	if err := waitWithContext(ctx, 120*time.Millisecond); err != nil {
+		return err
+	}
+	return s.dispatchTap(ctx, x, y, durationMs)
+}
+
+func (s *Session) dispatchLongPress(ctx context.Context, x, y float64, holdMs int) error {
+	if holdMs < 600 {
+		holdMs = 600
+	}
+	point := s.touchPoint(1, x, y)
+	if err := input.DispatchTouchEvent(input.TouchStart, []*input.TouchPoint{point}).Do(ctx); err != nil {
+		return err
+	}
+	if err := waitWithContext(ctx, time.Duration(holdMs)*time.Millisecond); err != nil {
+		return err
+	}
+	return input.DispatchTouchEvent(input.TouchEnd, []*input.TouchPoint{}).Do(ctx)
+}
+
+func (s *Session) dispatchSwipe(ctx context.Context, startX, startY, endX, endY float64, durationMs, steps int) error {
+	if steps < 1 {
+		steps = 1
+	}
+	point := s.touchPoint(1, startX, startY)
+	if err := input.DispatchTouchEvent(input.TouchStart, []*input.TouchPoint{point}).Do(ctx); err != nil {
+		return err
+	}
+	stepDelay := time.Duration(durationMs) * time.Millisecond / time.Duration(steps)
+	if durationMs <= 0 {
+		stepDelay = 0
+	}
+	for i := 1; i <= steps; i++ {
+		progress := float64(i) / float64(steps)
+		point.X = s.clampViewportX(startX + (endX-startX)*progress)
+		point.Y = s.clampViewportY(startY + (endY-startY)*progress)
+		if err := input.DispatchTouchEvent(input.TouchMove, []*input.TouchPoint{point}).Do(ctx); err != nil {
+			return err
+		}
+		if err := waitWithContext(ctx, stepDelay); err != nil {
+			return err
+		}
+	}
+	return input.DispatchTouchEvent(input.TouchEnd, []*input.TouchPoint{}).Do(ctx)
+}
+
+func (s *Session) dispatchPinch(ctx context.Context, centerX, centerY float64, opts gestureOptions) error {
+	steps := opts.Steps
+	if steps < minGestureSteps {
+		steps = minGestureSteps
+	}
+	baseRadius := math.Max(float64(opts.Distance)/2, 20)
+	targetRadius := baseRadius * opts.Scale
+	pointA := s.touchPoint(1, centerX-baseRadius, centerY)
+	pointB := s.touchPoint(2, centerX+baseRadius, centerY)
+	if err := input.DispatchTouchEvent(input.TouchStart, []*input.TouchPoint{pointA, pointB}).Do(ctx); err != nil {
+		return err
+	}
+	stepDelay := time.Duration(opts.DurationMs) * time.Millisecond / time.Duration(steps)
+	if opts.DurationMs <= 0 {
+		stepDelay = 0
+	}
+	for i := 1; i <= steps; i++ {
+		progress := float64(i) / float64(steps)
+		radius := baseRadius + (targetRadius-baseRadius)*progress
+		pointA.X = s.clampViewportX(centerX - radius)
+		pointA.Y = s.clampViewportY(centerY)
+		pointB.X = s.clampViewportX(centerX + radius)
+		pointB.Y = s.clampViewportY(centerY)
+		if err := input.DispatchTouchEvent(input.TouchMove, []*input.TouchPoint{pointA, pointB}).Do(ctx); err != nil {
+			return err
+		}
+		if err := waitWithContext(ctx, stepDelay); err != nil {
+			return err
+		}
+	}
+	return input.DispatchTouchEvent(input.TouchEnd, []*input.TouchPoint{}).Do(ctx)
+}
+
+func (s *Session) touchPoint(id float64, x, y float64) *input.TouchPoint {
+	return &input.TouchPoint{
+		ID:      id,
+		X:       s.clampViewportX(x),
+		Y:       s.clampViewportY(y),
+		RadiusX: 8,
+		RadiusY: 8,
+		Force:   1,
+	}
+}
+
+func (s *Session) viewportCenter() (float64, float64) {
+	width := float64(s.viewportWidth)
+	height := float64(s.viewportHeight)
+	if width <= 0 {
+		width = 1920
+	}
+	if height <= 0 {
+		height = 1080
+	}
+	return width / 2, height / 2
+}
+
+func (s *Session) clampViewportX(value float64) float64 {
+	if value < 0 {
+		return 0
+	}
+	maxX := float64(s.viewportWidth)
+	if maxX <= 0 {
+		maxX = 1920
+	}
+	if value > maxX {
+		return maxX
+	}
+	return value
+}
+
+func (s *Session) clampViewportY(value float64) float64 {
+	if value < 0 {
+		return 0
+	}
+	maxY := float64(s.viewportHeight)
+	if maxY <= 0 {
+		maxY = 1080
+	}
+	if value > maxY {
+		return maxY
+	}
+	return value
 }
 
 func (s *Session) pointerStartPosition(targetX, targetY float64) (float64, float64) {

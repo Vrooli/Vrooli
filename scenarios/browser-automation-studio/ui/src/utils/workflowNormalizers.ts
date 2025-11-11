@@ -39,12 +39,39 @@ export const normalizeEdges = (edges: unknown[] | undefined | null): Edge[] => {
       const source = edgeData?.source ? String(edgeData.source) : '';
       const target = edgeData?.target ? String(edgeData.target) : '';
       if (!source || !target) return null;
-      return {
+      const normalized: Edge = {
         ...edgeData,
         id,
         source,
         target,
       } as Edge;
+      const data = (edgeData?.data && typeof edgeData.data === 'object') ? edgeData.data as Record<string, unknown> : undefined;
+      if (data) {
+        normalized.data = data;
+      }
+      const condition = typeof data?.condition === 'string' ? data.condition : undefined;
+      if (condition === 'if_true' || condition === 'if_false') {
+        const stroke = condition === 'if_true' ? '#4ade80' : '#f87171';
+        normalized.label = condition === 'if_true' ? 'IF TRUE' : 'IF FALSE';
+        normalized.style = { ...(normalized.style ?? {}), stroke };
+      }
+      if (condition === 'loop_body') {
+        normalized.label = 'LOOP BODY';
+        normalized.style = { ...(normalized.style ?? {}), stroke: '#38bdf8' };
+      }
+      if (condition === 'loop_next') {
+        normalized.label = 'AFTER LOOP';
+        normalized.style = { ...(normalized.style ?? {}), stroke: '#7c3aed' };
+      }
+      if (condition === 'loop_continue') {
+        normalized.label = 'CONTINUE';
+        normalized.style = { ...(normalized.style ?? {}), stroke: '#22c55e' };
+      }
+      if (condition === 'loop_break') {
+        normalized.label = 'BREAK';
+        normalized.style = { ...(normalized.style ?? {}), stroke: '#f43f5e' };
+      }
+      return normalized;
     })
     .filter(Boolean) as Edge[];
 };

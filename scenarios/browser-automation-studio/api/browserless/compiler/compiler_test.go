@@ -96,3 +96,54 @@ func TestCompileWorkflowUnsupportedType(t *testing.T) {
 		t.Fatal("expected unsupported type error, got nil")
 	}
 }
+
+func TestCompileWorkflowLoopExtractsBody(t *testing.T) {
+	workflow := &database.Workflow{
+		ID:   uuid.New(),
+		Name: "loop-flow",
+		FlowDefinition: database.JSONMap{
+			"nodes": []any{
+				map[string]any{"id": "loop", "type": "loop", "data": map[string]any{"loopType": "forEach", "arraySource": "rows"}},
+				map[string]any{"id": "body-click", "type": "click", "data": map[string]any{"selector": "#save"}},
+				map[string]any{"id": "body-type", "type": "type", "data": map[string]any{"selector": "#input", "text": "value"}},
+				map[string]any{"id": "after", "type": "screenshot", "data": map[string]any{"name": "after"}},
+			},
+			"edges": []any{
+				map[string]any{"id": "loop-body", "source": "loop", "target": "body-click", "sourceHandle": "loopBody"},
+				map[string]any{"id": "body-chain", "source": "body-click", "target": "body-type"},
+				map[string]any{"id": "loop-continue", "source": "body-type", "target": "loop", "targetHandle": "loopContinue"},
+				map[string]any{"id": "loop-after", "source": "loop", "target": "after", "sourceHandle": "loopAfter"},
+			},
+		},
+	}
+
+	plan, err := CompileWorkflow(workflow)
+	if err != nil {
+		t.Fatalf("expected loop workflow to compile, got error: %v", err)
+	}
+	if len(plan.Steps) != 2 {
+		t.Fatalf("expected loop plan to include loop node plus after node, got %d steps", len(plan.Steps))
+	}
+	loopStep := plan.Steps[0]
+	if loopStep.Type != StepLoop {
+		t.Fatalf("expected first step to be loop, got %s", loopStep.Type)
+	}
+	if loopStep.LoopPlan == nil {
+		t.Fatalf("expected loop plan to include nested plan")
+	}
+	if len(loopStep.LoopPlan.Steps) != 2 {
+		t.Fatalf("expected nested plan to include 2 body nodes, got %d", len(loopStep.LoopPlan.Steps))
+	}
+	bodyNodes := map[string]struct{}{}
+	for _, step := range loopStep.LoopPlan.Steps {
+		bodyNodes[step.NodeID] = struct{}{}
+	}
+	for _, expected := range []string{"body-click", "body-type"} {
+		if _, ok := bodyNodes[expected]; !ok {
+			t.Fatalf("expected loop body to contain %s", expected)
+		}
+	}
+	if loopStep.LoopPlan.Steps[1].LoopPlan != nil {
+		t.Fatalf("unexpected nested loop plan for non-loop body node")
+	}
+}

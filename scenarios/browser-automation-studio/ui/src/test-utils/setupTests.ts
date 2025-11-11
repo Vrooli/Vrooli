@@ -1,5 +1,7 @@
 // Test environment setup for Vitest + jsdom
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
 
 // Setup ResizeObserver mock for ReactFlow components
 if (typeof window !== 'undefined') {
@@ -45,3 +47,7 @@ if (typeof window !== 'undefined') {
     window.IntersectionObserver = IntersectionObserverStub;
   }
 }
+
+afterEach(() => {
+  cleanup();
+});

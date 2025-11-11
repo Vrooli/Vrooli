@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +14,33 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/browserless/compiler"
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
+)
+
+const (
+	defaultLoopMaxIterations = 100
+	maxLoopMaxIterations     = 5000
+	defaultLoopItemVariable  = "loop.item"
+	defaultLoopIndexVariable = "loop.index"
+)
+
+const (
+	rotateOrientationPortrait  = "portrait"
+	rotateOrientationLandscape = "landscape"
+)
+
+const (
+	defaultGestureTimeoutMs  = 15000
+	defaultGestureDurationMs = 350
+	minGestureDurationMs     = 50
+	maxGestureDurationMs     = 10000
+	defaultGestureDistance   = 150
+	minGestureDistance       = 10
+	maxGestureDistance       = 5000
+	defaultGestureSteps      = 15
+	minGestureSteps          = 2
+	maxGestureSteps          = 60
+	minGestureScale          = 0.2
+	maxGestureScale          = 4.0
 )
 
 // Instruction represents a normalized execution step that can be shipped to Browserless.
@@ -27,90 +55,135 @@ type Instruction struct {
 
 // InstructionParam captures the parameter payload for a Browserless instruction.
 type InstructionParam struct {
-	URL                   string   `json:"url,omitempty"`
-	Scenario              string   `json:"scenario,omitempty"`        // Scenario name for navigate nodes
-	ScenarioPath          string   `json:"scenarioPath,omitempty"`    // Scenario path for navigate nodes
-	DestinationType       string   `json:"destinationType,omitempty"` // url or scenario
-	WaitUntil             string   `json:"waitUntil,omitempty"`
-	TimeoutMs             int      `json:"timeoutMs,omitempty"`
-	WaitForMs             int      `json:"waitForMs,omitempty"`
-	WaitType              string   `json:"waitType,omitempty"`
-	DurationMs            int      `json:"durationMs,omitempty"`
-	MovementSteps         int      `json:"movementSteps,omitempty"`
-	DragSourceSelector    string   `json:"dragSourceSelector,omitempty"`
-	DragTargetSelector    string   `json:"dragTargetSelector,omitempty"`
-	DragHoldMs            int      `json:"dragHoldMs,omitempty"`
-	DragSteps             int      `json:"dragSteps,omitempty"`
-	DragDurationMs        int      `json:"dragDurationMs,omitempty"`
-	DragOffsetX           int      `json:"dragOffsetX,omitempty"`
-	DragOffsetY           int      `json:"dragOffsetY,omitempty"`
-	Selector              string   `json:"selector,omitempty"`
-	WaitForSelector       string   `json:"waitForSelector,omitempty"`
-	FilePaths             []string `json:"filePaths,omitempty"`
-	FilePath              string   `json:"filePath,omitempty"`
-	SelectionMode         string   `json:"selectionMode,omitempty"`
-	Name                  string   `json:"name,omitempty"`
-	FullPage              *bool    `json:"fullPage,omitempty"`
-	ViewportWidth         int      `json:"viewportWidth,omitempty"`
-	ViewportHeight        int      `json:"viewportHeight,omitempty"`
-	Button                string   `json:"button,omitempty"`
-	ClickCount            int      `json:"clickCount,omitempty"`
-	Text                  string   `json:"text,omitempty"`
-	DelayMs               int      `json:"delayMs,omitempty"`
-	Clear                 *bool    `json:"clear,omitempty"`
-	Submit                *bool    `json:"submit,omitempty"`
-	ExtractType           string   `json:"extractType,omitempty"`
-	Attribute             string   `json:"attribute,omitempty"`
-	AllMatches            *bool    `json:"allMatches,omitempty"`
-	FocusSelector         string   `json:"focusSelector,omitempty"`
-	HighlightSelectors    []string `json:"highlightSelectors,omitempty"`
-	HighlightColor        string   `json:"highlightColor,omitempty"`
-	HighlightPadding      int      `json:"highlightPadding,omitempty"`
-	HighlightBorderRadius int      `json:"highlightBorderRadius,omitempty"`
-	MaskSelectors         []string `json:"maskSelectors,omitempty"`
-	MaskOpacity           float64  `json:"maskOpacity,omitempty"`
-	Background            string   `json:"background,omitempty"`
-	ZoomFactor            float64  `json:"zoomFactor,omitempty"`
-	CaptureDomSnapshot    bool     `json:"captureDomSnapshot,omitempty"`
-	AssertMode            string   `json:"assertMode,omitempty"`
-	ExpectedValue         any      `json:"expectedValue,omitempty"`
-	FailureMessage        string   `json:"failureMessage,omitempty"`
-	Expression            string   `json:"expression,omitempty"`
-	StoreResult           string   `json:"storeResult,omitempty"`
-	VariableName          string   `json:"variableName,omitempty"`
-	VariableSource        string   `json:"variableSource,omitempty"`
-	VariableValue         any      `json:"variableValue,omitempty"`
-	VariableStoreAs       string   `json:"variableStoreAs,omitempty"`
-	VariableTransform     string   `json:"variableTransform,omitempty"`
-	VariableRequired      *bool    `json:"variableRequired,omitempty"`
-	CaseSensitive         *bool    `json:"caseSensitive,omitempty"`
-	Negate                *bool    `json:"negate,omitempty"`
-	ContinueOnFailure     *bool    `json:"continueOnFailure,omitempty"`
-	RetryAttempts         int      `json:"retryAttempts,omitempty"`
-	RetryDelayMs          int      `json:"retryDelayMs,omitempty"`
-	RetryBackoffFactor    float64  `json:"retryBackoffFactor,omitempty"`
-	ProbeX                int      `json:"probeX,omitempty"`
-	ProbeY                int      `json:"probeY,omitempty"`
-	ProbeRadius           int      `json:"probeRadius,omitempty"`
-	ProbeSamples          int      `json:"probeSamples,omitempty"`
-	ShortcutKeys          []string `json:"shortcutKeys,omitempty"`
-	ShortcutDelayMs       int      `json:"shortcutDelayMs,omitempty"`
-	KeyValue              string   `json:"keyValue,omitempty"`
-	KeyEventType          string   `json:"keyEventType,omitempty"`
-	KeyModifiers          []string `json:"keyModifiers,omitempty"`
-	ScrollType            string   `json:"scrollType,omitempty"`
-	ScrollDirection       string   `json:"scrollDirection,omitempty"`
-	ScrollAmount          int      `json:"scrollAmount,omitempty"`
-	ScrollBehavior        string   `json:"scrollBehavior,omitempty"`
-	ScrollX               int      `json:"scrollX,omitempty"`
-	ScrollY               int      `json:"scrollY,omitempty"`
-	ScrollTargetSelector  string   `json:"scrollTargetSelector,omitempty"`
-	ScrollMaxAttempts     int      `json:"scrollMaxAttempts,omitempty"`
-	OptionValue           string   `json:"optionValue,omitempty"`
-	OptionText            string   `json:"optionText,omitempty"`
-	OptionIndex           int      `json:"optionIndex,omitempty"`
-	OptionValues          []string `json:"optionValues,omitempty"`
-	MultiSelect           bool     `json:"multiSelect,omitempty"`
+	URL                     string   `json:"url,omitempty"`
+	Scenario                string   `json:"scenario,omitempty"`        // Scenario name for navigate nodes
+	ScenarioPath            string   `json:"scenarioPath,omitempty"`    // Scenario path for navigate nodes
+	DestinationType         string   `json:"destinationType,omitempty"` // url or scenario
+	WaitUntil               string   `json:"waitUntil,omitempty"`
+	TimeoutMs               int      `json:"timeoutMs,omitempty"`
+	WaitForMs               int      `json:"waitForMs,omitempty"`
+	WaitType                string   `json:"waitType,omitempty"`
+	DurationMs              int      `json:"durationMs,omitempty"`
+	MovementSteps           int      `json:"movementSteps,omitempty"`
+	DragSourceSelector      string   `json:"dragSourceSelector,omitempty"`
+	DragTargetSelector      string   `json:"dragTargetSelector,omitempty"`
+	DragHoldMs              int      `json:"dragHoldMs,omitempty"`
+	DragSteps               int      `json:"dragSteps,omitempty"`
+	DragDurationMs          int      `json:"dragDurationMs,omitempty"`
+	DragOffsetX             int      `json:"dragOffsetX,omitempty"`
+	DragOffsetY             int      `json:"dragOffsetY,omitempty"`
+	Selector                string   `json:"selector,omitempty"`
+	WaitForSelector         string   `json:"waitForSelector,omitempty"`
+	FilePaths               []string `json:"filePaths,omitempty"`
+	FilePath                string   `json:"filePath,omitempty"`
+	SelectionMode           string   `json:"selectionMode,omitempty"`
+	Name                    string   `json:"name,omitempty"`
+	FullPage                *bool    `json:"fullPage,omitempty"`
+	ViewportWidth           int      `json:"viewportWidth,omitempty"`
+	ViewportHeight          int      `json:"viewportHeight,omitempty"`
+	RotateOrientation       string   `json:"rotateOrientation,omitempty"`
+	RotateAngle             int      `json:"rotateAngle,omitempty"`
+	GestureType             string   `json:"gestureType,omitempty"`
+	GestureDirection        string   `json:"gestureDirection,omitempty"`
+	GestureSelector         string   `json:"gestureSelector,omitempty"`
+	GestureStartX           int      `json:"gestureStartX,omitempty"`
+	GestureStartY           int      `json:"gestureStartY,omitempty"`
+	GestureEndX             int      `json:"gestureEndX,omitempty"`
+	GestureEndY             int      `json:"gestureEndY,omitempty"`
+	GestureDistance         int      `json:"gestureDistance,omitempty"`
+	GestureScale            float64  `json:"gestureScale,omitempty"`
+	GestureDurationMs       int      `json:"gestureDurationMs,omitempty"`
+	GestureHoldMs           int      `json:"gestureHoldMs,omitempty"`
+	GestureSteps            int      `json:"gestureSteps,omitempty"`
+	GestureHasStart         bool     `json:"gestureHasStart,omitempty"`
+	GestureHasEnd           bool     `json:"gestureHasEnd,omitempty"`
+	GestureHasStartX        bool     `json:"gestureHasStartX,omitempty"`
+	GestureHasStartY        bool     `json:"gestureHasStartY,omitempty"`
+	GestureHasEndX          bool     `json:"gestureHasEndX,omitempty"`
+	GestureHasEndY          bool     `json:"gestureHasEndY,omitempty"`
+	Button                  string   `json:"button,omitempty"`
+	ClickCount              int      `json:"clickCount,omitempty"`
+	Text                    string   `json:"text,omitempty"`
+	DelayMs                 int      `json:"delayMs,omitempty"`
+	Clear                   *bool    `json:"clear,omitempty"`
+	Submit                  *bool    `json:"submit,omitempty"`
+	ExtractType             string   `json:"extractType,omitempty"`
+	Attribute               string   `json:"attribute,omitempty"`
+	AllMatches              *bool    `json:"allMatches,omitempty"`
+	FocusSelector           string   `json:"focusSelector,omitempty"`
+	HighlightSelectors      []string `json:"highlightSelectors,omitempty"`
+	HighlightColor          string   `json:"highlightColor,omitempty"`
+	HighlightPadding        int      `json:"highlightPadding,omitempty"`
+	HighlightBorderRadius   int      `json:"highlightBorderRadius,omitempty"`
+	MaskSelectors           []string `json:"maskSelectors,omitempty"`
+	MaskOpacity             float64  `json:"maskOpacity,omitempty"`
+	Background              string   `json:"background,omitempty"`
+	ZoomFactor              float64  `json:"zoomFactor,omitempty"`
+	CaptureDomSnapshot      bool     `json:"captureDomSnapshot,omitempty"`
+	AssertMode              string   `json:"assertMode,omitempty"`
+	ExpectedValue           any      `json:"expectedValue,omitempty"`
+	FailureMessage          string   `json:"failureMessage,omitempty"`
+	Expression              string   `json:"expression,omitempty"`
+	StoreResult             string   `json:"storeResult,omitempty"`
+	VariableName            string   `json:"variableName,omitempty"`
+	VariableSource          string   `json:"variableSource,omitempty"`
+	VariableValue           any      `json:"variableValue,omitempty"`
+	VariableStoreAs         string   `json:"variableStoreAs,omitempty"`
+	VariableTransform       string   `json:"variableTransform,omitempty"`
+	VariableRequired        *bool    `json:"variableRequired,omitempty"`
+	ConditionType           string   `json:"conditionType,omitempty"`
+	ConditionExpression     string   `json:"conditionExpression,omitempty"`
+	ConditionSelector       string   `json:"conditionSelector,omitempty"`
+	ConditionVariable       string   `json:"conditionVariable,omitempty"`
+	ConditionOperator       string   `json:"conditionOperator,omitempty"`
+	ConditionValue          any      `json:"conditionValue,omitempty"`
+	ConditionNegate         *bool    `json:"conditionNegate,omitempty"`
+	ConditionPollIntervalMs int      `json:"conditionPollIntervalMs,omitempty"`
+	CaseSensitive           *bool    `json:"caseSensitive,omitempty"`
+	Negate                  *bool    `json:"negate,omitempty"`
+	ContinueOnFailure       *bool    `json:"continueOnFailure,omitempty"`
+	RetryAttempts           int      `json:"retryAttempts,omitempty"`
+	RetryDelayMs            int      `json:"retryDelayMs,omitempty"`
+	RetryBackoffFactor      float64  `json:"retryBackoffFactor,omitempty"`
+	ProbeX                  int      `json:"probeX,omitempty"`
+	ProbeY                  int      `json:"probeY,omitempty"`
+	ProbeRadius             int      `json:"probeRadius,omitempty"`
+	ProbeSamples            int      `json:"probeSamples,omitempty"`
+	ShortcutKeys            []string `json:"shortcutKeys,omitempty"`
+	ShortcutDelayMs         int      `json:"shortcutDelayMs,omitempty"`
+	KeyValue                string   `json:"keyValue,omitempty"`
+	KeyEventType            string   `json:"keyEventType,omitempty"`
+	KeyModifiers            []string `json:"keyModifiers,omitempty"`
+	ScrollType              string   `json:"scrollType,omitempty"`
+	ScrollDirection         string   `json:"scrollDirection,omitempty"`
+	ScrollAmount            int      `json:"scrollAmount,omitempty"`
+	ScrollBehavior          string   `json:"scrollBehavior,omitempty"`
+	ScrollX                 int      `json:"scrollX,omitempty"`
+	ScrollY                 int      `json:"scrollY,omitempty"`
+	ScrollTargetSelector    string   `json:"scrollTargetSelector,omitempty"`
+	ScrollMaxAttempts       int      `json:"scrollMaxAttempts,omitempty"`
+	OptionValue             string   `json:"optionValue,omitempty"`
+	OptionText              string   `json:"optionText,omitempty"`
+	OptionIndex             int      `json:"optionIndex,omitempty"`
+	OptionValues            []string `json:"optionValues,omitempty"`
+	MultiSelect             bool     `json:"multiSelect,omitempty"`
+	TabSwitchBy             string   `json:"tabSwitchBy,omitempty"`
+	TabIndex                int      `json:"tabIndex,omitempty"`
+	TabTitleMatch           string   `json:"tabTitleMatch,omitempty"`
+	TabURLMatch             string   `json:"tabUrlMatch,omitempty"`
+	TabWaitForNew           bool     `json:"tabWaitForNew,omitempty"`
+	TabCloseOld             bool     `json:"tabCloseOld,omitempty"`
+	LoopType                string   `json:"loopType,omitempty"`
+	LoopArraySource         string   `json:"loopArraySource,omitempty"`
+	LoopCount               int      `json:"loopCount,omitempty"`
+	LoopConditionExpression string   `json:"loopConditionExpression,omitempty"`
+	LoopConditionType       string   `json:"loopConditionType,omitempty"`
+	LoopConditionVariable   string   `json:"loopConditionVariable,omitempty"`
+	LoopConditionOperator   string   `json:"loopConditionOperator,omitempty"`
+	LoopConditionValue      any      `json:"loopConditionValue,omitempty"`
+	LoopMaxIterations       int      `json:"loopMaxIterations,omitempty"`
+	LoopItemVariable        string   `json:"loopItemVariable,omitempty"`
+	LoopIndexVariable       string   `json:"loopIndexVariable,omitempty"`
 }
 
 // InstructionsFromPlan converts a compiled execution plan into Browserless instructions.
@@ -171,6 +244,28 @@ type screenshotConfig struct {
 	Background            string   `json:"background"`
 	ZoomFactor            float64  `json:"zoomFactor"`
 	CaptureDomSnapshot    bool     `json:"captureDomSnapshot"`
+}
+
+type rotateConfig struct {
+	Orientation string `json:"orientation"`
+	Angle       int    `json:"angle"`
+	WaitForMs   int    `json:"waitForMs"`
+}
+
+type gestureConfig struct {
+	GestureType string  `json:"gestureType"`
+	Direction   string  `json:"direction"`
+	StartX      float64 `json:"startX"`
+	StartY      float64 `json:"startY"`
+	EndX        float64 `json:"endX"`
+	EndY        float64 `json:"endY"`
+	Distance    int     `json:"distance"`
+	Scale       float64 `json:"scale"`
+	Selector    string  `json:"selector"`
+	DurationMs  int     `json:"durationMs"`
+	HoldMs      int     `json:"holdMs"`
+	Steps       int     `json:"steps"`
+	TimeoutMs   int     `json:"timeoutMs"`
 }
 
 type clickConfig struct {
@@ -275,6 +370,15 @@ const (
 	maxScrollCoordinate   = 500000
 )
 
+const (
+	defaultConditionalTimeoutMs    = 10000
+	minConditionalTimeoutMs        = 100
+	maxConditionalTimeoutMs        = 60000
+	defaultConditionalPollInterval = 250
+	minConditionalPollInterval     = 50
+	maxConditionalPollInterval     = 2000
+)
+
 type extractConfig struct {
 	Selector    string `json:"selector"`
 	ExtractType string `json:"extractType"`
@@ -294,6 +398,16 @@ type selectConfig struct {
 	Values    []string `json:"values"`
 	TimeoutMs int      `json:"timeoutMs"`
 	WaitForMs int      `json:"waitForMs"`
+}
+
+type tabSwitchConfig struct {
+	SwitchBy   string `json:"switchBy"`
+	Index      int    `json:"index"`
+	TitleMatch string `json:"titleMatch"`
+	URLMatch   string `json:"urlMatch"`
+	WaitForNew bool   `json:"waitForNew"`
+	TimeoutMs  int    `json:"timeoutMs"`
+	CloseOld   bool   `json:"closeOld"`
 }
 
 type evaluateConfig struct {
@@ -337,6 +451,32 @@ type useVariableConfig struct {
 	StoreAs   string `json:"storeAs"`
 	Transform string `json:"transform"`
 	Required  *bool  `json:"required"`
+}
+
+type conditionalConfig struct {
+	ConditionType  string `json:"conditionType"`
+	Expression     string `json:"expression"`
+	Selector       string `json:"selector"`
+	Variable       string `json:"variable"`
+	Operator       string `json:"operator"`
+	Value          any    `json:"value"`
+	Negate         bool   `json:"negate"`
+	TimeoutMs      int    `json:"timeoutMs"`
+	PollIntervalMs int    `json:"pollIntervalMs"`
+}
+
+type loopConfig struct {
+	LoopType            string `json:"loopType"`
+	ArraySource         string `json:"arraySource"`
+	Count               int    `json:"count"`
+	MaxIterations       int    `json:"maxIterations"`
+	ItemVariable        string `json:"itemVariable"`
+	IndexVariable       string `json:"indexVariable"`
+	ConditionType       string `json:"conditionType"`
+	ConditionExpression string `json:"conditionExpression"`
+	ConditionVariable   string `json:"conditionVariable"`
+	ConditionOperator   string `json:"conditionOperator"`
+	ConditionValue      any    `json:"conditionValue"`
 }
 
 type keyboardModifierSpec struct {
@@ -835,6 +975,226 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 				base.Params.OptionIndex = cfg.Index
 			}
 		}
+	case compiler.StepConditional:
+		var cfg conditionalConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("conditional node %s has invalid data: %w", step.NodeID, err)
+		}
+		mode := strings.ToLower(strings.TrimSpace(cfg.ConditionType))
+		if mode == "" {
+			mode = "expression"
+		}
+		base.Params.ConditionType = mode
+		var pollInterval int
+		if cfg.PollIntervalMs > 0 {
+			pollInterval = clampInt(cfg.PollIntervalMs, minConditionalPollInterval, maxConditionalPollInterval)
+		}
+		if pollInterval > 0 {
+			base.Params.ConditionPollIntervalMs = pollInterval
+		}
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = clampInt(cfg.TimeoutMs, minConditionalTimeoutMs, maxConditionalTimeoutMs)
+		} else {
+			base.Params.TimeoutMs = defaultConditionalTimeoutMs
+		}
+
+		switch mode {
+		case "expression", "script", "js":
+			expression := strings.TrimSpace(cfg.Expression)
+			if expression == "" {
+				return Instruction{}, fmt.Errorf("conditional node %s missing expression", step.NodeID)
+			}
+			base.Params.ConditionExpression = expression
+		case "element", "selector":
+			selector := strings.TrimSpace(cfg.Selector)
+			if selector == "" {
+				return Instruction{}, fmt.Errorf("conditional node %s missing selector", step.NodeID)
+			}
+			base.Params.ConditionSelector = selector
+		case "variable":
+			variableName := strings.TrimSpace(cfg.Variable)
+			if variableName == "" {
+				return Instruction{}, fmt.Errorf("conditional node %s missing variable name", step.NodeID)
+			}
+			operator := strings.ToLower(strings.TrimSpace(cfg.Operator))
+			if operator == "" {
+				operator = "equals"
+			}
+			base.Params.ConditionVariable = variableName
+			base.Params.ConditionOperator = operator
+			if cfg.Value != nil {
+				base.Params.ConditionValue = cfg.Value
+			} else if raw, ok := step.Params["value"]; ok {
+				base.Params.ConditionValue = raw
+			}
+		default:
+			return Instruction{}, fmt.Errorf("conditional node %s has unsupported condition type %q", step.NodeID, cfg.ConditionType)
+		}
+
+		if cfg.Negate {
+			negate := true
+			base.Params.ConditionNegate = &negate
+		}
+	case compiler.StepLoop:
+		var cfg loopConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("loop node %s has invalid data: %w", step.NodeID, err)
+		}
+		loopType := normalizeLoopType(cfg.LoopType)
+		if loopType == "" {
+			return Instruction{}, fmt.Errorf("loop node %s requires a loopType", step.NodeID)
+		}
+		params := base.Params
+		params.LoopType = loopType
+		params.LoopMaxIterations = clampLoopIterations(cfg.MaxIterations)
+		params.LoopItemVariable = normalizeLoopVariable(cfg.ItemVariable, defaultLoopItemVariable)
+		params.LoopIndexVariable = normalizeLoopVariable(cfg.IndexVariable, defaultLoopIndexVariable)
+		switch loopType {
+		case "foreach":
+			source := strings.TrimSpace(cfg.ArraySource)
+			if source == "" {
+				return Instruction{}, fmt.Errorf("loop node %s requires an arraySource for forEach loops", step.NodeID)
+			}
+			params.LoopArraySource = source
+		case "repeat":
+			if cfg.Count <= 0 {
+				return Instruction{}, fmt.Errorf("loop node %s requires count > 0 for repeat loops", step.NodeID)
+			}
+			params.LoopCount = cfg.Count
+			if cfg.Count > params.LoopMaxIterations {
+				params.LoopMaxIterations = clampLoopIterations(cfg.Count)
+			}
+		case "while":
+			conditionType := normalizeLoopConditionType(cfg.ConditionType)
+			if conditionType == "" {
+				conditionType = "variable"
+			}
+			params.LoopConditionType = conditionType
+			switch conditionType {
+			case "expression":
+				expr := strings.TrimSpace(cfg.ConditionExpression)
+				if expr == "" {
+					return Instruction{}, fmt.Errorf("loop node %s requires conditionExpression for expression-based while loops", step.NodeID)
+				}
+				params.LoopConditionExpression = expr
+			case "variable":
+				variable := strings.TrimSpace(cfg.ConditionVariable)
+				if variable == "" {
+					return Instruction{}, fmt.Errorf("loop node %s requires conditionVariable for variable-based while loops", step.NodeID)
+				}
+				params.LoopConditionVariable = variable
+				operator := normalizeLoopOperator(cfg.ConditionOperator)
+				params.LoopConditionOperator = operator
+				if cfg.ConditionValue != nil {
+					params.LoopConditionValue = cfg.ConditionValue
+				}
+			default:
+				return Instruction{}, fmt.Errorf("loop node %s has unsupported conditionType %q", step.NodeID, cfg.ConditionType)
+			}
+		default:
+			return Instruction{}, fmt.Errorf("loop node %s has unsupported loopType %q", step.NodeID, loopType)
+		}
+		base.Params = params
+		return base, nil
+	case compiler.StepRotate:
+		// [REQ:BAS-NODE-ROTATE-MOBILE]
+		var cfg rotateConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("rotate node %s has invalid data: %w", step.NodeID, err)
+		}
+		orientation, err := normalizeRotateOrientation(cfg.Orientation)
+		if err != nil {
+			return Instruction{}, fmt.Errorf("rotate node %s has invalid orientation: %w", step.NodeID, err)
+		}
+		angle := defaultRotateAngleFor(orientation)
+		if hasParam(step.Params, "angle") {
+			normalizedAngle, ok := normalizeRotateAngle(cfg.Angle)
+			if !ok {
+				return Instruction{}, fmt.Errorf("rotate node %s has unsupported angle %d", step.NodeID, cfg.Angle)
+			}
+			if !angleMatchesOrientation(orientation, normalizedAngle) {
+				return Instruction{}, fmt.Errorf("rotate node %s angle %d does not match %s orientation", step.NodeID, normalizedAngle, orientation)
+			}
+			angle = normalizedAngle
+		}
+		base.Params.RotateOrientation = orientation
+		base.Params.RotateAngle = angle
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+	case compiler.StepGesture:
+		// [REQ:BAS-NODE-GESTURE-MOBILE]
+		var cfg gestureConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("gesture node %s has invalid data: %w", step.NodeID, err)
+		}
+		base.Params.GestureType = normalizeGestureType(cfg.GestureType)
+		base.Params.GestureDirection = normalizeGestureDirection(cfg.Direction)
+		base.Params.GestureSelector = strings.TrimSpace(cfg.Selector)
+		base.Params.GestureDistance = clampGestureDistance(cfg.Distance)
+		base.Params.GestureScale = clampGestureScale(cfg.Scale)
+		base.Params.GestureDurationMs = clampGestureDuration(cfg.DurationMs)
+		base.Params.GestureHoldMs = clampGestureHold(cfg.HoldMs)
+		base.Params.GestureSteps = clampGestureSteps(cfg.Steps)
+		base.Params.GestureStartX = clampGestureCoordinate(cfg.StartX)
+		base.Params.GestureStartY = clampGestureCoordinate(cfg.StartY)
+		base.Params.GestureEndX = clampGestureCoordinate(cfg.EndX)
+		base.Params.GestureEndY = clampGestureCoordinate(cfg.EndY)
+		startXProvided := hasParam(step.Params, "startX")
+		startYProvided := hasParam(step.Params, "startY")
+		endXProvided := hasParam(step.Params, "endX")
+		endYProvided := hasParam(step.Params, "endY")
+		base.Params.GestureHasStartX = startXProvided
+		base.Params.GestureHasStartY = startYProvided
+		base.Params.GestureHasEndX = endXProvided
+		base.Params.GestureHasEndY = endYProvided
+		base.Params.GestureHasStart = startXProvided || startYProvided
+		base.Params.GestureHasEnd = endXProvided || endYProvided
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+	case compiler.StepTabSwitch:
+		var cfg tabSwitchConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("tabSwitch node %s has invalid data: %w", step.NodeID, err)
+		}
+		mode := strings.ToLower(strings.TrimSpace(cfg.SwitchBy))
+		if mode == "" {
+			mode = "newest"
+		}
+		switch mode {
+		case "index":
+			if cfg.Index < 0 {
+				return Instruction{}, fmt.Errorf("tabSwitch node %s requires non-negative index", step.NodeID)
+			}
+			base.Params.TabIndex = cfg.Index
+		case "title":
+			title := strings.TrimSpace(cfg.TitleMatch)
+			if title == "" {
+				return Instruction{}, fmt.Errorf("tabSwitch node %s requires titleMatch when switchBy=title", step.NodeID)
+			}
+			base.Params.TabTitleMatch = title
+		case "url":
+			pattern := strings.TrimSpace(cfg.URLMatch)
+			if pattern == "" {
+				return Instruction{}, fmt.Errorf("tabSwitch node %s requires urlMatch when switchBy=url", step.NodeID)
+			}
+			base.Params.TabURLMatch = pattern
+		case "newest", "oldest":
+			// no-op
+		default:
+			return Instruction{}, fmt.Errorf("tabSwitch node %s has unsupported switchBy %q", step.NodeID, cfg.SwitchBy)
+		}
+		base.Params.TabSwitchBy = mode
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForNew {
+			base.Params.TabWaitForNew = true
+		}
+		if cfg.CloseOld {
+			base.Params.TabCloseOld = true
+		}
 	case compiler.StepExtract:
 		var cfg extractConfig
 		if err := decodeParams(step.Params, &cfg); err != nil {
@@ -1230,6 +1590,160 @@ func clampScrollAttempts(raw int) int {
 	return raw
 }
 
+func normalizeGestureType(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "swipe":
+		return "swipe"
+	case "pinch":
+		return "pinch"
+	case "doubletap", "double_tap", "double-tap":
+		return "doubleTap"
+	case "longpress", "long_press", "long-press", "press":
+		return "longPress"
+	default:
+		return "tap"
+	}
+}
+
+func normalizeGestureDirection(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "up", "north":
+		return "up"
+	case "left", "west":
+		return "left"
+	case "right", "east":
+		return "right"
+	case "down", "south":
+		return "down"
+	default:
+		return "down"
+	}
+}
+
+func clampGestureDistance(raw int) int {
+	if raw <= 0 {
+		return defaultGestureDistance
+	}
+	if raw < minGestureDistance {
+		return minGestureDistance
+	}
+	if raw > maxGestureDistance {
+		return maxGestureDistance
+	}
+	return raw
+}
+
+func clampGestureDuration(raw int) int {
+	if raw <= 0 {
+		return defaultGestureDurationMs
+	}
+	if raw < minGestureDurationMs {
+		return minGestureDurationMs
+	}
+	if raw > maxGestureDurationMs {
+		return maxGestureDurationMs
+	}
+	return raw
+}
+
+func clampGestureHold(raw int) int {
+	if raw <= 0 {
+		return 0
+	}
+	if raw < minGestureDurationMs {
+		return minGestureDurationMs
+	}
+	if raw > maxGestureDurationMs {
+		return maxGestureDurationMs
+	}
+	return raw
+}
+
+func clampGestureSteps(raw int) int {
+	if raw <= 0 {
+		return defaultGestureSteps
+	}
+	if raw < minGestureSteps {
+		return minGestureSteps
+	}
+	if raw > maxGestureSteps {
+		return maxGestureSteps
+	}
+	return raw
+}
+
+func clampGestureScale(raw float64) float64 {
+	if math.IsNaN(raw) || math.IsInf(raw, 0) {
+		return 1
+	}
+	if raw < minGestureScale {
+		return minGestureScale
+	}
+	if raw > maxGestureScale {
+		return maxGestureScale
+	}
+	return raw
+}
+
+func clampGestureCoordinate(raw float64) int {
+	if math.IsNaN(raw) || math.IsInf(raw, 0) {
+		return 0
+	}
+	value := int(math.Round(raw))
+	if value < minScrollCoordinate {
+		return minScrollCoordinate
+	}
+	if value > maxScrollCoordinate {
+		return maxScrollCoordinate
+	}
+	return value
+}
+
+func normalizeRotateOrientation(raw string) (string, error) {
+	trimmed := strings.ToLower(strings.TrimSpace(raw))
+	switch trimmed {
+	case "", "portrait", "portrait-primary", "portrait_primary", "portraitprimary", "portraitsecondary", "portrait-secondary":
+		return rotateOrientationPortrait, nil
+	case "landscape", "landscape-primary", "landscape_primary", "landscapeprimary", "landscapesecondary", "landscape-secondary":
+		return rotateOrientationLandscape, nil
+	default:
+		return "", fmt.Errorf("unsupported orientation %q", raw)
+	}
+}
+
+func normalizeRotateAngle(raw int) (int, bool) {
+	value := raw % 360
+	if value < 0 {
+		value += 360
+	}
+	switch value {
+	case 0, 90, 180, 270:
+		return value, true
+	default:
+		return 0, false
+	}
+}
+
+func defaultRotateAngleFor(orientation string) int {
+	switch orientation {
+	case rotateOrientationLandscape:
+		return 90
+	default:
+		return 0
+	}
+}
+
+func angleMatchesOrientation(orientation string, angle int) bool {
+	switch orientation {
+	case rotateOrientationPortrait:
+		return angle == 0 || angle == 180
+	case rotateOrientationLandscape:
+		return angle == 90 || angle == 270
+	default:
+		return true
+	}
+}
+
 func normalizeStringSlice(values []string) []string {
 	normalized := make([]string, 0, len(values))
 	for _, value := range values {
@@ -1440,6 +1954,16 @@ func convertStaticVariableValue(value any, valueType string) (any, error) {
 	}
 }
 
+func clampInt(value, minValue, maxValue int) int {
+	if value < minValue {
+		return minValue
+	}
+	if value > maxValue {
+		return maxValue
+	}
+	return value
+}
+
 func coerceBool(value any) (bool, error) {
 	switch typed := value.(type) {
 	case bool:
@@ -1519,6 +2043,63 @@ func normalizeArrowKey(value string) string {
 		return "ArrowRight"
 	default:
 		return ""
+	}
+}
+
+func normalizeLoopType(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "foreach", "for_each", "for-each":
+		return "foreach"
+	case "repeat", "count":
+		return "repeat"
+	case "while":
+		return "while"
+	default:
+		return ""
+	}
+}
+
+func clampLoopIterations(value int) int {
+	if value <= 0 {
+		return defaultLoopMaxIterations
+	}
+	if value > maxLoopMaxIterations {
+		return maxLoopMaxIterations
+	}
+	return value
+}
+
+func normalizeLoopVariable(value, fallback string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return fallback
+	}
+	return trimmed
+}
+
+func normalizeLoopConditionType(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "variable":
+		return "variable"
+	case "expression", "script":
+		return "expression"
+	default:
+		return ""
+	}
+}
+
+func normalizeLoopOperator(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "truthy", "is_truthy":
+		return "truthy"
+	case "equals", "eq":
+		return "equals"
+	case "not_equals", "ne":
+		return "not_equals"
+	case "contains":
+		return "contains"
+	default:
+		return value
 	}
 }
 
