@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/vrooli/browser-automation-studio/browserless/compiler"
@@ -114,6 +116,104 @@ func TestInstructionFromStepEvaluateMissingExpression(t *testing.T) {
 	}
 }
 
+func TestInstructionFromStepUploadFileSuccess(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "avatar.png")
+	if err := os.WriteFile(filePath, []byte("png"), 0o600); err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	step := compiler.ExecutionStep{
+		Index:  5,
+		NodeID: "upload-1",
+		Type:   compiler.StepUploadFile,
+		Params: map[string]any{
+			"selector":  "  #file-input  ",
+			"filePath":  filePath,
+			"timeoutMs": 1234,
+			"waitForMs": 500,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating uploadFile instruction: %v", err)
+	}
+	if inst.Params.Selector != "#file-input" {
+		t.Fatalf("expected selector to be trimmed, got %q", inst.Params.Selector)
+	}
+	if len(inst.Params.FilePaths) != 1 || inst.Params.FilePaths[0] != filePath {
+		t.Fatalf("expected filePaths to contain %q, got %v", filePath, inst.Params.FilePaths)
+	}
+	if inst.Params.FilePath != filePath {
+		t.Fatalf("expected filePath to be set, got %q", inst.Params.FilePath)
+	}
+	if inst.Params.TimeoutMs != 1234 {
+		t.Fatalf("expected timeout to propagate, got %d", inst.Params.TimeoutMs)
+	}
+	if inst.Params.WaitForMs != 500 {
+		t.Fatalf("expected waitFor to propagate, got %d", inst.Params.WaitForMs)
+	}
+}
+
+func TestInstructionFromStepUploadFileMultiplePaths(t *testing.T) {
+	tempDir := t.TempDir()
+	first := filepath.Join(tempDir, "first.txt")
+	second := filepath.Join(tempDir, "second.txt")
+	for _, path := range []string{first, second} {
+		if err := os.WriteFile(path, []byte("data"), 0o600); err != nil {
+			t.Fatalf("failed to seed temp file: %v", err)
+		}
+	}
+	step := compiler.ExecutionStep{
+		Index:  6,
+		NodeID: "upload-2",
+		Type:   compiler.StepUploadFile,
+		Params: map[string]any{
+			"selector":  "#files",
+			"filePaths": []any{first, second},
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating uploadFile instruction: %v", err)
+	}
+	if len(inst.Params.FilePaths) != 2 {
+		t.Fatalf("expected two file paths, got %d", len(inst.Params.FilePaths))
+	}
+	if inst.Params.FilePaths[0] != first || inst.Params.FilePaths[1] != second {
+		t.Fatalf("expected file paths to preserve order, got %v", inst.Params.FilePaths)
+	}
+}
+
+func TestInstructionFromStepUploadFileValidation(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  7,
+		NodeID: "upload-3",
+		Type:   compiler.StepUploadFile,
+		Params: map[string]any{
+			"selector": "#files",
+			"filePath": "relative/path.txt",
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when file path is relative")
+	}
+
+	tempDir := t.TempDir()
+	missing := filepath.Join(tempDir, "missing.txt")
+	step.Params["filePath"] = missing
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when file is missing")
+	}
+
+	step.Params["selector"] = ""
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when selector missing")
+	}
+}
+
 func TestInstructionFromStepKeyboardKeydown(t *testing.T) {
 	step := compiler.ExecutionStep{
 		Index:  5,
@@ -201,6 +301,76 @@ func TestInstructionFromStepKeyboardMissingKey(t *testing.T) {
 	}
 }
 
+func TestInstructionFromStepSetVariableStatic(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  10,
+		NodeID: "var-1",
+		Type:   compiler.StepSetVariable,
+		Params: map[string]any{
+			"name":       "greeting",
+			"sourceType": "static",
+			"value":      " Hello ",
+			"valueType":  "text",
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error building setVariable instruction: %v", err)
+	}
+	if inst.Params.VariableName != "greeting" {
+		t.Fatalf("expected variable name to be greeting, got %q", inst.Params.VariableName)
+	}
+	if inst.Params.VariableSource != "static" {
+		t.Fatalf("expected static source, got %q", inst.Params.VariableSource)
+	}
+	if inst.Params.VariableValue != " Hello " {
+		t.Fatalf("expected raw value to remain intact, got %+v", inst.Params.VariableValue)
+	}
+}
+
+func TestInstructionFromStepSetVariableMissingName(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  11,
+		NodeID: "var-2",
+		Type:   compiler.StepSetVariable,
+		Params: map[string]any{
+			"sourceType": "static",
+			"value":      "hi",
+		},
+	}
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when variable name missing")
+	}
+}
+
+func TestInstructionFromStepUseVariableDefaults(t *testing.T) {
+	required := true
+	step := compiler.ExecutionStep{
+		Index:  12,
+		NodeID: "use-1",
+		Type:   compiler.StepUseVariable,
+		Params: map[string]any{
+			"name":      "username",
+			"transform": "Hello, {{value}}!",
+			"required":  required,
+		},
+	}
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if inst.Params.StoreResult != "username" {
+		t.Fatalf("expected default storeResult to match name, got %q", inst.Params.StoreResult)
+	}
+	if inst.Params.VariableTransform != "Hello, {{value}}!" {
+		t.Fatalf("unexpected transform %q", inst.Params.VariableTransform)
+	}
+	if inst.Params.VariableRequired == nil || !*inst.Params.VariableRequired {
+		t.Fatalf("expected required flag to be set")
+	}
+}
+
 func TestInstructionFromStepHoverClampsParams(t *testing.T) {
 	step := compiler.ExecutionStep{
 		Index:  8,
@@ -270,6 +440,183 @@ func TestInstructionFromStepHoverMissingSelector(t *testing.T) {
 
 	if _, err := instructionFromStep(context.Background(), step); err == nil {
 		t.Fatalf("expected error when selector is missing")
+	}
+}
+
+func TestInstructionFromStepDragDropSuccess(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  12,
+		NodeID: "drag-1",
+		Type:   compiler.StepDragDrop,
+		Params: map[string]any{
+			"sourceSelector": "  .card:nth-child(2)  ",
+			"targetSelector": "#drop-zone",
+			"holdMs":         275,
+			"steps":          80,
+			"durationMs":     25000,
+			"offsetX":        6400,
+			"offsetY":        -6400,
+			"timeoutMs":      4200,
+			"waitForMs":      375,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating dragDrop instruction: %v", err)
+	}
+	if inst.Params.DragSourceSelector != ".card:nth-child(2)" {
+		t.Fatalf("expected trimmed source selector, got %q", inst.Params.DragSourceSelector)
+	}
+	if inst.Params.DragTargetSelector != "#drop-zone" {
+		t.Fatalf("expected target selector, got %q", inst.Params.DragTargetSelector)
+	}
+	if inst.Params.DragHoldMs != 275 {
+		t.Fatalf("expected holdMs to remain 275, got %d", inst.Params.DragHoldMs)
+	}
+	if inst.Params.DragSteps != maxDragSteps {
+		t.Fatalf("expected steps to clamp to %d, got %d", maxDragSteps, inst.Params.DragSteps)
+	}
+	if inst.Params.DragDurationMs != maxDragDurationMs {
+		t.Fatalf("expected duration to clamp to %d, got %d", maxDragDurationMs, inst.Params.DragDurationMs)
+	}
+	if inst.Params.DragOffsetX != maxDragOffset {
+		t.Fatalf("expected offsetX to clamp to %d, got %d", maxDragOffset, inst.Params.DragOffsetX)
+	}
+	if inst.Params.DragOffsetY != minDragOffset {
+		t.Fatalf("expected offsetY to clamp to %d, got %d", minDragOffset, inst.Params.DragOffsetY)
+	}
+	if inst.Params.TimeoutMs != 4200 {
+		t.Fatalf("expected timeoutMs to be set, got %d", inst.Params.TimeoutMs)
+	}
+	if inst.Params.WaitForMs != 375 {
+		t.Fatalf("expected waitForMs to be set, got %d", inst.Params.WaitForMs)
+	}
+}
+
+func TestInstructionFromStepDragDropDefaultsAndValidation(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  13,
+		NodeID: "drag-2",
+		Type:   compiler.StepDragDrop,
+		Params: map[string]any{
+			"sourceSelector": "#source",
+			"targetSelector": "#target",
+			"holdMs":         -10,
+			"steps":          0,
+			"durationMs":     0,
+			"offsetX":        -99999,
+			"offsetY":        99999,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating dragDrop instruction: %v", err)
+	}
+	if inst.Params.DragHoldMs != defaultDragHoldMs {
+		t.Fatalf("expected default hold %d, got %d", defaultDragHoldMs, inst.Params.DragHoldMs)
+	}
+	if inst.Params.DragSteps != defaultDragSteps {
+		t.Fatalf("expected default steps %d, got %d", defaultDragSteps, inst.Params.DragSteps)
+	}
+	if inst.Params.DragDurationMs != defaultDragDurationMs {
+		t.Fatalf("expected default duration %d, got %d", defaultDragDurationMs, inst.Params.DragDurationMs)
+	}
+	if inst.Params.DragOffsetX != minDragOffset {
+		t.Fatalf("expected offsetX to clamp to %d, got %d", minDragOffset, inst.Params.DragOffsetX)
+	}
+	if inst.Params.DragOffsetY != maxDragOffset {
+		t.Fatalf("expected offsetY to clamp to %d, got %d", maxDragOffset, inst.Params.DragOffsetY)
+	}
+
+	missingSource := compiler.ExecutionStep{
+		Index:  14,
+		NodeID: "drag-3",
+		Type:   compiler.StepDragDrop,
+		Params: map[string]any{
+			"targetSelector": "#t",
+		},
+	}
+	if _, err := instructionFromStep(context.Background(), missingSource); err == nil {
+		t.Fatalf("expected error when source selector missing")
+	}
+	missingTarget := compiler.ExecutionStep{
+		Index:  15,
+		NodeID: "drag-4",
+		Type:   compiler.StepDragDrop,
+		Params: map[string]any{
+			"sourceSelector": "#s",
+		},
+	}
+	if _, err := instructionFromStep(context.Background(), missingTarget); err == nil {
+		t.Fatalf("expected error when target selector missing")
+	}
+}
+
+func TestInstructionFromStepFocusRequiresSelector(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  11,
+		NodeID: "focus-1",
+		Type:   compiler.StepFocus,
+		Params: map[string]any{
+			"selector": "  ",
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when focus selector is missing")
+	}
+}
+
+func TestInstructionFromStepFocusAppliesTiming(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  12,
+		NodeID: "focus-2",
+		Type:   compiler.StepFocus,
+		Params: map[string]any{
+			"selector":  "#email",
+			"timeoutMs": 4200,
+			"waitForMs": 260,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error building focus instruction: %v", err)
+	}
+
+	if inst.Params.Selector != "#email" {
+		t.Fatalf("expected selector to be set, got %q", inst.Params.Selector)
+	}
+	if inst.Params.TimeoutMs != 4200 {
+		t.Fatalf("expected timeout to propagate, got %d", inst.Params.TimeoutMs)
+	}
+	if inst.Params.WaitForMs != 260 {
+		t.Fatalf("expected waitForMs to propagate, got %d", inst.Params.WaitForMs)
+	}
+}
+
+func TestInstructionFromStepBlurDefaults(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  13,
+		NodeID: "blur-1",
+		Type:   compiler.StepBlur,
+		Params: map[string]any{
+			"selector": "input[name=email]",
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error building blur instruction: %v", err)
+	}
+
+	if inst.Params.Selector != "input[name=email]" {
+		t.Fatalf("expected selector to be applied, got %q", inst.Params.Selector)
+	}
+	if inst.Params.TimeoutMs != 0 {
+		t.Fatalf("expected timeout to remain unset, got %d", inst.Params.TimeoutMs)
 	}
 }
 
@@ -365,5 +712,103 @@ func TestInstructionFromStepScrollPositionClampsCoordinates(t *testing.T) {
 	}
 	if inst.Params.ScrollY != minScrollCoordinate {
 		t.Fatalf("expected y to clamp to %d, got %d", minScrollCoordinate, inst.Params.ScrollY)
+	}
+}
+
+func TestInstructionFromStepSelectValue(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  15,
+		NodeID: "select-1",
+		Type:   compiler.StepSelect,
+		Params: map[string]any{
+			"selector":  " select.payment ",
+			"selectBy":  "value",
+			"value":     " visa ",
+			"timeoutMs": 4500,
+			"waitForMs": 200,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating select instruction: %v", err)
+	}
+
+	if inst.Params.Selector != "select.payment" {
+		t.Fatalf("expected selector to be trimmed, got %q", inst.Params.Selector)
+	}
+	if inst.Params.SelectionMode != "value" {
+		t.Fatalf("expected selection mode value, got %q", inst.Params.SelectionMode)
+	}
+	if inst.Params.OptionValue != "visa" {
+		t.Fatalf("expected option value visa, got %q", inst.Params.OptionValue)
+	}
+	if inst.Params.TimeoutMs != 4500 {
+		t.Fatalf("expected timeout 4500, got %d", inst.Params.TimeoutMs)
+	}
+	if inst.Params.WaitForMs != 200 {
+		t.Fatalf("expected waitFor 200, got %d", inst.Params.WaitForMs)
+	}
+}
+
+func TestInstructionFromStepSelectMulti(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  16,
+		NodeID: "select-2",
+		Type:   compiler.StepSelect,
+		Params: map[string]any{
+			"selector": ".tags",
+			"multiple": true,
+			"values":   []string{"  primary  ", "Secondary"},
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating multi-select instruction: %v", err)
+	}
+
+	if !inst.Params.MultiSelect {
+		t.Fatalf("expected multiSelect flag to be true")
+	}
+	if inst.Params.SelectionMode != "value" {
+		t.Fatalf("expected value mode for multi-select default, got %q", inst.Params.SelectionMode)
+	}
+	values := inst.Params.OptionValues
+	if len(values) != 2 || values[0] != "primary" || values[1] != "Secondary" {
+		t.Fatalf("unexpected option values %#v", values)
+	}
+}
+
+func TestInstructionFromStepSelectIndexValidation(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  17,
+		NodeID: "select-3",
+		Type:   compiler.StepSelect,
+		Params: map[string]any{
+			"selector": "select.plan",
+			"selectBy": "index",
+			"index":    -1,
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when index is negative")
+	}
+}
+
+func TestInstructionFromStepSelectMultiRequiresValues(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  18,
+		NodeID: "select-4",
+		Type:   compiler.StepSelect,
+		Params: map[string]any{
+			"selector": "select.roles",
+			"multiple": true,
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when multi-select lacks values")
 	}
 }

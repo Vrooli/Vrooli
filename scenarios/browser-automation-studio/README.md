@@ -169,11 +169,38 @@ On first run (or whenever the database is empty) the API seeds a ready-to-run wo
 
 - **Navigate**: Executes via Browserless for sequential flows; edges/branching are ignored and each step shares a single page context.
 - **Click**: Supported for visible selectors; emits bounding boxes and synthetic click coordinates and now honours node-level retry/backoff policies.
+- **Hover**: Smoothly moves the pointer to any selector (no clicks) with configurable glide duration so dropdowns, tooltips, and mega-menus stay open for follow-up steps.
+- **Scroll**: Supports page/element/position scrolls plus "scroll until visible" sweeps with retry limits for lazy-loaded content.
+- **Select**: Targets native single or multi-select dropdowns, choosing options by value/text/index while firing the correct input/change events.
 - **Type**: Supported with optional delay/clear/submit flags; richer form heuristics and masking are pending.
 - **Screenshot**: Captures full-page PNGs (MinIO/local fallback) with optional focus, highlight, mask, background, and zoom controls while preserving cursor trails for replay animation.
 - **Wait**: Time waits execute; element waits leverage configurable retry/backoff instrumentation, though richer loop constructs are still pending.
 - **Extract**: Supported for text/value/html/attribute payloads and persists results (no schema enforcement yet).
 - **Assert**: Evaluate selector existence, text, or attribute conditions directly in Browserless, surfacing assertion artifacts, execution logs, and replay metadata; failures halt the run unless future branching allows continuations.
+- **Shortcut**: Emits high-level combinations such as `Ctrl+K` or `Cmd+Enter` using Browserless helpers—ideal for triggering global shortcuts or menu accelerators on the focused element.
+- **Keyboard**: Dispatches low-level `keydown`/`keyup`/`keypress` events with optional modifier toggles and hold delays, enabling granular navigation (e.g., arrow keys, Enter on dialogs) without recording a full shortcut sequence.
+- **Script**: Runs custom JavaScript in the current page context with configurable timeouts, returning values for later nodes and paving the way for variable storage.
+
+### Variable System & Picker
+
+- **Set Variable** nodes capture values from static inputs, extraction selectors, or inline JavaScript expressions. Results are stored in an execution-scoped context and persist across every downstream step (and in the execution artifacts) so assertions, scripts, and future variables can reuse them.
+- **Use Variable** nodes read from that context, optionally transform the value with a `{{value}}` template, enforce required variables, and publish aliases. The UI now surfaces an inline picker powered by `useWorkflowVariables`, so every previously stored variable appears as both a datalist entry and a clickable chip—no more guessing names or retyping long aliases.
+- **Workflow pattern example**:
+  1. Extract the `<h1>` from `https://example.com` and store it as `pageTitle`.
+  2. Set `greeting` to `Hello {{pageTitle}}!` (interpolation happens automatically before the node executes).
+  3. Add a Use Variable node, pick `greeting` from the suggestions, transform it with `Greeting => {{value}}`, and store the result as `greetingEcho` for downstream assertions or screenshots.
+
+The end-to-end regression `TestVariableFlowEndToEnd` in `api/browserless/client_test.go` mirrors this flow to ensure variables are interpolated, aliased, and snapshotted correctly.
+
+### Scenario Registry Overrides
+
+Set the `SCENARIO_REGISTRY` environment variable to pin scenario names to explicit URLs/ports during testing or when orchestrating multiple scenarios locally. The value can be inline JSON or `@/path/to/registry.json`. Example inline payload:
+
+```bash
+export SCENARIO_REGISTRY='{"browser-automation-studio":{"url":"http://127.0.0.1:4173","ports":{"UI_PORT":4173,"API_PORT":4174}}}'
+```
+
+When present, Browser Automation Studio resolves `destinationType: "scenario"` navigations and scenario-port API calls using this registry instead of shelling out to `vrooli`, which keeps CI and isolated test runs deterministic.
 
 ## 🤖 AI Integration
 

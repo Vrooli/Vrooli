@@ -1,10 +1,16 @@
-import { Globe, MousePointer, MousePointer2, Keyboard, Command, Camera, Clock, Database, Code, Play, CheckCircle, TerminalSquare, KeySquare, ScrollText } from 'lucide-react';
+import { Globe, MousePointer, MousePointer2, Keyboard, Command, Camera, Clock, Database, Code, Play, CheckCircle, TerminalSquare, KeySquare, ScrollText, ListFilter, Variable, Recycle, Crosshair, EyeOff, Hand, UploadCloud } from 'lucide-react';
 
 const nodeTypes = [
   { type: 'navigate', label: 'Navigate', icon: Globe, color: 'text-blue-400', description: 'Navigate to URL or scenario' },
   { type: 'click', label: 'Click', icon: MousePointer, color: 'text-green-400', description: 'Click an element' },
   { type: 'hover', label: 'Hover', icon: MousePointer2, color: 'text-cyan-300', description: 'Move cursor without clicking' },
+  { type: 'dragDrop', label: 'Drag & Drop', icon: Hand, color: 'text-pink-300', description: 'Reorder cards or move files' },
+  { type: 'focus', label: 'Focus', icon: Crosshair, color: 'text-emerald-300', description: 'Focus fields before typing' },
+  { type: 'blur', label: 'Blur', icon: EyeOff, color: 'text-amber-300', description: 'Trigger blur/onChange handlers' },
   { type: 'scroll', label: 'Scroll', icon: ScrollText, color: 'text-amber-300', description: 'Scroll page, elements, or until visible' },
+  { type: 'select', label: 'Select', icon: ListFilter, color: 'text-teal-300', description: 'Choose option(s) in dropdowns' },
+  { type: 'uploadFile', label: 'Upload File', icon: UploadCloud, color: 'text-pink-300', description: 'Attach files to inputs' },
+  { type: 'setVariable', label: 'Set Variable', icon: Variable, color: 'text-emerald-300', description: 'Store values for reuse' },
   { type: 'type', label: 'Type', icon: Keyboard, color: 'text-yellow-400', description: 'Type text in input' },
   { type: 'shortcut', label: 'Shortcut', icon: Command, color: 'text-indigo-400', description: 'Trigger keyboard shortcut(s)' },
   { type: 'keyboard', label: 'Keyboard', icon: KeySquare, color: 'text-lime-300', description: 'Dispatch keydown/keyup events' },
@@ -13,6 +19,7 @@ const nodeTypes = [
   { type: 'wait', label: 'Wait', icon: Clock, color: 'text-gray-400', description: 'Wait for condition' },
   { type: 'extract', label: 'Extract', icon: Database, color: 'text-pink-400', description: 'Extract data' },
   { type: 'assert', label: 'Assert', icon: CheckCircle, color: 'text-orange-400', description: 'Verify page conditions' },
+  { type: 'useVariable', label: 'Use Variable', icon: Recycle, color: 'text-sky-300', description: 'Transform or require variables' },
   { type: 'workflowCall', label: 'Call Workflow', icon: Play, color: 'text-violet-400', description: 'Execute another workflow' },
 ];
 

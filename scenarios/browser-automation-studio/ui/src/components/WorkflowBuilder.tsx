@@ -35,7 +35,14 @@ import WorkflowCallNode from './nodes/WorkflowCallNode';
 import ScriptNode from './nodes/ScriptNode';
 import KeyboardNode from './nodes/KeyboardNode';
 import HoverNode from './nodes/HoverNode';
+import DragDropNode from './nodes/DragDropNode';
+import FocusNode from './nodes/FocusNode';
+import BlurNode from './nodes/BlurNode';
 import ScrollNode from './nodes/ScrollNode';
+import SelectNode from './nodes/SelectNode';
+import SetVariableNode from './nodes/SetVariableNode';
+import UseVariableNode from './nodes/UseVariableNode';
+import UploadFileNode from './nodes/UploadFileNode';
 import WorkflowToolbar from './WorkflowToolbar';
 import CustomConnectionLine from './CustomConnectionLine';
 import 'reactflow/dist/style.css';
@@ -48,7 +55,13 @@ const nodeTypes: NodeTypes = {
   navigate: NavigateNode,
   click: ClickNode,
   hover: HoverNode,
+  dragDrop: DragDropNode,
+  focus: FocusNode,
+  blur: BlurNode,
   scroll: ScrollNode,
+  select: SelectNode,
+  uploadFile: UploadFileNode,
+  setVariable: SetVariableNode,
   type: TypeNode,
   shortcut: ShortcutNode,
   keyboard: KeyboardNode,
@@ -57,6 +70,7 @@ const nodeTypes: NodeTypes = {
   wait: WaitNode,
   extract: ExtractNode,
   assert: AssertNode,
+  useVariable: UseVariableNode,
   workflowCall: WorkflowCallNode,
 };
 

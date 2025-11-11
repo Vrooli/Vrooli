@@ -52,9 +52,26 @@
         }
       }
     },
-    "resources": {
-      "$ref": "resource-definitions.json#/resourceCatalog",
-      "description": "Resource configurations with auto-completion support"
+    "dependencies": {
+      "type": "object",
+      "description": "Scenario and resource dependencies",
+      "properties": {
+        "resources": {
+          "$ref": "resource-definitions.json#/resourceCatalog",
+          "description": "Resource dependencies declared under the dependencies namespace"
+        },
+        "scenarios": {
+          "type": "object",
+          "description": "Scenario dependencies keyed by scenario identifier",
+          "patternProperties": {
+            "^[a-z0-9-]+$": {
+              "$ref": "#/definitions/scenarioDependency"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     },
     "deployment": {
       "type": "object"
@@ -91,10 +108,44 @@
       }
     }
   },
-  "required": [
-    "resources"
+  "required": ["dependencies"],
+  "allOf": [
+    {
+      "properties": {
+        "dependencies": {
+          "anyOf": [
+            { "required": ["resources"] },
+            { "required": ["scenarios"] }
+          ]
+        }
+      }
+    }
   ],
   "definitions": {
+    "scenarioDependency": {
+      "type": "object",
+      "description": "Metadata describing a dependent scenario",
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the dependency is mandatory"
+        },
+        "version": {
+          "$ref": "common.schema.json#/definitions/semver",
+          "description": "Exact scenario version required"
+        },
+        "versionRange": {
+          "type": "string",
+          "description": "Semantic version range that is acceptable"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable context for the dependency"
+        }
+      },
+      "additionalProperties": false
+    },
     "lifecyclePhase": {
       "type": "object",
       "properties": {

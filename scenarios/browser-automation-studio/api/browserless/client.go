@@ -223,6 +223,7 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 	if err != nil {
 		return err
 	}
+	execCtx := runtime.NewExecutionContext()
 
 	if plan == nil || len(plan.Steps) == 0 || len(instructions) == 0 {
 		c.log.WithField("workflow_id", workflow.ID).Info("Workflow has no executable nodes; skipping Browserless execution")
@@ -290,6 +291,19 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 			continue
 		}
 		delete(activeNodes, instruction.NodeID)
+
+		resolvedInstruction, missingVars, err := runtime.InterpolateInstruction(instruction, execCtx)
+		if err != nil {
+			return fmt.Errorf("failed to prepare instruction %s: %w", instruction.NodeID, err)
+		}
+		instruction = resolvedInstruction
+		if len(missingVars) > 0 && c.log != nil {
+			c.log.WithFields(logrus.Fields{
+				"execution_id": execution.ID,
+				"node_id":      instruction.NodeID,
+				"variables":    missingVars,
+			}).Warn("Workflow referenced undefined variables")
+		}
 
 		stepDefinition, hasStepDefinition := stepsByNodeID[instruction.NodeID]
 		if !hasStepDefinition {
@@ -563,6 +577,11 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 		}
 		if len(retryHistory) > 0 {
 			retryMetadata["history"] = retryHistory
+			if step.Success {
+				if err := applyVariablePostProcessing(execCtx, instruction, step); err != nil && c.log != nil {
+					c.log.WithError(err).Warn("Failed to update execution context with variable result")
+				}
+			}
 		}
 
 		logEntry := &database.ExecutionLog{
@@ -893,6 +912,7 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 			}
 			output["retry"] = retrySummary
 			stepRecord.Output = output
+			attachVariableSnapshot(execCtx, stepRecord, output)
 			metadataUpdate = mergeJSONMaps(metadataUpdate, database.JSONMap{"retry": retrySummary})
 			stepRecord.Metadata = mergeJSONMaps(stepRecord.Metadata, metadataUpdate)
 			if err := c.repo.UpdateExecutionStep(ctx, stepRecord); err != nil {
@@ -1838,6 +1858,62 @@ func deriveStepName(step runtime.StepResult) string {
 		return step.StepName
 	}
 	return fmt.Sprintf("%s-%d", step.Type, step.Index+1)
+}
+
+func applyVariablePostProcessing(execCtx *runtime.ExecutionContext, instruction runtime.Instruction, step runtime.StepResult) error {
+	if execCtx == nil || !step.Success {
+		return nil
+	}
+	value := step.ExtractedData
+	if value == nil && instruction.Type == string(compiler.StepSetVariable) {
+		value = instruction.Params.VariableValue
+	}
+	targets := make([]string, 0, 2)
+	switch instruction.Type {
+	case string(compiler.StepSetVariable):
+		if name := strings.TrimSpace(instruction.Params.VariableName); name != "" {
+			targets = append(targets, name)
+		}
+		if store := strings.TrimSpace(instruction.Params.StoreResult); store != "" && store != instruction.Params.VariableName {
+			targets = append(targets, store)
+		}
+	case string(compiler.StepUseVariable):
+		if store := strings.TrimSpace(instruction.Params.StoreResult); store != "" {
+			targets = append(targets, store)
+		}
+	default:
+		if store := strings.TrimSpace(instruction.Params.StoreResult); store != "" {
+			targets = append(targets, store)
+		}
+	}
+	if len(targets) == 0 {
+		return nil
+	}
+	for _, target := range targets {
+		if err := execCtx.Set(target, value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func attachVariableSnapshot(execCtx *runtime.ExecutionContext, stepRecord *database.ExecutionStep, output database.JSONMap) {
+	if execCtx == nil {
+		return
+	}
+	snapshot := execCtx.Snapshot()
+	if len(snapshot) == 0 {
+		return
+	}
+	if output != nil {
+		output["variables"] = snapshot
+	}
+	if stepRecord != nil {
+		if stepRecord.Metadata == nil {
+			stepRecord.Metadata = database.JSONMap{}
+		}
+		stepRecord.Metadata["variables"] = snapshot
+	}
 }
 
 func mapConsoleLevel(consoleType string) string {

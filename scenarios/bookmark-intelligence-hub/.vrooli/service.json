@@ -29,75 +29,10 @@
       "description": "Main bookmark intelligence API port",
       "range": "15000-19999"
     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Bookmark management dashboard UI port",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store bookmark metadata, categorization rules, user profiles, and action history",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "huginn": {
-      "type": "huginn",
-      "enabled": true,
-      "required": true,
-      "purpose": "Primary social media scraping and monitoring agent orchestration",
-      "initialization": [
-        {
-          "file": "initialization/automation/huginn/bookmark-scraper.json",
-          "type": "agent"
-        },
-        {
-          "file": "initialization/automation/huginn/reddit-monitor.json",
-          "type": "agent"
-        },
-        {
-          "file": "initialization/automation/huginn/twitter-monitor.json",
-          "type": "agent"
-        },
-        {
-          "file": "initialization/automation/huginn/tiktok-monitor.json",
-          "type": "agent"
-        }
-      ]
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": true,
-      "purpose": "Fallback browser automation for platforms with strict bot detection"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": false,
-      "required": false,
-      "purpose": "Semantic similarity matching for improved categorization (optional enhancement)"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "purpose": "Local LLM for content analysis and categorization (optional enhancement)",
-      "models": [
-        "llama3.2",
-        "mistral",
-        "nomic-embed-text"
-      ]
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Bookmark management dashboard UI port",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -142,11 +77,11 @@
       "description": "Initialize Bookmark Intelligence Hub",
       "condition": {
         "checks": [
-           {
-           "type": "binaries",
-           "targets": [
-             "api/bookmark-intelligence-hub-api"
-           ]
+          {
+            "type": "binaries",
+            "targets": [
+              "api/bookmark-intelligence-hub-api"
+            ]
           },
           {
             "type": "ui-bundle",
@@ -158,8 +93,8 @@
             "command": "bookmark-intelligence-hub",
             "targets": [
               "bookmark-intelligence-hub"
-             ]
-           },
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -228,11 +163,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🔖 Bookmark Intelligence Hub running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Huginn: http://localhost:${RESOURCE_PORTS[huginn]}\\n  Browserless: http://localhost:${RESOURCE_PORTS[browserless]}\\n  CLI: bookmark-intelligence-hub --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🔖 Bookmark Intelligence Hub running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Huginn: http://localhost:${RESOURCE_PORTS[huginn]}\\n  Browserless: http://localhost:${RESOURCE_PORTS[browserless]}\\n  CLI: bookmark-intelligence-hub --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
@@ -298,6 +233,73 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store bookmark metadata, categorization rules, user profiles, and action history",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "huginn": {
+        "type": "huginn",
+        "enabled": true,
+        "required": true,
+        "purpose": "Primary social media scraping and monitoring agent orchestration",
+        "initialization": [
+          {
+            "file": "initialization/automation/huginn/bookmark-scraper.json",
+            "type": "agent"
+          },
+          {
+            "file": "initialization/automation/huginn/reddit-monitor.json",
+            "type": "agent"
+          },
+          {
+            "file": "initialization/automation/huginn/twitter-monitor.json",
+            "type": "agent"
+          },
+          {
+            "file": "initialization/automation/huginn/tiktok-monitor.json",
+            "type": "agent"
+          }
+        ]
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": true,
+        "purpose": "Fallback browser automation for platforms with strict bot detection"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "purpose": "Semantic similarity matching for improved categorization (optional enhancement)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Local LLM for content analysis and categorization (optional enhancement)",
+        "models": [
+          "llama3.2",
+          "mistral",
+          "nomic-embed-text"
+        ]
+      }
     }
   }
 }

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -20,6 +22,7 @@ type Instruction struct {
 	Type        string           `json:"type"`
 	Params      InstructionParam `json:"params"`
 	PreloadHTML string           `json:"preloadHtml,omitempty"`
+	Context     map[string]any   `json:"context,omitempty"`
 }
 
 // InstructionParam captures the parameter payload for a Browserless instruction.
@@ -34,8 +37,18 @@ type InstructionParam struct {
 	WaitType              string   `json:"waitType,omitempty"`
 	DurationMs            int      `json:"durationMs,omitempty"`
 	MovementSteps         int      `json:"movementSteps,omitempty"`
+	DragSourceSelector    string   `json:"dragSourceSelector,omitempty"`
+	DragTargetSelector    string   `json:"dragTargetSelector,omitempty"`
+	DragHoldMs            int      `json:"dragHoldMs,omitempty"`
+	DragSteps             int      `json:"dragSteps,omitempty"`
+	DragDurationMs        int      `json:"dragDurationMs,omitempty"`
+	DragOffsetX           int      `json:"dragOffsetX,omitempty"`
+	DragOffsetY           int      `json:"dragOffsetY,omitempty"`
 	Selector              string   `json:"selector,omitempty"`
 	WaitForSelector       string   `json:"waitForSelector,omitempty"`
+	FilePaths             []string `json:"filePaths,omitempty"`
+	FilePath              string   `json:"filePath,omitempty"`
+	SelectionMode         string   `json:"selectionMode,omitempty"`
 	Name                  string   `json:"name,omitempty"`
 	FullPage              *bool    `json:"fullPage,omitempty"`
 	ViewportWidth         int      `json:"viewportWidth,omitempty"`
@@ -64,6 +77,12 @@ type InstructionParam struct {
 	FailureMessage        string   `json:"failureMessage,omitempty"`
 	Expression            string   `json:"expression,omitempty"`
 	StoreResult           string   `json:"storeResult,omitempty"`
+	VariableName          string   `json:"variableName,omitempty"`
+	VariableSource        string   `json:"variableSource,omitempty"`
+	VariableValue         any      `json:"variableValue,omitempty"`
+	VariableStoreAs       string   `json:"variableStoreAs,omitempty"`
+	VariableTransform     string   `json:"variableTransform,omitempty"`
+	VariableRequired      *bool    `json:"variableRequired,omitempty"`
 	CaseSensitive         *bool    `json:"caseSensitive,omitempty"`
 	Negate                *bool    `json:"negate,omitempty"`
 	ContinueOnFailure     *bool    `json:"continueOnFailure,omitempty"`
@@ -87,6 +106,11 @@ type InstructionParam struct {
 	ScrollY               int      `json:"scrollY,omitempty"`
 	ScrollTargetSelector  string   `json:"scrollTargetSelector,omitempty"`
 	ScrollMaxAttempts     int      `json:"scrollMaxAttempts,omitempty"`
+	OptionValue           string   `json:"optionValue,omitempty"`
+	OptionText            string   `json:"optionText,omitempty"`
+	OptionIndex           int      `json:"optionIndex,omitempty"`
+	OptionValues          []string `json:"optionValues,omitempty"`
+	MultiSelect           bool     `json:"multiSelect,omitempty"`
 }
 
 // InstructionsFromPlan converts a compiled execution plan into Browserless instructions.
@@ -185,6 +209,24 @@ type hoverConfig struct {
 	DurationMs int    `json:"durationMs"`
 }
 
+type dragDropConfig struct {
+	SourceSelector string `json:"sourceSelector"`
+	TargetSelector string `json:"targetSelector"`
+	HoldMs         int    `json:"holdMs"`
+	Steps          int    `json:"steps"`
+	DurationMs     int    `json:"durationMs"`
+	OffsetX        int    `json:"offsetX"`
+	OffsetY        int    `json:"offsetY"`
+	TimeoutMs      int    `json:"timeoutMs"`
+	WaitForMs      int    `json:"waitForMs"`
+}
+
+type focusConfig struct {
+	Selector  string `json:"selector"`
+	TimeoutMs int    `json:"timeoutMs"`
+	WaitForMs int    `json:"waitForMs"`
+}
+
 const (
 	defaultHoverSteps      = 10
 	minHoverSteps          = 1
@@ -192,6 +234,20 @@ const (
 	defaultHoverDurationMs = 350
 	minHoverDurationMs     = 50
 	maxHoverDurationMs     = 10000
+)
+
+const (
+	defaultDragHoldMs     = 150
+	minDragHoldMs         = 0
+	maxDragHoldMs         = 5000
+	defaultDragSteps      = 18
+	minDragSteps          = 1
+	maxDragSteps          = 60
+	defaultDragDurationMs = 600
+	minDragDurationMs     = 50
+	maxDragDurationMs     = 20000
+	minDragOffset         = -5000
+	maxDragOffset         = 5000
 )
 
 type scrollConfig struct {
@@ -224,6 +280,20 @@ type extractConfig struct {
 	ExtractType string `json:"extractType"`
 	Attribute   string `json:"attribute"`
 	AllMatches  *bool  `json:"allMatches"`
+	StoreResult string `json:"storeResult"`
+	StoreIn     string `json:"storeIn"`
+}
+
+type selectConfig struct {
+	Selector  string   `json:"selector"`
+	SelectBy  string   `json:"selectBy"`
+	Value     string   `json:"value"`
+	Text      string   `json:"text"`
+	Index     int      `json:"index"`
+	Multiple  bool     `json:"multiple"`
+	Values    []string `json:"values"`
+	TimeoutMs int      `json:"timeoutMs"`
+	WaitForMs int      `json:"waitForMs"`
 }
 
 type evaluateConfig struct {
@@ -232,12 +302,41 @@ type evaluateConfig struct {
 	StoreResult string `json:"storeResult"`
 }
 
+type uploadFileConfig struct {
+	Selector  string   `json:"selector"`
+	FilePath  string   `json:"filePath"`
+	FilePaths []string `json:"filePaths"`
+	TimeoutMs int      `json:"timeoutMs"`
+	WaitForMs int      `json:"waitForMs"`
+}
+
 type keyboardConfig struct {
 	Key       string               `json:"key"`
 	EventType string               `json:"eventType"`
 	Modifiers keyboardModifierSpec `json:"modifiers"`
 	DelayMs   int                  `json:"delayMs"`
 	TimeoutMs int                  `json:"timeoutMs"`
+}
+
+type setVariableConfig struct {
+	Name        string `json:"name"`
+	SourceType  string `json:"sourceType"`
+	Value       any    `json:"value"`
+	ValueType   string `json:"valueType"`
+	Expression  string `json:"expression"`
+	Selector    string `json:"selector"`
+	ExtractType string `json:"extractType"`
+	Attribute   string `json:"attribute"`
+	AllMatches  *bool  `json:"allMatches"`
+	TimeoutMs   int    `json:"timeoutMs"`
+	StoreAs     string `json:"storeAs"`
+}
+
+type useVariableConfig struct {
+	Name      string `json:"name"`
+	StoreAs   string `json:"storeAs"`
+	Transform string `json:"transform"`
+	Required  *bool  `json:"required"`
 }
 
 type keyboardModifierSpec struct {
@@ -429,6 +528,23 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if trimmed := strings.TrimSpace(cfg.WaitForSelector); trimmed != "" {
 			base.Params.WaitForSelector = trimmed
 		}
+	case compiler.StepFocus, compiler.StepBlur:
+		// [REQ:BAS-NODE-FOCUS-INPUT] [REQ:BAS-NODE-BLUR-VALIDATION]
+		var cfg focusConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("%s node %s has invalid data: %w", step.Type, step.NodeID, err)
+		}
+		selector := strings.TrimSpace(cfg.Selector)
+		if selector == "" {
+			return Instruction{}, fmt.Errorf("%s node %s missing selector", step.Type, step.NodeID)
+		}
+		base.Params.Selector = selector
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
 	case compiler.StepTypeInput:
 		var cfg typeConfig
 		if err := decodeParams(step.Params, &cfg); err != nil {
@@ -530,6 +646,33 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		}
 		base.Params.MovementSteps = clampHoverSteps(cfg.Steps)
 		base.Params.DurationMs = clampHoverDuration(cfg.DurationMs)
+	case compiler.StepDragDrop:
+		// [REQ:BAS-NODE-DRAG-DROP]
+		var cfg dragDropConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("dragDrop node %s has invalid data: %w", step.NodeID, err)
+		}
+		source := strings.TrimSpace(cfg.SourceSelector)
+		if source == "" {
+			return Instruction{}, fmt.Errorf("dragDrop node %s missing source selector", step.NodeID)
+		}
+		target := strings.TrimSpace(cfg.TargetSelector)
+		if target == "" {
+			return Instruction{}, fmt.Errorf("dragDrop node %s missing target selector", step.NodeID)
+		}
+		base.Params.DragSourceSelector = source
+		base.Params.DragTargetSelector = target
+		base.Params.DragHoldMs = clampDragHold(cfg.HoldMs)
+		base.Params.DragSteps = clampDragSteps(cfg.Steps)
+		base.Params.DragDurationMs = clampDragDuration(cfg.DurationMs)
+		base.Params.DragOffsetX = clampDragOffset(cfg.OffsetX)
+		base.Params.DragOffsetY = clampDragOffset(cfg.OffsetY)
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
 	case compiler.StepScroll:
 		// [REQ:BAS-NODE-SCROLL-NAVIGATION]
 		var cfg scrollConfig
@@ -583,6 +726,115 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 				base.Params.ScrollDirection = "down"
 			}
 		}
+	case compiler.StepSelect:
+		// [REQ:BAS-NODE-SELECT-DROPDOWN]
+		var cfg selectConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("select node %s has invalid data: %w", step.NodeID, err)
+		}
+		selector := strings.TrimSpace(cfg.Selector)
+		if selector == "" {
+			return Instruction{}, fmt.Errorf("select node %s missing selector", step.NodeID)
+		}
+		mode := normalizeSelectMode(cfg.SelectBy)
+		value := strings.TrimSpace(cfg.Value)
+		text := strings.TrimSpace(cfg.Text)
+		values := normalizeStringSlice(cfg.Values)
+		indexProvided := hasParam(step.Params, "index", "optionIndex")
+		multi := cfg.Multiple
+		if mode == "" {
+			switch {
+			case multi && len(values) > 0:
+				mode = "value"
+			case value != "":
+				mode = "value"
+			case text != "":
+				mode = "text"
+			case indexProvided:
+				mode = "index"
+			default:
+				mode = "value"
+			}
+		}
+
+		if multi && mode == "index" {
+			return Instruction{}, fmt.Errorf("select node %s cannot use index mode with multi-select", step.NodeID)
+		}
+
+		switch mode {
+		case "value":
+			if multi {
+				if len(values) == 0 && value != "" {
+					values = []string{value}
+				}
+				if len(values) == 0 {
+					return Instruction{}, fmt.Errorf("select node %s requires values for multi-select", step.NodeID)
+				}
+			} else {
+				if value == "" {
+					if len(values) > 0 {
+						value = values[0]
+					}
+				}
+				if value == "" {
+					return Instruction{}, fmt.Errorf("select node %s missing value", step.NodeID)
+				}
+			}
+		case "text":
+			if multi {
+				if len(values) == 0 && text != "" {
+					values = []string{text}
+				}
+				if len(values) == 0 {
+					return Instruction{}, fmt.Errorf("select node %s requires text values for multi-select", step.NodeID)
+				}
+			} else {
+				if text == "" {
+					if len(values) > 0 {
+						text = values[0]
+					} else if value != "" {
+						text = value
+					}
+				}
+				if text == "" {
+					return Instruction{}, fmt.Errorf("select node %s missing text target", step.NodeID)
+				}
+			}
+		case "index":
+			if !indexProvided {
+				return Instruction{}, fmt.Errorf("select node %s missing index", step.NodeID)
+			}
+			if cfg.Index < 0 {
+				return Instruction{}, fmt.Errorf("select node %s requires non-negative index", step.NodeID)
+			}
+		default:
+			return Instruction{}, fmt.Errorf("select node %s has unsupported select mode %q", step.NodeID, cfg.SelectBy)
+		}
+
+		base.Params.Selector = selector
+		base.Params.SelectionMode = mode
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+		if multi {
+			base.Params.MultiSelect = true
+			if len(values) > 0 {
+				base.Params.OptionValues = values
+			}
+		} else {
+			if mode == "value" && value != "" {
+				base.Params.OptionValue = value
+			}
+			if mode == "text" && text != "" {
+				base.Params.OptionText = text
+			}
+			if mode == "index" {
+				base.Params.OptionIndex = cfg.Index
+			}
+		}
 	case compiler.StepExtract:
 		var cfg extractConfig
 		if err := decodeParams(step.Params, &cfg); err != nil {
@@ -604,6 +856,9 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if cfg.AllMatches != nil {
 			base.Params.AllMatches = cfg.AllMatches
 		}
+		if storeTarget := strings.TrimSpace(firstNonEmpty(cfg.StoreResult, cfg.StoreIn)); storeTarget != "" {
+			base.Params.StoreResult = storeTarget
+		}
 	case compiler.StepEvaluate:
 		// [REQ:BAS-NODE-SCRIPT-EXECUTE]
 		var cfg evaluateConfig
@@ -620,6 +875,134 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		}
 		if storeName := strings.TrimSpace(cfg.StoreResult); storeName != "" {
 			base.Params.StoreResult = storeName
+		}
+	case compiler.StepUploadFile:
+		// [REQ:BAS-NODE-UPLOAD-FILE]
+		var cfg uploadFileConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("uploadFile node %s has invalid data: %w", step.NodeID, err)
+		}
+		selector := strings.TrimSpace(cfg.Selector)
+		if selector == "" {
+			return Instruction{}, fmt.Errorf("uploadFile node %s missing selector", step.NodeID)
+		}
+		candidatePaths := make([]string, 0, len(cfg.FilePaths)+1)
+		candidatePaths = append(candidatePaths, cfg.FilePaths...)
+		if trimmedSingle := strings.TrimSpace(cfg.FilePath); trimmedSingle != "" {
+			candidatePaths = append(candidatePaths, trimmedSingle)
+		}
+		validatedPaths := make([]string, 0, len(candidatePaths))
+		for _, rawPath := range candidatePaths {
+			trimmed := strings.TrimSpace(rawPath)
+			if trimmed == "" {
+				continue
+			}
+			cleaned := filepath.Clean(trimmed)
+			if !filepath.IsAbs(cleaned) {
+				return Instruction{}, fmt.Errorf("uploadFile node %s requires absolute file path, got %s", step.NodeID, trimmed)
+			}
+			info, err := os.Stat(cleaned)
+			if err != nil {
+				if os.IsNotExist(err) {
+					return Instruction{}, fmt.Errorf("uploadFile node %s cannot find file %s", step.NodeID, cleaned)
+				}
+				return Instruction{}, fmt.Errorf("uploadFile node %s failed to read file %s: %w", step.NodeID, cleaned, err)
+			}
+			if info.IsDir() {
+				return Instruction{}, fmt.Errorf("uploadFile node %s path %s is a directory", step.NodeID, cleaned)
+			}
+			validatedPaths = append(validatedPaths, cleaned)
+		}
+		if len(validatedPaths) == 0 {
+			return Instruction{}, fmt.Errorf("uploadFile node %s requires at least one file path", step.NodeID)
+		}
+		base.Params.Selector = selector
+		base.Params.FilePaths = validatedPaths
+		if len(validatedPaths) == 1 {
+			base.Params.FilePath = validatedPaths[0]
+		}
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+	case compiler.StepSetVariable:
+		// [REQ:BAS-NODE-VARIABLE-SET]
+		var cfg setVariableConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("setVariable node %s has invalid data: %w", step.NodeID, err)
+		}
+		variableName := strings.TrimSpace(cfg.Name)
+		if variableName == "" {
+			return Instruction{}, fmt.Errorf("setVariable node %s missing variable name", step.NodeID)
+		}
+		source := normalizeVariableSource(cfg.SourceType)
+		if source == "" {
+			return Instruction{}, fmt.Errorf("setVariable node %s missing sourceType", step.NodeID)
+		}
+		base.Params.VariableName = variableName
+		base.Params.VariableSource = source
+		if storeAs := strings.TrimSpace(cfg.StoreAs); storeAs != "" {
+			base.Params.StoreResult = storeAs
+		}
+		switch source {
+		case "static":
+			value, err := convertStaticVariableValue(cfg.Value, cfg.ValueType)
+			if err != nil {
+				return Instruction{}, fmt.Errorf("setVariable node %s has invalid static value: %w", step.NodeID, err)
+			}
+			base.Params.VariableValue = value
+		case "expression":
+			expression := strings.TrimSpace(cfg.Expression)
+			if expression == "" {
+				return Instruction{}, fmt.Errorf("setVariable node %s requires expression for expression source", step.NodeID)
+			}
+			base.Params.Expression = expression
+			if cfg.TimeoutMs > 0 {
+				base.Params.TimeoutMs = cfg.TimeoutMs
+			}
+		case "extract":
+			selector := strings.TrimSpace(cfg.Selector)
+			if selector == "" {
+				return Instruction{}, fmt.Errorf("setVariable node %s requires selector for extract source", step.NodeID)
+			}
+			extractType := normalizeExtractMode(cfg.ExtractType)
+			base.Params.Selector = selector
+			base.Params.ExtractType = extractType
+			if attr := strings.TrimSpace(cfg.Attribute); attr != "" {
+				base.Params.Attribute = attr
+			}
+			if cfg.AllMatches != nil {
+				base.Params.AllMatches = cfg.AllMatches
+			}
+			if cfg.TimeoutMs > 0 {
+				base.Params.TimeoutMs = cfg.TimeoutMs
+			}
+		default:
+			return Instruction{}, fmt.Errorf("setVariable node %s has unsupported source %s", step.NodeID, source)
+		}
+	case compiler.StepUseVariable:
+		// [REQ:BAS-NODE-VARIABLE-USE]
+		var cfg useVariableConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("useVariable node %s has invalid data: %w", step.NodeID, err)
+		}
+		variableName := strings.TrimSpace(cfg.Name)
+		if variableName == "" {
+			return Instruction{}, fmt.Errorf("useVariable node %s missing variable name", step.NodeID)
+		}
+		storeAs := strings.TrimSpace(cfg.StoreAs)
+		if storeAs == "" {
+			storeAs = variableName
+		}
+		base.Params.VariableName = variableName
+		base.Params.StoreResult = storeAs
+		if trimmed := strings.TrimSpace(cfg.Transform); trimmed != "" {
+			base.Params.VariableTransform = trimmed
+		}
+		if cfg.Required != nil {
+			base.Params.VariableRequired = cfg.Required
 		}
 	case compiler.StepWorkflowCall:
 		return Instruction{}, fmt.Errorf("workflowCall node %s is not yet supported", step.NodeID)
@@ -718,6 +1101,55 @@ func clampHoverDuration(raw int) int {
 	return raw
 }
 
+func clampDragHold(raw int) int {
+	if raw <= 0 {
+		return defaultDragHoldMs
+	}
+	if raw > maxDragHoldMs {
+		return maxDragHoldMs
+	}
+	return raw
+}
+
+func clampDragSteps(raw int) int {
+	if raw <= 0 {
+		return defaultDragSteps
+	}
+	if raw < minDragSteps {
+		return minDragSteps
+	}
+	if raw > maxDragSteps {
+		return maxDragSteps
+	}
+	return raw
+}
+
+func clampDragDuration(raw int) int {
+	if raw <= 0 {
+		return defaultDragDurationMs
+	}
+	if raw < minDragDurationMs {
+		return minDragDurationMs
+	}
+	if raw > maxDragDurationMs {
+		return maxDragDurationMs
+	}
+	return raw
+}
+
+func clampDragOffset(raw int) int {
+	if raw == 0 {
+		return 0
+	}
+	if raw < minDragOffset {
+		return minDragOffset
+	}
+	if raw > maxDragOffset {
+		return maxDragOffset
+	}
+	return raw
+}
+
 func normalizeScrollType(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "element":
@@ -744,6 +1176,19 @@ func normalizeScrollDirection(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "up", "down", "left", "right", "top", "bottom":
 		return strings.ToLower(strings.TrimSpace(raw))
+	default:
+		return ""
+	}
+}
+
+func normalizeSelectMode(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "value", "values":
+		return "value"
+	case "text", "label", "innertext":
+		return "text"
+	case "index", "position":
+		return "index"
 	default:
 		return ""
 	}
@@ -798,6 +1243,18 @@ func normalizeStringSlice(values []string) []string {
 		return nil
 	}
 	return normalized
+}
+
+func hasParam(params map[string]any, keys ...string) bool {
+	if params == nil {
+		return false
+	}
+	for _, key := range keys {
+		if _, ok := params[key]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func collectKeyboardModifiers(spec keyboardModifierSpec) []string {
@@ -939,6 +1396,115 @@ func normalizeShortcutCombo(raw string) string {
 	}
 
 	return strings.Join(result, "+")
+}
+
+func normalizeExtractMode(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "html":
+		return "html"
+	case "attribute":
+		return "attribute"
+	case "value":
+		return "value"
+	default:
+		return "text"
+	}
+}
+
+func normalizeVariableSource(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "static", "value", "text":
+		return "static"
+	case "expression", "script":
+		return "expression"
+	case "extract", "selector":
+		return "extract"
+	default:
+		return ""
+	}
+}
+
+func convertStaticVariableValue(value any, valueType string) (any, error) {
+	switch strings.ToLower(strings.TrimSpace(valueType)) {
+	case "boolean", "bool":
+		return coerceBool(value)
+	case "number", "float", "int":
+		return coerceNumber(value)
+	case "json":
+		return parseJSONValue(value)
+	default:
+		if str, ok := value.(string); ok {
+			return str, nil
+		}
+		return value, nil
+	}
+}
+
+func coerceBool(value any) (bool, error) {
+	switch typed := value.(type) {
+	case bool:
+		return typed, nil
+	case string:
+		lower := strings.ToLower(strings.TrimSpace(typed))
+		if lower == "true" || lower == "1" {
+			return true, nil
+		}
+		if lower == "false" || lower == "0" || lower == "" {
+			return false, nil
+		}
+		return false, fmt.Errorf("value %q cannot be parsed as bool", typed)
+	case float64:
+		return typed != 0, nil
+	case float32:
+		return typed != 0, nil
+	case int, int32, int64:
+		return fmt.Sprintf("%v", typed) != "0", nil
+	default:
+		return false, fmt.Errorf("unsupported bool value type %T", value)
+	}
+}
+
+func coerceNumber(value any) (any, error) {
+	switch typed := value.(type) {
+	case float64, float32, int, int32, int64:
+		return typed, nil
+	case string:
+		trimmed := strings.TrimSpace(typed)
+		if trimmed == "" {
+			return 0, nil
+		}
+		if strings.Contains(trimmed, ".") {
+			parsed, err := strconv.ParseFloat(trimmed, 64)
+			if err != nil {
+				return nil, err
+			}
+			return parsed, nil
+		}
+		parsed, err := strconv.ParseInt(trimmed, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		return parsed, nil
+	default:
+		return nil, fmt.Errorf("unsupported number value type %T", value)
+	}
+}
+
+func parseJSONValue(value any) (any, error) {
+	switch typed := value.(type) {
+	case string:
+		trimmed := strings.TrimSpace(typed)
+		if trimmed == "" {
+			return nil, nil
+		}
+		var decoded any
+		if err := json.Unmarshal([]byte(trimmed), &decoded); err != nil {
+			return nil, err
+		}
+		return decoded, nil
+	default:
+		return value, nil
+	}
 }
 
 func normalizeArrowKey(value string) string {

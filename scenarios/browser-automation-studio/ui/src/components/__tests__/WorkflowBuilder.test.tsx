@@ -48,8 +48,30 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import type { Node, Edge } from 'reactflow';
+
+if (typeof window !== 'undefined' && typeof (window as any).DragEvent === 'undefined') {
+  class DragEventPolyfill extends Event {
+    dataTransfer: DataTransfer;
+    constructor(type: string, eventInitDict?: DragEventInit & { dataTransfer?: DataTransfer }) {
+      super(type, eventInitDict);
+      this.dataTransfer = eventInitDict?.dataTransfer ?? {
+        dropEffect: 'move',
+        effectAllowed: 'all',
+        files: [] as unknown as FileList,
+        items: [] as unknown as DataTransferItemList,
+        types: [],
+        setData: () => {},
+        getData: () => '',
+        clearData: () => {},
+        setDragImage: () => {},
+      } as DataTransfer;
+    }
+  }
+  (window as any).DragEvent = DragEventPolyfill as typeof DragEvent;
+}
 
 // Mock react-hot-toast
 vi.mock('react-hot-toast', () => ({
@@ -93,33 +115,35 @@ const mockUseReactFlow = vi.fn(() => ({
 }));
 
 const mockUseNodesState = vi.fn((initialNodes: Node[]) => {
-  return [initialNodes, vi.fn(), vi.fn()];
+  return useState(initialNodes);
 });
 
 const mockUseEdgesState = vi.fn((initialEdges: Edge[]) => {
-  return [initialEdges, vi.fn(), vi.fn()];
+  return useState(initialEdges);
 });
 
 vi.mock('reactflow', async () => {
   const actual = await vi.importActual('reactflow');
+  const MockReactFlow = ({ children, onDrop, onDragOver, nodes, edges }: any) => (
+    <div
+      data-testid="react-flow-canvas"
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      data-nodes-count={nodes?.length || 0}
+      data-edges-count={edges?.length || 0}
+    >
+      {children}
+      {nodes?.map((node: Node) => (
+        <div key={node.id} data-testid={`node-${node.id}`} data-node-type={node.type}>
+          {node.data?.label || node.type}
+        </div>
+      ))}
+    </div>
+  );
   return {
     ...actual,
-    ReactFlow: ({ children, onDrop, onDragOver, nodes, edges, onNodesChange, onEdgesChange, onConnect }: any) => (
-      <div
-        data-testid="react-flow-canvas"
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        data-nodes-count={nodes?.length || 0}
-        data-edges-count={edges?.length || 0}
-      >
-        {children}
-        {nodes?.map((node: Node) => (
-          <div key={node.id} data-testid={`node-${node.id}`} data-node-type={node.type}>
-            {node.data?.label || node.type}
-          </div>
-        ))}
-      </div>
-    ),
+    default: MockReactFlow,
+    ReactFlow: MockReactFlow,
     ReactFlowProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     MiniMap: () => <div data-testid="minimap" />,
     Background: () => <div data-testid="background" />,
@@ -182,7 +206,6 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
   describe('Basic Rendering', () => {
     it('renders canvas in visual mode by default [REQ:BAS-WORKFLOW-BUILDER-CORE]', async () => {
       const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation(mockWorkflowStore);
 
       const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
       render(<WorkflowBuilder />);
@@ -250,7 +273,6 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
   describe('View Mode Switching', () => {
     it('switches to code view when code button clicked [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]', async () => {
       const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation(mockWorkflowStore);
 
       const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
       const user = userEvent.setup();
@@ -265,7 +287,6 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
 
     it('switches back to visual view when visual button clicked [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]', async () => {
       const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation(mockWorkflowStore);
 
       const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
       const user = userEvent.setup();
@@ -323,7 +344,6 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
   describe('Toolbar Integration', () => {
     it('renders WorkflowToolbar in visual mode [REQ:BAS-WORKFLOW-BUILDER-ZOOM]', async () => {
       const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation(mockWorkflowStore);
 
       const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
       render(<WorkflowBuilder />);
@@ -335,7 +355,6 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
 
     it('does not render WorkflowToolbar in code mode', async () => {
       const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation(mockWorkflowStore);
 
       const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
       const user = userEvent.setup();
@@ -353,7 +372,6 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
   describe('Drag and Drop', () => {
     it('accepts drop events on canvas [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', async () => {
       const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation(mockWorkflowStore);
 
       const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
       render(<WorkflowBuilder />);
@@ -361,6 +379,11 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
       const canvas = screen.getByTestId('react-flow-canvas');
 
       const dragOverEvent = new Event('dragover', { bubbles: true });
+      Object.defineProperty(dragOverEvent, 'dataTransfer', {
+        value: {
+          dropEffect: 'none',
+        },
+      });
       fireEvent(canvas, dragOverEvent);
 
       // Canvas should accept drops (verified by onDragOver handler)

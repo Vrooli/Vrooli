@@ -19,7 +19,12 @@ const (
 	StepNavigate     StepType = "navigate"
 	StepClick        StepType = "click"
 	StepHover        StepType = "hover"
+	StepDragDrop     StepType = "dragDrop"
+	StepFocus        StepType = "focus"
+	StepBlur         StepType = "blur"
 	StepScroll       StepType = "scroll"
+	StepSelect       StepType = "select"
+	StepUploadFile   StepType = "uploadFile"
 	StepTypeInput    StepType = "type"
 	StepShortcut     StepType = "shortcut"
 	StepKeyboard     StepType = "keyboard"
@@ -30,16 +35,23 @@ const (
 	StepAssert       StepType = "assert"
 	StepWorkflowCall StepType = "workflowcall"
 	StepCustom       StepType = "custom"
+	StepSetVariable  StepType = "setVariable"
+	StepUseVariable  StepType = "useVariable"
 )
 
 var supportedStepTypes = map[StepType]struct{}{
 	StepNavigate:     {},
 	StepClick:        {},
 	StepHover:        {},
+	StepDragDrop:     {},
+	StepFocus:        {},
+	StepBlur:         {},
 	StepTypeInput:    {},
 	StepShortcut:     {},
 	StepKeyboard:     {},
 	StepScroll:       {},
+	StepSelect:       {},
+	StepUploadFile:   {},
 	StepWait:         {},
 	StepScreenshot:   {},
 	StepExtract:      {},
@@ -47,6 +59,8 @@ var supportedStepTypes = map[StepType]struct{}{
 	StepAssert:       {},
 	StepWorkflowCall: {},
 	StepCustom:       {},
+	StepSetVariable:  {},
+	StepUseVariable:  {},
 }
 
 // ExecutionPlan represents a validated sequence of steps derived from a workflow definition.

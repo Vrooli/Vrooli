@@ -4,10 +4,10 @@ import { fireEvent } from '@testing-library/react';
 import NodePalette from '../NodePalette';
 
 describe('NodePalette [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP] [REQ:BAS-WORKFLOW-NODE-TYPES]', () => {
-  it('renders all node types [REQ:BAS-WORKFLOW-NODE-TYPES]', () => {
+  it('renders key node types [REQ:BAS-WORKFLOW-NODE-TYPES]', () => {
     render(<NodePalette />);
 
-    // Verify all 9 node types are rendered
+    // Verify representative node types are rendered
     expect(screen.getByText('Navigate')).toBeInTheDocument();
     expect(screen.getByText('Click')).toBeInTheDocument();
     expect(screen.getByText('Type')).toBeInTheDocument();
@@ -16,7 +16,11 @@ describe('NodePalette [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP] [REQ:BAS-WORKFLOW-NOD
     expect(screen.getByText('Wait')).toBeInTheDocument();
     expect(screen.getByText('Extract')).toBeInTheDocument();
     expect(screen.getByText('Assert')).toBeInTheDocument();
+    expect(screen.getByText('Focus')).toBeInTheDocument();
+    expect(screen.getByText('Blur')).toBeInTheDocument();
     expect(screen.getByText('Call Workflow')).toBeInTheDocument();
+    expect(screen.getByText('Drag & Drop')).toBeInTheDocument();
+    expect(screen.getByText('Upload File')).toBeInTheDocument();
   });
 
   it('renders node descriptions', () => {
@@ -40,8 +44,8 @@ describe('NodePalette [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP] [REQ:BAS-WORKFLOW-NOD
 
     const draggableNodes = container.querySelectorAll('[draggable="true"]');
 
-    // Should have 9 draggable node items
-    expect(draggableNodes).toHaveLength(9);
+    // Should have draggable cards for every palette entry
+    expect(draggableNodes).toHaveLength(20);
   });
 
   it('sets correct data on drag start for navigate node [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', () => {

@@ -37,72 +37,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store scraping agent configurations, results, metrics, and orchestration metadata",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store scraped assets, screenshots, and exported data files"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Vector database for content similarity detection and duplicate removal"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Job queues and caching for scraping orchestration"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "AI models for intelligent content extraction and analysis",
-      "models": [
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    },
-    "huginn": {
-      "type": "external-service",
-      "enabled": false,
-      "required": false,
-      "purpose": "RSS/social media monitoring and scheduled scraping",
-      "default_port": 4111,
-      "health_endpoint": "/agents"
-    },
-    "browserless": {
-      "type": "external-service",
-      "enabled": false,
-      "required": false,
-      "purpose": "JavaScript-heavy sites, screenshots, PDF generation",
-      "default_port": 4110,
-      "health_endpoint": "/stats"
-    },
-    "agent-s2": {
-      "type": "external-service",
-      "enabled": false,
-      "required": false,
-      "purpose": "AI-powered web interaction and complex scraping",
-      "default_port": 4113,
-      "health_endpoint": "/health"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -278,6 +212,74 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store scraping agent configurations, results, metrics, and orchestration metadata",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store scraped assets, screenshots, and exported data files"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Vector database for content similarity detection and duplicate removal"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Job queues and caching for scraping orchestration"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI models for intelligent content extraction and analysis",
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      },
+      "huginn": {
+        "type": "external-service",
+        "enabled": false,
+        "required": false,
+        "purpose": "RSS/social media monitoring and scheduled scraping",
+        "default_port": 4111,
+        "health_endpoint": "/agents"
+      },
+      "browserless": {
+        "type": "external-service",
+        "enabled": false,
+        "required": false,
+        "purpose": "JavaScript-heavy sites, screenshots, PDF generation",
+        "default_port": 4110,
+        "health_endpoint": "/stats"
+      },
+      "agent-s2": {
+        "type": "external-service",
+        "enabled": false,
+        "required": false,
+        "purpose": "AI-powered web interaction and complex scraping",
+        "default_port": 4113,
+        "health_endpoint": "/health"
+      }
     }
   }
 }

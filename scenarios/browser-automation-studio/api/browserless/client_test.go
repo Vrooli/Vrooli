@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/browserless/compiler"
 	"github.com/vrooli/browser-automation-studio/browserless/events"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -1525,6 +1526,85 @@ func TestNewClient(t *testing.T) {
 
 	if client.httpClient == nil {
 		t.Fatalf("expected http client to be configured")
+	}
+}
+
+func TestVariableFlowEndToEnd(t *testing.T) {
+	execCtx := runtime.NewExecutionContext()
+
+	extractInstruction := runtime.Instruction{
+		NodeID: "extract-1",
+		Type:   string(compiler.StepExtract),
+		Params: runtime.InstructionParam{StoreResult: "pageTitle"},
+	}
+	extractStep := runtime.StepResult{Success: true, ExtractedData: "Example Domain"}
+	if err := applyVariablePostProcessing(execCtx, extractInstruction, extractStep); err != nil {
+		t.Fatalf("failed to persist extract output: %v", err)
+	}
+
+	setInstruction := runtime.Instruction{
+		NodeID: "set-1",
+		Type:   string(compiler.StepSetVariable),
+		Params: runtime.InstructionParam{
+			VariableName:  "greeting",
+			VariableSource: "static",
+			VariableValue: "Hello {{pageTitle}}!",
+		},
+	}
+	resolvedSet, missing, err := runtime.InterpolateInstruction(setInstruction, execCtx)
+	if err != nil {
+		t.Fatalf("interpolation failed: %v", err)
+	}
+	if len(missing) != 0 {
+		t.Fatalf("expected no missing variables, got %v", missing)
+	}
+	if err := applyVariablePostProcessing(execCtx, resolvedSet, runtime.StepResult{Success: true}); err != nil {
+		t.Fatalf("failed to persist static variable: %v", err)
+	}
+	if value, _ := execCtx.Get("greeting"); value != "Hello Example Domain!" {
+		t.Fatalf("expected greeting to include pageTitle, got %v", value)
+	}
+
+	useInstruction := runtime.Instruction{
+		NodeID: "use-1",
+		Type:   string(compiler.StepUseVariable),
+		Params: runtime.InstructionParam{
+			VariableName:      "greeting",
+			StoreResult:       "greetingEcho",
+			VariableTransform: "Greeting => {{value}}",
+		},
+	}
+	resolvedUse, missingUse, err := runtime.InterpolateInstruction(useInstruction, execCtx)
+	if err != nil {
+		t.Fatalf("failed to interpolate useVariable instruction: %v", err)
+	}
+	filteredMissing := make([]string, 0, len(missingUse))
+	for _, name := range missingUse {
+		if name == "value" {
+			continue // {{value}} placeholder is resolved inside the CDP adapter
+		}
+		filteredMissing = append(filteredMissing, name)
+	}
+	if len(filteredMissing) != 0 {
+		t.Fatalf("expected greeting to exist before useVariable, missing %v", filteredMissing)
+	}
+	greetingValue, _ := execCtx.Get("greeting")
+	transformed := strings.ReplaceAll(resolvedUse.Params.VariableTransform, "{{value}}", fmt.Sprintf("%v", greetingValue))
+	if err := applyVariablePostProcessing(execCtx, resolvedUse, runtime.StepResult{Success: true, ExtractedData: transformed}); err != nil {
+		t.Fatalf("failed to persist alias variable: %v", err)
+	}
+	if alias, _ := execCtx.Get("greetingEcho"); alias != "Greeting => Hello Example Domain!" {
+		t.Fatalf("expected alias to include transform, got %v", alias)
+	}
+
+	snapshot := execCtx.Snapshot()
+	if len(snapshot) != 3 {
+		t.Fatalf("expected three stored variables, got %d", len(snapshot))
+	}
+	for _, key := range []string{"pageTitle", "greeting", "greetingEcho"} {
+		if _, ok := snapshot[key]; !ok {
+			t.Fatalf("expected snapshot to include %s", key)
+		}
 	}
 }
 

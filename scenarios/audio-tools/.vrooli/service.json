@@ -70,82 +70,6 @@
       "description": "Command-line interface for scenario operations"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store tool configurations and processing results",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache and event bus for real-time operations"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": false,
-      "purpose": "Object storage for audio files and processed outputs",
-      "initialization": [
-        {
-          "type": "bucket",
-          "name": "audio-files",
-          "policy": "public-read"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": false,
-      "required": false,
-      "purpose": "Vector database for semantic search and AI features"
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": false,
-      "required": false,
-      "purpose": "Workflow automation and business logic orchestration (not currently used)",
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/windmill-app.json",
-          "type": "app"
-        }
-      ]
-    },
-    "node-red": {
-      "type": "node-red",
-      "enabled": false,
-      "required": false,
-      "purpose": "Visual workflow automation (alternative to Windmill)"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "models": [
-        "whisper"
-      ],
-      "purpose": "Local AI inference for intelligent features"
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": false,
-      "required": false,
-      "purpose": "AI-powered development assistance and code generation"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -668,6 +592,84 @@
         ]
       },
       "instructions": "Replace all _PLACEHOLDER values with specific details for the target scenario"
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store tool configurations and processing results",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache and event bus for real-time operations"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": false,
+        "purpose": "Object storage for audio files and processed outputs",
+        "initialization": [
+          {
+            "type": "bucket",
+            "name": "audio-files",
+            "policy": "public-read"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "purpose": "Vector database for semantic search and AI features"
+      },
+      "windmill": {
+        "type": "windmill",
+        "enabled": false,
+        "required": false,
+        "purpose": "Workflow automation and business logic orchestration (not currently used)",
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/windmill-app.json",
+            "type": "app"
+          }
+        ]
+      },
+      "node-red": {
+        "type": "node-red",
+        "enabled": false,
+        "required": false,
+        "purpose": "Visual workflow automation (alternative to Windmill)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "models": [
+          "whisper"
+        ],
+        "purpose": "Local AI inference for intelligent features"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": false,
+        "required": false,
+        "purpose": "AI-powered development assistance and code generation"
+      }
     }
   }
 }

@@ -58,518 +58,6 @@
       "description": "Scenario orchestrator API for managing running scenarios"
     }
   },
-  "resources": {
-    "agent-s2": {
-      "enabled": true,
-      "healthCheck": {
-        "intervalMs": 60000,
-        "timeoutMs": 5000
-      }
-    },
-    "airbyte": {
-      "enabled": true
-    },
-    "apache-airflow": {
-      "enabled": true
-    },
-    "apache-superset": {
-      "enabled": true
-    },
-    "audiocraft": {
-      "enabled": true
-    },
-    "autogen-studio": {
-      "enabled": true
-    },
-    "autogpt": {
-      "enabled": true
-    },
-    "blender": {
-      "enabled": true,
-      "required": false,
-      "description": "Professional 3D creation suite with Python API"
-    },
-    "browserless": {
-      "enabled": true,
-      "required": true,
-      "healthCheck": {
-        "intervalMs": 60000,
-        "timeoutMs": 5000
-      }
-    },
-    "btcpay": {
-      "enabled": true
-    },
-    "claude-code": {
-      "enabled": true,
-      "required": true,
-      "description": "Claude Code development assistant"
-    },
-    "cline": {
-      "enabled": true,
-      "required": false,
-      "description": "VS Code AI coding assistant powered by Claude"
-    },
-    "cloudflare-ai-gateway": {
-      "enabled": true
-    },
-    "cncjs": {
-      "enabled": true
-    },
-    "codex": {
-      "enabled": true,
-      "required": false,
-      "description": "AI-powered code generation and completion via OpenAI GPT models"
-    },
-    "comfyui": {
-      "enabled": true,
-      "healthCheck": {
-        "intervalMs": 60000,
-        "timeoutMs": 5000
-      }
-    },
-    "crewai": {
-      "enabled": true,
-      "required": false,
-      "description": "Framework for orchestrating role-playing autonomous AI agents",
-      "data_dir": "~/.crewai",
-      "venv_dir": "~/.crewai/venv"
-    },
-    "deepstack": {
-      "enabled": true
-    },
-    "earthly": {
-      "enabled": true
-    },
-    "eclipse-ditto": {
-      "enabled": true
-    },
-    "electionguard": {
-      "enabled": true
-    },
-    "elmer-fem": {
-      "enabled": true
-    },
-    "erpnext": {
-      "enabled": true,
-      "required": false,
-      "description": "Complete open-source ERP with accounting, inventory, HR, CRM, and project management"
-    },
-    "esphome": {
-      "enabled": true
-    },
-    "farmos": {
-      "enabled": true
-    },
-    "ffmpeg": {
-      "enabled": true,
-      "required": false,
-      "description": "Universal media processing framework for video/audio conversion, streaming, and analysis",
-      "temp_dir": "~/.vrooli/ffmpeg/temp",
-      "output_dir": "~/.vrooli/ffmpeg/output"
-    },
-    "freecad": {
-      "enabled": true
-    },
-    "gazebo": {
-      "enabled": true
-    },
-    "gemini": {
-      "enabled": true,
-      "required": false,
-      "description": "Google Gemini AI API integration"
-    },
-    "geonode": {
-      "enabled": true
-    },
-    "geth": {
-      "enabled": true
-    },
-    "ggwave": {
-      "enabled": true
-    },
-    "godot": {
-      "enabled": true
-    },
-    "gridlabd": {
-      "enabled": true
-    },
-    "haystack": {
-      "enabled": true,
-      "required": false,
-      "description": "End-to-end framework for question answering and search",
-      "data_dir": "~/.vrooli/haystack"
-    },
-    "home-assistant": {
-      "enabled": true,
-      "required": false,
-      "description": "Open source home automation platform for IoT device control and automation",
-      "config_dir": "~/.vrooli/home-assistant/config",
-      "timezone": "America/New_York"
-    },
-    "huginn": {
-      "enabled": true,
-      "required": false,
-      "description": "Agent-based automation and monitoring platform"
-    },
-    "judge0": {
-      "enabled": true,
-      "required": false,
-      "description": "Code execution and testing platform"
-    },
-    "jupyterhub": {
-      "enabled": true
-    },
-    "k6": {
-      "enabled": true,
-      "description": "Modern load testing tool with JavaScript scripting",
-      "healthy": false,
-      "health_check": {
-        "command": "resource-k6 status --json",
-        "interval": 30,
-        "timeout": 10
-      }
-    },
-    "kafka": {
-      "enabled": true
-    },
-    "keycloak": {
-      "enabled": true,
-      "required": false,
-      "description": "Identity and access management solution for securing applications and services",
-      "admin_port": 9990,
-      "data_dir": "~/.vrooli/keycloak"
-    },
-    "kicad": {
-      "enabled": true,
-      "order": 52
-    },
-    "langchain": {
-      "enabled": true,
-      "description": "Framework for developing applications with LLMs",
-      "api_port": 8101,
-      "data_dir": "~/.langchain"
-    },
-    "litellm": {
-      "enabled": true
-    },
-    "llamaindex": {
-      "enabled": true,
-      "description": "Data framework for LLM applications with RAG capabilities",
-      "data_dir": "~/.vrooli/llamaindex"
-    },
-    "lnbits": {
-      "enabled": true
-    },
-    "mail-in-a-box": {
-      "enabled": true
-    },
-    "mathlib": {
-      "enabled": true
-    },
-    "matrix-synapse": {
-      "enabled": true
-    },
-    "mcrcon": {
-      "enabled": true
-    },
-    "meep": {
-      "enabled": true
-    },
-    "mesa": {
-      "enabled": true
-    },
-    "mifos": {
-      "enabled": true
-    },
-    "minio": {
-      "enabled": true,
-      "required": false,
-      "description": "S3-compatible object storage service"
-    },
-    "musicgen": {
-      "enabled": true
-    },
-    "n8n": {
-      "enabled": true,
-      "required": true,
-      "description": "Workflow automation platform"
-    },
-    "neo4j": {
-      "enabled": true,
-      "required": false,
-      "description": "Native property graph database for knowledge graphs and recommendations",
-      "docker_image": "neo4j:5.24.0",
-      "ports": {
-        "http": 7474,
-        "bolt": 7687
-      }
-    },
-    "nextcloud": {
-      "enabled": true
-    },
-    "node-red": {
-      "enabled": true,
-      "required": false,
-      "description": "Visual programming for IoT and automation"
-    },
-    "nsfw-detector": {
-      "enabled": true
-    },
-    "obs-studio": {
-      "enabled": true,
-      "required": false,
-      "description": "Professional streaming and recording software with programmatic control via WebSocket API",
-      "websocket_port": 4455,
-      "recording_path": "~/Videos/obs-recordings",
-      "data_dir": "~/.vrooli/obs-studio"
-    },
-    "octoprint": {
-      "enabled": true
-    },
-    "odoo": {
-      "enabled": true
-    },
-    "ollama": {
-      "enabled": true,
-      "required": true,
-      "status": {
-        "running": true
-      },
-      "healthCheck": {
-        "intervalMs": 60000,
-        "timeoutMs": 5000
-      }
-    },
-    "open-data-cube": {
-      "enabled": true
-    },
-    "opencode": {
-      "enabled": true
-    },
-    "openemr": {
-      "enabled": true
-    },
-    "openems": {
-      "enabled": true
-    },
-    "openfoam": {
-      "enabled": true
-    },
-    "openmct": {
-      "enabled": true
-    },
-    "openmrs": {
-      "enabled": true
-    },
-    "openrocket": {
-      "enabled": true
-    },
-    "openrouter": {
-      "enabled": true,
-      "required": false,
-      "description": "Unified API to many model providers for AI access"
-    },
-    "openscad": {
-      "enabled": true,
-      "description": "Programmatic 3D CAD modeler"
-    },
-    "opentripplanner": {
-      "enabled": true
-    },
-    "owasp-zap": {
-      "enabled": true
-    },
-    "pandas-ai": {
-      "enabled": true,
-      "required": false,
-      "description": "AI-powered data analysis and manipulation framework",
-      "data_dir": "~/.vrooli/pandas-ai"
-    },
-    "papermc": {
-      "enabled": true
-    },
-    "parlant": {
-      "enabled": true
-    },
-    "pihole": {
-      "enabled": true
-    },
-    "postgis": {
-      "enabled": true,
-      "required": false,
-      "description": "Spatial database extension for PostgreSQL - enables geographic queries and location-based analysis",
-      "container_name": "postgis-main",
-      "data_directory": "${HOME}/.vrooli/postgis",
-      "version": "16-3.4",
-      "healthCheck": {
-        "intervalMs": 60000,
-        "timeoutMs": 5000
-      }
-    },
-    "postgres": {
-      "enabled": true,
-      "required": true,
-      "healthCheck": {
-        "intervalMs": 60000,
-        "timeoutMs": 5000
-      }
-    },
-    "prometheus-grafana": {
-      "enabled": true
-    },
-    "pushover": {
-      "enabled": true,
-      "required": false,
-      "description": "Real-time mobile and desktop notification service for instant alerts and messaging",
-      "credentials_file": "~/.vrooli/pushover-credentials.json",
-      "data_dir": "~/.vrooli/pushover"
-    },
-    "pybullet": {
-      "enabled": true
-    },
-    "qdrant": {
-      "enabled": true,
-      "required": true,
-      "container_name": "qdrant",
-      "data_directory": "${HOME}/.qdrant/data",
-      "version": "unknown",
-      "status": "installed",
-      "last_updated": "2025-08-13 14:23:53",
-      "description": "Vector database for embeddings and semantic search"
-    },
-    "questdb": {
-      "enabled": true,
-      "required": false,
-      "description": "High-performance time series database"
-    },
-    "qwencoder": {
-      "enabled": true
-    },
-    "redis": {
-      "enabled": true,
-      "required": true,
-      "version": "7",
-      "description": "Event bus and caching layer",
-      "healthCheck": {
-        "intervalMs": 60000,
-        "timeoutMs": 5000
-      },
-      "instances": {
-        "default": {
-          "port": 6380,
-          "maxMemory": "2gb",
-          "persistence": "rdb",
-          "password": ""
-        }
-      }
-    },
-    "restic": {
-      "enabled": true
-    },
-    "ros2": {
-      "enabled": true
-    },
-    "sagemath": {
-      "enabled": true
-    },
-    "searxng": {
-      "enabled": true,
-      "required": true,
-      "description": "Privacy-respecting search engine"
-    },
-    "segment-anything": {
-      "enabled": true
-    },
-    "simpy": {
-      "enabled": true,
-      "required": false,
-      "description": "Discrete event simulation framework for modeling complex systems",
-      "data_dir": "~/.vrooli/simpy"
-    },
-    "splink": {
-      "enabled": true
-    },
-    "sqlite": {
-      "enabled": true
-    },
-    "step-ca": {
-      "enabled": true
-    },
-    "strapi": {
-      "enabled": true
-    },
-    "su2": {
-      "enabled": true
-    },
-    "tars-desktop": {
-      "enabled": true,
-      "required": false,
-      "description": "GUI automation agent for desktop UI control via natural language"
-    },
-    "temporal": {
-      "enabled": true
-    },
-    "terraform": {
-      "enabled": true
-    },
-    "traccar": {
-      "enabled": true
-    },
-    "twilio": {
-      "enabled": true,
-      "required": false,
-      "description": "SMS, voice, and messaging automation via Twilio API",
-      "credentials_file": "~/.vrooli/twilio-credentials.json",
-      "data_dir": "~/.vrooli/twilio"
-    },
-    "ultralytics-yolo": {
-      "enabled": true
-    },
-    "unstructured-io": {
-      "enabled": true,
-      "required": false,
-      "description": "Document processing and parsing service"
-    },
-    "vault": {
-      "enabled": true,
-      "required": true,
-      "description": "Secrets management and secure storage"
-    },
-    "virustotal": {
-      "enabled": true
-    },
-    "vocr": {
-      "enabled": true,
-      "description": "Vision OCR - Advanced screen recognition and AI-powered image analysis",
-      "healthCheck": {
-        "intervalMs": 60000,
-        "timeoutMs": 5000
-      }
-    },
-    "whisper": {
-      "enabled": true,
-      "required": false,
-      "description": "Speech-to-text processing service"
-    },
-    "wikijs": {
-      "enabled": true
-    },
-    "windmill": {
-      "enabled": true,
-      "required": true,
-      "healthCheck": {
-        "intervalMs": 60000,
-        "timeoutMs": 5000
-      }
-    },
-    "wireguard": {
-      "enabled": true
-    },
-    "zigbee2mqtt": {
-      "enabled": true
-    }
-  },
   "deployment": {
     "target": "docker",
     "strategy": "rolling-update",
@@ -620,7 +108,7 @@
         },
         {
           "name": "install-cli",
-          "run": "if [[ -f cli/install.sh ]]; then cli/install.sh; else echo '⚠️  CLI installer not found, skipping'; fi",
+          "run": "if [[ -f cli/install.sh ]]; then cli/install.sh; else echo '\u26a0\ufe0f  CLI installer not found, skipping'; fi",
           "description": "Install Vrooli CLI command"
         },
         {
@@ -640,12 +128,12 @@
         },
         {
           "name": "start-api",
-          "run": "if [[ -f api/start.sh ]]; then (PORT=$VROOLI_API_PORT api/start.sh >/dev/null 2>&1 &) && echo '🚀 Vrooli API started on port $VROOLI_API_PORT with native scenario management' || echo '⚠️  Failed to start API'; else echo '⚠️  API not found'; fi; true",
+          "run": "if [[ -f api/start.sh ]]; then (PORT=$VROOLI_API_PORT api/start.sh >/dev/null 2>&1 &) && echo '\ud83d\ude80 Vrooli API started on port $VROOLI_API_PORT with native scenario management' || echo '\u26a0\ufe0f  Failed to start API'; else echo '\u26a0\ufe0f  API not found'; fi; true",
           "description": "Start the Vrooli unified API server with built-in scenario management"
         },
         {
           "name": "start-orchestrator",
-          "run": "sleep 5 && echo '🎬 Starting orchestrator...' && vrooli scenario start vrooli-orchestrator",
+          "run": "sleep 5 && echo '\ud83c\udfac Starting orchestrator...' && vrooli scenario start vrooli-orchestrator",
           "description": "Start orchestrator after API is ready",
           "background": false
         }
@@ -701,6 +189,520 @@
           "description": "Remove build artifacts and dependencies"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "agent-s2": {
+        "enabled": true,
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
+      },
+      "airbyte": {
+        "enabled": true
+      },
+      "apache-airflow": {
+        "enabled": true
+      },
+      "apache-superset": {
+        "enabled": true
+      },
+      "audiocraft": {
+        "enabled": true
+      },
+      "autogen-studio": {
+        "enabled": true
+      },
+      "autogpt": {
+        "enabled": true
+      },
+      "blender": {
+        "enabled": true,
+        "required": false,
+        "description": "Professional 3D creation suite with Python API"
+      },
+      "browserless": {
+        "enabled": true,
+        "required": true,
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
+      },
+      "btcpay": {
+        "enabled": true
+      },
+      "claude-code": {
+        "enabled": true,
+        "required": true,
+        "description": "Claude Code development assistant"
+      },
+      "cline": {
+        "enabled": true,
+        "required": false,
+        "description": "VS Code AI coding assistant powered by Claude"
+      },
+      "cloudflare-ai-gateway": {
+        "enabled": true
+      },
+      "cncjs": {
+        "enabled": true
+      },
+      "codex": {
+        "enabled": true,
+        "required": false,
+        "description": "AI-powered code generation and completion via OpenAI GPT models"
+      },
+      "comfyui": {
+        "enabled": true,
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
+      },
+      "crewai": {
+        "enabled": true,
+        "required": false,
+        "description": "Framework for orchestrating role-playing autonomous AI agents",
+        "data_dir": "~/.crewai",
+        "venv_dir": "~/.crewai/venv"
+      },
+      "deepstack": {
+        "enabled": true
+      },
+      "earthly": {
+        "enabled": true
+      },
+      "eclipse-ditto": {
+        "enabled": true
+      },
+      "electionguard": {
+        "enabled": true
+      },
+      "elmer-fem": {
+        "enabled": true
+      },
+      "erpnext": {
+        "enabled": true,
+        "required": false,
+        "description": "Complete open-source ERP with accounting, inventory, HR, CRM, and project management"
+      },
+      "esphome": {
+        "enabled": true
+      },
+      "farmos": {
+        "enabled": true
+      },
+      "ffmpeg": {
+        "enabled": true,
+        "required": false,
+        "description": "Universal media processing framework for video/audio conversion, streaming, and analysis",
+        "temp_dir": "~/.vrooli/ffmpeg/temp",
+        "output_dir": "~/.vrooli/ffmpeg/output"
+      },
+      "freecad": {
+        "enabled": true
+      },
+      "gazebo": {
+        "enabled": true
+      },
+      "gemini": {
+        "enabled": true,
+        "required": false,
+        "description": "Google Gemini AI API integration"
+      },
+      "geonode": {
+        "enabled": true
+      },
+      "geth": {
+        "enabled": true
+      },
+      "ggwave": {
+        "enabled": true
+      },
+      "godot": {
+        "enabled": true
+      },
+      "gridlabd": {
+        "enabled": true
+      },
+      "haystack": {
+        "enabled": true,
+        "required": false,
+        "description": "End-to-end framework for question answering and search",
+        "data_dir": "~/.vrooli/haystack"
+      },
+      "home-assistant": {
+        "enabled": true,
+        "required": false,
+        "description": "Open source home automation platform for IoT device control and automation",
+        "config_dir": "~/.vrooli/home-assistant/config",
+        "timezone": "America/New_York"
+      },
+      "huginn": {
+        "enabled": true,
+        "required": false,
+        "description": "Agent-based automation and monitoring platform"
+      },
+      "judge0": {
+        "enabled": true,
+        "required": false,
+        "description": "Code execution and testing platform"
+      },
+      "jupyterhub": {
+        "enabled": true
+      },
+      "k6": {
+        "enabled": true,
+        "description": "Modern load testing tool with JavaScript scripting",
+        "healthy": false,
+        "health_check": {
+          "command": "resource-k6 status --json",
+          "interval": 30,
+          "timeout": 10
+        }
+      },
+      "kafka": {
+        "enabled": true
+      },
+      "keycloak": {
+        "enabled": true,
+        "required": false,
+        "description": "Identity and access management solution for securing applications and services",
+        "admin_port": 9990,
+        "data_dir": "~/.vrooli/keycloak"
+      },
+      "kicad": {
+        "enabled": true,
+        "order": 52
+      },
+      "langchain": {
+        "enabled": true,
+        "description": "Framework for developing applications with LLMs",
+        "api_port": 8101,
+        "data_dir": "~/.langchain"
+      },
+      "litellm": {
+        "enabled": true
+      },
+      "llamaindex": {
+        "enabled": true,
+        "description": "Data framework for LLM applications with RAG capabilities",
+        "data_dir": "~/.vrooli/llamaindex"
+      },
+      "lnbits": {
+        "enabled": true
+      },
+      "mail-in-a-box": {
+        "enabled": true
+      },
+      "mathlib": {
+        "enabled": true
+      },
+      "matrix-synapse": {
+        "enabled": true
+      },
+      "mcrcon": {
+        "enabled": true
+      },
+      "meep": {
+        "enabled": true
+      },
+      "mesa": {
+        "enabled": true
+      },
+      "mifos": {
+        "enabled": true
+      },
+      "minio": {
+        "enabled": true,
+        "required": false,
+        "description": "S3-compatible object storage service"
+      },
+      "musicgen": {
+        "enabled": true
+      },
+      "n8n": {
+        "enabled": true,
+        "required": true,
+        "description": "Workflow automation platform"
+      },
+      "neo4j": {
+        "enabled": true,
+        "required": false,
+        "description": "Native property graph database for knowledge graphs and recommendations",
+        "docker_image": "neo4j:5.24.0",
+        "ports": {
+          "http": 7474,
+          "bolt": 7687
+        }
+      },
+      "nextcloud": {
+        "enabled": true
+      },
+      "node-red": {
+        "enabled": true,
+        "required": false,
+        "description": "Visual programming for IoT and automation"
+      },
+      "nsfw-detector": {
+        "enabled": true
+      },
+      "obs-studio": {
+        "enabled": true,
+        "required": false,
+        "description": "Professional streaming and recording software with programmatic control via WebSocket API",
+        "websocket_port": 4455,
+        "recording_path": "~/Videos/obs-recordings",
+        "data_dir": "~/.vrooli/obs-studio"
+      },
+      "octoprint": {
+        "enabled": true
+      },
+      "odoo": {
+        "enabled": true
+      },
+      "ollama": {
+        "enabled": true,
+        "required": true,
+        "status": {
+          "running": true
+        },
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
+      },
+      "open-data-cube": {
+        "enabled": true
+      },
+      "opencode": {
+        "enabled": true
+      },
+      "openemr": {
+        "enabled": true
+      },
+      "openems": {
+        "enabled": true
+      },
+      "openfoam": {
+        "enabled": true
+      },
+      "openmct": {
+        "enabled": true
+      },
+      "openmrs": {
+        "enabled": true
+      },
+      "openrocket": {
+        "enabled": true
+      },
+      "openrouter": {
+        "enabled": true,
+        "required": false,
+        "description": "Unified API to many model providers for AI access"
+      },
+      "openscad": {
+        "enabled": true,
+        "description": "Programmatic 3D CAD modeler"
+      },
+      "opentripplanner": {
+        "enabled": true
+      },
+      "owasp-zap": {
+        "enabled": true
+      },
+      "pandas-ai": {
+        "enabled": true,
+        "required": false,
+        "description": "AI-powered data analysis and manipulation framework",
+        "data_dir": "~/.vrooli/pandas-ai"
+      },
+      "papermc": {
+        "enabled": true
+      },
+      "parlant": {
+        "enabled": true
+      },
+      "pihole": {
+        "enabled": true
+      },
+      "postgis": {
+        "enabled": true,
+        "required": false,
+        "description": "Spatial database extension for PostgreSQL - enables geographic queries and location-based analysis",
+        "container_name": "postgis-main",
+        "data_directory": "${HOME}/.vrooli/postgis",
+        "version": "16-3.4",
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
+      },
+      "postgres": {
+        "enabled": true,
+        "required": true,
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
+      },
+      "prometheus-grafana": {
+        "enabled": true
+      },
+      "pushover": {
+        "enabled": true,
+        "required": false,
+        "description": "Real-time mobile and desktop notification service for instant alerts and messaging",
+        "credentials_file": "~/.vrooli/pushover-credentials.json",
+        "data_dir": "~/.vrooli/pushover"
+      },
+      "pybullet": {
+        "enabled": true
+      },
+      "qdrant": {
+        "enabled": true,
+        "required": true,
+        "container_name": "qdrant",
+        "data_directory": "${HOME}/.qdrant/data",
+        "version": "unknown",
+        "status": "installed",
+        "last_updated": "2025-08-13 14:23:53",
+        "description": "Vector database for embeddings and semantic search"
+      },
+      "questdb": {
+        "enabled": true,
+        "required": false,
+        "description": "High-performance time series database"
+      },
+      "qwencoder": {
+        "enabled": true
+      },
+      "redis": {
+        "enabled": true,
+        "required": true,
+        "version": "7",
+        "description": "Event bus and caching layer",
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        },
+        "instances": {
+          "default": {
+            "port": 6380,
+            "maxMemory": "2gb",
+            "persistence": "rdb",
+            "password": ""
+          }
+        }
+      },
+      "restic": {
+        "enabled": true
+      },
+      "ros2": {
+        "enabled": true
+      },
+      "sagemath": {
+        "enabled": true
+      },
+      "searxng": {
+        "enabled": true,
+        "required": true,
+        "description": "Privacy-respecting search engine"
+      },
+      "segment-anything": {
+        "enabled": true
+      },
+      "simpy": {
+        "enabled": true,
+        "required": false,
+        "description": "Discrete event simulation framework for modeling complex systems",
+        "data_dir": "~/.vrooli/simpy"
+      },
+      "splink": {
+        "enabled": true
+      },
+      "sqlite": {
+        "enabled": true
+      },
+      "step-ca": {
+        "enabled": true
+      },
+      "strapi": {
+        "enabled": true
+      },
+      "su2": {
+        "enabled": true
+      },
+      "tars-desktop": {
+        "enabled": true,
+        "required": false,
+        "description": "GUI automation agent for desktop UI control via natural language"
+      },
+      "temporal": {
+        "enabled": true
+      },
+      "terraform": {
+        "enabled": true
+      },
+      "traccar": {
+        "enabled": true
+      },
+      "twilio": {
+        "enabled": true,
+        "required": false,
+        "description": "SMS, voice, and messaging automation via Twilio API",
+        "credentials_file": "~/.vrooli/twilio-credentials.json",
+        "data_dir": "~/.vrooli/twilio"
+      },
+      "ultralytics-yolo": {
+        "enabled": true
+      },
+      "unstructured-io": {
+        "enabled": true,
+        "required": false,
+        "description": "Document processing and parsing service"
+      },
+      "vault": {
+        "enabled": true,
+        "required": true,
+        "description": "Secrets management and secure storage"
+      },
+      "virustotal": {
+        "enabled": true
+      },
+      "vocr": {
+        "enabled": true,
+        "description": "Vision OCR - Advanced screen recognition and AI-powered image analysis",
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
+      },
+      "whisper": {
+        "enabled": true,
+        "required": false,
+        "description": "Speech-to-text processing service"
+      },
+      "wikijs": {
+        "enabled": true
+      },
+      "windmill": {
+        "enabled": true,
+        "required": true,
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
+      },
+      "wireguard": {
+        "enabled": true
+      },
+      "zigbee2mqtt": {
+        "enabled": true
+      }
     }
   }
 }

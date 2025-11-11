@@ -39,6 +39,32 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 
 		result, err = s.ExecuteClick(ctx, selector, timeoutMs, waitAfterMs)
 
+	case "focus":
+		selector := strings.TrimSpace(instruction.Params.Selector)
+		if selector == "" {
+			return nil, fmt.Errorf("focus node missing selector")
+		}
+		timeoutMs := instruction.Params.TimeoutMs
+		if timeoutMs == 0 {
+			timeoutMs = 30000
+		}
+		waitAfterMs := instruction.Params.WaitForMs
+
+		result, err = s.ExecuteFocus(ctx, selector, timeoutMs, waitAfterMs)
+
+	case "blur":
+		selector := strings.TrimSpace(instruction.Params.Selector)
+		if selector == "" {
+			return nil, fmt.Errorf("blur node missing selector")
+		}
+		timeoutMs := instruction.Params.TimeoutMs
+		if timeoutMs == 0 {
+			timeoutMs = 30000
+		}
+		waitAfterMs := instruction.Params.WaitForMs
+
+		result, err = s.ExecuteBlur(ctx, selector, timeoutMs, waitAfterMs)
+
 	case "wait":
 		selector := instruction.Params.Selector
 		timeoutMs := instruction.Params.TimeoutMs
@@ -96,6 +122,34 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 
 		result, err = s.ExecuteType(ctx, selector, text, clearFirst, timeoutMs, waitAfterMs)
 
+	case "uploadFile":
+		selector := strings.TrimSpace(instruction.Params.Selector)
+		if selector == "" {
+			return nil, fmt.Errorf("uploadFile node missing selector")
+		}
+		files := make([]string, 0, len(instruction.Params.FilePaths))
+		for _, path := range instruction.Params.FilePaths {
+			trimmed := strings.TrimSpace(path)
+			if trimmed != "" {
+				files = append(files, trimmed)
+			}
+		}
+		if len(files) == 0 {
+			if trimmed := strings.TrimSpace(instruction.Params.FilePath); trimmed != "" {
+				files = append(files, trimmed)
+			}
+		}
+		if len(files) == 0 {
+			return nil, fmt.Errorf("uploadFile node requires at least one absolute file path")
+		}
+		timeoutMs := instruction.Params.TimeoutMs
+		if timeoutMs == 0 {
+			timeoutMs = 30000
+		}
+		waitAfterMs := instruction.Params.WaitForMs
+
+		result, err = s.ExecuteUploadFile(ctx, selector, files, timeoutMs, waitAfterMs)
+
 	case "hover":
 		selector := strings.TrimSpace(instruction.Params.Selector)
 		if selector == "" {
@@ -116,6 +170,34 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		waitAfterMs := instruction.Params.WaitForMs
 
 		result, err = s.ExecuteHover(ctx, selector, timeoutMs, waitAfterMs, steps, durationMs)
+
+	case "dragDrop":
+		source := strings.TrimSpace(instruction.Params.DragSourceSelector)
+		target := strings.TrimSpace(instruction.Params.DragTargetSelector)
+		if source == "" {
+			return nil, fmt.Errorf("dragDrop node missing source selector")
+		}
+		if target == "" {
+			return nil, fmt.Errorf("dragDrop node missing target selector")
+		}
+		timeoutMs := instruction.Params.TimeoutMs
+		if timeoutMs == 0 {
+			timeoutMs = 30000
+		}
+		opts := dragDropOptions{
+			sourceSelector: source,
+			targetSelector: target,
+			holdMs:         instruction.Params.DragHoldMs,
+			steps:          instruction.Params.DragSteps,
+			durationMs:     instruction.Params.DragDurationMs,
+			offsetX:        instruction.Params.DragOffsetX,
+			offsetY:        instruction.Params.DragOffsetY,
+			waitAfterMs:    instruction.Params.WaitForMs,
+		}
+		if opts.steps <= 0 {
+			opts.steps = 1
+		}
+		result, err = s.ExecuteDragAndDrop(ctx, opts, timeoutMs)
 
 	case "evaluate":
 		script := instruction.Params.Expression
@@ -172,6 +254,39 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		}
 		result, err = s.ExecuteScroll(ctx, opts, timeoutMs)
 
+	case "select":
+		selector := strings.TrimSpace(instruction.Params.Selector)
+		if selector == "" {
+			return nil, fmt.Errorf("select node missing selector")
+		}
+		mode := instruction.Params.SelectionMode
+		if mode == "" {
+			mode = "value"
+		}
+		timeoutMs := instruction.Params.TimeoutMs
+		if timeoutMs == 0 {
+			timeoutMs = 30000
+		}
+		waitAfterMs := instruction.Params.WaitForMs
+		result, err = s.ExecuteSelect(
+			ctx,
+			selector,
+			mode,
+			instruction.Params.OptionValue,
+			instruction.Params.OptionText,
+			instruction.Params.OptionIndex,
+			instruction.Params.OptionValues,
+			instruction.Params.MultiSelect,
+			timeoutMs,
+			waitAfterMs,
+		)
+	case "extract":
+		allMatches := instruction.Params.AllMatches != nil && *instruction.Params.AllMatches
+		result, err = s.ExecuteExtract(ctx, instruction.Params.Selector, instruction.Params.ExtractType, instruction.Params.Attribute, allMatches, instruction.Params.TimeoutMs)
+	case "setVariable":
+		result, err = s.ExecuteSetVariable(ctx, instruction)
+	case "useVariable":
+		result, err = executeUseVariableInstruction(instruction)
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s", instruction.Type)
 	}
@@ -190,16 +305,18 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		Error:   result.Error,
 		Steps: []runtime.StepResult{
 			{
-				Index:            instruction.Index,
-				NodeID:           instruction.NodeID,
-				Type:             instruction.Type,
-				Success:          result.Success,
-				Error:            result.Error,
-				DurationMs:       result.DurationMs,
-				FinalURL:         result.URL,
-				ScreenshotBase64: result.Screenshot,
-				ConsoleLogs:      convertConsoleLogs(result.ConsoleLogs),
-				NetworkEvents:    convertNetworkEvents(result.NetworkEvents),
+				Index:              instruction.Index,
+				NodeID:             instruction.NodeID,
+				Type:               instruction.Type,
+				Success:            result.Success,
+				Error:              result.Error,
+				DurationMs:         result.DurationMs,
+				FinalURL:           result.URL,
+				ScreenshotBase64:   result.Screenshot,
+				ConsoleLogs:        convertConsoleLogs(result.ConsoleLogs),
+				NetworkEvents:      convertNetworkEvents(result.NetworkEvents),
+				ElementBoundingBox: result.ElementBoundingBox,
+				ExtractedData:      result.ExtractedData,
 				// Store debug context in assertion for now (could add custom field)
 				Assertion: buildAssertionResult(result.DebugContext),
 				// Note: No DOMSnapshot needed in CDP mode - browser state persists!
@@ -258,6 +375,29 @@ func convertNetworkEvents(events []NetworkEvent) []runtime.NetworkEvent {
 		}
 	}
 	return result
+}
+
+func executeUseVariableInstruction(instruction runtime.Instruction) (*StepResult, error) {
+	name := strings.TrimSpace(instruction.Params.VariableName)
+	if name == "" {
+		return &StepResult{Success: false, Error: "variable name missing"}, fmt.Errorf("variable name missing")
+	}
+	value := any(nil)
+	if instruction.Context != nil {
+		value = instruction.Context[name]
+	}
+	required := instruction.Params.VariableRequired != nil && *instruction.Params.VariableRequired
+	if value == nil {
+		if required {
+			return &StepResult{Success: false, Error: fmt.Sprintf("variable %s is not defined", name)}, fmt.Errorf("variable %s is not defined", name)
+		}
+	}
+	output := value
+	if transform := strings.TrimSpace(instruction.Params.VariableTransform); transform != "" {
+		replacement := fmt.Sprintf("%v", value)
+		output = strings.ReplaceAll(transform, "{{value}}", replacement)
+	}
+	return &StepResult{Success: true, ExtractedData: output}, nil
 }
 
 // SetViewport sets the browser viewport size
