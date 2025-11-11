@@ -30,16 +30,19 @@ import (
 
 // Session manages a persistent CDP connection to browserless
 type Session struct {
-	browserlessURL string
-	wsURL          string
-	allocCtx       context.Context
-	ctx            context.Context
-	cancel         context.CancelFunc
-	viewportWidth  int
-	viewportHeight int
-	telemetry      *Telemetry
-	log            *logrus.Entry
-	mu             sync.Mutex
+	browserlessURL     string
+	wsURL              string
+	allocCtx           context.Context
+	ctx                context.Context
+	cancel             context.CancelFunc
+	viewportWidth      int
+	viewportHeight     int
+	telemetry          *Telemetry
+	log                *logrus.Entry
+	mu                 sync.Mutex
+	pointerX           float64
+	pointerY           float64
+	pointerInitialized bool
 }
 
 // Telemetry collects console logs and network events

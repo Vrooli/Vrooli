@@ -3,6 +3,7 @@ package cdp
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 )
@@ -95,6 +96,27 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 
 		result, err = s.ExecuteType(ctx, selector, text, clearFirst, timeoutMs, waitAfterMs)
 
+	case "hover":
+		selector := strings.TrimSpace(instruction.Params.Selector)
+		if selector == "" {
+			return nil, fmt.Errorf("hover node missing selector")
+		}
+		timeoutMs := instruction.Params.TimeoutMs
+		if timeoutMs == 0 {
+			timeoutMs = 30000
+		}
+		steps := instruction.Params.MovementSteps
+		if steps == 0 {
+			steps = 10
+		}
+		durationMs := instruction.Params.DurationMs
+		if durationMs == 0 {
+			durationMs = 350
+		}
+		waitAfterMs := instruction.Params.WaitForMs
+
+		result, err = s.ExecuteHover(ctx, selector, timeoutMs, waitAfterMs, steps, durationMs)
+
 	case "evaluate":
 		script := instruction.Params.Expression
 		timeoutMs := instruction.Params.TimeoutMs
@@ -103,6 +125,52 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		}
 
 		result, err = s.ExecuteEvaluate(ctx, script, timeoutMs)
+
+	case "keyboard":
+		keyValue := instruction.Params.KeyValue
+		if keyValue == "" {
+			return nil, fmt.Errorf("keyboard node missing key value")
+		}
+		eventType := instruction.Params.KeyEventType
+		modifiers := instruction.Params.KeyModifiers
+		delayMs := instruction.Params.DelayMs
+		timeoutMs := instruction.Params.TimeoutMs
+		if timeoutMs == 0 {
+			timeoutMs = 30000
+		}
+
+		result, err = s.ExecuteKeyboard(ctx, keyValue, eventType, modifiers, delayMs, timeoutMs)
+
+	case "scroll":
+		scrollType := strings.ToLower(strings.TrimSpace(instruction.Params.ScrollType))
+		if scrollType == "" {
+			scrollType = "page"
+		}
+		direction := strings.ToLower(strings.TrimSpace(instruction.Params.ScrollDirection))
+		behavior := instruction.Params.ScrollBehavior
+		opts := scrollOptions{
+			scrollType:     scrollType,
+			selector:       strings.TrimSpace(instruction.Params.Selector),
+			targetSelector: strings.TrimSpace(instruction.Params.ScrollTargetSelector),
+			direction:      direction,
+			behavior:       behavior,
+			amount:         instruction.Params.ScrollAmount,
+			x:              instruction.Params.ScrollX,
+			y:              instruction.Params.ScrollY,
+			maxAttempts:    instruction.Params.ScrollMaxAttempts,
+			waitAfterMs:    instruction.Params.WaitForMs,
+		}
+		if opts.amount <= 0 {
+			opts.amount = defaultScrollAmountPixels
+		}
+		if opts.maxAttempts < 0 {
+			opts.maxAttempts = 0
+		}
+		timeoutMs := instruction.Params.TimeoutMs
+		if timeoutMs == 0 {
+			timeoutMs = 30000
+		}
+		result, err = s.ExecuteScroll(ctx, opts, timeoutMs)
 
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s", instruction.Type)

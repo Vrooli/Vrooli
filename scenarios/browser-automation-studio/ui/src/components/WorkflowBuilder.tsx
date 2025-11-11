@@ -32,6 +32,10 @@ import WaitNode from './nodes/WaitNode';
 import ExtractNode from './nodes/ExtractNode';
 import AssertNode from './nodes/AssertNode';
 import WorkflowCallNode from './nodes/WorkflowCallNode';
+import ScriptNode from './nodes/ScriptNode';
+import KeyboardNode from './nodes/KeyboardNode';
+import HoverNode from './nodes/HoverNode';
+import ScrollNode from './nodes/ScrollNode';
 import WorkflowToolbar from './WorkflowToolbar';
 import CustomConnectionLine from './CustomConnectionLine';
 import 'reactflow/dist/style.css';
@@ -43,8 +47,12 @@ const nodeTypes: NodeTypes = {
   browserAction: BrowserActionNode,
   navigate: NavigateNode,
   click: ClickNode,
+  hover: HoverNode,
+  scroll: ScrollNode,
   type: TypeNode,
   shortcut: ShortcutNode,
+  keyboard: KeyboardNode,
+  evaluate: ScriptNode,
   screenshot: ScreenshotNode,
   wait: WaitNode,
   extract: ExtractNode,

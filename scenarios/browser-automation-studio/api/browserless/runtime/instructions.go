@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"unicode"
@@ -32,6 +33,7 @@ type InstructionParam struct {
 	WaitForMs             int      `json:"waitForMs,omitempty"`
 	WaitType              string   `json:"waitType,omitempty"`
 	DurationMs            int      `json:"durationMs,omitempty"`
+	MovementSteps         int      `json:"movementSteps,omitempty"`
 	Selector              string   `json:"selector,omitempty"`
 	WaitForSelector       string   `json:"waitForSelector,omitempty"`
 	Name                  string   `json:"name,omitempty"`
@@ -61,6 +63,7 @@ type InstructionParam struct {
 	ExpectedValue         any      `json:"expectedValue,omitempty"`
 	FailureMessage        string   `json:"failureMessage,omitempty"`
 	Expression            string   `json:"expression,omitempty"`
+	StoreResult           string   `json:"storeResult,omitempty"`
 	CaseSensitive         *bool    `json:"caseSensitive,omitempty"`
 	Negate                *bool    `json:"negate,omitempty"`
 	ContinueOnFailure     *bool    `json:"continueOnFailure,omitempty"`
@@ -73,6 +76,17 @@ type InstructionParam struct {
 	ProbeSamples          int      `json:"probeSamples,omitempty"`
 	ShortcutKeys          []string `json:"shortcutKeys,omitempty"`
 	ShortcutDelayMs       int      `json:"shortcutDelayMs,omitempty"`
+	KeyValue              string   `json:"keyValue,omitempty"`
+	KeyEventType          string   `json:"keyEventType,omitempty"`
+	KeyModifiers          []string `json:"keyModifiers,omitempty"`
+	ScrollType            string   `json:"scrollType,omitempty"`
+	ScrollDirection       string   `json:"scrollDirection,omitempty"`
+	ScrollAmount          int      `json:"scrollAmount,omitempty"`
+	ScrollBehavior        string   `json:"scrollBehavior,omitempty"`
+	ScrollX               int      `json:"scrollX,omitempty"`
+	ScrollY               int      `json:"scrollY,omitempty"`
+	ScrollTargetSelector  string   `json:"scrollTargetSelector,omitempty"`
+	ScrollMaxAttempts     int      `json:"scrollMaxAttempts,omitempty"`
 }
 
 // InstructionsFromPlan converts a compiled execution plan into Browserless instructions.
@@ -163,11 +177,74 @@ type shortcutConfig struct {
 	FocusSelector string   `json:"focusSelector"`
 }
 
+type hoverConfig struct {
+	Selector   string `json:"selector"`
+	TimeoutMs  int    `json:"timeoutMs"`
+	WaitForMs  int    `json:"waitForMs"`
+	Steps      int    `json:"steps"`
+	DurationMs int    `json:"durationMs"`
+}
+
+const (
+	defaultHoverSteps      = 10
+	minHoverSteps          = 1
+	maxHoverSteps          = 50
+	defaultHoverDurationMs = 350
+	minHoverDurationMs     = 50
+	maxHoverDurationMs     = 10000
+)
+
+type scrollConfig struct {
+	ScrollType     string `json:"scrollType"`
+	Selector       string `json:"selector"`
+	TargetSelector string `json:"targetSelector"`
+	Direction      string `json:"direction"`
+	Amount         int    `json:"amount"`
+	X              int    `json:"x"`
+	Y              int    `json:"y"`
+	Behavior       string `json:"behavior"`
+	TimeoutMs      int    `json:"timeoutMs"`
+	WaitForMs      int    `json:"waitForMs"`
+	MaxScrolls     int    `json:"maxScrolls"`
+}
+
+const (
+	defaultScrollAmount   = 400
+	minScrollAmount       = 10
+	maxScrollAmount       = 5000
+	defaultScrollAttempts = 12
+	minScrollAttempts     = 1
+	maxScrollAttempts     = 200
+	minScrollCoordinate   = -500000
+	maxScrollCoordinate   = 500000
+)
+
 type extractConfig struct {
 	Selector    string `json:"selector"`
 	ExtractType string `json:"extractType"`
 	Attribute   string `json:"attribute"`
 	AllMatches  *bool  `json:"allMatches"`
+}
+
+type evaluateConfig struct {
+	Expression  string `json:"expression"`
+	TimeoutMs   int    `json:"timeoutMs"`
+	StoreResult string `json:"storeResult"`
+}
+
+type keyboardConfig struct {
+	Key       string               `json:"key"`
+	EventType string               `json:"eventType"`
+	Modifiers keyboardModifierSpec `json:"modifiers"`
+	DelayMs   int                  `json:"delayMs"`
+	TimeoutMs int                  `json:"timeoutMs"`
+}
+
+type keyboardModifierSpec struct {
+	Ctrl  bool `json:"ctrl"`
+	Shift bool `json:"shift"`
+	Alt   bool `json:"alt"`
+	Meta  bool `json:"meta"`
 }
 
 type assertConfig struct {
@@ -239,6 +316,7 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 			base.Params.Scenario = scenarioName
 			base.Params.ScenarioPath = strings.TrimSpace(cfg.ScenarioPath)
 			base.Params.DestinationType = "scenario"
+			log.Printf("[BAS navigate] node=%s scenario=%s path=%s url=%s", step.NodeID, scenarioName, strings.TrimSpace(cfg.ScenarioPath), resolvedURL)
 		} else {
 			trimmedURL := strings.TrimSpace(cfg.URL)
 			if trimmedURL == "" {
@@ -406,6 +484,105 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if trimmed := strings.TrimSpace(cfg.FocusSelector); trimmed != "" {
 			base.Params.FocusSelector = trimmed
 		}
+	case compiler.StepKeyboard:
+		// [REQ:BAS-NODE-KEYBOARD-DISPATCH]
+		var cfg keyboardConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("keyboard node %s has invalid data: %w", step.NodeID, err)
+		}
+		keyValue := strings.TrimSpace(cfg.Key)
+		if keyValue == "" {
+			return Instruction{}, fmt.Errorf("keyboard node %s missing key", step.NodeID)
+		}
+		eventType := strings.ToLower(strings.TrimSpace(cfg.EventType))
+		switch eventType {
+		case "keydown", "keyup":
+		default:
+			eventType = "keypress"
+		}
+		base.Params.KeyValue = keyValue
+		base.Params.KeyEventType = eventType
+		if modifiers := collectKeyboardModifiers(cfg.Modifiers); len(modifiers) > 0 {
+			base.Params.KeyModifiers = modifiers
+		}
+		if cfg.DelayMs > 0 {
+			base.Params.DelayMs = cfg.DelayMs
+		}
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+	case compiler.StepHover:
+		// [REQ:BAS-NODE-HOVER-INTERACTION]
+		var cfg hoverConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("hover node %s has invalid data: %w", step.NodeID, err)
+		}
+		selector := strings.TrimSpace(cfg.Selector)
+		if selector == "" {
+			return Instruction{}, fmt.Errorf("hover node %s missing selector", step.NodeID)
+		}
+		base.Params.Selector = selector
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+		base.Params.MovementSteps = clampHoverSteps(cfg.Steps)
+		base.Params.DurationMs = clampHoverDuration(cfg.DurationMs)
+	case compiler.StepScroll:
+		// [REQ:BAS-NODE-SCROLL-NAVIGATION]
+		var cfg scrollConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("scroll node %s has invalid data: %w", step.NodeID, err)
+		}
+		scrollType := normalizeScrollType(cfg.ScrollType)
+		base.Params.ScrollType = scrollType
+		behavior := normalizeScrollBehavior(cfg.Behavior)
+		base.Params.ScrollBehavior = behavior
+		if direction := normalizeScrollDirection(cfg.Direction); direction != "" {
+			base.Params.ScrollDirection = direction
+		}
+		base.Params.ScrollAmount = clampScrollAmount(cfg.Amount)
+		base.Params.ScrollX = clampScrollCoordinate(cfg.X)
+		base.Params.ScrollY = clampScrollCoordinate(cfg.Y)
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+		selector := strings.TrimSpace(cfg.Selector)
+		targetSelector := strings.TrimSpace(cfg.TargetSelector)
+		switch scrollType {
+		case "element":
+			if selector == "" {
+				return Instruction{}, fmt.Errorf("scroll node %s requires selector for element mode", step.NodeID)
+			}
+			base.Params.Selector = selector
+		case "position":
+			// coordinates already captured
+		case "untilVisible":
+			if targetSelector == "" {
+				targetSelector = selector
+			}
+			if targetSelector == "" {
+				return Instruction{}, fmt.Errorf("scroll node %s requires target selector for untilVisible mode", step.NodeID)
+			}
+			base.Params.ScrollTargetSelector = targetSelector
+			if base.Params.ScrollDirection == "" {
+				base.Params.ScrollDirection = "down"
+			}
+			attempts := clampScrollAttempts(cfg.MaxScrolls)
+			if attempts == 0 {
+				attempts = defaultScrollAttempts
+			}
+			base.Params.ScrollMaxAttempts = attempts
+		default:
+			if base.Params.ScrollDirection == "" {
+				base.Params.ScrollDirection = "down"
+			}
+		}
 	case compiler.StepExtract:
 		var cfg extractConfig
 		if err := decodeParams(step.Params, &cfg); err != nil {
@@ -426,6 +603,23 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		}
 		if cfg.AllMatches != nil {
 			base.Params.AllMatches = cfg.AllMatches
+		}
+	case compiler.StepEvaluate:
+		// [REQ:BAS-NODE-SCRIPT-EXECUTE]
+		var cfg evaluateConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("evaluate node %s has invalid data: %w", step.NodeID, err)
+		}
+		expression := strings.TrimSpace(cfg.Expression)
+		if expression == "" {
+			return Instruction{}, fmt.Errorf("evaluate node %s missing expression", step.NodeID)
+		}
+		base.Params.Expression = expression
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if storeName := strings.TrimSpace(cfg.StoreResult); storeName != "" {
+			base.Params.StoreResult = storeName
 		}
 	case compiler.StepWorkflowCall:
 		return Instruction{}, fmt.Errorf("workflowCall node %s is not yet supported", step.NodeID)
@@ -501,6 +695,96 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 	return base, nil
 }
 
+func clampHoverSteps(raw int) int {
+	if raw < minHoverSteps {
+		return defaultHoverSteps
+	}
+	if raw > maxHoverSteps {
+		return maxHoverSteps
+	}
+	return raw
+}
+
+func clampHoverDuration(raw int) int {
+	if raw < minHoverDurationMs {
+		if raw == 0 {
+			return defaultHoverDurationMs
+		}
+		return minHoverDurationMs
+	}
+	if raw > maxHoverDurationMs {
+		return maxHoverDurationMs
+	}
+	return raw
+}
+
+func normalizeScrollType(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "element":
+		return "element"
+	case "position":
+		return "position"
+	case "untilvisible", "until_visible", "untilVisible":
+		return "untilVisible"
+	default:
+		return "page"
+	}
+}
+
+func normalizeScrollBehavior(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "smooth":
+		return "smooth"
+	default:
+		return "auto"
+	}
+}
+
+func normalizeScrollDirection(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "up", "down", "left", "right", "top", "bottom":
+		return strings.ToLower(strings.TrimSpace(raw))
+	default:
+		return ""
+	}
+}
+
+func clampScrollAmount(raw int) int {
+	if raw <= 0 {
+		return defaultScrollAmount
+	}
+	if raw < minScrollAmount {
+		return minScrollAmount
+	}
+	if raw > maxScrollAmount {
+		return maxScrollAmount
+	}
+	return raw
+}
+
+func clampScrollCoordinate(raw int) int {
+	if raw < minScrollCoordinate {
+		return minScrollCoordinate
+	}
+	if raw > maxScrollCoordinate {
+		return maxScrollCoordinate
+	}
+	return raw
+}
+
+func clampScrollAttempts(raw int) int {
+	if raw <= 0 {
+		return 0
+	}
+	if raw < minScrollAttempts {
+		return minScrollAttempts
+	}
+	if raw > maxScrollAttempts {
+		return maxScrollAttempts
+	}
+	return raw
+}
+
 func normalizeStringSlice(values []string) []string {
 	normalized := make([]string, 0, len(values))
 	for _, value := range values {
@@ -514,6 +798,26 @@ func normalizeStringSlice(values []string) []string {
 		return nil
 	}
 	return normalized
+}
+
+func collectKeyboardModifiers(spec keyboardModifierSpec) []string {
+	modifiers := make([]string, 0, 4)
+	if spec.Ctrl {
+		modifiers = append(modifiers, "ctrl")
+	}
+	if spec.Shift {
+		modifiers = append(modifiers, "shift")
+	}
+	if spec.Alt {
+		modifiers = append(modifiers, "alt")
+	}
+	if spec.Meta {
+		modifiers = append(modifiers, "meta")
+	}
+	if len(modifiers) == 0 {
+		return nil
+	}
+	return modifiers
 }
 
 var shortcutKeyAliases = map[string]string{

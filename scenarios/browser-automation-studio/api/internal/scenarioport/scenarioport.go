@@ -68,6 +68,12 @@ func ResolvePort(ctx context.Context, scenarioName string, portNames ...string) 
 	combined = append(combined, "UI_PORT", "API_PORT")
 	candidateNames := uniqueNormalizedNames(combined)
 
+	if entry := lookupRegistryEntry(trimmedScenario); entry != nil {
+		if portName, port := entry.portFor(candidateNames); port > 0 {
+			return &PortInfo{Name: portName, Port: port}, nil
+		}
+	}
+
 	for _, name := range candidateNames {
 		port, err := portLookupFunc(ctx, trimmedScenario, name)
 		if err != nil || port <= 0 {
@@ -107,7 +113,22 @@ func BuildURL(port int, rawPath string) (string, error) {
 }
 
 func ResolveURL(ctx context.Context, scenarioName, path string, portNames ...string) (string, *PortInfo, error) {
-	portInfo, err := ResolvePort(ctx, scenarioName, portNames...)
+	trimmedScenario := strings.TrimSpace(scenarioName)
+	if trimmedScenario == "" {
+		return "", nil, fmt.Errorf("scenario name is required")
+	}
+
+	combined := append([]string{}, portNames...)
+	combined = append(combined, "UI_PORT", "API_PORT")
+	candidateNames := uniqueNormalizedNames(combined)
+
+	if entry := lookupRegistryEntry(trimmedScenario); entry != nil {
+		if resolved, info, ok := entry.resolveURL(path, candidateNames); ok {
+			return resolved, info, nil
+		}
+	}
+
+	portInfo, err := ResolvePort(ctx, trimmedScenario, portNames...)
 	if err != nil {
 		return "", nil, err
 	}

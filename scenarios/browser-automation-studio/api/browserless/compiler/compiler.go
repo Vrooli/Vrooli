@@ -18,11 +18,15 @@ type StepType string
 const (
 	StepNavigate     StepType = "navigate"
 	StepClick        StepType = "click"
+	StepHover        StepType = "hover"
+	StepScroll       StepType = "scroll"
 	StepTypeInput    StepType = "type"
 	StepShortcut     StepType = "shortcut"
+	StepKeyboard     StepType = "keyboard"
 	StepWait         StepType = "wait"
 	StepScreenshot   StepType = "screenshot"
 	StepExtract      StepType = "extract"
+	StepEvaluate     StepType = "evaluate"
 	StepAssert       StepType = "assert"
 	StepWorkflowCall StepType = "workflowcall"
 	StepCustom       StepType = "custom"
@@ -31,11 +35,15 @@ const (
 var supportedStepTypes = map[StepType]struct{}{
 	StepNavigate:     {},
 	StepClick:        {},
+	StepHover:        {},
 	StepTypeInput:    {},
 	StepShortcut:     {},
+	StepKeyboard:     {},
+	StepScroll:       {},
 	StepWait:         {},
 	StepScreenshot:   {},
 	StepExtract:      {},
+	StepEvaluate:     {},
 	StepAssert:       {},
 	StepWorkflowCall: {},
 	StepCustom:       {},
