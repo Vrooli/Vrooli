@@ -1,70 +1,29 @@
 #!/usr/bin/env node
-/**
- * Simple HTTP server for scenario-dependency-analyzer UI with health endpoint
- */
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createScenarioServer } from "@vrooli/api-base/server";
 
-const PORT = parseInt(process.env.UI_PORT || '36897', 10);
-const API_PORT = parseInt(process.env.API_PORT || '15533', 10);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const app = express();
+const uiPort = process.env.UI_PORT ?? "36897";
+const apiPort = process.env.API_PORT ?? "15533";
 
-// Determine serve directory (prefer dist if it exists)
-const serveRoot = __dirname;
-const distDir = path.join(serveRoot, 'dist');
-const serveDir = fs.existsSync(distDir) ? distDir : serveRoot;
-
-// Health check endpoint
-app.get('/health', async (req, res) => {
-  // Check if API is accessible
-  let apiConnected = false;
-  try {
-    const response = await fetch(`http://localhost:${API_PORT}/health`, {
-      signal: AbortSignal.timeout(2000)
-    });
-    apiConnected = response.ok;
-  } catch (error) {
-    apiConnected = false;
-  }
-
-  const status = apiConnected ? 'healthy' : 'degraded';
-
-  const healthData = {
-    status,
-    service: 'scenario-dependency-analyzer-ui',
-    timestamp: new Date().toISOString(),
-    readiness: true, // UI is always ready once started
-    api_connectivity: {
-      connected: apiConnected,
-      api_url: `http://localhost:${API_PORT}`,
-      error: apiConnected ? null : {
-        code: 'CONNECTION_REFUSED',
-        message: 'Unable to connect to API service',
-        category: 'network',
-        retryable: true
-      }
-    }
-  };
-
-  res.json(healthData);
+const app = createScenarioServer({
+  uiPort,
+  apiPort,
+  distDir: path.join(__dirname, "dist"),
+  serviceName: "scenario-dependency-analyzer",
+  version: process.env.npm_package_version ?? "1.0.0",
+  corsOrigins: "*"
 });
 
-// Serve static files
-app.use(express.static(serveDir));
+const normalizedPort = Number.parseInt(uiPort, 10);
+if (Number.isNaN(normalizedPort)) {
+  throw new Error(`Invalid UI_PORT: ${uiPort}`);
+}
 
-// SPA fallback - serve index.html for all other routes
-app.get('*', (req, res) => {
-  const indexPath = path.join(serveDir, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).send('Not found');
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`🌐 UI Server running at http://localhost:${PORT}`);
-  console.log(`📊 API endpoint: http://localhost:${API_PORT}`);
+app.listen(normalizedPort, "0.0.0.0", () => {
+  console.log(`Scenario Dependency Analyzer UI listening on http://localhost:${normalizedPort}`);
+  console.log(`Proxying API requests to http://localhost:${apiPort}`);
 });

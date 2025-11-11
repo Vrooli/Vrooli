@@ -1,13 +1,16 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 
 import { ControlPanel } from "./components/ControlPanel";
 import { GraphCanvas } from "./components/graph/GraphCanvas";
 import { SelectedNodePanel } from "./components/SelectedNodePanel";
 import { StatsPanel } from "./components/StatsPanel";
+import { ScenarioCatalogPanel } from "./components/ScenarioCatalogPanel";
+import { ScenarioDetailPanel } from "./components/ScenarioDetailPanel";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
 import { useGraphData } from "./hooks/useGraphData";
+import { useScenarioCatalog } from "./hooks/useScenarioCatalog";
 import type { DependencyGraphNode } from "./types";
 
 export default function App() {
@@ -28,6 +31,25 @@ export default function App() {
     setSelectedNode,
     stats
   } = useGraphData();
+  const {
+    summaries,
+    loadingSummaries,
+    selectedScenario,
+    detail,
+    detailLoading,
+    scanLoading,
+    selectScenario,
+    refreshSummaries,
+    scanScenario
+  } = useScenarioCatalog();
+
+  const handleScenarioScan = useCallback(
+    (options?: { apply?: boolean }) => {
+      if (!selectedScenario) return;
+      void scanScenario(selectedScenario, options);
+    },
+    [scanScenario, selectedScenario]
+  );
 
   const influentialNodes = useMemo(() => {
     if (!graph) return [] as Array<{ node: DependencyGraphNode; score: number }>;
@@ -184,6 +206,22 @@ export default function App() {
               </Card>
             )}
           </aside>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <ScenarioCatalogPanel
+            scenarios={summaries}
+            selected={selectedScenario}
+            loading={loadingSummaries}
+            onSelect={selectScenario}
+            onRefresh={refreshSummaries}
+          />
+          <ScenarioDetailPanel
+            detail={detail}
+            loading={detailLoading}
+            scanning={scanLoading}
+            onScan={handleScenarioScan}
+          />
         </section>
       </main>
     </div>

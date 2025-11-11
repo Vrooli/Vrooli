@@ -33,6 +33,50 @@ export interface DependencyGraph {
   metadata?: GraphMetadata;
 }
 
+export interface DependencyDiffEntry {
+  name: string;
+  details?: Record<string, unknown>;
+}
+
+export interface DependencyDiffSummary {
+  missing: DependencyDiffEntry[];
+  extra: DependencyDiffEntry[];
+}
+
+export interface ScenarioSummary {
+  name: string;
+  display_name: string;
+  description?: string;
+  last_scanned?: string;
+  tags?: string[];
+}
+
+export interface ScenarioDependencyRecord {
+  scenario_name: string;
+  dependency_type: string;
+  dependency_name: string;
+  required: boolean;
+  purpose?: string;
+  access_method?: string;
+  configuration?: Record<string, unknown>;
+}
+
+export interface ScenarioDetailResponse {
+  scenario: string;
+  display_name: string;
+  description?: string;
+  last_scanned?: string;
+  declared_resources: Record<string, unknown>;
+  declared_scenarios: Record<string, unknown>;
+  stored_dependencies: {
+    resources: ScenarioDependencyRecord[];
+    scenarios: ScenarioDependencyRecord[];
+    shared_workflows: ScenarioDependencyRecord[];
+  };
+  resource_diff: DependencyDiffSummary;
+  scenario_diff: DependencyDiffSummary;
+}
+
 export interface HealthResponse {
   status: string;
   service: string;

@@ -33,42 +33,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store dependency metadata, analysis results, optimization recommendations, and graph data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI-powered analysis of scenario code, configurations, and proposed scenario descriptions"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Semantic similarity matching for proposed scenarios and dependency pattern recognition"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Cache frequently accessed dependency data and analysis results for performance optimization"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -234,6 +198,44 @@
           "description": "Clean up temporary analysis files"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store dependency metadata, analysis results, optimization recommendations, and graph data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered analysis of scenario code, configurations, and proposed scenario descriptions"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Semantic similarity matching for proposed scenarios and dependency pattern recognition"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently accessed dependency data and analysis results for performance optimization"
+      }
     }
   }
 }

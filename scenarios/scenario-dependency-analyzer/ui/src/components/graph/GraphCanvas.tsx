@@ -28,6 +28,10 @@ type SimulationNode = DependencyGraphNode & d3.SimulationNodeDatum & {
   indexPosition: number;
 };
 
+type SimulationEdge = DependencyGraphEdge & d3.SimulationLinkDatum<SimulationNode>;
+
+type LinkEndpoint = SimulationNode | { id: string } | string | number;
+
 export function GraphCanvas({
   graph,
   layout,
@@ -71,8 +75,8 @@ export function GraphCanvas({
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.2, 5])
-      .on("zoom", (event) => {
-        root.attr("transform", event.transform);
+      .on("zoom", (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
+        root.attr("transform", event.transform.toString());
       });
 
     svg.call(zoom as any);
@@ -100,18 +104,18 @@ export function GraphCanvas({
     const radiusForNode = (d: SimulationNode) =>
       16 + Math.min((degreeMap.get(d.id) ?? 0) * 1.4, 12);
 
-    const edges = graph.edges.map((edge) => ({ ...edge }));
+    const edges: SimulationEdge[] = graph.edges.map((edge) => ({ ...edge }));
 
     const link = root
       .append("g")
       .attr("stroke-linecap", "round")
       .attr("stroke-opacity", 0.68)
-      .selectAll<SVGLineElement, DependencyGraphEdge>("line")
+      .selectAll<SVGLineElement, SimulationEdge>("line")
       .data(edges)
       .join("line")
-      .attr("stroke-width", (d) => (d.required ? 2.4 : 1.4))
-      .attr("stroke", (d) => (d.required ? "hsl(0, 78%, 62%)" : "hsl(162, 80%, 48%)"))
-      .attr("stroke-dasharray", (d) => (d.required ? undefined : "5 4"));
+      .attr("stroke-width", (edge) => (edge.required ? 2.4 : 1.4))
+      .attr("stroke", (edge) => (edge.required ? "hsl(0, 78%, 62%)" : "hsl(162, 80%, 48%)"))
+      .attr("stroke-dasharray", (edge) => (edge.required ? null : "5 4"));
 
     const nodeGroup = root
       .append("g")
@@ -126,10 +130,10 @@ export function GraphCanvas({
       .attr("tabindex", 0)
       .attr("aria-label", (d) => `${d.label} node`)
       .style("cursor", "pointer")
-      .on("mouseenter", (event, d) => {
+      .on("mouseenter", (event: MouseEvent, node) => {
         const bounds = containerRef.current?.getBoundingClientRect();
         setHover({
-          node: d,
+          node,
           position: {
             x: event.clientX - (bounds?.left ?? 0) + 12,
             y: event.clientY - (bounds?.top ?? 0) + 12
@@ -137,18 +141,18 @@ export function GraphCanvas({
         });
       })
       .on("mouseleave", () => setHover(null))
-      .on("focus", (_, d) => {
+      .on("focus", (_event: FocusEvent, node) => {
         setHover(null);
-        onSelectNode(d);
+        onSelectNode(node);
       })
-      .on("click", (_, d) => {
+      .on("click", (_event: MouseEvent, node) => {
         setHover(null);
-        onSelectNode(d);
+        onSelectNode(node);
       })
-      .on("keydown", (event, d) => {
+      .on("keydown", (event: KeyboardEvent, node) => {
         if (event.key === " " || event.key === "Enter") {
           event.preventDefault();
-          onSelectNode(d);
+          onSelectNode(node);
         }
       });
 
@@ -167,8 +171,8 @@ export function GraphCanvas({
     const simulation = d3.forceSimulation(nodes);
 
     const linkForce = d3
-      .forceLink<SimulationNode, DependencyGraphEdge>(edges)
-      .id((d: any) => d.id)
+      .forceLink<SimulationNode, SimulationEdge>(edges)
+      .id((node) => node.id)
       .distance(layout === "force" ? 140 : layout === "radial" ? 160 : 150)
       .strength(layout === "grid" ? 0.15 : 0.8);
 
@@ -228,10 +232,10 @@ export function GraphCanvas({
 
     simulation.on("tick", () => {
       link
-        .attr("x1", (d: any) => (d.source as SimulationNode).x ?? 0)
-        .attr("y1", (d: any) => (d.source as SimulationNode).y ?? 0)
-        .attr("x2", (d: any) => (d.target as SimulationNode).x ?? 0)
-        .attr("y2", (d: any) => (d.target as SimulationNode).y ?? 0);
+        .attr("x1", (edge) => (edge.source as SimulationNode).x ?? 0)
+        .attr("y1", (edge) => (edge.source as SimulationNode).y ?? 0)
+        .attr("x2", (edge) => (edge.target as SimulationNode).x ?? 0)
+        .attr("y2", (edge) => (edge.target as SimulationNode).y ?? 0);
 
       nodeGroup
         .attr("cx", (d) => d.x ?? 0)
@@ -242,7 +246,9 @@ export function GraphCanvas({
         .attr("y", (d) => (d.y ?? 0) + 28);
     });
 
-    return () => simulation.stop();
+    return () => {
+      simulation.stop();
+    };
   }, [graph, layout, degreeMap, onSelectNode]);
 
   useEffect(() => {
@@ -252,7 +258,7 @@ export function GraphCanvas({
 
     const nodeSelection = svg.selectAll<SVGCircleElement, SimulationNode>("circle");
     const labelSelection = svg.selectAll<SVGTextElement, SimulationNode>("text");
-    const linkSelection = svg.selectAll<SVGLineElement, DependencyGraphEdge>("line");
+    const linkSelection = svg.selectAll<SVGLineElement, SimulationEdge>("line");
 
     if (!filterLower) {
       nodeSelection.style("opacity", 1).style("filter", null);
@@ -261,17 +267,20 @@ export function GraphCanvas({
       return;
     }
 
-    const resolveEdgeNode = (
-      value: SimulationNode | { id: string } | string
-    ): SimulationNode => {
-      if (typeof value === "string") {
+    const resolveEdgeNode = (value: LinkEndpoint): SimulationNode => {
+      if (typeof value === "string" || typeof value === "number") {
+        const key = String(value);
         return (
-          nodeMapRef.current.get(value) ??
-          ({ id: value, label: value, group: "", type: "scenario" } as SimulationNode)
+          nodeMapRef.current.get(key) ??
+          ({ id: key, label: key, group: "", type: "scenario" } as SimulationNode)
         );
       }
       if ("id" in value) {
-        return nodeMapRef.current.get(value.id) ?? (value as SimulationNode);
+        const key = value.id;
+        return nodeMapRef.current.get(key) ?? ({
+          ...(value as SimulationNode),
+          id: key
+        } as SimulationNode);
       }
       return value as SimulationNode;
     };
@@ -283,8 +292,8 @@ export function GraphCanvas({
     nodeSelection.style("opacity", (node) => (matchNode(node) ? 1 : 0.22));
     labelSelection.style("opacity", (node) => (matchNode(node) ? 1 : 0.18));
     linkSelection.style("opacity", (edge) => {
-      const source = edge.source as SimulationNode | { id: string } | string;
-      const target = edge.target as SimulationNode | { id: string } | string;
+      const source = edge.source as LinkEndpoint;
+      const target = edge.target as LinkEndpoint;
       const sourceMatch = matchNode(resolveEdgeNode(source));
       const targetMatch = matchNode(resolveEdgeNode(target));
       return sourceMatch || targetMatch ? 0.68 : 0.12;
@@ -294,17 +303,20 @@ export function GraphCanvas({
   useEffect(() => {
     if (!svgRef.current) return;
     const svg = d3.select(svgRef.current);
-    const resolveEdgeNode = (
-      value: SimulationNode | { id: string } | string
-    ): SimulationNode => {
-      if (typeof value === "string") {
+    const resolveEdgeNode = (value: LinkEndpoint): SimulationNode => {
+      if (typeof value === "string" || typeof value === "number") {
+        const key = String(value);
         return (
-          nodeMapRef.current.get(value) ??
-          ({ id: value, label: value, group: "", type: "scenario" } as SimulationNode)
+          nodeMapRef.current.get(key) ??
+          ({ id: key, label: key, group: "", type: "scenario" } as SimulationNode)
         );
       }
       if ("id" in value) {
-        return nodeMapRef.current.get(value.id) ?? (value as SimulationNode);
+        const key = value.id;
+        return nodeMapRef.current.get(key) ?? ({
+          ...(value as SimulationNode),
+          id: key
+        } as SimulationNode);
       }
       return value as SimulationNode;
     };
@@ -320,19 +332,19 @@ export function GraphCanvas({
       );
 
     svg
-      .selectAll<SVGLineElement, DependencyGraphEdge>("line")
+      .selectAll<SVGLineElement, SimulationEdge>("line")
       .attr("stroke-opacity", (edge) => {
         if (!selectedNodeId) return 0.68;
-        const source = resolveEdgeNode(edge.source as any);
-        const target = resolveEdgeNode(edge.target as any);
+        const source = resolveEdgeNode(edge.source as LinkEndpoint);
+        const target = resolveEdgeNode(edge.target as LinkEndpoint);
         return source.id === selectedNodeId || target.id === selectedNodeId
           ? 0.95
           : 0.15;
       })
       .attr("stroke-width", (edge) => {
         if (!selectedNodeId) return edge.required ? 2.4 : 1.4;
-        const source = resolveEdgeNode(edge.source as any);
-        const target = resolveEdgeNode(edge.target as any);
+        const source = resolveEdgeNode(edge.source as LinkEndpoint);
+        const target = resolveEdgeNode(edge.target as LinkEndpoint);
         const isActive = source.id === selectedNodeId || target.id === selectedNodeId;
         return isActive ? 3.2 : edge.required ? 1.6 : 1.0;
       });

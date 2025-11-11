@@ -1,3 +1,4 @@
+import { buildApiUrl } from "@vrooli/api-base";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getApiBaseUrl, prettyNumber } from "../lib/utils";
 import type {
@@ -33,7 +34,7 @@ export function useGraphData({
   const [selectedNode, setSelectedNode] = useState<DependencyGraphNode | null>(null);
   const [apiHealthy, setApiHealthy] = useState<boolean | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const baseUrl = useMemo(() => getApiBaseUrl(), []);
+  const apiBase = useMemo(() => getApiBaseUrl(), []);
 
   const fetchGraph = useCallback(
     async (type: GraphType = graphType) => {
@@ -45,7 +46,8 @@ export function useGraphData({
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${baseUrl}/api/v1/graph/${type}`, {
+        const url = buildApiUrl(`/graph/${type}`, { baseUrl: apiBase });
+        const response = await fetch(url, {
           signal: controller.signal
         });
         if (!response.ok) {
@@ -64,12 +66,12 @@ export function useGraphData({
         setLoading(false);
       }
     },
-    [baseUrl, graphType]
+    [apiBase, graphType]
   );
 
   const checkHealth = useCallback(async () => {
     try {
-      const response = await fetch(`${baseUrl}/health`);
+      const response = await fetch(buildApiUrl("/health/analysis", { baseUrl: apiBase }));
       if (!response.ok) {
         throw new Error("Health check failed");
       }
@@ -79,12 +81,12 @@ export function useGraphData({
       console.error("API health check failed", err);
       setApiHealthy(false);
     }
-  }, [baseUrl]);
+  }, [apiBase]);
 
   const analyzeAll = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${baseUrl}/api/v1/analyze/all`);
+      const response = await fetch(buildApiUrl("/analyze/all", { baseUrl: apiBase }));
       if (!response.ok) {
         throw new Error(`Analyze all failed (${response.status})`);
       }
@@ -96,7 +98,7 @@ export function useGraphData({
     } finally {
       setLoading(false);
     }
-  }, [baseUrl, fetchGraph, graphType]);
+  }, [apiBase, fetchGraph, graphType]);
 
   useEffect(() => {
     fetchGraph(defaultType).catch((err) => {

@@ -38,6 +38,9 @@ scenario-dependency-analyzer status
 # Analyze a specific scenario
 scenario-dependency-analyzer analyze chart-generator
 
+# Scan and optionally apply inferred dependencies
+scenario-dependency-analyzer scan chart-generator --apply
+
 # Analyze all scenarios (may take several minutes)
 scenario-dependency-analyzer analyze all
 
@@ -52,18 +55,32 @@ scenario-dependency-analyzer help
 ```
 
 #### Web Interface
-Access the interactive dependency graph visualization at:
+Access the interactive dependency graph visualization and catalog at:
 `http://localhost:20401`
 
 Features:
 - Real-time dependency graph visualization
 - Interactive node selection and filtering
+- Scenario catalog panel with last-scan status
+- Detail view showing declared vs detected dependencies with drift badges
+- One-click scan and scan+apply actions per scenario
 - System statistics and health monitoring
 - Export functionality for graphs
 - Technical NASA mission control aesthetic
 
 #### API Endpoints
 ```bash
+# List scenarios + metadata
+curl http://localhost:20400/api/v1/scenarios
+
+# Get stored detail for a scenario
+curl http://localhost:20400/api/v1/scenarios/chart-generator
+
+# Trigger scan (set apply=true to update service.json automatically)
+curl -X POST http://localhost:20400/api/v1/scenarios/chart-generator/scan \
+  -H "Content-Type: application/json" \
+  -d '{"apply":false}'
+
 # Get scenario dependencies
 curl http://localhost:20400/api/v1/scenarios/chart-generator/dependencies
 

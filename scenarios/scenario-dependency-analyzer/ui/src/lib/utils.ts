@@ -1,3 +1,4 @@
+import { resolveApiBase } from "@vrooli/api-base";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -11,14 +12,6 @@ export function prettyNumber(value: number): string {
   }).format(value);
 }
 
-export function getApiBaseUrl(): string {
-  const fromEnv = import.meta.env.VITE_API_BASE_URL;
-  if (fromEnv) {
-    return fromEnv.replace(/\/$/, "");
-  }
-
-  const { protocol, hostname } = window.location;
-  const defaultPort = hostname === "localhost" ? "20400" : window.location.port;
-  const port = import.meta.env.VITE_API_PORT ?? defaultPort;
-  return `${protocol}//${hostname}${port ? `:${port}` : ""}`;
+export function getApiBaseUrl(options?: { appendSuffix?: boolean }): string {
+  return resolveApiBase({ appendSuffix: options?.appendSuffix ?? true });
 }

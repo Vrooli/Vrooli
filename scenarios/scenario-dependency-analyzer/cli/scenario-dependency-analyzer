@@ -37,6 +37,14 @@ get_api_url() {
     echo "http://localhost:${api_port}"
 }
 
+bool_to_json() {
+    if [[ "$1" == "true" ]]; then
+        printf 'true'
+    else
+        printf 'false'
+    fi
+}
+
 ################################################################################
 # Helper Functions
 ################################################################################
@@ -48,6 +56,7 @@ usage() {
     echo ""
     echo "Commands:"
     echo -e "  ${GREEN}analyze${NC}    Analyze dependencies for a scenario"
+    echo -e "  ${GREEN}scan${NC}       Scan + optionally apply dependencies"
     echo -e "  ${GREEN}graph${NC}      Generate dependency graph visualization"
     echo -e "  ${GREEN}propose${NC}    Analyze dependencies for a proposed scenario"
     echo -e "  ${GREEN}optimize${NC}   Get optimization recommendations"
@@ -230,6 +239,92 @@ cmd_analyze() {
             echo -e "${CYAN}Dependent Scenarios:${NC}"
             echo "$response" | jq -r '.scenarios[]? | "  - \(.dependency_name)"' 2>/dev/null
         fi
+    fi
+}
+
+cmd_scan() {
+    local scenario=""
+    local apply=false
+    local apply_resources=false
+    local apply_scenarios=false
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --apply)
+                apply=true
+                shift
+                ;;
+            --apply-resources)
+                apply_resources=true
+                shift
+                ;;
+            --apply-scenarios)
+                apply_scenarios=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: scenario-dependency-analyzer scan <scenario> [OPTIONS]"
+                echo ""
+                echo "Run dependency scan and optionally apply updates"
+                echo ""
+                echo "Options:"
+                echo "  --apply             Apply inferred resources and scenarios"
+                echo "  --apply-resources   Apply only inferred resources"
+                echo "  --apply-scenarios   Apply only inferred scenarios"
+                echo "  --json              Raw JSON output"
+                echo ""
+                echo "Examples:"
+                echo "  scenario-dependency-analyzer scan ecosystem-manager"
+                echo "  scenario-dependency-analyzer scan api-tools --apply"
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                scenario="$1"
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}❌ Scenario name required${NC}" >&2
+        return 1
+    fi
+
+    local payload
+    payload=$(printf '{"apply":%s,"apply_resources":%s,"apply_scenarios":%s}' \
+        "$(bool_to_json "$apply")" \
+        "$(bool_to_json "$apply_resources")" \
+        "$(bool_to_json "$apply_scenarios")")
+
+    echo -e "${BLUE}🛰️  Scanning scenario: $scenario${NC}"
+    local response
+    response=$(api_request "POST" "/api/v1/scenarios/${scenario}/scan" "$payload")
+
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+        return 0
+    fi
+
+    local applied=$(echo "$response" | jq -r '.applied' 2>/dev/null || echo "false")
+    local resources_added=$(echo "$response" | jq -r '.apply_summary.resources_added | length' 2>/dev/null || echo "0")
+    local scenarios_added=$(echo "$response" | jq -r '.apply_summary.scenarios_added | length' 2>/dev/null || echo "0")
+
+    echo -e "${GREEN}✅ Scan complete${NC}"
+    echo "  Applied changes: $applied"
+    echo "  Resources added: $resources_added"
+    echo "  Scenarios added: $scenarios_added"
+
+    if [[ "$applied" == "true" ]]; then
+        echo "  Tip: run 'git diff scenarios/${scenario}/.vrooli/service.json' to review"
     fi
 }
 
@@ -718,6 +813,9 @@ main() {
     case "$command" in
         analyze)
             cmd_analyze "$@"
+            ;;
+        scan)
+            cmd_scan "$@"
             ;;
         graph)
             cmd_graph "$@"

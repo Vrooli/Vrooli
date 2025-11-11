@@ -3,7 +3,9 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"math"
@@ -13,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,22 +24,26 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 
-	_ "github.com/lib/pq"
+	pq "github.com/lib/pq"
 )
 
 // Domain models
 type ServiceConfig struct {
-	Schema   string `json:"$schema"`
-	Version  string `json:"version"`
-	Service  struct {
+	Schema  string `json:"$schema"`
+	Version string `json:"version"`
+	Service struct {
 		Name        string   `json:"name"`
 		DisplayName string   `json:"displayName"`
 		Description string   `json:"description"`
 		Version     string   `json:"version"`
 		Tags        []string `json:"tags"`
 	} `json:"service"`
-	Ports     map[string]interface{} `json:"ports"`
-	Resources map[string]Resource    `json:"resources"`
+	Ports        map[string]interface{} `json:"ports"`
+	Resources    map[string]Resource    `json:"resources"`
+	Dependencies struct {
+		Resources map[string]Resource               `json:"resources"`
+		Scenarios map[string]ScenarioDependencySpec `json:"scenarios"`
+	} `json:"dependencies"`
 }
 
 type Resource struct {
@@ -46,6 +53,13 @@ type Resource struct {
 	Purpose        string                   `json:"purpose"`
 	Initialization []map[string]interface{} `json:"initialization,omitempty"`
 	Models         []string                 `json:"models,omitempty"`
+}
+
+type ScenarioDependencySpec struct {
+	Required     bool   `json:"required"`
+	Version      string `json:"version"`
+	VersionRange string `json:"versionRange"`
+	Description  string `json:"description"`
 }
 
 type ScenarioDependency struct {
@@ -88,8 +102,8 @@ type GraphEdge struct {
 }
 
 type AnalysisRequest struct {
-	ScenarioName       string `json:"scenario_name"`
-	IncludeTransitive  bool   `json:"include_transitive"`
+	ScenarioName      string `json:"scenario_name"`
+	IncludeTransitive bool   `json:"include_transitive"`
 }
 
 type ProposedScenarioRequest struct {
@@ -100,15 +114,110 @@ type ProposedScenarioRequest struct {
 }
 
 type DependencyAnalysisResponse struct {
-	Scenario          string               `json:"scenario"`
-	Resources         []ScenarioDependency `json:"resources"`
-	Scenarios         []ScenarioDependency `json:"scenarios"`
-	SharedWorkflows   []ScenarioDependency `json:"shared_workflows"`
-	TransitiveDepth   int                  `json:"transitive_depth"`
+	Scenario              string                            `json:"scenario"`
+	Resources             []ScenarioDependency              `json:"resources"`
+	DetectedResources     []ScenarioDependency              `json:"detected_resources"`
+	Scenarios             []ScenarioDependency              `json:"scenarios"`
+	DeclaredScenarioSpecs map[string]ScenarioDependencySpec `json:"declared_scenarios"`
+	SharedWorkflows       []ScenarioDependency              `json:"shared_workflows"`
+	TransitiveDepth       int                               `json:"transitive_depth"`
+	ResourceDiff          DependencyDiff                    `json:"resource_diff"`
+	ScenarioDiff          DependencyDiff                    `json:"scenario_diff"`
 }
 
-// Database connection
-var db *sql.DB
+type DependencyDiff struct {
+	Missing []DependencyDrift `json:"missing"`
+	Extra   []DependencyDrift `json:"extra"`
+}
+
+type DependencyDrift struct {
+	Name    string                 `json:"name"`
+	Details map[string]interface{} `json:"details,omitempty"`
+}
+
+type ScenarioSummary struct {
+	Name        string     `json:"name"`
+	DisplayName string     `json:"display_name"`
+	Description string     `json:"description"`
+	LastScanned *time.Time `json:"last_scanned,omitempty"`
+	Tags        []string   `json:"tags"`
+}
+
+type ScenarioDetailResponse struct {
+	Scenario           string                            `json:"scenario"`
+	DisplayName        string                            `json:"display_name"`
+	Description        string                            `json:"description"`
+	LastScanned        *time.Time                        `json:"last_scanned,omitempty"`
+	DeclaredResources  map[string]Resource               `json:"declared_resources"`
+	DeclaredScenarios  map[string]ScenarioDependencySpec `json:"declared_scenarios"`
+	StoredDependencies map[string][]ScenarioDependency   `json:"stored_dependencies"`
+	ResourceDiff       DependencyDiff                    `json:"resource_diff"`
+	ScenarioDiff       DependencyDiff                    `json:"scenario_diff"`
+}
+
+type ScanRequest struct {
+	Apply          bool `json:"apply"`
+	ApplyResources bool `json:"apply_resources"`
+	ApplyScenarios bool `json:"apply_scenarios"`
+}
+
+// Database connection and detection helpers
+var (
+	db                       *sql.DB
+	resourceCommandPattern   = regexp.MustCompile(`resource-([a-z0-9-]+)`)
+	resourceHeuristicCatalog = []resourceHeuristic{
+		{
+			Name: "postgres",
+			Type: "postgres",
+			Patterns: []*regexp.Regexp{
+				regexp.MustCompile(`postgres(ql)?:\/\/`),
+				regexp.MustCompile(`PGHOST`),
+			},
+		},
+		{
+			Name: "redis",
+			Type: "redis",
+			Patterns: []*regexp.Regexp{
+				regexp.MustCompile(`redis:\/\/`),
+				regexp.MustCompile(`REDIS_URL`),
+			},
+		},
+		{
+			Name: "ollama",
+			Type: "ollama",
+			Patterns: []*regexp.Regexp{
+				regexp.MustCompile(`ollama`),
+			},
+		},
+		{
+			Name: "qdrant",
+			Type: "qdrant",
+			Patterns: []*regexp.Regexp{
+				regexp.MustCompile(`qdrant`),
+			},
+		},
+		{
+			Name: "n8n",
+			Type: "n8n",
+			Patterns: []*regexp.Regexp{
+				regexp.MustCompile(`n8n`),
+			},
+		},
+		{
+			Name: "minio",
+			Type: "minio",
+			Patterns: []*regexp.Regexp{
+				regexp.MustCompile(`minio`),
+			},
+		},
+	}
+)
+
+type resourceHeuristic struct {
+	Name     string
+	Type     string
+	Patterns []*regexp.Regexp
+}
 
 // Configuration
 type Config struct {
@@ -119,13 +228,13 @@ type Config struct {
 
 func loadConfig() Config {
 	godotenv.Load()
-	
+
 	// Port configuration - use standard API_PORT
 	port := os.Getenv("API_PORT")
 	if port == "" {
 		log.Fatal("❌ API_PORT environment variable is required")
 	}
-	
+
 	// Database configuration - support both DATABASE_URL and individual components
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
@@ -135,21 +244,21 @@ func loadConfig() Config {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Missing database configuration. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		dbURL = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 			dbHost, dbPort, dbUser, dbPassword, dbName)
 	}
-	
+
 	// Optional scenarios directory (has reasonable default)
 	scenariosDir := os.Getenv("VROOLI_SCENARIOS_DIR")
 	if scenariosDir == "" {
 		scenariosDir = "../.." // Reasonable default for project structure
 	}
-	
+
 	return Config{
 		Port:         port,
 		DatabaseURL:  dbURL,
@@ -175,47 +284,47 @@ func initDatabase(dbURL string) error {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Println("📊 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add random jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(rand.Float64() * jitterRange)
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		return fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 	return nil
 }
@@ -223,106 +332,91 @@ func initDatabase(dbURL string) error {
 // Core analysis functions
 func analyzeScenario(scenarioName string) (*DependencyAnalysisResponse, error) {
 	scenarioPath := filepath.Join(loadConfig().ScenariosDir, scenarioName)
-	serviceConfigPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
-	
-	// Check if scenario exists
-	if _, err := os.Stat(serviceConfigPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("scenario %s not found or missing service.json", scenarioName)
-	}
-	
-	// Parse service.json
-	configData, err := os.ReadFile(serviceConfigPath)
+	serviceConfig, err := loadServiceConfigFromFile(scenarioPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read service.json: %w", err)
+		return nil, err
 	}
-	
-	var serviceConfig ServiceConfig
-	if err := json.Unmarshal(configData, &serviceConfig); err != nil {
-		return nil, fmt.Errorf("failed to parse service.json: %w", err)
-	}
-	
+
 	response := &DependencyAnalysisResponse{
-		Scenario:        scenarioName,
-		Resources:       []ScenarioDependency{},
-		Scenarios:       []ScenarioDependency{},
-		SharedWorkflows: []ScenarioDependency{},
-		TransitiveDepth: 0,
+		Scenario:              scenarioName,
+		Resources:             []ScenarioDependency{},
+		DetectedResources:     []ScenarioDependency{},
+		Scenarios:             []ScenarioDependency{},
+		DeclaredScenarioSpecs: map[string]ScenarioDependencySpec{},
+		SharedWorkflows:       []ScenarioDependency{},
+		TransitiveDepth:       0,
+		ResourceDiff:          DependencyDiff{},
+		ScenarioDiff:          DependencyDiff{},
 	}
-	
-	// Extract resource dependencies
-	for resourceName, resource := range serviceConfig.Resources {
-		dependency := ScenarioDependency{
-			ID:             uuid.New().String(),
-			ScenarioName:   scenarioName,
-			DependencyType: "resource",
-			DependencyName: resourceName,
-			Required:       resource.Required,
-			Purpose:        resource.Purpose,
-			AccessMethod:   fmt.Sprintf("resource-%s", resourceName),
-			Configuration: map[string]interface{}{
-				"type":           resource.Type,
-				"enabled":        resource.Enabled,
-				"initialization": resource.Initialization,
-				"models":         resource.Models,
-			},
-			DiscoveredAt: time.Now(),
-			LastVerified: time.Now(),
-		}
-		response.Resources = append(response.Resources, dependency)
+
+	declaredResources := extractDeclaredResources(scenarioName, serviceConfig)
+	response.Resources = declaredResources
+	response.DeclaredScenarioSpecs = normalizeScenarioSpecs(serviceConfig.Dependencies.Scenarios)
+
+	detectedResources, err := scanForResourceUsage(scenarioPath, scenarioName)
+	if err != nil {
+		log.Printf("Warning: failed to scan for resource usage: %v", err)
+	} else {
+		response.DetectedResources = detectedResources
 	}
-	
-	// Scan for inter-scenario dependencies in code files
+
 	scenarioDeps, err := scanForScenarioDependencies(scenarioPath, scenarioName)
 	if err != nil {
 		log.Printf("Warning: failed to scan for scenario dependencies: %v", err)
 	} else {
 		response.Scenarios = append(response.Scenarios, scenarioDeps...)
 	}
-	
-	// Scan for shared workflow usage
+
 	workflowDeps, err := scanForSharedWorkflows(scenarioPath, scenarioName)
 	if err != nil {
 		log.Printf("Warning: failed to scan for shared workflows: %v", err)
 	} else {
 		response.SharedWorkflows = append(response.SharedWorkflows, workflowDeps...)
 	}
-	
-	// Store in database
-	if err := storeDependencies(response); err != nil {
+
+	declaredScenarioDeps := convertDeclaredScenariosToDependencies(scenarioName, response.DeclaredScenarioSpecs)
+	response.ResourceDiff = buildResourceDiff(resolvedResourceMap(serviceConfig), response.DetectedResources)
+	response.ScenarioDiff = buildScenarioDiff(response.DeclaredScenarioSpecs, response.Scenarios)
+
+	if err := storeDependencies(response, declaredScenarioDeps); err != nil {
 		log.Printf("Warning: failed to store dependencies in database: %v", err)
 	}
-	
+
+	if err := updateScenarioMetadata(scenarioName, serviceConfig, scenarioPath); err != nil {
+		log.Printf("Warning: failed to update scenario metadata: %v", err)
+	}
+
 	return response, nil
 }
 
 func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioDependency, error) {
 	var dependencies []ScenarioDependency
-	
+
 	// Pattern to match vrooli scenario commands
 	scenarioPattern := regexp.MustCompile(`vrooli\s+scenario\s+(?:run|test|status)\s+([a-z0-9-]+)`)
-	
+
 	// Pattern to match direct CLI calls to other scenarios
 	cliPattern := regexp.MustCompile(`([a-z0-9-]+)-cli\.sh|\b([a-z0-9-]+)\s+(?:analyze|process|generate|run)`)
-	
+
 	// Walk through all files in the scenario
 	err := filepath.WalkDir(scenarioPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // Skip files with errors
 		}
-		
+
 		// Only scan certain file types
 		ext := strings.ToLower(filepath.Ext(path))
 		if !contains([]string{".go", ".js", ".sh", ".py", ".md"}, ext) {
 			return nil
 		}
-		
+
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return nil // Skip files we can't read
 		}
-		
+
 		contentStr := string(content)
-		
+
 		// Find scenario references
 		matches := scenarioPattern.FindAllStringSubmatch(contentStr, -1)
 		for _, match := range matches {
@@ -345,7 +439,7 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioD
 				dependencies = append(dependencies, dep)
 			}
 		}
-		
+
 		// Find CLI references
 		cliMatches := cliPattern.FindAllStringSubmatch(contentStr, -1)
 		for _, match := range cliMatches {
@@ -353,9 +447,9 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioD
 			if match[1] != "" {
 				scenarioRef = match[1]
 			} else if match[2] != "" {
-				scenarioRef = match[2] 
+				scenarioRef = match[2]
 			}
-			
+
 			if scenarioRef != "" && scenarioRef != scenarioName {
 				dep := ScenarioDependency{
 					ID:             uuid.New().String(),
@@ -375,37 +469,37 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioD
 				dependencies = append(dependencies, dep)
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	return dependencies, err
 }
 
 func scanForSharedWorkflows(scenarioPath, scenarioName string) ([]ScenarioDependency, error) {
 	var dependencies []ScenarioDependency
-	
+
 	// Look for references to shared workflows in initialization directory
 	initPath := filepath.Join(scenarioPath, "initialization")
 	if _, err := os.Stat(initPath); os.IsNotExist(err) {
 		return dependencies, nil
 	}
-	
+
 	// Pattern to match shared workflow references
 	sharedPattern := regexp.MustCompile(`initialization/(?:automation/)?(?:n8n|huginn|windmill)/([^/]+\.json)`)
-	
+
 	err := filepath.WalkDir(initPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
-		
+
 		// Check if this is a workflow file that might reference shared workflows
 		if strings.HasSuffix(path, ".json") {
 			content, err := os.ReadFile(path)
 			if err != nil {
 				return nil
 			}
-			
+
 			matches := sharedPattern.FindAllStringSubmatch(string(content), -1)
 			for _, match := range matches {
 				if len(match) > 1 {
@@ -428,33 +522,330 @@ func scanForSharedWorkflows(scenarioPath, scenarioName string) ([]ScenarioDepend
 				}
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	return dependencies, err
 }
 
-func storeDependencies(analysis *DependencyAnalysisResponse) error {
+func loadServiceConfigFromFile(scenarioPath string) (*ServiceConfig, error) {
+	serviceConfigPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
+	if _, err := os.Stat(serviceConfigPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("scenario %s not found or missing service.json", filepath.Base(scenarioPath))
+	}
+
+	configData, err := os.ReadFile(serviceConfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read service.json: %w", err)
+	}
+
+	var serviceConfig ServiceConfig
+	if err := json.Unmarshal(configData, &serviceConfig); err != nil {
+		return nil, fmt.Errorf("failed to parse service.json: %w", err)
+	}
+
+	return &serviceConfig, nil
+}
+
+func resolvedResourceMap(cfg *ServiceConfig) map[string]Resource {
+	if cfg.Dependencies.Resources != nil && len(cfg.Dependencies.Resources) > 0 {
+		return cfg.Dependencies.Resources
+	}
+	if cfg.Resources == nil {
+		return map[string]Resource{}
+	}
+	return cfg.Resources
+}
+
+func extractDeclaredResources(scenarioName string, cfg *ServiceConfig) []ScenarioDependency {
+	resources := resolvedResourceMap(cfg)
+	declared := make([]ScenarioDependency, 0, len(resources))
+	for resourceName, resource := range resources {
+		dep := ScenarioDependency{
+			ID:             uuid.New().String(),
+			ScenarioName:   scenarioName,
+			DependencyType: "resource",
+			DependencyName: resourceName,
+			Required:       resource.Required,
+			Purpose:        resource.Purpose,
+			AccessMethod:   fmt.Sprintf("resource-%s", resourceName),
+			Configuration: map[string]interface{}{
+				"type":           resource.Type,
+				"enabled":        resource.Enabled,
+				"initialization": resource.Initialization,
+				"models":         resource.Models,
+				"source":         "declared",
+			},
+			DiscoveredAt: time.Now(),
+			LastVerified: time.Now(),
+		}
+		declared = append(declared, dep)
+	}
+	sort.Slice(declared, func(i, j int) bool {
+		return declared[i].DependencyName < declared[j].DependencyName
+	})
+	return declared
+}
+
+func normalizeScenarioSpecs(specs map[string]ScenarioDependencySpec) map[string]ScenarioDependencySpec {
+	if specs == nil {
+		return map[string]ScenarioDependencySpec{}
+	}
+	return specs
+}
+
+func convertDeclaredScenariosToDependencies(scenarioName string, specs map[string]ScenarioDependencySpec) []ScenarioDependency {
+	declared := make([]ScenarioDependency, 0, len(specs))
+	for depName, spec := range specs {
+		dep := ScenarioDependency{
+			ID:             uuid.New().String(),
+			ScenarioName:   scenarioName,
+			DependencyType: "scenario",
+			DependencyName: depName,
+			Required:       spec.Required,
+			Purpose:        spec.Description,
+			AccessMethod:   "declared",
+			Configuration: map[string]interface{}{
+				"source":        "declared",
+				"version":       spec.Version,
+				"version_range": spec.VersionRange,
+			},
+			DiscoveredAt: time.Now(),
+			LastVerified: time.Now(),
+		}
+		declared = append(declared, dep)
+	}
+	return declared
+}
+
+func buildResourceDiff(declared map[string]Resource, detected []ScenarioDependency) DependencyDiff {
+	declaredSet := map[string]Resource{}
+	for name, cfg := range declared {
+		declaredSet[name] = cfg
+	}
+	detectedSet := map[string]ScenarioDependency{}
+	for _, dep := range detected {
+		detectedSet[dep.DependencyName] = dep
+	}
+
+	missing := []DependencyDrift{}
+	for name, dep := range detectedSet {
+		if _, ok := declaredSet[name]; !ok {
+			missing = append(missing, DependencyDrift{
+				Name:    name,
+				Details: dep.Configuration,
+			})
+		}
+	}
+
+	extra := []DependencyDrift{}
+	for name, cfg := range declaredSet {
+		if _, ok := detectedSet[name]; !ok {
+			extra = append(extra, DependencyDrift{
+				Name: name,
+				Details: map[string]interface{}{
+					"type":     cfg.Type,
+					"required": cfg.Required,
+				},
+			})
+		}
+	}
+
+	sort.Slice(missing, func(i, j int) bool { return missing[i].Name < missing[j].Name })
+	sort.Slice(extra, func(i, j int) bool { return extra[i].Name < extra[j].Name })
+
+	return DependencyDiff{Missing: missing, Extra: extra}
+}
+
+func buildScenarioDiff(declared map[string]ScenarioDependencySpec, detected []ScenarioDependency) DependencyDiff {
+	declaredSet := map[string]ScenarioDependencySpec{}
+	for name, spec := range declared {
+		declaredSet[name] = spec
+	}
+	detectedSet := map[string]ScenarioDependency{}
+	for _, dep := range detected {
+		detectedSet[dep.DependencyName] = dep
+	}
+
+	missing := []DependencyDrift{}
+	for name, dep := range detectedSet {
+		if _, ok := declaredSet[name]; !ok {
+			missing = append(missing, DependencyDrift{
+				Name:    name,
+				Details: dep.Configuration,
+			})
+		}
+	}
+
+	extra := []DependencyDrift{}
+	for name, spec := range declaredSet {
+		if _, ok := detectedSet[name]; !ok {
+			extra = append(extra, DependencyDrift{
+				Name: name,
+				Details: map[string]interface{}{
+					"required": spec.Required,
+					"version":  spec.Version,
+				},
+			})
+		}
+	}
+
+	sort.Slice(missing, func(i, j int) bool { return missing[i].Name < missing[j].Name })
+	sort.Slice(extra, func(i, j int) bool { return extra[i].Name < extra[j].Name })
+
+	return DependencyDiff{Missing: missing, Extra: extra}
+}
+
+func updateScenarioMetadata(name string, cfg *ServiceConfig, scenarioPath string) error {
+	if db == nil {
+		return nil
+	}
+
+	serviceConfigJSON, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+
+	query := `
+		INSERT INTO scenario_metadata (scenario_name, display_name, description, tags, service_config, file_path, last_scanned)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (scenario_name) DO UPDATE SET
+			display_name = EXCLUDED.display_name,
+			description = EXCLUDED.description,
+			tags = EXCLUDED.tags,
+			service_config = EXCLUDED.service_config,
+			file_path = EXCLUDED.file_path,
+			last_scanned = EXCLUDED.last_scanned,
+			updated_at = NOW();
+	`
+
+	_, err = db.Exec(query,
+		name,
+		cfg.Service.DisplayName,
+		cfg.Service.Description,
+		pqArray(cfg.Service.Tags),
+		serviceConfigJSON,
+		scenarioPath,
+		time.Now(),
+	)
+	return err
+}
+
+func pqArray(values []string) interface{} {
+	if len(values) == 0 {
+		return pq.StringArray([]string{})
+	}
+	return pq.StringArray(values)
+}
+
+func scanForResourceUsage(scenarioPath, scenarioName string) ([]ScenarioDependency, error) {
+	results := map[string]ScenarioDependency{}
+
+	relevantExts := []string{".go", ".js", ".ts", ".tsx", ".sh", ".py", ".md", ".json", ".yml", ".yaml"}
+
+	recordDetection := func(name, method, pattern, file string, resourceType string) {
+		existing, ok := results[name]
+		if !ok {
+			existing = ScenarioDependency{
+				ID:             uuid.New().String(),
+				ScenarioName:   scenarioName,
+				DependencyType: "resource",
+				DependencyName: name,
+				Required:       true,
+				Purpose:        "Detected via static analysis",
+				AccessMethod:   method,
+				Configuration:  map[string]interface{}{"source": "detected"},
+				DiscoveredAt:   time.Now(),
+				LastVerified:   time.Now(),
+			}
+		}
+
+		if existing.Configuration == nil {
+			existing.Configuration = map[string]interface{}{}
+		}
+		existing.Configuration["resource_type"] = resourceType
+		match := map[string]interface{}{
+			"pattern": pattern,
+			"method":  method,
+			"file":    file,
+		}
+		matches, _ := existing.Configuration["matches"].([]map[string]interface{})
+		matches = append(matches, match)
+		existing.Configuration["matches"] = matches
+		results[name] = existing
+	}
+
+	err := filepath.WalkDir(scenarioPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if !contains(relevantExts, ext) {
+			return nil
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		contentStr := string(content)
+		relPath := strings.TrimPrefix(path, scenarioPath)
+
+		cmdMatches := resourceCommandPattern.FindAllStringSubmatch(contentStr, -1)
+		for _, match := range cmdMatches {
+			if len(match) > 1 {
+				resourceName := match[1]
+				recordDetection(resourceName, "resource_cli", "resource-cli", relPath, resourceName)
+			}
+		}
+
+		for _, heuristic := range resourceHeuristicCatalog {
+			for _, pattern := range heuristic.Patterns {
+				if pattern.MatchString(contentStr) {
+					recordDetection(heuristic.Name, "heuristic", pattern.String(), relPath, heuristic.Type)
+					break
+				}
+			}
+		}
+
+		return nil
+	})
+
+	deps := make([]ScenarioDependency, 0, len(results))
+	for _, dep := range results {
+		deps = append(deps, dep)
+	}
+	return deps, err
+}
+
+func storeDependencies(analysis *DependencyAnalysisResponse, extras []ScenarioDependency) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	
+
 	// Delete existing dependencies for this scenario
 	_, err = tx.Exec("DELETE FROM scenario_dependencies WHERE scenario_name = $1", analysis.Scenario)
 	if err != nil {
 		return err
 	}
-	
-	// Insert all dependencies
-	allDeps := append(analysis.Resources, analysis.Scenarios...)
+
+	// Insert all dependencies (declared + detected)
+	allDeps := make([]ScenarioDependency, 0, len(analysis.Resources)+len(analysis.DetectedResources)+len(analysis.Scenarios)+len(analysis.SharedWorkflows)+len(extras))
+	allDeps = append(allDeps, analysis.Resources...)
+	allDeps = append(allDeps, analysis.DetectedResources...)
+	allDeps = append(allDeps, analysis.Scenarios...)
 	allDeps = append(allDeps, analysis.SharedWorkflows...)
-	
+	allDeps = append(allDeps, extras...)
+
 	for _, dep := range allDeps {
 		configJSON, _ := json.Marshal(dep.Configuration)
-		
+
 		_, err = tx.Exec(`
 			INSERT INTO scenario_dependencies 
 			(scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration, discovered_at, last_verified)
@@ -465,48 +856,48 @@ func storeDependencies(analysis *DependencyAnalysisResponse) error {
 			return err
 		}
 	}
-	
+
 	return tx.Commit()
 }
 
 func analyzeAllScenarios() (map[string]*DependencyAnalysisResponse, error) {
 	results := make(map[string]*DependencyAnalysisResponse)
-	
+
 	scenariosDir := loadConfig().ScenariosDir
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read scenarios directory: %w", err)
 	}
-	
+
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-		
+
 		scenarioName := entry.Name()
-		
+
 		// Check if it has a service.json (valid scenario)
 		serviceConfigPath := filepath.Join(scenariosDir, scenarioName, ".vrooli", "service.json")
 		if _, err := os.Stat(serviceConfigPath); os.IsNotExist(err) {
 			continue
 		}
-		
+
 		analysis, err := analyzeScenario(scenarioName)
 		if err != nil {
 			log.Printf("Warning: failed to analyze scenario %s: %v", scenarioName, err)
 			continue
 		}
-		
+
 		results[scenarioName] = analysis
 	}
-	
+
 	return results, nil
 }
 
 func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 	nodes := []GraphNode{}
 	edges := []GraphEdge{}
-	
+
 	// Query all dependencies from database
 	rows, err := db.Query(`
 		SELECT scenario_name, dependency_type, dependency_name, required, purpose, access_method
@@ -516,18 +907,18 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	nodeSet := make(map[string]bool)
-	
+
 	for rows.Next() {
 		var scenarioName, depType, depName, purpose, accessMethod string
 		var required bool
-		
+
 		err := rows.Scan(&scenarioName, &depType, &depName, &required, &purpose, &accessMethod)
 		if err != nil {
 			continue
 		}
-		
+
 		// Filter by graph type
 		if graphType == "resource" && depType != "resource" {
 			continue
@@ -535,7 +926,7 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 		if graphType == "scenario" && depType == "resource" {
 			continue
 		}
-		
+
 		// Add nodes if not already present
 		if !nodeSet[scenarioName] {
 			nodes = append(nodes, GraphNode{
@@ -549,7 +940,7 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 			})
 			nodeSet[scenarioName] = true
 		}
-		
+
 		if !nodeSet[depName] {
 			nodeGroup := "resources"
 			nodeType := "resource"
@@ -560,7 +951,7 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 				nodeGroup = "workflows"
 				nodeType = "workflow"
 			}
-			
+
 			nodes = append(nodes, GraphNode{
 				ID:    depName,
 				Label: depName,
@@ -572,13 +963,13 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 			})
 			nodeSet[depName] = true
 		}
-		
+
 		// Add edge
 		weight := 1.0
 		if required {
 			weight = 2.0
 		}
-		
+
 		edges = append(edges, GraphEdge{
 			Source:   scenarioName,
 			Target:   depName,
@@ -592,7 +983,7 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 			},
 		})
 	}
-	
+
 	graph := &DependencyGraph{
 		ID:    uuid.New().String(),
 		Type:  graphType,
@@ -605,7 +996,7 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 			"complexity_score": calculateComplexityScore(nodes, edges),
 		},
 	}
-	
+
 	return graph, nil
 }
 
@@ -613,16 +1004,16 @@ func calculateComplexityScore(nodes []GraphNode, edges []GraphEdge) float64 {
 	if len(nodes) == 0 {
 		return 0.0
 	}
-	
+
 	// Simple complexity score based on edge-to-node ratio
 	ratio := float64(len(edges)) / float64(len(nodes))
-	
+
 	// Normalize to 0-1 scale (assuming max ratio of 5 = complex system)
 	score := ratio / 5.0
 	if score > 1.0 {
 		score = 1.0
 	}
-	
+
 	return score
 }
 
@@ -630,7 +1021,7 @@ func analyzeProposedScenario(req ProposedScenarioRequest) (map[string]interface{
 	predictedResources := []map[string]interface{}{}
 	similarPatterns := []map[string]interface{}{}
 	recommendations := []map[string]interface{}{}
-	
+
 	// Simple heuristic predictions based on requirements
 	for _, reqResource := range req.Requirements {
 		predictedResources = append(predictedResources, map[string]interface{}{
@@ -639,7 +1030,7 @@ func analyzeProposedScenario(req ProposedScenarioRequest) (map[string]interface{
 			"reasoning":     "Explicitly mentioned in requirements",
 		})
 	}
-	
+
 	// Use Claude Code for intelligent analysis of the scenario description
 	claudeAnalysis, err := analyzeWithClaudeCode(req.Name, req.Description)
 	if err != nil {
@@ -653,7 +1044,7 @@ func analyzeProposedScenario(req ProposedScenarioRequest) (map[string]interface{
 			recommendations = append(recommendations, recommendation)
 		}
 	}
-	
+
 	// Use Qdrant for semantic similarity matching
 	qdrantMatches, err := findSimilarScenariosQdrant(req.Description, req.SimilarScenarios)
 	if err != nil {
@@ -661,16 +1052,16 @@ func analyzeProposedScenario(req ProposedScenarioRequest) (map[string]interface{
 	} else {
 		similarPatterns = qdrantMatches
 	}
-	
+
 	// Add common patterns based on description keywords (fallback heuristics)
 	description := strings.ToLower(req.Description)
 	heuristicResources := getHeuristicPredictions(description)
 	predictedResources = append(predictedResources, heuristicResources...)
-	
+
 	// Calculate confidence scores
 	resourceConfidence := calculateResourceConfidence(predictedResources)
 	scenarioConfidence := calculateScenarioConfidence(similarPatterns)
-	
+
 	return map[string]interface{}{
 		"predicted_resources": deduplicateResources(predictedResources),
 		"similar_patterns":    similarPatterns,
@@ -716,7 +1107,7 @@ func healthHandler(c *gin.Context) {
 
 func analyzeScenarioHandler(c *gin.Context) {
 	scenarioName := c.Param("scenario")
-	
+
 	if scenarioName == "all" {
 		results, err := analyzeAllScenarios()
 		if err != nil {
@@ -726,19 +1117,19 @@ func analyzeScenarioHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, results)
 		return
 	}
-	
+
 	result, err := analyzeScenario(scenarioName)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, result)
 }
 
 func getDependenciesHandler(c *gin.Context) {
 	scenarioName := c.Param("scenario")
-	
+
 	rows, err := db.Query(`
 		SELECT scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration
 		FROM scenario_dependencies
@@ -749,29 +1140,29 @@ func getDependenciesHandler(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var dependencies []ScenarioDependency
 	for rows.Next() {
 		var dep ScenarioDependency
 		var configJSON string
-		
+
 		err := rows.Scan(&dep.ScenarioName, &dep.DependencyType, &dep.DependencyName,
 			&dep.Required, &dep.Purpose, &dep.AccessMethod, &configJSON)
 		if err != nil {
 			continue
 		}
-		
+
 		json.Unmarshal([]byte(configJSON), &dep.Configuration)
 		dependencies = append(dependencies, dep)
 	}
-	
+
 	// Group by type
 	response := map[string][]ScenarioDependency{
 		"resources":        {},
 		"scenarios":        {},
 		"shared_workflows": {},
 	}
-	
+
 	for _, dep := range dependencies {
 		switch dep.DependencyType {
 		case "resource":
@@ -782,30 +1173,30 @@ func getDependenciesHandler(c *gin.Context) {
 			response["shared_workflows"] = append(response["shared_workflows"], dep)
 		}
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
-		"scenario":          scenarioName,
-		"resources":         response["resources"],
-		"scenarios":         response["scenarios"],
-		"shared_workflows":  response["shared_workflows"],
-		"transitive_depth":  0,
+		"scenario":         scenarioName,
+		"resources":        response["resources"],
+		"scenarios":        response["scenarios"],
+		"shared_workflows": response["shared_workflows"],
+		"transitive_depth": 0,
 	})
 }
 
 func getGraphHandler(c *gin.Context) {
 	graphType := c.Param("type")
-	
+
 	if !contains([]string{"resource", "scenario", "combined"}, graphType) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid graph type"})
 		return
 	}
-	
+
 	graph, err := generateDependencyGraph(graphType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, graph)
 }
 
@@ -815,14 +1206,322 @@ func analyzeProposedHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	result, err := analyzeProposedScenario(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, result)
+}
+
+func loadScenarioMetadataMap() (map[string]ScenarioSummary, error) {
+	results := map[string]ScenarioSummary{}
+	if db == nil {
+		return results, nil
+	}
+	rows, err := db.Query("SELECT scenario_name, display_name, description, tags, last_scanned FROM scenario_metadata")
+	if err != nil {
+		return results, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var summary ScenarioSummary
+		var tags pq.StringArray
+		var lastScanned sql.NullTime
+		if err := rows.Scan(&summary.Name, &summary.DisplayName, &summary.Description, &tags, &lastScanned); err != nil {
+			continue
+		}
+		summary.Tags = []string(tags)
+		if lastScanned.Valid {
+			summary.LastScanned = &lastScanned.Time
+		}
+		results[summary.Name] = summary
+	}
+
+	return results, nil
+}
+
+func loadStoredDependencies(scenarioName string) (map[string][]ScenarioDependency, error) {
+	if db == nil {
+		return map[string][]ScenarioDependency{
+			"resources":        []ScenarioDependency{},
+			"scenarios":        []ScenarioDependency{},
+			"shared_workflows": []ScenarioDependency{},
+		}, nil
+	}
+	rows, err := db.Query(`
+		SELECT scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration, discovered_at, last_verified
+		FROM scenario_dependencies
+		WHERE scenario_name = $1
+		ORDER BY dependency_type, dependency_name`, scenarioName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := map[string][]ScenarioDependency{
+		"resources":        []ScenarioDependency{},
+		"scenarios":        []ScenarioDependency{},
+		"shared_workflows": []ScenarioDependency{},
+	}
+
+	for rows.Next() {
+		var dep ScenarioDependency
+		var configJSON []byte
+		if err := rows.Scan(&dep.ScenarioName, &dep.DependencyType, &dep.DependencyName, &dep.Required, &dep.Purpose, &dep.AccessMethod, &configJSON, &dep.DiscoveredAt, &dep.LastVerified); err != nil {
+			continue
+		}
+		if len(configJSON) > 0 {
+			_ = json.Unmarshal(configJSON, &dep.Configuration)
+		}
+		result[dep.DependencyType] = append(result[dep.DependencyType], dep)
+	}
+
+	return result, nil
+}
+
+func filterDetectedDependencies(deps []ScenarioDependency) []ScenarioDependency {
+	filtered := []ScenarioDependency{}
+	for _, dep := range deps {
+		source := ""
+		if dep.Configuration != nil {
+			if val, ok := dep.Configuration["source"].(string); ok {
+				source = val
+			}
+		}
+		if source == "declared" {
+			continue
+		}
+		filtered = append(filtered, dep)
+	}
+	return filtered
+}
+
+func applyDetectedDiffs(scenarioName string, analysis *DependencyAnalysisResponse, applyResources, applyScenarios bool) (map[string]interface{}, error) {
+	updates := map[string]interface{}{}
+	scenarioPath := filepath.Join(loadConfig().ScenariosDir, scenarioName)
+	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	if err != nil {
+		return nil, err
+	}
+
+	resourcesAdded := []string{}
+	if applyResources {
+		missing := map[string]struct{}{}
+		for _, drift := range analysis.ResourceDiff.Missing {
+			missing[drift.Name] = struct{}{}
+		}
+		if len(missing) > 0 {
+			if cfg.Dependencies.Resources == nil {
+				cfg.Dependencies.Resources = map[string]Resource{}
+			}
+			for _, dep := range analysis.DetectedResources {
+				if _, ok := missing[dep.DependencyName]; !ok {
+					continue
+				}
+				if _, exists := cfg.Dependencies.Resources[dep.DependencyName]; exists {
+					continue
+				}
+				typeHint := "custom"
+				if dep.Configuration != nil {
+					if val, ok := dep.Configuration["resource_type"].(string); ok && val != "" {
+						typeHint = val
+					}
+				}
+				cfg.Dependencies.Resources[dep.DependencyName] = Resource{
+					Type:     typeHint,
+					Enabled:  true,
+					Required: true,
+					Purpose:  fmt.Sprintf("Auto-detected via analyzer (%s)", dep.AccessMethod),
+				}
+				resourcesAdded = append(resourcesAdded, dep.DependencyName)
+			}
+		}
+	}
+
+	scenariosAdded := []string{}
+	if applyScenarios {
+		missing := map[string]struct{}{}
+		for _, drift := range analysis.ScenarioDiff.Missing {
+			missing[drift.Name] = struct{}{}
+		}
+		if len(missing) > 0 {
+			if cfg.Dependencies.Scenarios == nil {
+				cfg.Dependencies.Scenarios = map[string]ScenarioDependencySpec{}
+			}
+			for _, dep := range analysis.Scenarios {
+				if _, ok := missing[dep.DependencyName]; !ok {
+					continue
+				}
+				if _, exists := cfg.Dependencies.Scenarios[dep.DependencyName]; exists {
+					continue
+				}
+				description := fmt.Sprintf("Auto-detected dependency via %s", dep.AccessMethod)
+				cfg.Dependencies.Scenarios[dep.DependencyName] = ScenarioDependencySpec{
+					Required:     true,
+					VersionRange: ">=0.0.0",
+					Description:  description,
+				}
+				scenariosAdded = append(scenariosAdded, dep.DependencyName)
+			}
+		}
+	}
+
+	changed := len(resourcesAdded) > 0 || len(scenariosAdded) > 0
+	if changed {
+		serviceConfigPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
+		payload, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(serviceConfigPath, payload, 0644); err != nil {
+			return nil, err
+		}
+		if err := updateScenarioMetadata(scenarioName, cfg, scenarioPath); err != nil {
+			return nil, err
+		}
+	}
+
+	updates["changed"] = changed
+	updates["resources_added"] = resourcesAdded
+	updates["scenarios_added"] = scenariosAdded
+	return updates, nil
+}
+
+func listScenariosHandler(c *gin.Context) {
+	metadata, err := loadScenarioMetadataMap()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	scenariosDir := loadConfig().ScenariosDir
+	entries, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	summaries := []ScenarioSummary{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		summary, ok := metadata[name]
+		if !ok {
+			scenarioPath := filepath.Join(scenariosDir, name)
+			cfg, err := loadServiceConfigFromFile(scenarioPath)
+			if err != nil {
+				continue
+			}
+			summary = ScenarioSummary{
+				Name:        name,
+				DisplayName: cfg.Service.DisplayName,
+				Description: cfg.Service.Description,
+				Tags:        cfg.Service.Tags,
+			}
+		}
+		summaries = append(summaries, summary)
+	}
+
+	sort.Slice(summaries, func(i, j int) bool { return summaries[i].Name < summaries[j].Name })
+	c.JSON(http.StatusOK, summaries)
+}
+
+func getScenarioDetailHandler(c *gin.Context) {
+	scenarioName := c.Param("scenario")
+	scenarioPath := filepath.Join(loadConfig().ScenariosDir, scenarioName)
+	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	stored, err := loadStoredDependencies(scenarioName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	declaredResources := resolvedResourceMap(cfg)
+
+	declaredScenarios := cfg.Dependencies.Scenarios
+	if declaredScenarios == nil {
+		declaredScenarios = map[string]ScenarioDependencySpec{}
+	}
+
+	resourceDiff := buildResourceDiff(declaredResources, filterDetectedDependencies(stored["resources"]))
+	scenarioDiff := buildScenarioDiff(declaredScenarios, filterDetectedDependencies(stored["scenarios"]))
+
+	var lastScanned *time.Time
+	if db != nil {
+		row := db.QueryRow("SELECT last_scanned FROM scenario_metadata WHERE scenario_name = $1", scenarioName)
+		var ts sql.NullTime
+		if err := row.Scan(&ts); err == nil && ts.Valid {
+			lastScanned = &ts.Time
+		}
+	}
+
+	detail := ScenarioDetailResponse{
+		Scenario:           scenarioName,
+		DisplayName:        cfg.Service.DisplayName,
+		Description:        cfg.Service.Description,
+		LastScanned:        lastScanned,
+		DeclaredResources:  declaredResources,
+		DeclaredScenarios:  declaredScenarios,
+		StoredDependencies: stored,
+		ResourceDiff:       resourceDiff,
+		ScenarioDiff:       scenarioDiff,
+	}
+
+	c.JSON(http.StatusOK, detail)
+}
+
+func scanScenarioHandler(c *gin.Context) {
+	scenarioName := c.Param("scenario")
+	var req ScanRequest
+	if c.Request.Body != nil {
+		if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	analysis, err := analyzeScenario(scenarioName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	applyResources := req.ApplyResources || req.Apply
+	applyScenarios := req.ApplyScenarios || req.Apply
+	var applySummary map[string]interface{}
+	applied := false
+	if applyResources || applyScenarios {
+		applySummary, err = applyDetectedDiffs(scenarioName, analysis, applyResources, applyScenarios)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "analysis": analysis})
+			return
+		}
+		if changed, ok := applySummary["changed"].(bool); ok && changed {
+			applied = true
+			analysis, err = analyzeScenario(scenarioName)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"analysis":      analysis,
+		"applied":       applied,
+		"apply_summary": applySummary,
+	})
 }
 
 // Integrate with Claude Code resource for intelligent analysis
@@ -842,21 +1541,21 @@ Please identify:
 
 Format your response as structured analysis focusing on technical implementation needs.
 `, scenarioName, description)
-	
+
 	// Write prompt to temporary file
 	tempFile := "/tmp/claude-analysis-" + uuid.New().String() + ".txt"
 	if err := os.WriteFile(tempFile, []byte(analysisPrompt), 0644); err != nil {
 		return nil, fmt.Errorf("failed to create analysis prompt file: %w", err)
 	}
 	defer os.Remove(tempFile)
-	
+
 	// Execute Claude Code analysis
 	cmd := exec.Command("resource-claude-code", "analyze", tempFile, "--output", "json")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("claude-code command failed: %w", err)
 	}
-	
+
 	// Parse Claude Code response and extract dependency predictions
 	analysis := parseClaudeCodeResponse(string(output), description)
 	return analysis, nil
@@ -865,34 +1564,34 @@ Format your response as structured analysis focusing on technical implementation
 // Integrate with Qdrant for semantic similarity matching
 func findSimilarScenariosQdrant(description string, existingScenarios []string) ([]map[string]interface{}, error) {
 	var matches []map[string]interface{}
-	
+
 	// Create embedding for the proposed scenario description
 	embeddingCmd := exec.Command("resource-qdrant", "embed", description)
 	embeddingOutput, err := embeddingCmd.Output()
 	if err != nil {
 		return matches, fmt.Errorf("failed to create embedding: %w", err)
 	}
-	
+
 	// Search for similar scenarios in the vector database
-	searchCmd := exec.Command("resource-qdrant", "search", 
+	searchCmd := exec.Command("resource-qdrant", "search",
 		"--collection", "scenario_embeddings",
 		"--vector", string(embeddingOutput),
 		"--limit", "5",
 		"--output", "json")
-	
+
 	searchOutput, err := searchCmd.Output()
 	if err != nil {
 		// Qdrant search failed - return empty matches rather than error
 		// This allows the analysis to continue with other methods
 		return matches, nil
 	}
-	
+
 	// Parse Qdrant search results
 	var searchResults QdrantSearchResults
 	if err := json.Unmarshal(searchOutput, &searchResults); err != nil {
 		return matches, fmt.Errorf("failed to parse qdrant results: %w", err)
 	}
-	
+
 	// Convert to our format
 	for _, result := range searchResults.Matches {
 		if result.Score > 0.7 { // Only include high-confidence matches
@@ -904,14 +1603,14 @@ func findSimilarScenariosQdrant(description string, existingScenarios []string) 
 			})
 		}
 	}
-	
+
 	return matches, nil
 }
 
 // Helper functions for analysis
 func getHeuristicPredictions(description string) []map[string]interface{} {
 	var predictions []map[string]interface{}
-	
+
 	heuristics := map[string][]string{
 		"postgres": {"data", "database", "store", "persist", "sql", "table"},
 		"redis":    {"cache", "session", "temporary", "fast", "memory"},
@@ -920,22 +1619,22 @@ func getHeuristicPredictions(description string) []map[string]interface{} {
 		"qdrant":   {"vector", "semantic", "search", "similarity", "embedding"},
 		"minio":    {"file", "upload", "storage", "document", "asset", "image"},
 	}
-	
+
 	for resource, keywords := range heuristics {
 		confidence := 0.0
 		matches := 0
-		
+
 		for _, keyword := range keywords {
 			if strings.Contains(description, keyword) {
 				matches++
 				confidence += 0.1
 			}
 		}
-		
+
 		if confidence > 0 {
 			// Normalize confidence based on number of matches
 			confidence = math.Min(confidence, 0.8)
-			
+
 			predictions = append(predictions, map[string]interface{}{
 				"resource_name": resource,
 				"confidence":    confidence,
@@ -943,34 +1642,34 @@ func getHeuristicPredictions(description string) []map[string]interface{} {
 			})
 		}
 	}
-	
+
 	return predictions
 }
 
 func deduplicateResources(resources []map[string]interface{}) []map[string]interface{} {
 	seen := make(map[string]float64)
 	var deduplicated []map[string]interface{}
-	
+
 	for _, resource := range resources {
 		name := resource["resource_name"].(string)
 		confidence := resource["confidence"].(float64)
-		
+
 		if existingConfidence, exists := seen[name]; !exists || confidence > existingConfidence {
 			seen[name] = confidence
 		}
 	}
-	
+
 	// Rebuild array with highest confidence for each resource
 	for _, resource := range resources {
 		name := resource["resource_name"].(string)
 		confidence := resource["confidence"].(float64)
-		
+
 		if seen[name] == confidence {
 			deduplicated = append(deduplicated, resource)
 			delete(seen, name) // Prevent duplicates
 		}
 	}
-	
+
 	return deduplicated
 }
 
@@ -978,12 +1677,12 @@ func calculateResourceConfidence(predictions []map[string]interface{}) float64 {
 	if len(predictions) == 0 {
 		return 0.0
 	}
-	
+
 	totalConfidence := 0.0
 	for _, pred := range predictions {
 		totalConfidence += pred["confidence"].(float64)
 	}
-	
+
 	return math.Min(totalConfidence/float64(len(predictions)), 1.0)
 }
 
@@ -991,14 +1690,14 @@ func calculateScenarioConfidence(patterns []map[string]interface{}) float64 {
 	if len(patterns) == 0 {
 		return 0.0
 	}
-	
+
 	totalSimilarity := 0.0
 	for _, pattern := range patterns {
 		if sim, ok := pattern["similarity"].(float64); ok {
 			totalSimilarity += sim
 		}
 	}
-	
+
 	return math.Min(totalSimilarity/float64(len(patterns)), 1.0)
 }
 
@@ -1024,16 +1723,16 @@ type QdrantMatch struct {
 func parseClaudeCodeResponse(response, originalDescription string) *ClaudeCodeAnalysis {
 	// Parse Claude Code response and extract structured dependency predictions
 	// This is a simplified implementation - in practice, you'd parse the AI response more sophisticatedly
-	
+
 	analysis := &ClaudeCodeAnalysis{
 		PredictedResources: []map[string]interface{}{},
 		Recommendations:    []map[string]interface{}{},
 		ArchitectureNotes:  response,
 	}
-	
+
 	// Extract resource mentions from Claude's response
 	responseText := strings.ToLower(response)
-	
+
 	resourcePatterns := map[string]float64{
 		"postgres":   0.8,
 		"postgresql": 0.8,
@@ -1049,7 +1748,7 @@ func parseClaudeCodeResponse(response, originalDescription string) *ClaudeCodeAn
 		"minio":      0.8,
 		"storage":    0.5,
 	}
-	
+
 	for pattern, confidence := range resourcePatterns {
 		if strings.Contains(responseText, pattern) {
 			// Map patterns to actual resource names
@@ -1063,7 +1762,7 @@ func parseClaudeCodeResponse(response, originalDescription string) *ClaudeCodeAn
 			}
 		}
 	}
-	
+
 	return analysis
 }
 
@@ -1083,7 +1782,7 @@ func mapPatternToResource(pattern string) string {
 		"minio":      "minio",
 		"storage":    "minio",
 	}
-	
+
 	return resourceMap[pattern]
 }
 
@@ -1112,16 +1811,16 @@ func main() {
 	}
 
 	config := loadConfig()
-	
+
 	// Initialize database
 	if err := initDatabase(config.DatabaseURL); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.Close()
-	
+
 	// Initialize Gin router
 	router := gin.Default()
-	
+
 	// Add CORS support
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -1129,7 +1828,7 @@ func main() {
 		AllowedHeaders: []string{"*"},
 	})
 	handler := c.Handler(router)
-	
+
 	// Health endpoints
 	router.GET("/health", healthHandler)
 	router.GET("/api/v1/health/analysis", func(c *gin.Context) {
@@ -1143,23 +1842,26 @@ func main() {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"status": "healthy",
+			"status":       "healthy",
 			"capabilities": []string{"dependency_analysis", "graph_generation"},
 		})
 	})
-	
+
 	// API routes
 	api := router.Group("/api/v1")
 	{
+		api.GET("/scenarios", listScenariosHandler)
+		api.GET("/scenarios/:scenario", getScenarioDetailHandler)
 		api.GET("/analyze/:scenario", analyzeScenarioHandler)
 		api.GET("/scenarios/:scenario/dependencies", getDependenciesHandler)
+		api.POST("/scenarios/:scenario/scan", scanScenarioHandler)
 		api.GET("/graph/:type", getGraphHandler)
 		api.POST("/analyze/proposed", analyzeProposedHandler)
 	}
-	
+
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", config.Port)
 	log.Printf("Scenarios directory: %s", config.ScenariosDir)
-	
+
 	if err := http.ListenAndServe(":"+config.Port, handler); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
