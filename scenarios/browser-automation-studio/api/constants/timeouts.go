@@ -23,6 +23,10 @@ const (
 	// ElementAnalysisTimeout is used for element analysis operations that involve
 	// screenshot capture and DOM processing.
 	ElementAnalysisTimeout = 30 * time.Second
+
+	// ExecutionCompletionTimeout bounds how long the API will wait when callers
+	// set wait_for_completion=true on execution endpoints.
+	ExecutionCompletionTimeout = 2 * time.Minute
 )
 
 // Database Operation Timeouts

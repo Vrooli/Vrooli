@@ -33,47 +33,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store user accounts, API keys, and audit logs",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/applications.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Session storage, token blacklisting, and rate limiting",
-      "initialization": [
-        {
-          "file": "initialization/redis/config.lua",
-          "type": "script"
-        }
-      ]
-    },
-    "mailpit": {
-      "type": "mailpit",
-      "enabled": false,
-      "required": false,
-      "purpose": "Email sending for password reset and verification",
-      "fallback": "Log email content to console"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -120,17 +79,17 @@
       "description": "Initialize Scenario Authenticator",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/scenario-authenticator-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-authenticator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
           {
             "type": "cli",
             "command": "scenario-authenticator",
@@ -278,6 +237,49 @@
     "example_integration": {
       "api": "const isValid = await fetch(`http://localhost:${process.env.API_PORT}/api/v1/auth/validate`, { headers: { 'Authorization': `Bearer ${token}` } });",
       "cli": "scenario-authenticator token validate $TOKEN"
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store user accounts, API keys, and audit logs",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/applications.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Session storage, token blacklisting, and rate limiting",
+        "initialization": [
+          {
+            "file": "initialization/redis/config.lua",
+            "type": "script"
+          }
+        ]
+      },
+      "mailpit": {
+        "type": "mailpit",
+        "enabled": false,
+        "required": false,
+        "purpose": "Email sending for password reset and verification",
+        "fallback": "Log email content to console"
+      }
     }
   }
 }

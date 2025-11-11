@@ -68,6 +68,8 @@ type RestoreWorkflowVersionRequest struct {
 	ChangeDescription string `json:"change_description"`
 }
 
+const executionCompletionPollInterval = 250 * time.Millisecond
+
 type workflowVersionResponse struct {
 	Version           int            `json:"version"`
 	WorkflowID        uuid.UUID      `json:"workflow_id"`
@@ -162,11 +164,25 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	folderPath := r.URL.Query().Get("folder_path")
+	limit := 100
+	offset := 0
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	workflows, err := h.workflowService.ListWorkflows(ctx, folderPath, 100, 0)
+	workflows, err := h.workflowService.ListWorkflows(ctx, folderPath, limit, offset)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to list workflows")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_workflows"}))
@@ -423,10 +439,36 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]any{
+	response := map[string]any{
 		"execution_id": execution.ID,
 		"status":       execution.Status,
-	})
+	}
+
+	if req.WaitForCompletion {
+		waitCtx, waitCancel := context.WithTimeout(r.Context(), constants.ExecutionCompletionTimeout)
+		defer waitCancel()
+
+		finalExecution, waitErr := h.waitForExecutionCompletion(waitCtx, execution)
+		if waitErr != nil {
+			if errors.Is(waitErr, context.DeadlineExceeded) || errors.Is(waitErr, context.Canceled) {
+				h.respondError(w, ErrRequestTimeout.WithMessage("execution did not complete before wait_for_completion timeout"))
+				return
+			}
+			h.log.WithError(waitErr).WithField("execution_id", execution.ID).Error("Failed while waiting for execution completion")
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "wait_for_execution", "execution_id": execution.ID.String()}))
+			return
+		}
+
+		response["status"] = finalExecution.Status
+		if finalExecution.CompletedAt != nil {
+			response["completed_at"] = finalExecution.CompletedAt.UTC().Format(time.RFC3339Nano)
+		}
+		if finalExecution.Error.Valid {
+			response["error"] = finalExecution.Error.String
+		}
+	}
+
+	h.respondSuccess(w, http.StatusOK, response)
 }
 
 // ModifyWorkflow handles POST /api/v1/workflows/{id}/modify
@@ -512,10 +554,80 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, map[string]any{
+	response := map[string]any{
 		"execution_id": execution.ID,
 		"status":       execution.Status,
 		"workflow_id":  nil, // No persisted workflow for adhoc execution
 		"message":      "Adhoc workflow execution started successfully",
-	})
+	}
+
+	if req.WaitForCompletion {
+		waitCtx, waitCancel := context.WithTimeout(r.Context(), constants.ExecutionCompletionTimeout)
+		defer waitCancel()
+
+		finalExecution, waitErr := h.waitForExecutionCompletion(waitCtx, execution)
+		if waitErr != nil {
+			if errors.Is(waitErr, context.DeadlineExceeded) || errors.Is(waitErr, context.Canceled) {
+				h.respondError(w, ErrRequestTimeout.WithMessage("execution did not complete before wait_for_completion timeout"))
+				return
+			}
+			h.log.WithError(waitErr).WithField("execution_id", execution.ID).Error("Failed while waiting for adhoc execution completion")
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "wait_for_adhoc_execution", "execution_id": execution.ID.String()}))
+			return
+		}
+
+		response["status"] = finalExecution.Status
+		if finalExecution.CompletedAt != nil {
+			response["completed_at"] = finalExecution.CompletedAt.UTC().Format(time.RFC3339Nano)
+		}
+		if finalExecution.Error.Valid {
+			response["error"] = finalExecution.Error.String
+		}
+	}
+
+	h.respondSuccess(w, http.StatusOK, response)
+}
+
+var terminalExecutionStatuses = map[string]struct{}{
+	"completed": {},
+	"failed":    {},
+	"cancelled": {},
+}
+
+func isTerminalExecutionStatus(status string) bool {
+	if strings.TrimSpace(status) == "" {
+		return false
+	}
+	_, ok := terminalExecutionStatuses[strings.ToLower(status)]
+	return ok
+}
+
+func (h *Handler) waitForExecutionCompletion(ctx context.Context, execution *database.Execution) (*database.Execution, error) {
+	if execution == nil {
+		return nil, errors.New("execution cannot be nil")
+	}
+	if isTerminalExecutionStatus(execution.Status) {
+		return execution, nil
+	}
+
+	executionID := execution.ID
+	ticker := time.NewTicker(executionCompletionPollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-ticker.C:
+			pollCtx, cancel := context.WithTimeout(ctx, constants.DefaultRequestTimeout)
+			latest, err := h.workflowService.GetExecution(pollCtx, executionID)
+			cancel()
+			if err != nil {
+				return nil, err
+			}
+			if isTerminalExecutionStatus(latest.Status) {
+				return latest, nil
+			}
+		}
+	}
 }

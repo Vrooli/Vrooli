@@ -1,0 +1,507 @@
+package services
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/browserless/events"
+	"github.com/vrooli/browser-automation-studio/database"
+	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+)
+
+// ExecuteWorkflow executes a workflow
+func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+	// Verify workflow exists
+	workflow, err := s.repo.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		return nil, err
+	}
+
+	if workflow.ProjectID != nil {
+		if err := s.syncProjectWorkflows(ctx, *workflow.ProjectID); err != nil {
+			return nil, err
+		}
+		workflow, err = s.repo.GetWorkflow(ctx, workflowID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := s.ensureWorkflowChangeMetadata(ctx, workflow); err != nil {
+		return nil, err
+	}
+
+	execution := &database.Execution{
+		ID:              uuid.New(),
+		WorkflowID:      workflowID,
+		WorkflowVersion: workflow.Version,
+		Status:          "pending",
+		TriggerType:     "manual",
+		Parameters:      database.JSONMap(parameters),
+		StartedAt:       time.Now(),
+		Progress:        0,
+		CurrentStep:     "Initializing",
+	}
+
+	if err := s.repo.CreateExecution(ctx, execution); err != nil {
+		return nil, err
+	}
+
+	// Start async execution
+	s.startExecutionRunner(execution, workflow)
+
+	return execution, nil
+}
+
+// ExecuteAdhocWorkflow executes a workflow definition without persisting it to the database.
+// This is useful for testing scenarios where workflows should be ephemeral and not pollute
+// the database with test data. The workflow definition is validated and executed directly,
+// with execution records still persisted for telemetry and replay purposes.
+func (s *WorkflowService) ExecuteAdhocWorkflow(ctx context.Context, flowDefinition map[string]any, parameters map[string]any, name string) (*database.Execution, error) {
+	// Validate workflow definition structure
+	if flowDefinition == nil {
+		return nil, errors.New("flow_definition is required")
+	}
+
+	nodes, hasNodes := flowDefinition["nodes"]
+	if !hasNodes {
+		return nil, errors.New("flow_definition must contain 'nodes' array")
+	}
+
+	nodesArray, ok := nodes.([]interface{})
+	if !ok {
+		return nil, errors.New("'nodes' must be an array")
+	}
+
+	if len(nodesArray) == 0 {
+		return nil, errors.New("workflow must contain at least one node")
+	}
+
+	_, hasEdges := flowDefinition["edges"]
+	if !hasEdges {
+		return nil, errors.New("flow_definition must contain 'edges' array")
+	}
+
+	// Create ephemeral workflow (temporarily persisted to satisfy FK constraint)
+	// This workflow will be auto-deleted when execution is cleaned up (ON DELETE CASCADE)
+	// Add timestamp to name to avoid unique constraint violations on (name, folder_path)
+	ephemeralID := uuid.New()
+	ephemeralName := fmt.Sprintf("%s [adhoc-%s]", name, ephemeralID.String()[:8])
+
+	ephemeralWorkflow := &database.Workflow{
+		ID:             ephemeralID,
+		Name:           ephemeralName,
+		FlowDefinition: database.JSONMap(flowDefinition),
+		Version:        0, // Version 0 indicates adhoc/ephemeral workflow
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+		// ProjectID is intentionally nil - adhoc workflows have no project context
+	}
+
+	// Temporarily persist ephemeral workflow to satisfy executions.workflow_id FK constraint
+	// This allows executions table to maintain referential integrity while still being ephemeral
+	if err := s.repo.CreateWorkflow(ctx, ephemeralWorkflow); err != nil {
+		return nil, fmt.Errorf("failed to create ephemeral workflow: %w", err)
+	}
+
+	// Create execution record (persists for telemetry/replay)
+	execution := &database.Execution{
+		ID:              uuid.New(),
+		WorkflowID:      ephemeralWorkflow.ID, // Reference ephemeral workflow ID
+		WorkflowVersion: 0,                    // 0 indicates adhoc execution
+		Status:          "pending",
+		TriggerType:     "adhoc", // Special trigger type for ephemeral workflows
+		Parameters:      database.JSONMap(parameters),
+		StartedAt:       time.Now(),
+		Progress:        0,
+		CurrentStep:     "Initializing",
+	}
+
+	if err := s.repo.CreateExecution(ctx, execution); err != nil {
+		return nil, fmt.Errorf("failed to create execution: %w", err)
+	}
+
+	// Execute asynchronously (same pattern as normal workflow execution)
+	// The executeWorkflowAsync method works with any workflow struct,
+	// whether persisted or ephemeral
+	s.startExecutionRunner(execution, ephemeralWorkflow)
+
+	return execution, nil
+}
+
+// DescribeExecutionExport returns the current replay export status for an execution.
+func (s *WorkflowService) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*ExecutionExportPreview, error) {
+	execution, err := s.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, database.ErrNotFound) {
+			return nil, database.ErrNotFound
+		}
+		return nil, err
+	}
+
+	var workflow *database.Workflow
+	if wf, wfErr := s.repo.GetWorkflow(ctx, execution.WorkflowID); wfErr == nil {
+		workflow = wf
+	} else if !errors.Is(wfErr, database.ErrNotFound) {
+		return nil, wfErr
+	}
+
+	timeline, err := s.GetExecutionTimeline(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+
+	capturedFrames := len(timeline.Frames)
+	assetCount := 0
+	for _, frame := range timeline.Frames {
+		if frame.Screenshot != nil {
+			assetCount++
+		}
+		assetCount += len(frame.Artifacts)
+	}
+	totalDurationMs := 0
+	if timeline != nil {
+		for _, frame := range timeline.Frames {
+			if frame.TotalDurationMs > 0 {
+				totalDurationMs += frame.TotalDurationMs
+			} else if frame.DurationMs > 0 {
+				totalDurationMs += frame.DurationMs
+			}
+		}
+	}
+	specID := execution.ID.String()
+
+	if capturedFrames == 0 {
+		status := strings.ToLower(strings.TrimSpace(execution.Status))
+		previewStatus := "pending"
+		message := "Replay export pending – timeline frames not captured yet"
+		if status == "failed" {
+			previewStatus = "unavailable"
+			message = "Replay export unavailable – execution failed before capturing any steps"
+		} else if status == "completed" {
+			previewStatus = "unavailable"
+			message = "Replay export unavailable – workflow finished without timeline frames"
+		}
+		preview := &ExecutionExportPreview{
+			ExecutionID:         execution.ID,
+			SpecID:              specID,
+			Status:              previewStatus,
+			Message:             message,
+			CapturedFrameCount:  capturedFrames,
+			AvailableAssetCount: assetCount,
+			TotalDurationMs:     totalDurationMs,
+			Package:             nil,
+		}
+		if s.log != nil {
+			s.log.WithFields(logrus.Fields{
+				"execution_id":      execution.ID,
+				"workflow_id":       execution.WorkflowID,
+				"export_status":     previewStatus,
+				"captured_frames":   capturedFrames,
+				"available_assets":  assetCount,
+				"timeline_total_ms": totalDurationMs,
+			}).Debug("DescribeExecutionExport returning preview")
+		}
+		return preview, nil
+	}
+
+	exportPackage, err := BuildReplayMovieSpec(execution, workflow, timeline)
+	if err != nil {
+		return nil, err
+	}
+
+	frameCount := exportPackage.Summary.FrameCount
+	if frameCount == 0 {
+		frameCount = len(timeline.Frames)
+	}
+	message := fmt.Sprintf("Replay export ready (%d frames, %dms)", frameCount, exportPackage.Summary.TotalDurationMs)
+	assetCount = len(exportPackage.Assets)
+	if exportPackage.Summary.TotalDurationMs > 0 {
+		totalDurationMs = exportPackage.Summary.TotalDurationMs
+	}
+	if exportPackage.Execution.ExecutionID != uuid.Nil {
+		specID = exportPackage.Execution.ExecutionID.String()
+	}
+
+	preview := &ExecutionExportPreview{
+		ExecutionID:         execution.ID,
+		SpecID:              specID,
+		Status:              "ready",
+		Message:             message,
+		CapturedFrameCount:  frameCount,
+		AvailableAssetCount: assetCount,
+		TotalDurationMs:     totalDurationMs,
+		Package:             exportPackage,
+	}
+
+	if s.log != nil {
+		s.log.WithFields(logrus.Fields{
+			"execution_id":      execution.ID,
+			"workflow_id":       execution.WorkflowID,
+			"export_status":     "ready",
+			"captured_frames":   frameCount,
+			"available_assets":  assetCount,
+			"timeline_total_ms": totalDurationMs,
+		}).Debug("DescribeExecutionExport returning preview")
+	}
+
+	return preview, nil
+}
+
+// GetExecutionScreenshots gets screenshots for an execution
+func (s *WorkflowService) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error) {
+	return s.repo.GetExecutionScreenshots(ctx, executionID)
+}
+
+// GetExecution gets an execution by ID
+func (s *WorkflowService) GetExecution(ctx context.Context, id uuid.UUID) (*database.Execution, error) {
+	return s.repo.GetExecution(ctx, id)
+}
+
+// ListExecutions lists executions with optional workflow filtering
+func (s *WorkflowService) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {
+	return s.repo.ListExecutions(ctx, workflowID, limit, offset)
+}
+
+// StopExecution stops a running execution
+func (s *WorkflowService) StopExecution(ctx context.Context, executionID uuid.UUID) error {
+	// Get current execution
+	execution, err := s.repo.GetExecution(ctx, executionID)
+	if err != nil {
+		return err
+	}
+
+	// Only stop if currently running
+	if execution.Status != "running" && execution.Status != "pending" {
+		return nil // Already stopped/completed
+	}
+
+	// Signal the async runner to stop as early as possible
+	s.cancelExecutionByID(execution.ID)
+
+	// Update execution status
+	execution.Status = "cancelled"
+	now := time.Now()
+	execution.CompletedAt = &now
+
+	if err := s.repo.UpdateExecution(ctx, execution); err != nil {
+		return err
+	}
+
+	// Log the cancellation
+	logEntry := &database.ExecutionLog{
+		ExecutionID: execution.ID,
+		Level:       "info",
+		StepName:    "execution_cancelled",
+		Message:     "Execution cancelled by user request",
+	}
+	s.repo.CreateExecutionLog(ctx, logEntry)
+
+	// Broadcast cancellation
+	s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
+		Type:        "cancelled",
+		ExecutionID: execution.ID,
+		Status:      "cancelled",
+		Progress:    execution.Progress,
+		CurrentStep: execution.CurrentStep,
+		Message:     "Execution cancelled by user",
+	})
+
+	s.log.WithField("execution_id", executionID).Info("Execution stopped by user request")
+	return nil
+}
+
+// executeWorkflowAsync executes a workflow asynchronously
+func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *database.Execution, workflow *database.Workflow) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	defer s.cancelExecutionByID(execution.ID)
+
+	emitter := events.NewEmitter(s.wsHub, s.log)
+	s.log.WithFields(logrus.Fields{
+		"execution_id": execution.ID,
+		"workflow_id":  execution.WorkflowID,
+	}).Info("Starting async workflow execution")
+
+	persistenceCtx := context.Background()
+
+	// Update status to running and broadcast
+	execution.Status = "running"
+	if err := s.repo.UpdateExecution(persistenceCtx, execution); err != nil {
+		s.log.WithError(err).Error("Failed to update execution status to running")
+		return
+	}
+
+	s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
+		Type:        "progress",
+		ExecutionID: execution.ID,
+		Status:      "running",
+		Progress:    0,
+		CurrentStep: "Initializing",
+		Message:     "Workflow execution started",
+	})
+
+	if emitter != nil {
+		emitter.Emit(events.NewEvent(
+			events.EventExecutionStarted,
+			execution.ID,
+			execution.WorkflowID,
+			events.WithStatus("running"),
+			events.WithMessage("Workflow execution started"),
+			events.WithProgress(0),
+		))
+	}
+
+	err := s.browserless.ExecuteWorkflow(ctx, execution, workflow, emitter)
+	switch {
+	case err == nil:
+		execution.Status = "completed"
+		execution.Progress = 100
+		execution.CurrentStep = "Completed"
+		now := time.Now()
+		execution.CompletedAt = &now
+		execution.Result = database.JSONMap{
+			"success": true,
+			"message": "Workflow completed successfully",
+		}
+
+		s.log.WithField("execution_id", execution.ID).Info("Workflow execution completed successfully")
+
+		s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
+			Type:        "completed",
+			ExecutionID: execution.ID,
+			Status:      "completed",
+			Progress:    100,
+			CurrentStep: "Completed",
+			Message:     "Workflow completed successfully",
+			Data: map[string]any{
+				"success": true,
+				"result":  execution.Result,
+			},
+		})
+
+		if emitter != nil {
+			emitter.Emit(events.NewEvent(
+				events.EventExecutionCompleted,
+				execution.ID,
+				execution.WorkflowID,
+				events.WithStatus("completed"),
+				events.WithProgress(100),
+				events.WithMessage("Workflow completed successfully"),
+				events.WithPayload(map[string]any{
+					"result": execution.Result,
+				}),
+			))
+		}
+
+	case errors.Is(err, context.Canceled):
+		s.log.WithField("execution_id", execution.ID).Info("Workflow execution cancelled")
+		execution.Status = "cancelled"
+		execution.Error.Valid = false
+		now := time.Now()
+		execution.CompletedAt = &now
+
+		logEntry := &database.ExecutionLog{
+			ExecutionID: execution.ID,
+			Level:       "info",
+			StepName:    "execution_cancelled",
+			Message:     "Workflow execution cancelled",
+		}
+		s.repo.CreateExecutionLog(persistenceCtx, logEntry)
+
+		s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
+			Type:        "cancelled",
+			ExecutionID: execution.ID,
+			Status:      "cancelled",
+			Progress:    execution.Progress,
+			CurrentStep: execution.CurrentStep,
+			Message:     "Workflow execution cancelled",
+		})
+
+		if emitter != nil {
+			emitter.Emit(events.NewEvent(
+				events.EventExecutionCancelled,
+				execution.ID,
+				execution.WorkflowID,
+				events.WithStatus("cancelled"),
+				events.WithMessage("Workflow execution cancelled"),
+				events.WithProgress(execution.Progress),
+			))
+		}
+
+	default:
+		s.log.WithError(err).Error("Workflow execution failed")
+
+		execution.Status = "failed"
+		execution.Error.Valid = true
+		execution.Error.String = err.Error()
+		now := time.Now()
+		execution.CompletedAt = &now
+
+		logEntry := &database.ExecutionLog{
+			ExecutionID: execution.ID,
+			Level:       "error",
+			StepName:    "execution_failed",
+			Message:     "Workflow execution failed: " + err.Error(),
+		}
+		s.repo.CreateExecutionLog(persistenceCtx, logEntry)
+
+		s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
+			Type:        "failed",
+			ExecutionID: execution.ID,
+			Status:      "failed",
+			Progress:    execution.Progress,
+			CurrentStep: execution.CurrentStep,
+			Message:     "Workflow execution failed: " + err.Error(),
+		})
+
+		if emitter != nil {
+			emitter.Emit(events.NewEvent(
+				events.EventExecutionFailed,
+				execution.ID,
+				execution.WorkflowID,
+				events.WithStatus("failed"),
+				events.WithMessage(err.Error()),
+				events.WithProgress(execution.Progress),
+				events.WithPayload(map[string]any{
+					"current_step": execution.CurrentStep,
+					"error":        err.Error(),
+				}),
+			))
+		}
+	}
+
+	if err := s.repo.UpdateExecution(persistenceCtx, execution); err != nil {
+		s.log.WithError(err).Error("Failed to update final execution status")
+	}
+}
+
+func (s *WorkflowService) startExecutionRunner(execution *database.Execution, workflow *database.Workflow) {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.storeExecutionCancel(execution.ID, cancel)
+	go s.executeWorkflowAsync(ctx, execution, workflow)
+}
+
+func (s *WorkflowService) storeExecutionCancel(executionID uuid.UUID, cancel context.CancelFunc) {
+	if cancel == nil {
+		return
+	}
+	s.executionCancels.Store(executionID, cancel)
+}
+
+func (s *WorkflowService) cancelExecutionByID(executionID uuid.UUID) {
+	value, ok := s.executionCancels.LoadAndDelete(executionID)
+	if !ok {
+		return
+	}
+	if cancel, valid := value.(context.CancelFunc); valid && cancel != nil {
+		cancel()
+	}
+}

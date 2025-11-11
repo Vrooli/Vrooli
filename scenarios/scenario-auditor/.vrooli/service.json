@@ -35,21 +35,6 @@
       "description": "Auditing dashboard UI port"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Stores rule definitions, scan results, user preferences, and audit history",
-      "schema": "scenario_auditor"
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": true,
-      "description": "AI agent spawning for automated fix generation and rule creation"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -202,6 +187,23 @@
           "description": "Stop Vite dev server"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Stores rule definitions, scan results, user preferences, and audit history",
+        "schema": "scenario_auditor"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "description": "AI agent spawning for automated fix generation and rule creation"
+      }
     }
   }
 }

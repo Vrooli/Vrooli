@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -75,7 +76,7 @@ type Handler struct {
 
 const (
 	recordingUploadLimitBytes = 200 * 1024 * 1024 // 200MB
-	recordingImportTimeout    = 2 * 60 * 1000     // 2 minutes in milliseconds
+	recordingImportTimeout    = 2 * time.Minute
 )
 
 type workflowResponse struct {

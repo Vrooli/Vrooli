@@ -17,6 +17,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
+	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
 func TestExtractAIErrorMessage(t *testing.T) {
@@ -386,6 +387,47 @@ func TestDescribeExecutionExportPendingForRunningExecutions(t *testing.T) {
 	}
 }
 
+func TestStopExecutionCancelsRunner(t *testing.T) {
+	executionID := uuid.New()
+	repo := &timelineRepositoryMock{
+		execution: &database.Execution{
+			ID:          executionID,
+			WorkflowID:  uuid.New(),
+			Status:      "running",
+			StartedAt:   time.Now().Add(-time.Minute),
+			Progress:    50,
+			CurrentStep: "Navigate",
+		},
+	}
+
+	svc := newTestService(repo)
+	wasCancelled := false
+	svc.executionCancels.Store(executionID, context.CancelFunc(func() {
+		wasCancelled = true
+	}))
+
+	if err := svc.StopExecution(context.Background(), executionID); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if !wasCancelled {
+		t.Fatalf("expected cancel function to be invoked")
+	}
+
+	if repo.execution == nil {
+		t.Fatalf("expected repository execution to be updated")
+	}
+	if repo.execution.Status != "cancelled" {
+		t.Fatalf("expected status 'cancelled', got %q", repo.execution.Status)
+	}
+	if repo.execution.CompletedAt == nil {
+		t.Fatalf("expected CompletedAt to be set")
+	}
+	if len(repo.logs) == 0 {
+		t.Fatalf("expected cancellation log entry to be recorded")
+	}
+}
+
 func TestDescribeExecutionExportReadyIncludesMetrics(t *testing.T) {
 	executionID := uuid.New()
 	workflowID := uuid.New()
@@ -550,9 +592,12 @@ func newTestWorkflow(projectID uuid.UUID, version int) *database.Workflow {
 func newTestService(repo database.Repository) *WorkflowService {
 	logger := logrus.New()
 	logger.SetOutput(io.Discard)
+	hub := wsHub.NewHub(logger)
+	go hub.Run()
 	return &WorkflowService{
-		repo: repo,
-		log:  logger,
+		repo:  repo,
+		log:   logger,
+		wsHub: hub,
 	}
 }
 

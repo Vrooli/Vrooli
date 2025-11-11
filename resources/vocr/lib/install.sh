@@ -504,13 +504,15 @@ vocr::install::register() {
     # Add to service.json if it exists
     if [[ -f "${var_SERVICE_JSON_FILE}" ]]; then
         # Check if vocr already exists
-        if jq -e '.resources.vocr' "${var_SERVICE_JSON_FILE}" >/dev/null 2>&1; then
+        if jq -e '.dependencies.resources.vocr' "${var_SERVICE_JSON_FILE}" >/dev/null 2>&1; then
             log::info "VOCR already registered in service.json"
         else
             # Add vocr to service.json
             local tmp_file
             tmp_file=$(mktemp)
-            jq '.resources.vocr = {
+            jq '.dependencies |= (. // {})
+                | .dependencies.resources |= (. // {})
+                | .dependencies.resources.vocr = {
                 "enabled": true,
                 "category": "execution",
                 "display_name": "VOCR (Vision OCR)",
@@ -557,7 +559,8 @@ vocr::uninstall() {
     if [[ -f "${var_SERVICE_JSON_FILE}" ]]; then
         local tmp_file
         tmp_file=$(mktemp)
-        jq 'del(.resources.vocr)' "${var_SERVICE_JSON_FILE}" > "$tmp_file" && \
+        jq '.dependencies.resources |= (. // {})
+            | del(.dependencies.resources.vocr)' "${var_SERVICE_JSON_FILE}" > "$tmp_file" && \
         mv "$tmp_file" "${var_SERVICE_JSON_FILE}"
     fi
     

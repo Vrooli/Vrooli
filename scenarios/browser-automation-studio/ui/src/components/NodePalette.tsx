@@ -1,4 +1,4 @@
-import { Globe, MousePointer, MousePointer2, Keyboard, Command, Camera, Clock, Database, Code, Play, CheckCircle, TerminalSquare, KeySquare, ScrollText, ListFilter, Variable, Recycle, Crosshair, EyeOff, Hand, UploadCloud, PanelsTopLeft, GitBranch, RefreshCcw, Smartphone } from 'lucide-react';
+import { Globe, MousePointer, MousePointer2, Keyboard, Command, Camera, Clock, Database, Code, Play, CheckCircle, TerminalSquare, KeySquare, ScrollText, ListFilter, Variable, Recycle, Crosshair, EyeOff, Hand, UploadCloud, PanelsTopLeft, GitBranch, RefreshCcw, Smartphone, Touchpad } from 'lucide-react';
 
 const nodeTypes = [
   { type: 'navigate', label: 'Navigate', icon: Globe, color: 'text-blue-400', description: 'Navigate to URL or scenario' },
@@ -10,6 +10,7 @@ const nodeTypes = [
   { type: 'tabSwitch', label: 'Tab Switch', icon: PanelsTopLeft, color: 'text-violet-300', description: 'Switch between tabs or popups' },
   { type: 'scroll', label: 'Scroll', icon: ScrollText, color: 'text-amber-300', description: 'Scroll page, elements, or until visible' },
   { type: 'rotate', label: 'Rotate', icon: Smartphone, color: 'text-sky-300', description: 'Flip viewport orientation mid-run' },
+  { type: 'gesture', label: 'Gesture', icon: Touchpad, color: 'text-rose-300', description: 'Swipe, pinch, tap, or long-press' },
   { type: 'select', label: 'Select', icon: ListFilter, color: 'text-teal-300', description: 'Choose option(s) in dropdowns' },
   { type: 'uploadFile', label: 'Upload File', icon: UploadCloud, color: 'text-pink-300', description: 'Attach files to inputs' },
   { type: 'setVariable', label: 'Set Variable', icon: Variable, color: 'text-emerald-300', description: 'Store values for reuse' },

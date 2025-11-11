@@ -40,6 +40,7 @@ import FocusNode from './nodes/FocusNode';
 import BlurNode from './nodes/BlurNode';
 import ScrollNode from './nodes/ScrollNode';
 import RotateNode from './nodes/RotateNode';
+import GestureNode from './nodes/GestureNode';
 import SelectNode from './nodes/SelectNode';
 import SetVariableNode from './nodes/SetVariableNode';
 import UseVariableNode from './nodes/UseVariableNode';
@@ -66,6 +67,7 @@ const nodeTypes: NodeTypes = {
 	select: SelectNode,
 	uploadFile: UploadFileNode,
 	rotate: RotateNode,
+	gesture: GestureNode,
 	tabSwitch: TabSwitchNode,
   conditional: ConditionalNode,
   setVariable: SetVariableNode,

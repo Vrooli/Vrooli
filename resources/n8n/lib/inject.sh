@@ -312,7 +312,7 @@ n8n::import_workflow() {
         
         # Check service.json configuration
         if [[ -z "$duplicate_strategy" ]] && [[ -f ".vrooli/service.json" ]]; then
-            duplicate_strategy=$(jq -r '.resources.n8n.workflow_management.duplicate_strategy // empty' .vrooli/service.json 2>/dev/null || echo "")
+            duplicate_strategy=$(jq -r '.dependencies.resources.n8n.workflow_management.duplicate_strategy // empty' .vrooli/service.json 2>/dev/null || echo "")
         fi
         
         # Default to "auto" for intelligent handling

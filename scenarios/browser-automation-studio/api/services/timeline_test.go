@@ -13,10 +13,11 @@ import (
 )
 
 type timelineRepositoryMock struct {
-	execution *database.Execution
-	steps     []*database.ExecutionStep
-	artifacts []*database.ExecutionArtifact
-	logs      []*database.ExecutionLog
+	execution        *database.Execution
+	steps            []*database.ExecutionStep
+	artifacts        []*database.ExecutionArtifact
+	logs             []*database.ExecutionLog
+	executionUpdates []*database.Execution
 }
 
 // Project operations
@@ -90,6 +91,9 @@ func (m *timelineRepositoryMock) GetExecution(ctx context.Context, id uuid.UUID)
 	return nil, database.ErrNotFound
 }
 func (m *timelineRepositoryMock) UpdateExecution(ctx context.Context, execution *database.Execution) error {
+	clone := *execution
+	m.execution = &clone
+	m.executionUpdates = append(m.executionUpdates, &clone)
 	return nil
 }
 func (m *timelineRepositoryMock) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {
@@ -121,6 +125,8 @@ func (m *timelineRepositoryMock) GetExecutionScreenshots(ctx context.Context, ex
 
 // Log operations
 func (m *timelineRepositoryMock) CreateExecutionLog(ctx context.Context, log *database.ExecutionLog) error {
+	clone := *log
+	m.logs = append(m.logs, &clone)
 	return nil
 }
 func (m *timelineRepositoryMock) GetExecutionLogs(ctx context.Context, executionID uuid.UUID) ([]*database.ExecutionLog, error) {

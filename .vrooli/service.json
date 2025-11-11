@@ -108,7 +108,7 @@
         },
         {
           "name": "install-cli",
-          "run": "if [[ -f cli/install.sh ]]; then cli/install.sh; else echo '\u26a0\ufe0f  CLI installer not found, skipping'; fi",
+          "run": "if [[ -f cli/install.sh ]]; then cli/install.sh; else echo '⚠️  CLI installer not found, skipping'; fi",
           "description": "Install Vrooli CLI command"
         },
         {
@@ -128,12 +128,12 @@
         },
         {
           "name": "start-api",
-          "run": "if [[ -f api/start.sh ]]; then (PORT=$VROOLI_API_PORT api/start.sh >/dev/null 2>&1 &) && echo '\ud83d\ude80 Vrooli API started on port $VROOLI_API_PORT with native scenario management' || echo '\u26a0\ufe0f  Failed to start API'; else echo '\u26a0\ufe0f  API not found'; fi; true",
+          "run": "if [[ -f api/start.sh ]]; then (PORT=$VROOLI_API_PORT api/start.sh >/dev/null 2>&1 &) && echo '🚀 Vrooli API started on port $VROOLI_API_PORT with native scenario management' || echo '⚠️  Failed to start API'; else echo '⚠️  API not found'; fi; true",
           "description": "Start the Vrooli unified API server with built-in scenario management"
         },
         {
           "name": "start-orchestrator",
-          "run": "sleep 5 && echo '\ud83c\udfac Starting orchestrator...' && vrooli scenario start vrooli-orchestrator",
+          "run": "sleep 5 && echo '🎬 Starting orchestrator...' && vrooli scenario start vrooli-orchestrator",
           "description": "Start orchestrator after API is ready",
           "background": false
         }

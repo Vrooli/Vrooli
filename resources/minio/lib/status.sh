@@ -327,7 +327,7 @@ minio::status::check_vrooli_config() {
     
     # Check if MinIO is in the config using jq for proper JSON parsing
     # Try both possible locations in the config structure
-    if jq -e '.resources.minio.enabled == true or .services.storage.minio.enabled == true' "$config_file" >/dev/null 2>&1; then
+    if jq -e '.dependencies.resources.minio.enabled == true' "$config_file" >/dev/null 2>&1; then
         return 0
     fi
     

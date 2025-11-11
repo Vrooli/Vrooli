@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -19,14 +20,15 @@ import (
 
 // mockWorkflowServiceForWorkflows provides workflow service implementation for workflow handler tests
 type mockWorkflowServiceForWorkflows struct {
-	createWorkflowFn          func(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error)
-	getWorkflowFn             func(ctx context.Context, id uuid.UUID) (*database.Workflow, error)
-	deleteWorkflowFn          func(ctx context.Context, id uuid.UUID) error
-	listWorkflowsByProjectFn  func(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error)
-	executeWorkflowFn         func(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error)
-	listWorkflowsFn           func(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error)
-	updateWorkflowFn          func(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error)
-	modifyWorkflowFn          func(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error)
+	createWorkflowFn         func(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error)
+	getWorkflowFn            func(ctx context.Context, id uuid.UUID) (*database.Workflow, error)
+	deleteWorkflowFn         func(ctx context.Context, id uuid.UUID) error
+	listWorkflowsByProjectFn func(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error)
+	executeWorkflowFn        func(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error)
+	getExecutionFn           func(ctx context.Context, executionID uuid.UUID) (*database.Execution, error)
+	listWorkflowsFn          func(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error)
+	updateWorkflowFn         func(ctx context.Context, workflowID uuid.UUID, input services.WorkflowUpdateInput) (*database.Workflow, error)
+	modifyWorkflowFn         func(ctx context.Context, workflowID uuid.UUID, prompt string, currentFlow map[string]any) (*database.Workflow, error)
 }
 
 func (m *mockWorkflowServiceForWorkflows) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]any, aiPrompt string) (*database.Workflow, error) {
@@ -168,7 +170,10 @@ func (m *mockWorkflowServiceForWorkflows) DescribeExecutionExport(ctx context.Co
 	return nil, nil
 }
 func (m *mockWorkflowServiceForWorkflows) GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error) {
-	return nil, nil
+	if m.getExecutionFn != nil {
+		return m.getExecutionFn(ctx, executionID)
+	}
+	return &database.Execution{ID: executionID, Status: "completed"}, nil
 }
 func (m *mockWorkflowServiceForWorkflows) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {
 	return nil, nil
@@ -445,6 +450,98 @@ func TestExecuteWorkflow(t *testing.T) {
 
 		if _, ok := response["execution_id"]; !ok {
 			t.Error("response missing 'execution_id' field")
+		}
+	})
+
+	t.Run("wait_for_completion returns terminal status", func(t *testing.T) {
+		workflowID := uuid.New()
+		executionID := uuid.New()
+		completedAt := time.Now().UTC()
+		polls := 0
+		service := &mockWorkflowServiceForWorkflows{
+			executeWorkflowFn: func(ctx context.Context, wfID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+				if wfID != workflowID {
+					t.Fatalf("unexpected workflow id: %s", wfID)
+				}
+				return &database.Execution{ID: executionID, WorkflowID: wfID, Status: "pending"}, nil
+			},
+			getExecutionFn: func(ctx context.Context, execID uuid.UUID) (*database.Execution, error) {
+				if execID != executionID {
+					t.Fatalf("unexpected execution id: %s", execID)
+				}
+				polls++
+				if polls >= 2 {
+					return &database.Execution{
+						ID:          executionID,
+						WorkflowID:  workflowID,
+						Status:      "completed",
+						CompletedAt: &completedAt,
+					}, nil
+				}
+				return &database.Execution{ID: executionID, WorkflowID: workflowID, Status: "running"}, nil
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{"wait_for_completion": true}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/workflows/"+workflowID.String()+"/execute", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+		handler.ExecuteWorkflow(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+		}
+
+		var response map[string]any
+		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if response["status"] != "completed" {
+			t.Fatalf("expected completed status, got %v", response["status"])
+		}
+		completedAtValue, ok := response["completed_at"].(string)
+		if !ok {
+			t.Fatalf("expected completed_at string, got %T", response["completed_at"])
+		}
+		if completedAtValue != completedAt.UTC().Format(time.RFC3339Nano) {
+			t.Fatalf("expected completed_at %s, got %s", completedAt.UTC().Format(time.RFC3339Nano), completedAtValue)
+		}
+	})
+
+	t.Run("wait_for_completion respects request deadline", func(t *testing.T) {
+		workflowID := uuid.New()
+		executionID := uuid.New()
+		service := &mockWorkflowServiceForWorkflows{
+			executeWorkflowFn: func(ctx context.Context, wfID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
+				return &database.Execution{ID: executionID, WorkflowID: wfID, Status: "pending"}, nil
+			},
+			getExecutionFn: func(ctx context.Context, execID uuid.UUID) (*database.Execution, error) {
+				return &database.Execution{ID: execID, WorkflowID: workflowID, Status: "running"}, nil
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		reqBody := `{"wait_for_completion": true}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/workflows/"+workflowID.String()+"/execute", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+		defer cancel()
+		req = req.WithContext(timeoutCtx)
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", workflowID.String())
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		w := httptest.NewRecorder()
+		handler.ExecuteWorkflow(w, req)
+
+		if w.Code != http.StatusRequestTimeout {
+			t.Fatalf("expected status 408, got %d: %s", w.Code, w.Body.String())
 		}
 	})
 }
