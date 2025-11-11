@@ -14,6 +14,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
+	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
 const (
@@ -268,7 +269,7 @@ func clampPreviewViewport(value int) int {
 
 func (h *ScreenshotHandler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) {
 	var req previewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httpjson.Decode(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode preview request")
 		RespondError(w, ErrInvalidRequest)
 		return

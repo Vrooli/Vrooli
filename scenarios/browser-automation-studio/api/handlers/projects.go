@@ -2,12 +2,11 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -44,7 +43,7 @@ type ProjectWithStats struct {
 // CreateProject handles POST /api/v1/projects
 func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	var req CreateProjectRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode create project request")
 		h.respondError(w, ErrInvalidRequest)
 		return
@@ -68,6 +67,28 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	allowedRoot := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+	if allowedRoot == "" {
+		if cwd, cwdErr := os.Getwd(); cwdErr == nil {
+			allowedRoot = cwd
+		} else {
+			h.log.WithError(cwdErr).Error("Failed to resolve VROOLI_ROOT for folder validation")
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "resolve_project_root"}))
+			return
+		}
+	}
+	allowedRoot, err = filepath.Abs(allowedRoot)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to normalize VROOLI_ROOT for folder validation")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "normalize_project_root"}))
+		return
+	}
+
+	if !strings.HasPrefix(absPath, allowedRoot+string(os.PathSeparator)) && absPath != allowedRoot {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "folder_path", "error": "folder path must be inside project root"}))
+		return
+	}
+
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(absPath, 0755); err != nil {
 		h.log.WithError(err).WithField("folder_path", absPath).Error("Failed to create project directory")
@@ -79,12 +100,20 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Check if project with this name or folder path already exists
-	if existingProject, _ := h.workflowService.GetProjectByName(ctx, req.Name); existingProject != nil {
+	if existingProject, err := h.workflowService.GetProjectByName(ctx, req.Name); err != nil {
+		h.log.WithError(err).WithField("name", req.Name).Error("Failed to check project name uniqueness")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_by_name"}))
+		return
+	} else if existingProject != nil {
 		h.respondError(w, ErrProjectAlreadyExists.WithMessage("Project with this name already exists"))
 		return
 	}
 
-	if existingProject, _ := h.workflowService.GetProjectByFolderPath(ctx, absPath); existingProject != nil {
+	if existingProject, err := h.workflowService.GetProjectByFolderPath(ctx, absPath); err != nil {
+		h.log.WithError(err).WithField("folder_path", absPath).Error("Failed to check project folder uniqueness")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_by_folder"}))
+		return
+	} else if existingProject != nil {
 		h.respondError(w, ErrProjectAlreadyExists.WithMessage("Project with this folder path already exists"))
 		return
 	}
@@ -113,21 +142,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	// Parse pagination parameters
-	limit := 100 // default
-	offset := 0  // default
-
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
-			offset = parsedOffset
-		}
-	}
+	limit, offset := parsePaginationParams(r, defaultPageLimit, maxPageLimit)
 
 	projects, err := h.workflowService.ListProjects(ctx, limit, offset)
 	if err != nil {
@@ -136,12 +151,22 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get stats for each project
+	projectIDs := make([]uuid.UUID, 0, len(projects))
+	for _, project := range projects {
+		projectIDs = append(projectIDs, project.ID)
+	}
+
+	statsByProject, err := h.workflowService.GetProjectsStats(ctx, projectIDs)
+	if err != nil {
+		h.log.WithError(err).Error("Failed to get project stats in bulk")
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_stats"}))
+		return
+	}
+
 	projectsWithStats := make([]*ProjectWithStats, len(projects))
 	for i, project := range projects {
-		stats, err := h.workflowService.GetProjectStats(ctx, project.ID)
-		if err != nil {
-			h.log.WithError(err).WithField("project_id", project.ID).Warn("Failed to get project stats")
+		stats, ok := statsByProject[project.ID]
+		if !ok {
 			stats = make(map[string]any)
 		}
 
@@ -200,7 +225,7 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req UpdateProjectRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode update project request")
 		h.respondError(w, ErrInvalidRequest)
 		return
@@ -311,7 +336,7 @@ func (h *Handler) BulkDeleteProjectWorkflows(w http.ResponseWriter, r *http.Requ
 	}
 
 	var req BulkDeleteProjectWorkflowsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).WithField("project_id", projectID).Error("Failed to decode bulk delete request")
 		h.respondError(w, ErrInvalidRequest)
 		return

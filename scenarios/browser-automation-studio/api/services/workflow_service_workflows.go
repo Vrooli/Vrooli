@@ -96,14 +96,8 @@ func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, project
 func (s *WorkflowService) ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
 	// When no specific folder is requested we eagerly synchronize every project so filesystem edits are reflected.
 	if strings.TrimSpace(folderPath) == "" {
-		projects, err := s.repo.ListProjects(ctx, 1000, 0)
-		if err != nil {
+		if err := s.syncProjectsForWorkflowListing(ctx); err != nil {
 			return nil, err
-		}
-		for _, project := range projects {
-			if err := s.syncProjectWorkflows(ctx, project.ID); err != nil {
-				s.log.WithError(err).WithField("project_id", project.ID).Warn("Failed to synchronize workflows before listing")
-			}
 		}
 	}
 	workflows, err := s.repo.ListWorkflows(ctx, folderPath, limit, offset)
@@ -119,6 +113,47 @@ func (s *WorkflowService) ListWorkflows(ctx context.Context, folderPath string, 
 		}
 	}
 	return workflows, nil
+}
+
+func (s *WorkflowService) syncProjectsForWorkflowListing(ctx context.Context) error {
+	projects, err := s.repo.ListProjects(ctx, 1000, 0)
+	if err != nil {
+		return err
+	}
+	for _, project := range projects {
+		if project == nil || project.ID == uuid.Nil {
+			continue
+		}
+		if !s.shouldSyncProject(project.ID) {
+			continue
+		}
+		if err := s.syncProjectWorkflows(ctx, project.ID); err != nil {
+			if s.log != nil {
+				s.log.WithError(err).WithField("project_id", project.ID).Warn("Failed to synchronize workflows before listing")
+			}
+			continue
+		}
+		s.recordProjectSync(project.ID)
+	}
+	return nil
+}
+
+func (s *WorkflowService) shouldSyncProject(projectID uuid.UUID) bool {
+	if projectID == uuid.Nil {
+		return false
+	}
+	if value, ok := s.projectSyncTimes.Load(projectID); ok {
+		if last, ok := value.(time.Time); ok {
+			if time.Since(last) < projectSyncCooldown {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (s *WorkflowService) recordProjectSync(projectID uuid.UUID) {
+	s.projectSyncTimes.Store(projectID, time.Now())
 }
 
 // GetWorkflow gets a workflow by ID

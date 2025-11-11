@@ -15,6 +15,26 @@ import (
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
+var (
+	terminalExecutionStatuses = map[string]struct{}{
+		"completed": {},
+		"failed":    {},
+		"cancelled": {},
+	}
+	adhocExecutionCleanupInterval = 5 * time.Second
+	adhocExecutionRetentionPeriod = 10 * time.Minute
+	adhocExecutionCleanupTimeout  = 6 * time.Hour
+)
+
+// IsTerminalExecutionStatus reports whether the supplied status represents a terminal execution state.
+func IsTerminalExecutionStatus(status string) bool {
+	if strings.TrimSpace(status) == "" {
+		return false
+	}
+	_, ok := terminalExecutionStatuses[strings.ToLower(status)]
+	return ok
+}
+
 // ExecuteWorkflow executes a workflow
 func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.Execution, error) {
 	// Verify workflow exists
@@ -131,8 +151,65 @@ func (s *WorkflowService) ExecuteAdhocWorkflow(ctx context.Context, flowDefiniti
 	// The executeWorkflowAsync method works with any workflow struct,
 	// whether persisted or ephemeral
 	s.startExecutionRunner(execution, ephemeralWorkflow)
+	go s.scheduleAdhocWorkflowCleanup(ephemeralWorkflow.ID, execution.ID)
 
 	return execution, nil
+}
+
+func (s *WorkflowService) scheduleAdhocWorkflowCleanup(workflowID, executionID uuid.UUID) {
+	if s == nil || s.repo == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), adhocExecutionCleanupTimeout)
+	defer cancel()
+
+	ticker := time.NewTicker(adhocExecutionCleanupInterval)
+	defer ticker.Stop()
+
+	var terminalObservedAt time.Time
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+
+		execution, err := s.repo.GetExecution(ctx, executionID)
+		if err != nil {
+			if errors.Is(err, database.ErrNotFound) {
+				terminalObservedAt = time.Now()
+				break
+			}
+			if s.log != nil {
+				s.log.WithError(err).WithField("execution_id", executionID).Warn("adhoc cleanup: unable to load execution status")
+			}
+			continue
+		}
+		if execution == nil {
+			terminalObservedAt = time.Now()
+			break
+		}
+		if IsTerminalExecutionStatus(execution.Status) {
+			if terminalObservedAt.IsZero() {
+				terminalObservedAt = time.Now()
+			}
+			if time.Since(terminalObservedAt) >= adhocExecutionRetentionPeriod {
+				break
+			}
+			continue
+		}
+		terminalObservedAt = time.Time{}
+	}
+
+	cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cleanupCancel()
+	if err := s.repo.DeleteExecution(cleanupCtx, executionID); err != nil && s.log != nil {
+		s.log.WithError(err).WithField("execution_id", executionID).Warn("adhoc cleanup: failed to delete execution")
+	}
+	if err := s.repo.DeleteWorkflow(cleanupCtx, workflowID); err != nil && s.log != nil {
+		s.log.WithError(err).WithField("workflow_id", workflowID).Warn("adhoc cleanup: failed to delete workflow")
+	}
 }
 
 // DescribeExecutionExport returns the current replay export status for an execution.
@@ -301,7 +378,9 @@ func (s *WorkflowService) StopExecution(ctx context.Context, executionID uuid.UU
 		StepName:    "execution_cancelled",
 		Message:     "Execution cancelled by user request",
 	}
-	s.repo.CreateExecutionLog(ctx, logEntry)
+	if err := s.repo.CreateExecutionLog(ctx, logEntry); err != nil && s.log != nil {
+		s.log.WithError(err).WithField("execution_id", execution.ID).Warn("Failed to persist cancellation log entry")
+	}
 
 	// Broadcast cancellation
 	s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
@@ -414,7 +493,9 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 			StepName:    "execution_cancelled",
 			Message:     "Workflow execution cancelled",
 		}
-		s.repo.CreateExecutionLog(persistenceCtx, logEntry)
+		if err := s.repo.CreateExecutionLog(persistenceCtx, logEntry); err != nil && s.log != nil {
+			s.log.WithError(err).WithField("execution_id", execution.ID).Warn("Failed to persist cancellation log entry")
+		}
 
 		s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
 			Type:        "cancelled",
@@ -451,7 +532,9 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 			StepName:    "execution_failed",
 			Message:     "Workflow execution failed: " + err.Error(),
 		}
-		s.repo.CreateExecutionLog(persistenceCtx, logEntry)
+		if persistErr := s.repo.CreateExecutionLog(persistenceCtx, logEntry); persistErr != nil && s.log != nil {
+			s.log.WithError(persistErr).WithField("execution_id", execution.ID).Warn("Failed to persist failure log entry")
+		}
 
 		s.wsHub.BroadcastUpdate(wsHub.ExecutionUpdate{
 			Type:        "failed",

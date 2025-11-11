@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -113,7 +111,7 @@ func jsonMapToStd(m database.JSONMap) map[string]any {
 // CreateWorkflow handles POST /api/v1/workflows/create
 func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	var req CreateWorkflowRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode create workflow request")
 		h.respondError(w, ErrInvalidRequest)
 		return
@@ -164,20 +162,7 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	folderPath := r.URL.Query().Get("folder_path")
-	limit := 100
-	offset := 0
-
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
-			offset = parsedOffset
-		}
-	}
+	limit, offset := parsePaginationParams(r, defaultPageLimit, maxPageLimit)
 
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
@@ -226,7 +211,7 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req UpdateWorkflowRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).WithField("workflow_id", id).Error("Failed to decode update workflow request")
 		h.respondError(w, ErrInvalidRequest)
 		return
@@ -371,11 +356,9 @@ func (h *Handler) RestoreWorkflowVersion(w http.ResponseWriter, r *http.Request)
 	}
 
 	var req RestoreWorkflowVersionRequest
-	if r.Body != nil {
-		if decodeErr := json.NewDecoder(r.Body).Decode(&req); decodeErr != nil && !errors.Is(decodeErr, io.EOF) {
-			h.respondError(w, ErrInvalidRequest.WithMessage("Invalid restore payload"))
-			return
-		}
+	if err := decodeJSONBodyAllowEmpty(w, r, &req); err != nil {
+		h.respondError(w, ErrInvalidRequest.WithMessage("Invalid restore payload"))
+		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
@@ -420,7 +403,7 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req ExecuteWorkflowRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode execute workflow request")
 		h.respondError(w, ErrInvalidRequest)
 		return
@@ -481,7 +464,7 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req ModifyWorkflowRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode modify workflow request")
 		h.respondError(w, ErrInvalidRequest)
 		return
@@ -516,7 +499,7 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 // It is particularly useful for testing scenarios where workflow pollution should be avoided.
 func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	var req ExecuteAdhocWorkflowRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeJSONBody(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode adhoc workflow request")
 		h.respondError(w, ErrInvalidRequest)
 		return
@@ -588,25 +571,11 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	h.respondSuccess(w, http.StatusOK, response)
 }
 
-var terminalExecutionStatuses = map[string]struct{}{
-	"completed": {},
-	"failed":    {},
-	"cancelled": {},
-}
-
-func isTerminalExecutionStatus(status string) bool {
-	if strings.TrimSpace(status) == "" {
-		return false
-	}
-	_, ok := terminalExecutionStatuses[strings.ToLower(status)]
-	return ok
-}
-
 func (h *Handler) waitForExecutionCompletion(ctx context.Context, execution *database.Execution) (*database.Execution, error) {
 	if execution == nil {
 		return nil, errors.New("execution cannot be nil")
 	}
-	if isTerminalExecutionStatus(execution.Status) {
+	if services.IsTerminalExecutionStatus(execution.Status) {
 		return execution, nil
 	}
 
@@ -625,7 +594,7 @@ func (h *Handler) waitForExecutionCompletion(ctx context.Context, execution *dat
 			if err != nil {
 				return nil, err
 			}
-			if isTerminalExecutionStatus(latest.Status) {
+			if services.IsTerminalExecutionStatus(latest.Status) {
 				return latest, nil
 			}
 		}

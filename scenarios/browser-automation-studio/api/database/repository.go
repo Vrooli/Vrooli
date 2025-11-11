@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -22,6 +23,7 @@ type Repository interface {
 	DeleteProject(ctx context.Context, id uuid.UUID) error
 	ListProjects(ctx context.Context, limit, offset int) ([]*Project, error)
 	GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error)
+	GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*ProjectStats, error)
 
 	// Workflow operations
 	CreateWorkflow(ctx context.Context, workflow *Workflow) error
@@ -41,6 +43,7 @@ type Repository interface {
 	CreateExecution(ctx context.Context, execution *Execution) error
 	GetExecution(ctx context.Context, id uuid.UUID) (*Execution, error)
 	UpdateExecution(ctx context.Context, execution *Execution) error
+	DeleteExecution(ctx context.Context, id uuid.UUID) error
 	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*Execution, error)
 	CreateExecutionStep(ctx context.Context, step *ExecutionStep) error
 	UpdateExecutionStep(ctx context.Context, step *ExecutionStep) error
@@ -123,6 +126,9 @@ func (r *repository) GetProjectByName(ctx context.Context, name string) (*Projec
 	var project Project
 	err := r.db.GetContext(ctx, &project, query, name)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		r.log.WithError(err).WithField("name", name).Error("Failed to get project by name")
 		return nil, fmt.Errorf("failed to get project by name: %w", err)
 	}
@@ -136,6 +142,9 @@ func (r *repository) GetProjectByFolderPath(ctx context.Context, folderPath stri
 	var project Project
 	err := r.db.GetContext(ctx, &project, query, folderPath)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		r.log.WithError(err).WithField("folder_path", folderPath).Error("Failed to get project by folder path")
 		return nil, fmt.Errorf("failed to get project by folder path: %w", err)
 	}
@@ -257,6 +266,52 @@ func (r *repository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (
 	return stats, nil
 }
 
+func (r *repository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*ProjectStats, error) {
+	results := make(map[uuid.UUID]*ProjectStats, len(projectIDs))
+	if len(projectIDs) == 0 {
+		return results, nil
+	}
+
+	query := `
+WITH workflow_counts AS (
+	SELECT project_id, COUNT(*) AS workflow_count
+	FROM workflows
+	WHERE project_id = ANY($1)
+	GROUP BY project_id
+), execution_stats AS (
+	SELECT w.project_id,
+	       COUNT(e.*) AS execution_count,
+	       MAX(e.started_at) AS last_execution
+	FROM workflows w
+	LEFT JOIN executions e ON e.workflow_id = w.id
+	WHERE w.project_id = ANY($1)
+	GROUP BY w.project_id
+)
+SELECT p.id AS project_id,
+	COALESCE(wc.workflow_count, 0) AS workflow_count,
+	COALESCE(es.execution_count, 0) AS execution_count,
+	es.last_execution
+FROM projects p
+LEFT JOIN workflow_counts wc ON wc.project_id = p.id
+LEFT JOIN execution_stats es ON es.project_id = p.id
+WHERE p.id = ANY($1)`
+
+	var rows []*ProjectStats
+	if err := r.db.SelectContext(ctx, &rows, query, pq.Array(projectIDs)); err != nil {
+		r.log.WithError(err).Error("Failed to get bulk project stats")
+		return nil, fmt.Errorf("failed to get bulk project stats: %w", err)
+	}
+
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		results[row.ProjectID] = row
+	}
+
+	return results, nil
+}
+
 func (r *repository) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*Workflow, error) {
 	query := `SELECT * FROM workflows WHERE project_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 
@@ -302,6 +357,9 @@ func (r *repository) GetWorkflow(ctx context.Context, id uuid.UUID) (*Workflow, 
 	var workflow Workflow
 	err := r.db.GetContext(ctx, &workflow, query, id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		r.log.WithError(err).WithField("id", id).Error("Failed to get workflow")
 		return nil, fmt.Errorf("failed to get workflow: %w", err)
 	}
@@ -315,6 +373,9 @@ func (r *repository) GetWorkflowByName(ctx context.Context, name, folderPath str
 	var workflow Workflow
 	err := r.db.GetContext(ctx, &workflow, query, name, folderPath)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		r.log.WithError(err).WithFields(logrus.Fields{
 			"name":       name,
 			"folderPath": folderPath,
@@ -331,6 +392,9 @@ func (r *repository) GetWorkflowByProjectAndName(ctx context.Context, projectID 
 	var workflow Workflow
 	err := r.db.GetContext(ctx, &workflow, query, projectID, name)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		r.log.WithError(err).WithFields(logrus.Fields{
 			"project_id": projectID,
 			"name":       name,
@@ -497,6 +561,9 @@ func (r *repository) GetExecution(ctx context.Context, id uuid.UUID) (*Execution
 	var execution Execution
 	err := r.db.GetContext(ctx, &execution, query, id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		r.log.WithError(err).WithField("id", id).Error("Failed to get execution")
 		return nil, fmt.Errorf("failed to get execution: %w", err)
 	}
@@ -515,6 +582,18 @@ func (r *repository) UpdateExecution(ctx context.Context, execution *Execution) 
 	if err != nil {
 		r.log.WithError(err).WithField("id", execution.ID).Error("Failed to update execution")
 		return fmt.Errorf("failed to update execution: %w", err)
+	}
+
+	return nil
+}
+
+func (r *repository) DeleteExecution(ctx context.Context, id uuid.UUID) error {
+	query := `DELETE FROM executions WHERE id = $1`
+
+	_, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		r.log.WithError(err).WithField("id", id).Error("Failed to delete execution")
+		return fmt.Errorf("failed to delete execution: %w", err)
 	}
 
 	return nil

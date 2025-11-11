@@ -70,6 +70,9 @@ func (m *healthMockRepository) ListWorkflowsByProject(ctx context.Context, proje
 func (m *healthMockRepository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
 	return nil, nil
 }
+func (m *healthMockRepository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*database.ProjectStats, error) {
+	return nil, nil
+}
 func (m *healthMockRepository) CreateWorkflowVersion(ctx context.Context, version *database.WorkflowVersion) error {
 	return nil
 }
@@ -86,6 +89,9 @@ func (m *healthMockRepository) GetExecution(ctx context.Context, executionID uui
 	return nil, nil
 }
 func (m *healthMockRepository) UpdateExecution(ctx context.Context, execution *database.Execution) error {
+	return nil
+}
+func (m *healthMockRepository) DeleteExecution(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 func (m *healthMockRepository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {

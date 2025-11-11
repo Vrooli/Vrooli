@@ -17,6 +17,8 @@ import (
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
+const globalRequestTimeout = 15 * time.Minute
+
 func main() {
 	// Protect against direct execution - must be run through lifecycle system
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
@@ -103,8 +105,11 @@ func main() {
 	// Initialize browserless client
 	browserlessClient := browserless.NewClient(log, repo)
 
+	// Resolve allowed origins before constructing handlers
+	corsCfg := resolveAllowedOrigins()
+
 	// Initialize handlers
-	handler := handlers.NewHandler(repo, browserlessClient, hub, log)
+	handler := handlers.NewHandler(repo, browserlessClient, hub, log, corsCfg.allowAll, corsCfg.allowedOrigins)
 
 	// Get port configuration - required from lifecycle system
 	port := os.Getenv("API_PORT")
@@ -118,7 +123,7 @@ func main() {
 	// Middleware
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(middleware.Timeout(60 * time.Second))
+	r.Use(middleware.Timeout(globalRequestTimeout))
 
 	// CORS middleware - secure by default, configurable via environment
 	r.Use(corsMiddleware(log))
@@ -194,7 +199,6 @@ func main() {
 		apiHost = "localhost"
 	}
 
-	corsCfg := resolveAllowedOrigins()
 	corsPolicy := "restricted"
 	if corsCfg.allowAll {
 		corsPolicy = "allow_all"

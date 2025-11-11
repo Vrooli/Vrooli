@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,6 +13,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/browserless"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers/ai"
+	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/services"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -42,6 +41,7 @@ type WorkflowService interface {
 	CreateProject(ctx context.Context, project *database.Project) error
 	ListProjects(ctx context.Context, limit, offset int) ([]*database.Project, error)
 	GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error)
+	GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error)
 	GetProject(ctx context.Context, projectID uuid.UUID) (*database.Project, error)
 	UpdateProject(ctx context.Context, project *database.Project) error
 	DeleteProject(ctx context.Context, projectID uuid.UUID) error
@@ -66,6 +66,8 @@ type Handler struct {
 	replayRenderer   replayRenderer
 	log              *logrus.Logger
 	upgrader         websocket.Upgrader
+	wsAllowAll       bool
+	wsAllowedOrigins []string
 
 	// AI subhandlers
 	screenshotHandler      *ai.ScreenshotHandler
@@ -98,17 +100,19 @@ type HealthResponse struct {
 }
 
 // NewHandler creates a new handler instance
-func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub *wsHub.Hub, log *logrus.Logger) *Handler {
+func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub *wsHub.Hub, log *logrus.Logger, allowAllOrigins bool, allowedOrigins []string) *Handler {
 	// Initialize MinIO client for screenshot serving
 	storageClient, err := storage.NewMinIOClient(log)
 	if err != nil {
 		log.WithError(err).Warn("Failed to initialize MinIO client for handlers - screenshot serving will be disabled")
 	}
 
-	recordingsRoot := resolveRecordingsRoot(log)
+	recordingsRoot := paths.ResolveRecordingsRoot(log)
 	recordingService := services.NewRecordingService(repo, storageClient, wsHub, log, recordingsRoot)
 	workflowSvc := services.NewWorkflowService(repo, browserless, wsHub, log)
 	replayRenderer := services.NewReplayRenderer(log, recordingsRoot)
+
+	allowedCopy := append([]string(nil), allowedOrigins...)
 
 	handler := &Handler{
 		workflowService:  workflowSvc,
@@ -120,13 +124,11 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 		recordingsRoot:   recordingsRoot,
 		replayRenderer:   replayRenderer,
 		log:              log,
-		upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				// Allow all origins for now - in production, validate origins properly
-				return true
-			},
-		},
+		wsAllowAll:       allowAllOrigins,
+		wsAllowedOrigins: allowedCopy,
+		upgrader:         websocket.Upgrader{},
 	}
+	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 
 	// Initialize AI subhandlers with dependencies
 	handler.domHandler = ai.NewDOMHandler(log)
@@ -135,6 +137,32 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 	handler.aiAnalysisHandler = ai.NewAIAnalysisHandler(log, handler.domHandler)
 
 	return handler
+}
+
+func (h *Handler) isOriginAllowed(r *http.Request) bool {
+	if h == nil {
+		return false
+	}
+	if h.wsAllowAll {
+		return true
+	}
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		// Non-browser clients may omit Origin; allow but log for audit trail
+		if h.log != nil {
+			h.log.Debug("Allowing websocket upgrade without Origin header")
+		}
+		return true
+	}
+	for _, allowed := range h.wsAllowedOrigins {
+		if strings.EqualFold(allowed, origin) {
+			return true
+		}
+	}
+	if h.log != nil {
+		h.log.WithField("origin", origin).Warn("Rejected websocket upgrade due to unauthorized origin")
+	}
+	return false
 }
 
 func newWorkflowResponse(workflow *database.Workflow) workflowResponse {
@@ -172,32 +200,6 @@ func normalizeWorkflowFlowDefinition(workflow *database.Workflow) ([]any, []any)
 	workflow.FlowDefinition["edges"] = edges
 
 	return nodes, edges
-}
-
-func resolveRecordingsRoot(log *logrus.Logger) string {
-	if value := strings.TrimSpace(os.Getenv("BAS_RECORDINGS_ROOT")); value != "" {
-		if abs, err := filepath.Abs(value); err == nil {
-			return abs
-		}
-		if log != nil {
-			log.WithField("path", value).Warn("Using BAS_RECORDINGS_ROOT without normalization")
-		}
-		return value
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		if log != nil {
-			log.WithError(err).Warn("Failed to resolve working directory for recordings root; using relative default")
-		}
-		return filepath.Join("scenarios", "browser-automation-studio", "data", "recordings")
-	}
-
-	root := filepath.Join(cwd, "scenarios", "browser-automation-studio", "data", "recordings")
-	if abs, err := filepath.Abs(root); err == nil {
-		root = abs
-	}
-	return root
 }
 
 func toInterfaceSlice(value any) []any {

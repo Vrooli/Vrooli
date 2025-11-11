@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"image"
+	_ "image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -109,6 +111,9 @@ func (m *MinIOClient) StoreScreenshot(ctx context.Context, executionID uuid.UUID
 	// Generate object name
 	objectName := fmt.Sprintf("screenshots/%s/%s-%s.png", executionID, stepName, uuid.New())
 
+	// Derive image dimensions before streaming to storage so replay UI can size thumbnails accurately.
+	width, height := decodeDimensions(data)
+
 	// Upload to MinIO
 	reader := bytes.NewReader(data)
 	_, err := m.client.PutObject(ctx, m.bucketName, objectName, reader, int64(len(data)), minio.PutObjectOptions{
@@ -129,21 +134,6 @@ func (m *MinIOClient) StoreScreenshot(ctx context.Context, executionID uuid.UUID
 	screenshotURL := fmt.Sprintf("/api/v1/screenshots/%s", objectName)
 	thumbnailURL := fmt.Sprintf("/api/v1/screenshots/thumbnail/%s", objectName)
 
-	// Get screenshot dimensions from environment or parse from image
-	// These would typically be parsed from the actual image data
-	width := 0
-	height := 0
-	if widthStr := os.Getenv("SCREENSHOT_DEFAULT_WIDTH"); widthStr != "" {
-		if w, err := strconv.Atoi(widthStr); err == nil {
-			width = w
-		}
-	}
-	if heightStr := os.Getenv("SCREENSHOT_DEFAULT_HEIGHT"); heightStr != "" {
-		if h, err := strconv.Atoi(heightStr); err == nil {
-			height = h
-		}
-	}
-
 	return &ScreenshotInfo{
 		URL:          screenshotURL,
 		ThumbnailURL: thumbnailURL,
@@ -151,6 +141,26 @@ func (m *MinIOClient) StoreScreenshot(ctx context.Context, executionID uuid.UUID
 		Width:        width,  // Should be parsed from actual image
 		Height:       height, // Should be parsed from actual image
 	}, nil
+}
+
+func decodeDimensions(payload []byte) (int, int) {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(payload))
+	if err == nil && cfg.Width > 0 && cfg.Height > 0 {
+		return cfg.Width, cfg.Height
+	}
+	width := 0
+	height := 0
+	if widthStr := os.Getenv("SCREENSHOT_DEFAULT_WIDTH"); widthStr != "" {
+		if w, convErr := strconv.Atoi(widthStr); convErr == nil {
+			width = w
+		}
+	}
+	if heightStr := os.Getenv("SCREENSHOT_DEFAULT_HEIGHT"); heightStr != "" {
+		if h, convErr := strconv.Atoi(heightStr); convErr == nil {
+			height = h
+		}
+	}
+	return width, height
 }
 
 // GetScreenshot retrieves a screenshot from MinIO

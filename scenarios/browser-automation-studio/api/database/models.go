@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,12 +33,16 @@ func (j *JSONMap) Scan(value any) error {
 		return nil
 	}
 
-	bytes, ok := value.([]byte)
-	if !ok {
-		return nil
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, j)
+	case string:
+		return json.Unmarshal([]byte(v), j)
+	case json.RawMessage:
+		return json.Unmarshal(v, j)
+	default:
+		return fmt.Errorf("jsonmap: unsupported scan type %T", value)
 	}
-
-	return json.Unmarshal(bytes, j)
 }
 
 // NullableString represents a nullable string in the database
@@ -74,6 +79,14 @@ type Project struct {
 	FolderPath  string    `json:"folder_path" db:"folder_path"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// ProjectStats captures aggregated metrics for a project.
+type ProjectStats struct {
+	ProjectID      uuid.UUID  `json:"project_id" db:"project_id"`
+	WorkflowCount  int        `json:"workflow_count" db:"workflow_count"`
+	ExecutionCount int        `json:"execution_count" db:"execution_count"`
+	LastExecution  *time.Time `json:"last_execution,omitempty" db:"last_execution"`
 }
 
 // WorkflowFolder represents a workflow organization folder

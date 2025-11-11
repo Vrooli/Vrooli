@@ -62,6 +62,16 @@ func (r *fakeRecordingRepo) CreateProject(ctx context.Context, project *database
 	return nil
 }
 
+func (r *fakeRecordingRepo) DeleteProject(ctx context.Context, id uuid.UUID) error {
+	delete(r.projects, id)
+	for name, project := range r.projectsByName {
+		if project.ID == id {
+			delete(r.projectsByName, name)
+		}
+	}
+	return nil
+}
+
 func (r *fakeRecordingRepo) GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error) {
 	if wf, ok := r.workflows[id]; ok {
 		return wf, nil
@@ -92,6 +102,15 @@ func (r *fakeRecordingRepo) CreateWorkflow(ctx context.Context, workflow *databa
 	return nil
 }
 
+func (r *fakeRecordingRepo) DeleteWorkflow(ctx context.Context, id uuid.UUID) error {
+	if wf, ok := r.workflows[id]; ok {
+		key := wf.Name + "::" + wf.FolderPath
+		delete(r.workflowsByName, key)
+	}
+	delete(r.workflows, id)
+	return nil
+}
+
 func (r *fakeRecordingRepo) CreateExecution(ctx context.Context, execution *database.Execution) error {
 	copy := *execution
 	r.executions[execution.ID] = &copy
@@ -101,6 +120,11 @@ func (r *fakeRecordingRepo) CreateExecution(ctx context.Context, execution *data
 func (r *fakeRecordingRepo) UpdateExecution(ctx context.Context, execution *database.Execution) error {
 	copy := *execution
 	r.executions[execution.ID] = &copy
+	return nil
+}
+
+func (r *fakeRecordingRepo) DeleteExecution(ctx context.Context, id uuid.UUID) error {
+	delete(r.executions, id)
 	return nil
 }
 

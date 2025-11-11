@@ -40,6 +40,26 @@ func TestExtractAIErrorMessage(t *testing.T) {
 	}
 }
 
+func TestIsTerminalExecutionStatus(t *testing.T) {
+	t.Parallel()
+	tests := map[string]bool{
+		"completed": true,
+		"FAILED":    true,
+		"cancelled": true,
+		"running":   false,
+		"":          false,
+	}
+	for status, expected := range tests {
+		status := status
+		t.Run(status, func(t *testing.T) {
+			t.Parallel()
+			if IsTerminalExecutionStatus(status) != expected {
+				t.Fatalf("expected %s terminal=%v", status, expected)
+			}
+		})
+	}
+}
+
 func TestNormalizeFlowDefinitionReturnsAIWorkflowError(t *testing.T) {
 	definition := map[string]any{
 		"error": "Cannot generate workflow using placeholder domain",
@@ -179,6 +199,25 @@ func TestSanitizeWorkflowDefinitionHandlesJSONMapData(t *testing.T) {
 	}
 	if previewValue["note"] != "keep" {
 		t.Fatalf("expected non-image preview data to persist, got %v", previewValue["note"])
+	}
+}
+
+func TestWorkflowServiceShouldSyncProjectRespectsCooldown(t *testing.T) {
+	svc := &WorkflowService{}
+	projectID := uuid.New()
+
+	if !svc.shouldSyncProject(projectID) {
+		t.Fatalf("expected initial sync to be allowed")
+	}
+
+	svc.recordProjectSync(projectID)
+	if svc.shouldSyncProject(projectID) {
+		t.Fatalf("expected sync to be throttled immediately after recording")
+	}
+
+	svc.projectSyncTimes.Store(projectID, time.Now().Add(-2*projectSyncCooldown))
+	if !svc.shouldSyncProject(projectID) {
+		t.Fatalf("expected sync to be allowed after cooldown elapses")
 	}
 }
 

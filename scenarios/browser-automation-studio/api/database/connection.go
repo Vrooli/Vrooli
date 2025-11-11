@@ -21,6 +21,10 @@ type DB struct {
 	log *logrus.Logger
 }
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 // NewConnection creates a new database connection with exponential backoff
 func NewConnection(log *logrus.Logger) (*DB, error) {
 	// Check for individual PostgreSQL environment variables (preferred)

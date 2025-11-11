@@ -43,7 +43,7 @@ export interface LogEntry {
 }
 
 export interface ExecutionEventHandlers {
-  updateExecutionStatus: (status: 'pending' | 'running' | 'completed' | 'failed', error?: string) => void;
+  updateExecutionStatus: (status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled', error?: string) => void;
   updateProgress: (progress: number, currentStep?: string) => void;
   addLog: (log: LogEntry) => void;
   addScreenshot: (screenshot: Screenshot) => void;
@@ -122,7 +122,7 @@ export const processExecutionEvent = (
       handlers.updateExecutionStatus('failed', event.message);
       return;
     case 'execution.cancelled':
-      handlers.updateExecutionStatus('failed', event.message ?? 'Execution cancelled');
+      handlers.updateExecutionStatus('cancelled', event.message ?? 'Execution cancelled');
       return;
     case 'execution.progress':
       if (typeof event.progress === 'number') {

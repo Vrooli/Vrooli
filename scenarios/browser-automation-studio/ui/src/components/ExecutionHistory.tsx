@@ -24,7 +24,7 @@ interface ExecutionSummary {
   id: string;
   workflow_id: string;
   workflow_name?: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   started_at: string;
   completed_at?: string;
   progress: number;
@@ -32,9 +32,9 @@ interface ExecutionSummary {
   error?: string;
 }
 
-type StatusFilter = 'all' | 'completed' | 'failed' | 'running';
+type StatusFilter = 'all' | 'completed' | 'failed' | 'running' | 'cancelled';
 
-const STATUS_FILTERS: StatusFilter[] = ['all', 'completed', 'failed', 'running'];
+const STATUS_FILTERS: StatusFilter[] = ['all', 'completed', 'failed', 'running', 'cancelled'];
 
 function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryProps) {
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
@@ -142,6 +142,8 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
         return <CheckCircle size={16} className="text-green-400" />;
       case 'failed':
         return <XCircle size={16} className="text-red-400" />;
+      case 'cancelled':
+        return <AlertCircle size={16} className="text-yellow-400" />;
       default:
         return <Clock size={16} className="text-gray-400" />;
     }
@@ -156,6 +158,8 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
         return <span className={`${baseClasses} bg-green-500/20 text-green-400`}>Completed</span>;
       case 'failed':
         return <span className={`${baseClasses} bg-red-500/20 text-red-400`}>Failed</span>;
+      case 'cancelled':
+        return <span className={`${baseClasses} bg-yellow-500/20 text-yellow-400`}>Cancelled</span>;
       default:
         return <span className={`${baseClasses} bg-gray-500/20 text-gray-400`}>Pending</span>;
     }
@@ -201,6 +205,7 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
       completed: executions.filter((e) => e.status === 'completed').length,
       failed: executions.filter((e) => e.status === 'failed').length,
       running: executions.filter((e) => e.status === 'running').length,
+      cancelled: executions.filter((e) => e.status === 'cancelled').length,
     };
   }, [executions]);
 

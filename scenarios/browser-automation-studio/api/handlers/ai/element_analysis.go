@@ -15,6 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 	"github.com/vrooli/browser-automation-studio/constants"
+	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
 // ElementAnalysisHandler handles element analysis and coordinate-based operations
@@ -30,7 +31,7 @@ func NewElementAnalysisHandler(log *logrus.Logger) *ElementAnalysisHandler {
 // AnalyzeElements handles POST /api/v1/analyze-elements
 func (h *ElementAnalysisHandler) AnalyzeElements(w http.ResponseWriter, r *http.Request) {
 	var req ElementAnalysisRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httpjson.Decode(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode element analysis request")
 		RespondError(w, ErrInvalidRequest)
 		return
@@ -83,7 +84,7 @@ func (h *ElementAnalysisHandler) AnalyzeElements(w http.ResponseWriter, r *http.
 // GetElementAtCoordinate handles POST /api/v1/element-at-coordinate
 func (h *ElementAnalysisHandler) GetElementAtCoordinate(w http.ResponseWriter, r *http.Request) {
 	var req ElementAtCoordinateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httpjson.Decode(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode element at coordinate request")
 		RespondError(w, ErrInvalidRequest)
 		return

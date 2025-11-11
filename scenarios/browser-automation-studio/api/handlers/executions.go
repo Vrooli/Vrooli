@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"os"
@@ -1057,15 +1056,9 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 
 	var body executionExportRequest
 	if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
-		decoder := json.NewDecoder(r.Body)
-		if err := decoder.Decode(&body); err != nil {
-			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-				// Allow empty JSON bodies so clients can rely on defaults without triggering errors.
-				body = executionExportRequest{}
-			} else {
-				h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid json payload"}))
-				return
-			}
+		if err := decodeJSONBodyAllowEmpty(w, r, &body); err != nil {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid json payload"}))
+			return
 		}
 	}
 
@@ -1202,7 +1195,9 @@ func (h *Handler) ListExecutions(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	executions, err := h.workflowService.ListExecutions(ctx, workflowID, 100, 0)
+	limit, offset := parsePaginationParams(r, defaultPageLimit, maxPageLimit)
+
+	executions, err := h.workflowService.ListExecutions(ctx, workflowID, limit, offset)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to list executions")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "list_executions"}))

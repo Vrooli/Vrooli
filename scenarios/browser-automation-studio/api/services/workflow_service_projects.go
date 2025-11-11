@@ -59,7 +59,42 @@ func (s *WorkflowService) ListProjects(ctx context.Context, limit, offset int) (
 
 // GetProjectStats gets statistics for a project
 func (s *WorkflowService) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
-	return s.repo.GetProjectStats(ctx, projectID)
+	stats, err := s.GetProjectsStats(ctx, []uuid.UUID{projectID})
+	if err != nil {
+		return nil, err
+	}
+	if value, ok := stats[projectID]; ok {
+		return value, nil
+	}
+	return map[string]any{
+		"workflow_count":  0,
+		"execution_count": 0,
+		"last_execution":  (*time.Time)(nil),
+	}, nil
+}
+
+func (s *WorkflowService) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error) {
+	stats, err := s.repo.GetProjectsStats(ctx, projectIDs)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[uuid.UUID]map[string]any, len(projectIDs))
+	for _, projectID := range projectIDs {
+		if summary, ok := stats[projectID]; ok && summary != nil {
+			result[projectID] = map[string]any{
+				"workflow_count":  summary.WorkflowCount,
+				"execution_count": summary.ExecutionCount,
+				"last_execution":  summary.LastExecution,
+			}
+		} else {
+			result[projectID] = map[string]any{
+				"workflow_count":  0,
+				"execution_count": 0,
+				"last_execution":  (*time.Time)(nil),
+			}
+		}
+	}
+	return result, nil
 }
 
 // ListWorkflowsByProject lists workflows for a specific project

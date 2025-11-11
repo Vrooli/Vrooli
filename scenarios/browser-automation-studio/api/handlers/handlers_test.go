@@ -45,6 +45,9 @@ func (m *mockRepository) ListProjects(ctx context.Context, limit, offset int) ([
 func (m *mockRepository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
 	return nil, nil
 }
+func (m *mockRepository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*database.ProjectStats, error) {
+	return nil, nil
+}
 func (m *mockRepository) CreateWorkflow(ctx context.Context, workflow *database.Workflow) error {
 	return nil
 }
@@ -86,6 +89,9 @@ func (m *mockRepository) GetExecution(ctx context.Context, id uuid.UUID) (*datab
 	return nil, nil
 }
 func (m *mockRepository) UpdateExecution(ctx context.Context, execution *database.Execution) error {
+	return nil
+}
+func (m *mockRepository) DeleteExecution(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 func (m *mockRepository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {
@@ -244,6 +250,10 @@ func (m *workflowServiceMock) GetProjectStats(ctx context.Context, projectID uui
 	return nil, errors.New("not implemented")
 }
 
+func (m *workflowServiceMock) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *workflowServiceMock) GetProject(ctx context.Context, projectID uuid.UUID) (*database.Project, error) {
 	return nil, errors.New("not implemented")
 }
@@ -278,7 +288,7 @@ func TestNewHandler(t *testing.T) {
 	hub := wsHub.NewHub(log)
 
 	// Initialize handler
-	handler := NewHandler(repo, browserlessClient, hub, log)
+	handler := NewHandler(repo, browserlessClient, hub, log, true, nil)
 
 	if handler == nil {
 		t.Fatal("Expected handler to be initialized, got nil")
@@ -316,11 +326,37 @@ func TestHandlerUpgraderConfiguration(t *testing.T) {
 	browserlessClient := browserless.NewClient(log, repo)
 	hub := wsHub.NewHub(log)
 
-	handler := NewHandler(repo, browserlessClient, hub, log)
+	handler := NewHandler(repo, browserlessClient, hub, log, true, nil)
 
 	// Verify upgrader allows cross-origin by default (needed for iframe embedding)
 	if handler.upgrader.CheckOrigin == nil {
 		t.Error("Expected CheckOrigin function to be set")
+	}
+}
+
+func TestHandlerWebSocketOriginEnforcement(t *testing.T) {
+	t.Setenv("BROWSERLESS_URL", "http://localhost:3000")
+
+	log := logrus.New()
+	log.SetOutput(io.Discard)
+
+	repo := &mockRepository{}
+	browserlessClient := browserless.NewClient(log, repo)
+	hub := wsHub.NewHub(log)
+
+	allowed := []string{"http://allowed.local"}
+	handler := NewHandler(repo, browserlessClient, hub, log, false, allowed)
+
+	goodReq := httptest.NewRequest(http.MethodGet, "/ws", nil)
+	goodReq.Header.Set("Origin", "http://allowed.local")
+	if !handler.upgrader.CheckOrigin(goodReq) {
+		t.Fatal("expected allowed origin to pass CheckOrigin")
+	}
+
+	badReq := httptest.NewRequest(http.MethodGet, "/ws", nil)
+	badReq.Header.Set("Origin", "http://evil.local")
+	if handler.upgrader.CheckOrigin(badReq) {
+		t.Fatal("expected unauthorized origin to be rejected")
 	}
 }
 
@@ -356,7 +392,7 @@ func TestHandlerDependencies(t *testing.T) {
 				}
 			}()
 
-			handler := NewHandler(tt.repo, tt.browserless, tt.wsHub, log)
+			handler := NewHandler(tt.repo, tt.browserless, tt.wsHub, log, true, nil)
 			if !tt.shouldPanic && handler == nil {
 				t.Error("Expected handler to be created")
 			}

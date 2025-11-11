@@ -17,6 +17,7 @@ import (
 const (
 	workflowJSONStartMarker = "<WORKFLOW_JSON>"
 	workflowJSONEndMarker   = "</WORKFLOW_JSON>"
+	projectSyncCooldown     = 30 * time.Second
 )
 
 var ErrWorkflowVersionConflict = errors.New("workflow version conflict")
@@ -48,6 +49,7 @@ type WorkflowService struct {
 	syncLocks        sync.Map
 	filePathCache    sync.Map
 	executionCancels sync.Map
+	projectSyncTimes sync.Map
 }
 
 // AIWorkflowError represents a structured error returned by the AI generator when

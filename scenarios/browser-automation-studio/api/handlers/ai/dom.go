@@ -2,7 +2,6 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
+	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
 // DOMHandler handles DOM tree extraction operations
@@ -212,7 +212,7 @@ func (h *DOMHandler) GetDOMTree(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		URL string `json:"url"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httpjson.Decode(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode DOM tree request")
 		RespondError(w, ErrInvalidRequest)
 		return

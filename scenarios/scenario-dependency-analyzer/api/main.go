@@ -217,6 +217,21 @@ var (
 	dependencyCatalogLoaded bool
 	knownScenarioNames      map[string]struct{}
 	knownResourceNames      map[string]struct{}
+	analysisIgnoreSegments  = map[string]struct{}{
+		"docs":          {},
+		"doc":           {},
+		"documentation": {},
+		"readme":        {},
+		"test":          {},
+		"tests":         {},
+		"testdata":      {},
+		"__tests__":     {},
+		"spec":          {},
+		"specs":         {},
+		"coverage":      {},
+		"examples":      {},
+		"playbooks":     {},
+	}
 
 	skipDirectoryNames = map[string]struct{}{
 		"node_modules":     {},
@@ -247,6 +262,16 @@ var (
 		".yalc":            {},
 		".yarn":            {},
 		".pnpm":            {},
+	}
+	docFileNames = map[string]struct{}{
+		"readme":           {},
+		"readme.md":        {},
+		"readme.mdx":       {},
+		"prd.md":           {},
+		"prd.mdx":          {},
+		"problems.md":      {},
+		"requirements.md":  {},
+		"requirements.mdx": {},
 	}
 )
 
@@ -321,6 +346,27 @@ func discoverAvailableResources(dir string) map[string]struct{} {
 		}
 	}
 	return results
+}
+
+func shouldIgnoreDetectionFile(relPath string) bool {
+	if relPath == "" {
+		return false
+	}
+	lowerPath := strings.ToLower(relPath)
+	base := strings.ToLower(filepath.Base(lowerPath))
+	if _, ok := docFileNames[base]; ok {
+		return true
+	}
+	if strings.HasPrefix(base, "readme") {
+		return true
+	}
+	segments := strings.Split(lowerPath, string(filepath.Separator))
+	for _, segment := range segments {
+		if _, ok := analysisIgnoreSegments[segment]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func isKnownScenario(name string) bool {
@@ -577,6 +623,9 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioD
 		relPath, relErr := filepath.Rel(scenarioPath, path)
 		if relErr != nil {
 			relPath = path
+		}
+		if shouldIgnoreDetectionFile(relPath) {
+			return nil
 		}
 
 		// Find scenario references
@@ -1013,6 +1062,9 @@ func scanForResourceUsage(scenarioPath, scenarioName string) ([]ScenarioDependen
 		relPath, relErr := filepath.Rel(scenarioPath, path)
 		if relErr != nil {
 			relPath = path
+		}
+		if shouldIgnoreDetectionFile(relPath) {
+			return nil
 		}
 
 		cmdMatches := resourceCommandPattern.FindAllStringSubmatch(contentStr, -1)

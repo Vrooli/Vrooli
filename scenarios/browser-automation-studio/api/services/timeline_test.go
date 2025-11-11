@@ -46,6 +46,9 @@ func (m *timelineRepositoryMock) ListProjects(ctx context.Context, limit, offset
 func (m *timelineRepositoryMock) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
 	return map[string]any{}, nil
 }
+func (m *timelineRepositoryMock) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*database.ProjectStats, error) {
+	return map[uuid.UUID]*database.ProjectStats{}, nil
+}
 
 // Workflow operations
 func (m *timelineRepositoryMock) CreateWorkflow(ctx context.Context, workflow *database.Workflow) error {
@@ -94,6 +97,9 @@ func (m *timelineRepositoryMock) UpdateExecution(ctx context.Context, execution 
 	clone := *execution
 	m.execution = &clone
 	m.executionUpdates = append(m.executionUpdates, &clone)
+	return nil
+}
+func (m *timelineRepositoryMock) DeleteExecution(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 func (m *timelineRepositoryMock) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {

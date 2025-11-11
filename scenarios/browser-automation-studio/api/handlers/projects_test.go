@@ -3,9 +3,11 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -18,15 +20,16 @@ import (
 
 // mockWorkflowServiceForProjects provides minimal workflow service implementation for project tests
 type mockWorkflowServiceForProjects struct {
-	createProjectFn           func(ctx context.Context, project *database.Project) error
-	getProjectByNameFn        func(ctx context.Context, name string) (*database.Project, error)
-	getProjectByFolderPathFn  func(ctx context.Context, folderPath string) (*database.Project, error)
-	getProjectFn              func(ctx context.Context, id uuid.UUID) (*database.Project, error)
-	listProjectsFn            func(ctx context.Context, limit, offset int) ([]*database.Project, error)
-	updateProjectFn           func(ctx context.Context, project *database.Project) error
-	deleteProjectFn           func(ctx context.Context, id uuid.UUID) error
-	getProjectStatsFn         func(ctx context.Context, projectID uuid.UUID) (map[string]any, error)
-	deleteProjectWorkflowsFn  func(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error
+	createProjectFn          func(ctx context.Context, project *database.Project) error
+	getProjectByNameFn       func(ctx context.Context, name string) (*database.Project, error)
+	getProjectByFolderPathFn func(ctx context.Context, folderPath string) (*database.Project, error)
+	getProjectFn             func(ctx context.Context, id uuid.UUID) (*database.Project, error)
+	listProjectsFn           func(ctx context.Context, limit, offset int) ([]*database.Project, error)
+	updateProjectFn          func(ctx context.Context, project *database.Project) error
+	deleteProjectFn          func(ctx context.Context, id uuid.UUID) error
+	getProjectStatsFn        func(ctx context.Context, projectID uuid.UUID) (map[string]any, error)
+	getProjectsStatsFn       func(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error)
+	deleteProjectWorkflowsFn func(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error
 }
 
 func (m *mockWorkflowServiceForProjects) CreateProject(ctx context.Context, project *database.Project) error {
@@ -107,6 +110,20 @@ func (m *mockWorkflowServiceForProjects) GetProjectStats(ctx context.Context, pr
 	}, nil
 }
 
+func (m *mockWorkflowServiceForProjects) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error) {
+	if m.getProjectsStatsFn != nil {
+		return m.getProjectsStatsFn(ctx, projectIDs)
+	}
+	result := make(map[uuid.UUID]map[string]any, len(projectIDs))
+	for _, id := range projectIDs {
+		result[id] = map[string]any{
+			"workflow_count":  5,
+			"execution_count": 10,
+		}
+	}
+	return result, nil
+}
+
 func (m *mockWorkflowServiceForProjects) DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error {
 	if m.deleteProjectWorkflowsFn != nil {
 		return m.deleteProjectWorkflowsFn(ctx, projectID, workflowIDs)
@@ -182,14 +199,16 @@ func setupProjectTestHandler(t *testing.T, workflowService WorkflowService) *Han
 
 func TestCreateProject(t *testing.T) {
 	t.Run("[REQ:BAS-PROJECT-CREATE-SUCCESS] creates project with valid data", func(t *testing.T) {
-		tmpDir := t.TempDir()
+		rootDir := t.TempDir()
+		t.Setenv("VROOLI_ROOT", rootDir)
+		projectDir := filepath.Join(rootDir, "projects", "test-project")
 		service := &mockWorkflowServiceForProjects{}
 		handler := setupProjectTestHandler(t, service)
 
 		reqBody := `{
 			"name": "Test Project",
 			"description": "A test project",
-			"folder_path": "` + tmpDir + `"
+			"folder_path": "` + projectDir + `"
 		}`
 
 		req := httptest.NewRequest("POST", "/api/v1/projects", strings.NewReader(reqBody))
@@ -213,13 +232,15 @@ func TestCreateProject(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-PROJECT-CREATE-VALIDATION] rejects empty name", func(t *testing.T) {
-		tmpDir := t.TempDir()
+		rootDir := t.TempDir()
+		t.Setenv("VROOLI_ROOT", rootDir)
+		projectDir := filepath.Join(rootDir, "projects", "test-project")
 		service := &mockWorkflowServiceForProjects{}
 		handler := setupProjectTestHandler(t, service)
 
 		reqBody := `{
 			"name": "",
-			"folder_path": "` + tmpDir + `"
+			"folder_path": "` + projectDir + `"
 		}`
 
 		req := httptest.NewRequest("POST", "/api/v1/projects", strings.NewReader(reqBody))
@@ -254,7 +275,9 @@ func TestCreateProject(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-PROJECT-CREATE-VALIDATION] rejects duplicate project name", func(t *testing.T) {
-		tmpDir := t.TempDir()
+		rootDir := t.TempDir()
+		t.Setenv("VROOLI_ROOT", rootDir)
+		projectDir := filepath.Join(rootDir, "projects", "existing-project")
 		service := &mockWorkflowServiceForProjects{
 			getProjectByNameFn: func(ctx context.Context, name string) (*database.Project, error) {
 				return &database.Project{ID: uuid.New(), Name: name}, nil
@@ -264,7 +287,7 @@ func TestCreateProject(t *testing.T) {
 
 		reqBody := `{
 			"name": "Existing Project",
-			"folder_path": "` + tmpDir + `"
+			"folder_path": "` + projectDir + `"
 		}`
 
 		req := httptest.NewRequest("POST", "/api/v1/projects", strings.NewReader(reqBody))
@@ -275,6 +298,75 @@ func TestCreateProject(t *testing.T) {
 
 		if w.Code != http.StatusConflict {
 			t.Errorf("expected status %d, got %d", http.StatusConflict, w.Code)
+		}
+	})
+
+	t.Run("returns 500 when name uniqueness check fails", func(t *testing.T) {
+		rootDir := t.TempDir()
+		t.Setenv("VROOLI_ROOT", rootDir)
+		projectDir := filepath.Join(rootDir, "projects", "error-name")
+		service := &mockWorkflowServiceForProjects{
+			getProjectByNameFn: func(ctx context.Context, name string) (*database.Project, error) {
+				return nil, errors.New("db down")
+			},
+		}
+		handler := setupProjectTestHandler(t, service)
+
+		reqBody := `{"name": "Test", "folder_path": "` + projectDir + `"}`
+		req := httptest.NewRequest("POST", "/api/v1/projects", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.CreateProject(w, req)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+		}
+	})
+
+	t.Run("returns 500 when folder uniqueness check fails", func(t *testing.T) {
+		rootDir := t.TempDir()
+		t.Setenv("VROOLI_ROOT", rootDir)
+		projectDir := filepath.Join(rootDir, "projects", "error-folder")
+		service := &mockWorkflowServiceForProjects{
+			getProjectByFolderPathFn: func(ctx context.Context, folderPath string) (*database.Project, error) {
+				return nil, errors.New("db down")
+			},
+		}
+		handler := setupProjectTestHandler(t, service)
+
+		reqBody := `{"name": "Test", "folder_path": "` + projectDir + `"}`
+		req := httptest.NewRequest("POST", "/api/v1/projects", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.CreateProject(w, req)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+		}
+	})
+
+	t.Run("rejects folder paths outside project root", func(t *testing.T) {
+		rootDir := t.TempDir()
+		outsideDir := t.TempDir()
+		t.Setenv("VROOLI_ROOT", rootDir)
+		service := &mockWorkflowServiceForProjects{}
+		handler := setupProjectTestHandler(t, service)
+
+		reqBody := `{
+			"name": "Test Project",
+			"folder_path": "` + filepath.Join(outsideDir, "project") + `"
+		}`
+
+		req := httptest.NewRequest("POST", "/api/v1/projects", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.CreateProject(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, w.Code, w.Body.String())
 		}
 	})
 
@@ -355,12 +447,23 @@ func TestGetProject(t *testing.T) {
 
 func TestListProjects(t *testing.T) {
 	t.Run("[REQ:BAS-PROJECT-CREATE-SUCCESS] lists all projects", func(t *testing.T) {
+		projectsReturned := []*database.Project{
+			{ID: uuid.New(), Name: "Project A", FolderPath: "/tmp/a"},
+			{ID: uuid.New(), Name: "Project B", FolderPath: "/tmp/b"},
+		}
 		service := &mockWorkflowServiceForProjects{
 			listProjectsFn: func(ctx context.Context, limit, offset int) ([]*database.Project, error) {
-				return []*database.Project{
-					{ID: uuid.New(), Name: "Project A", FolderPath: "/tmp/a"},
-					{ID: uuid.New(), Name: "Project B", FolderPath: "/tmp/b"},
-				}, nil
+				return projectsReturned, nil
+			},
+			getProjectsStatsFn: func(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error) {
+				if len(projectIDs) != len(projectsReturned) {
+					t.Fatalf("expected %d project IDs, got %d", len(projectsReturned), len(projectIDs))
+				}
+				stats := make(map[uuid.UUID]map[string]any, len(projectIDs))
+				for _, id := range projectIDs {
+					stats[id] = map[string]any{"workflow_count": 42}
+				}
+				return stats, nil
 			},
 		}
 		handler := setupProjectTestHandler(t, service)
@@ -375,14 +478,20 @@ func TestListProjects(t *testing.T) {
 		}
 
 		var response struct {
-			Projects []*database.Project `json:"projects"`
+			Projects []ProjectWithStats `json:"projects"`
 		}
 		if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
 		if len(response.Projects) != 2 {
-			t.Errorf("expected 2 projects, got %d", len(response.Projects))
+			t.Fatalf("expected 2 projects, got %d", len(response.Projects))
+		}
+		for _, project := range response.Projects {
+			count, ok := project.Stats["workflow_count"].(float64)
+			if !ok || count != 42 {
+				t.Fatalf("expected aggregated stats to be included")
+			}
 		}
 	})
 
@@ -404,6 +513,23 @@ func TestListProjects(t *testing.T) {
 
 		if w.Code != http.StatusOK {
 			t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+		}
+	})
+
+	t.Run("returns 500 when bulk stats query fails", func(t *testing.T) {
+		service := &mockWorkflowServiceForProjects{
+			getProjectsStatsFn: func(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error) {
+				return nil, errors.New("boom")
+			},
+		}
+		handler := setupProjectTestHandler(t, service)
+
+		req := httptest.NewRequest("GET", "/api/v1/projects", nil)
+		w := httptest.NewRecorder()
+		handler.ListProjects(w, req)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected status 500, got %d", w.Code)
 		}
 	})
 }

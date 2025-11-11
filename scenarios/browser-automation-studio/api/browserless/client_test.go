@@ -27,6 +27,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/browserless/events"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/paths"
 )
 
 type mockRepository struct {
@@ -87,6 +88,9 @@ func (m *mockRepository) ListProjects(ctx context.Context, limit, offset int) ([
 func (m *mockRepository) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
 	return nil, nil
 }
+func (m *mockRepository) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*database.ProjectStats, error) {
+	return nil, nil
+}
 
 // Workflow operations
 func (m *mockRepository) CreateWorkflow(ctx context.Context, workflow *database.Workflow) error {
@@ -134,6 +138,9 @@ func (m *mockRepository) GetExecution(ctx context.Context, id uuid.UUID) (*datab
 func (m *mockRepository) UpdateExecution(ctx context.Context, execution *database.Execution) error {
 	copyExec := *execution
 	m.updatedExecutions = append(m.updatedExecutions, &copyExec)
+	return nil
+}
+func (m *mockRepository) DeleteExecution(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 func (m *mockRepository) ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error) {
@@ -276,7 +283,7 @@ func newTestClient() (*Client, *mockRepository) {
 		httpClient:        &http.Client{Timeout: 2 * time.Second},
 		heartbeatInterval: defaultHeartbeatInterval,
 	}
-	client.recordingsRoot = resolveRecordingsRoot(log)
+	client.recordingsRoot = paths.ResolveRecordingsRoot(log)
 	return client, repo
 }
 

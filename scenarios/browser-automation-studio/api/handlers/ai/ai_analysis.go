@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 )
 
 // AIAnalysisHandler handles AI-powered element analysis using Ollama
@@ -29,7 +30,7 @@ func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler) *AIAnalysi
 // AIAnalyzeElements handles POST /api/v1/ai-analyze-elements
 func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
 	var req AIAnalyzeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httpjson.Decode(w, r, &req); err != nil {
 		h.log.WithError(err).Error("Failed to decode AI analyze request")
 		RespondError(w, ErrInvalidRequest)
 		return

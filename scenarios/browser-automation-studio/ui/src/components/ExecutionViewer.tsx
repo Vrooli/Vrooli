@@ -1769,12 +1769,16 @@ function ActiveExecutionViewer({
         return "Completed";
       case "failed":
         return execution.error ? "Failed" : "Failed";
+      case "cancelled":
+        return "Cancelled";
       default:
         return "Initializing...";
     }
   }, [execution.currentStep, execution.status, execution.error]);
 
   const isRunning = execution.status === "running";
+  const isFailed = execution.status === "failed";
+  const isCancelled = execution.status === "cancelled";
   const canRestart =
     Boolean(execution.workflowId) && execution.status !== "running";
 
@@ -2719,7 +2723,8 @@ function ActiveExecutionViewer({
       }, 2000);
     } else if (
       execution.status === "completed" ||
-      execution.status === "failed"
+      execution.status === "failed" ||
+      execution.status === "cancelled"
     ) {
       void refreshTimeline(execution.id);
     }
@@ -2996,6 +3001,8 @@ function ActiveExecutionViewer({
         return <CheckCircle size={16} className="text-green-400" />;
       case "failed":
         return <XCircle size={16} className="text-red-400" />;
+      case "cancelled":
+        return <AlertTriangle size={16} className="text-yellow-400" />;
       default:
         return <Clock size={16} className="text-gray-400" />;
     }
@@ -3184,7 +3191,7 @@ function ActiveExecutionViewer({
                 to tailor the final cut in real time.
               </div>
             )}
-            {execution.status === "failed" && execution.progress < 100 && (
+            {(isFailed || isCancelled) && execution.progress < 100 && (
               <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 flex items-start gap-3">
                 <AlertTriangle
                   size={18}
@@ -3192,14 +3199,14 @@ function ActiveExecutionViewer({
                 />
                 <div className="flex-1 text-sm">
                   <div className="font-medium text-rose-200 mb-1">
-                    Execution Failed - Replay Incomplete
+                    Execution {isFailed ? "Failed" : "Cancelled"} - Replay Incomplete
                   </div>
                   <div className="text-rose-100/80">
                     This replay shows only {replayFrames.length} of the
-                    workflow's steps. Execution failed at:{" "}
-                    {execution.currentStep || "unknown step"}
+                    workflow's steps. Execution {isFailed ? "failed" : "was cancelled"}
+                    at {execution.currentStep || "an unknown step"}.
                   </div>
-                  {executionError && (
+                  {isFailed && executionError && (
                     <div className="mt-2 text-xs font-mono text-rose-100/70 bg-rose-950/30 px-2 py-1 rounded">
                       {executionError}
                     </div>
@@ -3794,9 +3801,14 @@ function ActiveExecutionViewer({
                 <div className="text-sm text-gray-400 mb-1">
                   No screenshots captured
                 </div>
-                {execution.status === "failed" && (
+                {isFailed && (
                   <div className="text-xs text-gray-500">
                     Execution failed before screenshot steps could run
+                  </div>
+                )}
+                {isCancelled && (
+                  <div className="text-xs text-gray-500">
+                    Execution was cancelled before screenshot steps could run
                   </div>
                 )}
                 {execution.status === "completed" && (

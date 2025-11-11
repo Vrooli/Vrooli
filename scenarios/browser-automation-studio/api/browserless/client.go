@@ -28,6 +28,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
 
@@ -124,7 +125,7 @@ func NewClient(log *logrus.Logger, repo database.Repository) *Client {
 		interval = custom
 	}
 
-	recordingsRoot := resolveRecordingsRoot(log)
+	recordingsRoot := paths.ResolveRecordingsRoot(log)
 	if log != nil {
 		log.WithField("recordings_root", recordingsRoot).Debug("Browserless client using recordings root")
 	}
@@ -140,51 +141,6 @@ func NewClient(log *logrus.Logger, repo database.Repository) *Client {
 		heartbeatInterval: interval,
 		recordingsRoot:    recordingsRoot,
 	}
-}
-
-func resolveRecordingsRoot(log *logrus.Logger) string {
-	if value := strings.TrimSpace(os.Getenv("BAS_RECORDINGS_ROOT")); value != "" {
-		if abs, err := filepath.Abs(value); err == nil {
-			return abs
-		}
-		if log != nil {
-			log.WithField("path", value).Warn("Using BAS_RECORDINGS_ROOT without normalization")
-		}
-		return value
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		if log != nil {
-			log.WithError(err).Warn("Failed to resolve working directory for recordings root; using relative default")
-		}
-		return filepath.Join("scenarios", "browser-automation-studio", "data", "recordings")
-	}
-
-	absCwd, absErr := filepath.Abs(cwd)
-	if absErr == nil {
-		dir := absCwd
-		for {
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-			if filepath.Base(dir) == "browser-automation-studio" && filepath.Base(parent) == "scenarios" {
-				recordings := filepath.Join(dir, "data", "recordings")
-				if abs, err := filepath.Abs(recordings); err == nil {
-					return abs
-				}
-				return recordings
-			}
-			dir = parent
-		}
-	}
-
-	root := filepath.Join(absCwd, "scenarios", "browser-automation-studio", "data", "recordings")
-	if abs, err := filepath.Abs(root); err == nil {
-		return abs
-	}
-	return root
 }
 
 func sanitizeFrameSlug(stepIndex int, stepName string) string {

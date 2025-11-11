@@ -56,13 +56,16 @@ type RecordingRepository interface {
 	GetProject(ctx context.Context, id uuid.UUID) (*database.Project, error)
 	GetProjectByName(ctx context.Context, name string) (*database.Project, error)
 	CreateProject(ctx context.Context, project *database.Project) error
+	DeleteProject(ctx context.Context, id uuid.UUID) error
 
 	GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error)
 	GetWorkflowByName(ctx context.Context, name, folderPath string) (*database.Workflow, error)
 	CreateWorkflow(ctx context.Context, workflow *database.Workflow) error
+	DeleteWorkflow(ctx context.Context, id uuid.UUID) error
 
 	CreateExecution(ctx context.Context, execution *database.Execution) error
 	UpdateExecution(ctx context.Context, execution *database.Execution) error
+	DeleteExecution(ctx context.Context, id uuid.UUID) error
 
 	CreateExecutionStep(ctx context.Context, step *database.ExecutionStep) error
 	UpdateExecutionStep(ctx context.Context, step *database.ExecutionStep) error
@@ -158,13 +161,16 @@ func (s *RecordingService) ImportArchive(ctx context.Context, archivePath string
 		return nil, errTooManyFrames
 	}
 
-	project, err := s.resolveProject(ctx, manifest, opts)
+	project, projectCreated, err := s.resolveProject(ctx, manifest, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	workflow, err := s.resolveWorkflow(ctx, manifest, project, opts)
+	workflow, workflowCreated, err := s.resolveWorkflow(ctx, manifest, project, opts)
 	if err != nil {
+		if projectCreated {
+			s.cleanupRecordingArtifacts(context.Background(), true, false, project, nil, nil)
+		}
 		return nil, err
 	}
 
@@ -189,11 +195,13 @@ func (s *RecordingService) ImportArchive(ctx context.Context, archivePath string
 	}
 
 	if err := s.repo.CreateExecution(ctx, execution); err != nil {
+		s.cleanupRecordingArtifacts(context.Background(), projectCreated, workflowCreated, project, workflow, nil)
 		return nil, fmt.Errorf("failed to create execution: %w", err)
 	}
 
 	frameResult, err := s.persistFrames(ctx, &zr.Reader, project, workflow, execution, manifest)
 	if err != nil {
+		s.cleanupRecordingArtifacts(context.Background(), projectCreated, workflowCreated, project, workflow, execution)
 		return nil, err
 	}
 
@@ -523,6 +531,36 @@ func (s *RecordingService) persistFrames(
 	}, nil
 }
 
+func (s *RecordingService) cleanupRecordingArtifacts(baseCtx context.Context, projectCreated, workflowCreated bool, project *database.Project, workflow *database.Workflow, execution *database.Execution) {
+	ctx, cancel := context.WithTimeout(baseCtx, 30*time.Second)
+	defer cancel()
+
+	if execution != nil {
+		if err := s.repo.DeleteExecution(ctx, execution.ID); err != nil && s.log != nil {
+			s.log.WithError(err).WithField("execution_id", execution.ID).Warn("Failed to delete partial execution during recording cleanup")
+		}
+		execDir := strings.TrimSpace(s.recordingsRoot)
+		if execDir != "" {
+			path := filepath.Join(execDir, execution.ID.String())
+			if err := os.RemoveAll(path); err != nil && s.log != nil {
+				s.log.WithError(err).WithField("path", path).Warn("Failed to remove partial recording assets")
+			}
+		}
+	}
+
+	if workflowCreated && workflow != nil {
+		if err := s.repo.DeleteWorkflow(ctx, workflow.ID); err != nil && s.log != nil {
+			s.log.WithError(err).WithField("workflow_id", workflow.ID).Warn("Failed to delete temporary workflow during recording cleanup")
+		}
+	}
+
+	if projectCreated && project != nil {
+		if err := s.repo.DeleteProject(ctx, project.ID); err != nil && s.log != nil {
+			s.log.WithError(err).WithField("project_id", project.ID).Warn("Failed to delete temporary project during recording cleanup")
+		}
+	}
+}
+
 func (s *RecordingService) persistScreenshotAsset(
 	ctx context.Context,
 	files map[string]*zip.File,
@@ -671,10 +709,10 @@ type persistedScreenshot struct {
 	height       int
 }
 
-func (s *RecordingService) resolveProject(ctx context.Context, manifest *recordingManifest, opts RecordingImportOptions) (*database.Project, error) {
+func (s *RecordingService) resolveProject(ctx context.Context, manifest *recordingManifest, opts RecordingImportOptions) (*database.Project, bool, error) {
 	if opts.ProjectID != nil {
 		if project, err := s.repo.GetProject(ctx, *opts.ProjectID); err == nil {
-			return project, nil
+			return project, false, nil
 		}
 	}
 
@@ -691,7 +729,7 @@ func (s *RecordingService) resolveProject(ctx context.Context, manifest *recordi
 	for _, name := range candidateNames {
 		project, err := s.repo.GetProjectByName(ctx, name)
 		if err == nil && project != nil {
-			return project, nil
+			return project, false, nil
 		}
 	}
 
@@ -708,16 +746,16 @@ func (s *RecordingService) resolveProject(ctx context.Context, manifest *recordi
 	}
 
 	if err := s.repo.CreateProject(ctx, project); err != nil {
-		return nil, fmt.Errorf("failed to create recordings project: %w", err)
+		return nil, false, fmt.Errorf("failed to create recordings project: %w", err)
 	}
 
-	return project, nil
+	return project, true, nil
 }
 
-func (s *RecordingService) resolveWorkflow(ctx context.Context, manifest *recordingManifest, project *database.Project, opts RecordingImportOptions) (*database.Workflow, error) {
+func (s *RecordingService) resolveWorkflow(ctx context.Context, manifest *recordingManifest, project *database.Project, opts RecordingImportOptions) (*database.Workflow, bool, error) {
 	if opts.WorkflowID != nil {
 		if workflow, err := s.repo.GetWorkflow(ctx, *opts.WorkflowID); err == nil {
-			return workflow, nil
+			return workflow, false, nil
 		}
 	}
 
@@ -735,7 +773,7 @@ func (s *RecordingService) resolveWorkflow(ctx context.Context, manifest *record
 		}
 		workflow, err := s.repo.GetWorkflowByName(ctx, name, defaultRecordingWorkflowFolder)
 		if err == nil && workflow != nil {
-			return workflow, nil
+			return workflow, false, nil
 		}
 	}
 
@@ -756,10 +794,10 @@ func (s *RecordingService) resolveWorkflow(ctx context.Context, manifest *record
 	}
 
 	if err := s.repo.CreateWorkflow(ctx, workflow); err != nil {
-		return nil, fmt.Errorf("failed to create recording workflow: %w", err)
+		return nil, false, fmt.Errorf("failed to create recording workflow: %w", err)
 	}
 
-	return workflow, nil
+	return workflow, true, nil
 }
 
 func deriveWorkflowName(manifest *recordingManifest, opts RecordingImportOptions) string {

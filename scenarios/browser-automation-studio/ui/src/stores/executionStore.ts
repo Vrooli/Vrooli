@@ -158,7 +158,7 @@ export interface TimelineFrame {
 export interface Execution {
   id: string;
   workflowId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   startedAt: Date;
   completedAt?: Date;
   screenshots: Screenshot[];
@@ -211,8 +211,8 @@ const normalizeExecution = (raw: unknown): Execution => {
   return {
     id: String(rawData.id ?? rawData.execution_id ?? ''),
     workflowId: String(rawData.workflow_id ?? rawData.workflowId ?? ''),
-    status: (typeof statusValue === 'string' && ['pending', 'running', 'completed', 'failed'].includes(statusValue))
-      ? statusValue as 'pending' | 'running' | 'completed' | 'failed'
+    status: (typeof statusValue === 'string' && ['pending', 'running', 'completed', 'failed', 'cancelled'].includes(statusValue))
+      ? statusValue as 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
       : 'pending',
     startedAt: (typeof startedAt === 'string' || typeof startedAt === 'number' || startedAt instanceof Date) ? new Date(startedAt) : new Date(),
     completedAt: (typeof completedAt === 'string' || typeof completedAt === 'number' || completedAt instanceof Date) ? new Date(completedAt) : undefined,
@@ -317,8 +317,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           state.currentExecution?.id === executionId
             ? {
                 ...state.currentExecution,
-                status: 'failed' as const,
-                error: 'Execution stopped by user',
+                status: 'cancelled' as const,
+                error: 'Execution cancelled by user',
                 currentStep: 'Stopped by user',
                 completedAt: new Date(),
               }
@@ -643,7 +643,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           get().updateExecutionStatus('completed');
           return;
         case 'cancelled':
-          get().updateExecutionStatus('failed', raw.message ?? 'Execution cancelled');
+          get().updateExecutionStatus('cancelled', raw.message ?? 'Execution cancelled');
           return;
         case 'event':
           if (raw.data) {
@@ -760,7 +760,10 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
             ...state.currentExecution,
             status,
             error,
-            completedAt: status === 'completed' || status === 'failed' ? new Date() : state.currentExecution.completedAt,
+            completedAt:
+              status === 'completed' || status === 'failed' || status === 'cancelled'
+                ? new Date()
+                : state.currentExecution.completedAt,
           }
         : state.currentExecution,
     }));

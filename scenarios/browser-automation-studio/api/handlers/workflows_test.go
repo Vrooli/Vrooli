@@ -111,6 +111,10 @@ func (m *mockWorkflowServiceForWorkflows) DeleteProject(ctx context.Context, id 
 func (m *mockWorkflowServiceForWorkflows) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]any, error) {
 	return nil, nil
 }
+
+func (m *mockWorkflowServiceForWorkflows) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]map[string]any, error) {
+	return map[uuid.UUID]map[string]any{}, nil
+}
 func (m *mockWorkflowServiceForWorkflows) DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error {
 	return nil
 }
@@ -585,6 +589,27 @@ func TestListWorkflows(t *testing.T) {
 		}
 		if len(workflows) != 2 {
 			t.Errorf("expected 2 workflows, got %d", len(workflows))
+		}
+	})
+
+	t.Run("[REQ:BAS-WORKFLOW-PERSIST-CRUD] honors pagination query parameters", func(t *testing.T) {
+		service := &mockWorkflowServiceForWorkflows{
+			listWorkflowsFn: func(ctx context.Context, folderPath string, limit, offset int) ([]*database.Workflow, error) {
+				if limit != 25 || offset != 50 {
+					t.Fatalf("expected limit=25, offset=50, got %d/%d", limit, offset)
+				}
+				return []*database.Workflow{}, nil
+			},
+		}
+		handler := setupWorkflowTestHandler(t, service)
+
+		req := httptest.NewRequest("GET", "/api/v1/workflows?limit=25&offset=50", nil)
+		w := httptest.NewRecorder()
+
+		handler.ListWorkflows(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, w.Code)
 		}
 	})
 
