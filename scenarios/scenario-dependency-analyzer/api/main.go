@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	orderedmap "github.com/iancoleman/orderedmap"
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 
@@ -273,6 +275,10 @@ var (
 		"requirements.md":  {},
 		"requirements.mdx": {},
 	}
+	scenarioPortCallPattern   = regexp.MustCompile(`resolveScenarioPortViaCLI\s*\(\s*[^,]+,\s*(?:"([a-z0-9-]+)"|([A-Za-z0-9_]+))\s*,`)
+	scenarioAliasDeclPattern  = regexp.MustCompile(`(?m)(?:const|var)\s+([A-Za-z0-9_]+)\s*=\s*"([a-z0-9-]+)"`)
+	scenarioAliasShortPattern = regexp.MustCompile(`(?m)([A-Za-z0-9_]+)\s*:=\s*"([a-z0-9-]+)"`)
+	scenarioAliasBlockPattern = regexp.MustCompile(`(?m)^\s*([A-Za-z0-9_]+)\s*=\s*"([a-z0-9-]+)"`)
 )
 
 type resourceHeuristic struct {
@@ -591,6 +597,7 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioD
 	var dependencies []ScenarioDependency
 	ensureDependencyCatalogs()
 	scenarioNameNormalized := normalizeName(scenarioName)
+	aliasCatalog := buildScenarioAliasCatalog(scenarioPath)
 
 	// Pattern to match vrooli scenario commands
 	scenarioPattern := regexp.MustCompile(`vrooli\s+scenario\s+(?:run|test|status)\s+([a-z0-9-]+)`)
@@ -687,10 +694,106 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioD
 			dependencies = append(dependencies, dep)
 		}
 
+		// Find scenario references via resolveScenarioPortViaCLI helpers
+		portMatches := scenarioPortCallPattern.FindAllStringSubmatch(contentStr, -1)
+		for _, match := range portMatches {
+			var depName string
+			if len(match) > 1 && match[1] != "" {
+				depName = normalizeName(match[1])
+			} else if len(match) > 2 && match[2] != "" {
+				if aliasDep, ok := aliasCatalog[match[2]]; ok {
+					depName = aliasDep
+				} else {
+					depName = normalizeName(match[2])
+				}
+			}
+
+			if depName == "" || depName == scenarioNameNormalized || !isKnownScenario(depName) {
+				continue
+			}
+
+			dep := ScenarioDependency{
+				ID:             uuid.New().String(),
+				ScenarioName:   scenarioName,
+				DependencyType: "scenario",
+				DependencyName: depName,
+				Required:       true,
+				Purpose:        fmt.Sprintf("References %s port via CLI", depName),
+				AccessMethod:   "scenario_port_cli",
+				Configuration: map[string]interface{}{
+					"found_in_file": relPath,
+					"pattern_type":  "resolve_cli_port",
+				},
+				DiscoveredAt: time.Now(),
+				LastVerified: time.Now(),
+			}
+			dependencies = append(dependencies, dep)
+		}
+
 		return nil
 	})
 
 	return dependencies, err
+}
+
+func buildScenarioAliasCatalog(scenarioPath string) map[string]string {
+	aliases := map[string]string{}
+	addAlias := func(identifier, scenario string) {
+		if identifier == "" {
+			return
+		}
+		normalized := normalizeName(scenario)
+		if !isKnownScenario(normalized) {
+			return
+		}
+		aliases[identifier] = normalized
+	}
+
+	filepath.WalkDir(scenarioPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() && path != scenarioPath && shouldSkipDirectoryEntry(d) {
+			return filepath.SkipDir
+		}
+		ext := strings.ToLower(filepath.Ext(path))
+		if !contains([]string{".go", ".js", ".sh", ".py", ".md"}, ext) {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		contentStr := string(content)
+		relPath, relErr := filepath.Rel(scenarioPath, path)
+		if relErr != nil {
+			relPath = path
+		}
+		if shouldIgnoreDetectionFile(relPath) {
+			return nil
+		}
+		for _, match := range scenarioAliasDeclPattern.FindAllStringSubmatch(contentStr, -1) {
+			if len(match) < 3 {
+				continue
+			}
+			addAlias(match[1], match[2])
+		}
+		for _, match := range scenarioAliasShortPattern.FindAllStringSubmatch(contentStr, -1) {
+			if len(match) < 3 {
+				continue
+			}
+			addAlias(match[1], match[2])
+		}
+		for _, match := range scenarioAliasBlockPattern.FindAllStringSubmatch(contentStr, -1) {
+			if len(match) < 3 {
+				continue
+			}
+			addAlias(match[1], match[2])
+		}
+		return nil
+	})
+
+	return aliases
 }
 
 func scanForSharedWorkflows(scenarioPath, scenarioName string) ([]ScenarioDependency, error) {
@@ -1592,6 +1695,16 @@ func applyDetectedDiffs(scenarioName string, analysis *DependencyAnalysisRespons
 		return nil, err
 	}
 
+	rawConfig, err := loadRawServiceConfigMap(scenarioPath)
+	if err != nil {
+		return nil, err
+	}
+	rawDependencies := ensureOrderedMap(rawConfig, "dependencies")
+	rawResources := orderedMapFromValue(rawDependencies, "resources")
+	rawScenarios := orderedMapFromValue(rawDependencies, "scenarios")
+	rawDependencies.Set("resources", rawResources)
+	rawDependencies.Set("scenarios", rawScenarios)
+
 	resourcesAdded := []string{}
 	if applyResources {
 		missing := map[string]struct{}{}
@@ -1615,12 +1728,19 @@ func applyDetectedDiffs(scenarioName string, analysis *DependencyAnalysisRespons
 						typeHint = val
 					}
 				}
+				description := fmt.Sprintf("Auto-detected via analyzer (%s)", dep.AccessMethod)
 				cfg.Dependencies.Resources[dep.DependencyName] = Resource{
 					Type:     typeHint,
 					Enabled:  true,
 					Required: true,
-					Purpose:  fmt.Sprintf("Auto-detected via analyzer (%s)", dep.AccessMethod),
+					Purpose:  description,
 				}
+				resourceEntry := orderedmap.New()
+				resourceEntry.Set("type", typeHint)
+				resourceEntry.Set("enabled", true)
+				resourceEntry.Set("required", true)
+				resourceEntry.Set("description", description)
+				rawResources.Set(dep.DependencyName, resourceEntry)
 				resourcesAdded = append(resourcesAdded, dep.DependencyName)
 			}
 		}
@@ -1644,11 +1764,19 @@ func applyDetectedDiffs(scenarioName string, analysis *DependencyAnalysisRespons
 					continue
 				}
 				description := fmt.Sprintf("Auto-detected dependency via %s", dep.AccessMethod)
+				version, versionRange := resolveScenarioVersionSpec(dep.DependencyName)
 				cfg.Dependencies.Scenarios[dep.DependencyName] = ScenarioDependencySpec{
 					Required:     true,
-					VersionRange: ">=0.0.0",
+					Version:      version,
+					VersionRange: versionRange,
 					Description:  description,
 				}
+				scenarioEntry := orderedmap.New()
+				scenarioEntry.Set("required", true)
+				scenarioEntry.Set("version", version)
+				scenarioEntry.Set("versionRange", versionRange)
+				scenarioEntry.Set("description", description)
+				rawScenarios.Set(dep.DependencyName, scenarioEntry)
 				scenariosAdded = append(scenariosAdded, dep.DependencyName)
 			}
 		}
@@ -1656,12 +1784,8 @@ func applyDetectedDiffs(scenarioName string, analysis *DependencyAnalysisRespons
 
 	changed := len(resourcesAdded) > 0 || len(scenariosAdded) > 0
 	if changed {
-		serviceConfigPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
-		payload, err := json.MarshalIndent(cfg, "", "  ")
-		if err != nil {
-			return nil, err
-		}
-		if err := os.WriteFile(serviceConfigPath, payload, 0644); err != nil {
+		reordered := reorderTopLevelKeys(rawConfig)
+		if err := writeRawServiceConfigMap(scenarioPath, reordered); err != nil {
 			return nil, err
 		}
 		if err := updateScenarioMetadata(scenarioName, cfg, scenarioPath); err != nil {
@@ -1674,6 +1798,123 @@ func applyDetectedDiffs(scenarioName string, analysis *DependencyAnalysisRespons
 	updates["resources_added"] = resourcesAdded
 	updates["scenarios_added"] = scenariosAdded
 	return updates, nil
+}
+
+func loadRawServiceConfigMap(scenarioPath string) (*orderedmap.OrderedMap, error) {
+	serviceConfigPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
+	data, err := os.ReadFile(serviceConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	raw := orderedmap.New()
+	if err := json.Unmarshal(data, raw); err != nil {
+		return nil, err
+	}
+	return raw, nil
+}
+
+func writeRawServiceConfigMap(scenarioPath string, cfg *orderedmap.OrderedMap) error {
+	serviceConfigPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(cfg); err != nil {
+		return err
+	}
+	payload := bytes.TrimRight(buffer.Bytes(), "\n")
+	payload = bytes.ReplaceAll(payload, []byte(`\u003c`), []byte("<"))
+	payload = bytes.ReplaceAll(payload, []byte(`\u003e`), []byte(">"))
+	payload = bytes.ReplaceAll(payload, []byte(`\u0026`), []byte("&"))
+	return os.WriteFile(serviceConfigPath, payload, 0644)
+}
+
+func ensureOrderedMap(parent *orderedmap.OrderedMap, key string) *orderedmap.OrderedMap {
+	if parent == nil {
+		return orderedmap.New()
+	}
+	if val, ok := parent.Get(key); ok {
+		switch typed := val.(type) {
+		case *orderedmap.OrderedMap:
+			return typed
+		case map[string]interface{}:
+			converted := orderedmap.New()
+			for k, v := range typed {
+				converted.Set(k, v)
+			}
+			parent.Set(key, converted)
+			return converted
+		}
+	}
+	child := orderedmap.New()
+	parent.Set(key, child)
+	return child
+}
+
+func reorderTopLevelKeys(cfg *orderedmap.OrderedMap) *orderedmap.OrderedMap {
+	if cfg == nil {
+		return orderedmap.New()
+	}
+	preferred := []string{"$schema", "version", "service", "ports", "lifecycle", "dependencies"}
+	reordered := orderedmap.New()
+	seen := map[string]struct{}{}
+	for _, key := range preferred {
+		if val, ok := cfg.Get(key); ok {
+			reordered.Set(key, val)
+			seen[key] = struct{}{}
+		}
+	}
+	for _, key := range cfg.Keys() {
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		if val, ok := cfg.Get(key); ok {
+			reordered.Set(key, val)
+		}
+	}
+	return reordered
+}
+
+func cloneOrderedMap(src *orderedmap.OrderedMap) *orderedmap.OrderedMap {
+	if src == nil {
+		return orderedmap.New()
+	}
+	clone := orderedmap.New()
+	for _, key := range src.Keys() {
+		if val, ok := src.Get(key); ok {
+			clone.Set(key, val)
+		}
+	}
+	return clone
+}
+
+func orderedMapFromValue(parent *orderedmap.OrderedMap, key string) *orderedmap.OrderedMap {
+	if parent == nil {
+		return orderedmap.New()
+	}
+	if val, ok := parent.Get(key); ok {
+		payload, err := json.Marshal(val)
+		if err == nil {
+			reconstructed := orderedmap.New()
+			if err := json.Unmarshal(payload, reconstructed); err == nil {
+				return reconstructed
+			}
+		}
+	}
+	return orderedmap.New()
+}
+
+func resolveScenarioVersionSpec(dependencyName string) (string, string) {
+	scenarioPath := filepath.Join(loadConfig().ScenariosDir, dependencyName)
+	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	if err != nil {
+		return "", ">=0.0.0"
+	}
+	version := strings.TrimSpace(cfg.Service.Version)
+	if version == "" {
+		return "", ">=0.0.0"
+	}
+	return version, fmt.Sprintf(">=%s", version)
 }
 
 func listScenariosHandler(c *gin.Context) {

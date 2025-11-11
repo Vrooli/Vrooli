@@ -187,6 +187,48 @@ vrooli scenario run totally-fake
 	}
 }
 
+func TestScanForScenarioDependenciesDetectsScenarioPortResolvers(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	configureTestScenariosDir(t, env)
+	issueTracker := createTestScenario(t, env, "app-issue-tracker", map[string]Resource{})
+	defer issueTracker.Cleanup()
+	subject := createTestScenario(t, env, "port-resolver", map[string]Resource{})
+	defer subject.Cleanup()
+	refreshDependencyCatalogs()
+
+	sourcePath := filepath.Join(env.ScenariosDir, "port-resolver", "main.go")
+	source := `package main
+const issueTrackerScenarioID = "app-issue-tracker"
+func use(ctx context.Context) {
+    resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "API_PORT")
+}`
+	if err := os.WriteFile(sourcePath, []byte(source), 0644); err != nil {
+		t.Fatalf("Failed to write source: %v", err)
+	}
+
+	deps, err := scanForScenarioDependencies(filepath.Join(env.ScenariosDir, "port-resolver"), "port-resolver")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	found := false
+	for _, dep := range deps {
+		if dep.DependencyName == "app-issue-tracker" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Fatalf("Expected to detect app-issue-tracker dependency via port resolver")
+	}
+}
+
 func TestScanForResourceUsageFiltersUnknown(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -240,6 +282,8 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 
 	subject := createTestScenario(t, env, "apply-subject", map[string]Resource{})
 	defer subject.Cleanup()
+	support := createTestScenario(t, env, "support-scenario", map[string]Resource{})
+	defer support.Cleanup()
 
 	analysis := &DependencyAnalysisResponse{
 		DetectedResources: []ScenarioDependency{
@@ -293,6 +337,12 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	scenarioDep, ok := cfg.Dependencies.Scenarios["support-scenario"]
 	if !ok || !scenarioDep.Required {
 		t.Fatalf("support-scenario not added correctly: %+v", cfg.Dependencies.Scenarios)
+	}
+	if scenarioDep.Version != "1.0.0" {
+		t.Fatalf("expected version to be propagated, got %q", scenarioDep.Version)
+	}
+	if scenarioDep.VersionRange != ">=1.0.0" {
+		t.Fatalf("expected version range to track detected version, got %q", scenarioDep.VersionRange)
 	}
 }
 

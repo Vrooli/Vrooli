@@ -203,6 +203,32 @@
         "enabled": true,
         "required": true,
         "description": "AI agent spawning for automated fix generation and rule creation"
+      },
+      "opencode": {
+        "type": "opencode",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (resource_cli)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {
+      "app-issue-tracker": {
+        "required": true,
+        "version": "2.0.0-file-based",
+        "versionRange": ">=2.0.0-file-based",
+        "description": "Auto-detected dependency via scenario_port_cli"
       }
     }
   }
