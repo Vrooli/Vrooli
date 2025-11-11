@@ -33,30 +33,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store schedule definitions, execution history, metrics, and configuration",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Execution locks, distributed caching, pub/sub for real-time updates"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -89,33 +65,33 @@
     },
     "setup": {
       "description": "Initialize Workflow Scheduler platform",
-       "condition": {
-       "checks": [
-            {
-              "type": "binaries",
-              "targets": [
-                "api/workflow-scheduler-api",
-                "cli/workflow-scheduler"
-              ]
-            },
-            {
-              "type": "ui-bundle",
-              "bundle_path": "ui/dist/index.html",
-              "source_dir": "ui/src"
-            },
-           {
-             "type": "cli",
-             "command": "workflow-scheduler",
-             "targets": [
-               "workflow-scheduler"
-             ]
-           },
-           {
-             "type": "resources",
-             "populated": true
-           }
-         ]
-       },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/workflow-scheduler-api",
+              "cli/workflow-scheduler"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "workflow-scheduler",
+            "targets": [
+              "workflow-scheduler"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
           "name": "base-setup",
@@ -160,34 +136,34 @@
     "develop": {
       "description": "Start Workflow Scheduler with API server and scheduling engine",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./workflow-scheduler-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/workflow-scheduler-api"
-           }
-         },
-         {
-           "name": "start-ui",
-           "run": "cd ui && node server.js",
-           "description": "Start UI server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "ui/dist/index.html"
-           }
-         },
-         {
-           "name": "configure-redis",
-           "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || true",
-           "description": "Configure Redis for keyspace notifications"
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Workflow Scheduler running:\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://your-webhook-url'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "start-api",
+          "run": "cd api && ./workflow-scheduler-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/workflow-scheduler-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "configure-redis",
+          "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || true",
+          "description": "Configure Redis for keyspace notifications"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Workflow Scheduler running:\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://your-webhook-url'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
@@ -263,6 +239,32 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store schedule definitions, execution history, metrics, and configuration",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Execution locks, distributed caching, pub/sub for real-time updates"
+      }
     }
   }
 }

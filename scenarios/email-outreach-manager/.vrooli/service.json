@@ -34,48 +34,50 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Primary storage for campaigns, templates, recipients, drip sequences, and analytics data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI template generation and email personalization using shared ollama.json workflow"
-    },
-    "mail-in-a-box": {
-      "type": "mail-in-a-box",
-      "enabled": true,
-      "required": true,
-      "purpose": "Email delivery infrastructure for sending campaigns with proper SMTP handling"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Campaign sending queue, rate limiting, and performance optimization"
-    }
-  },
   "dependencies": {
     "scenarios": {
       "contact-book": {
         "required": false,
         "purpose": "Recipient data enrichment and personalization intelligence",
-        "fallback": "Manual recipient data entry with warning indicators"
+        "fallback": "Manual recipient data entry with warning indicators",
+        "version": "1.0.0",
+        "versionRange": ">=0.0.0"
+      }
+    },
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Primary storage for campaigns, templates, recipients, drip sequences, and analytics data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI template generation and email personalization using shared ollama.json workflow"
+      },
+      "mail-in-a-box": {
+        "type": "mail-in-a-box",
+        "enabled": true,
+        "required": true,
+        "purpose": "Email delivery infrastructure for sending campaigns with proper SMTP handling"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Campaign sending queue, rate limiting, and performance optimization"
       }
     }
   },
@@ -163,7 +165,7 @@
         },
         {
           "name": "verify-dependencies",
-          "run": "echo \"Verifying dependencies...\" && (command -v contact-book &>/dev/null && echo \"\u2705 contact-book CLI available\" || echo \"\u26a0\ufe0f  contact-book CLI not found - manual data entry will be used\")",
+          "run": "echo \"Verifying dependencies...\" && (command -v contact-book &>/dev/null && echo \"✅ contact-book CLI available\" || echo \"⚠️  contact-book CLI not found - manual data entry will be used\")",
           "description": "Check optional dependencies"
         },
         {
@@ -184,7 +186,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Email Outreach Manager initialized\\n  API: http://localhost:${EMAIL_OUTREACH_API_PORT}\\n  UI: http://localhost:${EMAIL_OUTREACH_UI_PORT}\\n  CLI: email-outreach-manager --help\\n  Database: PostgreSQL ready'",
+          "run": "echo '🚀 Email Outreach Manager initialized\\n  API: http://localhost:${EMAIL_OUTREACH_API_PORT}\\n  UI: http://localhost:${EMAIL_OUTREACH_UI_PORT}\\n  CLI: email-outreach-manager --help\\n  Database: PostgreSQL ready'",
           "description": "Display service access information"
         }
       ]
@@ -212,7 +214,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Email Outreach Manager running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: email-outreach-manager --help\\n  Health: http://localhost:$API_PORT/health'",
+          "run": "echo '🚀 Email Outreach Manager running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: email-outreach-manager --help\\n  Health: http://localhost:$API_PORT/health'",
           "description": "Display service access URLs"
         }
       ]

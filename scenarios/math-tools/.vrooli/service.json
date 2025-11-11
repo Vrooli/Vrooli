@@ -70,69 +70,6 @@
       "description": "Command-line interface for scenario operations"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store tool configurations and processing results",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache and event bus for real-time operations"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": false,
-      "required": false,
-      "purpose": "Object storage for files and artifacts"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": false,
-      "required": false,
-      "purpose": "Vector database for semantic search and AI features"
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": false,
-      "required": false,
-      "purpose": "Workflow automation and business logic orchestration"
-    },
-    "node-red": {
-      "type": "node-red",
-      "enabled": false,
-      "required": false,
-      "purpose": "Visual workflow automation (alternative to Windmill)"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "models": [
-        "AI_MODEL_PLACEHOLDER"
-      ],
-      "purpose": "Local AI inference for intelligent features"
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": false,
-      "required": false,
-      "purpose": "AI-powered development assistance and code generation"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -166,14 +103,14 @@
     },
     "setup": {
       "description": "Initialize Application",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/math-tools-api"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/math-tools-api"
+            ]
+          },
           {
             "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
@@ -256,31 +193,31 @@
     "develop": {
       "description": "Start application services",
       "steps": [
-      {
-        "name": "start-api",
-        "run": "cd api && ./math-tools-api",
-        "description": "Start Go API server in background",
-        "background": true,
-        "condition": {
-          "file_exists": "api/math-tools-api"
+        {
+          "name": "start-api",
+          "run": "cd api && ./math-tools-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/math-tools-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"🚀 Services running\" && echo \"  API: http://127.0.0.1:${API_PORT}\" && echo \"  UI: http://127.0.0.1:${UI_PORT}\" && echo \"  CLI: math-tools --help\"",
+          "description": "Display all running service URLs"
         }
-      },
-      {
-        "name": "start-ui",
-        "run": "cd ui && node server.js",
-        "description": "Serve production UI bundle",
-        "background": true,
-        "condition": {
-          "file_exists": "ui/dist/index.html"
-        }
-      },
-      {
-        "name": "show-urls",
-        "run": "echo \"🚀 Services running\" && echo \"  API: http://127.0.0.1:${API_PORT}\" && echo \"  UI: http://127.0.0.1:${UI_PORT}\" && echo \"  CLI: math-tools --help\"",
-        "description": "Display all running service URLs"
-      }
-    ]
-  },
+      ]
+    },
     "test": {
       "description": "Test application functionality",
       "steps": [
@@ -326,21 +263,21 @@
     "stop": {
       "description": "Stop application services",
       "steps": [
-      {
-        "name": "stop-api-server",
-        "run": "pkill -f 'math-tools-api' || true; sleep 1; pkill -9 -f 'math-tools-api' 2>/dev/null || true",
-        "description": "Stop Go API server processes"
-      },
-      {
-        "name": "stop-ui-server",
-        "run": "pkill -f 'vite' || true",
-        "description": "Stop Vite development server"
-      },
-      {
-        "name": "confirm-stop",
-        "run": "echo '🛑 Application services stopped'",
-        "description": "Confirm services stopped"
-      }
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'math-tools-api' || true; sleep 1; pkill -9 -f 'math-tools-api' 2>/dev/null || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'vite' || true",
+          "description": "Stop Vite development server"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Application services stopped'",
+          "description": "Confirm services stopped"
+        }
       ]
     }
   },
@@ -489,11 +426,11 @@
       "enabled": true,
       "timeout": "30m",
       "script": "./test.sh",
-    "ui": {
-      "required": true,
-      "type": "iframe",
-      "url": "{{ urls.application }}"
-    },
+      "ui": {
+        "required": true,
+        "type": "iframe",
+        "url": "{{ urls.application }}"
+      },
       "performance": {
         "loadTest": {
           "users": 10,
@@ -654,6 +591,71 @@
           "required": false
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store tool configurations and processing results",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache and event bus for real-time operations"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "purpose": "Object storage for files and artifacts"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "purpose": "Vector database for semantic search and AI features"
+      },
+      "windmill": {
+        "type": "windmill",
+        "enabled": false,
+        "required": false,
+        "purpose": "Workflow automation and business logic orchestration"
+      },
+      "node-red": {
+        "type": "node-red",
+        "enabled": false,
+        "required": false,
+        "purpose": "Visual workflow automation (alternative to Windmill)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "models": [
+          "AI_MODEL_PLACEHOLDER"
+        ],
+        "purpose": "Local AI inference for intelligent features"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": false,
+        "required": false,
+        "purpose": "AI-powered development assistance and code generation"
+      }
     }
   }
 }

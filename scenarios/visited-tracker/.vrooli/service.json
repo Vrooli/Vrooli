@@ -31,7 +31,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {},
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -176,5 +175,8 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {}
   }
 }

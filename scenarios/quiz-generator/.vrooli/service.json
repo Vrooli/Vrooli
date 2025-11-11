@@ -29,57 +29,6 @@
     ],
     "documentation": "docs/README.md"
   },
-  "resources": {
-    "required": [
-      {
-        "name": "postgres",
-        "version": ">=14",
-        "purpose": "Store quizzes, questions, and results",
-        "config": {
-          "database": "quiz_generator",
-          "schema": "initialization/storage/postgres/schema.sql"
-        }
-      },
-      {
-        "name": "ollama",
-        "version": ">=0.1",
-        "purpose": "LLM for intelligent question generation",
-        "config": {
-          "model": "llama2",
-          "access_method": "shared_workflow"
-        }
-      }
-    ],
-    "optional": [
-      {
-        "name": "qdrant",
-        "version": ">=1.0",
-        "purpose": "Semantic search for questions",
-        "fallback": "postgres_fts",
-        "config": {
-          "collection": "quiz_questions"
-        }
-      },
-      {
-        "name": "redis",
-        "version": ">=6.0",
-        "purpose": "Cache active quiz sessions",
-        "fallback": "in_memory",
-        "config": {
-          "ttl": 3600
-        }
-      },
-      {
-        "name": "minio",
-        "version": ">=2023",
-        "purpose": "Store uploaded documents",
-        "fallback": "local_filesystem",
-        "config": {
-          "bucket": "quiz-documents"
-        }
-      }
-    ]
-  },
   "interfaces": {
     "api": {
       "enabled": true,
@@ -258,32 +207,32 @@
       "interval": 30000,
       "startup_grace_period": 10000
     },
-     "setup": {
-       "description": "Initialize Quiz Generator",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/quiz-generator-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
-           {
-             "type": "cli",
-             "command": "quiz-generator",
-             "targets": [
-               "quiz-generator"
-             ]
-           }
-         ]
-       },
-       "steps": [
-       {
+    "setup": {
+      "description": "Initialize Quiz Generator",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/quiz-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "quiz-generator",
+            "targets": [
+              "quiz-generator"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
           "description": "Install CLI command globally"
@@ -310,37 +259,37 @@
           "name": "show-urls",
           "run": "echo '🚀 Quiz Generator initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: quiz-generator --help'",
           "description": "Display service access URLs"
-         }
-       ]
-     },
-     "develop": {
-       "description": "Start development environment",
-       "steps": [
-          {
-            "name": "start-api",
-            "run": "cd api && ./quiz-generator-api",
-            "description": "Start Go API server in background",
-            "background": true,
-            "condition": {
-              "file_exists": "api/quiz-generator-api"
-            }
-          },
-          {
-            "name": "start-ui",
-            "run": "cd ui && node server.js",
-            "description": "Start React UI server",
-            "background": true,
-            "condition": {
-              "file_exists": "ui/dist/index.html"
-            }
-          },
-         {
-           "name": "show-urls",
-           "run": "echo \"API: http://localhost:$API_PORT\" && echo \"UI: http://localhost:$UI_PORT\"",
-           "description": "Display service URLs"
-         }
-       ]
-     },
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start development environment",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./quiz-generator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/quiz-generator-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start React UI server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:$API_PORT\" && echo \"UI: http://localhost:$UI_PORT\"",
+          "description": "Display service URLs"
+        }
+      ]
+    },
     "test": {
       "description": "Run quiz-generator tests",
       "steps": [
@@ -363,6 +312,59 @@
           "name": "stop-ui",
           "run": "pkill -f \"scenarios/quiz-generator.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/quiz-generator.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "required": [
+        {
+          "name": "postgres",
+          "version": ">=14",
+          "purpose": "Store quizzes, questions, and results",
+          "config": {
+            "database": "quiz_generator",
+            "schema": "initialization/storage/postgres/schema.sql"
+          }
+        },
+        {
+          "name": "ollama",
+          "version": ">=0.1",
+          "purpose": "LLM for intelligent question generation",
+          "config": {
+            "model": "llama2",
+            "access_method": "shared_workflow"
+          }
+        }
+      ],
+      "optional": [
+        {
+          "name": "qdrant",
+          "version": ">=1.0",
+          "purpose": "Semantic search for questions",
+          "fallback": "postgres_fts",
+          "config": {
+            "collection": "quiz_questions"
+          }
+        },
+        {
+          "name": "redis",
+          "version": ">=6.0",
+          "purpose": "Cache active quiz sessions",
+          "fallback": "in_memory",
+          "config": {
+            "ttl": 3600
+          }
+        },
+        {
+          "name": "minio",
+          "version": ">=2023",
+          "purpose": "Store uploaded documents",
+          "fallback": "local_filesystem",
+          "config": {
+            "bucket": "quiz-documents"
+          }
         }
       ]
     }

@@ -36,16 +36,16 @@
     }
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "range": "15000-19999",
-       "description": "Main API port"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "range": "35000-39999",
-       "description": "Web UI dashboard port"
-     }
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Main API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999",
+      "description": "Web UI dashboard port"
+    }
   },
   "components": {
     "api": {
@@ -68,75 +68,6 @@
       "path": "cli",
       "command": "crypto-tools",
       "description": "Command-line interface for scenario operations"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store tool configurations and processing results",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache and event bus for real-time operations"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": false,
-      "required": false,
-      "purpose": "Object storage for files and artifacts"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": false,
-      "required": false,
-      "purpose": "Vector database for semantic search and AI features"
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "purpose": "Workflow automation and business logic orchestration",
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/windmill-app.json",
-          "type": "app"
-        }
-      ]
-    },
-    "node-red": {
-      "type": "node-red",
-      "enabled": false,
-      "required": false,
-      "purpose": "Visual workflow automation (alternative to Windmill)"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "models": [
-        "AI_MODEL_PLACEHOLDER"
-      ],
-      "purpose": "Local AI inference for intelligent features"
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": false,
-      "required": false,
-      "purpose": "AI-powered development assistance and code generation"
     }
   },
   "lifecycle": {
@@ -174,22 +105,24 @@
       "description": "Initialize Application",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/crypto-tools-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
-           {
-             "type": "cli",
-             "command": "crypto-tools",
-             "targets": ["crypto-tools"]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/crypto-tools-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "crypto-tools",
+            "targets": [
+              "crypto-tools"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -260,29 +193,29 @@
     "develop": {
       "description": "Start application services with production UI bundle",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./crypto-tools-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/crypto-tools-api"
-           }
-         },
-         {
-           "name": "start-ui",
-           "run": "cd ui && node server.cjs",
-           "description": "Start Express server with built React app",
-           "background": true,
-           "condition": {
-             "file_exists": "ui/dist/index.html"
-           }
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: crypto-tools --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "start-api",
+          "run": "cd api && ./crypto-tools-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/crypto-tools-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.cjs",
+          "description": "Start Express server with built React app",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: crypto-tools --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
@@ -691,6 +624,77 @@
         ]
       },
       "instructions": "Replace all _PLACEHOLDER values with specific details for the target scenario"
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store tool configurations and processing results",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache and event bus for real-time operations"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "purpose": "Object storage for files and artifacts"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "purpose": "Vector database for semantic search and AI features"
+      },
+      "windmill": {
+        "type": "windmill",
+        "enabled": true,
+        "required": true,
+        "purpose": "Workflow automation and business logic orchestration",
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/windmill-app.json",
+            "type": "app"
+          }
+        ]
+      },
+      "node-red": {
+        "type": "node-red",
+        "enabled": false,
+        "required": false,
+        "purpose": "Visual workflow automation (alternative to Windmill)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "models": [
+          "AI_MODEL_PLACEHOLDER"
+        ],
+        "purpose": "Local AI inference for intelligent features"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": false,
+        "required": false,
+        "purpose": "AI-powered development assistance and code generation"
+      }
     }
   }
 }

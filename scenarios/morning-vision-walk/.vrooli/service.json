@@ -37,66 +37,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "chain-of-thought-orchestrator",
-        "stream-of-consciousness",
-        "embedding-generator",
-        "universal-rag-pipeline"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/vision-conversation.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/context-gatherer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/daily-planning.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/task-prioritizer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/insight-generator.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store conversations, insights, plans, and progress tracking",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache current conversation state and real-time audio streaming"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store embeddings of past conversations and insights for context retrieval"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -129,26 +69,26 @@
     },
     "setup": {
       "description": "Initialize Morning Vision Walk",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/morning-vision-walk-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
-           {
-             "type": "cli",
-             "command": "morning-vision-walk",
-             "targets": [
-               "morning-vision-walk"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/morning-vision-walk-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "morning-vision-walk",
+            "targets": [
+              "morning-vision-walk"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -205,15 +145,15 @@
     "develop": {
       "description": "Start Morning Vision Walk services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./morning-vision-walk-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/morning-vision-walk-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./morning-vision-walk-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/morning-vision-walk-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -223,11 +163,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
@@ -268,5 +208,67 @@
       "mind-maps"
     ],
     "description": "Integrates with other scenarios to provide comprehensive planning and brainstorming capabilities"
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "chain-of-thought-orchestrator",
+          "stream-of-consciousness",
+          "embedding-generator",
+          "universal-rag-pipeline"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/vision-conversation.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/context-gatherer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/daily-planning.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/task-prioritizer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/insight-generator.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store conversations, insights, plans, and progress tracking",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache current conversation state and real-time audio streaming"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store embeddings of past conversations and insights for context retrieval"
+      }
+    }
   }
 }

@@ -19,55 +19,15 @@
       "ollama-ai"
     ]
   },
-   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Web UI for document generation",
-       "range": "35000-39999"
-     }
-   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store templates, generated documents, and business profiles",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed-templates.sql",
-          "type": "seed"
-        }
-      ]
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
     },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "Generate custom clauses and adapt templates to business needs",
-      "models": [
-        "llama3.2",
-        "mistral"
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": false,
-      "required": false,
-      "purpose": "Semantic search for relevant legal clauses and similar documents"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": false,
-      "required": false,
-      "purpose": "Generate PDF versions of legal documents"
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Web UI for document generation",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -110,8 +70,8 @@
     },
     "setup": {
       "description": "Initialize Privacy & Terms Generator",
-       "condition": {
-       "checks": [
+      "condition": {
+        "checks": [
           {
             "type": "binaries",
             "targets": [
@@ -131,11 +91,11 @@
             ]
           },
           {
-             "type": "resources",
-             "populated": true
-           }
-         ]
-       },
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
       "steps": [
         {
           "name": "build-api",
@@ -174,34 +134,34 @@
         }
       ]
     },
-     "develop": {
-       "description": "Start privacy & terms generator UI",
-       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./privacy-terms-generator-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/privacy-terms-generator-api"
-           }
-         },
-         {
-           "name": "start-ui",
-           "run": "cd ui && node server.js",
-           "description": "Start web UI server",
-           "background": true,
-           "condition": {
-             "file_exists": "ui/dist/index.html"
-           }
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  CLI: privacy-terms-generator --help'",
-           "description": "Display running service URLs"
-         }
-       ]
-     },
+    "develop": {
+      "description": "Start privacy & terms generator UI",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./privacy-terms-generator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/privacy-terms-generator-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start web UI server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  CLI: privacy-terms-generator --help'",
+          "description": "Display running service URLs"
+        }
+      ]
+    },
     "test": {
       "description": "Test privacy & terms generator",
       "steps": [
@@ -226,6 +186,48 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store templates, generated documents, and business profiles",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed-templates.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Generate custom clauses and adapt templates to business needs",
+        "models": [
+          "llama3.2",
+          "mistral"
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "purpose": "Semantic search for relevant legal clauses and similar documents"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": false,
+        "required": false,
+        "purpose": "Generate PDF versions of legal documents"
+      }
     }
   }
 }

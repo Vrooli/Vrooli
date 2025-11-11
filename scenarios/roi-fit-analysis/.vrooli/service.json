@@ -21,7 +21,7 @@
       "nodejs-ui",
       "go-api",
       "postgres-storage",
-      "redis-cache", 
+      "redis-cache",
       "qdrant-vectors",
       "ollama-ai",
       "native-go-analysis"
@@ -37,44 +37,6 @@
       "env_var": "UI_PORT",
       "description": "ROI Fit Analysis UI port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store analysis data, research results, and investment metrics",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache research data and session storage"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Vector storage for market research and investment opportunity matching"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "Local LLM for financial analysis and market research"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": true,
-      "purpose": "Web scraping for financial data and market research"
     }
   },
   "lifecycle": {
@@ -234,6 +196,46 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store analysis data, research results, and investment metrics",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache research data and session storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Vector storage for market research and investment opportunity matching"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Local LLM for financial analysis and market research"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": true,
+        "purpose": "Web scraping for financial data and market research"
+      }
     }
   }
 }

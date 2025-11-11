@@ -34,40 +34,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Primary data storage for campaigns, prompts, tags, and metadata",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema_with_prefix.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": false,
-      "required": false,
-      "purpose": "Optional: Vector database for semantic search of prompts (falls back to PostgreSQL full-text search)"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "purpose": "Optional: Local LLM for prompt testing and enhancement suggestions",
-      "models": [
-        "nomic-embed-text",
-        "llama3.2"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -100,7 +66,7 @@
     },
     "setup": {
       "description": "Initialize Prompt Manager",
-       "condition": {
+      "condition": {
         "checks": [
           {
             "type": "binaries",
@@ -120,7 +86,7 @@
               "prompt-manager"
             ]
           },
-         {
+          {
             "type": "dependencies",
             "paths": [
               "ui/package.json"
@@ -191,11 +157,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}/api/v1 - CLI: prompt-manager --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}/api/v1 - CLI: prompt-manager --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
@@ -222,6 +188,42 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Primary data storage for campaigns, prompts, tags, and metadata",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema_with_prefix.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional: Vector database for semantic search of prompts (falls back to PostgreSQL full-text search)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional: Local LLM for prompt testing and enhancement suggestions",
+        "models": [
+          "nomic-embed-text",
+          "llama3.2"
+        ]
+      }
     }
   }
 }

@@ -36,30 +36,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store users, chores, points, achievements, rewards, and schedules",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache leaderboard, active sessions, and real-time point updates"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -168,15 +144,15 @@
     "develop": {
       "description": "Start ChoreQuest services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./chore-tracking-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/chore-tracking-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./chore-tracking-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/chore-tracking-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && UI_PORT=${UI_PORT} API_PORT=${API_PORT} API_URL=\"http://localhost:${API_PORT}\" NODE_ENV=production node server.js",
@@ -186,11 +162,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 ChoreQuest running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 ChoreQuest running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
@@ -217,6 +193,32 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store users, chores, points, achievements, rewards, and schedules",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache leaderboard, active sessions, and real-time point updates"
+      }
     }
   }
 }

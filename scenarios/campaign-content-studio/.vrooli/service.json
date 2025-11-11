@@ -36,81 +36,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/campaign-management.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/content-generation.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/document-processing.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/search-retrieval.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "mistral",
-        "nomic-embed-text"
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Campaign metadata, document tracking, content history",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Document embeddings for semantic search and context retrieval"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "purpose": "File storage for documents and generated assets"
-    },
-    "comfyui": {
-      "type": "comfyui",
-      "enabled": true,
-      "required": false,
-      "purpose": "Image generation for blog posts and social media content"
-    },
-    "unstructured-io": {
-      "type": "unstructured-io",
-      "enabled": true,
-      "required": false,
-      "purpose": "Document text extraction from PDFs, DOCX, and other formats"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -213,15 +138,15 @@
     "develop": {
       "description": "Start campaign content studio with Go API and Node.js UI servers",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./campaign-content-studio-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/campaign-content-studio-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./campaign-content-studio-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/campaign-content-studio-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -231,11 +156,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Campaign Content Studio running:\\n  Web UI: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: campaign-content-studio --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Campaign Content Studio running:\\n  Web UI: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: campaign-content-studio --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
@@ -262,6 +187,83 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/campaign-management.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/content-generation.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/document-processing.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/search-retrieval.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "mistral",
+          "nomic-embed-text"
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Campaign metadata, document tracking, content history",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Document embeddings for semantic search and context retrieval"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "File storage for documents and generated assets"
+      },
+      "comfyui": {
+        "type": "comfyui",
+        "enabled": true,
+        "required": false,
+        "purpose": "Image generation for blog posts and social media content"
+      },
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": false,
+        "purpose": "Document text extraction from PDFs, DOCX, and other formats"
+      }
     }
   }
 }

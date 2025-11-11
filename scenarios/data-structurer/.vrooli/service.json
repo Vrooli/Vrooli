@@ -27,63 +27,6 @@
       "range": "15000-19999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Storage of schemas and structured data with dynamic table creation",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI interpretation for content analysis and schema mapping",
-      "models": [
-        "llama3.2",
-        "mistral",
-        "nomic-embed-text"
-      ]
-    },
-    "unstructured-io": {
-      "type": "unstructured-io",
-      "enabled": true,
-      "required": true,
-      "purpose": "Extract raw content from PDFs, images, documents, and various file formats"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "purpose": "Workflow orchestration for processing pipeline",
-      "initialization": [
-        {
-          "file": "initialization/n8n/data-processing-pipeline.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/schema-validation.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Semantic search and similarity matching of structured data - enables AI-powered content discovery and duplicate detection"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -133,16 +76,18 @@
       "description": "Initialize Data Structurer with all dependencies",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/data-structurer-api"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/data-structurer-api"
+            ]
+          },
           {
             "type": "cli",
             "command": "data-structurer",
-            "targets": ["data-structurer"]
+            "targets": [
+              "data-structurer"
+            ]
           },
           {
             "type": "resources",
@@ -195,11 +140,11 @@
             "file_exists": "api/data-structurer-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
-           "description": "Display running service information and usage examples"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
+          "description": "Display running service information and usage examples"
+        }
       ]
     },
     "test": {
@@ -279,6 +224,65 @@
           "description": "Clean up temporary processing files"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Storage of schemas and structured data with dynamic table creation",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI interpretation for content analysis and schema mapping",
+        "models": [
+          "llama3.2",
+          "mistral",
+          "nomic-embed-text"
+        ]
+      },
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": true,
+        "purpose": "Extract raw content from PDFs, images, documents, and various file formats"
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "purpose": "Workflow orchestration for processing pipeline",
+        "initialization": [
+          {
+            "file": "initialization/n8n/data-processing-pipeline.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/schema-validation.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Semantic search and similarity matching of structured data - enables AI-powered content discovery and duplicate detection"
+      }
     }
   }
 }

@@ -33,32 +33,32 @@
       "redis",
       "ollama",
       "research-assistant"
-    ]
-  },
-  "resources": {
-    "postgres": {
-      "enabled": true,
-      "database": "api_library",
-      "initialization": {
-        "schema": "initialization/postgres/schema.sql",
-        "seed": "initialization/postgres/seed.sql"
+    ],
+    "resources": {
+      "postgres": {
+        "enabled": true,
+        "database": "api_library",
+        "initialization": {
+          "schema": "initialization/postgres/schema.sql",
+          "seed": "initialization/postgres/seed.sql"
+        }
+      },
+      "qdrant": {
+        "enabled": true,
+        "collection": "api_embeddings",
+        "initialization": {
+          "config": "initialization/qdrant/config.json"
+        }
+      },
+      "redis": {
+        "enabled": false,
+        "purpose": "API data caching"
+      },
+      "ollama": {
+        "enabled": false,
+        "model": "nomic-embed-text",
+        "purpose": "Generate embeddings for semantic search"
       }
-    },
-    "qdrant": {
-      "enabled": true,
-      "collection": "api_embeddings",
-      "initialization": {
-        "config": "initialization/qdrant/config.json"
-      }
-    },
-    "redis": {
-      "enabled": false,
-      "purpose": "API data caching"
-    },
-    "ollama": {
-      "enabled": false,
-      "model": "nomic-embed-text",
-      "purpose": "Generate embeddings for semantic search"
     }
   },
   "lifecycle": {
@@ -138,7 +138,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 API Library initialized\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
+          "run": "echo \"🚀 API Library initialized\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
           "description": "Display service access URLs"
         }
       ]
@@ -216,7 +216,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 API Library running:\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
+          "run": "echo \"🚀 API Library running:\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
           "description": "Display running service URLs"
         }
       ]

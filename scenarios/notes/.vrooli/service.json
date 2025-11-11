@@ -38,92 +38,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "embedding-generator",
-        "semantic-search",
-        "structured-data-extractor",
-        "chain-of-thought-orchestrator",
-        "react-loop-engine",
-        "smart-semantic-search"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/note-processor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/smart-tagging.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/note-search.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/daily-summary.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/smart-suggestions.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/intelligent-note-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/intelligent-note-linker.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/note-to-mindmap.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store notes, folders, tags, and user preferences",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector storage for semantic search across notes",
-      "initialization": [
-        {
-          "file": "initialization/qdrant/collections.json",
-          "type": "collection"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache recent notes and real-time collaboration"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI-powered note suggestions and summarization"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -156,26 +70,26 @@
     },
     "setup": {
       "description": "Initialize SmartNotes",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/notes-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
-           {
-             "type": "cli",
-             "command": "notes",
-             "targets": [
-               "notes"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/notes-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "notes",
+            "targets": [
+              "notes"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -229,15 +143,15 @@
     "develop": {
       "description": "Start SmartNotes services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./notes-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/notes-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./notes-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/notes-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -247,11 +161,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "printf '🚀 SmartNotes running:\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "printf '🚀 SmartNotes running:\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
@@ -278,6 +192,94 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "embedding-generator",
+          "semantic-search",
+          "structured-data-extractor",
+          "chain-of-thought-orchestrator",
+          "react-loop-engine",
+          "smart-semantic-search"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/note-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/smart-tagging.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/note-search.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/daily-summary.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/smart-suggestions.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/intelligent-note-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/intelligent-note-linker.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/note-to-mindmap.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store notes, folders, tags, and user preferences",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for semantic search across notes",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "collection"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache recent notes and real-time collaboration"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered note suggestions and summarization"
+      }
     }
   }
 }

@@ -40,46 +40,6 @@
       "description": "Vite dev server port (development)"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store app metadata, monitoring data, status logs, and metrics",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Real-time event streaming, caching, and app notifications"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "models": [
-        "phi3.5:3.8b",
-        "llama3.2"
-      ],
-      "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "Headless browser for capturing diagnostics when iframe bridge fails (console logs, network requests, screenshots, page HTML)"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -301,5 +261,47 @@
         "description": "Execute phased test suite"
       }
     ]
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store app metadata, monitoring data, status logs, and metrics",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Real-time event streaming, caching, and app notifications"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "models": [
+          "phi3.5:3.8b",
+          "llama3.2"
+        ],
+        "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Headless browser for capturing diagnostics when iframe bridge fails (console logs, network requests, screenshots, page HTML)"
+      }
+    }
   }
 }

@@ -27,26 +27,6 @@
       "description": "Web UI dashboard port"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": false,
-      "required": false,
-      "purpose": "Execute maintenance workflows when scenarios are activated"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": false,
-      "required": false,
-      "purpose": "Store preset configurations and activity logs"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Pub/sub for real-time state updates across instances"
-    }
-  },
   "components": {
     "api": {
       "enabled": true,
@@ -171,11 +151,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
-           "description": "Display service URLs and usage information"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
+          "description": "Display service URLs and usage information"
+        }
       ]
     },
     "test": {
@@ -202,6 +182,28 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": false,
+        "required": false,
+        "purpose": "Execute maintenance workflows when scenarios are activated"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "purpose": "Store preset configurations and activity logs"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Pub/sub for real-time state updates across instances"
+      }
     }
   }
 }

@@ -29,20 +29,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI-powered scenario copying and resource integration"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "experiment tracking and results storage"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -165,7 +151,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
+          "run": "echo '🚀 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
           "description": "Display service access information"
         }
       ]
@@ -222,6 +208,22 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered scenario copying and resource integration"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "experiment tracking and results storage"
+      }
     }
   }
 }

@@ -49,5 +49,8 @@
       "startup_grace_period": 10000
     },
     "version": "2.0.0"
+  },
+  "dependencies": {
+    "resources": {}
   }
 }

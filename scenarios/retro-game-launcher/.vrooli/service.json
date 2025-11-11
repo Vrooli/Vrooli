@@ -31,33 +31,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store game metadata, user progress, and settings",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "codellama"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -155,7 +128,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '🚀 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -183,7 +156,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -249,5 +222,34 @@
         "description": "Execute phased scenario testing"
       }
     ]
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store game metadata, user progress, and settings",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "codellama"
+        ]
+      }
+    }
   }
 }

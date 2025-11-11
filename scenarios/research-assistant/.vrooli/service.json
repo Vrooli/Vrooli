@@ -27,77 +27,6 @@
       "ollama-ai"
     ]
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/chat-rag-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/main-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/research-orchestrator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/scheduled-reports.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "qwen2.5:32b",
-        "nomic-embed-text",
-        "llama3.2:3b"
-      ]
-    },
-    "unstructured-io": {
-      "type": "unstructured-io",
-      "enabled": true,
-      "required": false,
-      "purpose": "document processing and text extraction"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "web scraping for research content"
-    },
-    "searxng": {
-      "type": "searxng",
-      "enabled": true,
-      "required": true,
-      "purpose": "privacy-focused web search"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "research data and report storage"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "vector embeddings for RAG system"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": false,
-      "purpose": "document and asset storage"
-    }
-  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -142,8 +71,8 @@
     },
     "setup": {
       "description": "Initialize Research Assistant",
-       "condition": {
-         "checks": [
+      "condition": {
+        "checks": [
           {
             "type": "binaries",
             "targets": [
@@ -158,7 +87,9 @@
           {
             "type": "cli",
             "command": "research-assistant",
-            "targets": ["research-assistant"]
+            "targets": [
+              "research-assistant"
+            ]
           },
           {
             "type": "resources",
@@ -285,6 +216,79 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/chat-rag-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/main-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/research-orchestrator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/scheduled-reports.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "qwen2.5:32b",
+          "nomic-embed-text",
+          "llama3.2:3b"
+        ]
+      },
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": false,
+        "purpose": "document processing and text extraction"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "web scraping for research content"
+      },
+      "searxng": {
+        "type": "searxng",
+        "enabled": true,
+        "required": true,
+        "purpose": "privacy-focused web search"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "research data and report storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "vector embeddings for RAG system"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": false,
+        "purpose": "document and asset storage"
+      }
     }
   }
 }

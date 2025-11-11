@@ -32,35 +32,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": false,
-      "required": false,
-      "purpose": "Store calculation history and saved scenarios",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Cache frequently used calculations for performance"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "purpose": "Provide AI-powered explanations of financial results",
-      "models": [
-        "llama3.2"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -95,24 +66,24 @@
       "description": "Initialize Financial Calculators Hub",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/financial-calculators-hub-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
-           {
-              "type": "cli",
-              "command": "financial-calculators-hub",
-              "targets": [
-                "financial-calculators-hub"
-              ]
-            }
+          {
+            "type": "binaries",
+            "targets": [
+              "api/financial-calculators-hub-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "financial-calculators-hub",
+            "targets": [
+              "financial-calculators-hub"
+            ]
+          }
         ]
       },
       "steps": [
@@ -151,15 +122,15 @@
     "develop": {
       "description": "Start Financial Calculators Hub with production UI bundle",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./financial-calculators-hub-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/financial-calculators-hub-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./financial-calculators-hub-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/financial-calculators-hub-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.cjs",
@@ -169,11 +140,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '💰 Financial Calculators Hub running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '💰 Financial Calculators Hub running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
@@ -215,6 +186,37 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "purpose": "Store calculation history and saved scenarios",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently used calculations for performance"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Provide AI-powered explanations of financial results",
+        "models": [
+          "llama3.2"
+        ]
+      }
     }
   }
 }

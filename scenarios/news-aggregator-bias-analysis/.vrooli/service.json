@@ -36,35 +36,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2"
-      ],
-      "purpose": "AI-powered bias analysis, fact-checking, and content enrichment"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store news articles, sources, bias analysis results, fact-check records, and user preferences",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache RSS feeds, trending topics, real-time updates, and analysis results"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -162,7 +133,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\ud83d\udcf0 News Aggregator initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
+          "run": "echo \"📰 News Aggregator initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
           "description": "Display service URLs"
         }
       ]
@@ -190,7 +161,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 News Aggregator running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
+          "run": "echo \"🚀 News Aggregator running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\"",
           "description": "Display running services"
         }
       ]
@@ -219,6 +190,37 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2"
+        ],
+        "purpose": "AI-powered bias analysis, fact-checking, and content enrichment"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store news articles, sources, bias analysis results, fact-check records, and user preferences",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache RSS feeds, trending topics, real-time updates, and analysis results"
+      }
     }
   }
 }

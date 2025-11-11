@@ -34,33 +34,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2:1b",
-        "llama3.2:3b",
-        "llama3.2:8b",
-        "codellama:7b",
-        "nomic-embed-text"
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "orchestration metrics and model performance data",
-      "initialization": []
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "real-time orchestration events and caching"
-    }
-  },
   "endpoints": {
     "health": "/health",
     "api_health": "/api/v1/health",
@@ -275,7 +248,34 @@
     }
   },
   "dependencies": {
-    "go": ">=1.21.0"
+    "go": ">=1.21.0",
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2:1b",
+          "llama3.2:3b",
+          "llama3.2:8b",
+          "codellama:7b",
+          "nomic-embed-text"
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "orchestration metrics and model performance data",
+        "initialization": []
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "real-time orchestration events and caching"
+      }
+    }
   },
   "monitoring": {
     "metrics": [

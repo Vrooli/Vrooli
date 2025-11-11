@@ -13,27 +13,6 @@
     "chrome-extension",
     "firefox-extension"
   ],
-  "resources": {
-    "required": [
-      {
-        "name": "browserless",
-        "purpose": "Extension testing, screenshot validation, and browser automation",
-        "access_method": "resource-browserless"
-      }
-    ],
-    "optional": [
-      {
-        "name": "postgres",
-        "purpose": "Store extension templates, build history, and deployment metadata",
-        "access_method": "CLI via scenario API"
-      },
-      {
-        "name": "redis",
-        "purpose": "Cache compiled extensions and build artifacts for faster generation",
-        "access_method": "CLI via scenario API"
-      }
-    ]
-  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -442,76 +421,76 @@
     "debug_mode": true,
     "test_data_generation": true,
     "integration_test_suite": true
-   },
-    "lifecycle": {
-      "health": {
-        "description": "Scenario to Extension health check configuration",
-        "endpoints": {
-          "api": "/health",
-          "ui": "/health"
+  },
+  "lifecycle": {
+    "health": {
+      "description": "Scenario to Extension health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize scenario-to-extension",
+      "condition": {
         "checks": [
           {
-            "name": "api_endpoint",
-            "type": "http",
-            "target": "http://localhost:${API_PORT}/health",
-            "critical": true,
-            "timeout": 5000,
-            "interval": 30000
+            "type": "binaries",
+            "targets": [
+              "api/scenario-to-extension-api"
+            ]
           },
           {
-            "name": "ui_endpoint",
-            "type": "http",
-            "target": "http://localhost:${UI_PORT}/health",
-            "critical": false,
-            "timeout": 3000,
-            "interval": 45000
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "scenario-to-extension",
+            "targets": [
+              "scenario-to-extension"
+            ]
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
           }
-        ],
-        "timeout": 5000,
-        "interval": 30000,
-        "startup_grace_period": 10000
+        ]
       },
-      "setup": {
-        "description": "Initialize scenario-to-extension",
-        "condition": {
-          "checks": [
-             {
-               "type": "binaries",
-               "targets": [
-                 "api/scenario-to-extension-api"
-               ]
-             },
-             {
-               "type": "ui-bundle",
-               "bundle_path": "ui/dist/index.html",
-               "source_dir": "ui/src"
-             },
-             {
-               "type": "cli",
-               "command": "scenario-to-extension",
-               "targets": [
-                 "scenario-to-extension"
-               ]
-             },
-            {
-              "type": "dependencies",
-              "paths": [
-                "ui/package.json"
-              ]
-            },
-            {
-              "type": "resources",
-              "populated": true
-            }
-          ]
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
         },
-        "steps": [
-          {
-            "name": "install-cli",
-            "run": "cd cli && ./install.sh",
-            "description": "Install CLI command globally"
-          },
         {
           "name": "build-api",
           "run": "cd api && go build -o scenario-to-extension-api .",
@@ -537,35 +516,35 @@
         }
       ]
     },
-      "develop": {
-       "description": "Start scenario-to-extension services",
-       "steps": [
-          {
-            "name": "start-api",
-            "run": "cd api && ./scenario-to-extension-api",
-            "description": "Start Go API server in background",
-            "background": true,
-            "condition": {
-              "file_exists": "api/scenario-to-extension-api"
-            }
-          },
-         {
-           "name": "start-ui",
-           "run": "cd ui && node server.js",
-           "description": "Start UI server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "ui/dist/index.html"
-           }
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Scenario to Extension running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-           "description": "Display service access URLs"
-         }
-       ]
-     },
-     "stop": {
+    "develop": {
+      "description": "Start scenario-to-extension services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./scenario-to-extension-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-extension-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Scenario to Extension running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "stop": {
       "description": "Stop services",
       "steps": [
         {
@@ -587,6 +566,29 @@
           "name": "run-tests",
           "run": "./test/run-tests.sh",
           "description": "Execute phased test suite"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "required": [
+        {
+          "name": "browserless",
+          "purpose": "Extension testing, screenshot validation, and browser automation",
+          "access_method": "resource-browserless"
+        }
+      ],
+      "optional": [
+        {
+          "name": "postgres",
+          "purpose": "Store extension templates, build history, and deployment metadata",
+          "access_method": "CLI via scenario API"
+        },
+        {
+          "name": "redis",
+          "purpose": "Cache compiled extensions and build artifacts for faster generation",
+          "access_method": "CLI via scenario API"
         }
       ]
     }

@@ -27,39 +27,6 @@
       "description": "Swarm Manager dashboard UI port"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Task metadata, execution history, and configuration storage",
-      "schema": "swarm_manager"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "description": "Task locks, real-time updates, and pub/sub messaging"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "description": "Task embeddings, pattern recognition, and learning system"
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": true,
-      "description": "Task analysis, priority estimation, and work execution"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "description": "Local LLM for lightweight task analysis"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -180,7 +147,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\u2705 Swarm Manager is running at http://localhost:${UI_PORT}\""
+          "run": "echo \"✅ Swarm Manager is running at http://localhost:${UI_PORT}\""
         }
       ]
     },
@@ -217,6 +184,41 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Task metadata, execution history, and configuration storage",
+        "schema": "swarm_manager"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "description": "Task locks, real-time updates, and pub/sub messaging"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Task embeddings, pattern recognition, and learning system"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "description": "Task analysis, priority estimation, and work execution"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "description": "Local LLM for lightweight task analysis"
+      }
     }
   }
 }

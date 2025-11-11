@@ -34,72 +34,9 @@
       "range": "15000-19999"
     },
     "ui": {
-      "env_var": "UI_PORT", 
+      "env_var": "UI_PORT",
       "description": "Date Night Planner UI port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/date-orchestrator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/preference-analyzer.json", 
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/venue-matcher.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/memory-recorder.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store couples, date plans, preferences, and memories",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "Generate creative date ideas and analyze preferences via shared workflow",
-      "models": [
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache frequently accessed preferences and venue data for performance"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Semantic search of date activities and venue matching for enhanced personalization"
     }
   },
   "integrations": {
@@ -111,7 +48,7 @@
       "fallback": "Single-user mode with reduced privacy features"
     },
     "contact-book": {
-      "type": "scenario", 
+      "type": "scenario",
       "enabled": true,
       "required": true,
       "purpose": "Partner preferences, relationship data, and dietary restrictions",
@@ -120,7 +57,7 @@
     "local-info-scout": {
       "type": "scenario",
       "enabled": true,
-      "required": true, 
+      "required": true,
       "purpose": "Real-time venue discovery, local events, and weather-aware recommendations",
       "fallback": "Static venue database with no real-time updates"
     },
@@ -168,7 +105,7 @@
         {
           "name": "n8n_workflows",
           "type": "http",
-          "target": "http://localhost:${API_PORT}/health/workflows", 
+          "target": "http://localhost:${API_PORT}/health/workflows",
           "critical": false,
           "timeout": 10000,
           "interval": 120000
@@ -182,12 +119,12 @@
       "description": "Initialize Date Night Planner",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/date-night-planner-api"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/date-night-planner-api"
+            ]
+          },
           {
             "type": "ui-bundle",
             "bundle_path": "ui/dist/index.html",
@@ -196,7 +133,9 @@
           {
             "type": "cli",
             "command": "date-night-planner",
-            "targets": ["date-night-planner"]
+            "targets": [
+              "date-night-planner"
+            ]
           },
           {
             "type": "dependencies",
@@ -274,11 +213,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '💕 Date Night Planner Services Running!\\n  💖 UI: http://localhost:${UI_PORT}\\n  🔗 API: http://localhost:${API_PORT}\\n  📱 CLI: date-night-planner --help'",
-           "description": "Display service access URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '💕 Date Night Planner Services Running!\\n  💖 UI: http://localhost:${UI_PORT}\\n  🔗 API: http://localhost:${API_PORT}\\n  📱 CLI: date-night-planner --help'",
+          "description": "Display service access URLs"
+        }
       ]
     },
     "test": {
@@ -299,7 +238,7 @@
         },
         {
           "name": "test-database-health",
-          "run": "curl -sf http://localhost:$API_PORT/health/database", 
+          "run": "curl -sf http://localhost:$API_PORT/health/database",
           "description": "Test database connectivity"
         },
         {
@@ -346,6 +285,71 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/date-orchestrator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/preference-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/venue-matcher.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/memory-recorder.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store couples, date plans, preferences, and memories",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Generate creative date ideas and analyze preferences via shared workflow",
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache frequently accessed preferences and venue data for performance"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Semantic search of date activities and venue matching for enhanced personalization"
+      }
     }
   }
 }

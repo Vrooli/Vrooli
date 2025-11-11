@@ -34,59 +34,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store text metadata, operations history, and templates",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store large text files and processing results",
-      "initialization": [
-        {
-          "file": "initialization/storage/minio/buckets.json",
-          "type": "config"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "Enable semantic search, summarization, and NLP features",
-      "models": [
-        "llama3.2",
-        "mistral",
-        "nomic-embed-text"
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache frequently accessed text and processing results"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Vector storage for semantic search and similarity matching"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -192,7 +139,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Text Tools initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nCore endpoints:\\n  POST /api/v1/text/diff\\n  POST /api/v1/text/search\\n  POST /api/v1/text/transform\\n  POST /api/v1/text/extract\\n  POST /api/v1/text/analyze'",
+          "run": "echo '🚀 Text Tools initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nCore endpoints:\\n  POST /api/v1/text/diff\\n  POST /api/v1/text/search\\n  POST /api/v1/text/transform\\n  POST /api/v1/text/extract\\n  POST /api/v1/text/analyze'",
           "description": "Display service access URLs"
         }
       ]
@@ -220,7 +167,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Text Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
+          "run": "echo '🚀 Text Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
           "description": "Display running service URLs and examples"
         }
       ]
@@ -249,6 +196,61 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store text metadata, operations history, and templates",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store large text files and processing results",
+        "initialization": [
+          {
+            "file": "initialization/storage/minio/buckets.json",
+            "type": "config"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "Enable semantic search, summarization, and NLP features",
+        "models": [
+          "llama3.2",
+          "mistral",
+          "nomic-embed-text"
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache frequently accessed text and processing results"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Vector storage for semantic search and similarity matching"
+      }
     }
   }
 }

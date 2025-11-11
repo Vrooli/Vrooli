@@ -31,64 +31,6 @@
       "range": "15000-19999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store book metadata, user progress, and conversation history",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector database for book content embeddings with position metadata for spoiler-free search"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "Local LLM for text embeddings and chat responses",
-      "models": [
-        "mxbai-embed-large",
-        "llama3.2",
-        "phi3.5",
-        "nomic-embed-text"
-      ]
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "purpose": "Automation workflows for book processing and chat orchestration",
-      "initialization": [
-        {
-          "file": "initialization/n8n/book-processor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/safe-chat-orchestrator.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": false,
-      "required": false,
-      "purpose": "Original book file storage and backup (fallback to local filesystem)"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -120,21 +62,21 @@
     },
     "setup": {
       "description": "Initialize No Spoilers Book Talk scenario",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/no-spoilers-book-talk-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "command": "no-spoilers-book-talk",
-             "targets": [
-               "no-spoilers-book-talk"
-             ]
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/no-spoilers-book-talk-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "no-spoilers-book-talk",
+            "targets": [
+              "no-spoilers-book-talk"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -186,11 +128,11 @@
             "file_exists": "api/no-spoilers-book-talk-api"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '📚 No Spoilers Book Talk running:\\n  API: http://localhost:$API_PORT\\n  Upload books: POST /api/v1/books/upload\\n  Start chat: POST /api/v1/books/{book_id}/chat\\n  CLI: no-spoilers-book-talk --help'",
-           "description": "Display running service information"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '📚 No Spoilers Book Talk running:\\n  API: http://localhost:$API_PORT\\n  Upload books: POST /api/v1/books/upload\\n  Start chat: POST /api/v1/books/{book_id}/chat\\n  CLI: no-spoilers-book-talk --help'",
+          "description": "Display running service information"
+        }
       ]
     },
     "test": {
@@ -217,6 +159,66 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store book metadata, user progress, and conversation history",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for book content embeddings with position metadata for spoiler-free search"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Local LLM for text embeddings and chat responses",
+        "models": [
+          "mxbai-embed-large",
+          "llama3.2",
+          "phi3.5",
+          "nomic-embed-text"
+        ]
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "purpose": "Automation workflows for book processing and chat orchestration",
+        "initialization": [
+          {
+            "file": "initialization/n8n/book-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/safe-chat-orchestrator.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "purpose": "Original book file storage and backup (fallback to local filesystem)"
+      }
     }
   }
 }

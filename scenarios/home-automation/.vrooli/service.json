@@ -27,102 +27,15 @@
     ]
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Home automation API server port",
-       "range": "15000-19999"
-     },
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Home automation API server port",
+      "range": "15000-19999"
+    },
     "ui": {
       "env_var": "UI_PORT",
       "description": "Home automation UI server port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store user profiles, automation rules, device state cache, and audit logs",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Real-time device state caching and event pub/sub for live UI updates",
-      "fallback": "In-memory caching with periodic database persistence",
-      "initialization": []
-    },
-    "home-assistant": {
-      "type": "home-assistant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Physical device control, state monitoring, and IoT ecosystem integration",
-      "fallback": "Mock device interface for development and testing",
-      "cli_integration": true,
-      "health_check": "resource-home-assistant status"
-    },
-    "scenario-authenticator": {
-      "type": "scenario",
-      "name": "scenario-authenticator",
-      "enabled": true,
-      "required": false,
-      "purpose": "User authentication, profile management, and permission validation",
-      "fallback": "Mock user permissions with default admin access for development",
-      "api_endpoint": "/api/v1/auth/validate",
-      "required_version": "1.0.0",
-      "cli_integration": true
-    },
-    "calendar": {
-      "type": "scenario",
-      "name": "calendar",
-      "enabled": true,
-      "required": false,
-      "purpose": "Schedule-aware automation triggers and context switching intelligence",
-      "fallback": "Manual scheduling only without intelligent context switching",
-      "api_endpoint": "/api/v1/events",
-      "required_version": "1.0.0",
-      "event_subscription": [
-        "calendar.event.starting",
-        "calendar.event.ending"
-      ]
-    },
-    "resource-claude-code": {
-      "type": "resource",
-      "name": "claude-code",
-      "enabled": true,
-      "required": false,
-      "purpose": "AI-powered automation generation from natural language descriptions",
-      "fallback": "Template-based automation generation using predefined patterns",
-      "cli_integration": true,
-      "health_check": "resource-claude-code status"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "AI-powered automation safety validation and context analysis",
-      "fallback": "Rule-based validation without AI insights",
-      "models": ["llama3.2"],
-      "cli_integration": true
-    },
-    "notification-hub": {
-      "type": "scenario",
-      "name": "notification-hub",
-      "enabled": false,
-      "required": false,
-      "purpose": "Multi-channel alerts for device failures, security events, and automation notifications",
-      "fallback": "Log-only notifications without user alerts"
     }
   },
   "lifecycle": {
@@ -193,24 +106,24 @@
       "description": "Initialize Home Automation Intelligence System",
       "condition": {
         "checks": [
-    {
-      "type": "binaries",
-      "targets": [
-        "api/home-automation-api"
-      ]
-    },
-    {
-      "type": "ui-bundle",
-      "bundle_path": "ui/dist/index.html",
-      "source_dir": "ui/src"
-    },
-    {
-      "type": "cli",
-      "command": "home-automation",
-      "targets": [
-        "home-automation"
-      ]
-    },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/home-automation-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "home-automation",
+            "targets": [
+              "home-automation"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -292,15 +205,15 @@
     "develop": {
       "description": "Start Home Automation System with API and UI",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./home-automation-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/home-automation-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./home-automation-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/home-automation-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -310,11 +223,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo 'Home Automation running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: home-automation --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo 'Home Automation running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: home-automation --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
@@ -493,6 +406,97 @@
       "REAL_TIME_UPDATES": "true",
       "THEME": "dark",
       "MOBILE_OPTIMIZED": "true"
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store user profiles, automation rules, device state cache, and audit logs",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Real-time device state caching and event pub/sub for live UI updates",
+        "fallback": "In-memory caching with periodic database persistence",
+        "initialization": []
+      },
+      "home-assistant": {
+        "type": "home-assistant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Physical device control, state monitoring, and IoT ecosystem integration",
+        "fallback": "Mock device interface for development and testing",
+        "cli_integration": true,
+        "health_check": "resource-home-assistant status"
+      },
+      "scenario-authenticator": {
+        "type": "scenario",
+        "name": "scenario-authenticator",
+        "enabled": true,
+        "required": false,
+        "purpose": "User authentication, profile management, and permission validation",
+        "fallback": "Mock user permissions with default admin access for development",
+        "api_endpoint": "/api/v1/auth/validate",
+        "required_version": "1.0.0",
+        "cli_integration": true
+      },
+      "calendar": {
+        "type": "scenario",
+        "name": "calendar",
+        "enabled": true,
+        "required": false,
+        "purpose": "Schedule-aware automation triggers and context switching intelligence",
+        "fallback": "Manual scheduling only without intelligent context switching",
+        "api_endpoint": "/api/v1/events",
+        "required_version": "1.0.0",
+        "event_subscription": [
+          "calendar.event.starting",
+          "calendar.event.ending"
+        ]
+      },
+      "resource-claude-code": {
+        "type": "resource",
+        "name": "claude-code",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI-powered automation generation from natural language descriptions",
+        "fallback": "Template-based automation generation using predefined patterns",
+        "cli_integration": true,
+        "health_check": "resource-claude-code status"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI-powered automation safety validation and context analysis",
+        "fallback": "Rule-based validation without AI insights",
+        "models": [
+          "llama3.2"
+        ],
+        "cli_integration": true
+      },
+      "notification-hub": {
+        "type": "scenario",
+        "name": "notification-hub",
+        "enabled": false,
+        "required": false,
+        "purpose": "Multi-channel alerts for device failures, security events, and automation notifications",
+        "fallback": "Log-only notifications without user alerts"
+      }
     }
   }
 }

@@ -17,7 +17,7 @@
       "prompt-management",
       "workflow-orchestration",
       "go-api",
-      "postgres-storage", 
+      "postgres-storage",
       "qdrant-vectors",
       "native-go-reasoning"
     ]
@@ -32,56 +32,6 @@
       "env_var": "UI_PORT",
       "description": "Metareasoning dashboard port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/metareasoning-orchestrator.json",
-          "type": "app"
-        },
-        {
-          "file": "initialization/automation/windmill/prompt-tester.json",
-          "type": "app"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "mistral",
-        "codellama",
-        "nomic-embed-text"
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "execution history and workflow metadata",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Vector database for semantic search of reasoning patterns, workflow templates, and decision history - enables AI-powered similarity matching and recommendation of relevant metareasoning strategies"
     }
   },
   "lifecycle": {
@@ -232,6 +182,58 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "windmill": {
+        "type": "windmill",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/metareasoning-orchestrator.json",
+            "type": "app"
+          },
+          {
+            "file": "initialization/automation/windmill/prompt-tester.json",
+            "type": "app"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "mistral",
+          "codellama",
+          "nomic-embed-text"
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "execution history and workflow metadata",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Vector database for semantic search of reasoning patterns, workflow templates, and decision history - enables AI-powered similarity matching and recommendation of relevant metareasoning strategies"
+      }
     }
   }
 }

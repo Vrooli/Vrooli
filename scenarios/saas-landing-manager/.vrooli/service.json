@@ -33,47 +33,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store landing page metadata, A/B test data, analytics, and scenario registry",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "AI-powered content generation for landing page copy and SEO optimization",
-      "models": [
-        "llama3.2"
-      ]
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "Screenshot generation for template previews and A/B test validation",
-      "fallback": "Basic template previews without screenshots"
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": false,
-      "purpose": "Automated landing page deployment to SaaS scenarios",
-      "fallback": "Manual landing page file generation"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -225,6 +184,49 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store landing page metadata, A/B test data, analytics, and scenario registry",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI-powered content generation for landing page copy and SEO optimization",
+        "models": [
+          "llama3.2"
+        ]
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Screenshot generation for template previews and A/B test validation",
+        "fallback": "Basic template previews without screenshots"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false,
+        "purpose": "Automated landing page deployment to SaaS scenarios",
+        "fallback": "Manual landing page file generation"
+      }
     }
   }
 }

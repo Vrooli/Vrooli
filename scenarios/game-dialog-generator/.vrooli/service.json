@@ -36,53 +36,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store character definitions, dialog history, and project data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/data/sample_characters.sql",
-          "type": "data"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector embeddings for character traits, scene context, and semantic dialog search",
-      "initialization": [
-        {
-          "file": "initialization/data/character_embeddings.json",
-          "type": "collection_setup"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "Local LLM for dialog generation and character personality modeling",
-      "models": [
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    },
-    "whisper": {
-      "type": "whisper",
-      "enabled": true,
-      "required": false,
-      "purpose": "Voice synthesis for character-specific audio generation",
-      "fallback_behavior": "text-only dialog generation"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -280,6 +233,55 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store character definitions, dialog history, and project data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/data/sample_characters.sql",
+            "type": "data"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector embeddings for character traits, scene context, and semantic dialog search",
+        "initialization": [
+          {
+            "file": "initialization/data/character_embeddings.json",
+            "type": "collection_setup"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Local LLM for dialog generation and character personality modeling",
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      },
+      "whisper": {
+        "type": "whisper",
+        "enabled": true,
+        "required": false,
+        "purpose": "Voice synthesis for character-specific audio generation",
+        "fallback_behavior": "text-only dialog generation"
+      }
     }
   }
 }

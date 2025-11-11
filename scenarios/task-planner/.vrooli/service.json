@@ -33,60 +33,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store tasks, plans, and status",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Caching and real-time updates"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector database for semantic search of tasks and research"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    },
-    "searxng": {
-      "type": "searxng",
-      "enabled": true,
-      "required": false
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": false
-    },
-    "agent-s2": {
-      "type": "agent-s2",
-      "enabled": true,
-      "required": false
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -278,5 +224,61 @@
         "description": "Execute phased test suite"
       }
     ]
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store tasks, plans, and status",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Caching and real-time updates"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for semantic search of tasks and research"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      },
+      "searxng": {
+        "type": "searxng",
+        "enabled": true,
+        "required": false
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false
+      },
+      "agent-s2": {
+        "type": "agent-s2",
+        "enabled": true,
+        "required": false
+      }
+    }
   }
 }

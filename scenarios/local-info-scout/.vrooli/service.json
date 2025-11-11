@@ -1,41 +1,24 @@
 {
-   "$schema": "../../../../.vrooli/schemas/service.schema.json",
-   "version": "1.0.0",
-   "service": {
-     "name": "local-info-scout",
-     "displayName": "Local Info Scout",
-     "description": "Local information scout service with Go API",
-     "version": "1.0.0",
-     "tags": [
-       "go-api"
-     ]
-   },
-   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Local Info Scout API port",
-       "range": "15000-19999",
-       "default": 15050
-     }
-   },
-   "resources": {
-     "redis": {
-       "type": "redis",
-       "enabled": true,
-       "required": false
-     },
-     "postgres": {
-       "type": "postgres",
-       "enabled": true,
-       "required": false
-     },
-     "searxng": {
-       "type": "searxng",
-       "enabled": false,
-       "required": false
-     }
-   },
-   "lifecycle": {
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "local-info-scout",
+    "displayName": "Local Info Scout",
+    "description": "Local information scout service with Go API",
+    "version": "1.0.0",
+    "tags": [
+      "go-api"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Local Info Scout API port",
+      "range": "15000-19999",
+      "default": 15050
+    }
+  },
+  "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Local Info Scout health check configuration",
@@ -58,23 +41,23 @@
     },
     "setup": {
       "description": "Initialize Local Info Scout",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/local-info-scout-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "command": "local-info-scout",
-             "targets": [
-               "local-info-scout"
-             ]
-           }
-         ]
-       },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/local-info-scout-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "local-info-scout",
+            "targets": [
+              "local-info-scout"
+            ]
+          }
+        ]
+      },
       "steps": [
         {
           "name": "generate-embeddings",
@@ -119,20 +102,20 @@
     "develop": {
       "description": "Start Local Info Scout services",
       "steps": [
-           {
-             "name": "start-api",
-             "run": "cd api && export API_PORT=${API_PORT:-15050} REDIS_PORT=${REDIS_PORT:-6380} POSTGRES_PORT=${POSTGRES_PORT:-5433} POSTGRES_USER=${POSTGRES_USER:-vrooli} POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-} POSTGRES_DB=${POSTGRES_DB:-vrooli} && ./local-info-scout-api",
-             "description": "Start Go API server in background",
-             "background": true,
-             "condition": {
-               "file_exists": "api/local-info-scout-api"
-             }
-           },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Local Info Scout running:\\n  API: http://localhost:${API_PORT}\\n  CLI: local-info-scout --help'",
-           "description": "Display service URLs and usage information"
-         }
+        {
+          "name": "start-api",
+          "run": "cd api && export API_PORT=${API_PORT:-15050} REDIS_PORT=${REDIS_PORT:-6380} POSTGRES_PORT=${POSTGRES_PORT:-5433} POSTGRES_USER=${POSTGRES_USER:-vrooli} POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-} POSTGRES_DB=${POSTGRES_DB:-vrooli} && ./local-info-scout-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/local-info-scout-api"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Local Info Scout running:\\n  API: http://localhost:${API_PORT}\\n  CLI: local-info-scout --help'",
+          "description": "Display service URLs and usage information"
+        }
       ]
     },
     "test": {
@@ -155,6 +138,25 @@
           "description": "Stop API process"
         }
       ]
-     }
-   }
- }
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": false
+      },
+      "searxng": {
+        "type": "searxng",
+        "enabled": false,
+        "required": false
+      }
+    }
+  }
+}

@@ -94,5 +94,8 @@
       "range": "15000-19999",
       "description": "Primary API port"
     }
+  },
+  "dependencies": {
+    "resources": {}
   }
 }

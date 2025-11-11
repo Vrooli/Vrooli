@@ -31,48 +31,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Referral tracking, commission calculations, and analytics storage",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "scenario-authenticator": {
-      "type": "scenario",
-      "enabled": true,
-      "required": true,
-      "purpose": "User account management and referral profile creation"
-    },
-    "resource-claude-code": {
-      "type": "resource",
-      "enabled": true,
-      "required": false,
-      "purpose": "Automated implementation of referral logic in target scenarios"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "Web crawling for deployed scenario analysis and validation screenshots"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Vector database for semantic search of optimal referral patterns and marketing copy templates"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -105,19 +63,19 @@
     },
     "setup": {
       "description": "Initialize Referral Program Generator",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/referral-program-generator-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/referral-program-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
           {
             "type": "cli",
             "command": "referral-program-generator",
@@ -224,6 +182,50 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Referral tracking, commission calculations, and analytics storage",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "scenario-authenticator": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "purpose": "User account management and referral profile creation"
+      },
+      "resource-claude-code": {
+        "type": "resource",
+        "enabled": true,
+        "required": false,
+        "purpose": "Automated implementation of referral logic in target scenarios"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Web crawling for deployed scenario analysis and validation screenshots"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Vector database for semantic search of optimal referral patterns and marketing copy templates"
+      }
     }
   }
 }

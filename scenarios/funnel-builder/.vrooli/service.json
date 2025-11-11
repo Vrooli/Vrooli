@@ -32,39 +32,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store funnel definitions, steps, leads, and analytics data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Cache funnel sessions and real-time analytics"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "purpose": "Generate compelling copy for funnel steps",
-      "models": [
-        "llama3.2"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -151,7 +118,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Funnel Builder initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: funnel-builder --help'",
+          "run": "echo '🚀 Funnel Builder initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: funnel-builder --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -179,7 +146,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: funnel-builder --help'",
+          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: funnel-builder --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -240,5 +207,40 @@
         "description": "Execute phased scenario testing"
       }
     ]
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store funnel definitions, steps, leads, and analytics data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache funnel sessions and real-time analytics"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Generate compelling copy for funnel steps",
+        "models": [
+          "llama3.2"
+        ]
+      }
+    }
   }
 }

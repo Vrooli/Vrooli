@@ -22,45 +22,15 @@
     ]
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Chart generation API port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Chart style management UI port",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store chart templates, custom styles, generation history, and configuration data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed-styles.sql",
-          "type": "seed"
-        }
-      ]
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Chart generation API port",
+      "range": "15000-19999"
     },
-    "minio": {
-      "type": "minio",
-      "enabled": false,
-      "required": false,
-      "purpose": "Store generated chart assets and large data files with organized bucket structure"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Cache frequently used styles, templates, and generated charts for performance optimization"
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Chart style management UI port",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -169,15 +139,15 @@
     "develop": {
       "description": "Start chart generator with API server and UI",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./chart-generator-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/chart-generator-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./chart-generator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/chart-generator-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -187,11 +157,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🎨 Chart Generator Services Running:\\n  Style Management: http://localhost:${UI_PORT}\\n  Chart API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n📋 CLI Usage: chart-generator --help'",
-           "description": "Display all running service URLs and CLI info"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🎨 Chart Generator Services Running:\\n  Style Management: http://localhost:${UI_PORT}\\n  Chart API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n📋 CLI Usage: chart-generator --help'",
+          "description": "Display all running service URLs and CLI info"
+        }
       ]
     },
     "test": {
@@ -256,6 +226,38 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store chart templates, custom styles, generation history, and configuration data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed-styles.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "purpose": "Store generated chart assets and large data files with organized bucket structure"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently used styles, templates, and generated charts for performance optimization"
+      }
     }
   }
 }

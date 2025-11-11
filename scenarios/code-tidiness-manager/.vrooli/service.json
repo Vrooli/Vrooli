@@ -31,46 +31,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store scan history, cleanup patterns, and learning data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Cache scan results and temporary analysis data for performance"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Vector storage for code similarity detection and duplicate identification"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "AI-powered code analysis and suggestion refinement",
-      "models": [
-        "codellama",
-        "mistral"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -166,7 +126,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\uddf9 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help'",
+          "run": "echo '🧹 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -194,7 +154,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\uddf9 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
+          "run": "echo '🧹 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
           "description": "Display all running service URLs"
         }
       ]
@@ -240,6 +200,48 @@
           "description": "Hourly quick scan for obvious issues"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store scan history, cleanup patterns, and learning data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache scan results and temporary analysis data for performance"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Vector storage for code similarity detection and duplicate identification"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI-powered code analysis and suggestion refinement",
+        "models": [
+          "codellama",
+          "mistral"
+        ]
+      }
     }
   }
 }

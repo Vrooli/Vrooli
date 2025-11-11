@@ -22,36 +22,6 @@
       "range": "15000-19999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Stores events, schedules, and temporal analytics",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "description": "Caching layer for schedule lookups and async jobs"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": false,
-      "required": false,
-      "description": "Optional asset storage for exported calendars"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -154,6 +124,38 @@
           "description": "Stop Go API server"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Stores events, schedules, and temporal analytics",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "description": "Caching layer for schedule lookups and async jobs"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "description": "Optional asset storage for exported calendars"
+      }
     }
   }
 }

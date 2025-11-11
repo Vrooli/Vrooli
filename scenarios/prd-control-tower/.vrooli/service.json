@@ -6,7 +6,11 @@
     "displayName": "PRD Control Tower",
     "description": "Centralized management, validation, and publishing of Product Requirements Documents",
     "version": "1.0.0",
-    "tags": ["documentation", "prd-management", "validation"]
+    "tags": [
+      "documentation",
+      "prd-management",
+      "validation"
+    ]
   },
   "ports": {
     "api": {
@@ -20,32 +24,6 @@
       "port": 36300,
       "description": "PRD Control Tower UI port",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Draft metadata and audit results storage (uses shared vrooli database)"
-    },
-    "scenario-auditor": {
-      "type": "scenario-auditor",
-      "enabled": false,
-      "required": false,
-      "description": "PRD structure validation"
-    },
-    "resource-openrouter": {
-      "type": "resource-openrouter",
-      "enabled": false,
-      "required": false,
-      "description": "AI-assisted section generation"
-    },
-    "ecosystem-manager": {
-      "type": "ecosystem-manager",
-      "enabled": false,
-      "required": false,
-      "description": "New scenario creation workflow"
     }
   },
   "lifecycle": {
@@ -214,6 +192,34 @@
     },
     "stop": {
       "description": "Stop all services gracefully"
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Draft metadata and audit results storage (uses shared vrooli database)"
+      },
+      "scenario-auditor": {
+        "type": "scenario-auditor",
+        "enabled": false,
+        "required": false,
+        "description": "PRD structure validation"
+      },
+      "resource-openrouter": {
+        "type": "resource-openrouter",
+        "enabled": false,
+        "required": false,
+        "description": "AI-assisted section generation"
+      },
+      "ecosystem-manager": {
+        "type": "ecosystem-manager",
+        "enabled": false,
+        "required": false,
+        "description": "New scenario creation workflow"
+      }
     }
   }
 }

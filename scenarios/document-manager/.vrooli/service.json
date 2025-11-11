@@ -37,78 +37,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store application metadata, agent configurations, improvement queue, and audit logs",
-      "database": "document_manager",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector database for documentation embeddings, agent memory, and similarity pattern analysis",
-      "initialization": [
-        {
-          "file": "initialization/storage/qdrant/collections.json",
-          "type": "collection"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Real-time messaging, notification channels, and caching"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/doc-monitor-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/improvement-processor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/notification-router.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "nomic-embed-text",
-        "codellama"
-      ]
-    },
-    "unstructured_io": {
-      "type": "unstructured_io",
-      "enabled": true,
-      "required": false,
-      "purpose": "Advanced document parsing and content extraction"
-    }
-  },
   "business_model": {
     "type": "saas",
     "target_revenue": "$25000-50000",
@@ -228,20 +156,20 @@
     "develop": {
       "description": "Start document manager with coordination API and monitoring",
       "steps": [
-         {
-           "name": "ensure-resources",
-           "run": "bash lib/ensure-resources.sh",
-           "description": "Ensure all required resources are running"
-         },
-         {
-           "name": "start-api",
-           "run": "cd api && POSTGRES_URL=\"postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/document_manager?sslmode=disable\" QDRANT_URL=\"http://localhost:6333\" OLLAMA_URL=\"http://localhost:11434\" REDIS_URL=\"redis://localhost:6379\" N8N_URL=\"http://localhost:5678\" ./document-manager-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/document-manager-api"
-           }
-         },
+        {
+          "name": "ensure-resources",
+          "run": "bash lib/ensure-resources.sh",
+          "description": "Ensure all required resources are running"
+        },
+        {
+          "name": "start-api",
+          "run": "cd api && POSTGRES_URL=\"postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/document_manager?sslmode=disable\" QDRANT_URL=\"http://localhost:6333\" OLLAMA_URL=\"http://localhost:11434\" REDIS_URL=\"redis://localhost:6379\" N8N_URL=\"http://localhost:5678\" ./document-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/document-manager-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && UI_PORT=${UI_PORT} API_PORT=${API_PORT} API_BASE_URL=\"http://localhost:${API_PORT}\" NODE_ENV=production node server.js",
@@ -256,11 +184,11 @@
           "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || echo 'Redis keyspace notifications configured'",
           "description": "Configure Redis for pub/sub notifications"
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Document Manager running:\\n  Web Interface: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$API_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help'",
-           "description": "Display service access URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Document Manager running:\\n  Web Interface: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$API_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help'",
+          "description": "Display service access URLs"
+        }
       ]
     },
     "test": {
@@ -347,6 +275,80 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store application metadata, agent configurations, improvement queue, and audit logs",
+        "database": "document_manager",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for documentation embeddings, agent memory, and similarity pattern analysis",
+        "initialization": [
+          {
+            "file": "initialization/storage/qdrant/collections.json",
+            "type": "collection"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Real-time messaging, notification channels, and caching"
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/doc-monitor-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/improvement-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/notification-router.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "nomic-embed-text",
+          "codellama"
+        ]
+      },
+      "unstructured_io": {
+        "type": "unstructured_io",
+        "enabled": true,
+        "required": false,
+        "purpose": "Advanced document parsing and content extraction"
+      }
     }
   }
 }

@@ -32,60 +32,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Primary vector database containing all semantic knowledge to monitor and search"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store knowledge metadata, quality metrics, search history, and configuration",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": false,
-      "purpose": "Automated knowledge quality monitoring and analysis workflows",
-      "initialization": [
-        {
-          "file": "initialization/n8n/knowledge-quality-monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/semantic-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/knowledge-graph-builder.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "Enhanced semantic analysis and natural language query understanding",
-      "models": [
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -191,15 +137,15 @@
     "develop": {
       "description": "Start Knowledge Observatory with API and UI",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./knowledge-observatory-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/knowledge-observatory-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./knowledge-observatory-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/knowledge-observatory-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -209,11 +155,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🔭 Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
-           "description": "Display service URLs and usage information"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🔭 Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
+          "description": "Display service URLs and usage information"
+        }
       ]
     },
     "test": {
@@ -240,6 +186,62 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Primary vector database containing all semantic knowledge to monitor and search"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store knowledge metadata, quality metrics, search history, and configuration",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": false,
+        "purpose": "Automated knowledge quality monitoring and analysis workflows",
+        "initialization": [
+          {
+            "file": "initialization/n8n/knowledge-quality-monitor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/semantic-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/knowledge-graph-builder.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "Enhanced semantic analysis and natural language query understanding",
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      }
     }
   }
 }

@@ -33,58 +33,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store injection library, agent configs, test results, leaderboards",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "mistral",
-        "codellama",
-        "qwen2.5:7b",
-        "nomic-embed-text"
-      ],
-      "purpose": "Execute agent configurations against injection tests safely"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/security-sandbox.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/injection-tester.json",
-          "type": "workflow"
-        }
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -117,7 +65,7 @@
     },
     "setup": {
       "description": "Initialize Prompt Injection Arena",
-       "condition": {
+      "condition": {
         "checks": [
           {
             "type": "binaries",
@@ -137,7 +85,7 @@
               "prompt-injection-arena"
             ]
           },
-         {
+          {
             "type": "resources",
             "populated": true
           }
@@ -205,11 +153,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Arena UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  Arena UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
@@ -236,6 +184,60 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store injection library, agent configs, test results, leaderboards",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "mistral",
+          "codellama",
+          "qwen2.5:7b",
+          "nomic-embed-text"
+        ],
+        "purpose": "Execute agent configurations against injection tests safely"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns"
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/security-sandbox.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/injection-tester.json",
+            "type": "workflow"
+          }
+        ]
+      }
     }
   }
 }

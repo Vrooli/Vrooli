@@ -33,45 +33,6 @@
       "description": "Component showcase and playground UI port"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Component metadata, versions, test results, and usage analytics storage",
-      "schema": "react_component_library"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "description": "Semantic search for component patterns, documentation, and code similarity"
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": true,
-      "description": "AI-powered component generation, improvement suggestions, and code analysis"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "description": "Storage for component screenshots, exported packages, and static assets"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "description": "Caching for component metadata and search results (performance optimization)"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": false,
-      "required": false,
-      "description": "Automated screenshot generation for visual regression testing"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -111,45 +72,45 @@
       "interval": 30000,
       "startup_grace_period": 15000
     },
-     "setup": {
-       "description": "Initialize React Component Library",
-       "condition": {
-         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/react-component-library-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
-           {
-             "type": "cli",
-             "command": "react-component-library",
-             "targets": [
-               "react-component-library"
-             ]
-           },
-           {
-             "type": "files",
-             "targets": [
-               "ui/package.json",
-               "initialization/storage/postgres/schema.sql"
-             ]
-           },
-           {
-             "type": "directories",
-             "targets": [
-               "initialization/automation/n8n",
-               "cli",
-               "ui/src"
-             ]
-           }
-         ]
-       },
+    "setup": {
+      "description": "Initialize React Component Library",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/react-component-library-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "react-component-library",
+            "targets": [
+              "react-component-library"
+            ]
+          },
+          {
+            "type": "files",
+            "targets": [
+              "ui/package.json",
+              "initialization/storage/postgres/schema.sql"
+            ]
+          },
+          {
+            "type": "directories",
+            "targets": [
+              "initialization/automation/n8n",
+              "cli",
+              "ui/src"
+            ]
+          }
+        ]
+      },
       "steps": [
         {
           "name": "verify-structure",
@@ -309,7 +270,7 @@
   },
   "capabilities": [
     "component-creation",
-    "component-showcase", 
+    "component-showcase",
     "accessibility-testing",
     "performance-benchmarking",
     "ai-component-generation",
@@ -328,7 +289,7 @@
       "endpoints": [
         "/components",
         "/components/{id}",
-        "/components/search", 
+        "/components/search",
         "/components/generate",
         "/components/{id}/test",
         "/components/{id}/export",
@@ -341,7 +302,7 @@
       "install_path": "~/.vrooli/bin/",
       "commands": [
         "create",
-        "test", 
+        "test",
         "search",
         "export",
         "generate",
@@ -386,7 +347,7 @@
       },
       {
         "capability": "performance_benchmarking",
-        "interface": "api", 
+        "interface": "api",
         "endpoints": [
           "/api/v1/components/{id}/benchmark"
         ],
@@ -402,7 +363,7 @@
       },
       {
         "capability": "vector_search",
-        "from": "qdrant", 
+        "from": "qdrant",
         "interface": "api",
         "description": "Semantic search across component patterns and documentation"
       }
@@ -415,9 +376,9 @@
     "test_runner": "test.sh",
     "coverage_target": 85
   },
-    "monitoring": {
-      "health_check": {
-        "endpoint": "/health",
+  "monitoring": {
+    "health_check": {
+      "endpoint": "/health",
       "interval": 30,
       "timeout": 5
     },
@@ -454,7 +415,7 @@
     "current_version": "1.0.0",
     "roadmap": {
       "1.1.0": "Visual component composition builder",
-      "1.2.0": "Advanced accessibility simulation", 
+      "1.2.0": "Advanced accessibility simulation",
       "1.3.0": "Component marketplace integration",
       "2.0.0": "Multi-framework support (Vue, Svelte)"
     },
@@ -462,10 +423,51 @@
   },
   "documentation": {
     "readme": "README.md",
-    "prd": "PRD.md", 
+    "prd": "PRD.md",
     "api_docs": "docs/api.md",
     "cli_docs": "docs/cli.md",
     "component_authoring": "docs/component-authoring.md",
     "testing_guide": "docs/testing.md"
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Component metadata, versions, test results, and usage analytics storage",
+        "schema": "react_component_library"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Semantic search for component patterns, documentation, and code similarity"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "description": "AI-powered component generation, improvement suggestions, and code analysis"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "description": "Storage for component screenshots, exported packages, and static assets"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "description": "Caching for component metadata and search results (performance optimization)"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": false,
+        "required": false,
+        "description": "Automated screenshot generation for visual regression testing"
+      }
+    }
   }
 }

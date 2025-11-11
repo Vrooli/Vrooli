@@ -35,35 +35,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "AI-powered invoice data extraction from unstructured text",
-      "models": [
-        "llama3.2"
-      ]
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "Convert invoice HTML templates to professional PDF documents"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "invoice data, client information, payment tracking",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -98,24 +69,24 @@
       "description": "Initialize Invoice Generator Pro",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/invoice-generator-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
-           {
-             "type": "cli",
-             "command": "invoice-generator",
-             "targets": [
-               "invoice-generator"
-             ]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/invoice-generator-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "invoice-generator",
+            "targets": [
+              "invoice-generator"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -190,11 +161,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '💼 Services running:\\n  📄 UI Dashboard: http://localhost:$UI_PORT\\n  ⚙️ API: http://localhost:$API_PORT'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '💼 Services running:\\n  📄 UI Dashboard: http://localhost:$UI_PORT\\n  ⚙️ API: http://localhost:$API_PORT'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
@@ -229,6 +200,37 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI-powered invoice data extraction from unstructured text",
+        "models": [
+          "llama3.2"
+        ]
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Convert invoice HTML templates to professional PDF documents"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "invoice data, client information, payment tracking",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      }
     }
   }
 }

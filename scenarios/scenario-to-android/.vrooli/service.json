@@ -51,32 +51,6 @@
       "description": "Android build UI server port"
     }
   },
-  "resources": {
-    "required": [
-      {
-        "name": "ollama", 
-        "purpose": "AI-powered code generation for Android app templates and build scripts",
-        "models": ["llama3.2"]
-      }
-    ],
-    "optional": [
-      {
-        "name": "minio",
-        "purpose": "Store generated APKs and build artifacts",
-        "fallback": "Local filesystem storage"
-      },
-      {
-        "name": "redis",
-        "purpose": "Cache build configurations and templates",
-        "fallback": "Rebuild from scratch each time"
-      },
-      {
-        "name": "postgres",
-        "purpose": "Track build history and app metadata",
-        "fallback": "JSON file storage"
-      }
-    ]
-  },
   "apis": {
     "endpoints": [
       {
@@ -375,128 +349,130 @@
     "repository": "https://github.com/vrooli/vrooli",
     "issues": "https://github.com/vrooli/vrooli/issues",
     "homepage": "https://vrooli.com/scenarios/scenario-to-android"
-   },
-    "lifecycle": {
-      "health": {
-        "description": "Scenario to Android health check configuration",
-        "endpoints": {
-          "api": "/health",
-          "ui": "/health"
+  },
+  "lifecycle": {
+    "health": {
+      "description": "Scenario to Android health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize scenario-to-android",
+      "condition": {
         "checks": [
           {
-            "name": "api_endpoint",
-            "type": "http",
-            "target": "http://localhost:${API_PORT}/health",
-            "critical": true,
-            "timeout": 5000,
-            "interval": 30000
+            "type": "binaries",
+            "targets": [
+              "api/scenario-to-android-api"
+            ]
           },
           {
-            "name": "ui_endpoint",
-            "type": "http",
-            "target": "http://localhost:${UI_PORT}/health",
-            "critical": false,
-            "timeout": 3000,
-            "interval": 45000
-          }
-        ],
-        "timeout": 5000,
-        "interval": 30000,
-        "startup_grace_period": 10000
-      },
-      "setup": {
-        "description": "Initialize scenario-to-android",
-        "condition": {
-          "checks": [
-             {
-               "type": "binaries",
-               "targets": [
-                 "api/scenario-to-android-api"
-               ]
-             },
-             {
-               "type": "ui-bundle",
-               "bundle_path": "ui/dist/index.html",
-               "source_dir": "ui/src"
-             },
-             {
-               "type": "cli",
-               "command": "scenario-to-android",
-               "targets": [
-                 "scenario-to-android"
-               ]
-             },
-            {
-              "type": "dependencies",
-              "paths": [
-                "ui/package.json"
-              ]
-            },
-            {
-              "type": "resources",
-              "populated": true
-            }
-          ]
-        },
-        "steps": [
-          {
-            "name": "install-cli",
-            "run": "cd cli && ./install.sh",
-            "description": "Install CLI command globally"
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
           },
           {
-            "name": "build-api",
-            "run": "cd api && go build -o scenario-to-android-api .",
-            "description": "Build Go API binary"
+            "type": "cli",
+            "command": "scenario-to-android",
+            "targets": [
+              "scenario-to-android"
+            ]
           },
           {
-            "name": "install-ui-deps",
-            "run": "cd ui && npm install",
-            "description": "Install UI dependencies",
-            "condition": {"file_exists": "ui/package.json"}
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
           },
           {
-            "name": "build-ui",
-            "run": "cd ui && npm run build",
-            "description": "Build production UI"
-          },
-          {
-            "name": "show-urls",
-            "run": "echo '🚀 Scenario to Android initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-android --help'",
-            "description": "Display service access URLs"
+            "type": "resources",
+            "populated": true
           }
         ]
       },
-      "develop": {
-       "description": "Start scenario-to-android services",
-       "steps": [
-          {
-            "name": "start-api",
-            "run": "cd api && ./scenario-to-android-api",
-            "description": "Start Go API server in background",
-            "background": true,
-            "condition": {
-              "file_exists": "api/scenario-to-android-api"
-            }
-          },
-         {
-           "name": "start-ui",
-           "run": "cd ui && NODE_ENV=production node server.js",
-           "description": "Serve production UI bundle",
-           "background": true,
-           "condition": {
-             "file_exists": "ui/dist/index.html"
-           }
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Scenario to Android running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-           "description": "Display service access URLs"
-         }
-       ]
-     },
-     "stop": {
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o scenario-to-android-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Scenario to Android initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-android --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start scenario-to-android services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./scenario-to-android-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-android-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Scenario to Android running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "stop": {
       "description": "Stop services",
       "steps": [
         {
@@ -538,6 +514,36 @@
           "name": "test-performance",
           "run": "cd test/phases && ./test-performance.sh",
           "description": "Run performance tests (CLI speed, template processing)"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "required": [
+        {
+          "name": "ollama",
+          "purpose": "AI-powered code generation for Android app templates and build scripts",
+          "models": [
+            "llama3.2"
+          ]
+        }
+      ],
+      "optional": [
+        {
+          "name": "minio",
+          "purpose": "Store generated APKs and build artifacts",
+          "fallback": "Local filesystem storage"
+        },
+        {
+          "name": "redis",
+          "purpose": "Cache build configurations and templates",
+          "fallback": "Rebuild from scratch each time"
+        },
+        {
+          "name": "postgres",
+          "purpose": "Track build history and app metadata",
+          "fallback": "JSON file storage"
         }
       ]
     }

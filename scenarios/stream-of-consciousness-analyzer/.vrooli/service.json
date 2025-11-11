@@ -35,80 +35,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "chain-of-thought-orchestrator",
-        "embedding-generator",
-        "ollama",
-        "rate-limiter"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/process-stream.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/organize-thoughts.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/extract-insights.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/campaign-context-builder.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/autonomous-thought-processor.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store organized thoughts, insights, and campaigns",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache for real-time processing and session management"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector storage for semantic search across thoughts and insights",
-      "initialization": [
-        {
-          "file": "initialization/qdrant/collections.json",
-          "type": "collections"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2:3b",
-        "nomic-embed-text"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -260,6 +186,82 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "chain-of-thought-orchestrator",
+          "embedding-generator",
+          "ollama",
+          "rate-limiter"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/process-stream.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/organize-thoughts.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/extract-insights.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/campaign-context-builder.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/autonomous-thought-processor.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store organized thoughts, insights, and campaigns",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache for real-time processing and session management"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for semantic search across thoughts and insights",
+        "initialization": [
+          {
+            "file": "initialization/qdrant/collections.json",
+            "type": "collections"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2:3b",
+          "nomic-embed-text"
+        ]
+      }
     }
   }
 }

@@ -33,34 +33,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store architectural patterns, recipes, implementations, and search metadata",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "Generate pattern explanations, recommendations, and code examples on demand",
-      "models": [
-        "codellama",
-        "mistral"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -103,17 +75,17 @@
       "description": "Initialize Scalable App Cookbook with database and pattern library",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/scalable-app-cookbook-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scalable-app-cookbook-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
           {
             "type": "cli",
             "command": "scalable-app-cookbook",
@@ -212,6 +184,36 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store architectural patterns, recipes, implementations, and search metadata",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "Generate pattern explanations, recommendations, and code examples on demand",
+        "models": [
+          "codellama",
+          "mistral"
+        ]
+      }
     }
   }
 }

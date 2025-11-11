@@ -23,14 +23,6 @@
       "range": "15000-19999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "test data storage"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -100,7 +92,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Simple Test App initialized\\n  Application: http://localhost:${API_PORT}\\n  Health: http://localhost:${API_PORT}/health'",
+          "run": "echo '🚀 Simple Test App initialized\\n  Application: http://localhost:${API_PORT}\\n  Health: http://localhost:${API_PORT}/health'",
           "description": "Display service access URLs"
         }
       ]
@@ -119,7 +111,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  Application: http://localhost:${API_PORT}'",
+          "run": "echo '🚀 Services running:\\n  Application: http://localhost:${API_PORT}'",
           "description": "Display running service URLs"
         }
       ]
@@ -156,6 +148,16 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "test data storage"
+      }
     }
   }
 }

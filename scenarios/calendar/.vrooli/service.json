@@ -33,42 +33,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "required": {
-      "postgres": {
-        "instance_name": "calendar-system",
-        "database": "calendar_system",
-        "purpose": "Event storage, user schedules, recurring patterns",
-        "schema_file": "initialization/postgres/schema.sql",
-        "estimated_size": "10GB for 100K events",
-        "backup_frequency": "daily"
-      },
-      "qdrant": {
-        "collection": "calendar_events",
-        "dimensions": 1536,
-        "distance": "Cosine",
-        "purpose": "AI-powered semantic event search and scheduling intelligence",
-        "estimated_vectors": "1M events with embeddings"
-      }
-    },
-    "optional": {
-      "scenario-authenticator": {
-        "purpose": "Multi-user authentication and user context",
-        "api_endpoint": "/api/v1/auth/validate",
-        "fallback": "Single-user mode without authentication"
-      },
-      "notification-hub": {
-        "purpose": "Event reminders and schedule change notifications",
-        "profile_id": "calendar-system-prod",
-        "fallback": "In-memory reminder queue without delivery"
-      },
-      "ollama": {
-        "purpose": "Natural language processing for chat interface",
-        "model": "llama2:7b-chat",
-        "fallback": "Basic command parsing without AI enhancement"
-      }
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -153,7 +117,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Calendar system initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: calendar --help'",
+          "run": "echo '🚀 Calendar system initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: calendar --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -173,7 +137,7 @@
         },
         {
           "name": "start-api",
-          "run": "cd api && POSTGRES_EXPORTS=$(resource-postgres content get main | python3 -c \"import sys, shlex; from urllib.parse import urlparse, urlunparse\nconn_line = ''\nfor line in sys.stdin:\n    if 'Connection String:' in line:\n        conn_line = line.split('Connection String:', 1)[1].strip()\nif not conn_line:\n    sys.stderr.write('\u274c Unable to determine Postgres credentials from resource-postgres\\n')\n    sys.exit(1)\nparsed = urlparse(conn_line)\nusername = parsed.username or ''\npassword = parsed.password or ''\nhost = parsed.hostname or 'localhost'\nport = parsed.port or 5432\nauth = ''\nif username:\n    auth = username\n    if password:\n        auth += f':{password}'\n    auth += '@'\nnetloc = f'{auth}{host}:{port}'\nfinal = urlunparse(('postgres', netloc, '/calendar_system', '', 'sslmode=disable', ''))\ndef export(key, value):\n    print(f'export {key}={shlex.quote(str(value))}')\nexport('POSTGRES_HOST', host)\nexport('POSTGRES_PORT', port)\nif username:\n    export('POSTGRES_USER', username)\nif password:\n    export('POSTGRES_PASSWORD', password)\nexport('POSTGRES_URL', final)\nexport('POSTGRES_DB', 'calendar_system')\") || exit 1 && eval \"$POSTGRES_EXPORTS\" && ENVIRONMENT=test VROOLI_LIFECYCLE_MANAGED=true QDRANT_URL=http://localhost:6333 JWT_SECRET=development-secret-for-calendar-system AUTH_SERVICE_URL=http://localhost:15785 NOTIFICATION_SERVICE_URL=http://localhost:15310 NOTIFICATION_PROFILE_ID=calendar-system-prod ./calendar-api",
+          "run": "cd api && POSTGRES_EXPORTS=$(resource-postgres content get main | python3 -c \"import sys, shlex; from urllib.parse import urlparse, urlunparse\nconn_line = ''\nfor line in sys.stdin:\n    if 'Connection String:' in line:\n        conn_line = line.split('Connection String:', 1)[1].strip()\nif not conn_line:\n    sys.stderr.write('❌ Unable to determine Postgres credentials from resource-postgres\\n')\n    sys.exit(1)\nparsed = urlparse(conn_line)\nusername = parsed.username or ''\npassword = parsed.password or ''\nhost = parsed.hostname or 'localhost'\nport = parsed.port or 5432\nauth = ''\nif username:\n    auth = username\n    if password:\n        auth += f':{password}'\n    auth += '@'\nnetloc = f'{auth}{host}:{port}'\nfinal = urlunparse(('postgres', netloc, '/calendar_system', '', 'sslmode=disable', ''))\ndef export(key, value):\n    print(f'export {key}={shlex.quote(str(value))}')\nexport('POSTGRES_HOST', host)\nexport('POSTGRES_PORT', port)\nif username:\n    export('POSTGRES_USER', username)\nif password:\n    export('POSTGRES_PASSWORD', password)\nexport('POSTGRES_URL', final)\nexport('POSTGRES_DB', 'calendar_system')\") || exit 1 && eval \"$POSTGRES_EXPORTS\" && ENVIRONMENT=test VROOLI_LIFECYCLE_MANAGED=true QDRANT_URL=http://localhost:6333 JWT_SECRET=development-secret-for-calendar-system AUTH_SERVICE_URL=http://localhost:15785 NOTIFICATION_SERVICE_URL=http://localhost:15310 NOTIFICATION_PROFILE_ID=calendar-system-prod ./calendar-api",
           "description": "Start Go API server with auth and notification integration",
           "background": true,
           "condition": {
@@ -191,7 +155,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: calendar --help'",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: calendar --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -253,6 +217,44 @@
       "ollama": [
         "natural-language-processing"
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "required": {
+        "postgres": {
+          "instance_name": "calendar-system",
+          "database": "calendar_system",
+          "purpose": "Event storage, user schedules, recurring patterns",
+          "schema_file": "initialization/postgres/schema.sql",
+          "estimated_size": "10GB for 100K events",
+          "backup_frequency": "daily"
+        },
+        "qdrant": {
+          "collection": "calendar_events",
+          "dimensions": 1536,
+          "distance": "Cosine",
+          "purpose": "AI-powered semantic event search and scheduling intelligence",
+          "estimated_vectors": "1M events with embeddings"
+        }
+      },
+      "optional": {
+        "scenario-authenticator": {
+          "purpose": "Multi-user authentication and user context",
+          "api_endpoint": "/api/v1/auth/validate",
+          "fallback": "Single-user mode without authentication"
+        },
+        "notification-hub": {
+          "purpose": "Event reminders and schedule change notifications",
+          "profile_id": "calendar-system-prod",
+          "fallback": "In-memory reminder queue without delivery"
+        },
+        "ollama": {
+          "purpose": "Natural language processing for chat interface",
+          "model": "llama2:7b-chat",
+          "fallback": "Basic command parsing without AI enhancement"
+        }
+      }
     }
   }
 }

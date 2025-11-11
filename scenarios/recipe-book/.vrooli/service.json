@@ -35,89 +35,6 @@
       "proxy_path": "/"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store recipes, ratings, user preferences, and meal history",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector database for semantic recipe search using embeddings",
-      "initialization": [
-        {
-          "file": "initialization/storage/qdrant/collection.json",
-          "type": "collection"
-        }
-      ]
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": false,
-      "purpose": "Workflow automation for AI recipe generation and modification",
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/recipe-generator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/recipe-modifier.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "AI model for recipe generation, modification, and natural language processing",
-      "models": [
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": false,
-      "purpose": "Store recipe photos and images",
-      "buckets": [
-        "recipe-photos"
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache popular recipes and search results for performance"
-    },
-    "scenario-authenticator": {
-      "type": "scenario",
-      "enabled": true,
-      "required": true,
-      "purpose": "Multi-tenant authentication and user profile management"
-    },
-    "contact-book": {
-      "type": "scenario",
-      "enabled": true,
-      "required": false,
-      "purpose": "Retrieve dietary restrictions and family member preferences"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -229,7 +146,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83c\udf73 Recipe Book initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  CLI: recipe-book --help'",
+          "run": "echo '🍳 Recipe Book initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  CLI: recipe-book --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -257,7 +174,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\ud83c\udf73 Recipe Book running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\"",
+          "run": "echo \"🍳 Recipe Book running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\"",
           "description": "Display service URLs"
         }
       ]
@@ -286,6 +203,91 @@
           "description": "Stop Vite UI dev server"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store recipes, ratings, user preferences, and meal history",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for semantic recipe search using embeddings",
+        "initialization": [
+          {
+            "file": "initialization/storage/qdrant/collection.json",
+            "type": "collection"
+          }
+        ]
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": false,
+        "purpose": "Workflow automation for AI recipe generation and modification",
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/recipe-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/recipe-modifier.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI model for recipe generation, modification, and natural language processing",
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": false,
+        "purpose": "Store recipe photos and images",
+        "buckets": [
+          "recipe-photos"
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache popular recipes and search results for performance"
+      },
+      "scenario-authenticator": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "purpose": "Multi-tenant authentication and user profile management"
+      },
+      "contact-book": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "purpose": "Retrieve dietary restrictions and family member preferences"
+      }
     }
   }
 }

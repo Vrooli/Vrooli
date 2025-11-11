@@ -103,5 +103,8 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {}
   }
 }

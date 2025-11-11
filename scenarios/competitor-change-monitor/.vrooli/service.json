@@ -36,65 +36,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "web-scraper",
-        "change-detector",
-        "notification-dispatcher"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/website-monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/github-monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/change-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/alert-manager.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/scheduled-scanner.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store competitors, monitoring targets, change history, and alerts",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Cache scraped content and real-time monitoring state"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "Analyze changes for relevance and generate insights"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -128,23 +69,25 @@
     "setup": {
       "description": "Initialize Competitor Change Monitor",
       "condition": {
-           "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/competitor-change-monitor-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
-           {
-             "type": "cli",
-             "command": "competitor-change-monitor",
-             "targets": ["competitor-change-monitor"]
-           },
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/competitor-change-monitor-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "competitor-change-monitor",
+            "targets": [
+              "competitor-change-monitor"
+            ]
+          },
           {
             "type": "dependencies",
             "paths": [
@@ -201,15 +144,15 @@
     "develop": {
       "description": "Start Competitor Monitor services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./competitor-change-monitor-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/competitor-change-monitor-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./competitor-change-monitor-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/competitor-change-monitor-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && UI_PORT=${UI_PORT} API_PORT=${API_PORT} API_URL=\"http://localhost:${API_PORT}\" NODE_ENV=production node server.js",
@@ -219,11 +162,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
-           "description": "Display running services"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "description": "Display running services"
+        }
       ]
     },
     "test": {
@@ -255,6 +198,67 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "shared_workflows": [
+          "ollama",
+          "web-scraper",
+          "change-detector",
+          "notification-dispatcher"
+        ],
+        "initialization": [
+          {
+            "file": "initialization/n8n/website-monitor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/github-monitor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/change-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/alert-manager.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/scheduled-scanner.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store competitors, monitoring targets, change history, and alerts",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Cache scraped content and real-time monitoring state"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Analyze changes for relevance and generate insights"
+      }
     }
   }
 }

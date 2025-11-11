@@ -25,62 +25,15 @@
     ]
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Social media scheduler API port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Social media scheduler UI port",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "User accounts, scheduled posts, social media credentials, analytics data",
-      "initialization": [
-        {
-          "file": "initialization/storage/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/seed.sql",
-          "type": "seed"
-        }
-      ]
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Social media scheduler API port",
+      "range": "15000-19999"
     },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Job queue for scheduled posts, rate limiting, session management, real-time updates"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": true,
-      "purpose": "Media storage for images, videos, and generated assets with CDN-style serving"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "AI-powered content optimization and platform-specific adaptation",
-      "models": [
-        "llama3.2",
-        "mistral",
-        "nomic-embed-text"
-      ]
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "Fallback posting mechanism when APIs fail, screenshot verification"
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Social media scheduler UI port",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -124,25 +77,25 @@
     "setup": {
       "description": "Initialize Social Media Scheduler with all dependencies",
       "condition": {
-      "checks": [
-        {
-          "type": "binaries",
-          "targets": [
-            "api/social-media-scheduler-api"
-          ]
-        },
-        {
-          "type": "ui-bundle",
-          "bundle_path": "ui/dist/index.html",
-          "source_dir": "ui/src"
-        },
-        {
-          "type": "cli",
-          "command": "social-media-scheduler",
-          "targets": [
-            "social-media-scheduler"
-          ]
-        },
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/social-media-scheduler-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "social-media-scheduler",
+            "targets": [
+              "social-media-scheduler"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -212,15 +165,15 @@
             "file_exists": "api/social-media-scheduler-api"
           }
         },
-         {
-           "name": "start-api",
-           "run": "cd api && ./social-media-scheduler-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/social-media-scheduler-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./social-media-scheduler-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/social-media-scheduler-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && NODE_ENV=production node server.js",
@@ -230,11 +183,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Social Media Scheduler running:\\n  📅 Calendar UI: http://localhost:$UI_PORT\\n  🔗 API: http://localhost:$API_PORT\\n  📊 Analytics: http://localhost:$UI_PORT/analytics\\n  ⚙️  Job Queue: Redis on ${RESOURCE_PORTS[redis]}\\n  🛠️  CLI: social-media-scheduler --help'",
-           "description": "Display all running service URLs and status"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Social Media Scheduler running:\\n  📅 Calendar UI: http://localhost:$UI_PORT\\n  🔗 API: http://localhost:$API_PORT\\n  📊 Analytics: http://localhost:$UI_PORT/analytics\\n  ⚙️  Job Queue: Redis on ${RESOURCE_PORTS[redis]}\\n  🛠️  CLI: social-media-scheduler --help'",
+          "description": "Display all running service URLs and status"
+        }
       ]
     },
     "test": {
@@ -266,6 +219,55 @@
           "description": "Stop background job processor"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "User accounts, scheduled posts, social media credentials, analytics data",
+        "initialization": [
+          {
+            "file": "initialization/storage/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Job queue for scheduled posts, rate limiting, session management, real-time updates"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "Media storage for images, videos, and generated assets with CDN-style serving"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered content optimization and platform-specific adaptation",
+        "models": [
+          "llama3.2",
+          "mistral",
+          "nomic-embed-text"
+        ]
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Fallback posting mechanism when APIs fail, screenshot verification"
+      }
     }
   }
 }

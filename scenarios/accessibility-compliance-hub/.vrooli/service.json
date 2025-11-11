@@ -18,44 +18,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Database for storing audit reports and compliance data"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "description": "Workflow automation for compliance orchestration"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": true,
-      "description": "DOM analysis and visual regression testing"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "description": "AI analysis of accessibility issues"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "description": "Cache audit results and pattern matching"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "description": "Vector storage for accessibility pattern matching"
-    }
-  },
   "api": {
     "enabled": true,
     "endpoints": [
@@ -292,7 +254,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  API: http://localhost:'${API_PORT}'\\n  CLI: accessibility-compliance-hub --help'",
+          "run": "echo -e '🚀 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  API: http://localhost:'${API_PORT}'\\n  CLI: accessibility-compliance-hub --help'",
           "description": "Display running service URLs"
         }
       ]
@@ -349,6 +311,46 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 10000
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Database for storing audit reports and compliance data"
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "description": "Workflow automation for compliance orchestration"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": true,
+        "description": "DOM analysis and visual regression testing"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "AI analysis of accessibility issues"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "description": "Cache audit results and pattern matching"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "description": "Vector storage for accessibility pattern matching"
+      }
     }
   }
 }

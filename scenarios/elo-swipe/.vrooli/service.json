@@ -32,32 +32,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store lists, items, ratings, and comparison history",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Cache frequently accessed rankings for performance"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "AI-powered smart pairing suggestions for more efficient ranking"
-    }
-  },
   "scripts": {
     "setup": {
       "description": "Initialize Elo Swipe scenario",
@@ -196,60 +170,60 @@
     "POSTGRES_PASSWORD": "vrooli",
     "POSTGRES_DB": "vrooli"
   },
-   "lifecycle": {
-     "setup": {
-       "description": "Initialize Elo Swipe",
-        "condition": {
-          "checks": [
-            {
-              "type": "binaries",
-              "targets": [
-                "api/elo-swipe-api"
-              ]
-            },
-            {
-              "type": "ui-bundle",
-              "bundle_path": "ui/dist/index.html",
-              "source_dir": "ui/src"
-            },
-            {
-              "type": "cli",
-              "command": "elo-swipe",
-              "targets": [
-                "elo-swipe"
-              ]
-            }
-          ]
+  "lifecycle": {
+    "setup": {
+      "description": "Initialize Elo Swipe",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/elo-swipe-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "elo-swipe",
+            "targets": [
+              "elo-swipe"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
         },
-       "steps": [
-         {
-           "name": "install-cli",
-           "run": "cd cli && ./install.sh",
-           "description": "Install CLI command globally"
-         },
-         {
-           "name": "build-api",
-           "run": "cd api && go build -o elo-swipe-api .",
-           "description": "Build Go API binary"
-         },
-         {
-           "name": "install-ui-deps",
-           "run": "cd ui && npm install",
-           "description": "Install UI dependencies"
-         },
-         {
-           "name": "build-ui",
-           "run": "cd ui && npm run build",
-           "description": "Build React UI for production"
-         },
-         {
-           "name": "show-urls",
-           "run": "echo 'Elo Swipe ready:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: elo-swipe --help'",
-           "description": "Display service access URLs"
-         }
-       ]
-     },
-     "stop": {
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o elo-swipe-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React UI for production"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Elo Swipe ready:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: elo-swipe --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "stop": {
       "description": "Stop services",
       "steps": [
         {
@@ -267,29 +241,29 @@
     "develop": {
       "description": "Development mode with production UI bundle",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./elo-swipe-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/elo-swipe-api"
-           }
-         },
-         {
-           "name": "start-ui",
-           "run": "cd ui && node server.cjs",
-           "description": "Start Express server with built React app",
-           "background": true,
-           "condition": {
-             "file_exists": "ui/dist/index.html"
-           }
-         },
-         {
-           "name": "show-urls",
-           "run": "echo 'Elo Swipe running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: elo-swipe --help'",
-           "description": "Display service access URLs"
-         }
+        {
+          "name": "start-api",
+          "run": "cd api && ./elo-swipe-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/elo-swipe-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.cjs",
+          "description": "Start Express server with built React app",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Elo Swipe running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: elo-swipe --help'",
+          "description": "Display service access URLs"
+        }
       ]
     },
     "health": {
@@ -345,6 +319,34 @@
           "description": "Execute smoke, unit, and integration tests"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store lists, items, ratings, and comparison history",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently accessed rankings for performance"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI-powered smart pairing suggestions for more efficient ranking"
+      }
     }
   }
 }

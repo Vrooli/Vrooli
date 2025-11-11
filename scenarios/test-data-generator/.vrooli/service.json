@@ -66,21 +66,6 @@
       "type": "web"
     }
   },
-  "resources": {
-    "required": [],
-    "optional": [
-      {
-        "name": "redis",
-        "purpose": "Caching frequently generated patterns",
-        "fallback": "In-memory cache"
-      },
-      {
-        "name": "minio",
-        "purpose": "Store generated files for retrieval",
-        "fallback": "Temporary filesystem"
-      }
-    ]
-  },
   "initialization": {
     "scripts": [
       "initialization/startup.sh"
@@ -328,5 +313,22 @@
         "description": "Execute phased test suite"
       }
     ]
+  },
+  "dependencies": {
+    "resources": {
+      "required": [],
+      "optional": [
+        {
+          "name": "redis",
+          "purpose": "Caching frequently generated patterns",
+          "fallback": "In-memory cache"
+        },
+        {
+          "name": "minio",
+          "purpose": "Store generated files for retrieval",
+          "fallback": "Temporary filesystem"
+        }
+      ]
+    }
   }
 }

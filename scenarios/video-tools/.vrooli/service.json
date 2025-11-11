@@ -65,75 +65,6 @@
       "description": "Command-line interface for scenario operations"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store tool configurations and processing results",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache and event bus for real-time operations"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": false,
-      "required": false,
-      "purpose": "Object storage for files and artifacts"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": false,
-      "required": false,
-      "purpose": "Vector database for semantic search and AI features"
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": true,
-      "purpose": "Workflow automation and business logic orchestration",
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/windmill-app.json",
-          "type": "app"
-        }
-      ]
-    },
-    "node-red": {
-      "type": "node-red",
-      "enabled": false,
-      "required": false,
-      "purpose": "Visual workflow automation (alternative to Windmill)"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "models": [
-        "AI_MODEL_PLACEHOLDER"
-      ],
-      "purpose": "Local AI inference for intelligent features"
-    },
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": false,
-      "required": false,
-      "purpose": "AI-powered development assistance and code generation"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -669,6 +600,77 @@
         ]
       },
       "instructions": "Replace all _PLACEHOLDER values with specific details for the target scenario"
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store tool configurations and processing results",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache and event bus for real-time operations"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "purpose": "Object storage for files and artifacts"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "purpose": "Vector database for semantic search and AI features"
+      },
+      "windmill": {
+        "type": "windmill",
+        "enabled": true,
+        "required": true,
+        "purpose": "Workflow automation and business logic orchestration",
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/windmill-app.json",
+            "type": "app"
+          }
+        ]
+      },
+      "node-red": {
+        "type": "node-red",
+        "enabled": false,
+        "required": false,
+        "purpose": "Visual workflow automation (alternative to Windmill)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "models": [
+          "AI_MODEL_PLACEHOLDER"
+        ],
+        "purpose": "Local AI inference for intelligent features"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": false,
+        "required": false,
+        "purpose": "AI-powered development assistance and code generation"
+      }
     }
   }
 }

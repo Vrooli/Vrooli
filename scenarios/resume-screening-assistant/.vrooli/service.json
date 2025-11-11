@@ -37,58 +37,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/job-management-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/resume-processing-pipeline.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/semantic-search-workflow.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "resume data, job listings, and assessment results",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "semantic search and candidate-job matching"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -189,7 +137,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Resume Screening Assistant initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: resume-screening-assistant --help'",
+          "run": "echo '🚀 Resume Screening Assistant initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: resume-screening-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -217,7 +165,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  \ud83c\udfa8 UI Dashboard: http://localhost:$UI_PORT\\n  \ud83d\udcca n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  \u2699\ufe0f API: http://localhost:$API_PORT\\n  \ud83d\udda5\ufe0f CLI: resume-screening-assistant --help'",
+          "run": "echo '🚀 Services running:\\n  🎨 UI Dashboard: http://localhost:$UI_PORT\\n  📊 n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ⚙️ API: http://localhost:$API_PORT\\n  🖥️ CLI: resume-screening-assistant --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -288,5 +236,59 @@
         "description": "Execute phased scenario test suite"
       }
     ]
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/job-management-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/resume-processing-pipeline.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/semantic-search-workflow.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "resume data, job listings, and assessment results",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "semantic search and candidate-job matching"
+      }
+    }
   }
 }

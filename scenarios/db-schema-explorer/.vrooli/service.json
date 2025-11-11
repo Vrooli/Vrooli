@@ -33,71 +33,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Primary database for schema introspection, query execution, and metadata storage",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector storage for query history embeddings and semantic search capabilities"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "codellama",
-        "nomic-embed-text"
-      ]
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/schema-inspector.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/query-generator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/query-optimizer.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Query result caching for improved performance"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": false,
-      "required": false,
-      "purpose": "High-quality diagram export as images"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -132,21 +67,23 @@
       "description": "Initialize Database Schema Explorer",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/db-schema-explorer-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/db-schema-explorer-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
           {
             "type": "cli",
             "command": "db-schema-explorer",
-            "targets": ["db-schema-explorer"]
+            "targets": [
+              "db-schema-explorer"
+            ]
           },
           {
             "type": "resources",
@@ -213,11 +150,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Schema Explorer UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: db-schema-explorer --help'",
-           "description": "Display service access URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  Schema Explorer UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: db-schema-explorer --help'",
+          "description": "Display service access URLs"
+        }
       ]
     },
     "test": {
@@ -244,6 +181,73 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Primary database for schema introspection, query execution, and metadata storage",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for query history embeddings and semantic search capabilities"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "codellama",
+          "nomic-embed-text"
+        ]
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/schema-inspector.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/query-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/query-optimizer.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Query result caching for improved performance"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": false,
+        "required": false,
+        "purpose": "High-quality diagram export as images"
+      }
     }
   }
 }

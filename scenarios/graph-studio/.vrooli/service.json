@@ -40,53 +40,16 @@
       "required": false
     }
   },
-   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Graph Studio API port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Graph Studio UI port",
-       "range": "35000-39999"
-     }
-   },
-  "resources": {
-    "postgres": {
-      "enabled": true,
-      "required": true,
-      "purpose": "Store graph metadata, relationships, and versioning",
-      "initialization": {
-        "database": "graph_studio",
-        "schema_file": "initialization/postgres/schema.sql"
-      }
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Graph Studio API port",
+      "range": "15000-19999"
     },
-    "minio": {
-      "enabled": true,
-      "required": true,
-      "purpose": "Store large graph files and visualization assets",
-      "initialization": {
-        "buckets": ["graph-files", "graph-renders", "graph-exports"]
-      }
-    },
-    "redis": {
-      "enabled": false,
-      "required": false,
-      "purpose": "Cache frequently accessed graphs and session state",
-      "fallback": "No caching, direct database queries"
-    },
-    "ollama": {
-      "enabled": false,
-      "required": false,
-      "purpose": "AI-powered graph suggestions and natural language queries",
-      "fallback": "Disable AI features"
-    },
-    "qdrant": {
-      "enabled": false,
-      "required": false,
-      "purpose": "Vector search for semantic graph similarity",
-      "fallback": "Keyword-based search only"
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Graph Studio UI port",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -227,11 +190,11 @@
             "VITE_PREVIEW_ACCESS_TOKEN": "graph-studio-preview-token"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
-           "description": "Display all running service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
+          "description": "Display all running service URLs"
+        }
       ]
     },
     "test": {
@@ -261,6 +224,49 @@
           "description": "Stop UI development server"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "enabled": true,
+        "required": true,
+        "purpose": "Store graph metadata, relationships, and versioning",
+        "initialization": {
+          "database": "graph_studio",
+          "schema_file": "initialization/postgres/schema.sql"
+        }
+      },
+      "minio": {
+        "enabled": true,
+        "required": true,
+        "purpose": "Store large graph files and visualization assets",
+        "initialization": {
+          "buckets": [
+            "graph-files",
+            "graph-renders",
+            "graph-exports"
+          ]
+        }
+      },
+      "redis": {
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently accessed graphs and session state",
+        "fallback": "No caching, direct database queries"
+      },
+      "ollama": {
+        "enabled": false,
+        "required": false,
+        "purpose": "AI-powered graph suggestions and natural language queries",
+        "fallback": "Disable AI features"
+      },
+      "qdrant": {
+        "enabled": false,
+        "required": false,
+        "purpose": "Vector search for semantic graph similarity",
+        "fallback": "Keyword-based search only"
+      }
     }
   }
 }

@@ -41,32 +41,6 @@
       "description": "Ecosystem Manager UI port"
     }
   },
-  "resources": {
-    "claude-code": {
-      "type": "claude-code",
-      "enabled": true,
-      "required": true,
-      "description": "AI for resource and scenario generation"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Task queue and metadata storage"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "description": "Semantic search and similarity matching"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "description": "Optional caching layer"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -101,21 +75,21 @@
       "description": "Initialize Ecosystem Manager",
       "condition": {
         "checks": [
-            {
-              "type": "binaries",
-              "targets": [
-                "api/ecosystem-manager-api"
-              ]
-            },
-            {
-              "type": "cli",
-              "command": "ecosystem-manager"
-            },
-            {
-              "type": "ui-bundle",
-              "bundle_path": "ui/dist/index.html",
-              "source_dir": "ui/src"
-            },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/ecosystem-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "ecosystem-manager"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
           {
             "type": "directories",
             "targets": [
@@ -184,15 +158,15 @@
     "develop": {
       "description": "Start Ecosystem Manager services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./ecosystem-manager-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/ecosystem-manager-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./ecosystem-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/ecosystem-manager-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && NODE_ENV=production node server.js",
@@ -202,11 +176,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo \"🎉 Ecosystem Manager is running\" && echo \"📊 Dashboard: http://localhost:${UI_PORT}\" && echo \"🔌 API: http://localhost:${API_PORT}/api\"",
-           "description": "Display service URLs"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo \"🎉 Ecosystem Manager is running\" && echo \"📊 Dashboard: http://localhost:${UI_PORT}\" && echo \"🔌 API: http://localhost:${API_PORT}/api\"",
+          "description": "Display service URLs"
+        }
       ]
     },
     "test": {
@@ -228,7 +202,7 @@
           "description": "Stop API process"
         },
         {
-          "name": "stop-ui", 
+          "name": "stop-ui",
           "run": "pkill -f \"scenarios/ecosystem-manager.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/ecosystem-manager.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
         },
@@ -368,6 +342,34 @@
         "average_completion_time",
         "prd_completion_percentage"
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "description": "AI for resource and scenario generation"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Task queue and metadata storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Semantic search and similarity matching"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "description": "Optional caching layer"
+      }
     }
   }
 }

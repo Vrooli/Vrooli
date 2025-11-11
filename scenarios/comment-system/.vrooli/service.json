@@ -29,47 +29,48 @@
       "description": "Comment system REST API port",
       "range": "15000-19999"
     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Admin dashboard and SDK hosting port",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Primary storage for comments, configurations, history, and user data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Optional caching layer for frequently accessed comments and real-time updates"
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Admin dashboard and SDK hosting port",
+      "range": "35000-39999"
     }
   },
   "dependencies": {
-    "scenarios": [
-      {
-        "name": "session-authenticator",
+    "scenarios": {
+      "session-authenticator": {
         "required": true,
         "purpose": "User authentication and profile management",
-        "interface": "REST API"
+        "interface": "REST API",
+        "versionRange": ">=0.0.0"
       },
-      {
-        "name": "notification-hub", 
+      "notification-hub": {
         "required": true,
         "purpose": "Push notifications for comments, replies, and mentions",
-        "interface": "Event publishing"
+        "interface": "Event publishing",
+        "version": "1.0.0",
+        "versionRange": ">=0.0.0"
       }
-    ]
+    },
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Primary storage for comments, configurations, history, and user data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "purpose": "Optional caching layer for frequently accessed comments and real-time updates"
+      }
+    }
   },
   "lifecycle": {
     "version": "2.0.0",
@@ -112,25 +113,25 @@
     "setup": {
       "description": "Initialize Universal Comment System",
       "condition": {
-           "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/comment-system-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
-           {
-             "type": "cli",
-             "command": "comment-system",
-             "targets": [
-               "comment-system"
-             ]
-           },
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/comment-system-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "comment-system",
+            "targets": [
+              "comment-system"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -193,15 +194,15 @@
     "develop": {
       "description": "Start comment system with API server and admin UI",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./comment-system-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/comment-system-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./comment-system-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/comment-system-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "UI_PORT=${UI_PORT} NODE_ENV=production npx http-server ui/dist -p ${UI_PORT} --cors",
@@ -211,11 +212,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Services running:\\n  Admin Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  SDK: http://localhost:${UI_PORT}/sdk/vrooli-comments.js\\n  CLI: comment-system --help\\n\\nAPI Endpoints:\\n  GET /api/v1/comments/{scenario}\\n  POST /api/v1/comments/{scenario}\\n  PUT /api/v1/comments/{id}\\n  DELETE /api/v1/comments/{id}\\n  GET /api/v1/config/{scenario}\\n  POST /api/v1/config/{scenario}\\n\\nIntegration Examples:\\n  http://localhost:${UI_PORT}/docs/integration'",
-           "description": "Display all running service URLs and endpoints"
-         }
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Services running:\\n  Admin Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  SDK: http://localhost:${UI_PORT}/sdk/vrooli-comments.js\\n  CLI: comment-system --help\\n\\nAPI Endpoints:\\n  GET /api/v1/comments/{scenario}\\n  POST /api/v1/comments/{scenario}\\n  PUT /api/v1/comments/{id}\\n  DELETE /api/v1/comments/{id}\\n  GET /api/v1/config/{scenario}\\n  POST /api/v1/config/{scenario}\\n\\nIntegration Examples:\\n  http://localhost:${UI_PORT}/docs/integration'",
+          "description": "Display all running service URLs and endpoints"
+        }
       ]
     },
     "test": {
@@ -249,7 +250,7 @@
       "url": "http://localhost:${API_PORT}",
       "endpoints": [
         "GET /api/v1/comments/{scenario}",
-        "POST /api/v1/comments/{scenario}", 
+        "POST /api/v1/comments/{scenario}",
         "PUT /api/v1/comments/{id}",
         "DELETE /api/v1/comments/{id}",
         "GET /api/v1/config/{scenario}",

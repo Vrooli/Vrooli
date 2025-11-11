@@ -34,35 +34,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "llama3.2",
-        "mistral",
-        "nomic-embed-text"
-      ],
-      "purpose": "AI-powered conversation engine for chatbots"
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store chatbot configs, conversations, user data, analytics",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    }
-  },
   "environment": {
     "VROOLI_LIFECYCLE_MANAGED": {
       "description": "Indicates the service is managed by Vrooli lifecycle",
@@ -199,7 +170,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 AI Chatbot Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: ai-chatbot-manager --help'",
+          "run": "echo '🚀 AI Chatbot Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: ai-chatbot-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -227,7 +198,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  CLI: ai-chatbot-manager --help'",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  CLI: ai-chatbot-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -256,6 +227,37 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2",
+          "mistral",
+          "nomic-embed-text"
+        ],
+        "purpose": "AI-powered conversation engine for chatbots"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store chatbot configs, conversations, user data, analytics",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      }
     }
   }
 }

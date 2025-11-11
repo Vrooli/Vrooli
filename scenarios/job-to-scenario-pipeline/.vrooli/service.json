@@ -19,53 +19,15 @@
     ]
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Job pipeline API port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "description": "Pipeline dashboard UI port",
-       "range": "35000-39999"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Store jobs, research reports, proposals, and state history"
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Job pipeline API port",
+      "range": "15000-19999"
     },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "description": "LLM for research analysis and proposal generation"
-    },
-    "huginn": {
-      "type": "huginn",
-      "enabled": true,
-      "required": true,
-      "description": "Automated Upwork job scraping"
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": true,
-      "description": "Screenshot OCR for manual job entry"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": false,
-      "description": "Semantic search for similar past proposals"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "description": "Cache for research results"
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Pipeline dashboard UI port",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -100,39 +62,39 @@
     },
     "setup": {
       "description": "Initialize job-to-scenario pipeline",
-       "condition": {
-         "checks": [
-            {
-              "type": "binaries",
-              "targets": [
-                "api/job-to-scenario-pipeline-api"
-              ]
-            },
-            {
-              "type": "ui-bundle",
-              "bundle_path": "ui/dist/index.html",
-              "source_dir": "ui/src"
-            },
-            {
-              "type": "cli",
-              "command": "job-to-scenario-pipeline",
-              "targets": [
-                "job-to-scenario-pipeline"
-              ]
-            },
-           {
-             "type": "directories",
-             "targets": [
-               "data/pending",
-               "data/researching",
-               "data/evaluated",
-               "data/approved",
-               "data/building",
-               "data/completed"
-             ]
-           }
-         ]
-       },
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/job-to-scenario-pipeline-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "job-to-scenario-pipeline",
+            "targets": [
+              "job-to-scenario-pipeline"
+            ]
+          },
+          {
+            "type": "directories",
+            "targets": [
+              "data/pending",
+              "data/researching",
+              "data/evaluated",
+              "data/approved",
+              "data/building",
+              "data/completed"
+            ]
+          }
+        ]
+      },
       "steps": [
         {
           "name": "create-data-structure",
@@ -193,15 +155,15 @@
     "develop": {
       "description": "Start job pipeline services",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./job-to-scenario-pipeline-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/job-to-scenario-pipeline-api"
-           }
-         },
+        {
+          "name": "start-api",
+          "run": "cd api && ./job-to-scenario-pipeline-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/job-to-scenario-pipeline-api"
+          }
+        },
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
@@ -262,6 +224,46 @@
           "description": "Backup all job data before cleaning"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Store jobs, research reports, proposals, and state history"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "LLM for research analysis and proposal generation"
+      },
+      "huginn": {
+        "type": "huginn",
+        "enabled": true,
+        "required": true,
+        "description": "Automated Upwork job scraping"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": true,
+        "description": "Screenshot OCR for manual job entry"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "description": "Semantic search for similar past proposals"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "description": "Cache for research results"
+      }
     }
   }
 }

@@ -33,52 +33,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store user profiles, shopping history, price tracking data",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Cache for price data, session management, rate limiting"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector storage for product embeddings and similarity search"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "Local LLM for product analysis and recommendations",
-      "models": [
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    },
-    "browserless": {
-      "type": "browserless",
-      "enabled": true,
-      "required": false,
-      "purpose": "Web scraping for price updates and inventory checks"
-    }
-  },
   "integrations": {
     "scenarios": [
       {
@@ -143,13 +97,13 @@
             "bundle_path": "ui/dist/index.html",
             "source_dir": "ui/src"
           },
-      {
-        "type": "cli",
-        "command": "smart-shopping-assistant",
-        "targets": [
-          "smart-shopping-assistant"
-        ]
-      },
+          {
+            "type": "cli",
+            "command": "smart-shopping-assistant",
+            "targets": [
+              "smart-shopping-assistant"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -192,7 +146,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\uded2 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "run": "echo '🛒 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -220,7 +174,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\uded2 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "run": "echo '🛒 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -249,6 +203,54 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store user profiles, shopping history, price tracking data",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Cache for price data, session management, rate limiting"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for product embeddings and similarity search"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "Local LLM for product analysis and recommendations",
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "Web scraping for price updates and inventory checks"
+      }
     }
   }
 }

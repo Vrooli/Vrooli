@@ -39,50 +39,50 @@
     "parent-controls"
   ],
   "dependencies": {
-    "scenarios": [
-      "scenario-authenticator"
-    ],
+    "scenarios": {
+      "scenario-authenticator": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=0.0.0"
+      }
+    },
     "resources": {
-      "required": [
-        {
-          "name": "postgres",
-          "version": ">=15.0",
-          "config": {
-            "database": "token_economy",
-            "schema": "public",
-            "extensions": [
-              "uuid-ossp",
-              "pgcrypto"
-            ]
-          }
+      "postgres": {
+        "version": ">=15.0",
+        "config": {
+          "database": "token_economy",
+          "schema": "public",
+          "extensions": [
+            "uuid-ossp",
+            "pgcrypto"
+          ]
         },
-        {
-          "name": "redis",
-          "version": ">=7.0",
-          "config": {
-            "maxmemory": "256mb",
-            "maxmemory-policy": "allkeys-lru",
-            "persistence": true
-          }
-        }
-      ],
-      "optional": [
-        {
-          "name": "qdrant",
-          "version": ">=1.0",
-          "purpose": "Achievement similarity search"
+        "required": true
+      },
+      "redis": {
+        "version": ">=7.0",
+        "config": {
+          "maxmemory": "256mb",
+          "maxmemory-policy": "allkeys-lru",
+          "persistence": true
         },
-        {
-          "name": "minio",
-          "version": ">=2023.0",
-          "purpose": "Token metadata and icon storage"
-        },
-        {
-          "name": "ollama",
-          "version": ">=0.1",
-          "purpose": "AI-powered exchange rate optimization"
-        }
-      ]
+        "required": true
+      },
+      "qdrant": {
+        "version": ">=1.0",
+        "purpose": "Achievement similarity search",
+        "required": false
+      },
+      "minio": {
+        "version": ">=2023.0",
+        "purpose": "Token metadata and icon storage",
+        "required": false
+      },
+      "ollama": {
+        "version": ">=0.1",
+        "purpose": "AI-powered exchange rate optimization",
+        "required": false
+      }
     }
   },
   "api": {
@@ -357,7 +357,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Token Economy running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
+          "run": "echo '🚀 Token Economy running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
           "description": "Display running service URLs"
         }
       ]

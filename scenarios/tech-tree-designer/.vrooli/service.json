@@ -34,35 +34,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Storage for tech tree data, sector definitions, scenario mappings, and progress tracking",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "AI-powered strategic analysis, dependency discovery, and development path optimization",
-      "models": [
-        "llama3.2",
-        "mistral",
-        "nomic-embed-text"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -165,7 +136,7 @@
         },
         {
           "name": "show-urls",
-          "run": "cat <<EOF\n\ud83d\ude80 Tech Tree Designer initialized\n  Strategic Dashboard: http://localhost:${UI_PORT}\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  CLI: tech-tree-designer --help\n\n\ud83c\udfaf Civilization Progress: Ready for strategic intelligence acceleration\nEOF",
+          "run": "cat <<EOF\n🚀 Tech Tree Designer initialized\n  Strategic Dashboard: http://localhost:${UI_PORT}\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  CLI: tech-tree-designer --help\n\n🎯 Civilization Progress: Ready for strategic intelligence acceleration\nEOF",
           "description": "Display tech tree access URLs and strategic overview"
         }
       ]
@@ -193,7 +164,7 @@
         },
         {
           "name": "show-urls",
-          "run": "cat <<EOF\n\ud83d\ude80 Strategic Intelligence System Online:\n  \ud83d\udcca Tech Tree Dashboard: http://localhost:${UI_PORT}\n  \ud83e\udde0 Analysis API: http://localhost:${API_PORT}\n  \ud83d\udcc8 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  \ud83c\udfaf Strategic CLI: tech-tree-designer --help\n\n\ud83c\udf1f Ready to guide Vrooli's evolution toward superintelligence\nEOF",
+          "run": "cat <<EOF\n🚀 Strategic Intelligence System Online:\n  📊 Tech Tree Dashboard: http://localhost:${UI_PORT}\n  🧠 Analysis API: http://localhost:${API_PORT}\n  📈 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  🎯 Strategic CLI: tech-tree-designer --help\n\n🌟 Ready to guide Vrooli's evolution toward superintelligence\nEOF",
           "description": "Display all running strategic planning services"
         }
       ]
@@ -222,6 +193,37 @@
           "description": "Stop UI development server"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Storage for tech tree data, sector definitions, scenario mappings, and progress tracking",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI-powered strategic analysis, dependency discovery, and development path optimization",
+        "models": [
+          "llama3.2",
+          "mistral",
+          "nomic-embed-text"
+        ]
+      }
     }
   }
 }

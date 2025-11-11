@@ -31,15 +31,6 @@
       "range": "25000-29999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Primary relational data store",
-      "schema": "{{DATABASE_NAME}}"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -130,6 +121,17 @@
           "description": "Stop Vite dev server"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Primary relational data store",
+        "schema": "{{DATABASE_NAME}}"
+      }
     }
   }
 }

@@ -21,52 +21,15 @@
     ]
   },
   "ports": {
-     "api": {
-       "env_var": "API_PORT",
-       "description": "Test Genie API server port",
-       "range": "15000-19999"
-     },
-     "ui": {
-       "env_var": "UI_PORT",
-       "port": 36223,
-       "description": "Test Genie dashboard port (fixed for Cloudflare tunnel)"
-     }
-  },
-  "resources": {
-    "postgres": {
-      "required": true,
-      "description": "Database for test suite storage, results, and analytics",
-      "health_check": {
-        "type": "postgres",
-        "database": "${POSTGRES_DB:-test_genie}",
-        "timeout": 5000
-      }
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Test Genie API server port",
+      "range": "15000-19999"
     },
-    "ollama": {
-      "required": true,
-      "description": "AI service for intelligent test generation",
-      "health_check": {
-        "type": "http",
-        "url": "http://localhost:${OLLAMA_PORT:-11434}/api/tags",
-        "timeout": 10000
-      }
-    },
-    "redis": {
-      "required": false,
-      "description": "Optional caching for test results and AI responses",
-      "health_check": {
-        "type": "redis",
-        "timeout": 3000
-      }
-    },
-    "qdrant": {
-      "required": false,
-      "description": "Optional vector database for semantic test similarity",
-      "health_check": {
-        "type": "http",
-        "url": "http://localhost:${QDRANT_PORT:-6333}/health",
-        "timeout": 5000
-      }
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 36223,
+      "description": "Test Genie dashboard port (fixed for Cloudflare tunnel)"
     }
   },
   "lifecycle": {
@@ -119,22 +82,24 @@
       "description": "Initialize Test Genie with all dependencies and build artifacts",
       "condition": {
         "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/test-genie-api"
-             ]
-           },
-           {
-             "type": "ui-bundle",
-             "bundle_path": "ui/dist/index.html",
-             "source_dir": "ui/src"
-           },
-           {
-             "type": "cli",
-             "command": "test-genie",
-             "targets": ["test-genie"]
-           },
+          {
+            "type": "binaries",
+            "targets": [
+              "api/test-genie-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "test-genie",
+            "targets": [
+              "test-genie"
+            ]
+          },
           {
             "type": "directory",
             "path": "initialization/storage/postgres"
@@ -243,11 +208,11 @@
             "file_exists": "ui/dist/index.html"
           }
         },
-         {
-           "name": "show-urls",
-           "run": "sleep 3 && echo '\\n🚀 Test Genie services started!'\\necho '  📊 Dashboard: http://localhost:${UI_PORT}'\\necho '  🔧 API: http://localhost:${API_PORT}'\\necho '  💻 CLI: test-genie --help'\\necho '\\n💡 Quick start:'\\necho '  test-genie generate my-scenario --types unit,integration'\\necho '  test-genie vault my-scenario --phases setup,develop,test'",
-           "description": "Display running services information"
-         }
+        {
+          "name": "show-urls",
+          "run": "sleep 3 && echo '\\n🚀 Test Genie services started!'\\necho '  📊 Dashboard: http://localhost:${UI_PORT}'\\necho '  🔧 API: http://localhost:${API_PORT}'\\necho '  💻 CLI: test-genie --help'\\necho '\\n💡 Quick start:'\\necho '  test-genie generate my-scenario --types unit,integration'\\necho '  test-genie vault my-scenario --phases setup,develop,test'",
+          "description": "Display running services information"
+        }
       ]
     },
     "test": {
@@ -317,6 +282,45 @@
           "description": "Clean up temporary files and test vaults"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "required": true,
+        "description": "Database for test suite storage, results, and analytics",
+        "health_check": {
+          "type": "postgres",
+          "database": "${POSTGRES_DB:-test_genie}",
+          "timeout": 5000
+        }
+      },
+      "ollama": {
+        "required": true,
+        "description": "AI service for intelligent test generation",
+        "health_check": {
+          "type": "http",
+          "url": "http://localhost:${OLLAMA_PORT:-11434}/api/tags",
+          "timeout": 10000
+        }
+      },
+      "redis": {
+        "required": false,
+        "description": "Optional caching for test results and AI responses",
+        "health_check": {
+          "type": "redis",
+          "timeout": 3000
+        }
+      },
+      "qdrant": {
+        "required": false,
+        "description": "Optional vector database for semantic test similarity",
+        "health_check": {
+          "type": "http",
+          "url": "http://localhost:${QDRANT_PORT:-6333}/health",
+          "timeout": 5000
+        }
+      }
     }
   }
 }

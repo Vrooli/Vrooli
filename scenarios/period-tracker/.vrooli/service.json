@@ -37,48 +37,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store encrypted period cycles, symptoms, predictions, and user data with multi-tenant isolation",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "scenario-authenticator": {
-      "type": "scenario",
-      "enabled": true,
-      "required": true,
-      "purpose": "Multi-tenant user authentication and session management for privacy isolation"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Session caching, temporary data storage, and performance optimization"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "purpose": "Local AI pattern recognition and health insight generation"
-    },
-    "calendar": {
-      "type": "scenario",
-      "enabled": true,
-      "required": false,
-      "purpose": "Calendar integration for period predictions and schedule blocking"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -196,7 +154,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\ude78 Period Tracker initialized\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally'",
+          "run": "echo '🩸 Period Tracker initialized\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally'",
           "description": "Display service URLs and privacy notice"
         }
       ]
@@ -229,7 +187,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  \ud83d\udd10 All health data encrypted and stored locally only'",
+          "run": "echo '🚀 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  🔐 All health data encrypted and stored locally only'",
           "description": "Display running services with privacy notice"
         }
       ]
@@ -263,6 +221,50 @@
           "description": "Clear session data for privacy"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store encrypted period cycles, symptoms, predictions, and user data with multi-tenant isolation",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "scenario-authenticator": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "purpose": "Multi-tenant user authentication and session management for privacy isolation"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Session caching, temporary data storage, and performance optimization"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "purpose": "Local AI pattern recognition and health insight generation"
+      },
+      "calendar": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "purpose": "Calendar integration for period predictions and schedule blocking"
+      }
     }
   }
 }

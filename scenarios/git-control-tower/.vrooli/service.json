@@ -6,7 +6,12 @@
     "displayName": "Git Control Tower",
     "description": "Centralized git repository management with structured APIs for agent-accessible version control operations",
     "version": "1.0.0",
-    "tags": ["git", "version-control", "devops", "automation"]
+    "tags": [
+      "git",
+      "version-control",
+      "devops",
+      "automation"
+    ]
   },
   "ports": {
     "api": {
@@ -20,32 +25,6 @@
       "port": 35700,
       "description": "Git Control Tower UI (mirrors API endpoints for iframe embedding)",
       "range": "35000-39999"
-    }
-  },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "description": "Metadata storage for commit history, audit logs, draft queue"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "description": "Diff snapshot caching and fsnotify invalidation"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "description": "AI-assisted commit message generation and change analysis"
-    },
-    "resource-openrouter": {
-      "type": "resource-openrouter",
-      "enabled": false,
-      "required": false,
-      "description": "AI fallback for commit message generation"
     }
   },
   "lifecycle": {
@@ -204,6 +183,34 @@
     },
     "stop": {
       "description": "Stop all services gracefully"
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Metadata storage for commit history, audit logs, draft queue"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "description": "Diff snapshot caching and fsnotify invalidation"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "description": "AI-assisted commit message generation and change analysis"
+      },
+      "resource-openrouter": {
+        "type": "resource-openrouter",
+        "enabled": false,
+        "required": false,
+        "description": "AI fallback for commit message generation"
+      }
     }
   }
 }

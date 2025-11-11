@@ -36,89 +36,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/study-material-processor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/flashcard-generator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/quiz-generator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/study-plan-generator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/progress-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/spaced-repetition-engine.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/adaptive-learning-engine.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/content-generator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/pomodoro-timer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/study-session-tracker.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Store study materials, progress, and user data",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector storage for semantic search of study materials"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Session caching and temporary data"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "purpose": "Local LLM for content generation and learning assistance",
-      "models": [
-        "llama3.2",
-        "nomic-embed-text"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -282,6 +199,91 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/study-material-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/flashcard-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/quiz-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/study-plan-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/progress-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/spaced-repetition-engine.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/adaptive-learning-engine.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/content-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/pomodoro-timer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/n8n/study-session-tracker.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Store study materials, progress, and user data",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector storage for semantic search of study materials"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Session caching and temporary data"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "purpose": "Local LLM for content generation and learning assistance",
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
+      }
     }
   }
 }

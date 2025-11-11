@@ -31,42 +31,6 @@
       "range": "15000-19999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Primary storage for persons, relationships, organizations, consent flags, and communication metadata",
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": true,
-      "required": true,
-      "purpose": "Vector database for semantic search of contacts, affinity matching, and interest-based relationship discovery"
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": true,
-      "required": false,
-      "purpose": "Storage for contact photos, documents, and attachment files"
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": false,
-      "purpose": "Caching for frequently accessed contacts, computed closeness scores, and session data"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -99,18 +63,20 @@
     "setup": {
       "description": "Initialize Contact Book with database schema and embeddings",
       "condition": {
-           "checks": [
-           {
-             "type": "binaries",
-             "targets": [
-               "api/contact-book-api"
-             ]
-           },
-           {
-             "type": "cli",
-             "command": "contact-book",
-             "targets": ["contact-book"]
-           },
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/contact-book-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "contact-book",
+            "targets": [
+              "contact-book"
+            ]
+          },
           {
             "type": "resources",
             "populated": true
@@ -148,20 +114,20 @@
     "develop": {
       "description": "Start Contact Book API server",
       "steps": [
-         {
-           "name": "start-api",
-           "run": "cd api && ./contact-book-api",
-           "description": "Start Go API server in background",
-           "background": true,
-           "condition": {
-             "file_exists": "api/contact-book-api"
-           }
-         },
-         {
-           "name": "show-urls",
-           "run": "echo '🚀 Contact Book running:\\n  API: http://localhost:$API_PORT\\n  CLI: contact-book --help\\n  Health: http://localhost:$API_PORT/health'",
-           "description": "Display running service URLs"
-         }
+        {
+          "name": "start-api",
+          "run": "cd api && ./contact-book-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/contact-book-api"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Contact Book running:\\n  API: http://localhost:$API_PORT\\n  CLI: contact-book --help\\n  Health: http://localhost:$API_PORT/health'",
+          "description": "Display running service URLs"
+        }
       ]
     },
     "test": {
@@ -188,6 +154,44 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Primary storage for persons, relationships, organizations, consent flags, and communication metadata",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "Vector database for semantic search of contacts, affinity matching, and interest-based relationship discovery"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": false,
+        "purpose": "Storage for contact photos, documents, and attachment files"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Caching for frequently accessed contacts, computed closeness scores, and session data"
+      }
     }
   }
 }

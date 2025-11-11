@@ -26,7 +26,6 @@
       "description": "Web Console UI port"
     }
   },
-  "resources": {},
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -80,24 +79,24 @@
           "run": "cd cli && ./install.sh",
           "description": "Install CLI command globally"
         },
-    {
-      "name": "build-api",
-      "run": "cd api && go mod tidy && go build -o web-console-api .",
-      "description": "Build Go API server"
-    },
-    {
-      "name": "install-ui-deps",
-      "run": "cd ui && pnpm install",
-      "description": "Install UI dependencies",
-      "condition": {
-        "file_exists": "ui/package.json"
-      }
-    },
-    {
-      "name": "build-ui",
-      "run": "cd ui && pnpm run build",
-      "description": "Build Vite bundle for the Web Console UI"
-    },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod tidy && go build -o web-console-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && pnpm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && pnpm run build",
+          "description": "Build Vite bundle for the Web Console UI"
+        },
         {
           "name": "show-urls",
           "run": "echo 'Web Console ready' && echo '  UI: http://localhost:${UI_PORT}' && echo '  API: http://localhost:${API_PORT}'",
@@ -108,19 +107,19 @@
     "develop": {
       "description": "Run Web Console API and UI servers with production bundles",
       "steps": [
-    {
-      "name": "start-api",
-      "run": "cd api && ./web-console-api",
-      "description": "Start Go API server",
-      "background": true,
-      "condition": {
-        "file_exists": "api/web-console-api"
-      }
-    },
-    {
-      "name": "start-ui",
-      "run": "cd ui && node server.js",
-      "description": "Start UI server with production bundle",
+        {
+          "name": "start-api",
+          "run": "cd api && ./web-console-api",
+          "description": "Start Go API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/web-console-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI server with production bundle",
           "background": true,
           "condition": {
             "file_exists": "ui/dist/index.html"
@@ -158,5 +157,8 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {}
   }
 }

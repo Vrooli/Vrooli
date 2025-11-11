@@ -28,36 +28,6 @@
       "range": "15000-19999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Visitor profiles, events, and behavioral data storage",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true,
-      "purpose": "Session caching, rate limiting, and real-time data processing"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "purpose": "Visitor behavioral analysis and intent prediction",
-      "models": [
-        "llama3.2",
-        "mistral"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -152,7 +122,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
+          "run": "echo '🚀 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -171,7 +141,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
+          "run": "echo '🚀 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
           "description": "Display all running service URLs and integration example"
         }
       ]
@@ -200,6 +170,38 @@
           "description": "Stop UI process"
         }
       ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "Visitor profiles, events, and behavioral data storage",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Session caching, rate limiting, and real-time data processing"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "purpose": "Visitor behavioral analysis and intent prediction",
+        "models": [
+          "llama3.2",
+          "mistral"
+        ]
+      }
     }
   }
 }

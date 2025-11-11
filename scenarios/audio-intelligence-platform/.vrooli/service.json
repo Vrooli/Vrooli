@@ -35,69 +35,6 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": false,
-      "required": false,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/transcription-pipeline.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/ai-analysis-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/semantic-search.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "whisper": {
-      "type": "whisper",
-      "enabled": false,
-      "required": true
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "models": [
-        "llama3.1:8b",
-        "nomic-embed-text"
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": false,
-      "required": false,
-      "purpose": "transcription metadata and analytics",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        },
-        {
-          "file": "initialization/storage/postgres/seed.sql",
-          "type": "seed"
-        }
-      ]
-    },
-    "minio": {
-      "type": "minio",
-      "enabled": false,
-      "required": false,
-      "purpose": "audio files and transcription storage"
-    },
-    "qdrant": {
-      "type": "qdrant",
-      "enabled": false,
-      "required": false,
-      "purpose": "semantic search for transcriptions"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -297,5 +234,70 @@
         "description": "Execute phased test suite"
       }
     ]
+  },
+  "dependencies": {
+    "resources": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": false,
+        "required": false,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/transcription-pipeline.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/ai-analysis-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/semantic-search.json",
+            "type": "workflow"
+          }
+        ]
+      },
+      "whisper": {
+        "type": "whisper",
+        "enabled": false,
+        "required": true
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": false,
+        "required": false,
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text"
+        ]
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": false,
+        "required": false,
+        "purpose": "transcription metadata and analytics",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "seed"
+          }
+        ]
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "purpose": "audio files and transcription storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "purpose": "semantic search for transcriptions"
+      }
+    }
   }
 }
