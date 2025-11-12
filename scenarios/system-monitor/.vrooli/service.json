@@ -40,27 +40,6 @@
       "description": "Web UI dashboard port"
     }
   },
-  "components": {
-    "api": {
-      "enabled": true,
-      "language": "go",
-      "path": "api",
-      "main": "main.go"
-    },
-    "ui": {
-      "enabled": true,
-      "framework": "react",
-      "path": "ui",
-      "main": "src/App.tsx",
-      "build_tool": "vite"
-    },
-    "cli": {
-      "enabled": true,
-      "language": "bash",
-      "path": "cli",
-      "command": "system-monitor"
-    }
-  },
   "initialization": {
     "postgres": [
       {
@@ -137,25 +116,6 @@
         "purpose": "advanced metrics visualization"
       }
     }
-  },
-  "healthcheck": {
-    "enabled": true,
-    "interval": 30,
-    "timeout": 10,
-    "retries": 3,
-    "endpoints": [
-      {
-        "type": "http",
-        "url": "http://localhost:${API_PORT}/health",
-        "method": "GET",
-        "expected_status": 200
-      }
-    ]
-  },
-  "logging": {
-    "level": "info",
-    "format": "json",
-    "output": "stdout"
   },
   "lifecycle": {
     "version": "2.0.0",

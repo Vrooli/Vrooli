@@ -18,60 +18,6 @@
       "range": "35000-39999"
     }
   },
-  "cli": {
-    "enabled": true,
-    "commands": [
-      "audit",
-      "fix",
-      "dashboard",
-      "report",
-      "status",
-      "help",
-      "version"
-    ],
-    "binary": "accessibility-compliance-hub"
-  },
-  "ui": {
-    "enabled": true,
-    "type": "react",
-    "features": [
-      "compliance-dashboard",
-      "audit-history",
-      "issue-tracker",
-      "pattern-library",
-      "report-generator"
-    ]
-  },
-  "workflows": {
-    "n8n": [
-      {
-        "name": "accessibility-audit",
-        "description": "Orchestrates accessibility audits across scenarios",
-        "triggers": [
-          "webhook",
-          "schedule",
-          "manual"
-        ],
-        "schedule": "0 2 * * *"
-      },
-      {
-        "name": "auto-remediate",
-        "description": "Applies automatic fixes for common accessibility issues",
-        "triggers": [
-          "webhook",
-          "manual"
-        ]
-      },
-      {
-        "name": "compliance-report",
-        "description": "Generates VPAT and compliance documentation",
-        "triggers": [
-          "webhook",
-          "manual"
-        ]
-      }
-    ]
-  },
   "storage": {
     "postgres": {
       "database": "accessibility_hub",
@@ -103,18 +49,6 @@
     "browserless": {
       "purpose": "DOM analysis and visual regression testing"
     }
-  },
-  "events": {
-    "publishes": [
-      "accessibility.audit.completed",
-      "accessibility.fix.applied",
-      "accessibility.report.generated"
-    ],
-    "subscribes": [
-      "scenario.deployed",
-      "scenario.updated",
-      "ui.changed"
-    ]
   },
   "metadata": {
     "author": "Vrooli AI",
@@ -195,7 +129,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🚀 Accessibility Compliance Hub initialized\n  Dashboard: http://localhost:${UI_PORT}\n  CLI: accessibility-compliance-hub --help'",
+          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub initialized\n  Dashboard: http://localhost:${UI_PORT}\n  CLI: accessibility-compliance-hub --help'",
           "description": "Display running service URLs"
         }
       ]
@@ -223,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🚀 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  API: http://localhost:'${API_PORT}'\\n  CLI: accessibility-compliance-hub --help'",
+          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  API: http://localhost:'${API_PORT}'\\n  CLI: accessibility-compliance-hub --help'",
           "description": "Display running service URLs"
         }
       ]

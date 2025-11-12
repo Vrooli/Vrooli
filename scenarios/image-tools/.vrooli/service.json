@@ -64,31 +64,6 @@
       }
     }
   },
-  "ui": {
-    "type": "static",
-    "framework": "vanilla-js",
-    "style": "retro-photo-lab",
-    "features": [
-      "drag-drop-upload",
-      "live-preview",
-      "before-after-comparison",
-      "batch-processing",
-      "format-detection"
-    ]
-  },
-  "cli": {
-    "binary": "image-tools",
-    "commands": [
-      "compress",
-      "resize",
-      "convert",
-      "metadata",
-      "batch",
-      "status",
-      "help",
-      "version"
-    ]
-  },
   "plugins": {
     "jpeg": {
       "library": "mozjpeg-go",
@@ -209,7 +184,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🖼️ Image Tools initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
+          "run": "echo \"\ud83d\uddbc\ufe0f Image Tools initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
           "description": "Display service access URLs"
         }
       ]
@@ -237,7 +212,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🖼️ Image Tools running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
+          "run": "echo \"\ud83d\uddbc\ufe0f Image Tools running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: image-tools --help\"",
           "description": "Display all running service URLs"
         }
       ]
@@ -252,12 +227,6 @@
         }
       ]
     }
-  },
-  "performance": {
-    "max_file_size_mb": 100,
-    "concurrent_workers": 4,
-    "cache_ttl_seconds": 3600,
-    "timeout_seconds": 30
   },
   "deployment": {
     "docker": true,

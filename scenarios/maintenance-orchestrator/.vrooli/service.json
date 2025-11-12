@@ -27,26 +27,6 @@
       "description": "Web UI dashboard port"
     }
   },
-  "components": {
-    "api": {
-      "enabled": true,
-      "language": "go",
-      "path": "api",
-      "main": "main.go"
-    },
-    "ui": {
-      "enabled": true,
-      "framework": "javascript",
-      "path": "ui",
-      "main": "server.js"
-    },
-    "cli": {
-      "enabled": true,
-      "language": "bash",
-      "path": "cli",
-      "command": "maintenance-orchestrator"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -125,7 +105,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Maintenance Orchestrator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
+          "run": "echo '\ud83d\ude80 Maintenance Orchestrator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -153,7 +133,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: maintenance-orchestrator --help'",
           "description": "Display service URLs and usage information"
         }
       ]

@@ -47,25 +47,6 @@
     "revenue_potential": "$20K-$40K per deployment",
     "business_value": "Saves 100+ developer hours/month in code review and maintenance"
   },
-  "cli": {
-    "enabled": true,
-    "binary": "code-smell",
-    "install_path": "~/.vrooli/bin/",
-    "completion": true
-  },
-  "ui": {
-    "enabled": true,
-    "port": "${CODE_SMELL_UI_PORT:-3090}",
-    "framework": "react",
-    "style": "technical-modern",
-    "features": [
-      "dashboard",
-      "review-queue",
-      "rule-editor",
-      "history-timeline",
-      "settings"
-    ]
-  },
   "initialization": {
     "rules": {
       "path": "initialization/rules/",
@@ -170,66 +151,6 @@
       }
     }
   },
-  "events": {
-    "publish": [
-      "code-smell.analysis.started",
-      "code-smell.analysis.completed",
-      "code-smell.fix.applied",
-      "code-smell.fix.rejected",
-      "code-smell.pattern.learned",
-      "code-smell.rule.added",
-      "code-smell.rule.updated"
-    ],
-    "subscribe": [
-      "scenario.created",
-      "git.commit.pending",
-      "ci.build.failed"
-    ]
-  },
-  "monitoring": {
-    "metrics": {
-      "enabled": true,
-      "export_interval": 60,
-      "tracked": [
-        "files_analyzed",
-        "violations_found",
-        "auto_fixes_applied",
-        "patterns_learned",
-        "api_requests",
-        "analysis_duration"
-      ]
-    },
-    "logging": {
-      "level": "info",
-      "format": "json",
-      "destination": "stdout",
-      "rotation": {
-        "enabled": true,
-        "max_size_mb": 100,
-        "max_files": 5
-      }
-    }
-  },
-  "security": {
-    "api_keys": {
-      "enabled": true,
-      "header": "X-API-Key",
-      "storage": "postgres"
-    },
-    "rate_limiting": {
-      "enabled": true,
-      "requests_per_minute": 100,
-      "burst": 20
-    },
-    "audit_log": {
-      "enabled": true,
-      "events": [
-        "fix.applied",
-        "rule.modified",
-        "settings.changed"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -316,7 +237,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🕵️ Code Smell Detector initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: code-smell --help'",
+          "run": "echo '\ud83d\udd75\ufe0f Code Smell Detector initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: code-smell --help'",
           "description": "Display service URLs"
         }
       ]
@@ -364,7 +285,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Code Smell Detector running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Health: http://localhost:${UI_PORT}/health'",
+          "run": "echo '\ud83d\udd0d Code Smell Detector running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Health: http://localhost:${UI_PORT}/health'",
           "description": "Display service URLs"
         }
       ]

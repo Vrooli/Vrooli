@@ -43,42 +43,6 @@
     "resource_metrics": "/api/v1/ai/resources/metrics",
     "dashboard": "/dashboard"
   },
-  "capabilities": {
-    "model_selection": {
-      "description": "Intelligent model selection based on task requirements and system resources",
-      "features": [
-        "capability-based-routing",
-        "resource-awareness",
-        "performance-optimization"
-      ]
-    },
-    "load_balancing": {
-      "description": "Dynamic load balancing across available AI models",
-      "features": [
-        "round-robin",
-        "least-connections",
-        "resource-based",
-        "failover"
-      ]
-    },
-    "resource_monitoring": {
-      "description": "Real-time monitoring of system resources and model performance",
-      "features": [
-        "memory-tracking",
-        "cpu-monitoring",
-        "response-time-analysis",
-        "health-checks"
-      ]
-    },
-    "cost_optimization": {
-      "description": "Automatic cost optimization through intelligent model routing",
-      "features": [
-        "cost-aware-routing",
-        "efficiency-metrics",
-        "usage-analytics"
-      ]
-    }
-  },
   "environment": {
     "ORCHESTRATOR_PORT": "${API_PORT}",
     "ORCHESTRATOR_HOST": "${ORCHESTRATOR_HOST}",
@@ -185,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 AI Model Orchestra Controller initialized\\n  API port: ${API_PORT}\\n  Dashboard endpoint: /dashboard\\n  CLI: ai-orchestra --help\\n  Health endpoints: /health and /api/v1/health'",
+          "run": "echo '\ud83d\ude80 AI Model Orchestra Controller initialized\\n  API port: ${API_PORT}\\n  Dashboard endpoint: /dashboard\\n  CLI: ai-orchestra --help\\n  Health endpoints: /health and /api/v1/health'",
           "description": "Display service access URLs"
         }
       ]
@@ -213,7 +177,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 AI Model Orchestra Controller running:\\n  API port: ${API_PORT}\\n  Dashboard: /dashboard\\n  UI port: ${UI_PORT}\\n  Model Selection: POST /api/v1/ai/select-model\\n  Route Request: POST /api/v1/ai/route-request\\n  CLI: ai-orchestra --help'",
+          "run": "echo '\ud83d\ude80 AI Model Orchestra Controller running:\\n  API port: ${API_PORT}\\n  Dashboard: /dashboard\\n  UI port: ${UI_PORT}\\n  Model Selection: POST /api/v1/ai/select-model\\n  Route Request: POST /api/v1/ai/route-request\\n  CLI: ai-orchestra --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -276,33 +240,6 @@
         "purpose": "real-time orchestration events and caching"
       }
     }
-  },
-  "monitoring": {
-    "metrics": [
-      "requests_per_second",
-      "average_response_time",
-      "model_selection_accuracy",
-      "resource_utilization",
-      "failover_rate",
-      "cost_savings_percentage"
-    ],
-    "alerts": [
-      {
-        "name": "high_error_rate",
-        "condition": "error_rate > 5%",
-        "severity": "warning"
-      },
-      {
-        "name": "resource_pressure",
-        "condition": "memory_usage > 90%",
-        "severity": "critical"
-      },
-      {
-        "name": "model_unavailable",
-        "condition": "available_models = 0",
-        "severity": "critical"
-      }
-    ]
   },
   "scaling": {
     "min_instances": 1,

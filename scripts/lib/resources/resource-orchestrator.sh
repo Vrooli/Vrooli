@@ -313,15 +313,11 @@ resource_auto::install_enabled() {
         done
     fi
     
-    # Get list of enabled resources (handle nested structure with categories)
-    local resources=$(jq -r '
-        .resources | 
-        to_entries[] | 
-        .value | 
-        to_entries[] | 
-        select(.value.enabled == true) | 
-        .key
-    ' "$service_json" 2>/dev/null || echo "")
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
+
+    # Get list of enabled resources
+    local resources=$(jq -r "${jq_resources} | to_entries[] | select(.value.enabled == true) | .key" "$service_json" 2>/dev/null || echo "")
     
     if [[ -z "$resources" ]]; then
         log::info "No enabled resources found in service.json"
@@ -346,11 +342,7 @@ resource_auto::install_enabled() {
         fi
         
         # Get resource configuration (search through categories)
-        local resource_config=$(jq -r --arg name "$resource_name" '
-            .resources | 
-            to_entries[] | 
-            .value[$name] // empty
-        ' "$service_json" | jq -s 'add // {}')
+        local resource_config=$(jq -r --arg name "$resource_name" "${jq_resources} | .[$name] // empty" "$service_json" | jq -s 'add // {}')
         
         # Install resource
         if resource_auto::install_resource "$resource_name" "$resource_config"; then

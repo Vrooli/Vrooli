@@ -259,12 +259,6 @@
     ],
     "featured": true
   },
-  "security": {
-    "contentFiltering": "strict",
-    "ageAppropriate": true,
-    "dataCollection": "none",
-    "parentalControls": "available"
-  },
   "dependencies": {
     "resources": {
       "postgres": {

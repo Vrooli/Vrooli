@@ -34,38 +34,6 @@
       "range": "35000-39999"
     }
   },
-  "capabilities": [
-    "generate_json",
-    "generate_yaml",
-    "generate_csv",
-    "generate_xml",
-    "generate_images",
-    "generate_audio",
-    "generate_video",
-    "generate_pdf",
-    "batch_generation",
-    "deterministic_seeds",
-    "schema_validation"
-  ],
-  "interfaces": {
-    "api": {
-      "enabled": true,
-      "port": 3001,
-      "base_path": "/api/v1",
-      "health_endpoint": "/health",
-      "docs_endpoint": "/docs"
-    },
-    "cli": {
-      "enabled": true,
-      "binary": "test-data-generator",
-      "install_path": "~/.vrooli/bin/"
-    },
-    "ui": {
-      "enabled": true,
-      "port": 3002,
-      "type": "web"
-    }
-  },
   "initialization": {
     "scripts": [
       "initialization/startup.sh"
@@ -107,63 +75,6 @@
         "/tmp/test-data:/app/temp"
       ]
     }
-  },
-  "cross_scenario": {
-    "provides": [
-      {
-        "capability": "test_data_generation",
-        "interface": "api",
-        "endpoints": [
-          "/generate/json",
-          "/generate/image",
-          "/generate/batch"
-        ]
-      }
-    ],
-    "consumes": []
-  },
-  "testing": {
-    "unit_tests": "tests/api.test.js",
-    "integration_tests": "tests/integration.test.sh",
-    "test_runner": "tests/run-tests.sh",
-    "coverage_target": 80
-  },
-  "monitoring": {
-    "health_check": {
-      "endpoint": "/health",
-      "interval": 30,
-      "timeout": 5
-    },
-    "metrics": {
-      "enabled": true,
-      "endpoint": "/metrics",
-      "track": [
-        "requests",
-        "cache_hits",
-        "generation_time",
-        "errors"
-      ]
-    }
-  },
-  "security": {
-    "rate_limiting": {
-      "enabled": true,
-      "requests_per_minute": 100
-    },
-    "max_request_size": "10MB",
-    "allowed_origins": [
-      "http://localhost:*"
-    ],
-    "input_validation": true
-  },
-  "evolution": {
-    "current_version": "1.0.0",
-    "roadmap": {
-      "1.1.0": "Add Redis caching integration",
-      "1.2.0": "Complex media generation",
-      "2.0.0": "ML-powered realistic data"
-    },
-    "deprecations": []
   },
   "lifecycle": {
     "setup": {

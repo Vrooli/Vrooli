@@ -9,12 +9,6 @@
   },
   "category": "automation",
   "type": "scenario",
-  "capabilities": [
-    "email-processing",
-    "semantic-search",
-    "ai-rule-generation",
-    "multi-tenant-saas"
-  ],
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -44,38 +38,6 @@
     "provider": "scenario-authenticator",
     "required": true,
     "jwt_validation": "http://localhost:8080/api/v1/auth/validate"
-  },
-  "revenue_model": {
-    "type": "subscription",
-    "pricing_tiers": [
-      {
-        "name": "free",
-        "price": 0,
-        "limits": {
-          "email_accounts": 1,
-          "processed_emails_per_month": 1000,
-          "rules": 5
-        }
-      },
-      {
-        "name": "pro",
-        "price": 29,
-        "limits": {
-          "email_accounts": 5,
-          "processed_emails_per_month": 10000,
-          "rules": 50
-        }
-      },
-      {
-        "name": "business",
-        "price": 99,
-        "limits": {
-          "email_accounts": 20,
-          "processed_emails_per_month": 100000,
-          "rules": 200
-        }
-      }
-    ]
   },
   "deployment": {
     "startup_script": "api/start.sh",
@@ -191,7 +153,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 Email Triage initialized: API http://localhost:${API_PORT} UI http://localhost:${UI_PORT} CLI email-triage --help\"",
+          "run": "echo \"\ud83d\ude80 Email Triage initialized: API http://localhost:${API_PORT} UI http://localhost:${UI_PORT} CLI email-triage --help\"",
           "description": "Display service access URLs"
         }
       ]
@@ -219,7 +181,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 Email Triage running: API: http://localhost:${API_PORT:-19544} UI: http://localhost:${UI_PORT:-36294} Health: http://localhost:${API_PORT:-19544}/health\"",
+          "run": "echo \"\ud83d\ude80 Email Triage running: API: http://localhost:${API_PORT:-19544} UI: http://localhost:${UI_PORT:-36294} Health: http://localhost:${API_PORT:-19544}/health\"",
           "description": "Display service access URLs"
         }
       ]

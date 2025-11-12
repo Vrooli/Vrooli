@@ -16,13 +16,6 @@
   ],
   "author": "Vrooli Platform",
   "license": "MIT",
-  "capabilities": [
-    "desktop_app_generation",
-    "cross_platform_packaging",
-    "native_os_integration",
-    "template_system",
-    "build_automation"
-  ],
   "requirements": {
     "node_version": ">=18.0.0",
     "platform": [
@@ -44,50 +37,6 @@
       "range": "35000-39999",
       "description": "Desktop build UI server port"
     }
-  },
-  "apis": {
-    "endpoints": [
-      {
-        "method": "GET",
-        "path": "/api/v1/health",
-        "description": "Health check endpoint"
-      },
-      {
-        "method": "GET",
-        "path": "/api/v1/status",
-        "description": "Desktop generation system status"
-      },
-      {
-        "method": "GET",
-        "path": "/api/v1/templates",
-        "description": "List available desktop application templates"
-      },
-      {
-        "method": "POST",
-        "path": "/api/v1/desktop/generate",
-        "description": "Generate desktop application from scenario configuration"
-      },
-      {
-        "method": "GET",
-        "path": "/api/v1/desktop/status/{build_id}",
-        "description": "Check desktop build status and get deployment info"
-      },
-      {
-        "method": "POST",
-        "path": "/api/v1/desktop/build",
-        "description": "Build a desktop application project"
-      },
-      {
-        "method": "POST",
-        "path": "/api/v1/desktop/test",
-        "description": "Test desktop application functionality"
-      },
-      {
-        "method": "POST",
-        "path": "/api/v1/desktop/package",
-        "description": "Package desktop application for distribution"
-      }
-    ]
   },
   "cli_commands": [
     {
@@ -155,36 +104,6 @@
       ]
     }
   ],
-  "events": {
-    "published": [
-      {
-        "name": "desktop.build.started",
-        "description": "Desktop application build started"
-      },
-      {
-        "name": "desktop.build.completed",
-        "description": "Desktop application build completed successfully"
-      },
-      {
-        "name": "desktop.build.failed",
-        "description": "Desktop application build failed"
-      },
-      {
-        "name": "desktop.deployed",
-        "description": "Desktop application deployed to distribution channels"
-      }
-    ],
-    "consumed": [
-      {
-        "name": "scenario.updated",
-        "description": "Scenario was updated, may trigger desktop app regeneration"
-      },
-      {
-        "name": "resource.browserless.ready",
-        "description": "Browserless resource is available for testing"
-      }
-    ]
-  },
   "integrations": {
     "provides_to": [
       {
@@ -222,33 +141,6 @@
     "health_check_interval": 30,
     "restart_policy": "on-failure",
     "max_restarts": 3
-  },
-  "monitoring": {
-    "metrics": [
-      "desktop_apps_generated",
-      "build_success_rate",
-      "average_build_time",
-      "template_usage_stats",
-      "platform_distribution"
-    ],
-    "logs": {
-      "level": "info",
-      "format": "json",
-      "rotation": "daily"
-    }
-  },
-  "security": {
-    "permissions": [
-      "file_system",
-      "network",
-      "process"
-    ],
-    "sandbox": false,
-    "code_signing": {
-      "required": false,
-      "development": false,
-      "production": true
-    }
   },
   "development": {
     "hot_reload": true,
@@ -355,7 +247,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to Desktop initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-desktop --help'",
+          "run": "echo '\ud83d\ude80 Scenario to Desktop initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-desktop --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -383,7 +275,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to Desktop running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\ude80 Scenario to Desktop running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]

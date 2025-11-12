@@ -60,18 +60,6 @@
       "timeout": 5
     }
   },
-  "ui": {
-    "type": "react",
-    "path": "ui/",
-    "build": {
-      "command": "npm run build",
-      "outputDir": "ui/dist"
-    },
-    "dev": {
-      "command": "npm run dev",
-      "port": "${PORT:-3500}"
-    }
-  },
   "filtering": {
     "categoryWhitelist": [
       "kid-friendly"
@@ -106,16 +94,6 @@
       "enabled": true,
       "maxDuration": 3600
     }
-  },
-  "security": {
-    "iframeIsolation": true,
-    "sandboxAttributes": [
-      "allow-scripts",
-      "allow-same-origin",
-      "allow-forms"
-    ],
-    "preventSystemAccess": true,
-    "dataCollection": "none"
   },
   "discovery": {
     "scanInterval": 60,
@@ -202,7 +180,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎮 Kids Dashboard initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83c\udfae Kids Dashboard initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -230,7 +208,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Kids Dashboard running:\\n  🎮 Dashboard: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT'",
+          "run": "echo '\ud83d\ude80 Kids Dashboard running:\\n  \ud83c\udfae Dashboard: http://localhost:$UI_PORT\\n  \ud83d\udce1 API: http://localhost:$API_PORT'",
           "description": "Display service URLs"
         }
       ]

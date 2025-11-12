@@ -47,30 +47,6 @@
       "description": "Web UI dashboard port"
     }
   },
-  "components": {
-    "api": {
-      "enabled": true,
-      "language": "go",
-      "path": "api",
-      "main": "cmd/server/",
-      "description": "Go-based API server with REST endpoints"
-    },
-    "ui": {
-      "enabled": true,
-      "framework": "vanilla",
-      "path": "ui",
-      "main": "public/index.html",
-      "build_tool": "static",
-      "description": "Proxy-aware web console for interactive diagnostics"
-    },
-    "cli": {
-      "enabled": true,
-      "language": "bash",
-      "path": "cli",
-      "command": "network-tools",
-      "description": "Command-line interface for scenario operations"
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -186,7 +162,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
+          "run": "echo '\ud83d\ude80 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -214,7 +190,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: network-tools --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -276,7 +252,7 @@
         },
         {
           "name": "confirm-stop",
-          "run": "echo '🛑 Application services stopped'",
+          "run": "echo '\ud83d\uded1 Application services stopped'",
           "description": "Confirm services stopped"
         }
       ]
@@ -440,21 +416,6 @@
         }
       }
     }
-  },
-  "ui": {
-    "enabled": true,
-    "path": "/",
-    "description": "React-based web interface",
-    "features": [
-      "responsive-design",
-      "real-time-updates",
-      "dashboard-interface"
-    ]
-  },
-  "cli": {
-    "command": "network-tools",
-    "install_script": "./cli/install.sh",
-    "description": "Command-line interface for scenario operations"
   },
   "metadata": {
     "businessModel": {

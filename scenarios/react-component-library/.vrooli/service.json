@@ -114,46 +114,46 @@
       "steps": [
         {
           "name": "verify-structure",
-          "run": "echo '📁 Verifying React Component Library structure...' && ls -la"
+          "run": "echo '\ud83d\udcc1 Verifying React Component Library structure...' && ls -la"
         },
         {
           "name": "build-api",
-          "run": "cd api && echo '🔨 Building Go API...' && go mod download && go build -o react-component-library-api .",
+          "run": "cd api && echo '\ud83d\udd28 Building Go API...' && go mod download && go build -o react-component-library-api .",
           "description": "Build Go API server for component management"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && echo '📦 Installing UI dependencies with pnpm...' && pnpm install --filter .",
+          "run": "cd ui && echo '\ud83d\udce6 Installing UI dependencies with pnpm...' && pnpm install --filter .",
           "description": "Install React UI dependencies"
         },
         {
           "name": "build-ui",
-          "run": "cd ui && echo '⚛️ Building React UI...' && npm run build",
+          "run": "cd ui && echo '\u269b\ufe0f Building React UI...' && npm run build",
           "description": "Build React UI for production"
         },
         {
           "name": "install-cli",
-          "run": "cd cli && echo '🔧 Installing CLI...' && ./install.sh",
+          "run": "cd cli && echo '\ud83d\udd27 Installing CLI...' && ./install.sh",
           "description": "Install CLI binary to PATH"
         },
         {
           "name": "setup-database",
-          "run": "echo '🗃️ Setting up PostgreSQL schema...' && resource-postgres content execute \"$(cat initialization/storage/postgres/schema.sql)\"",
+          "run": "echo '\ud83d\uddc3\ufe0f Setting up PostgreSQL schema...' && resource-postgres content execute \"$(cat initialization/storage/postgres/schema.sql)\"",
           "description": "Initialize PostgreSQL schema for component storage"
         },
         {
           "name": "setup-n8n-workflows",
-          "run": "echo '🔄 Registering n8n workflows...' && ls initialization/automation/n8n/",
+          "run": "echo '\ud83d\udd04 Registering n8n workflows...' && ls initialization/automation/n8n/",
           "description": "Verify n8n workflow files are present"
         },
         {
           "name": "verify-resources",
-          "run": "echo '✅ Verifying resource connections...' && resource-postgres status && resource-qdrant status && resource-minio status",
+          "run": "echo '\u2705 Verifying resource connections...' && resource-postgres status && resource-qdrant status && resource-minio status",
           "description": "Verify all required resources are accessible"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 React Component Library setup complete!' && echo '  📚 Component Library: http://localhost:${UI_PORT}' && echo '  🔌 API: http://localhost:${API_PORT}' && echo '  💻 CLI: react-component-library --help'",
+          "run": "echo '\ud83d\ude80 React Component Library setup complete!' && echo '  \ud83d\udcda Component Library: http://localhost:${UI_PORT}' && echo '  \ud83d\udd0c API: http://localhost:${API_PORT}' && echo '  \ud83d\udcbb CLI: react-component-library --help'",
           "description": "Display key endpoints after setup"
         }
       ]
@@ -172,7 +172,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && echo '⚛️ Starting React UI server...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && node server.js",
+          "run": "cd ui && echo '\u269b\ufe0f Starting React UI server...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && node server.js",
           "background": true,
           "condition": {
             "file_exists": "ui/dist/index.html"
@@ -191,19 +191,19 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && echo '🚀 Starting API server (production)...' && ./react-component-library-api",
+          "run": "cd api && echo '\ud83d\ude80 Starting API server (production)...' && ./react-component-library-api",
           "background": true,
           "description": "Start Go API server in production mode"
         },
         {
           "name": "serve-ui",
-          "run": "cd ui && echo '🌐 Serving built UI...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && npx serve -s dist -l ${UI_PORT}",
+          "run": "cd ui && echo '\ud83c\udf10 Serving built UI...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && npx serve -s dist -l ${UI_PORT}",
           "background": true,
           "description": "Serve built React UI"
         },
         {
           "name": "show-status",
-          "run": "sleep 3 && echo '✅ React Component Library is running in production!' && echo '  📚 Component Library: http://localhost:${UI_PORT}' && echo '  🔌 API: http://localhost:${API_PORT}'"
+          "run": "sleep 3 && echo '\u2705 React Component Library is running in production!' && echo '  \ud83d\udcda Component Library: http://localhost:${UI_PORT}' && echo '  \ud83d\udd0c API: http://localhost:${API_PORT}'"
         }
       ]
     },
@@ -212,27 +212,27 @@
       "steps": [
         {
           "name": "test-api",
-          "run": "cd api && echo '🧪 Testing Go API...' && go test ./... -v",
+          "run": "cd api && echo '\ud83e\uddea Testing Go API...' && go test ./... -v",
           "description": "Run Go API unit tests"
         },
         {
           "name": "test-ui",
-          "run": "cd ui && echo '⚛️ Testing React UI...' && npm test -- --watchAll=false --coverage",
+          "run": "cd ui && echo '\u269b\ufe0f Testing React UI...' && npm test -- --watchAll=false --coverage",
           "description": "Run React UI tests"
         },
         {
           "name": "test-cli",
-          "run": "cd cli && echo '💻 Testing CLI...' && ./test.sh",
+          "run": "cd cli && echo '\ud83d\udcbb Testing CLI...' && ./test.sh",
           "description": "Run CLI integration tests"
         },
         {
           "name": "test-integration",
-          "run": "echo '🔗 Testing integration...' && ./test.sh --integration",
+          "run": "echo '\ud83d\udd17 Testing integration...' && ./test.sh --integration",
           "description": "Run integration tests with all components"
         },
         {
           "name": "test-accessibility",
-          "run": "echo '♿ Testing accessibility...' && react-component-library test --accessibility --all",
+          "run": "echo '\u267f Testing accessibility...' && react-component-library test --accessibility --all",
           "description": "Run accessibility tests on all components"
         }
       ]
@@ -242,12 +242,12 @@
       "steps": [
         {
           "name": "stop-services",
-          "run": "echo '🛑 Stopping React Component Library services...' && pkill -f react-component-library-api || true && pkill -f 'npm start' || true && pkill -f 'serve.*build' || true",
+          "run": "echo '\ud83d\uded1 Stopping React Component Library services...' && pkill -f react-component-library-api || true && pkill -f 'npm start' || true && pkill -f 'serve.*build' || true",
           "description": "Stop all running services"
         },
         {
           "name": "cleanup-temp",
-          "run": "echo '🧹 Cleaning up temporary files...' && rm -rf /tmp/component-* 2>/dev/null || true",
+          "run": "echo '\ud83e\uddf9 Cleaning up temporary files...' && rm -rf /tmp/component-* 2>/dev/null || true",
           "description": "Clean up temporary component files"
         }
       ]
@@ -280,155 +280,6 @@
     "code-playground",
     "component-versioning"
   ],
-  "interfaces": {
-    "api": {
-      "enabled": true,
-      "base_path": "/api/v1",
-      "health_endpoint": "/health",
-      "docs_endpoint": "/api/docs",
-      "endpoints": [
-        "/components",
-        "/components/{id}",
-        "/components/search",
-        "/components/generate",
-        "/components/{id}/test",
-        "/components/{id}/export",
-        "/components/{id}/improve"
-      ]
-    },
-    "cli": {
-      "enabled": true,
-      "binary": "react-component-library",
-      "install_path": "~/.vrooli/bin/",
-      "commands": [
-        "create",
-        "test",
-        "search",
-        "export",
-        "generate",
-        "improve",
-        "status",
-        "help",
-        "version"
-      ]
-    },
-    "ui": {
-      "enabled": true,
-      "type": "react-spa",
-      "features": [
-        "component-showcase",
-        "live-playground",
-        "accessibility-testing",
-        "performance-monitoring",
-        "ai-generation-ui",
-        "export-wizard"
-      ]
-    }
-  },
-  "cross_scenario": {
-    "provides": [
-      {
-        "capability": "react_component_library",
-        "interface": "api",
-        "endpoints": [
-          "/api/v1/components",
-          "/api/v1/components/search",
-          "/api/v1/components/generate"
-        ],
-        "description": "Provides reusable React components for other scenarios"
-      },
-      {
-        "capability": "accessibility_testing",
-        "interface": "api",
-        "endpoints": [
-          "/api/v1/components/{id}/test"
-        ],
-        "description": "Automated accessibility testing for UI components"
-      },
-      {
-        "capability": "performance_benchmarking",
-        "interface": "api",
-        "endpoints": [
-          "/api/v1/components/{id}/benchmark"
-        ],
-        "description": "Performance analysis for React components"
-      }
-    ],
-    "consumes": [
-      {
-        "capability": "ai_code_generation",
-        "from": "claude-code",
-        "interface": "cli",
-        "description": "Uses claude-code for AI-powered component generation"
-      },
-      {
-        "capability": "vector_search",
-        "from": "qdrant",
-        "interface": "api",
-        "description": "Semantic search across component patterns and documentation"
-      }
-    ]
-  },
-  "testing": {
-    "unit_tests": "api/tests/",
-    "integration_tests": "tests/integration/",
-    "ui_tests": "ui/src/__tests__/",
-    "test_runner": "test.sh",
-    "coverage_target": 85
-  },
-  "monitoring": {
-    "health_check": {
-      "endpoint": "/health",
-      "interval": 30,
-      "timeout": 5
-    },
-    "metrics": {
-      "enabled": true,
-      "endpoint": "/api/metrics",
-      "track": [
-        "component_creations",
-        "search_queries",
-        "accessibility_tests",
-        "performance_benchmarks",
-        "ai_generations",
-        "component_exports",
-        "api_response_times",
-        "error_rates"
-      ]
-    }
-  },
-  "security": {
-    "rate_limiting": {
-      "enabled": true,
-      "requests_per_minute": 200,
-      "ai_generation_limit": 10
-    },
-    "max_request_size": "50MB",
-    "allowed_origins": [
-      "http://localhost:*",
-      "https://*.vrooli.com"
-    ],
-    "input_validation": true,
-    "code_sanitization": true
-  },
-  "evolution": {
-    "current_version": "1.0.0",
-    "roadmap": {
-      "1.1.0": "Visual component composition builder",
-      "1.2.0": "Advanced accessibility simulation",
-      "1.3.0": "Component marketplace integration",
-      "2.0.0": "Multi-framework support (Vue, Svelte)"
-    },
-    "deprecations": []
-  },
-  "documentation": {
-    "readme": "README.md",
-    "prd": "PRD.md",
-    "api_docs": "docs/api.md",
-    "cli_docs": "docs/cli.md",
-    "component_authoring": "docs/component-authoring.md",
-    "testing_guide": "docs/testing.md"
-  },
   "dependencies": {
     "resources": {
       "postgres": {
