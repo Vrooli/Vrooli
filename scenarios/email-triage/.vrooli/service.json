@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "email-triage",
@@ -37,17 +37,6 @@
     "ui": {
       "env_var": "UI_PORT",
       "range": "35000-39999"
-    }
-  },
-  "deployment": {
-    "startup_script": "api/start.sh",
-    "health_check_path": "/health",
-    "environment_variables": {
-      "DATABASE_URL": "postgres://postgres:password@localhost/email_triage",
-      "QDRANT_URL": "http://localhost:6333",
-      "AUTH_SERVICE_URL": "http://localhost:8080",
-      "MAIL_SERVER_URL": "localhost",
-      "NOTIFICATION_HUB_URL": "http://localhost:8081"
     }
   },
   "lifecycle": {
@@ -132,7 +121,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 Email Triage initialized: API http://localhost:${API_PORT} UI http://localhost:${UI_PORT} CLI email-triage --help\"",
+          "run": "echo \"🚀 Email Triage initialized: API http://localhost:${API_PORT} UI http://localhost:${UI_PORT} CLI email-triage --help\"",
           "description": "Display service access URLs"
         }
       ]
@@ -160,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 Email Triage running: API: http://localhost:${API_PORT:-19544} UI: http://localhost:${UI_PORT:-36294} Health: http://localhost:${API_PORT:-19544}/health\"",
+          "run": "echo \"🚀 Email Triage running: API: http://localhost:${API_PORT:-19544} UI: http://localhost:${UI_PORT:-36294} Health: http://localhost:${API_PORT:-19544}/health\"",
           "description": "Display service access URLs"
         }
       ]

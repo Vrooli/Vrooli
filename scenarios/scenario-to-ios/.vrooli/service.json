@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "scenario-to-ios",
@@ -71,7 +71,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to iOS API running on http://localhost:${API_PORT}'",
+          "run": "echo '🚀 Scenario to iOS API running on http://localhost:${API_PORT}'",
           "description": "Display API access URL"
         }
       ]
@@ -118,7 +118,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to iOS initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-ios --help'",
+          "run": "echo '🚀 Scenario to iOS initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-ios --help'",
           "description": "Display service access URLs"
         }
       ]

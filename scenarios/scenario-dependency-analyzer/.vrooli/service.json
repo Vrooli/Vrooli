@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "scenario-dependency-analyzer",
@@ -85,8 +85,7 @@
           "target": "http://localhost:${API_PORT}/api/v1/health/analysis",
           "critical": true,
           "timeout": 15000,
-          "interval": 300000,
-          "description": "Test actual dependency analysis capability"
+          "interval": 300000
         }
       ],
       "timeout": 5000,
@@ -152,12 +151,12 @@
         },
         {
           "name": "verify-cli",
-          "run": "echo '\u2705 CLI installed at:' && which scenario-dependency-analyzer || echo '  /home/matthalloran8/.vrooli/bin/scenario-dependency-analyzer'",
+          "run": "echo '✅ CLI installed at:' && which scenario-dependency-analyzer || echo '  /home/matthalloran8/.vrooli/bin/scenario-dependency-analyzer'",
           "description": "Verify CLI installation"
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd0d Scenario Dependency Analyzer initialized\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  CLI: scenario-dependency-analyzer --help\\n\\n\ud83d\udcca Quick Commands:\\n  scenario-dependency-analyzer analyze all\\n  scenario-dependency-analyzer graph combined --format html\\n  scenario-dependency-analyzer optimize all'",
+          "run": "echo '🔍 Scenario Dependency Analyzer initialized\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  CLI: scenario-dependency-analyzer --help\\n\\n📊 Quick Commands:\\n  scenario-dependency-analyzer analyze all\\n  scenario-dependency-analyzer graph combined --format html\\n  scenario-dependency-analyzer optimize all'",
           "description": "Display service access URLs and usage examples"
         }
       ]
@@ -185,7 +184,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd0d Scenario Dependency Analyzer Services Running:\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n\\n\ud83d\udccb CLI Usage: scenario-dependency-analyzer --help'",
+          "run": "echo '🔍 Scenario Dependency Analyzer Services Running:\\n  Graph Visualization: http://localhost:${UI_PORT}\\n  Analysis API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n\\n📋 CLI Usage: scenario-dependency-analyzer --help'",
           "description": "Display all running service URLs and CLI info"
         }
       ]
@@ -235,7 +234,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

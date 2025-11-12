@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "date-night-planner",
@@ -143,7 +143,7 @@
       "steps": [
         {
           "name": "validate-integrations",
-          "run": "echo 'Validating scenario integrations...' && if command -v scenario-authenticator >/dev/null; then echo '\u2705 scenario-authenticator available'; else echo '\u26a0\ufe0f scenario-authenticator not found - will use fallback mode'; fi && if command -v contact-book >/dev/null; then echo '\u2705 contact-book available'; else echo '\u26a0\ufe0f contact-book not found - will use fallback mode'; fi && if command -v local-info-scout >/dev/null; then echo '\u2705 local-info-scout available'; else echo '\u26a0\ufe0f local-info-scout not found - will use fallback mode'; fi",
+          "run": "echo 'Validating scenario integrations...' && if command -v scenario-authenticator >/dev/null; then echo '✅ scenario-authenticator available'; else echo '⚠️ scenario-authenticator not found - will use fallback mode'; fi && if command -v contact-book >/dev/null; then echo '✅ contact-book available'; else echo '⚠️ contact-book not found - will use fallback mode'; fi && if command -v local-info-scout >/dev/null; then echo '✅ local-info-scout available'; else echo '⚠️ local-info-scout not found - will use fallback mode'; fi",
           "description": "Validate integration dependencies and fallback modes"
         },
         {
@@ -178,7 +178,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udc95 Date Night Planner initialized!\\n  \ud83d\udc96 UI: http://localhost:${UI_PORT}\\n  \ud83d\udd17 API: http://localhost:${API_PORT}\\n  \ud83d\udcf1 CLI: date-night-planner --help\\n\\n\ud83c\udf1f Integration Status:\\n  \ud83d\udd10 Auth: scenario-authenticator $(command -v scenario-authenticator >/dev/null && echo \"\u2705\" || echo \"\u274c (fallback mode)\")\\n  \ud83d\udcda Contacts: contact-book $(command -v contact-book >/dev/null && echo \"\u2705\" || echo \"\u274c (fallback mode)\")\\n  \ud83d\uddfa\ufe0f Local Info: local-info-scout $(command -v local-info-scout >/dev/null && echo \"\u2705\" || echo \"\u274c (fallback mode)\")\\n  \ud83d\udd0d Research: research-assistant $(command -v research-assistant >/dev/null && echo \"\u2705\" || echo \"\u274c (fallback mode)\")'",
+          "run": "echo '💕 Date Night Planner initialized!\\n  💖 UI: http://localhost:${UI_PORT}\\n  🔗 API: http://localhost:${API_PORT}\\n  📱 CLI: date-night-planner --help\\n\\n🌟 Integration Status:\\n  🔐 Auth: scenario-authenticator $(command -v scenario-authenticator >/dev/null && echo \"✅\" || echo \"❌ (fallback mode)\")\\n  📚 Contacts: contact-book $(command -v contact-book >/dev/null && echo \"✅\" || echo \"❌ (fallback mode)\")\\n  🗺️ Local Info: local-info-scout $(command -v local-info-scout >/dev/null && echo \"✅\" || echo \"❌ (fallback mode)\")\\n  🔍 Research: research-assistant $(command -v research-assistant >/dev/null && echo \"✅\" || echo \"❌ (fallback mode)\")'",
           "description": "Display service access URLs and integration status"
         }
       ]
@@ -206,7 +206,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udc95 Date Night Planner Services Running!\\n  \ud83d\udc96 UI: http://localhost:${UI_PORT}\\n  \ud83d\udd17 API: http://localhost:${API_PORT}\\n  \ud83d\udcf1 CLI: date-night-planner --help'",
+          "run": "echo '💕 Date Night Planner Services Running!\\n  💖 UI: http://localhost:${UI_PORT}\\n  🔗 API: http://localhost:${API_PORT}\\n  📱 CLI: date-night-planner --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -274,7 +274,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "code-tidiness-manager",
@@ -147,7 +147,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\uddf9 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help'",
+          "run": "echo '🧹 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -175,7 +175,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\uddf9 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
+          "run": "echo '🧹 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
           "description": "Display all running service URLs"
         }
       ]
@@ -220,7 +220,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

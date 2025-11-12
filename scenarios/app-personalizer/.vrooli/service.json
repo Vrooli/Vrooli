@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "app-personalizer",
@@ -116,7 +116,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-personalizer --help'",
+          "run": "echo '🚀 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-personalizer --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -135,7 +135,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
+          "run": "echo '🚀 App Personalizer running:\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-personalizer --help'",
           "description": "Display service URLs"
         }
       ]
@@ -206,7 +206,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

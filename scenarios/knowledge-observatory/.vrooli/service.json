@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "knowledge-observatory",
@@ -150,7 +150,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd2d Knowledge Observatory initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: knowledge-observatory --help\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}'",
+          "run": "echo '🔭 Knowledge Observatory initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: knowledge-observatory --help\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}'",
           "description": "Display service access URLs"
         }
       ]
@@ -178,7 +178,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd2d Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
+          "run": "echo '🔭 Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
           "description": "Display service URLs and usage information"
         }
       ]
@@ -229,7 +229,7 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

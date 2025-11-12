@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "browser-automation-studio",
@@ -149,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '\ud83d\ude80 Browser Automation Studio initialized\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
+          "run": "printf '🚀 Browser Automation Studio initialized\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
           "description": "Display service access URLs"
         }
       ]
@@ -177,7 +177,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '\ud83d\ude80 Services running:\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
+          "run": "printf '🚀 Services running:\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
           "description": "Display all running service URLs"
         }
       ]

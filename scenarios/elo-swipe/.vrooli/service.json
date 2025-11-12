@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "elo-swipe",
@@ -158,8 +158,7 @@
         {
           "name": "api",
           "type": "http",
-          "endpoint": "/api/v1/health",
-          "expected_status": 200,
+          "target": "http://localhost:${API_PORT}/api/v1/health",
           "timeout": 5,
           "interval": 10,
           "critical": false
@@ -168,8 +167,6 @@
           "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "endpoint": "/health",
-          "expected_status": 200,
           "timeout": 5,
           "interval": 10,
           "critical": true
@@ -178,18 +175,17 @@
           "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "endpoint": "/health",
-          "expected_status": 200,
-          "port": "ui",
           "timeout": 5,
           "interval": 10,
           "critical": true
         },
         {
           "name": "database",
-          "type": "dependency",
-          "service": "postgres",
-          "critical": true
+          "type": "postgres",
+          "target": "postgres",
+          "critical": true,
+          "timeout": 5,
+          "interval": 10
         }
       ]
     },

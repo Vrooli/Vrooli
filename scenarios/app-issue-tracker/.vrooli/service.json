@@ -159,7 +159,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udcc1 File-Based Issue Tracker initialized\\n  \ud83d\udcca Management: ./issues/manage.sh status\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83c\udfaf CLI: app-issue-tracker --help\\n  \ud83d\udcc2 Issues: ./issues/\\n  \ud83d\udcdd Templates: ./issues/templates/\\n\\n\ud83d\udca1 Create issues with:\\n  app-issue-tracker create --title \"Issue title\" --priority high\\n  ./issues/manage.sh add\\n  cp issues/templates/bug-template.yaml issues/open/123-new.yaml'",
+          "run": "echo '📁 File-Based Issue Tracker initialized\\n  📊 Management: ./issues/manage.sh status\\n  🌐 API: http://localhost:${API_PORT}\\n  🎯 CLI: app-issue-tracker --help\\n  📂 Issues: ./issues/\\n  📝 Templates: ./issues/templates/\\n\\n💡 Create issues with:\\n  app-issue-tracker create --title \"Issue title\" --priority high\\n  ./issues/manage.sh add\\n  cp issues/templates/bug-template.yaml issues/open/123-new.yaml'",
           "description": "Display service information"
         }
       ]
@@ -187,7 +187,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udcc1 File-Based Issue Tracker running:\\n  \ud83c\udf10 Web UI (dev): http://localhost:$UI_PORT\\n  \ud83d\udce1 API: http://localhost:$API_PORT\\n  \ud83c\udfaf CLI: app-issue-tracker --help\\n  \ud83d\udcca Management: ./issues/manage.sh status\\n\\n\ud83d\udcdd Create issues:\\n  app-issue-tracker create --title \"Bug title\" --priority high\\n  ./issues/manage.sh add\\n\\n\ud83d\udcc2 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./issues/manage.sh search \"keyword\"'",
+          "run": "echo '📁 File-Based Issue Tracker running:\\n  🌐 Web UI (dev): http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: app-issue-tracker --help\\n  📊 Management: ./issues/manage.sh status\\n\\n📝 Create issues:\\n  app-issue-tracker create --title \"Bug title\" --priority high\\n  ./issues/manage.sh add\\n\\n📂 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./issues/manage.sh search \"keyword\"'",
           "description": "Display service URLs"
         }
       ]

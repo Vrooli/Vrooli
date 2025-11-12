@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "vrooli-orchestrator",
@@ -150,7 +150,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Vrooli Orchestrator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nProfile Management:\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate developer\\n  vrooli-orchestrator deactivate'",
+          "run": "echo '🚀 Vrooli Orchestrator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nProfile Management:\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate developer\\n  vrooli-orchestrator deactivate'",
           "description": "Display service access URLs and basic commands"
         }
       ]
@@ -178,7 +178,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Orchestrator services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nQuick Commands:\\n  vrooli-orchestrator status\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate <profile-name>'",
+          "run": "echo '🚀 Orchestrator services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nQuick Commands:\\n  vrooli-orchestrator status\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate <profile-name>'",
           "description": "Display all running service URLs and commands"
         }
       ]
@@ -223,7 +223,7 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

@@ -107,29 +107,6 @@
       }
     }
   },
-  "deployment": {
-    "type": "docker",
-    "replicas": {
-      "api": 2,
-      "ui": 1
-    },
-    "resources": {
-      "api": {
-        "cpu": "500m",
-        "memory": "512Mi"
-      },
-      "ui": {
-        "cpu": "200m",
-        "memory": "256Mi"
-      }
-    },
-    "healthCheck": {
-      "path": "/health",
-      "interval": 30,
-      "timeout": 10,
-      "retries": 3
-    }
-  },
   "lifecycle": {
     "setup": {
       "description": "Initialize token-economy services",
@@ -181,7 +158,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Token Economy ready:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
+          "run": "echo '🚀 Token Economy ready:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -209,7 +186,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Token Economy running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
+          "run": "echo '🚀 Token Economy running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: token-economy --help'",
           "description": "Display running service URLs"
         }
       ]
@@ -268,5 +245,6 @@
         }
       ]
     }
-  }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json"
 }

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "study-buddy",

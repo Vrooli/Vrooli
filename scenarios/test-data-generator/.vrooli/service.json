@@ -40,29 +40,6 @@
       "range": "35000-39999"
     }
   },
-  "deployment": {
-    "local": {
-      "type": "node",
-      "entry": "api/server.js",
-      "env": {
-        "NODE_ENV": "production",
-        "API_PORT": 3001,
-        "UI_PORT": 3002,
-        "CACHE_TTL": 3600,
-        "MAX_FILE_SIZE": 104857600
-      }
-    },
-    "docker": {
-      "image": "vrooli/test-data-generator:1.0.0",
-      "ports": [
-        "3001:3001",
-        "3002:3002"
-      ],
-      "volumes": [
-        "/tmp/test-data:/app/temp"
-      ]
-    }
-  },
   "lifecycle": {
     "setup": {
       "description": "Initialize Test Data Generator",
@@ -244,5 +221,6 @@
         }
       ]
     }
-  }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json"
 }

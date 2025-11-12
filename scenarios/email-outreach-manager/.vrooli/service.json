@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "email-outreach-manager",
@@ -78,7 +78,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },
@@ -130,7 +130,7 @@
         {
           "name": "postgres_connection",
           "type": "postgres",
-          "query": "SELECT COUNT(*) FROM campaigns",
+          "target": "postgres",
           "critical": true,
           "timeout": 3000,
           "interval": 60000
@@ -186,7 +186,7 @@
         },
         {
           "name": "verify-dependencies",
-          "run": "echo \"Verifying dependencies...\" && (command -v contact-book &>/dev/null && echo \"\u2705 contact-book CLI available\" || echo \"\u26a0\ufe0f  contact-book CLI not found - manual data entry will be used\")",
+          "run": "echo \"Verifying dependencies...\" && (command -v contact-book &>/dev/null && echo \"✅ contact-book CLI available\" || echo \"⚠️  contact-book CLI not found - manual data entry will be used\")",
           "description": "Check optional dependencies"
         },
         {
@@ -207,7 +207,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Email Outreach Manager initialized\\n  API: http://localhost:${EMAIL_OUTREACH_API_PORT}\\n  UI: http://localhost:${EMAIL_OUTREACH_UI_PORT}\\n  CLI: email-outreach-manager --help\\n  Database: PostgreSQL ready'",
+          "run": "echo '🚀 Email Outreach Manager initialized\\n  API: http://localhost:${EMAIL_OUTREACH_API_PORT}\\n  UI: http://localhost:${EMAIL_OUTREACH_UI_PORT}\\n  CLI: email-outreach-manager --help\\n  Database: PostgreSQL ready'",
           "description": "Display service access information"
         }
       ]
@@ -235,7 +235,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Email Outreach Manager running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: email-outreach-manager --help\\n  Health: http://localhost:$API_PORT/health'",
+          "run": "echo '🚀 Email Outreach Manager running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: email-outreach-manager --help\\n  Health: http://localhost:$API_PORT/health'",
           "description": "Display service access URLs"
         }
       ]

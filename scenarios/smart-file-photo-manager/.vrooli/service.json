@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "smart-file-photo-manager",
@@ -151,7 +151,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "run": "echo '🚀 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -187,7 +187,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "run": "echo '🚀 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -232,7 +232,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },
@@ -244,7 +244,7 @@
         "initialization": [
           {
             "file": "initialization/storage/qdrant/collections.json",
-            "type": "collection"
+            "type": "config"
           }
         ]
       },
@@ -252,13 +252,7 @@
         "type": "minio",
         "enabled": true,
         "required": true,
-        "purpose": "Object storage for original files, processed versions, and thumbnails",
-        "initialization": [
-          {
-            "file": "initialization/storage/minio/buckets.json",
-            "type": "bucket"
-          }
-        ]
+        "purpose": "Object storage for original files, processed versions, and thumbnails"
       },
       "redis": {
         "type": "redis",

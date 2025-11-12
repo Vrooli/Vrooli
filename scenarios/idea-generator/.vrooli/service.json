@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "idea-generator",
@@ -53,13 +53,13 @@
       "env_var": "API_PORT",
       "description": "Idea generator coordination API port",
       "range": "15000-19999",
-      "default": 15100
+      "port": 15100
     },
     "ui": {
       "env_var": "UI_PORT",
       "description": "Creative brainstorming web interface port",
       "range": "35000-39999",
-      "default": 35100
+      "port": 35100
     }
   },
   "lifecycle": {
@@ -162,7 +162,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Idea Generator initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
+          "run": "echo '🚀 Idea Generator initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: idea-generator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -190,7 +190,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Idea Generator running:\\n  Web UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: idea-generator --help'",
+          "run": "echo '🚀 Idea Generator running:\\n  Web UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: idea-generator --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -245,7 +245,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },
@@ -269,7 +269,7 @@
         "initialization": [
           {
             "file": "initialization/storage/qdrant/collections.json",
-            "type": "collection"
+            "type": "config"
           }
         ]
       },

@@ -189,10 +189,6 @@
         },
         "health": {
           "$ref": "#/definitions/healthPhase"
-        },
-        "timeout": {
-          "type": "number",
-          "description": "Default timeout in seconds for lifecycle operations"
         }
       },
       "additionalProperties": false

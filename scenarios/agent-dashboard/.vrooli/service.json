@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "agent-dashboard",
@@ -126,7 +126,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e \"\ud83d\ude80 Agent Dashboard initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
+          "run": "echo -e \"🚀 Agent Dashboard initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
           "description": "Display service access URLs"
         }
       ]
@@ -154,7 +154,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e \"\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
+          "run": "echo -e \"🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
           "description": "Display all running service URLs"
         }
       ]

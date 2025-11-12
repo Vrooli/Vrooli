@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "retro-game-launcher",
@@ -149,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '🚀 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -177,7 +177,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -222,7 +222,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "bedtime-story-generator",
@@ -23,11 +23,7 @@
     ],
     "parent": "vrooli",
     "type": "scenario",
-    "category": [
-      "education",
-      "family",
-      "creative"
-    ],
+    "category": "education",
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -86,15 +82,19 @@
         },
         {
           "name": "postgres_connection",
-          "type": "resource",
+          "type": "postgres",
           "target": "postgres",
-          "critical": true
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         },
         {
           "name": "ollama_availability",
-          "type": "resource",
+          "type": "process",
           "target": "ollama",
-          "critical": true
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         }
       ],
       "timeout": 5000,
@@ -246,7 +246,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

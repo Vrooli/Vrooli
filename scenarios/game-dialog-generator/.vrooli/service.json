@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "game-dialog-generator",
@@ -85,7 +85,7 @@
         {
           "name": "postgres_connection",
           "type": "postgres",
-          "query": "SELECT 1 FROM characters LIMIT 1",
+          "target": "postgres",
           "critical": true,
           "timeout": 5000,
           "interval": 60000
@@ -100,8 +100,8 @@
         },
         {
           "name": "ollama_models",
-          "type": "exec",
-          "command": "resource-ollama list | grep -E '(llama3.2|nomic-embed-text)'",
+          "type": "process",
+          "target": "resource-ollama list | grep -E '(llama3.2|nomic-embed-text)'",
           "critical": true,
           "timeout": 10000,
           "interval": 120000
@@ -197,7 +197,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83c\udf3f Game Dialog Generator initialized! \ud83c\udfae UI: http://localhost:${UI_PORT} \ud83d\udd27 API: http://localhost:${API_PORT} \ud83d\udcbb CLI: game-dialog-generator --help'",
+          "run": "echo '🌿 Game Dialog Generator initialized! 🎮 UI: http://localhost:${UI_PORT} 🔧 API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
           "description": "Display service access URLs with jungle theme"
         }
       ]
@@ -225,7 +225,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83c\udf3f Services running! \ud83c\udfae Jungle UI: http://localhost:${UI_PORT} \ud83d\udd27 Dialog API: http://localhost:${API_PORT} \ud83d\udcbb CLI: game-dialog-generator --help'",
+          "run": "echo '🌿 Services running! 🎮 Jungle UI: http://localhost:${UI_PORT} 🔧 Dialog API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
           "description": "Display all running service URLs with jungle theme"
         }
       ]
@@ -282,7 +282,7 @@
         "initialization": [
           {
             "file": "initialization/data/character_embeddings.json",
-            "type": "collection_setup"
+            "type": "config"
           }
         ]
       },

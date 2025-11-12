@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "test-genie",
@@ -134,7 +134,7 @@
       "steps": [
         {
           "name": "verify-resources",
-          "run": "echo '\ud83d\udd0d Verifying required resources...' && resource-postgres status && resource-ollama status",
+          "run": "echo '🔍 Verifying required resources...' && resource-postgres status && resource-ollama status",
           "description": "Verify required resources are available",
           "condition": {
             "always": true
@@ -195,7 +195,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\\n\ud83d\ude80 Test Genie initialized successfully!'\\necho '  \ud83d\udcca Dashboard: http://localhost:${UI_PORT}'\\necho '  \ud83d\udd27 API: http://localhost:${API_PORT}'\\necho '  \ud83d\udcbb CLI: test-genie --help'\\necho '  \ud83d\udcda Generate tests: test-genie generate <scenario> --types unit,integration'\\necho '  \ud83c\udfd7\ufe0f  Create vault: test-genie vault <scenario> --phases setup,develop,test'",
+          "run": "echo '\\n🚀 Test Genie initialized successfully!'\\necho '  📊 Dashboard: http://localhost:${UI_PORT}'\\necho '  🔧 API: http://localhost:${API_PORT}'\\necho '  💻 CLI: test-genie --help'\\necho '  📚 Generate tests: test-genie generate <scenario> --types unit,integration'\\necho '  🏗️  Create vault: test-genie vault <scenario> --phases setup,develop,test'",
           "description": "Display service access information"
         }
       ]
@@ -231,7 +231,7 @@
         },
         {
           "name": "show-urls",
-          "run": "sleep 3 && echo '\\n\ud83d\ude80 Test Genie services started!'\\necho '  \ud83d\udcca Dashboard: http://localhost:${UI_PORT}'\\necho '  \ud83d\udd27 API: http://localhost:${API_PORT}'\\necho '  \ud83d\udcbb CLI: test-genie --help'\\necho '\\n\ud83d\udca1 Quick start:'\\necho '  test-genie generate my-scenario --types unit,integration'\\necho '  test-genie vault my-scenario --phases setup,develop,test'",
+          "run": "sleep 3 && echo '\\n🚀 Test Genie services started!'\\necho '  📊 Dashboard: http://localhost:${UI_PORT}'\\necho '  🔧 API: http://localhost:${API_PORT}'\\necho '  💻 CLI: test-genie --help'\\necho '\\n💡 Quick start:'\\necho '  test-genie generate my-scenario --types unit,integration'\\necho '  test-genie vault my-scenario --phases setup,develop,test'",
           "description": "Display running services information"
         }
       ]

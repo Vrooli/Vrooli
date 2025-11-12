@@ -47,31 +47,6 @@
       "range": "35000-39999"
     }
   },
-  "deployment": {
-    "docker": {
-      "image": "vrooli/code-smell:latest",
-      "build_context": "./",
-      "dockerfile": "Dockerfile"
-    },
-    "health_checks": {
-      "startup": {
-        "path": "/api/v1/health",
-        "interval": 5,
-        "timeout": 3,
-        "retries": 10
-      },
-      "liveness": {
-        "path": "/api/v1/health/live",
-        "interval": 30,
-        "timeout": 5
-      },
-      "readiness": {
-        "path": "/api/v1/health/ready",
-        "interval": 10,
-        "timeout": 3
-      }
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -158,7 +133,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd75\ufe0f Code Smell Detector initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: code-smell --help'",
+          "run": "echo '🕵️ Code Smell Detector initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: code-smell --help'",
           "description": "Display service URLs"
         }
       ]
@@ -206,7 +181,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd0d Code Smell Detector running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Health: http://localhost:${UI_PORT}/health'",
+          "run": "echo '🔍 Code Smell Detector running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Health: http://localhost:${UI_PORT}/health'",
           "description": "Display service URLs"
         }
       ]

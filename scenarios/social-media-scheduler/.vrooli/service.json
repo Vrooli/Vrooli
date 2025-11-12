@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "social-media-scheduler",
@@ -169,7 +169,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Social Media Scheduler initialized\\n  \ud83d\udcc5 Web UI: http://localhost:${UI_PORT}\\n  \ud83d\udd17 API: http://localhost:${API_PORT}\\n  \ud83d\udcca Analytics: http://localhost:${UI_PORT}/analytics\\n  \ud83d\udee0\ufe0f  CLI: social-media-scheduler --help'",
+          "run": "echo '🚀 Social Media Scheduler initialized\\n  📅 Web UI: http://localhost:${UI_PORT}\\n  🔗 API: http://localhost:${API_PORT}\\n  📊 Analytics: http://localhost:${UI_PORT}/analytics\\n  🛠️  CLI: social-media-scheduler --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -206,7 +206,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Social Media Scheduler running:\\n  \ud83d\udcc5 Calendar UI: http://localhost:$UI_PORT\\n  \ud83d\udd17 API: http://localhost:$API_PORT\\n  \ud83d\udcca Analytics: http://localhost:$UI_PORT/analytics\\n  \u2699\ufe0f  Job Queue: Redis on ${RESOURCE_PORTS[redis]}\\n  \ud83d\udee0\ufe0f  CLI: social-media-scheduler --help'",
+          "run": "echo '🚀 Social Media Scheduler running:\\n  📅 Calendar UI: http://localhost:$UI_PORT\\n  🔗 API: http://localhost:$API_PORT\\n  📊 Analytics: http://localhost:$UI_PORT/analytics\\n  ⚙️  Job Queue: Redis on ${RESOURCE_PORTS[redis]}\\n  🛠️  CLI: social-media-scheduler --help'",
           "description": "Display all running service URLs and status"
         }
       ]
@@ -256,7 +256,7 @@
           },
           {
             "file": "initialization/storage/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "campaign-content-studio",
@@ -151,7 +151,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Campaign Content Studio initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: campaign-content-studio --help'",
+          "run": "echo '🚀 Campaign Content Studio initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: campaign-content-studio --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -179,7 +179,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Campaign Content Studio running:\\n  Web UI: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: campaign-content-studio --help'",
+          "run": "echo '🚀 Campaign Content Studio running:\\n  Web UI: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: campaign-content-studio --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -257,7 +257,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

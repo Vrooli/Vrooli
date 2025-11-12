@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "local-info-scout",
@@ -36,7 +36,7 @@
       "env_var": "API_PORT",
       "description": "Local Info Scout API port",
       "range": "15000-19999",
-      "default": 15050
+      "port": 15050
     }
   },
   "lifecycle": {
@@ -115,7 +115,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd0d Local Info Scout initialized\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '🔍 Local Info Scout initialized\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -134,7 +134,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Local Info Scout running:\\n  API: http://localhost:${API_PORT}\\n  CLI: local-info-scout --help'",
+          "run": "echo '🚀 Local Info Scout running:\\n  API: http://localhost:${API_PORT}\\n  CLI: local-info-scout --help'",
           "description": "Display service URLs and usage information"
         }
       ]
@@ -149,7 +149,6 @@
         }
       ]
     },
-    "timeout": 60,
     "stop": {
       "description": "Stop services",
       "steps": [

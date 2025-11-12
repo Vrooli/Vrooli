@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "secrets-manager",
@@ -149,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd10 Secrets Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: secrets-manager --help'",
+          "run": "echo '🔐 Secrets Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: secrets-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -182,7 +182,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd10 Secrets Manager running:\\n  \ud83c\udf10 Dashboard: http://localhost:${UI_PORT}\\n  \ud83d\udd0c API: http://localhost:$API_PORT\\n  \ud83d\udd27 CLI: secrets-manager --help'",
+          "run": "echo '🔐 Secrets Manager running:\\n  🌐 Dashboard: http://localhost:${UI_PORT}\\n  🔌 API: http://localhost:$API_PORT\\n  🔧 CLI: secrets-manager --help'",
           "description": "Display all running service URLs"
         }
       ]

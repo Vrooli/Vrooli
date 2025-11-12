@@ -38,21 +38,6 @@
       "range": "35000-39999"
     }
   },
-  "deployment": {
-    "type": "docker-compose",
-    "startup_script": "scripts/startup.sh",
-    "health_check": {
-      "endpoint": "/health",
-      "interval": 30,
-      "timeout": 5,
-      "retries": 3
-    },
-    "resource_limits": {
-      "memory": "512Mi",
-      "cpu": "500m",
-      "storage": "5Gi"
-    }
-  },
   "lifecycle": {
     "health": {
       "description": "Quiz Generator health check configuration",
@@ -132,7 +117,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Quiz Generator initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: quiz-generator --help'",
+          "run": "echo '🚀 Quiz Generator initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: quiz-generator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -243,5 +228,6 @@
         }
       ]
     }
-  }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json"
 }

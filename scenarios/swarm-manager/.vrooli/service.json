@@ -168,7 +168,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\u2705 Swarm Manager is running at http://localhost:${UI_PORT}\""
+          "run": "echo \"✅ Swarm Manager is running at http://localhost:${UI_PORT}\""
         }
       ]
     },

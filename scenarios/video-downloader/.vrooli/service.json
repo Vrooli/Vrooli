@@ -134,7 +134,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udcf9 Video Downloader initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '📹 Video Downloader initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -161,12 +161,11 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
           "description": "Display running service URLs"
         }
       ]
     },
-    "timeout": 90,
     "stop": {
       "description": "Stop services",
       "steps": [
@@ -202,5 +201,6 @@
         "required": false
       }
     }
-  }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json"
 }

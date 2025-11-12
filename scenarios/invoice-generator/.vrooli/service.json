@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "invoice-generator",
@@ -156,7 +156,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udcbc Invoice Generator Pro initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '💼 Invoice Generator Pro initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -184,7 +184,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udcbc Services running:\\n  \ud83d\udcc4 UI Dashboard: http://localhost:$UI_PORT\\n  \u2699\ufe0f API: http://localhost:$API_PORT'",
+          "run": "echo '💼 Services running:\\n  📄 UI Dashboard: http://localhost:$UI_PORT\\n  ⚙️ API: http://localhost:$API_PORT'",
           "description": "Display all running service URLs"
         }
       ]

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "recipe-book",
@@ -52,8 +52,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Recipe Book UI dev server port",
-      "range": "35000-39999",
-      "proxy_path": "/"
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -75,15 +74,19 @@
         },
         {
           "name": "postgres_connection",
-          "type": "resource",
+          "type": "postgres",
           "target": "postgres",
-          "critical": true
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         },
         {
           "name": "qdrant_connection",
-          "type": "resource",
+          "type": "process",
           "target": "qdrant",
-          "critical": true
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         },
         {
           "name": "ui_endpoint",
@@ -167,7 +170,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83c\udf73 Recipe Book initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  CLI: recipe-book --help'",
+          "run": "echo '🍳 Recipe Book initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  CLI: recipe-book --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -195,7 +198,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\ud83c\udf73 Recipe Book running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\"",
+          "run": "echo \"🍳 Recipe Book running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\"",
           "description": "Display service URLs"
         }
       ]
@@ -240,7 +243,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },
@@ -252,7 +255,7 @@
         "initialization": [
           {
             "file": "initialization/storage/qdrant/collection.json",
-            "type": "collection"
+            "type": "config"
           }
         ]
       },
@@ -287,9 +290,11 @@
         "enabled": true,
         "required": false,
         "purpose": "Store recipe photos and images",
-        "buckets": [
-          "recipe-photos"
-        ]
+        "buckets": {
+          "default_buckets": [
+            "recipe-photos"
+          ]
+        }
       },
       "redis": {
         "type": "redis",

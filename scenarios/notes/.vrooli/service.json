@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "notes",
@@ -156,7 +156,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '\ud83d\udcdd SmartNotes initialized\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
+          "run": "printf '📝 SmartNotes initialized\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
           "description": "Display service URLs"
         }
       ]
@@ -184,7 +184,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '\ud83d\ude80 SmartNotes running:\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
+          "run": "printf '🚀 SmartNotes running:\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
           "description": "Display running services"
         }
       ]
@@ -285,7 +285,7 @@
         "initialization": [
           {
             "file": "initialization/qdrant/collections.json",
-            "type": "collection"
+            "type": "config"
           }
         ]
       },

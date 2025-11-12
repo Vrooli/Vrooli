@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "resource-experimenter",
@@ -76,16 +76,20 @@
           "interval": 45000
         },
         {
-          "type": "binaries",
-          "targets": [
-            "api/resource-experimenter-api"
-          ]
+          "name": "api_binary",
+          "type": "process",
+          "target": "api/resource-experimenter-api",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         },
         {
-          "type": "cli",
-          "targets": [
-            "resource-experimenter"
-          ]
+          "name": "cli_binary",
+          "type": "process",
+          "target": "resource-experimenter",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
         }
       ],
       "timeout": 5000,
@@ -172,7 +176,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
+          "run": "echo '🚀 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
           "description": "Display service access information"
         }
       ]

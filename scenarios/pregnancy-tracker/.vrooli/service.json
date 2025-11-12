@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "pregnancy-tracker",
@@ -87,6 +87,7 @@
         {
           "name": "database_connection",
           "type": "postgres",
+          "target": "postgres",
           "critical": true,
           "timeout": 3000,
           "interval": 60000
@@ -101,8 +102,8 @@
         },
         {
           "name": "search_index",
-          "type": "custom",
-          "command": "curl -sf http://localhost:${PREGNANCY_TRACKER_API_PORT}/api/v1/search/health",
+          "type": "http",
+          "target": "http://localhost:${PREGNANCY_TRACKER_API_PORT}/api/v1/search/health",
           "critical": false,
           "timeout": 3000,
           "interval": 60000
@@ -197,7 +198,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\udd30 Pregnancy Tracker initialized\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally\\n  Search: Full-text search enabled'",
+          "run": "echo '🤰 Pregnancy Tracker initialized\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally\\n  Search: Full-text search enabled'",
           "description": "Display service URLs and features"
         }
       ]
@@ -207,18 +208,11 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./pregnancy-tracker-api",
+          "run": "cd api && env PRIVACY_MODE=strict ENCRYPTION_ENABLED=true MULTI_TENANT=true SEARCH_ENABLED=true CITATIONS_REQUIRED=true ./pregnancy-tracker-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/pregnancy-tracker-api"
-          },
-          "environment": {
-            "PRIVACY_MODE": "strict",
-            "ENCRYPTION_ENABLED": "true",
-            "MULTI_TENANT": "true",
-            "SEARCH_ENABLED": "true",
-            "CITATIONS_REQUIRED": "true"
           }
         },
         {
@@ -232,7 +226,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Pregnancy Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  \ud83d\udd10 All health data encrypted locally\\n  \ud83d\udd0d Full-text search available\\n  \ud83d\udcda Evidence-based content with citations'",
+          "run": "echo '🚀 Pregnancy Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  🔐 All health data encrypted locally\\n  🔍 Full-text search available\\n  📚 Evidence-based content with citations'",
           "description": "Display running services with features"
         }
       ]
@@ -287,7 +281,7 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

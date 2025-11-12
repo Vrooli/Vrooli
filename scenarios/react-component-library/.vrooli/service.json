@@ -134,46 +134,46 @@
       "steps": [
         {
           "name": "verify-structure",
-          "run": "echo '\ud83d\udcc1 Verifying React Component Library structure...' && ls -la"
+          "run": "echo '📁 Verifying React Component Library structure...' && ls -la"
         },
         {
           "name": "build-api",
-          "run": "cd api && echo '\ud83d\udd28 Building Go API...' && go mod download && go build -o react-component-library-api .",
+          "run": "cd api && echo '🔨 Building Go API...' && go mod download && go build -o react-component-library-api .",
           "description": "Build Go API server for component management"
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && echo '\ud83d\udce6 Installing UI dependencies with pnpm...' && pnpm install --filter .",
+          "run": "cd ui && echo '📦 Installing UI dependencies with pnpm...' && pnpm install --filter .",
           "description": "Install React UI dependencies"
         },
         {
           "name": "build-ui",
-          "run": "cd ui && echo '\u269b\ufe0f Building React UI...' && npm run build",
+          "run": "cd ui && echo '⚛️ Building React UI...' && npm run build",
           "description": "Build React UI for production"
         },
         {
           "name": "install-cli",
-          "run": "cd cli && echo '\ud83d\udd27 Installing CLI...' && ./install.sh",
+          "run": "cd cli && echo '🔧 Installing CLI...' && ./install.sh",
           "description": "Install CLI binary to PATH"
         },
         {
           "name": "setup-database",
-          "run": "echo '\ud83d\uddc3\ufe0f Setting up PostgreSQL schema...' && resource-postgres content execute \"$(cat initialization/storage/postgres/schema.sql)\"",
+          "run": "echo '🗃️ Setting up PostgreSQL schema...' && resource-postgres content execute \"$(cat initialization/storage/postgres/schema.sql)\"",
           "description": "Initialize PostgreSQL schema for component storage"
         },
         {
           "name": "setup-n8n-workflows",
-          "run": "echo '\ud83d\udd04 Registering n8n workflows...' && ls initialization/automation/n8n/",
+          "run": "echo '🔄 Registering n8n workflows...' && ls initialization/automation/n8n/",
           "description": "Verify n8n workflow files are present"
         },
         {
           "name": "verify-resources",
-          "run": "echo '\u2705 Verifying resource connections...' && resource-postgres status && resource-qdrant status && resource-minio status",
+          "run": "echo '✅ Verifying resource connections...' && resource-postgres status && resource-qdrant status && resource-minio status",
           "description": "Verify all required resources are accessible"
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 React Component Library setup complete!' && echo '  \ud83d\udcda Component Library: http://localhost:${UI_PORT}' && echo '  \ud83d\udd0c API: http://localhost:${API_PORT}' && echo '  \ud83d\udcbb CLI: react-component-library --help'",
+          "run": "echo '🚀 React Component Library setup complete!' && echo '  📚 Component Library: http://localhost:${UI_PORT}' && echo '  🔌 API: http://localhost:${API_PORT}' && echo '  💻 CLI: react-component-library --help'",
           "description": "Display key endpoints after setup"
         }
       ]
@@ -192,7 +192,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && echo '\u269b\ufe0f Starting React UI server...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && node server.js",
+          "run": "cd ui && echo '⚛️ Starting React UI server...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && node server.js",
           "background": true,
           "condition": {
             "file_exists": "ui/dist/index.html"
@@ -221,12 +221,12 @@
       "steps": [
         {
           "name": "stop-services",
-          "run": "echo '\ud83d\uded1 Stopping React Component Library services...' && pkill -f react-component-library-api || true && pkill -f 'npm start' || true && pkill -f 'serve.*build' || true",
+          "run": "echo '🛑 Stopping React Component Library services...' && pkill -f react-component-library-api || true && pkill -f 'npm start' || true && pkill -f 'serve.*build' || true",
           "description": "Stop all running services"
         },
         {
           "name": "cleanup-temp",
-          "run": "echo '\ud83e\uddf9 Cleaning up temporary files...' && rm -rf /tmp/component-* 2>/dev/null || true",
+          "run": "echo '🧹 Cleaning up temporary files...' && rm -rf /tmp/component-* 2>/dev/null || true",
           "description": "Clean up temporary component files"
         }
       ]

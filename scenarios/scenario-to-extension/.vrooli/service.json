@@ -38,18 +38,6 @@
       "range": "35000-39999"
     }
   },
-  "deployment": {
-    "type": "standalone",
-    "health_check": "/health",
-    "startup_timeout": 30,
-    "dependencies": [
-      "browserless"
-    ],
-    "storage_requirements": {
-      "temp_space": "1GB",
-      "persistent_space": "500MB"
-    }
-  },
   "lifecycle": {
     "health": {
       "description": "Scenario to Extension health check configuration",
@@ -139,7 +127,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Extension initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-extension --help'",
+          "run": "echo '🚀 Scenario to Extension initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-extension --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -167,7 +155,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Extension running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '🚀 Scenario to Extension running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -220,5 +208,6 @@
         }
       ]
     }
-  }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json"
 }

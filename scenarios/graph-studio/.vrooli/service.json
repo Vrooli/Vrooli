@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "graph-studio",
@@ -150,7 +150,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Graph Studio initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
+          "run": "echo '🚀 Graph Studio initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -160,43 +160,25 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./graph-studio-api",
+          "run": "cd api && env VROOLI_LIFECYCLE=active API_PORT=${API_PORT} POSTGRES_DB=graph_studio LOG_LEVEL=info CORS_ORIGINS=http://localhost:${UI_PORT},http://127.0.0.1:${UI_PORT} MAX_GRAPH_SIZE=10000 PLUGIN_DIR=./plugins PREVIEW_ACCESS_TOKEN=graph-studio-preview-token GRAPH_STUDIO_PREVIEW_TOKEN=graph-studio-preview-token ./graph-studio-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
             "file_exists": "api/graph-studio-api"
-          },
-          "env": {
-            "VROOLI_LIFECYCLE": "active",
-            "API_PORT": "${API_PORT}",
-            "POSTGRES_DB": "graph_studio",
-            "LOG_LEVEL": "info",
-            "CORS_ORIGINS": "http://localhost:${UI_PORT},http://127.0.0.1:${UI_PORT}",
-            "MAX_GRAPH_SIZE": "10000",
-            "PLUGIN_DIR": "./plugins",
-            "PREVIEW_ACCESS_TOKEN": "graph-studio-preview-token",
-            "GRAPH_STUDIO_PREVIEW_TOKEN": "graph-studio-preview-token"
           }
         },
         {
           "name": "start-ui",
-          "run": "cd ui && npm run preview -- --host 0.0.0.0 --port ${UI_PORT}",
+          "run": "cd ui && env UI_PORT=${UI_PORT} API_PORT=${API_PORT} VITE_APP_NAME=\"Graph Studio\" VITE_ENABLE_AI=${resource.ollama.enabled} VITE_PREVIEW_ACCESS_TOKEN=graph-studio-preview-token npm run preview -- --host 0.0.0.0 --port ${UI_PORT}",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {
             "file_exists": "ui/dist/index.html"
-          },
-          "env": {
-            "UI_PORT": "${UI_PORT}",
-            "API_PORT": "${API_PORT}",
-            "VITE_APP_NAME": "Graph Studio",
-            "VITE_ENABLE_AI": "${resource.ollama.enabled}",
-            "VITE_PREVIEW_ACCESS_TOKEN": "graph-studio-preview-token"
           }
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -233,17 +215,21 @@
         "enabled": true,
         "required": true,
         "purpose": "Store graph metadata, relationships, and versioning",
-        "initialization": {
-          "database": "graph_studio",
-          "schema_file": "initialization/postgres/schema.sql"
-        }
+        "database": "graph_studio",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
       },
       "minio": {
         "enabled": true,
         "required": true,
         "purpose": "Store large graph files and visualization assets",
-        "initialization": {
-          "buckets": [
+        "initialization": [],
+        "buckets": {
+          "default_buckets": [
             "graph-files",
             "graph-renders",
             "graph-exports"

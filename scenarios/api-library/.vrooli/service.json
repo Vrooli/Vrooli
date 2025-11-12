@@ -46,30 +46,30 @@
     }
   },
   "dependencies": {
-    "required": [
-      "postgres",
-      "qdrant"
-    ],
-    "optional": [
-      "redis",
-      "ollama",
-      "research-assistant"
-    ],
     "resources": {
       "postgres": {
         "enabled": true,
         "database": "api_library",
-        "initialization": {
-          "schema": "initialization/postgres/schema.sql",
-          "seed": "initialization/postgres/seed.sql"
-        }
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/postgres/seed.sql",
+            "type": "data"
+          }
+        ]
       },
       "qdrant": {
         "enabled": true,
         "collection": "api_embeddings",
-        "initialization": {
-          "config": "initialization/qdrant/config.json"
-        }
+        "initialization": [
+          {
+            "file": "initialization/qdrant/config.json",
+            "type": "config"
+          }
+        ]
       },
       "redis": {
         "enabled": false,
@@ -159,19 +159,13 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 API Library initialized\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
+          "run": "echo \"🚀 API Library initialized\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
           "description": "Display service access URLs"
         }
       ]
     },
     "shutdown": {
-      "gracePeriod": 10,
-      "order": [
-        "ui",
-        "api",
-        "qdrant",
-        "postgres"
-      ]
+      "description": "Shutdown order: ui -> api -> qdrant -> postgres (allow 10s between components)"
     },
     "stop": {
       "description": "Stop api-library services",
@@ -211,7 +205,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 API Library running:\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
+          "run": "echo \"🚀 API Library running:\n  API: http://localhost:${API_PORT:-15100}\n  UI: http://localhost:${UI_PORT:-35100}\"",
           "description": "Display running service URLs"
         }
       ]

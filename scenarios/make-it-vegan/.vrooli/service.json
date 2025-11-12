@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "make-it-vegan",
@@ -153,7 +153,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\udd6c Make It Vegan initialized' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  n8n workflows: http://localhost:'${RESOURCE_PORTS[n8n]} && echo '  CLI: make-it-vegan --help'",
+          "run": "echo '🥬 Make It Vegan initialized' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  n8n workflows: http://localhost:'${RESOURCE_PORTS[n8n]} && echo '  CLI: make-it-vegan --help'",
           "description": "Display service URLs"
         }
       ]
@@ -181,7 +181,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\udd6c Make It Vegan running:' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  CLI: make-it-vegan --help'",
+          "run": "echo '🥬 Make It Vegan running:' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  CLI: make-it-vegan --help'",
           "description": "Display service URLs and usage information"
         }
       ]

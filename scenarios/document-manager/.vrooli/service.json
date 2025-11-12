@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "document-manager",
@@ -157,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Document Manager initialized\\n  Web Interface: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager\\n  Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: document-manager --help'",
+          "run": "echo '🚀 Document Manager initialized\\n  Web Interface: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager\\n  Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: document-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -195,7 +195,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Document Manager running:\\n  Web Interface: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$API_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help'",
+          "run": "echo '🚀 Document Manager running:\\n  Web Interface: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$API_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -241,7 +241,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },
@@ -253,7 +253,7 @@
         "initialization": [
           {
             "file": "initialization/storage/qdrant/collections.json",
-            "type": "collection"
+            "type": "config"
           }
         ]
       },

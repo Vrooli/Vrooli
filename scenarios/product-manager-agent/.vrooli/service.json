@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "product-manager-agent",
@@ -138,7 +138,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83c\udfaf Product Manager Agent initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '🎯 Product Manager Agent initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -170,12 +170,11 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83c\udfaf Product Manager Agent running\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '🎯 Product Manager Agent running\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service URLs"
         }
       ]
     },
-    "timeout": 90,
     "stop": {
       "description": "Stop services",
       "steps": [

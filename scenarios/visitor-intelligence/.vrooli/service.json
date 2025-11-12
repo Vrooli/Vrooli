@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "visitor-intelligence",
@@ -122,11 +122,8 @@
         },
         {
           "name": "initialize-database",
-          "run": "cd initialization/storage/postgres && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f schema.sql",
-          "description": "Initialize PostgreSQL schema",
-          "env": {
-            "PGPASSWORD": "${POSTGRES_PASSWORD}"
-          }
+          "run": "cd initialization/storage/postgres && PGPASSWORD=${POSTGRES_PASSWORD} psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f schema.sql",
+          "description": "Initialize PostgreSQL schema"
         },
         {
           "name": "install-ui-deps",
@@ -143,7 +140,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
+          "run": "echo '🚀 Visitor Intelligence initialized\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration script: http://localhost:${API_PORT}/tracker.js\\n  CLI: visitor-intelligence --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -162,7 +159,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
+          "run": "echo '🚀 Visitor Intelligence running:\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Tracking API: http://localhost:${API_PORT}/api/v1\\n  Integration: <script src=\"http://localhost:${API_PORT}/tracker.js\" data-scenario=\"your-scenario\"></script>\\n  CLI: visitor-intelligence --help'",
           "description": "Display all running service URLs and integration example"
         }
       ]

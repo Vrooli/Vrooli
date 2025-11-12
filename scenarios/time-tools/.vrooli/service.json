@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "time-tools",
@@ -102,7 +102,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '\ud83d\ude80 Time Tools ready!\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
+          "run": "printf '🚀 Time Tools ready!\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
           "description": "Display service endpoints"
         }
       ]
@@ -121,7 +121,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '\ud83d\ude80 Time Tools running\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
+          "run": "printf '🚀 Time Tools running\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
           "description": "Display runtime endpoints"
         }
       ]
@@ -161,7 +161,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

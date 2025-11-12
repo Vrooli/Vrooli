@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "2.0.0",
   "service": {
     "parent": "vrooli",
@@ -160,7 +160,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: crypto-tools --help'",
+          "run": "echo '🚀 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: crypto-tools --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -188,7 +188,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: crypto-tools --help'",
+          "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: crypto-tools --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -218,169 +218,10 @@
         },
         {
           "name": "confirm-stop",
-          "run": "echo '\ud83d\uded1 Application services stopped'",
+          "run": "echo '🛑 Application services stopped'",
           "description": "Confirm services stopped"
         }
       ]
-    }
-  },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "http://localhost:{{ UI_PORT }}",
-      "api": "http://localhost:{{ API_PORT }}",
-      "health": "http://localhost:{{ API_PORT }}/health"
-    },
-    "initialization": {
-      "phases": [
-        {
-          "name": "database-setup",
-          "tasks": [
-            {
-              "name": "apply-schema",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "name": "seed-data",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        },
-        {
-          "name": "workflow-deployment",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "deploy-windmill-apps",
-              "type": "resource-inject",
-              "target": "automation.windmill",
-              "config": "initialization/automation/windmill/"
-            }
-          ]
-        },
-        {
-          "name": "application-configuration",
-          "tasks": [
-            {
-              "name": "load-app-config",
-              "type": "config",
-              "file": "initialization/configuration/app-config.json"
-            },
-            {
-              "name": "set-feature-flags",
-              "type": "config",
-              "file": "initialization/configuration/feature-flags.json"
-            }
-          ]
-        },
-        {
-          "name": "startup",
-          "tasks": [
-            {
-              "name": "start-application",
-              "type": "script",
-              "script": "./deployment/startup.sh",
-              "timeout": "5m"
-            }
-          ]
-        },
-        {
-          "name": "post-validation",
-          "tasks": [
-            {
-              "name": "health-check",
-              "type": "healthcheck",
-              "target": "{{ urls.health }}",
-              "timeout": "30s",
-              "retries": 3
-            },
-            {
-              "name": "monitor-startup",
-              "type": "script",
-              "script": "./deployment/monitor.sh",
-              "background": true
-            }
-          ]
-        }
-      ]
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "endpoint": "{{ urls.health }}",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "workflows": {
-          "endpoint": "http://localhost:${RESOURCE_PORTS[windmill]}/api/version",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "database": {
-          "type": "tcp",
-          "port": 5432,
-          "interval": "30s"
-        }
-      },
-      "metrics": {
-        "responseTime": {
-          "p50": "100ms",
-          "p95": "500ms",
-          "p99": "1000ms"
-        },
-        "throughput": {
-          "rps": 100,
-          "concurrent": 10
-        },
-        "errorRate": {
-          "threshold": "1%"
-        }
-      }
-    },
-    "cleanup": {
-      "enabled": true,
-      "tasks": [
-        {
-          "name": "delete-workflows",
-          "type": "resource-cleanup",
-          "target": "automation.windmill"
-        },
-        {
-          "name": "drop-database",
-          "type": "sql",
-          "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS {{ DATABASE_NAME }}"
-        },
-        {
-          "name": "clear-storage",
-          "type": "resource-cleanup",
-          "target": "storage.minio"
-        }
-      ]
-    },
-    "testing": {
-      "enabled": true,
-      "timeout": "30m",
-      "script": "./test.sh",
-      "ui": {
-        "required": true,
-        "type": "windmill",
-        "url": "{{ urls.application }}"
-      },
-      "performance": {
-        "loadTest": {
-          "users": 10,
-          "duration": "5m",
-          "rampUp": "30s"
-        }
-      }
     }
   },
   "dependencies": {
@@ -397,7 +238,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

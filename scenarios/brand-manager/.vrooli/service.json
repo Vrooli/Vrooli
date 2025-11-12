@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "brand-manager",
@@ -157,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Brand Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
+          "run": "echo '🚀 Brand Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -185,7 +185,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Brand Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
+          "run": "echo '🚀 Brand Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -285,7 +285,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },
@@ -294,13 +294,15 @@
         "enabled": true,
         "required": true,
         "purpose": "Asset storage for logos, icons, exports, and backups",
-        "buckets": [
-          "brand-logos",
-          "brand-icons",
-          "brand-exports",
-          "brand-templates",
-          "app-backups"
-        ]
+        "buckets": {
+          "default_buckets": [
+            "brand-logos",
+            "brand-icons",
+            "brand-exports",
+            "brand-templates",
+            "app-backups"
+          ]
+        }
       },
       "vault": {
         "type": "vault",
@@ -310,11 +312,11 @@
         "initialization": [
           {
             "file": "initialization/storage/vault/api-keys.json",
-            "type": "secrets"
+            "type": "config"
           },
           {
             "file": "initialization/storage/vault/integration-tokens.json",
-            "type": "secrets"
+            "type": "config"
           }
         ]
       }

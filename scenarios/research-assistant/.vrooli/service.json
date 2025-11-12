@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "research-assistant",
@@ -154,7 +154,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Research Assistant initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
+          "run": "echo '🚀 Research Assistant initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}\\n  CLI: research-assistant --help'",
           "description": "Display service access URLs"
         }
       ]

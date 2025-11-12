@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "recommendation-engine",
@@ -148,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Recommendation Engine initialized\\n  Management Dashboard: http://localhost:${RECOMMENDATION_UI_PORT}\\n  API Documentation: http://localhost:${RECOMMENDATION_API_PORT}/docs\\n  API Health: http://localhost:${RECOMMENDATION_API_PORT}/health\\n  CLI: recommendation-engine --help'",
+          "run": "echo '🚀 Recommendation Engine initialized\\n  Management Dashboard: http://localhost:${RECOMMENDATION_UI_PORT}\\n  API Documentation: http://localhost:${RECOMMENDATION_API_PORT}/docs\\n  API Health: http://localhost:${RECOMMENDATION_API_PORT}/health\\n  CLI: recommendation-engine --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -221,7 +221,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "home-automation",
@@ -86,16 +86,19 @@
         },
         {
           "name": "postgres_connection",
-          "type": "resource",
+          "type": "postgres",
           "target": "postgres",
-          "critical": true
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         },
         {
           "name": "home_assistant_cli",
-          "type": "exec",
+          "type": "process",
           "target": "resource-home-assistant status",
           "critical": true,
-          "timeout": 10000
+          "timeout": 10000,
+          "interval": 30000
         },
         {
           "name": "scenario_authenticator",
@@ -113,10 +116,11 @@
         },
         {
           "name": "claude_code_cli",
-          "type": "exec",
+          "type": "process",
           "target": "resource-claude-code status",
           "critical": false,
-          "timeout": 10000
+          "timeout": 10000,
+          "interval": 30000
         }
       ],
       "timeout": 10000,
@@ -291,7 +295,7 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "web-scraper-manager",
@@ -171,7 +171,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: web-scraper-manager --help'",
+          "run": "echo '🚀 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: web-scraper-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -204,7 +204,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
+          "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
           "description": "Display all running service URLs"
         }
       ]

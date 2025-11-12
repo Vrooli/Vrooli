@@ -40,13 +40,6 @@
       "description": "Android build UI server port"
     }
   },
-  "deployment": {
-    "type": "service",
-    "auto_start": true,
-    "health_check_interval": 30,
-    "restart_policy": "on-failure",
-    "max_restarts": 3
-  },
   "lifecycle": {
     "health": {
       "description": "Scenario to Android health check configuration",
@@ -136,7 +129,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Android initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-android --help'",
+          "run": "echo '🚀 Scenario to Android initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-android --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -164,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Android running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '🚀 Scenario to Android running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -224,5 +217,6 @@
         }
       ]
     }
-  }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json"
 }

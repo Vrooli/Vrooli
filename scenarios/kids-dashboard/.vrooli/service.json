@@ -13,10 +13,7 @@
     ],
     "parent": "vrooli",
     "type": "scenario",
-    "category": [
-      "interface",
-      "family"
-    ],
+    "category": "interface",
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -45,15 +42,6 @@
     "ui": {
       "env_var": "UI_PORT",
       "range": "35000-39999"
-    }
-  },
-  "deployment": {
-    "type": "web",
-    "port": "${PORT:-3500}",
-    "healthCheck": {
-      "endpoint": "/health",
-      "interval": 30,
-      "timeout": 5
     }
   },
   "lifecycle": {
@@ -136,7 +124,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83c\udfae Kids Dashboard initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '🎮 Kids Dashboard initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -164,7 +152,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Kids Dashboard running:\\n  \ud83c\udfae Dashboard: http://localhost:$UI_PORT\\n  \ud83d\udce1 API: http://localhost:$API_PORT'",
+          "run": "echo '🚀 Kids Dashboard running:\\n  🎮 Dashboard: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT'",
           "description": "Display service URLs"
         }
       ]
@@ -197,5 +185,6 @@
   },
   "dependencies": {
     "resources": {}
-  }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json"
 }

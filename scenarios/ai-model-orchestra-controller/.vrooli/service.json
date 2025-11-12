@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "ai-model-orchestra-controller",
@@ -19,7 +19,8 @@
       "go-api",
       "ollama-models",
       "postgres-storage",
-      "redis-caching"
+      "redis-caching",
+      "requires-go:>=1.21.0"
     ],
     "parent": "vrooli",
     "type": "scenario",
@@ -136,7 +137,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 AI Model Orchestra Controller initialized\\n  API port: ${API_PORT}\\n  Dashboard endpoint: /dashboard\\n  CLI: ai-orchestra --help\\n  Health endpoints: /health and /api/v1/health'",
+          "run": "echo '🚀 AI Model Orchestra Controller initialized\\n  API port: ${API_PORT}\\n  Dashboard endpoint: /dashboard\\n  CLI: ai-orchestra --help\\n  Health endpoints: /health and /api/v1/health'",
           "description": "Display service access URLs"
         }
       ]
@@ -164,7 +165,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 AI Model Orchestra Controller running:\\n  API port: ${API_PORT}\\n  Dashboard: /dashboard\\n  UI port: ${UI_PORT}\\n  Model Selection: POST /api/v1/ai/select-model\\n  Route Request: POST /api/v1/ai/route-request\\n  CLI: ai-orchestra --help'",
+          "run": "echo '🚀 AI Model Orchestra Controller running:\\n  API port: ${API_PORT}\\n  Dashboard: /dashboard\\n  UI port: ${UI_PORT}\\n  Model Selection: POST /api/v1/ai/select-model\\n  Route Request: POST /api/v1/ai/route-request\\n  CLI: ai-orchestra --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -196,7 +197,6 @@
     }
   },
   "dependencies": {
-    "go": ">=1.21.0",
     "resources": {
       "ollama": {
         "type": "ollama",

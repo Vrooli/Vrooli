@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "data-structurer",
@@ -66,7 +66,7 @@
         },
         {
           "name": "postgres_connection",
-          "type": "resource",
+          "type": "postgres",
           "target": "postgres",
           "critical": true,
           "timeout": 3000,
@@ -74,7 +74,7 @@
         },
         {
           "name": "ollama_availability",
-          "type": "resource",
+          "type": "process",
           "target": "ollama",
           "critical": true,
           "timeout": 10000,
@@ -82,7 +82,7 @@
         },
         {
           "name": "unstructured_io_availability",
-          "type": "resource",
+          "type": "process",
           "target": "unstructured-io",
           "critical": true,
           "timeout": 5000,
@@ -144,7 +144,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Data Structurer initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help'",
+          "run": "echo '🚀 Data Structurer initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help'",
           "description": "Display service access information"
         }
       ]
@@ -163,7 +163,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
+          "run": "echo '🚀 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
           "description": "Display running service information and usage examples"
         }
       ]
@@ -213,7 +213,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

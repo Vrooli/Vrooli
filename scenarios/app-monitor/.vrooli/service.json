@@ -150,7 +150,7 @@
         },
         {
           "name": "verify-docker-access",
-          "run": "docker version > /dev/null && echo '\u2705 Docker access verified' || echo '\u274c Docker access required for app monitoring'",
+          "run": "docker version > /dev/null && echo '✅ Docker access verified' || echo '❌ Docker access required for app monitoring'",
           "description": "Verify Docker access for app monitoring"
         },
         {
@@ -160,7 +160,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -188,7 +188,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display all running service URLs"
         }
       ]

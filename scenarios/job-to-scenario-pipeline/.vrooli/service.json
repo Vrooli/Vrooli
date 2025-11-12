@@ -168,7 +168,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Job-to-Scenario Pipeline initialized\\n  \ud83d\udcca Dashboard: http://localhost:${UI_PORT}\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83c\udfaf CLI: job-to-scenario --help\\n  \ud83d\udcc2 Jobs: ./data/\\n\\n\ud83d\udca1 Import jobs with:\\n  job-to-scenario import manual --text \"Build a React app\"\\n  job-to-scenario import screenshot --file job.png\\n  job-to-scenario list --state pending'",
+          "run": "echo '🚀 Job-to-Scenario Pipeline initialized\\n  📊 Dashboard: http://localhost:${UI_PORT}\\n  🌐 API: http://localhost:${API_PORT}\\n  🎯 CLI: job-to-scenario --help\\n  📂 Jobs: ./data/\\n\\n💡 Import jobs with:\\n  job-to-scenario import manual --text \"Build a React app\"\\n  job-to-scenario import screenshot --file job.png\\n  job-to-scenario list --state pending'",
           "description": "Display service information"
         }
       ]
@@ -201,7 +201,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Job Pipeline running:\\n  \ud83d\udcca Dashboard: http://localhost:$UI_PORT\\n  \ud83d\udce1 API: http://localhost:$API_PORT\\n  \ud83c\udfaf CLI: job-to-scenario --help\\n\\n\ud83d\udcdd Process jobs:\\n  job-to-scenario import manual --text \"Job description\"\\n  job-to-scenario research --batch-size 5\\n  job-to-scenario approve <job-id>\\n  job-to-scenario list --state evaluated\\n\\n\ud83d\udcc2 Monitor states:\\n  ls data/pending/*.yaml\\n  ls data/evaluated/*.yaml\\n  ls data/completed/*.yaml'",
+          "run": "echo '🚀 Job Pipeline running:\\n  📊 Dashboard: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: job-to-scenario --help\\n\\n📝 Process jobs:\\n  job-to-scenario import manual --text \"Job description\"\\n  job-to-scenario research --batch-size 5\\n  job-to-scenario approve <job-id>\\n  job-to-scenario list --state evaluated\\n\\n📂 Monitor states:\\n  ls data/pending/*.yaml\\n  ls data/evaluated/*.yaml\\n  ls data/completed/*.yaml'",
           "description": "Display service URLs and usage information"
         }
       ]

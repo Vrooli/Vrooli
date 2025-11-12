@@ -97,7 +97,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub initialized\n  Dashboard: http://localhost:${UI_PORT}\n  CLI: accessibility-compliance-hub --help'",
+          "run": "echo -e '🚀 Accessibility Compliance Hub initialized\n  Dashboard: http://localhost:${UI_PORT}\n  CLI: accessibility-compliance-hub --help'",
           "description": "Display running service URLs"
         }
       ]
@@ -125,7 +125,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  API: http://localhost:'${API_PORT}'\\n  CLI: accessibility-compliance-hub --help'",
+          "run": "echo -e '🚀 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  API: http://localhost:'${API_PORT}'\\n  CLI: accessibility-compliance-hub --help'",
           "description": "Display running service URLs"
         }
       ]
@@ -223,5 +223,6 @@
         "description": "Vector storage for accessibility pattern matching (collections: accessible_patterns, issue_embeddings)"
       }
     }
-  }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json"
 }

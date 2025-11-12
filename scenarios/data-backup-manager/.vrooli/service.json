@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "data-backup-manager",
@@ -15,7 +15,10 @@
       "postgres-backup",
       "file-backup",
       "go-api",
-      "n8n-workflows"
+      "n8n-workflows",
+      "shared-workflow:file-system-ops",
+      "shared-workflow:postgres-utils",
+      "shared-workflow:storage-manager"
     ],
     "license": "MIT",
     "parent": "vrooli",
@@ -43,9 +46,9 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "default": 15010,
       "description": "Data Backup Manager API port",
-      "range": "15000-19999"
+      "range": "15000-19999",
+      "port": 15010
     }
   },
   "lifecycle": {
@@ -174,11 +177,6 @@
     }
   },
   "dependencies": {
-    "shared_workflows": [
-      "file-system-ops",
-      "postgres-utils",
-      "storage-manager"
-    ],
     "resources": {
       "postgres": {
         "type": "postgres",

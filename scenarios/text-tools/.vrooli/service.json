@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "text-tools",
@@ -160,7 +160,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Text Tools initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nCore endpoints:\\n  POST /api/v1/text/diff\\n  POST /api/v1/text/search\\n  POST /api/v1/text/transform\\n  POST /api/v1/text/extract\\n  POST /api/v1/text/analyze'",
+          "run": "echo '🚀 Text Tools initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nCore endpoints:\\n  POST /api/v1/text/diff\\n  POST /api/v1/text/search\\n  POST /api/v1/text/transform\\n  POST /api/v1/text/extract\\n  POST /api/v1/text/analyze'",
           "description": "Display service access URLs"
         }
       ]
@@ -188,7 +188,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Text Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
+          "run": "echo '🚀 Text Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
           "description": "Display running service URLs and examples"
         }
       ]
@@ -233,7 +233,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

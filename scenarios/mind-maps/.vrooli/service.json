@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "mind-maps",
@@ -148,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\udde0 Mind Maps initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '🧠 Mind Maps initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service endpoints"
         }
       ]
@@ -176,7 +176,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83e\udde0 Mind Maps running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '🧠 Mind Maps running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -239,7 +239,7 @@
         "initialization": [
           {
             "file": "initialization/qdrant/collections.json",
-            "type": "collection"
+            "type": "config"
           }
         ]
       },

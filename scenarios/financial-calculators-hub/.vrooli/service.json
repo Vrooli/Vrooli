@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "financial-calculators-hub",
@@ -135,7 +135,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udcb0 Financial Calculators Hub initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
+          "run": "echo '💰 Financial Calculators Hub initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
           "description": "Display service URLs"
         }
       ]
@@ -163,7 +163,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udcb0 Financial Calculators Hub running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
+          "run": "echo '💰 Financial Calculators Hub running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
           "description": "Display running services"
         }
       ]

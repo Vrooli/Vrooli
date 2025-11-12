@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "fall-foliage-explorer",
@@ -20,7 +20,9 @@
       "n8n-workflows",
       "postgres-storage",
       "redis-cache",
-      "ollama-ai"
+      "ollama-ai",
+      "shared-workflow:rate-limiter",
+      "shared-workflow:ollama"
     ],
     "parent": "vrooli",
     "type": "scenario",
@@ -57,10 +59,6 @@
     }
   },
   "dependencies": {
-    "shared_workflows": [
-      "rate-limiter",
-      "ollama"
-    ],
     "resources": {
       "postgres": {
         "type": "postgres",

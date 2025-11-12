@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "notification-hub",
@@ -137,7 +137,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd14 Notification Hub initialized\\n  Web Dashboard: http://localhost:${UI_PORT}\\n  API Docs: http://localhost:${API_PORT}/docs\\n  API: http://localhost:${API_PORT}\\n  CLI: notification-hub --help'",
+          "run": "echo '🔔 Notification Hub initialized\\n  Web Dashboard: http://localhost:${UI_PORT}\\n  API Docs: http://localhost:${API_PORT}/docs\\n  API: http://localhost:${API_PORT}\\n  CLI: notification-hub --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -165,7 +165,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\udd14 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
+          "run": "echo '🔔 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -210,7 +210,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },

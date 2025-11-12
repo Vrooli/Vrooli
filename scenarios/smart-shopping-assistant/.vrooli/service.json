@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "smart-shopping-assistant",
@@ -148,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\uded2 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "run": "echo '🛒 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -176,7 +176,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\ud83d\uded2 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "run": "echo '🛒 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -221,7 +221,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
+            "type": "data"
           }
         ]
       },
