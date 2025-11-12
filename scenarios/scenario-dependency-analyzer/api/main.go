@@ -204,7 +204,10 @@ var (
 			Name: "n8n",
 			Type: "n8n",
 			Patterns: []*regexp.Regexp{
-				regexp.MustCompile(`n8n`),
+				regexp.MustCompile(`resource-?n8n`),
+				regexp.MustCompile(`N8N_[A-Z0-9_]+`),
+				regexp.MustCompile(`RESOURCE_PORT_N8N`),
+				regexp.MustCompile(`n8n/(?:api|webhook)`),
 			},
 		},
 		{
@@ -234,6 +237,14 @@ var (
 		"coverage":      {},
 		"examples":      {},
 		"playbooks":     {},
+		"data":          {},
+		"draft":         {},
+		"drafts":        {},
+		"prd-drafts":    {},
+		"dist":          {},
+		"build":         {},
+		"out":           {},
+		"outputs":       {},
 	}
 
 	skipDirectoryNames = map[string]struct{}{
@@ -266,6 +277,12 @@ var (
 		".yarn":            {},
 		".pnpm":            {},
 	}
+	docExtensions = map[string]struct{}{
+		".md":  {},
+		".mdx": {},
+		".rst": {},
+		".txt": {},
+	}
 	docFileNames = map[string]struct{}{
 		"readme":           {},
 		"readme.md":        {},
@@ -276,10 +293,33 @@ var (
 		"requirements.md":  {},
 		"requirements.mdx": {},
 	}
-	scenarioPortCallPattern   = regexp.MustCompile(`resolveScenarioPortViaCLI\s*\(\s*[^,]+,\s*(?:"([a-z0-9-]+)"|([A-Za-z0-9_]+))\s*,`)
-	scenarioAliasDeclPattern  = regexp.MustCompile(`(?m)(?:const|var)\s+([A-Za-z0-9_]+)\s*=\s*"([a-z0-9-]+)"`)
-	scenarioAliasShortPattern = regexp.MustCompile(`(?m)([A-Za-z0-9_]+)\s*:=\s*"([a-z0-9-]+)"`)
-	scenarioAliasBlockPattern = regexp.MustCompile(`(?m)^\s*([A-Za-z0-9_]+)\s*=\s*"([a-z0-9-]+)"`)
+	scenarioPortCallPattern       = regexp.MustCompile(`resolveScenarioPortViaCLI\s*\(\s*[^,]+,\s*(?:"([a-z0-9-]+)"|([A-Za-z0-9_]+))\s*,`)
+	scenarioAliasDeclPattern      = regexp.MustCompile(`(?m)(?:const|var)\s+([A-Za-z0-9_]+)\s*=\s*"([a-z0-9-]+)"`)
+	scenarioAliasShortPattern     = regexp.MustCompile(`(?m)([A-Za-z0-9_]+)\s*:=\s*"([a-z0-9-]+)"`)
+	scenarioAliasBlockPattern     = regexp.MustCompile(`(?m)^\s*([A-Za-z0-9_]+)\s*=\s*"([a-z0-9-]+)"`)
+	resourceCLIDirectoryAllowList = map[string]struct{}{
+		"":               {},
+		"api":            {},
+		"cli":            {},
+		"cmd":            {},
+		"scripts":        {},
+		"script":         {},
+		"ui":             {},
+		"src":            {},
+		"server":         {},
+		"services":       {},
+		"service":        {},
+		"lib":            {},
+		"pkg":            {},
+		"internal":       {},
+		"tools":          {},
+		"initialization": {},
+		"automation":     {},
+		"test":           {},
+		"tests":          {},
+		"integration":    {},
+		"config":         {},
+	}
 )
 
 type resourceHeuristic struct {
@@ -364,6 +404,11 @@ func shouldIgnoreDetectionFile(relPath string) bool {
 	if _, ok := docFileNames[base]; ok {
 		return true
 	}
+	if ext := strings.ToLower(filepath.Ext(base)); ext != "" {
+		if _, ok := docExtensions[ext]; ok {
+			return true
+		}
+	}
 	if strings.HasPrefix(base, "readme") {
 		return true
 	}
@@ -374,6 +419,22 @@ func shouldIgnoreDetectionFile(relPath string) bool {
 		}
 	}
 	return false
+}
+
+func isAllowedResourceCLIPath(relPath string) bool {
+	if relPath == "" {
+		return true
+	}
+	segments := strings.Split(relPath, string(filepath.Separator))
+	if len(segments) == 0 {
+		return true
+	}
+	root := strings.ToLower(strings.TrimSpace(segments[0]))
+	if root == "." {
+		root = ""
+	}
+	_, ok := resourceCLIDirectoryAllowList[root]
+	return ok
 }
 
 func isKnownScenario(name string) bool {
@@ -1174,6 +1235,9 @@ func scanForResourceUsage(scenarioPath, scenarioName string) ([]ScenarioDependen
 		cmdMatches := resourceCommandPattern.FindAllStringSubmatch(contentStr, -1)
 		for _, match := range cmdMatches {
 			if len(match) > 1 {
+				if !isAllowedResourceCLIPath(relPath) {
+					continue
+				}
 				resourceName := normalizeName(match[1])
 				recordDetection(resourceName, "resource_cli", "resource-cli", relPath, resourceName)
 			}

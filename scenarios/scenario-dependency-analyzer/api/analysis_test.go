@@ -452,6 +452,80 @@ resource-fake something
 	}
 }
 
+func TestResourceHeuristicIgnoresPlainN8NMentions(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	configureTestScenariosDir(t, env)
+	createTestResourceDirs(t, env, "n8n")
+
+	subjectPath := filepath.Join(env.ScenariosDir, "heuristic-noise")
+	os.MkdirAll(subjectPath, 0755)
+	defer os.RemoveAll(subjectPath)
+
+	content := `package main
+
+var resourceTypes = []string{"postgres", "redis", "n8n"}
+`
+	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0644)
+
+	deps, err := scanForResourceUsage(subjectPath, "heuristic-noise")
+	if err != nil {
+		t.Fatalf("scanForResourceUsage returned error: %v", err)
+	}
+
+	for _, dep := range deps {
+		if dep.DependencyName == "n8n" {
+			t.Fatalf("plain text mention should not be treated as n8n dependency")
+		}
+	}
+}
+
+func TestResourceHeuristicDetectsN8NEnvUsage(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	configureTestScenariosDir(t, env)
+	createTestResourceDirs(t, env, "n8n")
+
+	subjectPath := filepath.Join(env.ScenariosDir, "heuristic-hit")
+	os.MkdirAll(subjectPath, 0755)
+	defer os.RemoveAll(subjectPath)
+
+	content := `package main
+
+import "os"
+
+func useN8N() string {
+	return os.Getenv("N8N_URL")
+}
+`
+	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0644)
+
+	deps, err := scanForResourceUsage(subjectPath, "heuristic-hit")
+	if err != nil {
+		t.Fatalf("scanForResourceUsage returned error: %v", err)
+	}
+
+	found := false
+	for _, dep := range deps {
+		if dep.DependencyName == "n8n" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Fatalf("expected n8n dependency to be detected when referencing N8N_URL")
+	}
+}
+
 func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
