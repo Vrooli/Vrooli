@@ -21,27 +21,22 @@ Each scenario must be completely self-contained:
 ```json
 // ✅ Good: All dependencies declared
 {
-  "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "n8n", "type": "automation", "optional": false},
-        {"name": "postgres", "type": "database", "optional": false},
-        {"name": "whisper", "type": "ai", "optional": true}
-      ],
-      "conflicts": ["browserless"]  // Prevent resource conflicts
-    }
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "enabled": true, "required": true},
+      "postgres": {"type": "database", "enabled": true, "required": true},
+      "whisper": {"type": "ai", "enabled": true, "required": false}
+    },
+    "conflicts": ["browserless"]  // Prevent resource conflicts
   }
 }
 
 // ❌ Bad: Implicit dependencies
 {
-  "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false}
-        // Missing n8n dependency, will fail in deployment
-      ]
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "enabled": true, "required": true}
+      // Missing n8n dependency, will fail in deployment
     }
   }
 }
@@ -96,18 +91,17 @@ Start with business value, derive technical implementation:
     "categories": ["ai-assistance", "customer-service"]
 
   },
-  "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false},          // AI inference
-        {"name": "n8n", "type": "automation", "optional": false},     // Workflow automation
-        {"name": "postgres", "type": "database", "optional": false},  // Data storage
-        {"name": "whisper", "type": "ai", "optional": true},          // Voice capabilities
-        {"name": "agent-s2", "type": "agent", "optional": true}       // Screen automation
-      ],
-      "conflicts": ["browserless"]  // Can't use with agent-s2
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "enabled": true, "required": true},          // AI inference
+      "postgres": {"type": "database", "enabled": true, "required": true},  // Data storage
+      "whisper": {"type": "ai", "enabled": true, "required": false},        // Voice capabilities
+      "agent-s2": {"type": "agent", "enabled": true, "required": false}     // Screen automation
     },
+    "conflicts": ["browserless"]  // Can't use with agent-s2
+  },
 
+  "spec": {
     "business": {
       "valueProposition": "Quantified business outcome with specific metrics",
       "targetMarkets": ["specific-industry", "business-type", "role"],
@@ -296,15 +290,14 @@ AI Analysis Framework:
     "description": "AI chatbot handling 90% of customer inquiries with human escalation",
     "complexity": "intermediate"
   },
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "enabled": true, "required": true},
+      "postgres": {"type": "database", "enabled": true, "required": true},
+      "whisper": {"type": "ai", "enabled": true, "required": false}
+    }
+  },
   "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "postgres", "type": "database", "optional": false},
-        {"name": "n8n", "type": "automation", "optional": false},
-        {"name": "whisper", "type": "ai", "optional": true}
-      ]
-    },
     "business": {
       "valueProposition": "90% automated resolution, 24/7 availability, 50% cost reduction",
       "targetMarkets": ["e-commerce", "saas", "service-businesses"],
@@ -355,7 +348,7 @@ validate_scenario_structure() {
 # Validate service.json structure
 validate_service_config() {
     jq -e '.metadata.name' service.json >/dev/null || fail "Missing metadata.name"
-    jq -e '.spec.dependencies.resources' service.json >/dev/null || fail "Missing resource dependencies"
+    jq -e '.dependencies.resources' service.json >/dev/null || fail "Missing resource dependencies"
     jq -e '.spec.business.valueProposition' service.json >/dev/null || fail "Missing value proposition"
 }
 ```
@@ -376,7 +369,7 @@ validate_business_model() {
 ```bash
 # Test that all declared resources are accessible
 validate_resource_accessibility() {
-    local required_resources=$(jq -r '.spec.dependencies.resources[] | select(.optional == false) | .name' service.json)
+    local required_resources=$(jq -r '.dependencies.resources | to_entries[] | select(.value.required != false) | .key' service.json)
     
     for resource in $required_resources; do
         check_service_health "$resource" || fail "Required resource $resource not available"

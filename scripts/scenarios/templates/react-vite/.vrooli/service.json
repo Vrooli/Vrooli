@@ -12,7 +12,25 @@
     "tags": [
       "react-ui",
       "go-api"
-    ]
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/{{SCENARIO_ID}}"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {

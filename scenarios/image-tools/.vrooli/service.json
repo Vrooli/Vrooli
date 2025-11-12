@@ -82,40 +82,6 @@
       }
     }
   },
-  "plugins": {
-    "jpeg": {
-      "library": "mozjpeg-go",
-      "features": [
-        "progressive",
-        "optimize",
-        "quality-control"
-      ]
-    },
-    "png": {
-      "library": "pngquant-go",
-      "features": [
-        "color-reduction",
-        "dithering",
-        "transparency"
-      ]
-    },
-    "webp": {
-      "library": "libwebp-go",
-      "features": [
-        "lossless",
-        "quality",
-        "alpha"
-      ]
-    },
-    "svg": {
-      "library": "svgo",
-      "features": [
-        "minify",
-        "optimize-paths",
-        "remove-metadata"
-      ]
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {

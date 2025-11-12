@@ -51,12 +51,6 @@
       "persistent_space": "500MB"
     }
   },
-  "development": {
-    "hot_reload": true,
-    "debug_mode": true,
-    "test_data_generation": true,
-    "integration_test_suite": true
-  },
   "lifecycle": {
     "health": {
       "description": "Scenario to Extension health check configuration",

@@ -28,7 +28,6 @@
     "version": "2.0.0"
   },
   "version": "2.0.0",
-  "enabled": true,
   "ports": {
     "api": {
       "env_var": "API_PORT",

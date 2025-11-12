@@ -160,18 +160,6 @@
       ]
     }
   },
-  "health": {
-    "api": {
-      "endpoint": "http://localhost:${API_PORT}/api/v1/health",
-      "method": "GET",
-      "expected_status": 200
-    },
-    "ui": {
-      "endpoint": "http://localhost:${UI_PORT}/",
-      "method": "GET",
-      "expected_status": 200
-    }
-  },
   "environment": {
     "POSTGRES_HOST": "localhost",
     "POSTGRES_PORT": "5433",

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 )
@@ -77,14 +78,24 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		result, err = s.ExecuteBlur(ctx, selector, timeoutMs, waitAfterMs)
 
 	case "wait":
-		selector := instruction.Params.Selector
-		timeoutMs := instruction.Params.TimeoutMs
-		if timeoutMs == 0 {
-			timeoutMs = 30000
+		// Check if this is a time-based wait (durationMs) or element wait (selector)
+		if instruction.Params.DurationMs > 0 {
+			// Time-based wait - just sleep
+			time.Sleep(time.Duration(instruction.Params.DurationMs) * time.Millisecond)
+			result = &StepResult{
+				Success: true,
+				DurationMs: instruction.Params.DurationMs,
+			}
+		} else {
+			// Element-based wait - wait for selector to appear
+			selector := instruction.Params.Selector
+			timeoutMs := instruction.Params.TimeoutMs
+			if timeoutMs == 0 {
+				timeoutMs = 30000
+			}
+			waitAfterMs := instruction.Params.WaitForMs
+			result, err = s.ExecuteWait(ctx, selector, timeoutMs, waitAfterMs)
 		}
-		waitAfterMs := instruction.Params.WaitForMs
-
-		result, err = s.ExecuteWait(ctx, selector, timeoutMs, waitAfterMs)
 
 	case "assert":
 		selector := instruction.Params.Selector

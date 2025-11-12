@@ -41,15 +41,14 @@ Every scenario has **four core components**:
     "version": "1.0.0",
     "complexity": "intermediate"
   },
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "enabled": true, "required": true},
+      "postgres": {"type": "database", "enabled": true, "required": true},
+      "whisper": {"type": "ai", "enabled": true, "required": false}
+    }
+  },
   "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "n8n", "type": "automation", "optional": false},
-        {"name": "postgres", "type": "database", "optional": false},
-        {"name": "whisper", "type": "ai", "optional": true}
-      ]
-    },
     "business": {
       "valueProposition": "90% automated issue resolution",
       "targetMarkets": ["e-commerce", "saas", "service-businesses"],
@@ -143,16 +142,15 @@ ls -la
     "version": "1.0.0",
     "complexity": "intermediate"                  // basic, intermediate, or advanced
   },
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "enabled": true, "required": true},      // ✏️ Add/remove as needed
+      "postgres": {"type": "database", "enabled": true, "required": true},
+      "whisper": {"type": "ai", "enabled": true, "required": false},     // ✏️ Optional resources
+      "browserless": {"type": "agent", "enabled": true, "required": false}
+    }
+  },
   "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false},      // ✏️ Add/remove as needed
-        {"name": "n8n", "type": "automation", "optional": false},
-        {"name": "postgres", "type": "database", "optional": false},
-        {"name": "whisper", "type": "ai", "optional": true},       // ✏️ Optional resources
-        {"name": "browserless", "type": "agent", "optional": true}
-      ]
-    },
     "business": {
       "valueProposition": "50% reduction in support tickets through self-service",  // ✏️ Change this
       "targetMarkets": ["b2b-saas", "e-commerce", "service-businesses"],          // ✏️ Change this
@@ -295,13 +293,13 @@ Ensure your scenario is optimized for AI consumption:
     "name": "descriptive-kebab-case",           // Clear, descriptive naming
     "description": "Specific, actionable description"  // No ambiguity
   },
-  "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false}    // Exact resource specifications
-      ],
-      "conflicts": ["browserless"]              // Prevent resource conflicts
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "enabled": true, "required": true}    // Exact resource specifications
     },
+    "conflicts": ["browserless"]              // Prevent resource conflicts
+  },
+  "spec": {
     "business": {
       "valueProposition": "Quantified benefit with metrics",  // Measurable outcomes
       "targetMarkets": ["specific-industries"]               // Targeted markets

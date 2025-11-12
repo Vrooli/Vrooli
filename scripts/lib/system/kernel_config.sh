@@ -181,7 +181,9 @@ kernel_config::configure_for_resources() {
     if [[ -n "$service_json" && -f "$service_json" ]]; then
         local has_judge0="false"
         if command -v jq >/dev/null 2>&1; then
-            has_judge0=$(jq -r '.resources.judge0.enabled // .judge0.enabled // false' "$service_json" 2>/dev/null || echo "false")
+            local jq_resources="$var_JQ_RESOURCES_EXPR"
+            [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
+            has_judge0=$(jq -r "${jq_resources}.judge0.enabled // .judge0.enabled // false" "$service_json" 2>/dev/null || echo "false")
         fi
 
         if [[ "$has_judge0" == "true" ]]; then

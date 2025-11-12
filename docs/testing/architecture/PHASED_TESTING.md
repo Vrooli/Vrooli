@@ -515,7 +515,7 @@ The architecture automatically detects and tests multiple languages within a sin
 Automatic testing of configured resources:
 ```bash
 # Parse .vrooli/service.json for enabled resources
-enabled_resources=$(jq -r '.resources | to_entries[] | select(.value.required == true or .value.enabled == true) | .key' .vrooli/service.json)
+enabled_resources=$(jq -r '.dependencies.resources | to_entries[] | select(.value.required == true or .value.enabled == true) | .key' .vrooli/service.json)
 ```
 
 ### 3. CLI Testing Integration  

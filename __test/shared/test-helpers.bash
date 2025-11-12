@@ -158,10 +158,8 @@ get_enabled_resources() {
     
     if [[ -f "$service_json" ]]; then
         if command -v jq >/dev/null 2>&1; then
-            # Handle nested structure - resources are grouped by category
-            # Resources structure: resources.category.resource_name.enabled
-            # We need to get all resource names where enabled=true
-            jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.enabled == true) | .key' "$service_json" 2>/dev/null || true
+            # Handle dependencies.resources structure (no category nesting)
+            jq -r '.dependencies.resources | to_entries[] | select(.value.enabled == true) | .key' "$service_json" 2>/dev/null || true
         else
             log_warning "jq not available, cannot parse enabled resources"
         fi

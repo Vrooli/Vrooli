@@ -233,15 +233,15 @@ test_service_json_configs() {
         # Test 3: Type-specific validation
         case "$config_type" in
             root)
-                # Root config should have resources section
+                # Root config should declare dependencies.resources
                 if command -v jq >/dev/null 2>&1; then
-                    if run_cached_test "$config_file" "has-resources" "jq -e '.resources' '$config_file' >/dev/null" "has-resources: $relative_path"; then
+                    if run_cached_test "$config_file" "has-dependencies-resources" "jq -e '.dependencies.resources' '$config_file' >/dev/null" "has-dependencies-resources: $relative_path"; then
                         increment_test_counter "passed"
                     else
                         increment_test_counter "failed"
                     fi
                 else
-                    log_test_skip "has-resources: $relative_path" "jq not available"
+                    log_test_skip "has-dependencies-resources: $relative_path" "jq not available"
                     increment_test_counter "skipped"
                 fi
                 ;;

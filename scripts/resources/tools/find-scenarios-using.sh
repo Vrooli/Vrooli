@@ -127,8 +127,8 @@ extract_scenario_metadata() {
     if [[ -f "$metadata_file" ]]; then
         # Parse YAML for resources (basic parsing)
         if command -v yq >/dev/null 2>&1; then
-            required_resources=($(yq eval '.scenario.resources.required[]? // empty' "$metadata_file" 2>/dev/null || true))
-            optional_resources=($(yq eval '.scenario.resources.optional[]? // empty' "$metadata_file" 2>/dev/null || true))
+            required_resources=($(yq eval '.scenario.dependencies.resources.required[]? // empty' "$metadata_file" 2>/dev/null || true))
+            optional_resources=($(yq eval '.scenario.dependencies.resources.optional[]? // empty' "$metadata_file" 2>/dev/null || true))
             business_value=$(yq eval '.scenario.business.value_proposition // ""' "$metadata_file" 2>/dev/null || true)
             revenue_range=$(yq eval '.scenario.business.revenue_range // ""' "$metadata_file" 2>/dev/null || true)
             description=$(yq eval '.scenario.description // ""' "$metadata_file" 2>/dev/null || true)

@@ -28,24 +28,6 @@
     "version": "1.0.0"
   },
   "version": "1.0.0",
-  "keywords": [
-    "desktop",
-    "electron",
-    "native",
-    "cross-platform",
-    "packaging",
-    "distribution"
-  ],
-  "requirements": {
-    "node_version": ">=18.0.0",
-    "platform": [
-      "linux",
-      "darwin",
-      "win32"
-    ],
-    "memory": "512MB",
-    "disk": "100MB"
-  },
   "ports": {
     "api": {
       "env_var": "API_PORT",

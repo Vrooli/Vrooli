@@ -56,22 +56,6 @@
       "timeout": 5
     }
   },
-  "filtering": {
-    "categoryWhitelist": [
-      "kid-friendly"
-    ],
-    "categoryBlacklist": [
-      "system",
-      "development",
-      "admin",
-      "financial"
-    ],
-    "ageRanges": {
-      "young": "5-8",
-      "middle": "9-12",
-      "teen": "13+"
-    }
-  },
   "features": {
     "mascot": {
       "enabled": true,
@@ -90,11 +74,6 @@
       "enabled": true,
       "maxDuration": 3600
     }
-  },
-  "discovery": {
-    "scanInterval": 60,
-    "scenarioPattern": "../../scenarios/*/.vrooli/service.json",
-    "method": "filesystem"
   },
   "lifecycle": {
     "version": "2.0.0",

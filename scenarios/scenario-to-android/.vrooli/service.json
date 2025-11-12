@@ -28,29 +28,6 @@
     "version": "1.0.0"
   },
   "version": "1.0.0",
-  "keywords": [
-    "android",
-    "mobile",
-    "apk",
-    "native",
-    "webview",
-    "play-store",
-    "deployment"
-  ],
-  "requirements": {
-    "node_version": ">=18.0.0",
-    "platform": [
-      "linux",
-      "darwin"
-    ],
-    "memory": "2GB",
-    "disk": "5GB",
-    "external_tools": [
-      "android-sdk",
-      "gradle",
-      "java"
-    ]
-  },
   "ports": {
     "api": {
       "env_var": "API_PORT",

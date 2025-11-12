@@ -260,6 +260,8 @@ scenario::insights::collect_stack_data() {
 scenario::insights::collect_resource_data() {
     local scenario_name="$1"
     local service_json="$2"
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
 
     if [[ -z "$service_json" ]] || [[ ! -f "$service_json" ]]; then
         echo '{"items":[],"summary":{"total":0,"required":0,"required_running":0,"issues":0}}'
@@ -267,7 +269,7 @@ scenario::insights::collect_resource_data() {
     fi
 
     local resources
-    resources=$(jq -c '.resources // {} | to_entries[] | {name: .key, type: (.value.type // "custom"), required: (.value.required // false), enabled: (.value.enabled // false), description: (.value.description // "")}' "$service_json" 2>/dev/null || echo '')
+    resources=$(jq -c "${jq_resources} | to_entries[] | {name: .key, type: (.value.type // \"custom\"), required: (.value.required // false), enabled: (.value.enabled // false), description: (.value.description // \"\")}" "$service_json" 2>/dev/null || echo '')
 
     if [[ -z "$resources" ]]; then
         echo '{"items":[],"summary":{"total":0,"required":0,"required_running":0,"issues":0}}'

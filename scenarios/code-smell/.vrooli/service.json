@@ -37,7 +37,6 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
-  "enabled": true,
   "ports": {
     "api": {
       "env_var": "API_PORT",

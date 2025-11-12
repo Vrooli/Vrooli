@@ -185,8 +185,8 @@ analyze_scenario() {
     # Extract from metadata.yaml
     if [[ -f "$metadata_file" ]]; then
         if command -v yq >/dev/null 2>&1; then
-            required_resources=($(yq eval '.scenario.resources.required[]? // empty' "$metadata_file" 2>/dev/null | tr '\n' ' '))
-            optional_resources=($(yq eval '.scenario.resources.optional[]? // empty' "$metadata_file" 2>/dev/null | tr '\n' ' '))
+            required_resources=($(yq eval '.scenario.dependencies.resources.required[]? // empty' "$metadata_file" 2>/dev/null | tr '\n' ' '))
+            optional_resources=($(yq eval '.scenario.dependencies.resources.optional[]? // empty' "$metadata_file" 2>/dev/null | tr '\n' ' '))
             description=$(yq eval '.scenario.description // ""' "$metadata_file" 2>/dev/null)
             business_value=$(yq eval '.scenario.business.value_proposition // ""' "$metadata_file" 2>/dev/null)
             revenue_range=$(yq eval '.scenario.business.revenue_range // ""' "$metadata_file" 2>/dev/null)
@@ -338,12 +338,12 @@ display_scenario_analysis() {
             
             echo ""
             echo -e "${GREEN}🔧 Required Resources:${NC}"
-            local required=($(echo "$scenario_data" | jq -r '.resources.required[]? // empty'))
+            local required=($(echo "$scenario_data" | jq -r '.dependencies.resources.required[]? // empty'))
             for resource in "${required[@]}"; do
                 echo -e "  ${GREEN}✅ $resource${NC}"
             done
             
-            local optional=($(echo "$scenario_data" | jq -r '.resources.optional[]? // empty'))
+            local optional=($(echo "$scenario_data" | jq -r '.dependencies.resources.optional[]? // empty'))
             if [[ ${#optional[@]} -gt 0 ]]; then
                 echo ""
                 echo -e "${YELLOW}⚙️ Optional Resources:${NC}"
@@ -353,7 +353,7 @@ display_scenario_analysis() {
             fi
             
             if [[ "$SHOW_ALTERNATIVES" == true ]]; then
-                local alternatives=($(echo "$scenario_data" | jq -r '.resources.alternatives[]? // empty'))
+                local alternatives=($(echo "$scenario_data" | jq -r '.dependencies.resources.alternatives[]? // empty'))
                 if [[ ${#alternatives[@]} -gt 0 ]]; then
                     echo ""
                     echo -e "${PURPLE}🔄 Alternative Resources:${NC}"
