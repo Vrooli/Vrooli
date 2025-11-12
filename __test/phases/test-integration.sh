@@ -250,7 +250,7 @@ get_enabled_resources() {
     fi
     
     # Extract enabled resources
-    jq -r '.resources // {} | to_entries[] | select(.value.enabled == true) | .key' "$service_json" 2>/dev/null || true
+    jq -r '.dependencies.resources // {} | to_entries[] | select(.value.enabled == true) | .key' "$service_json" 2>/dev/null || true
 }
 
 # Test resource using convention-based function discovery
@@ -320,7 +320,7 @@ test_generic_resource_integration() {
     # Just test that the resource is mentioned in service.json and enabled
     local service_json="$PROJECT_ROOT/.vrooli/service.json"
     if command -v jq >/dev/null 2>&1 && [[ -f "$service_json" ]]; then
-        if jq -e ".resources.\"$resource_name\".enabled == true" "$service_json" >/dev/null 2>&1; then
+        if jq -e ".dependencies.resources.\"$resource_name\".enabled == true" "$service_json" >/dev/null 2>&1; then
             log_test_pass "enabled-check: $resource_name"
             increment_test_counter "passed"
         else

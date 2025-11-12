@@ -221,7 +221,9 @@ redis::install::update_resource_config() {
             # Use flattened structure: resources.redis (not services.storage.redis)
             # Note: baseUrl removed as per port_registry.sh migration
             jq --arg port "$REDIS_PORT" \
-               '.resources.redis = {
+               '.dependencies |= (. // {})
+                | .dependencies.resources |= (. // {})
+                | .dependencies.resources.redis = {
                    "enabled": true,
                    "required": true,
                    "version": "7",
@@ -306,7 +308,12 @@ redis::install::uninstall() {
             local temp_config
             temp_config=$(mktemp)
             # Remove both old nested structure and current flattened structure
-            jq 'del(.services.storage.redis) | del(.resources.redis)' "$config_file" > "$temp_config" && mv "$temp_config" "$config_file"
+            jq '.services |= (. // {})
+                | .services.storage |= (. // {} | del(.redis))
+                | .dependencies |= (. // {})
+                | .dependencies.resources |= (. // {})
+                | del(.dependencies.resources.redis)'
+               "$config_file" > "$temp_config" && mv "$temp_config" "$config_file"
         fi
     fi
     

@@ -5,7 +5,13 @@
   "properties": {
     "mode": {
       "type": "string",
-      "enum": ["auto", "normal", "fast", "dt", "ultrasonic"],
+      "enum": [
+        "auto",
+        "normal",
+        "fast",
+        "dt",
+        "ultrasonic"
+      ],
       "default": "auto",
       "description": "Transmission mode for audio encoding"
     },
@@ -30,7 +36,12 @@
     },
     "log_level": {
       "type": "string",
-      "enum": ["debug", "info", "warn", "error"],
+      "enum": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ],
       "default": "info",
       "description": "Logging verbosity level"
     },
@@ -67,5 +78,6 @@
     }
   },
   "required": [],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/ggwave/schema.json"
 }

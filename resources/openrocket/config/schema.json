@@ -95,5 +95,9 @@
       }
     }
   },
-  "required": ["port", "dataDir"]
+  "required": [
+    "port",
+    "dataDir"
+  ],
+  "$id": "https://vrooli.com/resources/openrocket/schema.json"
 }

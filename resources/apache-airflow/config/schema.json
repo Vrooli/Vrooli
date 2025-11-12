@@ -27,7 +27,12 @@
     "executor": {
       "type": "string",
       "description": "Airflow executor type",
-      "enum": ["CeleryExecutor", "LocalExecutor", "SequentialExecutor", "KubernetesExecutor"],
+      "enum": [
+        "CeleryExecutor",
+        "LocalExecutor",
+        "SequentialExecutor",
+        "KubernetesExecutor"
+      ],
       "default": "CeleryExecutor"
     },
     "worker_count": {
@@ -92,10 +97,20 @@
     "log_level": {
       "type": "string",
       "description": "Logging level",
-      "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL"
+      ],
       "default": "INFO"
     }
   },
-  "required": ["webserver_port", "executor"],
-  "additionalProperties": false
+  "required": [
+    "webserver_port",
+    "executor"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/apache-airflow/schema.json"
 }

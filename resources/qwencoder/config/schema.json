@@ -25,7 +25,12 @@
     "device": {
       "type": "string",
       "description": "Compute device",
-      "enum": ["auto", "cpu", "cuda", "mps"],
+      "enum": [
+        "auto",
+        "cpu",
+        "cuda",
+        "mps"
+      ],
       "default": "auto"
     },
     "max_memory": {
@@ -37,7 +42,11 @@
     "quantization": {
       "type": "string",
       "description": "Model quantization",
-      "enum": ["none", "8bit", "4bit"],
+      "enum": [
+        "none",
+        "8bit",
+        "4bit"
+      ],
       "default": "none"
     },
     "context_length": {
@@ -85,12 +94,21 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL"
+          ],
           "default": "INFO"
         },
         "format": {
           "type": "string",
-          "enum": ["text", "json"],
+          "enum": [
+            "text",
+            "json"
+          ],
           "default": "json"
         }
       }
@@ -124,6 +142,11 @@
       }
     }
   },
-  "required": ["port", "model", "device"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "model",
+    "device"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/qwencoder/schema.json"
 }

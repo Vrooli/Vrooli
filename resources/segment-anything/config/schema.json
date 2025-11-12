@@ -18,19 +18,31 @@
         "size": {
           "type": "string",
           "description": "Model size variant",
-          "enum": ["tiny", "small", "base", "large"],
+          "enum": [
+            "tiny",
+            "small",
+            "base",
+            "large"
+          ],
           "default": "base"
         },
         "type": {
           "type": "string",
           "description": "Model type",
-          "enum": ["sam2", "hq-sam"],
+          "enum": [
+            "sam2",
+            "hq-sam"
+          ],
           "default": "sam2"
         },
         "device": {
           "type": "string",
           "description": "Computation device",
-          "enum": ["auto", "cpu", "cuda"],
+          "enum": [
+            "auto",
+            "cpu",
+            "cuda"
+          ],
           "default": "auto"
         }
       }
@@ -187,5 +199,6 @@
         }
       }
     }
-  }
+  },
+  "$id": "https://vrooli.com/resources/segment-anything/schema.json"
 }

@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Enable this resource",
+      "default": true
+    },
+    "purpose": {
+      "type": "string",
+      "description": "Describe how the scenario uses this resource"
+    }
+  },
+  "additionalProperties": true,
+  "$id": "https://vrooli.com/resources/whisper/schema.json",
+  "title": "Whisper Resource Configuration Schema",
+  "description": "OpenAI Whisper speech-to-text service"
+}

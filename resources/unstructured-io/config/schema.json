@@ -10,7 +10,11 @@
       "properties": {
         "strategy": {
           "type": "string",
-          "enum": ["fast", "hi_res", "auto"],
+          "enum": [
+            "fast",
+            "hi_res",
+            "auto"
+          ],
           "default": "hi_res",
           "description": "Processing strategy - fast for speed, hi_res for accuracy, auto for automatic selection"
         },
@@ -19,7 +23,9 @@
           "items": {
             "type": "string"
           },
-          "default": ["eng"],
+          "default": [
+            "eng"
+          ],
           "description": "OCR languages to use for text extraction"
         },
         "includePageBreaks": {
@@ -120,12 +126,21 @@
       "description": "Supported output formats",
       "items": {
         "type": "string",
-        "enum": ["json", "markdown", "text", "elements"]
+        "enum": [
+          "json",
+          "markdown",
+          "text",
+          "elements"
+        ]
       },
-      "default": ["json", "text"],
+      "default": [
+        "json",
+        "text"
+      ],
       "minItems": 1,
       "uniqueItems": true
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/unstructured-io/schema.json"
 }

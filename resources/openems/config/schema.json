@@ -31,7 +31,10 @@
           "description": "Backend API port"
         }
       },
-      "required": ["http", "jsonrpc"]
+      "required": [
+        "http",
+        "jsonrpc"
+      ]
     },
     "docker": {
       "type": "object",
@@ -128,7 +131,14 @@
           },
           "type": {
             "type": "string",
-            "enum": ["solar", "battery", "ev_charger", "wind", "generator", "load"]
+            "enum": [
+              "solar",
+              "battery",
+              "ev_charger",
+              "wind",
+              "generator",
+              "load"
+            ]
           },
           "capacity": {
             "type": "number",
@@ -138,7 +148,11 @@
             "type": "boolean"
           }
         },
-        "required": ["id", "type", "capacity"]
+        "required": [
+          "id",
+          "type",
+          "capacity"
+        ]
       }
     },
     "simulation": {
@@ -152,7 +166,13 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["residential", "commercial", "industrial", "microgrid", "ev_depot"]
+            "enum": [
+              "residential",
+              "commercial",
+              "industrial",
+              "microgrid",
+              "ev_depot"
+            ]
           }
         }
       }
@@ -175,6 +195,9 @@
       }
     }
   },
-  "required": ["ports"],
-  "additionalProperties": false
+  "required": [
+    "ports"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/openems/schema.json"
 }

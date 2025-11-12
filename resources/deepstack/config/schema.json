@@ -49,19 +49,30 @@
       "properties": {
         "detection_model": {
           "type": "string",
-          "enum": ["yolov5", "yolov4", "detectron2"],
+          "enum": [
+            "yolov5",
+            "yolov4",
+            "detectron2"
+          ],
           "default": "yolov5",
           "description": "Object detection model"
         },
         "face_model": {
           "type": "string",
-          "enum": ["retinaface", "mtcnn", "dlib"],
+          "enum": [
+            "retinaface",
+            "mtcnn",
+            "dlib"
+          ],
           "default": "retinaface",
           "description": "Face detection model"
         },
         "scene_model": {
           "type": "string",
-          "enum": ["places365", "resnet50"],
+          "enum": [
+            "places365",
+            "resnet50"
+          ],
           "default": "places365",
           "description": "Scene classification model"
         },
@@ -86,13 +97,21 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["High", "Medium", "Low"],
+          "enum": [
+            "High",
+            "Medium",
+            "Low"
+          ],
           "default": "High",
           "description": "Performance mode"
         },
         "enable_gpu": {
           "type": "string",
-          "enum": ["auto", "true", "false"],
+          "enum": [
+            "auto",
+            "true",
+            "false"
+          ],
           "default": "auto",
           "description": "GPU acceleration setting"
         },
@@ -161,7 +180,12 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR"
+          ],
           "default": "INFO",
           "description": "Log level"
         },
@@ -171,5 +195,6 @@
         }
       }
     }
-  }
+  },
+  "$id": "https://vrooli.com/resources/deepstack/schema.json"
 }

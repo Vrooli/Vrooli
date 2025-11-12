@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/resources/musicgen/schema.json",
+  "title": "Musicgen Resource Configuration Schema",
+  "description": "MusicGen audio generation model service",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Enable this resource",
+      "default": true
+    },
+    "purpose": {
+      "type": "string",
+      "description": "Describe how the scenario uses this resource"
+    }
+  },
+  "additionalProperties": true
+}

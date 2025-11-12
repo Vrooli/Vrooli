@@ -2,7 +2,10 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Earthly Resource Configuration Schema",
   "type": "object",
-  "required": ["version", "cache_dir"],
+  "required": [
+    "version",
+    "cache_dir"
+  ],
   "properties": {
     "version": {
       "type": "string",
@@ -41,7 +44,9 @@
           "windows/amd64"
         ]
       },
-      "default": ["linux/amd64"]
+      "default": [
+        "linux/amd64"
+      ]
     },
     "remote_cache": {
       "type": "object",
@@ -58,8 +63,12 @@
         "credentials": {
           "type": "object",
           "properties": {
-            "username": {"type": "string"},
-            "password": {"type": "string"}
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            }
           }
         }
       }
@@ -85,7 +94,12 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "default": "info"
         },
         "file": {
@@ -124,5 +138,6 @@
         }
       }
     }
-  }
+  },
+  "$id": "https://vrooli.com/resources/earthly/schema.json"
 }

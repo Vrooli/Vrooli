@@ -86,6 +86,11 @@
       }
     }
   },
-  "required": ["port", "heap_size", "data_dir"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "heap_size",
+    "data_dir"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/opentripplanner/schema.json"
 }

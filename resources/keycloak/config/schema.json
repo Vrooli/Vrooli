@@ -49,7 +49,12 @@
         "type": {
           "type": "string",
           "description": "Database type",
-          "enum": ["dev-file", "postgres", "mysql", "mariadb"],
+          "enum": [
+            "dev-file",
+            "postgres",
+            "mysql",
+            "mariadb"
+          ],
           "default": "dev-file"
         },
         "host": {
@@ -97,7 +102,11 @@
         "ssl_required": {
           "type": "string",
           "description": "SSL requirement level",
-          "enum": ["none", "external", "all"],
+          "enum": [
+            "none",
+            "external",
+            "all"
+          ],
           "default": "none"
         }
       }
@@ -118,7 +127,10 @@
           "ciba"
         ]
       },
-      "default": ["token-exchange", "admin-fine-grained-authz"]
+      "default": [
+        "token-exchange",
+        "admin-fine-grained-authz"
+      ]
     },
     "performance": {
       "type": "object",
@@ -139,7 +151,15 @@
         "log_level": {
           "type": "string",
           "description": "Logging level",
-          "enum": ["ALL", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "OFF"],
+          "enum": [
+            "ALL",
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR",
+            "FATAL",
+            "OFF"
+          ],
           "default": "INFO"
         }
       }
@@ -175,5 +195,6 @@
       "default": 8443
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/keycloak/schema.json"
 }

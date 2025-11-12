@@ -48,7 +48,10 @@
       "properties": {
         "version": {
           "type": "string",
-          "enum": ["v1", "v2"],
+          "enum": [
+            "v1",
+            "v2"
+          ],
           "default": "v1"
         },
         "defaultUser": {
@@ -116,7 +119,11 @@
             "type": "string",
             "pattern": "^[A-Z]{3}$"
           },
-          "default": ["USD", "EUR", "GBP"]
+          "default": [
+            "USD",
+            "EUR",
+            "GBP"
+          ]
         },
         "baseCurrency": {
           "type": "string",
@@ -151,17 +158,28 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR"
+          ],
           "default": "INFO"
         },
         "format": {
           "type": "string",
-          "enum": ["json", "text"],
+          "enum": [
+            "json",
+            "text"
+          ],
           "default": "json"
         }
       }
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/mifos/schema.json"
 }

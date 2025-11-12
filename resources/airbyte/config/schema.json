@@ -62,5 +62,6 @@
     "AIRBYTE_WEBAPP_PORT",
     "AIRBYTE_SERVER_PORT",
     "AIRBYTE_TEMPORAL_PORT"
-  ]
+  ],
+  "$id": "https://vrooli.com/resources/airbyte/schema.json"
 }

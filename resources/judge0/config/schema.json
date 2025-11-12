@@ -54,7 +54,12 @@
     "execution_method": {
       "type": "string",
       "description": "Preferred execution method",
-      "enum": ["native", "direct", "pool", "external"],
+      "enum": [
+        "native",
+        "direct",
+        "pool",
+        "external"
+      ],
       "default": "pool"
     },
     "pool_size": {
@@ -96,5 +101,6 @@
     }
   },
   "required": [],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/judge0/schema.json"
 }

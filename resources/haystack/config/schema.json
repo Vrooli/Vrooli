@@ -56,13 +56,22 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["inmemory", "qdrant", "elasticsearch", "faiss"],
+          "enum": [
+            "inmemory",
+            "qdrant",
+            "elasticsearch",
+            "faiss"
+          ],
           "description": "Type of document store to use",
           "default": "inmemory"
         },
         "similarity": {
           "type": "string",
-          "enum": ["cosine", "dot_product", "l2"],
+          "enum": [
+            "cosine",
+            "dot_product",
+            "l2"
+          ],
           "description": "Similarity metric for vector search",
           "default": "cosine"
         },
@@ -120,13 +129,22 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL"
+          ],
           "description": "Logging level",
           "default": "INFO"
         },
         "format": {
           "type": "string",
-          "enum": ["json", "text"],
+          "enum": [
+            "json",
+            "text"
+          ],
           "description": "Log output format",
           "default": "json"
         }
@@ -202,5 +220,6 @@
     }
   },
   "required": [],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/haystack/schema.json"
 }

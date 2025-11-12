@@ -110,7 +110,11 @@
         },
         "format": {
           "type": "string",
-          "enum": ["json", "csv", "parquet"],
+          "enum": [
+            "json",
+            "csv",
+            "parquet"
+          ],
           "default": "json"
         }
       }
@@ -133,6 +137,9 @@
       }
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/mesa/schema.json"
 }

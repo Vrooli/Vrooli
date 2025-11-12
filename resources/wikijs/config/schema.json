@@ -33,7 +33,10 @@
         },
         "mode": {
           "type": "string",
-          "enum": ["host", "bridge"],
+          "enum": [
+            "host",
+            "bridge"
+          ],
           "default": "host",
           "description": "Docker network mode"
         }
@@ -45,7 +48,12 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["postgres", "mysql", "mariadb", "mssql"],
+          "enum": [
+            "postgres",
+            "mysql",
+            "mariadb",
+            "mssql"
+          ],
           "default": "postgres",
           "description": "Database type"
         },
@@ -74,7 +82,13 @@
           "description": "Database password"
         }
       },
-      "required": ["type", "host", "port", "name", "user"]
+      "required": [
+        "type",
+        "host",
+        "port",
+        "name",
+        "user"
+      ]
     },
     "storage": {
       "type": "object",
@@ -124,7 +138,11 @@
       "properties": {
         "engine": {
           "type": "string",
-          "enum": ["db", "elasticsearch", "algolia"],
+          "enum": [
+            "db",
+            "elasticsearch",
+            "algolia"
+          ],
           "default": "db",
           "description": "Search engine type"
         },
@@ -152,9 +170,18 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["local", "ldap", "oauth2", "saml", "github", "google"]
+            "enum": [
+              "local",
+              "ldap",
+              "oauth2",
+              "saml",
+              "github",
+              "google"
+            ]
           },
-          "default": ["local"],
+          "default": [
+            "local"
+          ],
           "description": "Enabled authentication providers"
         },
         "adminEmail": {
@@ -203,6 +230,9 @@
       }
     }
   },
-  "required": ["database"],
-  "additionalProperties": false
+  "required": [
+    "database"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/wikijs/schema.json"
 }

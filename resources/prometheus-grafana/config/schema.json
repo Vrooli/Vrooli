@@ -39,7 +39,9 @@
           "default": "./data/prometheus"
         }
       },
-      "required": ["port"]
+      "required": [
+        "port"
+      ]
     },
     "grafana": {
       "type": "object",
@@ -73,7 +75,10 @@
           "default": "./data/grafana"
         }
       },
-      "required": ["port", "admin_user"]
+      "required": [
+        "port",
+        "admin_user"
+      ]
     },
     "alertmanager": {
       "type": "object",
@@ -173,7 +178,10 @@
                 }
               }
             },
-            "required": ["job", "targets"]
+            "required": [
+              "job",
+              "targets"
+            ]
           }
         }
       }
@@ -242,5 +250,9 @@
       }
     }
   },
-  "required": ["prometheus", "grafana"]
+  "required": [
+    "prometheus",
+    "grafana"
+  ],
+  "$id": "https://vrooli.com/resources/prometheus-grafana/schema.json"
 }

@@ -8,28 +8,48 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["native", "oauth", "github", "google", "ldap"],
+          "enum": [
+            "native",
+            "oauth",
+            "github",
+            "google",
+            "ldap"
+          ],
           "default": "native",
           "description": "Authentication method to use"
         },
         "admin_users": {
           "type": "array",
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "description": "List of admin usernames"
         },
         "allowed_users": {
           "type": "array",
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "description": "Whitelist of allowed users (empty = all)"
         },
         "oauth": {
           "type": "object",
           "properties": {
-            "client_id": {"type": "string"},
-            "client_secret": {"type": "string"},
-            "authorize_url": {"type": "string"},
-            "token_url": {"type": "string"},
-            "userdata_url": {"type": "string"}
+            "client_id": {
+              "type": "string"
+            },
+            "client_secret": {
+              "type": "string"
+            },
+            "authorize_url": {
+              "type": "string"
+            },
+            "token_url": {
+              "type": "string"
+            },
+            "userdata_url": {
+              "type": "string"
+            }
           }
         }
       }
@@ -39,7 +59,11 @@
       "properties": {
         "class": {
           "type": "string",
-          "enum": ["DockerSpawner", "KubeSpawner", "LocalProcessSpawner"],
+          "enum": [
+            "DockerSpawner",
+            "KubeSpawner",
+            "LocalProcessSpawner"
+          ],
           "default": "DockerSpawner"
         },
         "image": {
@@ -115,19 +139,38 @@
       "items": {
         "type": "object",
         "properties": {
-          "name": {"type": "string"},
-          "display_name": {"type": "string"},
-          "description": {"type": "string"},
-          "default": {"type": "boolean"},
-          "cpu_limit": {"type": "number"},
-          "mem_limit": {"type": "string"},
-          "image": {"type": "string"},
+          "name": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "cpu_limit": {
+            "type": "number"
+          },
+          "mem_limit": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
           "env": {
             "type": "object",
-            "additionalProperties": {"type": "string"}
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         },
-        "required": ["name", "display_name"]
+        "required": [
+          "name",
+          "display_name"
+        ]
       },
       "description": "User server profiles"
     },
@@ -159,9 +202,18 @@
         "backup": {
           "type": "object",
           "properties": {
-            "enabled": {"type": "boolean", "default": true},
-            "schedule": {"type": "string", "default": "0 2 * * *"},
-            "retention_days": {"type": "integer", "default": 30}
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "schedule": {
+              "type": "string",
+              "default": "0 2 * * *"
+            },
+            "retention_days": {
+              "type": "integer",
+              "default": 30
+            }
           }
         }
       }
@@ -171,7 +223,11 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["sqlite", "postgresql", "mysql"],
+          "enum": [
+            "sqlite",
+            "postgresql",
+            "mysql"
+          ],
           "default": "postgresql"
         },
         "url": {
@@ -185,7 +241,12 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR"
+          ],
           "default": "INFO"
         },
         "format": {
@@ -207,17 +268,25 @@
         },
         "allowed": {
           "type": "array",
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "description": "Allowed extensions (empty = all)"
         },
         "preinstalled": {
           "type": "array",
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "description": "Extensions to preinstall"
         }
       }
     }
   },
-  "required": ["hub", "spawner"],
-  "additionalProperties": false
+  "required": [
+    "hub",
+    "spawner"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/jupyterhub/schema.json"
 }

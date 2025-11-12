@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/resources/cloudflare-ai-gateway/schema.json",
+  "title": "Cloudflare Ai Gateway Resource Configuration Schema",
+  "description": "Cloudflare AI Gateway for LLM request routing and analytics",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Enable this resource",
+      "default": true
+    },
+    "purpose": {
+      "type": "string",
+      "description": "Describe how the scenario uses this resource"
+    }
+  },
+  "additionalProperties": true
+}

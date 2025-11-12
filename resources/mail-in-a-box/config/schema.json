@@ -9,14 +9,20 @@
       "description": "Primary hostname for the mail server",
       "default": "mail.local",
       "pattern": "^[a-zA-Z0-9.-]+$",
-      "examples": ["mail.example.com", "mail.local"]
+      "examples": [
+        "mail.example.com",
+        "mail.local"
+      ]
     },
     "admin_email": {
       "type": "string",
       "description": "Administrator email address",
       "default": "admin@mail.local",
       "format": "email",
-      "examples": ["admin@example.com", "postmaster@example.com"]
+      "examples": [
+        "admin@example.com",
+        "postmaster@example.com"
+      ]
     },
     "admin_password": {
       "type": "string",
@@ -29,9 +35,15 @@
       "description": "IP address to bind services to",
       "default": "127.0.0.1",
       "oneOf": [
-        { "format": "ipv4" },
-        { "format": "ipv6" },
-        { "const": "0.0.0.0" }
+        {
+          "format": "ipv4"
+        },
+        {
+          "format": "ipv6"
+        },
+        {
+          "const": "0.0.0.0"
+        }
       ]
     },
     "ports": {
@@ -104,20 +116,30 @@
           "type": "string",
           "description": "Data directory path",
           "default": "~/.mailinabox",
-          "examples": ["/var/lib/mailinabox", "~/.mailinabox"]
+          "examples": [
+            "/var/lib/mailinabox",
+            "~/.mailinabox"
+          ]
         },
         "backup_dir": {
           "type": "string",
           "description": "Backup directory path",
           "default": "~/.mailinabox/backup",
-          "examples": ["/var/backups/mailinabox", "~/.mailinabox/backup"]
+          "examples": [
+            "/var/backups/mailinabox",
+            "~/.mailinabox/backup"
+          ]
         },
         "mail_quota": {
           "type": "string",
           "description": "Default mailbox quota",
           "default": "0",
           "pattern": "^[0-9]+(M|G)?$",
-          "examples": ["0", "1G", "500M"]
+          "examples": [
+            "0",
+            "1G",
+            "500M"
+          ]
         }
       }
     },
@@ -153,13 +175,17 @@
         "ssl_certificate": {
           "type": "string",
           "description": "Path to SSL certificate file",
-          "examples": ["/etc/ssl/certs/mail.pem"]
+          "examples": [
+            "/etc/ssl/certs/mail.pem"
+          ]
         },
         "ssl_key": {
           "type": "string",
           "description": "Path to SSL private key file",
           "sensitive": true,
-          "examples": ["/etc/ssl/private/mail.key"]
+          "examples": [
+            "/etc/ssl/private/mail.key"
+          ]
         }
       }
     },
@@ -183,13 +209,22 @@
           "type": "string",
           "description": "Docker network mode",
           "default": "bridge",
-          "enum": ["bridge", "host", "none"]
+          "enum": [
+            "bridge",
+            "host",
+            "none"
+          ]
         },
         "restart_policy": {
           "type": "string",
           "description": "Docker restart policy",
           "default": "unless-stopped",
-          "enum": ["no", "always", "unless-stopped", "on-failure"]
+          "enum": [
+            "no",
+            "always",
+            "unless-stopped",
+            "on-failure"
+          ]
         }
       }
     },
@@ -208,7 +243,9 @@
             "connection_url": {
               "type": "string",
               "format": "uri",
-              "examples": ["postgresql://user:pass@localhost/maildb"]
+              "examples": [
+                "postgresql://user:pass@localhost/maildb"
+              ]
             }
           }
         },
@@ -223,13 +260,19 @@
             "connection_url": {
               "type": "string",
               "format": "uri",
-              "examples": ["redis://localhost:6379"]
+              "examples": [
+                "redis://localhost:6379"
+              ]
             }
           }
         }
       }
     }
   },
-  "required": ["primary_hostname", "admin_email"],
-  "additionalProperties": false
+  "required": [
+    "primary_hostname",
+    "admin_email"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/mail-in-a-box/schema.json"
 }

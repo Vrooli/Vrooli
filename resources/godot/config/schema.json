@@ -71,10 +71,20 @@
     "log_level": {
       "type": "string",
       "description": "Logging level",
-      "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARN",
+        "ERROR"
+      ],
       "default": "INFO"
     }
   },
-  "required": ["api_port", "lsp_port", "version"],
-  "additionalProperties": false
+  "required": [
+    "api_port",
+    "lsp_port",
+    "version"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/godot/schema.json"
 }

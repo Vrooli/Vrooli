@@ -67,9 +67,19 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["postgis", "postgis_raster", "postgis_topology", "postgis_tiger_geocoder", "address_standardizer"]
+            "enum": [
+              "postgis",
+              "postgis_raster",
+              "postgis_topology",
+              "postgis_tiger_geocoder",
+              "address_standardizer"
+            ]
           },
-          "default": ["postgis", "postgis_raster", "postgis_topology"],
+          "default": [
+            "postgis",
+            "postgis_raster",
+            "postgis_topology"
+          ],
           "description": "PostGIS extensions to enable"
         },
         "max_geometry_size": {
@@ -160,6 +170,10 @@
       }
     }
   },
-  "required": ["container", "database"],
-  "additionalProperties": false
+  "required": [
+    "container",
+    "database"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/postgis/schema.json"
 }

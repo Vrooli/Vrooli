@@ -61,7 +61,12 @@
       "properties": {
         "provider": {
           "type": "string",
-          "enum": ["openrouter", "ollama", "openai", "none"],
+          "enum": [
+            "openrouter",
+            "ollama",
+            "openai",
+            "none"
+          ],
           "description": "LLM provider",
           "default": "none"
         },
@@ -92,7 +97,11 @@
       "properties": {
         "backend": {
           "type": "string",
-          "enum": ["redis", "postgres", "local"],
+          "enum": [
+            "redis",
+            "postgres",
+            "local"
+          ],
           "description": "Memory storage backend",
           "default": "local"
         },
@@ -190,7 +199,11 @@
       "properties": {
         "file_access": {
           "type": "string",
-          "enum": ["full", "restricted", "none"],
+          "enum": [
+            "full",
+            "restricted",
+            "none"
+          ],
           "default": "restricted"
         },
         "allowed_domains": {
@@ -212,16 +225,25 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["debug", "info", "warning", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warning",
+            "error"
+          ],
           "default": "info"
         },
         "format": {
           "type": "string",
-          "enum": ["json", "text"],
+          "enum": [
+            "json",
+            "text"
+          ],
           "default": "json"
         }
       }
     }
   },
-  "required": []
+  "required": [],
+  "$id": "https://vrooli.com/resources/autogpt/schema.json"
 }

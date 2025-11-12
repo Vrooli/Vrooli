@@ -28,7 +28,9 @@
           "default": 30
         }
       },
-      "required": ["base_url"]
+      "required": [
+        "base_url"
+      ]
     },
     "models": {
       "type": "object",
@@ -130,7 +132,10 @@
         "backend": {
           "type": "string",
           "description": "Cache backend",
-          "enum": ["redis", "memory"],
+          "enum": [
+            "redis",
+            "memory"
+          ],
           "default": "redis"
         }
       }
@@ -142,7 +147,12 @@
         "level": {
           "type": "string",
           "description": "Log level",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "default": "info"
         },
         "log_requests": {
@@ -158,6 +168,10 @@
       }
     }
   },
-  "required": ["api", "models"],
-  "additionalProperties": false
+  "required": [
+    "api",
+    "models"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/gemini/schema.json"
 }

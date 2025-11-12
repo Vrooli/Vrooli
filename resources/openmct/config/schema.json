@@ -185,7 +185,12 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["debug", "info", "warn", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
           "default": "info"
         },
         "maxSize": {
@@ -219,12 +224,20 @@
         },
         "restartPolicy": {
           "type": "string",
-          "enum": ["no", "always", "on-failure", "unless-stopped"],
+          "enum": [
+            "no",
+            "always",
+            "on-failure",
+            "unless-stopped"
+          ],
           "default": "unless-stopped"
         }
       }
     }
   },
-  "required": ["port"],
-  "additionalProperties": false
+  "required": [
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/openmct/schema.json"
 }

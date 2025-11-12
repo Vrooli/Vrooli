@@ -23,7 +23,14 @@
     "journal_mode": {
       "type": "string",
       "description": "SQLite journal mode",
-      "enum": ["DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"],
+      "enum": [
+        "DELETE",
+        "TRUNCATE",
+        "PERSIST",
+        "MEMORY",
+        "WAL",
+        "OFF"
+      ],
       "default": "WAL"
     },
     "busy_timeout": {
@@ -43,19 +50,37 @@
     "page_size": {
       "type": "integer",
       "description": "Database page size in bytes",
-      "enum": [512, 1024, 2048, 4096, 8192, 16384, 32768, 65536],
+      "enum": [
+        512,
+        1024,
+        2048,
+        4096,
+        8192,
+        16384,
+        32768,
+        65536
+      ],
       "default": 4096
     },
     "synchronous": {
       "type": "string",
       "description": "Synchronous mode for durability",
-      "enum": ["OFF", "NORMAL", "FULL", "EXTRA"],
+      "enum": [
+        "OFF",
+        "NORMAL",
+        "FULL",
+        "EXTRA"
+      ],
       "default": "NORMAL"
     },
     "temp_store": {
       "type": "string",
       "description": "Temporary storage location",
-      "enum": ["DEFAULT", "FILE", "MEMORY"],
+      "enum": [
+        "DEFAULT",
+        "FILE",
+        "MEMORY"
+      ],
       "default": "MEMORY"
     },
     "mmap_size": {
@@ -78,6 +103,9 @@
       "default": "600"
     }
   },
-  "required": ["database_path"],
-  "additionalProperties": false
+  "required": [
+    "database_path"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/sqlite/schema.json"
 }

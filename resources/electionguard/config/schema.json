@@ -41,7 +41,10 @@
         },
         "type": {
           "type": "string",
-          "enum": ["postgres", "sqlite"],
+          "enum": [
+            "postgres",
+            "sqlite"
+          ],
           "description": "Database type",
           "default": "postgres"
         },
@@ -69,7 +72,11 @@
         },
         "key_size": {
           "type": "integer",
-          "enum": [2048, 4096, 8192],
+          "enum": [
+            2048,
+            4096,
+            8192
+          ],
           "description": "Encryption key size in bits",
           "default": 4096
         }
@@ -118,7 +125,9 @@
             "type": "string"
           },
           "description": "Allowed CORS origins",
-          "default": ["*"]
+          "default": [
+            "*"
+          ]
         }
       }
     },
@@ -127,18 +136,29 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["debug", "info", "warning", "error"],
+          "enum": [
+            "debug",
+            "info",
+            "warning",
+            "error"
+          ],
           "description": "Log level",
           "default": "info"
         },
         "format": {
           "type": "string",
-          "enum": ["text", "json"],
+          "enum": [
+            "text",
+            "json"
+          ],
           "description": "Log format",
           "default": "text"
         }
       }
     }
   },
-  "required": ["port"]
+  "required": [
+    "port"
+  ],
+  "$id": "https://vrooli.com/resources/electionguard/schema.json"
 }

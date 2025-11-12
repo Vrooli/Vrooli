@@ -58,173 +58,125 @@ extract_resource_schema() {
 
 # Main function to build aggregated schema
 build_aggregated_schema() {
-    local temp_file
-    temp_file=$(mktemp)
-    
     log "Building aggregated resource schemas..."
-    
-    # Start building the JSON structure
-    echo '{
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "$id": "https://vrooli.com/schemas/resource-definitions.json", 
-        "title": "Resource Definitions for IDE Support",
-        "description": "Auto-generated aggregated schemas for all available resources",
-        "definitions": {
-            "resourceSchemas": {' > "$temp_file"
-    
-    local first=true
+
+    local valid_resources=()
     local resource_count=0
-    
-    # Scan for resource schemas
+
     for resource_dir in "$RESOURCES_DIR"/*; do
         [[ -d "$resource_dir" ]] || continue
-        
+
         local resource_name
         resource_name=$(get_resource_name "$resource_dir")
         local schema_file="$resource_dir/config/schema.json"
-        
+
         if [[ ! -f "$schema_file" ]]; then
             log "⚠️  Schema not found for resource: $resource_name"
             continue
         fi
-        
+
         if ! validate_schema "$schema_file"; then
             log "❌ Invalid schema for resource: $resource_name"
             continue
         fi
-        
+
         log "✓ Processing schema for: $resource_name"
-        
-        # Add comma separator for all but first entry
-        if [[ "$first" == true ]]; then
-            first=false
-        else
-            echo "," >> "$temp_file"
-        fi
-        
-        # Add resource schema
-        echo "                \"$resource_name\": " >> "$temp_file"
-        extract_resource_schema "$schema_file" "$resource_name" >> "$temp_file"
-        
+        valid_resources+=("$resource_name")
         ((resource_count++))
     done
-    
-    # Close the JSON structure
-    echo '
-            }
-        },
-        "resourceCatalog": {
-            "type": "object",
-            "properties": {' >> "$temp_file"
-    
-    # Add individual resource definitions for property-level auto-completion
-    first=true
-    local valid_resources=()
-    
-    # First pass: collect valid resources
-    for resource_dir in "$RESOURCES_DIR"/*; do
-        [[ -d "$resource_dir" ]] || continue
-        
-        local resource_name
-        resource_name=$(get_resource_name "$resource_dir")
-        local schema_file="$resource_dir/config/schema.json"
-        
-        if [[ -f "$schema_file" ]] && validate_schema "$schema_file"; then
-            valid_resources+=("$resource_name")
-        fi
-    done
-    
-    # Second pass: add them with correct comma handling
-    for i in "${!valid_resources[@]}"; do
-        local resource_name="${valid_resources[$i]}"
-        
-        # Add comma if not first entry
-        if [[ $i -gt 0 ]]; then
-            echo "," >> "$temp_file"
-        fi
-        
-        # Create a reference to the resource schema
-        echo "                \"$resource_name\": {
-                    \"allOf\": [
-                        {\"\$ref\": \"../resources.schema.json#/definitions/resourceConfig\"},
-                        {\"\$ref\": \"#/definitions/resourceSchemas/$resource_name\"}
-                    ]
-                }" >> "$temp_file"
-    done
-    
-    echo '
-            }
-        }
+
+    if [[ ${#valid_resources[@]} -eq 0 ]]; then
+        log "❌ No valid resource schemas found"
+        return 1
+    fi
+
+    local list_file
+    list_file=$(mktemp)
+    printf "%s\n" "${valid_resources[@]}" > "$list_file"
+
+    if ! RESOURCES_DIR="$RESOURCES_DIR" OUTPUT_FILE="$OUTPUT_FILE" VALID_RESOURCES_FILE="$list_file" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+resources_dir = Path(os.environ['RESOURCES_DIR'])
+output_file = Path(os.environ['OUTPUT_FILE'])
+list_file = Path(os.environ['VALID_RESOURCES_FILE'])
+
+with list_file.open() as fh:
+    resource_names = [line.strip() for line in fh if line.strip()]
+
+definitions = {}
+for name in resource_names:
+    schema_path = resources_dir / name / 'config' / 'schema.json'
+    with schema_path.open() as schema_file:
+        schema_data = json.load(schema_file)
+
+    definitions[name] = {
+        "type": "object",
+        "properties": schema_data.get("properties", {}),
+        "examples": schema_data.get("examples"),
+        "description": schema_data.get("description"),
+        "title": schema_data.get("title"),
+        "resourceName": name
     }
-}' >> "$temp_file"
-    
-    # Move temp file to final location
-    mv "$temp_file" "$OUTPUT_FILE"
-    
+
+catalog_properties = {}
+for name in resource_names:
+    catalog_properties[name] = {
+        "allOf": [
+            {"$ref": "../resources.schema.json#/definitions/resourceConfig"},
+            {"$ref": f"#/definitions/resourceSchemas/{name}"}
+        ]
+    }
+
+document = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://vrooli.com/schemas/resource-definitions.json",
+    "title": "Resource Definitions for IDE Support",
+    "description": "Auto-generated aggregated schemas for all available resources",
+    "definitions": {
+        "resourceSchemas": definitions
+    },
+    "resourceCatalog": {
+        "type": "object",
+        "properties": catalog_properties
+    }
+}
+
+output_file.write_text(json.dumps(document, indent=2) + "\n")
+PY
+    then
+        rm -f "$list_file"
+        log "❌ Failed to build resource definitions"
+        return 1
+    fi
+
+    rm -f "$list_file"
+
     log "✅ Aggregated schema built successfully: $OUTPUT_FILE"
     log "📊 Processed $resource_count resource schemas"
-    
+
     return 0
 }
 
 # Function to build service.json schema with resource references
 build_service_schema() {
     local service_schema_file="$SCRIPT_DIR/service.schema.json"
-    
-    log "Building enhanced service.json schema..."
-    
-    # Read the base service schema and enhance it with resource definitions
-    cat > "$service_schema_file" << 'EOF'
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://vrooli.com/schemas/service.schema.json",
-  "title": "Service Configuration Schema",
-  "description": "Enhanced service configuration with resource auto-completion support",
-  "type": "object",
-  "properties": {
-    "$schema": {
-      "type": "string",
-      "description": "Schema reference"
-    },
-    "version": {
-      "$ref": "common.schema.json#/definitions/semver"
-    },
-    "service": {
-      "type": "object",
-      "properties": {
-        "name": {"type": "string"},
-        "displayName": {"type": "string"},
-        "description": {"type": "string"},
-        "version": {"type": "string"}
-      }
-    },
-    "ports": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "env_var": {"type": "string"},
-          "fixed": {"type": "integer"},
-          "description": {"type": "string"}
-        }
-      }
-    },
-    "resources": {
-      "$ref": "resource-definitions.json#/resourceCatalog",
-      "description": "Resource configurations with auto-completion support"
-    },
-    "deployment": {
-      "type": "object"
-    },
-    "lifecycle": {
-      "type": "object"
-    }
-  },
-  "required": ["resources"]
-}
-EOF
-    
-    log "✅ Enhanced service schema created: $service_schema_file"
+
+    log "Validating canonical service.json schema..."
+
+    if [[ ! -f "$service_schema_file" ]]; then
+        log "❌ Canonical service schema missing: $service_schema_file"
+        exit 1
+    fi
+
+    if ! jq empty "$service_schema_file" >/dev/null 2>&1; then
+        log "❌ Canonical service schema is not valid JSON"
+        exit 1
+    fi
+
+    log "✅ Using existing service schema (not regenerated)"
 }
 
 # Function to create a resource catalog for CLI discovery
@@ -340,7 +292,7 @@ main() {
         
         # Show summary
         local total_resources
-        total_resources=$(find "$RESOURCES_DIR" -name "schema.json" | wc -l)
+        total_resources=$( (find "$RESOURCES_DIR" -path '*/config/schema.json' 2>/dev/null || true) | wc -l )
         local processed_resources
         processed_resources=$(jq '.definitions.resourceSchemas | length' "$OUTPUT_FILE")
         

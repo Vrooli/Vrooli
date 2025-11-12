@@ -45,11 +45,11 @@ qdrant::extract::scenario_service_config() {
     local category=$(jq -r '.category // empty' "$service_file" 2>/dev/null)
     local status=$(jq -r '.status // empty' "$service_file" 2>/dev/null)
     
-    # Extract tags and resources
+    # Extract tags and resource dependencies
     local tags_json=$(jq -c '.tags // []' "$service_file" 2>/dev/null || echo "[]")
-    local resources_json=$(jq -c '.resources // []' "$service_file" 2>/dev/null || echo "[]")
-    local dependencies_json=$(jq -c '.dependencies // []' "$service_file" 2>/dev/null || echo "[]")
-    
+    local resources_json=$(jq -c '.dependencies.resources // {} | keys' "$service_file" 2>/dev/null || echo "[]")
+    local dependencies_json=$(jq -c '.dependencies // {}' "$service_file" 2>/dev/null || echo "{}")
+
     # Count items
     local tag_count=$(echo "$tags_json" | jq 'length')
     local resource_count=$(echo "$resources_json" | jq 'length')

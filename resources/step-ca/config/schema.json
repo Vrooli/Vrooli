@@ -14,7 +14,10 @@
         "type": "string"
       },
       "description": "DNS names for the CA certificate",
-      "default": ["localhost", "vrooli-step-ca"]
+      "default": [
+        "localhost",
+        "vrooli-step-ca"
+      ]
     },
     "provisioner": {
       "type": "object",
@@ -26,7 +29,13 @@
         },
         "type": {
           "type": "string",
-          "enum": ["JWK", "OIDC", "ACME", "X5C", "SSHPOP"],
+          "enum": [
+            "JWK",
+            "OIDC",
+            "ACME",
+            "X5C",
+            "SSHPOP"
+          ],
           "description": "Provisioner type",
           "default": "JWK"
         }
@@ -54,7 +63,12 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["badger", "bbolt", "postgresql", "mysql"],
+          "enum": [
+            "badger",
+            "bbolt",
+            "postgresql",
+            "mysql"
+          ],
           "description": "Database backend type",
           "default": "badger"
         },
@@ -123,6 +137,10 @@
       }
     }
   },
-  "required": ["ca_name", "provisioner"],
-  "additionalProperties": false
+  "required": [
+    "ca_name",
+    "provisioner"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/step-ca/schema.json"
 }

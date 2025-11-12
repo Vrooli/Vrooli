@@ -57,10 +57,9 @@ qdrant::init::read_service_config() {
         return 1
     fi
     
-    # Extract all initialization arrays from resources  
-    # This handles flat resource.initialization structure (actual service.json format)
+    # Extract all initialization arrays from dependencies.resources
     local init_items=$(jq -r '
-        .resources | 
+        (.dependencies.resources // {}) |
         to_entries | 
         map(
             select(.value | type == "object" and has("initialization")) |

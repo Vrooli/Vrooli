@@ -7,7 +7,10 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["docker", "native"],
+          "enum": [
+            "docker",
+            "native"
+          ],
           "description": "Server deployment type"
         },
         "version": {
@@ -25,7 +28,10 @@
           "description": "Maximum memory allocation (e.g., '4G')"
         }
       },
-      "required": ["type", "memory"]
+      "required": [
+        "type",
+        "memory"
+      ]
     },
     "rcon": {
       "type": "object",
@@ -46,7 +52,11 @@
           "description": "RCON password (use environment variable)"
         }
       },
-      "required": ["enabled", "port", "password"]
+      "required": [
+        "enabled",
+        "port",
+        "password"
+      ]
     },
     "world": {
       "type": "object",
@@ -61,12 +71,22 @@
         },
         "gamemode": {
           "type": "string",
-          "enum": ["survival", "creative", "adventure", "spectator"],
+          "enum": [
+            "survival",
+            "creative",
+            "adventure",
+            "spectator"
+          ],
           "description": "Default game mode"
         },
         "difficulty": {
           "type": "string",
-          "enum": ["peaceful", "easy", "normal", "hard"],
+          "enum": [
+            "peaceful",
+            "easy",
+            "normal",
+            "hard"
+          ],
           "description": "World difficulty"
         },
         "max_players": {
@@ -85,7 +105,9 @@
           "description": "Accept Minecraft EULA"
         }
       },
-      "required": ["accept"]
+      "required": [
+        "accept"
+      ]
     },
     "performance": {
       "type": "object",
@@ -97,5 +119,11 @@
       }
     }
   },
-  "required": ["server", "rcon", "eula"]
+  "required": [
+    "server",
+    "rcon",
+    "eula"
+  ],
+  "$id": "https://vrooli.com/resources/papermc/schema.json",
+  "title": "Papermc Resource Configuration Schema"
 }

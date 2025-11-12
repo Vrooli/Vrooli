@@ -25,7 +25,11 @@
           "minLength": 1
         }
       },
-      "required": ["host", "port", "password"]
+      "required": [
+        "host",
+        "port",
+        "password"
+      ]
     },
     "timeout": {
       "type": "integer",
@@ -73,8 +77,14 @@
             "description": "Server description"
           }
         },
-        "required": ["name", "host", "port", "password"]
+        "required": [
+          "name",
+          "host",
+          "port",
+          "password"
+        ]
       }
     }
-  }
+  },
+  "$id": "https://vrooli.com/resources/mcrcon/schema.json"
 }

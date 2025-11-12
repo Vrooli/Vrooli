@@ -123,5 +123,6 @@
       }
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/open-data-cube/schema.json"
 }

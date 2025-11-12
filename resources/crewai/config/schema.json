@@ -60,7 +60,12 @@
         "llm_provider": {
           "type": "string",
           "description": "LLM provider for agents",
-          "enum": ["ollama", "openai", "anthropic", "litellm"],
+          "enum": [
+            "ollama",
+            "openai",
+            "anthropic",
+            "litellm"
+          ],
           "default": "ollama"
         },
         "model": {
@@ -129,7 +134,12 @@
       "properties": {
         "level": {
           "type": "string",
-          "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR"
+          ],
           "default": "INFO"
         },
         "file": {
@@ -145,6 +155,10 @@
       }
     }
   },
-  "required": ["name", "port"],
-  "additionalProperties": false
+  "required": [
+    "name",
+    "port"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/crewai/schema.json"
 }

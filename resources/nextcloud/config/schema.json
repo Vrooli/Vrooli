@@ -26,14 +26,21 @@
           "default": "changeme"
         }
       },
-      "required": ["username", "password"]
+      "required": [
+        "username",
+        "password"
+      ]
     },
     "database": {
       "type": "object",
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["pgsql", "mysql", "sqlite"],
+          "enum": [
+            "pgsql",
+            "mysql",
+            "sqlite"
+          ],
           "description": "Database type",
           "default": "pgsql"
         },
@@ -63,7 +70,13 @@
           "default": "nextcloud_db_pass"
         }
       },
-      "required": ["type", "host", "name", "user", "password"]
+      "required": [
+        "type",
+        "host",
+        "name",
+        "user",
+        "password"
+      ]
     },
     "redis": {
       "type": "object",
@@ -84,7 +97,10 @@
           "default": ""
         }
       },
-      "required": ["host", "port"]
+      "required": [
+        "host",
+        "port"
+      ]
     },
     "storage": {
       "type": "object",
@@ -140,11 +156,16 @@
           "items": {
             "type": "string"
           },
-          "default": ["localhost"]
+          "default": [
+            "localhost"
+          ]
         },
         "overwriteProtocol": {
           "type": "string",
-          "enum": ["http", "https"],
+          "enum": [
+            "http",
+            "https"
+          ],
           "description": "Protocol for generated URLs",
           "default": "http"
         },
@@ -228,7 +249,11 @@
         },
         "type": {
           "type": "string",
-          "enum": ["file", "syslog", "errorlog"],
+          "enum": [
+            "file",
+            "syslog",
+            "errorlog"
+          ],
           "description": "Log type",
           "default": "file"
         },
@@ -240,6 +265,11 @@
       }
     }
   },
-  "required": ["port", "admin", "database"],
-  "additionalProperties": false
+  "required": [
+    "port",
+    "admin",
+    "database"
+  ],
+  "additionalProperties": false,
+  "$id": "https://vrooli.com/resources/nextcloud/schema.json"
 }
