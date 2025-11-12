@@ -28,7 +28,6 @@
     "version": "1.0.0"
   },
   "version": "1.0.0",
-  "visibility": "public",
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -60,7 +59,21 @@
             "pgcrypto"
           ]
         },
-        "required": true
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "schema"
+          },
+          {
+            "file": "initialization/storage/postgres/seeds.sql",
+            "type": "config"
+          },
+          {
+            "file": "initialization/storage/postgres/migrations/",
+            "type": "schema"
+          }
+        ]
       },
       "redis": {
         "version": ">=7.0",
@@ -69,7 +82,13 @@
           "maxmemory-policy": "allkeys-lru",
           "persistence": true
         },
-        "required": true
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/storage/redis/config.json",
+            "type": "config"
+          }
+        ]
       },
       "qdrant": {
         "version": ">=1.0",
@@ -85,18 +104,6 @@
         "version": ">=0.1",
         "purpose": "AI-powered exchange rate optimization",
         "required": false
-      }
-    }
-  },
-  "initialization": {
-    "storage": {
-      "postgres": {
-        "schema": "initialization/storage/postgres/schema.sql",
-        "seeds": "initialization/storage/postgres/seeds.sql",
-        "migrations": "initialization/storage/postgres/migrations/"
-      },
-      "redis": {
-        "config": "initialization/storage/redis/config.json"
       }
     }
   },

@@ -143,7 +143,7 @@ populate::add_internal() {
     # Process each resource in the scenario (now flat structure)
     log::info "Extracting resources from scenario configuration..."
     local resources
-    resources=$(echo "$scenario_config" | jq -r '.resources | keys[]' 2>/dev/null || true)
+    resources=$(echo "$scenario_config" | jq -r '.dependencies.resources // {} | keys[]' 2>/dev/null || true)
     
     if [[ -z "$resources" ]]; then
         log::warn "No resources defined in scenario - nothing to populate"
@@ -167,7 +167,7 @@ populate::add_internal() {
         
         # Extract resource configuration
         local resource_config
-        resource_config=$(echo "$scenario_config" | jq -c ".resources[\"$resource\"]" 2>/dev/null) || {
+        resource_config=$(echo "$scenario_config" | jq -c ".dependencies.resources[\"$resource\"]" 2>/dev/null) || {
             log::error "Failed to extract configuration for resource: $resource"
             failed=$((failed + 1))
             continue

@@ -56,25 +56,6 @@
       "timeout": 5
     }
   },
-  "features": {
-    "mascot": {
-      "enabled": true,
-      "name": "Vrooli the Robot",
-      "personality": "friendly helper"
-    },
-    "sounds": {
-      "enabled": false,
-      "volume": 0.3
-    },
-    "animations": {
-      "enabled": true,
-      "speed": "normal"
-    },
-    "sessionTracking": {
-      "enabled": true,
-      "maxDuration": 3600
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {

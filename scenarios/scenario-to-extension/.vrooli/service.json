@@ -27,7 +27,6 @@
     "description": "Transform Vrooli scenarios into powerful browser extensions with content scripts, background services, and popup interfaces",
     "version": "1.0.0"
   },
-  "displayName": "Browser Extension Generator",
   "version": "1.0.0",
   "ports": {
     "api": {

@@ -62,26 +62,6 @@
       "description": "Web UI dashboard port"
     }
   },
-  "initialization": {
-    "postgres": [
-      {
-        "file": "initialization/postgres/schema.sql",
-        "type": "schema"
-      }
-    ],
-    "questdb": [
-      {
-        "file": "initialization/questdb/server.conf",
-        "type": "config"
-      }
-    ],
-    "redis": [
-      {
-        "file": "initialization/redis/redis.conf",
-        "type": "config"
-      }
-    ]
-  },
   "dependencies": {
     "shared_workflows": [
       "rate-limiter",
@@ -93,19 +73,37 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "store metrics, thresholds, investigations, and reports"
+        "purpose": "store metrics, thresholds, investigations, and reports",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
       },
       "questdb": {
         "type": "questdb",
         "enabled": true,
         "required": true,
-        "purpose": "time series data for metrics and performance analytics"
+        "purpose": "time series data for metrics and performance analytics",
+        "initialization": [
+          {
+            "file": "initialization/questdb/server.conf",
+            "type": "config"
+          }
+        ]
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": true,
-        "purpose": "real-time alerts and caching"
+        "purpose": "real-time alerts and caching",
+        "initialization": [
+          {
+            "file": "initialization/redis/redis.conf",
+            "type": "config"
+          }
+        ]
       },
       "node-red": {
         "type": "node-red",

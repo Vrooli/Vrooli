@@ -55,15 +55,6 @@
       "range": "35000-39999"
     }
   },
-  "endpoints": {
-    "health": "/health",
-    "api_health": "/api/v1/health",
-    "select_model": "/api/v1/ai/select-model",
-    "route_request": "/api/v1/ai/route-request",
-    "model_status": "/api/v1/ai/models/status",
-    "resource_metrics": "/api/v1/ai/resources/metrics",
-    "dashboard": "/dashboard"
-  },
   "environment": {
     "ORCHESTRATOR_PORT": "${API_PORT}",
     "ORCHESTRATOR_HOST": "${ORCHESTRATOR_HOST}",
@@ -73,22 +64,6 @@
     "MAX_RETRY_ATTEMPTS": "3",
     "REQUEST_TIMEOUT": "30000"
   },
-  "health_checks": [
-    {
-      "name": "api_endpoint",
-      "url": "http://${ORCHESTRATOR_HOST}:${API_PORT}/health",
-      "interval": 30,
-      "timeout": 10,
-      "retries": 3
-    },
-    {
-      "name": "model_availability",
-      "url": "http://${ORCHESTRATOR_HOST}:${API_PORT}/api/v1/ai/models/status",
-      "interval": 60,
-      "timeout": 15,
-      "retries": 2
-    }
-  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -258,44 +233,5 @@
         "purpose": "real-time orchestration events and caching"
       }
     }
-  },
-  "scaling": {
-    "min_instances": 1,
-    "max_instances": 3,
-    "scale_triggers": [
-      {
-        "metric": "requests_per_second",
-        "threshold": 100,
-        "action": "scale_up"
-      },
-      {
-        "metric": "cpu_usage",
-        "threshold": 80,
-        "action": "scale_up"
-      }
-    ]
-  },
-  "business_value": {
-    "primary_benefits": [
-      "99.9% AI service availability",
-      "3-5x improved throughput",
-      "40-60% cost reduction",
-      "Automatic failover and recovery",
-      "Resource-aware intelligent routing"
-    ],
-    "use_cases": [
-      "High-volume AI inference workloads",
-      "Multi-model AI applications",
-      "Cost-sensitive AI deployments",
-      "Mission-critical AI services",
-      "Resource-constrained environments"
-    ],
-    "roi_metrics": [
-      "Reduced infrastructure costs",
-      "Improved system reliability",
-      "Faster development cycles",
-      "Better resource utilization",
-      "Reduced operational overhead"
-    ]
   }
 }

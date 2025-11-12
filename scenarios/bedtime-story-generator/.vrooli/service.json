@@ -232,22 +232,6 @@
       ]
     }
   },
-  "discovery": {
-    "searchable": true,
-    "categories": [
-      "kid-friendly",
-      "education",
-      "bedtime"
-    ],
-    "keywords": [
-      "stories",
-      "bedtime",
-      "children",
-      "reading",
-      "storytelling"
-    ],
-    "featured": true
-  },
   "dependencies": {
     "resources": {
       "postgres": {

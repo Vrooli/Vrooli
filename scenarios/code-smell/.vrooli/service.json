@@ -47,21 +47,6 @@
       "range": "35000-39999"
     }
   },
-  "initialization": {
-    "rules": {
-      "path": "initialization/rules/",
-      "hot_reload": true,
-      "watch_interval": 1000,
-      "default_files": [
-        "default.yaml",
-        "vrooli-specific.yaml"
-      ]
-    },
-    "database": {
-      "migrations": "initialization/storage/postgres/migrations/",
-      "seed_data": "initialization/storage/postgres/seed.sql"
-    }
-  },
   "configuration": {
     "auto_fix": {
       "enabled": true,
@@ -290,7 +275,17 @@
           "config": {
             "database": "code_smell",
             "schema": "public"
-          }
+          },
+          "initialization": [
+            {
+              "file": "initialization/storage/postgres/migrations/",
+              "type": "schema"
+            },
+            {
+              "file": "initialization/storage/postgres/seed.sql",
+              "type": "data"
+            }
+          ]
         },
         {
           "name": "resource-claude-code",
@@ -298,7 +293,19 @@
           "config": {
             "model": "claude-3-opus",
             "max_tokens": 4000
-          }
+          },
+          "initialization": [
+            {
+              "file": "initialization/rules/",
+              "type": "config",
+              "hot_reload": true,
+              "watch_interval": 1000,
+              "default_files": [
+                "default.yaml",
+                "vrooli-specific.yaml"
+              ]
+            }
+          ]
         }
       ],
       "optional": [

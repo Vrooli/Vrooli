@@ -39,11 +39,6 @@
       "range": "35000-39999"
     }
   },
-  "endpoints": {
-    "api": "http://localhost:3200",
-    "ui": "http://localhost:3201",
-    "health": "http://localhost:3200/health"
-  },
   "deployment": {
     "startup_script": "api/start.sh",
     "health_check_path": "/health",

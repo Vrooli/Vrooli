@@ -56,31 +56,6 @@
       "range": "35000-39999"
     }
   },
-  "initialization": {
-    "postgres": [
-      {
-        "file": "initialization/postgres/schema.sql",
-        "type": "schema"
-      }
-    ],
-    "n8n": [
-      {
-        "name": "foliage-data-fetcher",
-        "file": "initialization/n8n/foliage-data-fetcher.json",
-        "active": true
-      },
-      {
-        "name": "weather-integration",
-        "file": "initialization/n8n/weather-integration.json",
-        "active": true
-      },
-      {
-        "name": "foliage-predictor",
-        "file": "initialization/n8n/foliage-predictor.json",
-        "active": true
-      }
-    ]
-  },
   "dependencies": {
     "shared_workflows": [
       "rate-limiter",
@@ -91,7 +66,13 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "historical foliage data and user trips"
+        "purpose": "historical foliage data and user trips",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
       },
       "redis": {
         "type": "redis",
@@ -102,7 +83,27 @@
       "n8n": {
         "type": "n8n",
         "enabled": true,
-        "required": true
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/foliage-data-fetcher.json",
+            "type": "workflow",
+            "name": "foliage-data-fetcher",
+            "active": true
+          },
+          {
+            "file": "initialization/n8n/weather-integration.json",
+            "type": "workflow",
+            "name": "weather-integration",
+            "active": true
+          },
+          {
+            "file": "initialization/n8n/foliage-predictor.json",
+            "type": "workflow",
+            "name": "foliage-predictor",
+            "active": true
+          }
+        ]
       },
       "ollama": {
         "type": "ollama",

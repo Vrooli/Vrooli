@@ -268,18 +268,6 @@
       ]
     }
   },
-  "capabilities": [
-    "component-creation",
-    "component-showcase",
-    "accessibility-testing",
-    "performance-benchmarking",
-    "ai-component-generation",
-    "semantic-search",
-    "visual-regression-testing",
-    "component-export",
-    "code-playground",
-    "component-versioning"
-  ],
   "dependencies": {
     "resources": {
       "postgres": {

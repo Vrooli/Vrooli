@@ -50,7 +50,13 @@
         "type": "minio",
         "enabled": true,
         "required": true,
-        "description": "Object storage for original and processed images"
+        "description": "Object storage for original and processed images",
+        "initialization": [
+          {
+            "file": "initialization/storage/minio/buckets.json",
+            "type": "config"
+          }
+        ]
       },
       "redis": {
         "type": "redis",
@@ -63,22 +69,6 @@
         "enabled": false,
         "required": false,
         "description": "AI-powered image analysis and smart cropping"
-      }
-    }
-  },
-  "initialization": {
-    "automation": {
-      "n8n": {
-        "workflows": []
-      }
-    },
-    "storage": {
-      "minio": {
-        "buckets": [
-          "image-tools-originals",
-          "image-tools-processed",
-          "image-tools-cache"
-        ]
       }
     }
   },

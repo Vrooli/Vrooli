@@ -277,37 +277,6 @@
       ]
     }
   },
-  "business": {
-    "value_proposition": "Self-improving intelligent home automation with AI-generated rules and enterprise-grade multi-user permissions",
-    "revenue_model": {
-      "type": "premium_deployment",
-      "pricing_tiers": {
-        "residential": "$25,000 - $50,000",
-        "commercial": "$75,000 - $200,000",
-        "enterprise": "$200,000+"
-      },
-      "recurring": {
-        "monitoring": "$200-500/month",
-        "automation_updates": "$100-300/month",
-        "premium_features": "$500-1000/month"
-      }
-    },
-    "target_markets": [
-      "luxury_residential",
-      "commercial_buildings",
-      "property_management",
-      "smart_facilities",
-      "elderly_care",
-      "energy_management"
-    ],
-    "competitive_advantages": [
-      "Only system that writes its own automations",
-      "Enterprise-grade multi-user permissions",
-      "Calendar-integrated context awareness",
-      "Self-improving through Claude Code generation",
-      "Vrooli ecosystem integration"
-    ]
-  },
   "environment": {
     "api": {
       "HOME_ASSISTANT_URL": "${HOME_ASSISTANT_URL:-http://localhost:8123}",

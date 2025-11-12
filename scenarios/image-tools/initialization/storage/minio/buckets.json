@@ -1,0 +1,7 @@
+{
+  "buckets": [
+    "image-tools-originals",
+    "image-tools-processed",
+    "image-tools-cache"
+  ]
+}

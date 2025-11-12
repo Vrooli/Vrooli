@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "api-health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Email Triage API health",
+      "category": "system"
+    },
+    {
+      "id": "api-root",
+      "path": "/",
+      "method": "GET",
+      "summary": "API root (served on API_PORT)",
+      "category": "system"
+    },
+    {
+      "id": "ui-root",
+      "path": "/",
+      "method": "GET",
+      "summary": "UI root (served on UI_PORT)",
+      "category": "ui"
+    }
+  ]
+}
