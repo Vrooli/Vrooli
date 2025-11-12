@@ -53,13 +53,6 @@
       "range": "35000-39999"
     }
   },
-  "environment": {
-    "POSTGRES_HOST": "localhost",
-    "POSTGRES_PORT": "5433",
-    "POSTGRES_USER": "vrooli",
-    "POSTGRES_PASSWORD": "vrooli",
-    "POSTGRES_DB": "vrooli"
-  },
   "lifecycle": {
     "setup": {
       "description": "Initialize Elo Swipe",

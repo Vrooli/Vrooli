@@ -44,23 +44,6 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
-  "environment": {
-    "PREVIEW_ACCESS_TOKEN": {
-      "description": "Preview token required by middleware for managed lifecycles",
-      "default": "graph-studio-preview-token",
-      "required": false
-    },
-    "GRAPH_STUDIO_PREVIEW_TOKEN": {
-      "description": "Graph Studio specific preview token alias",
-      "default": "graph-studio-preview-token",
-      "required": false
-    },
-    "GRAPH_STUDIO_DISABLE_PREVIEW_GUARD": {
-      "description": "Disable preview token guard for local development and automated tests",
-      "default": "true",
-      "required": false
-    }
-  },
   "ports": {
     "api": {
       "env_var": "API_PORT",

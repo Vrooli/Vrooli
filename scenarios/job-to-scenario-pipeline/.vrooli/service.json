@@ -230,21 +230,6 @@
           "description": "Stop UI process"
         }
       ]
-    },
-    "clean": {
-      "description": "Clean up job pipeline data",
-      "steps": [
-        {
-          "name": "archive-old-jobs",
-          "run": "find data/completed -name '*.yaml' -mtime +30 -exec mv {} data/archive/ \\; && echo 'Archived jobs older than 30 days'",
-          "description": "Archive old completed jobs"
-        },
-        {
-          "name": "backup-before-clean",
-          "run": "mkdir -p backup/$(date +%Y%m%d) && cp -r data backup/$(date +%Y%m%d)/ && echo 'Backup created in backup/$(date +%Y%m%d)/'",
-          "description": "Backup all job data before cleaning"
-        }
-      ]
     }
   },
   "dependencies": {

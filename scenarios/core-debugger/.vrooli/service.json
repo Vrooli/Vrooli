@@ -227,26 +227,6 @@
           "description": "Stop UI process"
         }
       ]
-    },
-    "clean": {
-      "description": "Archive old Core Debugger data",
-      "steps": [
-        {
-          "name": "archive-old-issues",
-          "run": "mkdir -p data/archive && find data/issues -name '*.json' -mtime +30 -exec mv {} data/archive/ \\;",
-          "description": "Archive issues older than 30 days"
-        },
-        {
-          "name": "compress-logs",
-          "run": "find data/logs -name '*.log' -mtime +7 -exec gzip {} \\;",
-          "description": "Compress old log files"
-        },
-        {
-          "name": "cleanup-summary",
-          "run": "echo 'Cleanup complete. Archived $(find data/archive -name \"*.json\" | wc -l) old issues.'",
-          "description": "Show cleanup summary"
-        }
-      ]
     }
   },
   "dependencies": {

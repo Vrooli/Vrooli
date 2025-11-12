@@ -204,23 +204,6 @@
           "description": "Stop UI process"
         }
       ]
-    },
-    "schedule": {
-      "description": "Scheduled scanning configuration",
-      "jobs": [
-        {
-          "name": "daily-scan",
-          "cron": "0 2 * * *",
-          "run": "code-tidiness-manager scan --deep",
-          "description": "Daily deep scan at 2 AM"
-        },
-        {
-          "name": "hourly-quick-scan",
-          "cron": "0 * * * *",
-          "run": "code-tidiness-manager scan --types backup_files,temp_files --quick",
-          "description": "Hourly quick scan for obvious issues"
-        }
-      ]
     }
   },
   "dependencies": {

@@ -225,9 +225,5 @@
         "required": false
       }
     }
-  },
-  "runtime": {
-    "protected": true,
-    "protection_reason": "Critical infrastructure component - protects all Vrooli data"
   }
 }

@@ -216,21 +216,6 @@
           "description": "Stop Vite dev server"
         }
       ]
-    },
-    "clean": {
-      "description": "Clean up file-based issue tracker data",
-      "steps": [
-        {
-          "name": "archive-issues",
-          "run": "bash issues/manage.sh archive 90 || echo 'Archive completed'",
-          "description": "Archive issues older than 90 days"
-        },
-        {
-          "name": "backup-before-clean",
-          "run": "mkdir -p backup/clean-$(date +%Y%m%d) && cp -r issues backup/clean-$(date +%Y%m%d)/ && echo 'Backup created in backup/clean-$(date +%Y%m%d)/'",
-          "description": "Backup issues before cleaning"
-        }
-      ]
     }
   },
   "dependencies": {

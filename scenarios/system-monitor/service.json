@@ -1,8 +1,4 @@
 {
-  "runtime": {
-    "protected": true,
-    "protection_reason": "System health monitoring - needed to detect issues during automation"
-  },
   "ports": {
     "api": {
       "env_var": "API_PORT"

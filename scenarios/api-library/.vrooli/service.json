@@ -164,32 +164,6 @@
         }
       ]
     },
-    "startup": {
-      "order": [
-        "postgres",
-        "qdrant",
-        "api",
-        "ui"
-      ],
-      "healthChecks": {
-        "postgres": {
-          "endpoint": "${service.postgres.url}/health",
-          "timeout": 30
-        },
-        "qdrant": {
-          "endpoint": "${service.qdrant.url}/health",
-          "timeout": 30
-        },
-        "api": {
-          "endpoint": "http://localhost:${ports.api}/health",
-          "timeout": 60
-        },
-        "ui": {
-          "endpoint": "http://localhost:${ports.ui}",
-          "timeout": 60
-        }
-      }
-    },
     "shutdown": {
       "gracePeriod": 10,
       "order": [

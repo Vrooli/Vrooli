@@ -136,7 +136,8 @@
           "description": {
             "type": "string"
           }
-        }
+        },
+        "additionalProperties": false
       }
     },
     "dependencies": {
@@ -161,7 +162,8 @@
       "additionalProperties": false
     },
     "deployment": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": false
     },
     "lifecycle": {
       "type": "object",
@@ -192,17 +194,29 @@
           "type": "number",
           "description": "Default timeout in seconds for lifecycle operations"
         }
-      }
+      },
+      "additionalProperties": false
     }
   },
-  "required": ["dependencies"],
+  "additionalProperties": false,
+  "required": [
+    "dependencies"
+  ],
   "allOf": [
     {
       "properties": {
         "dependencies": {
           "anyOf": [
-            { "required": ["resources"] },
-            { "required": ["scenarios"] }
+            {
+              "required": [
+                "resources"
+              ]
+            },
+            {
+              "required": [
+                "scenarios"
+              ]
+            }
           ]
         }
       }
@@ -213,6 +227,10 @@
       "type": "object",
       "description": "Metadata describing a dependent scenario",
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "Scenario identifier"
+        },
         "required": {
           "type": "boolean",
           "default": true,
@@ -230,8 +248,7 @@
           "type": "string",
           "description": "Human-readable context for the dependency"
         }
-      },
-      "additionalProperties": false
+      }
     },
     "lifecyclePhase": {
       "type": "object",
@@ -240,15 +257,7 @@
           "type": "string"
         },
         "condition": {
-          "type": "object",
-          "properties": {
-            "checks": {
-              "type": "array",
-              "items": {
-                "type": "object"
-              }
-            }
-          }
+          "$ref": "#/definitions/conditionBlock"
         },
         "steps": {
           "type": "array",
@@ -268,7 +277,7 @@
                 "type": "boolean"
               },
               "condition": {
-                "type": "object"
+                "$ref": "#/definitions/conditionBlock"
               },
               "retry": {
                 "type": "object",
@@ -279,16 +288,107 @@
                   "delay": {
                     "type": "integer"
                   }
-                }
+                },
+                "additionalProperties": false
               }
             },
             "required": [
               "name",
               "run"
-            ]
+            ],
+            "additionalProperties": false
           }
         }
-      }
+      },
+      "additionalProperties": false
+    },
+    "conditionBlock": {
+      "type": "object",
+      "properties": {
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/conditionCheck"
+          }
+        },
+        "file_exists": {
+          "$ref": "#/definitions/pathOrList"
+        },
+        "file_not_exists": {
+          "$ref": "#/definitions/pathOrList"
+        },
+        "command_exists": {
+          "type": "string"
+        },
+        "binary_exists": {
+          "type": "string"
+        },
+        "resource_enabled": {
+          "type": "string"
+        },
+        "json_path_exists": {
+          "type": "string"
+        },
+        "env_var_set": {
+          "type": "string"
+        },
+        "always": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "conditionCheck": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "command": {
+          "type": "string"
+        },
+        "bundle_path": {
+          "type": "string"
+        },
+        "source_dir": {
+          "type": "string"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "path": {
+          "type": "string"
+        },
+        "populated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "pathOrList": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "healthPhase": {
       "type": "object",
@@ -317,7 +417,8 @@
               "default": "/metrics",
               "description": "Metrics endpoint path"
             }
-          }
+          },
+          "additionalProperties": false
         },
         "checks": {
           "type": "array",
@@ -364,7 +465,8 @@
             "required": [
               "name",
               "type"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "timeout": {
@@ -382,7 +484,8 @@
           "default": 10000,
           "description": "Grace period in milliseconds before first health check"
         }
-      }
+      },
+      "additionalProperties": false
     }
   }
 }

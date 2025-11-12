@@ -193,34 +193,6 @@
         }
       ]
     },
-    "dev": {
-      "description": "Start app monitor in development mode with hot reload",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./app-monitor-api",
-          "description": "Start Go coordination API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/app-monitor-api"
-          }
-        },
-        {
-          "name": "start-vite-dev",
-          "run": "cd ui && VITE_PORT=${VITE_PORT} npm run dev",
-          "description": "Start Vite dev server with hot reload",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "show-dev-services",
-          "run": "echo '\ud83d\ude80 App Monitor (DEV MODE) running:\\n  UI Dashboard: http://localhost:${VITE_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help\\n\\n\ud83d\udd25 Hot reload enabled - changes will update automatically'",
-          "description": "Display development service URLs"
-        }
-      ]
-    },
     "test": {
       "description": "Comprehensive phased testing for app-monitor",
       "steps": [

@@ -206,27 +206,6 @@
         }
       ]
     },
-    "run": {
-      "description": "Start React Component Library in production mode",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && echo '\ud83d\ude80 Starting API server (production)...' && ./react-component-library-api",
-          "background": true,
-          "description": "Start Go API server in production mode"
-        },
-        {
-          "name": "serve-ui",
-          "run": "cd ui && echo '\ud83c\udf10 Serving built UI...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && npx serve -s dist -l ${UI_PORT}",
-          "background": true,
-          "description": "Serve built React UI"
-        },
-        {
-          "name": "show-status",
-          "run": "sleep 3 && echo '\u2705 React Component Library is running in production!' && echo '  \ud83d\udcda Component Library: http://localhost:${UI_PORT}' && echo '  \ud83d\udd0c API: http://localhost:${API_PORT}'"
-        }
-      ]
-    },
     "test": {
       "description": "Comprehensive phased testing for react-component-library",
       "steps": [

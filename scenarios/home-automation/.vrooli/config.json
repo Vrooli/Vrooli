@@ -1,0 +1,30 @@
+{
+  "environment": {
+    "api": {
+      "HOME_ASSISTANT_URL": "${HOME_ASSISTANT_URL:-http://localhost:8123}",
+      "HOME_ASSISTANT_TOKEN": "${HOME_ASSISTANT_TOKEN}",
+      "HOME_ASSISTANT_MOCK": "${HOME_ASSISTANT_MOCK:-false}",
+      "POSTGRES_URL": "postgres://vrooli:REDACTED@localhost:5433/home_automation?sslmode=disable",
+      "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD}",
+      "REDIS_URL": "${REDIS_URL:-redis://localhost:6379}",
+      "AUTH_SERVICE_URL": "http://localhost:3252",
+      "CALENDAR_SERVICE_URL": "http://localhost:3300",
+      "NOTIFICATION_SERVICE_URL": "${NOTIFICATION_SERVICE_URL:-http://localhost:28100}",
+      "JWT_SECRET": "${JWT_SECRET}",
+      "CLAUDE_CODE_CLI": "resource-claude-code",
+      "LOG_LEVEL": "${LOG_LEVEL:-info}",
+      "AUTOMATION_SANDBOX_ENABLED": "${AUTOMATION_SANDBOX_ENABLED:-true}",
+      "DEVICE_COMMAND_TIMEOUT": "${DEVICE_COMMAND_TIMEOUT:-5000}",
+      "MAX_CONCURRENT_AUTOMATIONS": "${MAX_CONCURRENT_AUTOMATIONS:-10}"
+    },
+    "ui": {
+      "API_BASE_URL": "http://localhost:${HOME_AUTOMATION_API_PORT}",
+      "WS_BASE_URL": "ws://localhost:${HOME_AUTOMATION_API_PORT}",
+      "AUTH_REDIRECT_URL": "http://localhost:3252/auth",
+      "CALENDAR_URL": "http://localhost:3300",
+      "REAL_TIME_UPDATES": "true",
+      "THEME": "dark",
+      "MOBILE_OPTIMIZED": "true"
+    }
+  }
+}
