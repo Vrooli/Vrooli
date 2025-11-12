@@ -353,7 +353,11 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
 
   // SPA fallback - serve index.html for all other routes
   // IMPORTANT: This must be smart about assets to avoid returning HTML for .js/.css/etc requests
-  app.get('*', (req: Request, res: Response) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return next()
+    }
+
     const requestPath = req.path
 
     // CRITICAL: Skip proxy routes - they should be handled by custom route handlers

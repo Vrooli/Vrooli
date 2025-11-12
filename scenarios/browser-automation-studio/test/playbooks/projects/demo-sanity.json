@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": { "x": 0, "y": 0 },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,9 +32,13 @@
     {
       "id": "wait-for-demo-project",
       "type": "wait",
-      "position": { "x": 220, "y": -120 },
+      "position": {
+        "x": 220,
+        "y": -120
+      },
       "data": {
         "label": "Wait for demo project card",
+        "waitType": "element",
         "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
         "timeoutMs": 20000,
         "waitForMs": 1500
@@ -40,7 +47,10 @@
     {
       "id": "capture-dashboard",
       "type": "screenshot",
-      "position": { "x": 360, "y": -120 },
+      "position": {
+        "x": 360,
+        "y": -120
+      },
       "data": {
         "label": "Capture dashboard",
         "fullPage": true,
@@ -51,7 +61,10 @@
     {
       "id": "assert-demo-project",
       "type": "assert",
-      "position": { "x": 500, "y": -40 },
+      "position": {
+        "x": 500,
+        "y": -40
+      },
       "data": {
         "label": "Demo project card exists",
         "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
@@ -63,7 +76,10 @@
     {
       "id": "click-demo-card",
       "type": "click",
-      "position": { "x": 680, "y": 20 },
+      "position": {
+        "x": 680,
+        "y": 20
+      },
       "data": {
         "label": "Open demo project",
         "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
@@ -75,7 +91,10 @@
     {
       "id": "wait-project",
       "type": "wait",
-      "position": { "x": 820, "y": 80 },
+      "position": {
+        "x": 820,
+        "y": 80
+      },
       "data": {
         "label": "Wait for project detail",
         "durationMs": 1500
@@ -84,7 +103,10 @@
     {
       "id": "assert-demo-workflow",
       "type": "assert",
-      "position": { "x": 1020, "y": 120 },
+      "position": {
+        "x": 1020,
+        "y": 120
+      },
       "data": {
         "label": "Demo workflow visible",
         "selector": "div[data-workflow-header] h3[title=\"Demo: Capture Example.com Hero\"]",
@@ -95,11 +117,41 @@
     }
   ],
   "edges": [
-    { "id": "edge-nav-wait", "source": "navigate-dashboard", "target": "wait-for-demo-project", "type": "smoothstep" },
-    { "id": "edge-wait-capture", "source": "wait-for-demo-project", "target": "capture-dashboard", "type": "smoothstep" },
-    { "id": "edge-capture-assert", "source": "capture-dashboard", "target": "assert-demo-project", "type": "smoothstep" },
-    { "id": "edge-assert-click", "source": "assert-demo-project", "target": "click-demo-card", "type": "smoothstep" },
-    { "id": "edge-click-wait", "source": "click-demo-card", "target": "wait-project", "type": "smoothstep" },
-    { "id": "edge-wait-assert", "source": "wait-project", "target": "assert-demo-workflow", "type": "smoothstep" }
+    {
+      "id": "edge-nav-wait",
+      "source": "navigate-dashboard",
+      "target": "wait-for-demo-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-wait-capture",
+      "source": "wait-for-demo-project",
+      "target": "capture-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-capture-assert",
+      "source": "capture-dashboard",
+      "target": "assert-demo-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-assert-click",
+      "source": "assert-demo-project",
+      "target": "click-demo-card",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-click-wait",
+      "source": "click-demo-card",
+      "target": "wait-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-wait-assert",
+      "source": "wait-project",
+      "target": "assert-demo-workflow",
+      "type": "smoothstep"
+    }
   ]
 }

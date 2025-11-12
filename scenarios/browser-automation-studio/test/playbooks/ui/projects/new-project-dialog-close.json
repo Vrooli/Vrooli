@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": { "x": 0, "y": 0 },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,18 +32,25 @@
     {
       "id": "wait-for-projects",
       "type": "wait",
-      "position": { "x": 200, "y": 0 },
+      "position": {
+        "x": 200,
+        "y": 0
+      },
       "data": {
         "label": "Wait for projects grid",
         "selector": "[data-testid=\"projects-grid\"]",
         "timeoutMs": 10000,
-        "waitForMs": 1000
+        "waitForMs": 1000,
+        "waitType": "element"
       }
     },
     {
       "id": "open-modal-x-test",
       "type": "click",
-      "position": { "x": 400, "y": -100 },
+      "position": {
+        "x": 400,
+        "y": -100
+      },
       "data": {
         "label": "Open project modal (X button test)",
         "selector": "[data-testid=\"dashboard-new-project-button\"]",
@@ -51,7 +61,10 @@
     {
       "id": "assert-modal-visible-1",
       "type": "assert",
-      "position": { "x": 600, "y": -100 },
+      "position": {
+        "x": 600,
+        "y": -100
+      },
       "data": {
         "label": "Modal is visible",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -62,7 +75,10 @@
     {
       "id": "close-with-x",
       "type": "click",
-      "position": { "x": 800, "y": -100 },
+      "position": {
+        "x": 800,
+        "y": -100
+      },
       "data": {
         "label": "Click X button",
         "selector": "[data-testid=\"dialog-close-button\"]",
@@ -73,7 +89,10 @@
     {
       "id": "assert-closed-x",
       "type": "assert",
-      "position": { "x": 1000, "y": -100 },
+      "position": {
+        "x": 1000,
+        "y": -100
+      },
       "data": {
         "label": "Modal closed (X button)",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -85,7 +104,10 @@
     {
       "id": "open-modal-cancel-test",
       "type": "click",
-      "position": { "x": 400, "y": 0 },
+      "position": {
+        "x": 400,
+        "y": 0
+      },
       "data": {
         "label": "Open project modal (Cancel button test)",
         "selector": "[data-testid=\"dashboard-new-project-button\"]",
@@ -96,7 +118,10 @@
     {
       "id": "assert-modal-visible-2",
       "type": "assert",
-      "position": { "x": 600, "y": 0 },
+      "position": {
+        "x": 600,
+        "y": 0
+      },
       "data": {
         "label": "Modal is visible",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -107,7 +132,10 @@
     {
       "id": "close-with-cancel",
       "type": "click",
-      "position": { "x": 800, "y": 0 },
+      "position": {
+        "x": 800,
+        "y": 0
+      },
       "data": {
         "label": "Click Cancel button",
         "selector": "[data-testid=\"project-modal-cancel\"]",
@@ -118,7 +146,10 @@
     {
       "id": "assert-closed-cancel",
       "type": "assert",
-      "position": { "x": 1000, "y": 0 },
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
       "data": {
         "label": "Modal closed (Cancel button)",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -130,7 +161,10 @@
     {
       "id": "open-modal-escape-test",
       "type": "click",
-      "position": { "x": 400, "y": 100 },
+      "position": {
+        "x": 400,
+        "y": 100
+      },
       "data": {
         "label": "Open project modal (Escape key test)",
         "selector": "[data-testid=\"dashboard-new-project-button\"]",
@@ -141,7 +175,10 @@
     {
       "id": "assert-modal-visible-3",
       "type": "assert",
-      "position": { "x": 600, "y": 100 },
+      "position": {
+        "x": 600,
+        "y": 100
+      },
       "data": {
         "label": "Modal is visible",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -152,7 +189,10 @@
     {
       "id": "close-with-escape",
       "type": "keyboard",
-      "position": { "x": 800, "y": 100 },
+      "position": {
+        "x": 800,
+        "y": 100
+      },
       "data": {
         "label": "Press Escape key",
         "key": "Escape",
@@ -162,7 +202,10 @@
     {
       "id": "assert-closed-escape",
       "type": "assert",
-      "position": { "x": 1000, "y": 100 },
+      "position": {
+        "x": 1000,
+        "y": 100
+      },
       "data": {
         "label": "Modal closed (Escape key)",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -173,18 +216,83 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-dashboard", "target": "wait-for-projects", "type": "smoothstep" },
-    { "id": "e2", "source": "wait-for-projects", "target": "open-modal-x-test", "type": "smoothstep" },
-    { "id": "e3", "source": "open-modal-x-test", "target": "assert-modal-visible-1", "type": "smoothstep" },
-    { "id": "e4", "source": "assert-modal-visible-1", "target": "close-with-x", "type": "smoothstep" },
-    { "id": "e5", "source": "close-with-x", "target": "assert-closed-x", "type": "smoothstep" },
-    { "id": "e6", "source": "assert-closed-x", "target": "open-modal-cancel-test", "type": "smoothstep" },
-    { "id": "e7", "source": "open-modal-cancel-test", "target": "assert-modal-visible-2", "type": "smoothstep" },
-    { "id": "e8", "source": "assert-modal-visible-2", "target": "close-with-cancel", "type": "smoothstep" },
-    { "id": "e9", "source": "close-with-cancel", "target": "assert-closed-cancel", "type": "smoothstep" },
-    { "id": "e10", "source": "assert-closed-cancel", "target": "open-modal-escape-test", "type": "smoothstep" },
-    { "id": "e11", "source": "open-modal-escape-test", "target": "assert-modal-visible-3", "type": "smoothstep" },
-    { "id": "e12", "source": "assert-modal-visible-3", "target": "close-with-escape", "type": "smoothstep" },
-    { "id": "e13", "source": "close-with-escape", "target": "assert-closed-escape", "type": "smoothstep" }
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-projects",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-projects",
+      "target": "open-modal-x-test",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "open-modal-x-test",
+      "target": "assert-modal-visible-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "assert-modal-visible-1",
+      "target": "close-with-x",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "close-with-x",
+      "target": "assert-closed-x",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "assert-closed-x",
+      "target": "open-modal-cancel-test",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "open-modal-cancel-test",
+      "target": "assert-modal-visible-2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "assert-modal-visible-2",
+      "target": "close-with-cancel",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "close-with-cancel",
+      "target": "assert-closed-cancel",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-closed-cancel",
+      "target": "open-modal-escape-test",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "open-modal-escape-test",
+      "target": "assert-modal-visible-3",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "assert-modal-visible-3",
+      "target": "close-with-escape",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "close-with-escape",
+      "target": "assert-closed-escape",
+      "type": "smoothstep"
+    }
   ]
 }

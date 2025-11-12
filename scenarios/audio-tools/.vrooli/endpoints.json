@@ -6,97 +6,103 @@
       "id": "health-check",
       "path": "/health",
       "method": "GET",
-      "summary": "Service health check",
-      "category": "system",
-      "description": "Reports service status and dependencies."
+      "summary": "Service health",
+      "description": "Reports service status, database connectivity, ffmpeg availability, and storage backend.",
+      "category": "system"
     },
     {
       "id": "api-health",
       "path": "/api/health",
       "method": "GET",
       "summary": "API namespace health",
-      "category": "system",
-      "description": "Health probe under /api for compatibility with API gateways."
-    },
-    {
-      "id": "api-docs",
-      "path": "/api/docs",
-      "method": "GET",
-      "summary": "API documentation",
-      "category": "docs",
-      "description": "Serves the generated API reference bundle."
+      "description": "Health payload exposed under /api for ingress routing.",
+      "category": "system"
     },
     {
       "id": "audio-edit",
       "path": "/api/v1/audio/edit",
       "method": "POST",
       "summary": "Edit audio",
-      "category": "audio",
-      "description": "Runs trimming, fading, and gain adjustments per payload settings."
+      "description": "Executes trimming, merging, splitting, fades, normalization, and volume automation on supplied audio.",
+      "category": "audio-processing"
     },
     {
       "id": "audio-convert",
       "path": "/api/v1/audio/convert",
       "method": "POST",
-      "summary": "Convert audio",
-      "category": "audio",
-      "description": "Converts audio files to the requested format and bitrate."
+      "summary": "Convert format",
+      "description": "Converts uploaded audio to the requested codec/sample rate/bit depth using ffmpeg pipelines.",
+      "category": "audio-processing"
     },
     {
       "id": "audio-metadata-get",
       "path": "/api/v1/audio/metadata/{id}",
       "method": "GET",
-      "summary": "Get audio metadata",
-      "category": "audio",
-      "description": "Returns stored metadata for a processed audio asset."
+      "summary": "Get metadata",
+      "description": "Returns stored metadata (duration, bitrate, channels, waveform stats) for a processed file.",
+      "category": "metadata",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Metadata document identifier"
+        }
+      }
     },
     {
       "id": "audio-metadata-create",
       "path": "/api/v1/audio/metadata",
       "method": "POST",
-      "summary": "Extract audio metadata",
-      "category": "audio",
-      "description": "Uploads a file and extracts technical metadata tags."
+      "summary": "Extract metadata",
+      "description": "Extracts metadata such as bpm, key, channels, and spectrum from uploaded audio.",
+      "category": "metadata"
     },
     {
       "id": "audio-enhance",
       "path": "/api/v1/audio/enhance",
       "method": "POST",
       "summary": "Enhance audio",
-      "category": "audio",
-      "description": "Applies denoise, EQ, and mastering style improvements."
+      "description": "Runs denoise, EQ, leveling, and mastering passes.",
+      "category": "audio-processing"
     },
     {
       "id": "audio-analyze",
       "path": "/api/v1/audio/analyze",
       "method": "POST",
       "summary": "Analyze audio",
-      "category": "audio",
-      "description": "Produces waveform stats, loudness, and detected segments."
+      "description": "Performs deep analysis such as beat detection, speech/music classification, and loudness scoring.",
+      "category": "analytics"
     },
     {
       "id": "audio-vad",
       "path": "/api/v1/audio/vad",
       "method": "POST",
-      "summary": "Run voice activity detection",
-      "category": "audio",
-      "description": "Detects spoken segments and silence ranges."
+      "summary": "Voice activity detection",
+      "description": "Detects speech segments and returns timestamp intervals for transcription workflows.",
+      "category": "analytics"
     },
     {
       "id": "audio-remove-silence",
       "path": "/api/v1/audio/remove-silence",
       "method": "POST",
       "summary": "Remove silence",
-      "category": "audio",
-      "description": "Trims leading/trailing silence using configured thresholds."
+      "description": "Identifies and trims silence regions in uploaded clips.",
+      "category": "audio-processing"
     },
     {
-      "id": "audio-status",
+      "id": "status",
       "path": "/api/v1/status",
       "method": "GET",
       "summary": "Service status",
-      "category": "system",
-      "description": "Returns uptime, directories, and capability list."
+      "description": "Returns uptime, configured directories, and capability list for dashboards.",
+      "category": "system"
+    },
+    {
+      "id": "api-docs",
+      "path": "/api/docs",
+      "method": "GET",
+      "summary": "API docs",
+      "description": "Serves API documentation payload for UI/docs consumers.",
+      "category": "system"
     }
   ]
 }

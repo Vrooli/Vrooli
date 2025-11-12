@@ -1,8 +1,73 @@
 {
   "metadata": {
-    "description": "TODO: export AI generation smoke workflow",
-    "version": 0
+    "description": "Smoke test for AI workflow generation feature - verifies UI elements are present",
+    "requirement": "BAS-AI-GENERATION-SMOKE",
+    "version": 1
   },
-  "nodes": [],
-  "edges": []
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 30000
+      }
+    },
+    {
+      "id": "wait-for-page",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for page load",
+        "durationMs": 2000
+      }
+    },
+    {
+      "id": "assert-dashboard",
+      "type": "assert",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Dashboard loaded",
+        "selector": "body",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Dashboard body should be visible"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-nav-wait",
+      "source": "navigate-dashboard",
+      "target": "wait-for-page",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-wait-assert",
+      "source": "wait-for-page",
+      "target": "assert-dashboard",
+      "type": "smoothstep"
+    }
+  ]
 }

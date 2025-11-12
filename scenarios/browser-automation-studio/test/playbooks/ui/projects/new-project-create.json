@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": { "x": 0, "y": 0 },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,18 +32,25 @@
     {
       "id": "wait-for-projects",
       "type": "wait",
-      "position": { "x": 200, "y": 0 },
+      "position": {
+        "x": 200,
+        "y": 0
+      },
       "data": {
         "label": "Wait for projects grid",
         "selector": "[data-testid=\"projects-grid\"]",
         "timeoutMs": 10000,
-        "waitForMs": 1000
+        "waitForMs": 1000,
+        "waitType": "element"
       }
     },
     {
       "id": "click-new-project",
       "type": "click",
-      "position": { "x": 400, "y": 0 },
+      "position": {
+        "x": 400,
+        "y": 0
+      },
       "data": {
         "label": "Open new project modal",
         "selector": "[data-testid=\"dashboard-new-project-button\"]",
@@ -51,7 +61,10 @@
     {
       "id": "assert-modal-visible",
       "type": "assert",
-      "position": { "x": 600, "y": 0 },
+      "position": {
+        "x": 600,
+        "y": 0
+      },
       "data": {
         "label": "Project modal visible",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -62,7 +75,10 @@
     {
       "id": "generate-project-name",
       "type": "evaluate",
-      "position": { "x": 800, "y": -60 },
+      "position": {
+        "x": 800,
+        "y": -60
+      },
       "data": {
         "label": "Generate unique project name",
         "expression": "`Test Project ${Date.now()}`",
@@ -72,7 +88,10 @@
     {
       "id": "fill-project-name",
       "type": "type",
-      "position": { "x": 1000, "y": -60 },
+      "position": {
+        "x": 1000,
+        "y": -60
+      },
       "data": {
         "label": "Enter project name",
         "selector": "[data-testid=\"project-modal-name-input\"]",
@@ -85,7 +104,10 @@
     {
       "id": "fill-project-description",
       "type": "type",
-      "position": { "x": 1200, "y": -60 },
+      "position": {
+        "x": 1200,
+        "y": -60
+      },
       "data": {
         "label": "Enter project description",
         "selector": "[data-testid=\"project-modal-description-input\"]",
@@ -98,7 +120,10 @@
     {
       "id": "click-create",
       "type": "click",
-      "position": { "x": 1400, "y": -60 },
+      "position": {
+        "x": 1400,
+        "y": -60
+      },
       "data": {
         "label": "Click Create button",
         "selector": "[data-testid=\"project-modal-submit\"]",
@@ -109,7 +134,10 @@
     {
       "id": "assert-modal-closed",
       "type": "assert",
-      "position": { "x": 1600, "y": -60 },
+      "position": {
+        "x": 1600,
+        "y": -60
+      },
       "data": {
         "label": "Modal closed after create",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -121,7 +149,10 @@
     {
       "id": "assert-success-toast",
       "type": "assert",
-      "position": { "x": 1800, "y": -60 },
+      "position": {
+        "x": 1800,
+        "y": -60
+      },
       "data": {
         "label": "Success toast appears",
         "selector": "[data-testid=\"toast-success\"], .toast-success, [role=\"alert\"]",
@@ -133,7 +164,10 @@
     {
       "id": "wait-for-project-list-update",
       "type": "wait",
-      "position": { "x": 2000, "y": -60 },
+      "position": {
+        "x": 2000,
+        "y": -60
+      },
       "data": {
         "label": "Wait for project list refresh",
         "durationMs": 2000
@@ -142,7 +176,10 @@
     {
       "id": "assert-project-in-list",
       "type": "assert",
-      "position": { "x": 2200, "y": -60 },
+      "position": {
+        "x": 2200,
+        "y": -60
+      },
       "data": {
         "label": "New project appears in list",
         "selector": "[data-testid=\"projects-grid\"] [data-testid*=\"project-card\"]",
@@ -153,16 +190,71 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-dashboard", "target": "wait-for-projects", "type": "smoothstep" },
-    { "id": "e2", "source": "wait-for-projects", "target": "click-new-project", "type": "smoothstep" },
-    { "id": "e3", "source": "click-new-project", "target": "assert-modal-visible", "type": "smoothstep" },
-    { "id": "e4", "source": "assert-modal-visible", "target": "generate-project-name", "type": "smoothstep" },
-    { "id": "e5", "source": "generate-project-name", "target": "fill-project-name", "type": "smoothstep" },
-    { "id": "e6", "source": "fill-project-name", "target": "fill-project-description", "type": "smoothstep" },
-    { "id": "e7", "source": "fill-project-description", "target": "click-create", "type": "smoothstep" },
-    { "id": "e8", "source": "click-create", "target": "assert-modal-closed", "type": "smoothstep" },
-    { "id": "e9", "source": "assert-modal-closed", "target": "assert-success-toast", "type": "smoothstep" },
-    { "id": "e10", "source": "assert-success-toast", "target": "wait-for-project-list-update", "type": "smoothstep" },
-    { "id": "e11", "source": "wait-for-project-list-update", "target": "assert-project-in-list", "type": "smoothstep" }
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-projects",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-projects",
+      "target": "click-new-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-new-project",
+      "target": "assert-modal-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "assert-modal-visible",
+      "target": "generate-project-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "generate-project-name",
+      "target": "fill-project-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "fill-project-name",
+      "target": "fill-project-description",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "fill-project-description",
+      "target": "click-create",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-create",
+      "target": "assert-modal-closed",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "assert-modal-closed",
+      "target": "assert-success-toast",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-success-toast",
+      "target": "wait-for-project-list-update",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "wait-for-project-list-update",
+      "target": "assert-project-in-list",
+      "type": "smoothstep"
+    }
   ]
 }

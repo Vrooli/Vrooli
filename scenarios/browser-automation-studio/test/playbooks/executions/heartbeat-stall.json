@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": { "x": 0, "y": 0 },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,18 +32,25 @@
     {
       "id": "wait-for-demo-project",
       "type": "wait",
-      "position": { "x": 200, "y": 0 },
+      "position": {
+        "x": 200,
+        "y": 0
+      },
       "data": {
         "label": "Wait for demo project",
         "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
         "timeoutMs": 15000,
-        "waitForMs": 1000
+        "waitForMs": 1000,
+        "waitType": "element"
       }
     },
     {
       "id": "click-demo-project",
       "type": "click",
-      "position": { "x": 400, "y": 0 },
+      "position": {
+        "x": 400,
+        "y": 0
+      },
       "data": {
         "label": "Open demo project",
         "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
@@ -51,18 +61,25 @@
     {
       "id": "wait-for-workflow-list",
       "type": "wait",
-      "position": { "x": 600, "y": 0 },
+      "position": {
+        "x": 600,
+        "y": 0
+      },
       "data": {
         "label": "Wait for workflow list",
         "selector": "div[data-workflow-header]",
         "timeoutMs": 15000,
-        "waitForMs": 1000
+        "waitForMs": 1000,
+        "waitType": "element"
       }
     },
     {
       "id": "click-execute-workflow",
       "type": "click",
-      "position": { "x": 800, "y": 0 },
+      "position": {
+        "x": 800,
+        "y": 0
+      },
       "data": {
         "label": "Execute workflow",
         "selector": "[data-testid=\"workflow-execute-button\"]",
@@ -73,18 +90,25 @@
     {
       "id": "wait-for-execution-start",
       "type": "wait",
-      "position": { "x": 1000, "y": 0 },
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
       "data": {
         "label": "Wait for execution to start",
         "selector": "[data-testid=\"execution-viewer\"]",
         "timeoutMs": 15000,
-        "waitForMs": 2000
+        "waitForMs": 2000,
+        "waitType": "element"
       }
     },
     {
       "id": "wait-for-heartbeat-lag",
       "type": "wait",
-      "position": { "x": 1200, "y": 0 },
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
       "data": {
         "label": "Wait for heartbeat monitoring",
         "durationMs": 15000
@@ -93,7 +117,10 @@
     {
       "id": "assert-heartbeat-indicator",
       "type": "assert",
-      "position": { "x": 1400, "y": -60 },
+      "position": {
+        "x": 1400,
+        "y": -60
+      },
       "data": {
         "label": "Heartbeat status displayed",
         "selector": "[data-testid=\"execution-heartbeat\"], [data-testid=\"heartbeat-status\"]",
@@ -105,7 +132,10 @@
     {
       "id": "assert-lag-warning",
       "type": "assert",
-      "position": { "x": 1400, "y": 0 },
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
       "data": {
         "label": "Lag warning (if applicable)",
         "selector": "[data-testid=\"heartbeat-lag-warning\"], [data-testid=\"heartbeat-delayed\"]",
@@ -117,7 +147,10 @@
     {
       "id": "wait-for-completion",
       "type": "wait",
-      "position": { "x": 1600, "y": 0 },
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
       "data": {
         "label": "Wait for execution to finish",
         "durationMs": 20000
@@ -126,7 +159,10 @@
     {
       "id": "assert-completion",
       "type": "assert",
-      "position": { "x": 1800, "y": 0 },
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
       "data": {
         "label": "Execution completed",
         "selector": "[data-testid=\"execution-status-completed\"], [data-testid=\"execution-status-success\"], [data-testid=\"execution-status-failed\"]",
@@ -137,15 +173,65 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-dashboard", "target": "wait-for-demo-project", "type": "smoothstep" },
-    { "id": "e2", "source": "wait-for-demo-project", "target": "click-demo-project", "type": "smoothstep" },
-    { "id": "e3", "source": "click-demo-project", "target": "wait-for-workflow-list", "type": "smoothstep" },
-    { "id": "e4", "source": "wait-for-workflow-list", "target": "click-execute-workflow", "type": "smoothstep" },
-    { "id": "e5", "source": "click-execute-workflow", "target": "wait-for-execution-start", "type": "smoothstep" },
-    { "id": "e6", "source": "wait-for-execution-start", "target": "wait-for-heartbeat-lag", "type": "smoothstep" },
-    { "id": "e7", "source": "wait-for-heartbeat-lag", "target": "assert-heartbeat-indicator", "type": "smoothstep" },
-    { "id": "e8", "source": "assert-heartbeat-indicator", "target": "assert-lag-warning", "type": "smoothstep" },
-    { "id": "e9", "source": "assert-lag-warning", "target": "wait-for-completion", "type": "smoothstep" },
-    { "id": "e10", "source": "wait-for-completion", "target": "assert-completion", "type": "smoothstep" }
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-demo-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-demo-project",
+      "target": "click-demo-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-demo-project",
+      "target": "wait-for-workflow-list",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-workflow-list",
+      "target": "click-execute-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-execute-workflow",
+      "target": "wait-for-execution-start",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-for-execution-start",
+      "target": "wait-for-heartbeat-lag",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "wait-for-heartbeat-lag",
+      "target": "assert-heartbeat-indicator",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "assert-heartbeat-indicator",
+      "target": "assert-lag-warning",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "assert-lag-warning",
+      "target": "wait-for-completion",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "wait-for-completion",
+      "target": "assert-completion",
+      "type": "smoothstep"
+    }
   ]
 }

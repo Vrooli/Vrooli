@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": { "x": 0, "y": 0 },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,18 +32,25 @@
     {
       "id": "wait-for-projects",
       "type": "wait",
-      "position": { "x": 200, "y": -60 },
+      "position": {
+        "x": 200,
+        "y": -60
+      },
       "data": {
         "label": "Wait for projects to load",
         "selector": "[data-testid=\"projects-grid\"]",
         "timeoutMs": 10000,
-        "waitForMs": 1000
+        "waitForMs": 1000,
+        "waitType": "element"
       }
     },
     {
       "id": "capture-dashboard",
       "type": "screenshot",
-      "position": { "x": 320, "y": -60 },
+      "position": {
+        "x": 320,
+        "y": -60
+      },
       "data": {
         "label": "Capture dashboard state",
         "fullPage": true,
@@ -51,7 +61,10 @@
     {
       "id": "click-new-project",
       "type": "click",
-      "position": { "x": 440, "y": 40 },
+      "position": {
+        "x": 440,
+        "y": 40
+      },
       "data": {
         "label": "Click New Project button",
         "selector": "[data-testid=\"dashboard-new-project-button\"]",
@@ -63,7 +76,10 @@
     {
       "id": "assert-modal-visible",
       "type": "assert",
-      "position": { "x": 640, "y": 80 },
+      "position": {
+        "x": 640,
+        "y": 80
+      },
       "data": {
         "label": "Project modal appears",
         "selector": "[data-testid=\"responsive-dialog-content\"]",

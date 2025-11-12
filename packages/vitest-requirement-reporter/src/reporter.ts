@@ -1,5 +1,5 @@
 import type { Reporter, File, Task } from 'vitest';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { dirname, relative } from 'path';
 import type {
   RequirementReporterOptions,
@@ -41,6 +41,7 @@ export default class RequirementReporter implements Reporter {
       verbose: options.verbose ?? true,
       pattern: options.pattern || /\[REQ:([A-Z0-9_-]+(?:,\s*[A-Z0-9_-]+)*)\]/gi,
       emitStdout: options.emitStdout ?? true,
+      append: options.append ?? process.env.VITEST_REQUIREMENTS_APPEND === '1',
     };
   }
 
@@ -206,6 +207,8 @@ export default class RequirementReporter implements Reporter {
       ),
     };
 
+    const finalReport = this.appendExistingReportIfNeeded(report);
+
     // Ensure output directory exists
     const outputDir = dirname(this.options.outputFile);
     if (!existsSync(outputDir)) {
@@ -213,17 +216,17 @@ export default class RequirementReporter implements Reporter {
     }
 
     // Write JSON report
-    writeFileSync(this.options.outputFile, JSON.stringify(report, null, 2));
+    writeFileSync(this.options.outputFile, JSON.stringify(finalReport, null, 2));
 
     // Optional console summary
     if (this.options.verbose) {
-      this.printSummary(report);
+      this.printSummary(finalReport);
     }
 
     // Emit parseable output for existing shell infrastructure
     // CRITICAL: This enables backward compatibility with _node_collect_requirement_tags()
     if (this.options.emitStdout) {
-      this.printParseableOutput(report);
+      this.printParseableOutput(finalReport);
     }
   }
 
@@ -261,5 +264,60 @@ export default class RequirementReporter implements Reporter {
     }
 
     console.log(`   Output: ${this.options.outputFile}\n`);
+  }
+
+  private appendExistingReportIfNeeded(report: RequirementReport): RequirementReport {
+    if (!this.options.append || !existsSync(this.options.outputFile)) {
+      return report;
+    }
+
+    try {
+      const previousRaw = readFileSync(this.options.outputFile, 'utf-8');
+      const previousReport = JSON.parse(previousRaw) as RequirementReport;
+      return this.mergeReports(previousReport, report);
+    } catch {
+      return report;
+    }
+  }
+
+  private mergeReports(previous: RequirementReport, current: RequirementReport): RequirementReport {
+    const merged = new Map<string, RequirementResult>();
+
+    const addRequirement = (result: RequirementResult) => {
+      const existing = merged.get(result.id);
+      if (!existing) {
+        merged.set(result.id, { ...result });
+        return;
+      }
+
+      if (result.status === 'failed') {
+        existing.status = 'failed';
+      }
+
+      if (result.evidence) {
+        existing.evidence = existing.evidence
+          ? `${existing.evidence}; ${result.evidence}`
+          : result.evidence;
+      }
+
+      existing.duration_ms += result.duration_ms;
+      existing.test_count += result.test_count;
+    };
+
+    previous.requirements.forEach(addRequirement);
+    current.requirements.forEach(addRequirement);
+
+    return {
+      generated_at: current.generated_at,
+      scenario: current.scenario || previous.scenario,
+      phase: current.phase,
+      test_framework: current.test_framework,
+      total_tests: previous.total_tests + current.total_tests,
+      passed_tests: previous.passed_tests + current.passed_tests,
+      failed_tests: previous.failed_tests + current.failed_tests,
+      skipped_tests: previous.skipped_tests + current.skipped_tests,
+      duration_ms: previous.duration_ms + current.duration_ms,
+      requirements: Array.from(merged.values()).sort((a, b) => a.id.localeCompare(b.id)),
+    };
   }
 }

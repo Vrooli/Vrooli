@@ -71,4 +71,7 @@ export interface RequirementReporterOptions {
 
   /** Emit parseable stdout for existing shell infrastructure (default: true) */
   emitStdout?: boolean;
+
+  /** When true, merge with an existing output file instead of overwriting */
+  append?: boolean;
 }

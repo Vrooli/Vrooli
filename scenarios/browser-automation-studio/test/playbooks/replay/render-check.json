@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": { "x": 0, "y": 0 },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,18 +32,25 @@
     {
       "id": "wait-for-demo-project",
       "type": "wait",
-      "position": { "x": 200, "y": 0 },
+      "position": {
+        "x": 200,
+        "y": 0
+      },
       "data": {
         "label": "Wait for demo project",
         "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
         "timeoutMs": 15000,
-        "waitForMs": 1000
+        "waitForMs": 1000,
+        "waitType": "element"
       }
     },
     {
       "id": "click-demo-project",
       "type": "click",
-      "position": { "x": 400, "y": 0 },
+      "position": {
+        "x": 400,
+        "y": 0
+      },
       "data": {
         "label": "Open demo project",
         "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
@@ -51,18 +61,25 @@
     {
       "id": "wait-for-workflow",
       "type": "wait",
-      "position": { "x": 600, "y": 0 },
+      "position": {
+        "x": 600,
+        "y": 0
+      },
       "data": {
         "label": "Wait for demo workflow",
         "selector": "div[data-workflow-header]",
         "timeoutMs": 15000,
-        "waitForMs": 1000
+        "waitForMs": 1000,
+        "waitType": "element"
       }
     },
     {
       "id": "click-execute",
       "type": "click",
-      "position": { "x": 800, "y": 0 },
+      "position": {
+        "x": 800,
+        "y": 0
+      },
       "data": {
         "label": "Execute workflow",
         "selector": "[data-testid=\"workflow-execute-button\"]",
@@ -73,7 +90,10 @@
     {
       "id": "wait-for-execution",
       "type": "wait",
-      "position": { "x": 1000, "y": 0 },
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
       "data": {
         "label": "Wait for execution to complete",
         "durationMs": 25000
@@ -82,7 +102,10 @@
     {
       "id": "assert-execution-complete",
       "type": "assert",
-      "position": { "x": 1200, "y": -60 },
+      "position": {
+        "x": 1200,
+        "y": -60
+      },
       "data": {
         "label": "Execution finished",
         "selector": "[data-testid=\"execution-status-completed\"], [data-testid=\"execution-status-success\"]",
@@ -94,7 +117,10 @@
     {
       "id": "assert-timeline-frames",
       "type": "assert",
-      "position": { "x": 1200, "y": 0 },
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
       "data": {
         "label": "Timeline frames persisted",
         "selector": "[data-testid=\"timeline-frame\"], [data-testid=\"execution-screenshot\"]",
@@ -106,7 +132,10 @@
     {
       "id": "assert-replay-button",
       "type": "assert",
-      "position": { "x": 1200, "y": 60 },
+      "position": {
+        "x": 1200,
+        "y": 60
+      },
       "data": {
         "label": "Replay button available",
         "selector": "[data-testid=\"execution-replay-button\"], [data-testid=\"export-replay-button\"]",
@@ -118,7 +147,10 @@
     {
       "id": "click-replay-export",
       "type": "click",
-      "position": { "x": 1400, "y": 0 },
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
       "data": {
         "label": "Trigger replay export",
         "selector": "[data-testid=\"export-replay-button\"], [data-testid=\"execution-replay-button\"]",
@@ -129,7 +161,10 @@
     {
       "id": "assert-export-success",
       "type": "assert",
-      "position": { "x": 1600, "y": 0 },
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
       "data": {
         "label": "Export initiated or completed",
         "selector": "[data-testid=\"export-success\"], [data-testid=\"export-in-progress\"], [data-testid=\"replay-viewer\"]",
@@ -140,15 +175,65 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-dashboard", "target": "wait-for-demo-project", "type": "smoothstep" },
-    { "id": "e2", "source": "wait-for-demo-project", "target": "click-demo-project", "type": "smoothstep" },
-    { "id": "e3", "source": "click-demo-project", "target": "wait-for-workflow", "type": "smoothstep" },
-    { "id": "e4", "source": "wait-for-workflow", "target": "click-execute", "type": "smoothstep" },
-    { "id": "e5", "source": "click-execute", "target": "wait-for-execution", "type": "smoothstep" },
-    { "id": "e6", "source": "wait-for-execution", "target": "assert-execution-complete", "type": "smoothstep" },
-    { "id": "e7", "source": "assert-execution-complete", "target": "assert-timeline-frames", "type": "smoothstep" },
-    { "id": "e8", "source": "assert-timeline-frames", "target": "assert-replay-button", "type": "smoothstep" },
-    { "id": "e9", "source": "assert-replay-button", "target": "click-replay-export", "type": "smoothstep" },
-    { "id": "e10", "source": "click-replay-export", "target": "assert-export-success", "type": "smoothstep" }
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-demo-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-demo-project",
+      "target": "click-demo-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-demo-project",
+      "target": "wait-for-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-workflow",
+      "target": "click-execute",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-execute",
+      "target": "wait-for-execution",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-for-execution",
+      "target": "assert-execution-complete",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-execution-complete",
+      "target": "assert-timeline-frames",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "assert-timeline-frames",
+      "target": "assert-replay-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "assert-replay-button",
+      "target": "click-replay-export",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "click-replay-export",
+      "target": "assert-export-success",
+      "type": "smoothstep"
+    }
   ]
 }

@@ -6,65 +6,65 @@
       "id": "health",
       "path": "/api/v1/health",
       "method": "GET",
-      "summary": "Overall health",
+      "summary": "Service health",
       "category": "system",
-      "description": "Returns aggregated service and dependency health."
+      "description": "Aggregated service health including rules engine readiness."
     },
     {
       "id": "health-live",
       "path": "/api/v1/health/live",
       "method": "GET",
-      "summary": "Liveness probe",
+      "summary": "Liveness check",
       "category": "system",
-      "description": "Lightweight check used to confirm the process is running."
+      "description": "Fast liveness probe for orchestration."
     },
     {
       "id": "health-ready",
       "path": "/api/v1/health/ready",
       "method": "GET",
-      "summary": "Readiness probe",
+      "summary": "Readiness check",
       "category": "system",
-      "description": "Reports whether the rule engine has finished loading and the API is ready."
+      "description": "Confirms rules engine and workers are ready."
     },
     {
-      "id": "analyze-code",
+      "id": "analyze",
       "path": "/api/v1/code-smell/analyze",
       "method": "POST",
-      "summary": "Analyze source for smells",
+      "summary": "Analyze code",
       "category": "analysis",
-      "description": "Submits files or repos for smell detection and returns violations."
+      "description": "Runs the smell detector against submitted file paths."
     },
     {
       "id": "list-rules",
       "path": "/api/v1/code-smell/rules",
       "method": "GET",
-      "summary": "List detection rules",
-      "category": "analysis",
-      "description": "Returns the rules and heuristics currently enabled."
+      "summary": "List rules",
+      "category": "rules",
+      "description": "Returns available detection rules and metadata."
     },
     {
-      "id": "apply-fix",
+      "id": "autofix",
       "path": "/api/v1/code-smell/fix",
       "method": "POST",
-      "summary": "Apply automated fix",
-      "category": "analysis",
-      "description": "Applies a suggested remediation or custom fix for a violation."
+      "summary": "Apply fix",
+      "category": "remediation",
+      "description": "Requests an auto-fix / reviewer workflow for a violation."
     },
     {
-      "id": "queue-status",
+      "id": "queue",
       "path": "/api/v1/code-smell/queue",
       "method": "GET",
-      "summary": "Active work queue",
+      "summary": "View queue",
       "category": "analysis",
-      "description": "Shows queued analyses and their progress."
+      "description": "Shows queued smell investigations awaiting action."
     },
     {
-      "id": "learn-pattern",
+      "id": "learn",
       "path": "/api/v1/code-smell/learn",
       "method": "POST",
-      "summary": "Teach new pattern",
+      "summary": "Submit learning feedback",
       "category": "analysis",
-      "description": "Supplies new training examples so the engine can learn additional smells."
+      "description": "Feeds positive/negative signals into the learning system."
     },
     {
       "id": "stats",
@@ -72,7 +72,7 @@
       "method": "GET",
       "summary": "Usage stats",
       "category": "analysis",
-      "description": "Returns aggregated counts of scans, fixes, and rule performance."
+      "description": "Returns aggregated run statistics and auto-fix rates."
     },
     {
       "id": "docs",
@@ -80,7 +80,7 @@
       "method": "GET",
       "summary": "API docs",
       "category": "system",
-      "description": "Serves the generated API documentation bundle."
+      "description": "Serves the built API documentation bundle."
     }
   ]
 }

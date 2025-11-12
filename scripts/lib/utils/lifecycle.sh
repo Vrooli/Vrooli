@@ -70,11 +70,13 @@ lifecycle::_condition_json_path_exists() {
 lifecycle::_condition_resource_enabled() {
     local service_json="$1"
     local resource="$2"
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
 
     [[ -f "$service_json" ]] || return 1
     command -v jq >/dev/null 2>&1 || return 1
     local enabled
-    enabled=$(jq -r --arg name "$resource" '.resources[$name].enabled // false' "$service_json" 2>/dev/null)
+    enabled=$(jq -r --arg name "$resource" "${jq_resources} | .[$name].enabled // false" "$service_json" 2>/dev/null)
     [[ "$enabled" == "true" ]]
 }
 

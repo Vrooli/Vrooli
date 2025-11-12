@@ -482,7 +482,9 @@ func (db *DB) seedDemoWorkflow() error {
 			project.FolderPath = absDemoProjectFolder
 		}
 	case err == sql.ErrNoRows:
-		project = projectRow{ID: uuid.New(), FolderPath: absDemoProjectFolder}
+		// Use fixed UUID for deterministic testing (referenced in test/playbooks workflows)
+		demoProjectID := uuid.MustParse("86157b4f-e7be-4e31-8e0c-f183e500356d")
+		project = projectRow{ID: demoProjectID, FolderPath: absDemoProjectFolder}
 		if _, err := db.ExecContext(
 			ctx,
 			`INSERT INTO projects (id, name, description, folder_path, created_at, updated_at)

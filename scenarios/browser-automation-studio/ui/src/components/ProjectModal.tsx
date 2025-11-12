@@ -46,6 +46,8 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
       errors.name = 'Project name is required';
     } else if (formData.name.length < 3) {
       errors.name = 'Project name must be at least 3 characters';
+    } else if (formData.name.length > 100) {
+      errors.name = 'Project name must not exceed 100 characters';
     }
 
     if (!formData.folder_path.trim()) {
@@ -93,7 +95,6 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
   return (
     <ResponsiveDialog
       isOpen
-      data-testid="project-modal"
       onDismiss={onClose}
       ariaLabelledBy={titleId}
       size="default"
@@ -110,7 +111,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
           </h2>
         </div>
         <button
-          data-testid="project-modal-close"
+          data-testid="dialog-close-button"
           onClick={onClose}
           className="text-gray-400 hover:text-white transition-colors"
           aria-label="Close project modal"
@@ -136,6 +137,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
             </label>
             <input
               type="text"
+              data-testid="project-modal-name-input"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               className={`w-full px-3 py-2 bg-flow-bg border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent ${
@@ -144,7 +146,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
               placeholder="e.g., Visited Tracker Tests"
             />
             {validationErrors.name && (
-              <p className="mt-1 text-red-400 text-xs">{validationErrors.name}</p>
+              <p className="mt-1 text-red-400 text-xs" data-testid="project-modal-name-error">{validationErrors.name}</p>
             )}
           </div>
 
@@ -154,6 +156,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
               Description
             </label>
             <textarea
+              data-testid="project-modal-description-input"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               rows={3}
@@ -202,6 +205,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
           <div className="flex justify-end gap-3">
             <button
               type="button"
+              data-testid="project-modal-cancel"
               onClick={onClose}
               className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
               disabled={isSubmitting}
@@ -210,6 +214,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
             </button>
             <button
               type="submit"
+              data-testid="project-modal-submit"
               disabled={isSubmitting || isLoading}
               className="px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >

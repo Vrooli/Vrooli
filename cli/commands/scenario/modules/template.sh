@@ -368,6 +368,7 @@ scenario::template::generate() {
 
     local replacements_json
     replacements_json=$(scenario::template::vars_to_json scenario_template_values)
+    scenario::template::rename_placeholder_paths "$dest_path" "$replacements_json"
     scenario::template::replace_placeholders "$dest_path" "$replacements_json"
     scenario::template::verify_no_placeholders "$dest_path"
 
@@ -427,6 +428,45 @@ scenario::template::vars_to_json() {
     else
         jq -n "${jq_args[@]}" '$ARGS.named'
     fi
+}
+
+scenario::template::rename_placeholder_paths() {
+    local dest="$1"
+    local replacements="$2"
+    if ! command -v python3 >/dev/null 2>&1; then
+        log::error "python3 is required to rename template placeholders"
+        exit 1
+    fi
+    python3 - "$dest" "$replacements" <<'SCENARIO_TEMPLATE_RENAME'
+import json
+import os
+import sys
+
+root = sys.argv[1]
+replacements = json.loads(sys.argv[2])
+
+def render(value):
+    result = value
+    for key, val in replacements.items():
+        result = result.replace('{{' + key + '}}', val)
+    return result
+
+def rename_path(dirpath, name):
+    new_name = render(name)
+    if new_name == name:
+        return
+    src = os.path.join(dirpath, name)
+    dst = os.path.join(dirpath, new_name)
+    if os.path.exists(dst):
+        raise RuntimeError(f"Cannot rename {src} to {dst}: destination already exists")
+    os.rename(src, dst)
+
+for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+    for fname in filenames:
+        rename_path(dirpath, fname)
+    for dname in dirnames:
+        rename_path(dirpath, dname)
+SCENARIO_TEMPLATE_RENAME
 }
 
 scenario::template::replace_placeholders() {

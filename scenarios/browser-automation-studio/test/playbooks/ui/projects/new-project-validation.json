@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": { "x": 0, "y": 0 },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,18 +32,25 @@
     {
       "id": "wait-for-projects",
       "type": "wait",
-      "position": { "x": 200, "y": 0 },
+      "position": {
+        "x": 200,
+        "y": 0
+      },
       "data": {
         "label": "Wait for projects grid",
         "selector": "[data-testid=\"projects-grid\"]",
         "timeoutMs": 10000,
-        "waitForMs": 1000
+        "waitForMs": 1000,
+        "waitType": "element"
       }
     },
     {
       "id": "click-new-project",
       "type": "click",
-      "position": { "x": 400, "y": 0 },
+      "position": {
+        "x": 400,
+        "y": 0
+      },
       "data": {
         "label": "Open new project modal",
         "selector": "[data-testid=\"dashboard-new-project-button\"]",
@@ -51,7 +61,10 @@
     {
       "id": "assert-modal-visible",
       "type": "assert",
-      "position": { "x": 600, "y": 0 },
+      "position": {
+        "x": 600,
+        "y": 0
+      },
       "data": {
         "label": "Project modal visible",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -62,7 +75,10 @@
     {
       "id": "submit-empty-form",
       "type": "click",
-      "position": { "x": 800, "y": -80 },
+      "position": {
+        "x": 800,
+        "y": -80
+      },
       "data": {
         "label": "Try submitting empty form",
         "selector": "[data-testid=\"project-modal-submit\"]",
@@ -73,7 +89,10 @@
     {
       "id": "assert-name-required-error",
       "type": "assert",
-      "position": { "x": 1000, "y": -80 },
+      "position": {
+        "x": 1000,
+        "y": -80
+      },
       "data": {
         "label": "Name required error appears",
         "selector": "[data-testid=\"project-modal-name-error\"], [data-testid=\"form-error\"], .error-message",
@@ -85,7 +104,10 @@
     {
       "id": "assert-modal-still-open-1",
       "type": "assert",
-      "position": { "x": 1200, "y": -80 },
+      "position": {
+        "x": 1200,
+        "y": -80
+      },
       "data": {
         "label": "Modal remains open",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -97,7 +119,10 @@
     {
       "id": "fill-whitespace-only-name",
       "type": "type",
-      "position": { "x": 800, "y": 20 },
+      "position": {
+        "x": 800,
+        "y": 20
+      },
       "data": {
         "label": "Enter whitespace-only name",
         "selector": "[data-testid=\"project-modal-name-input\"]",
@@ -110,7 +135,10 @@
     {
       "id": "submit-whitespace-name",
       "type": "click",
-      "position": { "x": 1000, "y": 20 },
+      "position": {
+        "x": 1000,
+        "y": 20
+      },
       "data": {
         "label": "Submit whitespace-only name",
         "selector": "[data-testid=\"project-modal-submit\"]",
@@ -121,7 +149,10 @@
     {
       "id": "assert-invalid-name-error",
       "type": "assert",
-      "position": { "x": 1200, "y": 20 },
+      "position": {
+        "x": 1200,
+        "y": 20
+      },
       "data": {
         "label": "Invalid name error appears",
         "selector": "[data-testid=\"project-modal-name-error\"], [data-testid=\"form-error\"], .error-message",
@@ -133,7 +164,10 @@
     {
       "id": "assert-modal-still-open-2",
       "type": "assert",
-      "position": { "x": 1400, "y": 20 },
+      "position": {
+        "x": 1400,
+        "y": 20
+      },
       "data": {
         "label": "Modal remains open",
         "selector": "[data-testid=\"responsive-dialog-content\"]",
@@ -144,7 +178,10 @@
     {
       "id": "fill-very-long-name",
       "type": "type",
-      "position": { "x": 800, "y": 120 },
+      "position": {
+        "x": 800,
+        "y": 120
+      },
       "data": {
         "label": "Enter excessively long name",
         "selector": "[data-testid=\"project-modal-name-input\"]",
@@ -157,7 +194,10 @@
     {
       "id": "submit-long-name",
       "type": "click",
-      "position": { "x": 1000, "y": 120 },
+      "position": {
+        "x": 1000,
+        "y": 120
+      },
       "data": {
         "label": "Submit long name",
         "selector": "[data-testid=\"project-modal-submit\"]",
@@ -168,7 +208,10 @@
     {
       "id": "assert-length-error",
       "type": "assert",
-      "position": { "x": 1200, "y": 120 },
+      "position": {
+        "x": 1200,
+        "y": 120
+      },
       "data": {
         "label": "Length error appears",
         "selector": "[data-testid=\"project-modal-name-error\"], [data-testid=\"form-error\"], .error-message",
@@ -179,18 +222,83 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-dashboard", "target": "wait-for-projects", "type": "smoothstep" },
-    { "id": "e2", "source": "wait-for-projects", "target": "click-new-project", "type": "smoothstep" },
-    { "id": "e3", "source": "click-new-project", "target": "assert-modal-visible", "type": "smoothstep" },
-    { "id": "e4", "source": "assert-modal-visible", "target": "submit-empty-form", "type": "smoothstep" },
-    { "id": "e5", "source": "submit-empty-form", "target": "assert-name-required-error", "type": "smoothstep" },
-    { "id": "e6", "source": "assert-name-required-error", "target": "assert-modal-still-open-1", "type": "smoothstep" },
-    { "id": "e7", "source": "assert-modal-still-open-1", "target": "fill-whitespace-only-name", "type": "smoothstep" },
-    { "id": "e8", "source": "fill-whitespace-only-name", "target": "submit-whitespace-name", "type": "smoothstep" },
-    { "id": "e9", "source": "submit-whitespace-name", "target": "assert-invalid-name-error", "type": "smoothstep" },
-    { "id": "e10", "source": "assert-invalid-name-error", "target": "assert-modal-still-open-2", "type": "smoothstep" },
-    { "id": "e11", "source": "assert-modal-still-open-2", "target": "fill-very-long-name", "type": "smoothstep" },
-    { "id": "e12", "source": "fill-very-long-name", "target": "submit-long-name", "type": "smoothstep" },
-    { "id": "e13", "source": "submit-long-name", "target": "assert-length-error", "type": "smoothstep" }
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-projects",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-projects",
+      "target": "click-new-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-new-project",
+      "target": "assert-modal-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "assert-modal-visible",
+      "target": "submit-empty-form",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "submit-empty-form",
+      "target": "assert-name-required-error",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "assert-name-required-error",
+      "target": "assert-modal-still-open-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-modal-still-open-1",
+      "target": "fill-whitespace-only-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "fill-whitespace-only-name",
+      "target": "submit-whitespace-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "submit-whitespace-name",
+      "target": "assert-invalid-name-error",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-invalid-name-error",
+      "target": "assert-modal-still-open-2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "assert-modal-still-open-2",
+      "target": "fill-very-long-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "fill-very-long-name",
+      "target": "submit-long-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "submit-long-name",
+      "target": "assert-length-error",
+      "type": "smoothstep"
+    }
   ]
 }

@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { HTMLAttributes, PointerEvent, ReactNode, Ref } from 'react';
+import { HTMLAttributes, PointerEvent, ReactNode, Ref, useEffect } from 'react';
 import './ResponsiveDialog.css';
 
 type ResponsiveDialogSize = 'default' | 'wide' | 'xl';
@@ -35,6 +35,24 @@ export default function ResponsiveDialog({
   className,
   ...contentProps
 }: ResponsiveDialogProps) {
+  // Handle Escape key
+  useEffect(() => {
+    if (!isOpen || !onDismiss) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onDismiss();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onDismiss]);
+
   if (!isOpen) {
     return null;
   }

@@ -671,6 +671,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
               {!selectionMode && (
                 <div className="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
+                    data-testid="workflow-execute-button"
                     onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
                     disabled={executionInProgress[workflow.id]}
                     className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
@@ -1234,6 +1235,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                     ) : (
                       <div className="flex items-center gap-1">
                         <button
+                          data-testid="workflow-execute-button"
                           onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
                           disabled={executionInProgress[workflow.id]}
                           className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

@@ -1,358 +1,554 @@
 {
-  "$schema": "../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
   "version": "1.0.0",
   "endpoints": [
     {
       "id": "health-check",
       "path": "/health",
       "method": "GET",
-      "summary": "Service health check",
-      "category": "system",
-      "description": "Returns API readiness plus dependency status."
+      "summary": "Verify API health",
+      "description": "Returns overall service health status so orchestration and monitors can detect downtime.",
+      "category": "system"
     },
     {
-      "id": "search-apis",
+      "id": "search-apis-get",
       "path": "/api/v1/search",
       "method": "GET",
-      "summary": "Search APIs",
+      "summary": "Keyword API search",
+      "description": "Performs a keyword-based search across the API catalog using query parameters like query, category, configured, and max_price.",
       "category": "search",
-      "description": "Keyword search across APIs with optional query params."
+      "query": {
+        "query": {
+          "type": "string",
+          "description": "Search term to match against API names, providers, tags, and descriptions",
+          "required": true
+        },
+        "category": {
+          "type": "array",
+          "description": "Filter results to one or more category values"
+        },
+        "configured": {
+          "type": "boolean",
+          "description": "If true, return only APIs that have stored credentials"
+        },
+        "max_price": {
+          "type": "string",
+          "description": "Upper bound for pricing filters (USD)"
+        }
+      }
     },
     {
-      "id": "search-apis-advanced",
+      "id": "search-apis-post",
       "path": "/api/v1/search",
       "method": "POST",
-      "summary": "Semantic search APIs",
+      "summary": "Structured API search",
+      "description": "Accepts a JSON body with complex search parameters (query, filters, price, configuration flags) and returns the matching APIs.",
       "category": "search",
-      "description": "Performs semantic search with structured filters in the request body."
+      "request": {
+        "type": "object",
+        "properties": {
+          "query": "string",
+          "categories": "array of category slugs",
+          "configured": "boolean",
+          "max_price": "number",
+          "limit": "integer"
+        }
+      }
     },
     {
       "id": "list-apis",
       "path": "/api/v1/apis",
       "method": "GET",
       "summary": "List APIs",
-      "category": "apis",
-      "description": "Returns all APIs with paging and filters."
+      "description": "Returns the saved APIs with metadata, pricing, tags, and configuration state for catalog views.",
+      "category": "apis"
     },
     {
       "id": "create-api",
       "path": "/api/v1/apis",
       "method": "POST",
-      "summary": "Create API",
+      "summary": "Create API entry",
+      "description": "Registers a new API in the catalog including documentation links, auth type, and tags.",
       "category": "apis",
-      "description": "Adds a new API entry to the catalog."
+      "request": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": "string",
+          "provider": "string",
+          "description": "string",
+          "category": "string",
+          "auth_type": "string"
+        }
+      }
     },
     {
       "id": "get-api",
       "path": "/api/v1/apis/{id}",
       "method": "GET",
       "summary": "Get API details",
+      "description": "Fetches a single API with extended fields like endpoints, pricing tiers, and notes.",
       "category": "apis",
-      "description": "Returns metadata for a specific API."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "update-api",
       "path": "/api/v1/apis/{id}",
       "method": "PUT",
-      "summary": "Update API",
+      "summary": "Update API metadata",
+      "description": "Updates provider info, descriptions, pricing, or other fields for an existing API.",
       "category": "apis",
-      "description": "Updates API metadata fields."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "delete-api",
       "path": "/api/v1/apis/{id}",
       "method": "DELETE",
       "summary": "Delete API",
+      "description": "Removes an API from the catalog along with linked data like endpoints and pricing tiers.",
       "category": "apis",
-      "description": "Removes an API from the catalog."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
-      "id": "list-api-notes",
+      "id": "list-notes",
       "path": "/api/v1/apis/{id}/notes",
       "method": "GET",
       "summary": "List API notes",
+      "description": "Returns saved notes and gotchas for a specific API entry.",
       "category": "notes",
-      "description": "Returns reviewer notes tied to an API."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
-      "id": "add-api-note",
+      "id": "create-note",
       "path": "/api/v1/apis/{id}/notes",
       "method": "POST",
       "summary": "Add API note",
+      "description": "Creates a note detailing integration gotchas, SLA warnings, or upgrade tips for an API.",
       "category": "notes",
-      "description": "Adds a new note or gotcha for an API."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "list-api-endpoints",
       "path": "/api/v1/apis/{id}/endpoints",
       "method": "GET",
-      "summary": "List API endpoints",
+      "summary": "List canonical endpoints",
+      "description": "Shows the official endpoints associated with an API, including methods and documentation references.",
       "category": "apis",
-      "description": "Shows documented endpoints for a specific API."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "list-configured-apis",
       "path": "/api/v1/configured",
       "method": "GET",
       "summary": "List configured APIs",
-      "category": "apis",
-      "description": "Returns APIs with credentials already configured."
+      "description": "Returns APIs that currently have credentials or configuration records so users can see ready-to-use services.",
+      "category": "configuration"
     },
     {
-      "id": "mark-api-configured",
+      "id": "mark-configured",
       "path": "/api/v1/apis/{id}/configure",
       "method": "POST",
       "summary": "Mark API configured",
-      "category": "apis",
-      "description": "Flags an API as configured with credentials."
+      "description": "Stores credential metadata and marks an API as configured for a specific environment or user.",
+      "category": "configuration",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "request-research",
       "path": "/api/v1/request-research",
       "method": "POST",
-      "summary": "Request API research",
-      "category": "research",
-      "description": "Submits a research ticket for a capability."
+      "summary": "Request new API research",
+      "description": "Queues a research job for APIs that are not yet in the catalog, capturing requirements and desired capabilities.",
+      "category": "research"
     },
     {
       "id": "calculate-cost",
       "path": "/api/v1/calculate-cost",
       "method": "POST",
-      "summary": "Estimate API cost",
-      "category": "pricing",
-      "description": "Calculates cost estimates for anticipated usage."
+      "summary": "Calculate usage cost",
+      "description": "Estimates projected API spend based on pricing tiers and caller-provided monthly usage assumptions.",
+      "category": "pricing"
     },
     {
       "id": "list-api-versions",
       "path": "/api/v1/apis/{id}/versions",
       "method": "GET",
       "summary": "List API versions",
+      "description": "Returns historical versions that have been recorded for an API along with release metadata.",
       "category": "versions",
-      "description": "Returns version history for an API."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
-      "id": "create-api-version",
+      "id": "record-api-version",
       "path": "/api/v1/apis/{id}/versions",
       "method": "POST",
-      "summary": "Add API version",
+      "summary": "Add API version entry",
+      "description": "Adds a new version record for an API, tracking breaking changes, rollouts, or deprecations.",
       "category": "versions",
-      "description": "Adds or updates version metadata for an API."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "export-apis",
       "path": "/api/v1/export",
       "method": "GET",
       "summary": "Export APIs",
-      "category": "apis",
-      "description": "Exports APIs as JSON/CSV for offline analysis."
+      "description": "Exports the catalog as JSON or CSV for sharing or offline analysis.",
+      "category": "apis"
     },
     {
       "id": "update-api-status",
       "path": "/api/v1/apis/{id}/status",
       "method": "PUT",
       "summary": "Update API status",
+      "description": "Updates lifecycle status (active, deprecated, sunset date) for a given API entry.",
       "category": "apis",
-      "description": "Sets lifecycle status and sunset info."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "list-categories",
       "path": "/api/v1/categories",
       "method": "GET",
-      "summary": "List API categories",
-      "category": "taxonomy",
-      "description": "Returns categories with API counts."
+      "summary": "List categories",
+      "description": "Returns catalog categories with counts to power filters and dashboards.",
+      "category": "taxonomy"
     },
     {
       "id": "list-tags",
       "path": "/api/v1/tags",
       "method": "GET",
-      "summary": "List API tags",
-      "category": "taxonomy",
-      "description": "Returns popular API tags."
+      "summary": "List tags",
+      "description": "Returns popular tags with usage counts for filtering and insights.",
+      "category": "taxonomy"
     },
     {
-      "id": "update-api-tags",
+      "id": "update-tags",
       "path": "/api/v1/apis/{id}/tags",
       "method": "PUT",
       "summary": "Update API tags",
+      "description": "Sets or replaces the tag list for an API entry.",
       "category": "taxonomy",
-      "description": "Replaces the tags associated with an API."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "list-snippets",
       "path": "/api/v1/apis/{id}/snippets",
       "method": "GET",
       "summary": "List integration snippets",
+      "description": "Returns code snippets that show how to call the selected API in different languages.",
       "category": "snippets",
-      "description": "Returns code snippets tied to an API."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "create-snippet",
       "path": "/api/v1/apis/{id}/snippets",
       "method": "POST",
       "summary": "Create integration snippet",
+      "description": "Adds a new snippet for the API including language, description, and code sample.",
       "category": "snippets",
-      "description": "Adds a reusable integration snippet."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
-      "id": "popular-snippets",
+      "id": "list-popular-snippets",
       "path": "/api/v1/snippets/popular",
       "method": "GET",
       "summary": "Popular snippets",
-      "category": "snippets",
-      "description": "Returns the most-used snippets."
+      "description": "Returns snippets with the highest vote counts or usage metrics.",
+      "category": "snippets"
     },
     {
       "id": "get-snippet",
       "path": "/api/v1/snippets/{snippet_id}",
       "method": "GET",
-      "summary": "Get snippet",
+      "summary": "Get snippet by ID",
+      "description": "Retrieves a single snippet along with metadata and its associated API.",
       "category": "snippets",
-      "description": "Returns metadata plus code for a snippet."
+      "params": {
+        "snippet_id": {
+          "type": "uuid",
+          "description": "Snippet identifier"
+        }
+      }
     },
     {
       "id": "vote-snippet",
       "path": "/api/v1/snippets/{snippet_id}/vote",
       "method": "POST",
       "summary": "Vote on snippet",
+      "description": "Upvotes or downvotes a snippet to signal usefulness.",
       "category": "snippets",
-      "description": "Records a helpful/not-helpful vote."
+      "params": {
+        "snippet_id": {
+          "type": "uuid",
+          "description": "Snippet identifier"
+        }
+      }
     },
     {
       "id": "list-recipes",
       "path": "/api/v1/apis/{id}/recipes",
       "method": "GET",
       "summary": "List integration recipes",
+      "description": "Returns reusable integration recipes tied to an API.",
       "category": "recipes",
-      "description": "Lists multi-step integration recipes for an API."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "create-recipe",
       "path": "/api/v1/apis/{id}/recipes",
       "method": "POST",
-      "summary": "Create integration recipe",
+      "summary": "Create recipe",
+      "description": "Adds a new integration recipe for the selected API.",
       "category": "recipes",
-      "description": "Creates a new integration recipe."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
       "id": "get-recipe",
       "path": "/api/v1/recipes/{id}",
       "method": "GET",
       "summary": "Get recipe",
+      "description": "Fetches a recipe by ID including steps, required APIs, and success metrics.",
       "category": "recipes",
-      "description": "Returns recipe details by ID."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Recipe identifier"
+        }
+      }
     },
     {
       "id": "update-recipe",
       "path": "/api/v1/recipes/{id}",
       "method": "PUT",
       "summary": "Update recipe",
+      "description": "Updates recipe content, status, or documentation links.",
       "category": "recipes",
-      "description": "Updates a recipe definition."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Recipe identifier"
+        }
+      }
     },
     {
       "id": "delete-recipe",
       "path": "/api/v1/recipes/{id}",
       "method": "DELETE",
       "summary": "Delete recipe",
+      "description": "Deletes an integration recipe from the catalog.",
       "category": "recipes",
-      "description": "Deletes a recipe."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Recipe identifier"
+        }
+      }
     },
     {
-      "id": "successful-recipes",
+      "id": "list-successful-recipes",
       "path": "/api/v1/recipes/successful",
       "method": "GET",
       "summary": "Successful recipes",
-      "category": "recipes",
-      "description": "Returns recipes with high success rates."
+      "description": "Returns recipes flagged as successful in production deployments.",
+      "category": "recipes"
     },
     {
       "id": "compare-apis",
       "path": "/api/v1/compare",
       "method": "POST",
       "summary": "Compare APIs",
-      "category": "analysis",
-      "description": "Compares APIs on pricing, capability, and fit."
+      "description": "Compares multiple APIs side-by-side on pricing, SLAs, and capability fields.",
+      "category": "analysis"
     },
     {
-      "id": "track-api-usage",
+      "id": "track-usage",
       "path": "/api/v1/apis/{id}/usage",
       "method": "POST",
       "summary": "Track API usage",
-      "category": "analysis",
-      "description": "Logs usage metrics for an API."
+      "description": "Records usage events so the system can analyze adoption and health.",
+      "category": "analytics",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
-      "id": "get-api-analytics",
+      "id": "get-analytics",
       "path": "/api/v1/apis/{id}/analytics",
       "method": "GET",
       "summary": "Get API analytics",
-      "category": "analysis",
-      "description": "Returns usage and performance analytics."
+      "description": "Returns historical usage, performance, and adoption analytics for a specific API.",
+      "category": "analytics",
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
-      "id": "recommend-apis",
+      "id": "recommendations",
       "path": "/api/v1/recommendations",
       "method": "GET",
-      "summary": "Recommend APIs",
-      "category": "analysis",
-      "description": "Provides recommendation results for the current query context."
+      "summary": "Get API recommendations",
+      "description": "Suggests APIs based on user behavior, saved filters, and current stack.",
+      "category": "analysis"
     },
     {
       "id": "create-webhook",
       "path": "/api/v1/webhooks",
       "method": "POST",
       "summary": "Create webhook",
-      "category": "webhooks",
-      "description": "Registers a webhook callback."
+      "description": "Registers a webhook callback for catalog changes, approvals, or research events.",
+      "category": "webhooks"
     },
     {
       "id": "list-webhooks",
       "path": "/api/v1/webhooks",
       "method": "GET",
       "summary": "List webhooks",
-      "category": "webhooks",
-      "description": "Returns registered webhooks."
+      "description": "Returns registered webhooks with event types and delivery URLs.",
+      "category": "webhooks"
     },
     {
       "id": "delete-webhook",
       "path": "/api/v1/webhooks/{id}",
       "method": "DELETE",
       "summary": "Delete webhook",
+      "description": "Removes a webhook subscription.",
       "category": "webhooks",
-      "description": "Deletes a webhook registration."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Webhook identifier"
+        }
+      }
     },
     {
       "id": "test-webhook",
       "path": "/api/v1/webhooks/{id}/test",
       "method": "POST",
-      "summary": "Test webhook",
+      "summary": "Test webhook delivery",
+      "description": "Sends a test payload to verify webhook configuration.",
       "category": "webhooks",
-      "description": "Sends a test payload to a webhook."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "Webhook identifier"
+        }
+      }
     },
     {
-      "id": "get-codegen-spec",
+      "id": "codegen-spec",
       "path": "/api/v1/codegen/apis/{id}",
       "method": "GET",
-      "summary": "Get API codegen spec",
+      "summary": "Generate code spec",
+      "description": "Returns a code generation spec for the API so SDKs or snippets can be produced programmatically.",
       "category": "codegen",
-      "description": "Returns OpenAPI / SDK spec metadata for an API."
+      "params": {
+        "id": {
+          "type": "uuid",
+          "description": "API identifier"
+        }
+      }
     },
     {
-      "id": "search-codegen-apis",
+      "id": "codegen-search",
       "path": "/api/v1/codegen/search",
       "method": "POST",
-      "summary": "Search codegen APIs",
-      "category": "codegen",
-      "description": "Searches APIs optimized for SDK generation."
+      "summary": "Search codegen catalog",
+      "description": "Searches APIs that have codified specs or templates ready for generation.",
+      "category": "codegen"
     },
     {
-      "id": "list-codegen-templates",
+      "id": "codegen-templates",
       "path": "/api/v1/codegen/templates/{language}",
       "method": "GET",
       "summary": "List codegen templates",
+      "description": "Returns available code generation templates for a requested language.",
       "category": "codegen",
-      "description": "Lists available code generation templates for a language."
+      "params": {
+        "language": {
+          "type": "string",
+          "description": "Language or runtime key"
+        }
+      }
     }
   ]
 }

@@ -61,86 +61,13 @@ scenario::load() {
     local config
     config=$(cat "$scenario_file")
     
-    # Handle different scenario formats
-    # New format: direct scenario object
-    if echo "$config" | jq -e '.resources' >/dev/null 2>&1; then
+    # Require dependencies.resources map to be present
+    if echo "$config" | jq -e '.dependencies.resources' >/dev/null 2>&1; then
         echo "$config"
-    # Legacy format: nested in service.json
-    elif echo "$config" | jq -e '.service' >/dev/null 2>&1; then
-        # Extract and transform legacy format
-        scenario::transform_legacy "$config"
     else
-        log::error "Unrecognized scenario format"
+        log::error "Scenario configuration missing dependencies.resources"
         return 1
     fi
-}
-
-#######################################
-# Transform legacy service.json format to new format
-# Arguments:
-#   $1 - legacy configuration (JSON)
-# Outputs:
-#   Transformed configuration (JSON)
-#######################################
-scenario::transform_legacy() {
-    local legacy_config="$1"
-    
-    # Extract name and description
-    local name
-    local description
-    
-    name=$(echo "$legacy_config" | jq -r '.service.name // "unknown"')
-    description=$(echo "$legacy_config" | jq -r '.service.description // ""')
-    
-    # Build new format
-    local new_config
-    new_config=$(jq -n \
-        --arg name "$name" \
-        --arg desc "$description" \
-        --argjson resources "$(echo "$legacy_config" | scenario::extract_resources)" \
-        '{
-            name: $name,
-            description: $desc,
-            resources: $resources
-        }')
-    
-    echo "$new_config"
-}
-
-#######################################
-# Extract resources with content from legacy format
-# Arguments:
-#   stdin - legacy configuration
-# Outputs:
-#   Resources with content (JSON)
-#######################################
-scenario::extract_resources() {
-    jq '
-    .resources | 
-    to_entries |
-    map(
-        .value |
-        to_entries |
-        map({
-            key: .key,
-            value: {
-                content: (
-                    if .value.initialization then
-                        .value.initialization
-                    elif .value.workflows then
-                        .value.workflows | map(. + {type: "workflow"})
-                    elif .value.data then
-                        .value.data
-                    else
-                        []
-                    end
-                )
-            }
-        })
-    ) |
-    flatten |
-    from_entries
-    '
 }
 
 #######################################
