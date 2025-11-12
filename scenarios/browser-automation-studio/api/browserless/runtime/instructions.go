@@ -17,10 +17,16 @@ import (
 )
 
 const (
-	defaultLoopMaxIterations = 100
-	maxLoopMaxIterations     = 5000
-	defaultLoopItemVariable  = "loop.item"
-	defaultLoopIndexVariable = "loop.index"
+	defaultLoopMaxIterations      = 100
+	maxLoopMaxIterations          = 5000
+	defaultLoopItemVariable       = "loop.item"
+	defaultLoopIndexVariable      = "loop.index"
+	minLoopIterationTimeoutMs     = 250
+	maxLoopIterationTimeoutMs     = 600000
+	defaultLoopIterationTimeoutMs = 45000
+	minLoopTotalTimeoutMs         = 1000
+	maxLoopTotalTimeoutMs         = 1800000
+	defaultLoopTotalTimeoutMs     = 300000
 )
 
 const (
@@ -189,6 +195,13 @@ type InstructionParam struct {
 	LoopMaxIterations       int               `json:"loopMaxIterations,omitempty"`
 	LoopItemVariable        string            `json:"loopItemVariable,omitempty"`
 	LoopIndexVariable       string            `json:"loopIndexVariable,omitempty"`
+	LoopIterationTimeoutMs  int               `json:"loopIterationTimeoutMs,omitempty"`
+	LoopTotalTimeoutMs      int               `json:"loopTotalTimeoutMs,omitempty"`
+	WorkflowCallID          string            `json:"workflowCallId,omitempty"`
+	WorkflowCallName        string            `json:"workflowCallName,omitempty"`
+	WorkflowCallWait        *bool             `json:"workflowCallWait,omitempty"`
+	WorkflowCallParams      map[string]any    `json:"workflowCallParams,omitempty"`
+	WorkflowCallOutputs     map[string]string `json:"workflowCallOutputs,omitempty"`
 	CookieName              string            `json:"cookieName,omitempty"`
 	CookieValue             string            `json:"cookieValue,omitempty"`
 	CookieURL               string            `json:"cookieUrl,omitempty"`
@@ -517,6 +530,8 @@ type loopConfig struct {
 	ArraySource         string `json:"arraySource"`
 	Count               int    `json:"count"`
 	MaxIterations       int    `json:"maxIterations"`
+	IterationTimeoutMs  int    `json:"iterationTimeoutMs"`
+	TotalTimeoutMs      int    `json:"totalTimeoutMs"`
 	ItemVariable        string `json:"itemVariable"`
 	IndexVariable       string `json:"indexVariable"`
 	ConditionType       string `json:"conditionType"`
@@ -524,6 +539,14 @@ type loopConfig struct {
 	ConditionVariable   string `json:"conditionVariable"`
 	ConditionOperator   string `json:"conditionOperator"`
 	ConditionValue      any    `json:"conditionValue"`
+}
+
+type workflowCallConfig struct {
+	WorkflowID        string            `json:"workflowId"`
+	WorkflowName      string            `json:"workflowName"`
+	WaitForCompletion *bool             `json:"waitForCompletion"`
+	Parameters        map[string]any    `json:"parameters"`
+	OutputMapping     map[string]string `json:"outputMapping"`
 }
 
 type setCookieConfig struct {
@@ -1172,6 +1195,8 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		params.LoopMaxIterations = clampLoopIterations(cfg.MaxIterations)
 		params.LoopItemVariable = normalizeLoopVariable(cfg.ItemVariable, defaultLoopItemVariable)
 		params.LoopIndexVariable = normalizeLoopVariable(cfg.IndexVariable, defaultLoopIndexVariable)
+		params.LoopIterationTimeoutMs = clampLoopIterationTimeout(cfg.IterationTimeoutMs)
+		params.LoopTotalTimeoutMs = clampLoopTotalTimeout(cfg.TotalTimeoutMs)
 		switch loopType {
 		case "foreach":
 			source := strings.TrimSpace(cfg.ArraySource)
@@ -1219,6 +1244,33 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		}
 		base.Params = params
 		return base, nil
+	case compiler.StepWorkflowCall:
+		var cfg workflowCallConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("workflow call node %s has invalid data: %w", step.NodeID, err)
+		}
+		workflowID := strings.TrimSpace(cfg.WorkflowID)
+		if workflowID == "" {
+			return Instruction{}, fmt.Errorf("workflow call node %s requires workflowId", step.NodeID)
+		}
+		waitForCompletion := true
+		if cfg.WaitForCompletion != nil {
+			waitForCompletion = *cfg.WaitForCompletion
+		}
+		if !waitForCompletion {
+			return Instruction{}, fmt.Errorf("workflow call node %s must wait for completion (async execution not supported yet)", step.NodeID)
+		}
+		base.Params.WorkflowCallID = workflowID
+		if trimmedName := strings.TrimSpace(cfg.WorkflowName); trimmedName != "" {
+			base.Params.WorkflowCallName = trimmedName
+		}
+		base.Params.WorkflowCallWait = &waitForCompletion
+		if cleaned := sanitizeWorkflowCallParams(cfg.Parameters); len(cleaned) > 0 {
+			base.Params.WorkflowCallParams = cleaned
+		}
+		if outputs := normalizeWorkflowCallOutputs(cfg.OutputMapping); len(outputs) > 0 {
+			base.Params.WorkflowCallOutputs = outputs
+		}
 	case compiler.StepRotate:
 		// [REQ:BAS-NODE-ROTATE-MOBILE]
 		var cfg rotateConfig
@@ -1759,8 +1811,6 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if cfg.Required != nil {
 			base.Params.VariableRequired = cfg.Required
 		}
-	case compiler.StepWorkflowCall:
-		return Instruction{}, fmt.Errorf("workflowCall node %s is not yet supported", step.NodeID)
 	case compiler.StepAssert:
 		var cfg assertConfig
 		if err := decodeParams(step.Params, &cfg); err != nil {
@@ -2603,6 +2653,32 @@ func clampLoopIterations(value int) int {
 	return value
 }
 
+func clampLoopIterationTimeout(value int) int {
+	if value <= 0 {
+		return defaultLoopIterationTimeoutMs
+	}
+	if value < minLoopIterationTimeoutMs {
+		return minLoopIterationTimeoutMs
+	}
+	if value > maxLoopIterationTimeoutMs {
+		return maxLoopIterationTimeoutMs
+	}
+	return value
+}
+
+func clampLoopTotalTimeout(value int) int {
+	if value <= 0 {
+		return defaultLoopTotalTimeoutMs
+	}
+	if value < minLoopTotalTimeoutMs {
+		return minLoopTotalTimeoutMs
+	}
+	if value > maxLoopTotalTimeoutMs {
+		return maxLoopTotalTimeoutMs
+	}
+	return value
+}
+
 func normalizeLoopVariable(value, fallback string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -2635,6 +2711,43 @@ func normalizeLoopOperator(value string) string {
 	default:
 		return value
 	}
+}
+
+func sanitizeWorkflowCallParams(params map[string]any) map[string]any {
+	if len(params) == 0 {
+		return nil
+	}
+	cleaned := make(map[string]any, len(params))
+	for key, value := range params {
+		trimmed := strings.TrimSpace(key)
+		if trimmed == "" {
+			continue
+		}
+		cleaned[trimmed] = value
+	}
+	if len(cleaned) == 0 {
+		return nil
+	}
+	return cleaned
+}
+
+func normalizeWorkflowCallOutputs(outputs map[string]string) map[string]string {
+	if len(outputs) == 0 {
+		return nil
+	}
+	cleaned := make(map[string]string, len(outputs))
+	for source, target := range outputs {
+		src := strings.TrimSpace(source)
+		dst := strings.TrimSpace(target)
+		if src == "" || dst == "" {
+			continue
+		}
+		cleaned[src] = dst
+	}
+	if len(cleaned) == 0 {
+		return nil
+	}
+	return cleaned
 }
 
 func isFunctionKey(value string) bool {

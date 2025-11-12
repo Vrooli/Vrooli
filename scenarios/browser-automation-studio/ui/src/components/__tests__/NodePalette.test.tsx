@@ -54,6 +54,32 @@ describe(
       expect(uniqueTypes.size).toBe(ALL_NODE_TYPES.length);
     });
 
+    it('organizes nodes into exactly seven categories with deterministic defaults [REQ:BAS-UX-PALETTE-CATEGORIES]', () => {
+      const { container } = render(<NodePalette />);
+
+      const categoryButtons = Array.from(container.querySelectorAll('button[aria-controls$="-nodes"]'));
+      expect(categoryButtons).toHaveLength(7);
+
+      const categoryLabels = categoryButtons
+        .map((button) => button.querySelector('.text-sm')?.textContent?.trim())
+        .filter((label): label is string => Boolean(label));
+      expect(categoryLabels).toEqual([
+        'Navigation & Context',
+        'Pointer & Gestures',
+        'Forms & Input',
+        'Data & Variables',
+        'Assertions & Observability',
+        'Workflow Logic',
+        'Storage & Network',
+      ]);
+
+      const expandedByDefault = categoryButtons
+        .filter((button) => button.getAttribute('aria-expanded') === 'true')
+        .map((button) => button.querySelector('.text-sm')?.textContent?.trim())
+        .filter((label): label is string => Boolean(label));
+      expect(expandedByDefault).toEqual(['Navigation & Context', 'Pointer & Gestures']);
+    });
+
     it('filters nodes with search and highlights matches [REQ:BAS-UX-PALETTE-SEARCH]', () => {
       render(<NodePalette />);
 
@@ -72,6 +98,19 @@ describe(
         (content, element) => element?.tagName === 'MARK' && content.toLowerCase() === 'cookie',
       );
       expect(highlights.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('locks category toggles and forces open state while searching [REQ:BAS-UX-PALETTE-SEARCH]', () => {
+      const { container } = render(<NodePalette />);
+
+      const searchInput = screen.getByPlaceholderText(/Search nodes/);
+      fireEvent.change(searchInput, { target: { value: 'cookie' } });
+
+      const categoryButtons = Array.from(container.querySelectorAll('button[aria-controls$="-nodes"]'));
+      categoryButtons.forEach((button) => {
+        expect(button).toBeDisabled();
+        expect(button).toHaveAttribute('aria-expanded', 'true');
+      });
     });
 
     it('records recents on drag and clears search [REQ:BAS-UX-PALETTE-QUICK-ACCESS] [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', async () => {

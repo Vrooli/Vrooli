@@ -67,9 +67,11 @@ const (
 )
 
 const (
-	loopDefaultMaxIterations = 100
-	loopDefaultItemVariable  = "loop.item"
-	loopDefaultIndexVariable = "loop.index"
+	loopDefaultMaxIterations      = 100
+	loopDefaultItemVariable       = "loop.item"
+	loopDefaultIndexVariable      = "loop.index"
+	loopDefaultIterationTimeoutMs = 45000
+	loopDefaultTotalTimeoutMs     = 300000
 )
 
 func decodeDataHTML(raw string) (string, error) {
@@ -200,32 +202,7 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 		return nil
 	}
 
-	stepsByNodeID := make(map[string]compiler.ExecutionStep, len(plan.Steps))
-	incomingCounts := make(map[string]int, len(plan.Steps))
-	for _, step := range plan.Steps {
-		stepsByNodeID[step.NodeID] = step
-		incomingCounts[step.NodeID] = 0
-	}
-
-	for _, step := range plan.Steps {
-		for _, edge := range step.OutgoingEdges {
-			incomingCounts[edge.TargetNode]++
-		}
-	}
-
-	activeNodes := make(map[string]bool, len(plan.Steps))
-	for nodeID, count := range incomingCounts {
-		if _, exists := stepsByNodeID[nodeID]; !exists {
-			continue
-		}
-		if count == 0 {
-			activeNodes[nodeID] = true
-		}
-	}
-
-	if len(activeNodes) == 0 && len(plan.Steps) > 0 {
-		activeNodes[plan.Steps[0].NodeID] = true
-	}
+	stepsByNodeID, activeNodes := buildPlanState(plan)
 
 	// Create CDP session for persistent browser connection
 	sessionLogger := c.log.WithField("execution_id", execution.ID)
@@ -370,11 +347,7 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 		var retryHistory []database.JSONMap
 		var attemptsUsed int
 		var totalAttemptDurationMs int
-		if stepDefinition.Type == compiler.StepLoop {
-			step, retryHistory, attemptsUsed, totalAttemptDurationMs, lastErr = c.executeLoopStep(ctx, session, instruction, stepDefinition, execCtx)
-		} else {
-			step, retryHistory, attemptsUsed, totalAttemptDurationMs, lastErr = c.executeInstructionWithRetries(ctx, session, instruction)
-		}
+		step, retryHistory, attemptsUsed, totalAttemptDurationMs, lastErr = c.runInstruction(ctx, session, instruction, stepDefinition, execCtx)
 
 		if cancelHeartbeat != nil {
 			cancelHeartbeat()
@@ -1364,6 +1337,23 @@ func evaluateOutgoingEdges(step compiler.ExecutionStep, result runtime.StepResul
 	return targets, hasFailureEdge, directive
 }
 
+func (c *Client) runInstruction(
+	ctx context.Context,
+	session cdpSession,
+	instruction runtime.Instruction,
+	stepDefinition compiler.ExecutionStep,
+	execCtx *runtime.ExecutionContext,
+) (runtime.StepResult, []database.JSONMap, int, int, error) {
+	switch stepDefinition.Type {
+	case compiler.StepLoop:
+		return c.executeLoopStep(ctx, session, instruction, stepDefinition, execCtx)
+	case compiler.StepWorkflowCall:
+		return c.executeWorkflowCallStep(ctx, session, instruction, execCtx)
+	default:
+		return c.executeInstructionWithRetries(ctx, session, instruction)
+	}
+}
+
 func (c *Client) executeInstructionWithRetries(
 	ctx context.Context,
 	session cdpSession,
@@ -1889,6 +1879,14 @@ func (c *Client) executeLoopStep(
 	if maxIterations <= 0 {
 		maxIterations = loopDefaultMaxIterations
 	}
+	iterationTimeout := instruction.Params.LoopIterationTimeoutMs
+	if iterationTimeout <= 0 {
+		iterationTimeout = loopDefaultIterationTimeoutMs
+	}
+	totalTimeout := instruction.Params.LoopTotalTimeoutMs
+	if totalTimeout <= 0 {
+		totalTimeout = loopDefaultTotalTimeoutMs
+	}
 	iterations := 0
 	totalDuration := 0
 	start := time.Now()
@@ -1916,9 +1914,14 @@ func (c *Client) executeLoopStep(
 		}
 		for idx, item := range dataset {
 			applyLoopVariables(execCtx, instruction, idx, len(dataset), item)
+			iterationStart := time.Now()
 			outcome, runErr := c.runLoopBody(ctx, session, stepDefinition.LoopPlan, bodyInstructions, execCtx)
+			iterationDuration := outcome.DurationMs
+			if iterationDuration <= 0 {
+				iterationDuration = int(time.Since(iterationStart) / time.Millisecond)
+			}
 			iterations++
-			totalDuration += outcome.DurationMs
+			totalDuration += iterationDuration
 			if runErr != nil {
 				result.Success = false
 				result.Error = runErr.Error()
@@ -1930,6 +1933,12 @@ func (c *Client) executeLoopStep(
 				result.Error = "loop body failed"
 				clearLoopVariables(execCtx, instruction)
 				return result, retryHistory, 1, totalDuration, fmt.Errorf("loop body failed")
+			}
+			if err := enforceLoopTimeouts(instruction.NodeID, iterationDuration, totalDuration, iterationTimeout, totalTimeout); err != nil {
+				result.Success = false
+				result.Error = err.Error()
+				clearLoopVariables(execCtx, instruction)
+				return result, retryHistory, 1, totalDuration, err
 			}
 			if outcome.Break {
 				break
@@ -1948,9 +1957,14 @@ func (c *Client) executeLoopStep(
 		}
 		for idx := 0; idx < repeatCount; idx++ {
 			applyLoopVariables(execCtx, instruction, idx, repeatCount, idx)
+			iterationStart := time.Now()
 			outcome, runErr := c.runLoopBody(ctx, session, stepDefinition.LoopPlan, bodyInstructions, execCtx)
+			iterationDuration := outcome.DurationMs
+			if iterationDuration <= 0 {
+				iterationDuration = int(time.Since(iterationStart) / time.Millisecond)
+			}
 			iterations++
-			totalDuration += outcome.DurationMs
+			totalDuration += iterationDuration
 			if runErr != nil {
 				result.Success = false
 				result.Error = runErr.Error()
@@ -1962,6 +1976,12 @@ func (c *Client) executeLoopStep(
 				result.Error = "loop body failed"
 				clearLoopVariables(execCtx, instruction)
 				return result, retryHistory, 1, totalDuration, fmt.Errorf("loop body failed")
+			}
+			if err := enforceLoopTimeouts(instruction.NodeID, iterationDuration, totalDuration, iterationTimeout, totalTimeout); err != nil {
+				result.Success = false
+				result.Error = err.Error()
+				clearLoopVariables(execCtx, instruction)
+				return result, retryHistory, 1, totalDuration, err
 			}
 			if outcome.Break {
 				break
@@ -1983,9 +2003,14 @@ func (c *Client) executeLoopStep(
 				break
 			}
 			applyLoopVariables(execCtx, instruction, iterations, maxIterations, iterations)
+			iterationStart := time.Now()
 			outcome, runErr := c.runLoopBody(ctx, session, stepDefinition.LoopPlan, bodyInstructions, execCtx)
+			iterationDuration := outcome.DurationMs
+			if iterationDuration <= 0 {
+				iterationDuration = int(time.Since(iterationStart) / time.Millisecond)
+			}
 			iterations++
-			totalDuration += outcome.DurationMs
+			totalDuration += iterationDuration
 			if runErr != nil {
 				result.Success = false
 				result.Error = runErr.Error()
@@ -1997,6 +2022,12 @@ func (c *Client) executeLoopStep(
 				result.Error = "loop body failed"
 				clearLoopVariables(execCtx, instruction)
 				return result, retryHistory, 1, totalDuration, fmt.Errorf("loop body failed")
+			}
+			if err := enforceLoopTimeouts(instruction.NodeID, iterationDuration, totalDuration, iterationTimeout, totalTimeout); err != nil {
+				result.Success = false
+				result.Error = err.Error()
+				clearLoopVariables(execCtx, instruction)
+				return result, retryHistory, 1, totalDuration, err
 			}
 			if outcome.Break {
 				break
@@ -2031,6 +2062,246 @@ func (c *Client) executeLoopStep(
 	}
 	result.DurationMs = totalDuration
 	return result, retryHistory, 1, totalDuration, nil
+}
+
+func enforceLoopTimeouts(nodeID string, iterationDuration, totalDuration, iterationTimeout, totalTimeout int) error {
+	if iterationTimeout > 0 && iterationDuration > iterationTimeout {
+		return fmt.Errorf("loop node %s exceeded iteration timeout (%dms > %dms)", nodeID, iterationDuration, iterationTimeout)
+	}
+	if totalTimeout > 0 && totalDuration > totalTimeout {
+		return fmt.Errorf("loop node %s exceeded total timeout (%dms > %dms)", nodeID, totalDuration, totalTimeout)
+	}
+	return nil
+}
+
+type workflowCallParamSnapshot struct {
+	existed bool
+	value   any
+}
+
+func (c *Client) applyWorkflowCallParameters(execCtx *runtime.ExecutionContext, params map[string]any) func() {
+	if execCtx == nil || len(params) == 0 {
+		return func() {}
+	}
+	backup := make(map[string]workflowCallParamSnapshot, len(params))
+	for key, value := range params {
+		trimmed := strings.TrimSpace(key)
+		if trimmed == "" {
+			continue
+		}
+		previous, existed := execCtx.Get(trimmed)
+		backup[trimmed] = workflowCallParamSnapshot{existed: existed, value: previous}
+		if err := execCtx.Set(trimmed, value); err != nil && c.log != nil {
+			c.log.WithError(err).WithField("variable", trimmed).Warn("Failed to set workflow call parameter")
+		}
+	}
+	return func() {
+		for key, snapshot := range backup {
+			if snapshot.existed {
+				if err := execCtx.Set(key, snapshot.value); err != nil && c.log != nil {
+					c.log.WithError(err).WithField("variable", key).Warn("Failed to restore workflow call parameter")
+				}
+			} else {
+				execCtx.Delete(key)
+			}
+		}
+	}
+}
+
+func buildPlanState(plan *compiler.ExecutionPlan) (map[string]compiler.ExecutionStep, map[string]bool) {
+	stepsByNodeID := make(map[string]compiler.ExecutionStep)
+	activeNodes := make(map[string]bool)
+	if plan == nil {
+		return stepsByNodeID, activeNodes
+	}
+	incomingCounts := make(map[string]int, len(plan.Steps))
+	for _, step := range plan.Steps {
+		stepsByNodeID[step.NodeID] = step
+		incomingCounts[step.NodeID] = 0
+	}
+	for _, step := range plan.Steps {
+		for _, edge := range step.OutgoingEdges {
+			incomingCounts[edge.TargetNode]++
+		}
+	}
+	for nodeID, count := range incomingCounts {
+		if _, exists := stepsByNodeID[nodeID]; !exists {
+			continue
+		}
+		if count == 0 {
+			activeNodes[nodeID] = true
+		}
+	}
+	if len(activeNodes) == 0 && len(plan.Steps) > 0 {
+		activeNodes[plan.Steps[0].NodeID] = true
+	}
+	return stepsByNodeID, activeNodes
+}
+
+func (c *Client) executeWorkflowCallStep(
+	ctx context.Context,
+	session cdpSession,
+	instruction runtime.Instruction,
+	execCtx *runtime.ExecutionContext,
+) (runtime.StepResult, []database.JSONMap, int, int, error) {
+	stepResult := runtime.StepResult{
+		Index:   instruction.Index,
+		NodeID:  instruction.NodeID,
+		Type:    instruction.Type,
+		Success: true,
+	}
+	retryHistory := []database.JSONMap{}
+	workflowID := strings.TrimSpace(instruction.Params.WorkflowCallID)
+	if workflowID == "" {
+		err := fmt.Errorf("workflow call node %s missing workflowId", instruction.NodeID)
+		stepResult.Success = false
+		stepResult.Error = err.Error()
+		return stepResult, retryHistory, 1, 0, err
+	}
+	waitForCompletion := true
+	if instruction.Params.WorkflowCallWait != nil {
+		waitForCompletion = *instruction.Params.WorkflowCallWait
+	}
+	if !waitForCompletion {
+		err := fmt.Errorf("workflow call node %s must wait for completion (async execution not supported)", instruction.NodeID)
+		stepResult.Success = false
+		stepResult.Error = err.Error()
+		return stepResult, retryHistory, 1, 0, err
+	}
+	parsedID, err := uuid.Parse(workflowID)
+	if err != nil {
+		err = fmt.Errorf("workflow call node %s has invalid workflowId %q: %w", instruction.NodeID, workflowID, err)
+		stepResult.Success = false
+		stepResult.Error = err.Error()
+		return stepResult, retryHistory, 1, 0, err
+	}
+	workflow, err := c.repo.GetWorkflow(ctx, parsedID)
+	if err != nil {
+		err = fmt.Errorf("workflow call node %s failed to load workflow: %w", instruction.NodeID, err)
+		stepResult.Success = false
+		stepResult.Error = err.Error()
+		return stepResult, retryHistory, 1, 0, err
+	}
+	plan, instructions, err := c.compileWorkflow(ctx, workflow)
+	if err != nil {
+		err = fmt.Errorf("workflow call node %s failed to compile workflow: %w", instruction.NodeID, err)
+		stepResult.Success = false
+		stepResult.Error = err.Error()
+		return stepResult, retryHistory, 1, 0, err
+	}
+	cleanup := func() {}
+	if execCtx != nil && len(instruction.Params.WorkflowCallParams) > 0 {
+		cleanup = c.applyWorkflowCallParameters(execCtx, instruction.Params.WorkflowCallParams)
+	}
+	defer cleanup()
+	start := time.Now()
+	inlineErr := c.runInlineExecution(ctx, session, plan, instructions, execCtx)
+	durationMs := int(time.Since(start) / time.Millisecond)
+	stepResult.DurationMs = durationMs
+	if inlineErr != nil {
+		stepResult.Success = false
+		stepResult.Error = inlineErr.Error()
+	}
+	workflowName := strings.TrimSpace(instruction.Params.WorkflowCallName)
+	if workflowName == "" {
+		workflowName = workflow.Name
+	}
+	outputs := map[string]any{}
+	if execCtx != nil && len(instruction.Params.WorkflowCallOutputs) > 0 {
+		for source, target := range instruction.Params.WorkflowCallOutputs {
+			src := strings.TrimSpace(source)
+			dst := strings.TrimSpace(target)
+			if src == "" || dst == "" {
+				continue
+			}
+			if value, ok := execCtx.Get(src); ok {
+				outputs[dst] = value
+				if src != dst {
+					if err := execCtx.Set(dst, value); err != nil && c.log != nil {
+						c.log.WithError(err).WithField("variable", dst).Warn("Failed to persist workflow call output variable")
+					}
+				}
+			}
+		}
+	}
+	metadata := map[string]any{
+		"workflowId": workflow.ID.String(),
+	}
+	if workflowName != "" {
+		metadata["workflowName"] = workflowName
+	}
+	if len(outputs) > 0 {
+		metadata["outputs"] = outputs
+	}
+	stepResult.ExtractedData = metadata
+	if inlineErr != nil {
+		return stepResult, retryHistory, 1, durationMs, inlineErr
+	}
+	return stepResult, retryHistory, 1, durationMs, nil
+}
+
+func (c *Client) runInlineExecution(
+	ctx context.Context,
+	session cdpSession,
+	plan *compiler.ExecutionPlan,
+	instructions []runtime.Instruction,
+	execCtx *runtime.ExecutionContext,
+) error {
+	if plan == nil || len(plan.Steps) == 0 || len(instructions) == 0 {
+		return nil
+	}
+	stepsByNodeID, activeNodes := buildPlanState(plan)
+	if len(stepsByNodeID) == 0 {
+		return nil
+	}
+	for _, instruction := range instructions {
+		if !activeNodes[instruction.NodeID] {
+			continue
+		}
+		delete(activeNodes, instruction.NodeID)
+		resolved, missing, err := runtime.InterpolateInstruction(instruction, execCtx)
+		if err != nil {
+			return fmt.Errorf("failed to interpolate workflow call instruction %s: %w", instruction.NodeID, err)
+		}
+		if len(missing) > 0 && c.log != nil {
+			c.log.WithFields(logrus.Fields{
+				"node_id":   instruction.NodeID,
+				"variables": missing,
+			}).Warn("Workflow call referenced undefined variables")
+		}
+		stepDefinition, hasDefinition := stepsByNodeID[instruction.NodeID]
+		if !hasDefinition {
+			stepDefinition = compiler.ExecutionStep{NodeID: instruction.NodeID, Index: instruction.Index}
+		}
+		allowFailure := false
+		if resolved.Params.ContinueOnFailure != nil {
+			allowFailure = *resolved.Params.ContinueOnFailure
+		}
+		step, _, _, _, stepErr := c.runInstruction(ctx, session, resolved, stepDefinition, execCtx)
+		if err := applyVariablePostProcessing(execCtx, resolved, step); err != nil && c.log != nil {
+			c.log.WithError(err).Warn("Failed to persist inline workflow variable output")
+		}
+		nextTargets, hasFailureEdge, directive := evaluateOutgoingEdges(stepDefinition, step, allowFailure)
+		if (directive.Break || directive.Continue) && c.log != nil {
+			c.log.WithField("node_id", instruction.NodeID).Warn("Loop directive emitted outside loop body; ignoring")
+		}
+		for _, target := range nextTargets {
+			if _, exists := stepsByNodeID[target]; !exists {
+				continue
+			}
+			activeNodes[target] = true
+		}
+		if !step.Success && !allowFailure && !hasFailureEdge {
+			if stepErr != nil {
+				return stepErr
+			}
+			if strings.TrimSpace(step.Error) != "" {
+				return fmt.Errorf("workflow call step %s failed: %s", instruction.NodeID, step.Error)
+			}
+			return fmt.Errorf("workflow call step %s failed", instruction.NodeID)
+		}
+	}
+	return nil
 }
 
 func (c *Client) emitStepHeartbeats(

@@ -19,6 +19,8 @@ const WS_HOST = process.env.WS_HOST || 'localhost';
 const bootstrapEntry = path.resolve(__dirname, 'src/bootstrap.tsx');
 const mainEntry = path.resolve(__dirname, 'index.html');
 const composerEntry = path.resolve(__dirname, 'src/export/composer.html');
+const MAX_VITEST_THREADS = Math.max(1, Number(process.env.VITEST_MAX_THREADS ?? '2'));
+const MIN_VITEST_THREADS = Math.max(1, Math.min(MAX_VITEST_THREADS, Number(process.env.VITEST_MIN_THREADS ?? '1')));
 
 interface HealthResponse {
   status: 'healthy' | 'degraded';
@@ -171,6 +173,12 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.{test,spec}.{ts,tsx,mjs}'],
     exclude: ['node_modules/**'],
+    poolOptions: {
+      threads: {
+        maxThreads: MAX_VITEST_THREADS,
+        minThreads: MIN_VITEST_THREADS,
+      },
+    },
     reporters: [
       'default',
       new RequirementReporter({

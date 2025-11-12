@@ -167,6 +167,7 @@ type ScanRequest struct {
 // Database connection and detection helpers
 var (
 	db                       *sql.DB
+	applyDiffsHook           func(string, *ServiceConfig)
 	resourceCommandPattern   = regexp.MustCompile(`resource-([a-z0-9-]+)`)
 	resourceHeuristicCatalog = []resourceHeuristic{
 		{
@@ -1190,11 +1191,128 @@ func scanForResourceUsage(scenarioPath, scenarioName string) ([]ScenarioDependen
 		return nil
 	})
 
+	augmentResourceDetectionsWithInitialization(results, scenarioPath, scenarioName)
+
 	deps := make([]ScenarioDependency, 0, len(results))
 	for _, dep := range results {
 		deps = append(deps, dep)
 	}
 	return deps, err
+}
+
+func augmentResourceDetectionsWithInitialization(results map[string]ScenarioDependency, scenarioPath, scenarioName string) {
+	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	if err != nil {
+		return
+	}
+
+	resources := resolvedResourceMap(cfg)
+	for resourceName, resource := range resources {
+		if len(resource.Initialization) == 0 {
+			continue
+		}
+		canonical := normalizeName(resourceName)
+		if canonical == "" || !isKnownResource(canonical) {
+			continue
+		}
+
+		files := extractInitializationFiles(resource.Initialization)
+		entry, exists := results[canonical]
+		if !exists {
+			entry = ScenarioDependency{
+				ID:             uuid.New().String(),
+				ScenarioName:   scenarioName,
+				DependencyType: "resource",
+				DependencyName: canonical,
+				Required:       true,
+				Purpose:        "Initialization data references this resource",
+				AccessMethod:   "initialization",
+				Configuration:  map[string]interface{}{},
+				DiscoveredAt:   time.Now(),
+				LastVerified:   time.Now(),
+			}
+		}
+
+		if entry.Configuration == nil {
+			entry.Configuration = map[string]interface{}{}
+		}
+		entry.Configuration["initialization_detected"] = true
+		if len(files) > 0 {
+			entry.Configuration["initialization_files"] = mergeInitializationFiles(entry.Configuration["initialization_files"], files)
+		}
+		results[canonical] = entry
+	}
+}
+
+func extractInitializationFiles(entries []map[string]interface{}) []string {
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry == nil {
+			continue
+		}
+		if file, ok := entry["file"].(string); ok && file != "" {
+			files = append(files, file)
+		}
+	}
+	return files
+}
+
+func mergeInitializationFiles(existing interface{}, additions []string) []string {
+	if len(additions) == 0 {
+		return toStringSlice(existing)
+	}
+	set := map[string]struct{}{}
+	merged := make([]string, 0)
+	for _, item := range toStringSlice(existing) {
+		if _, ok := set[item]; ok {
+			continue
+		}
+		set[item] = struct{}{}
+		merged = append(merged, item)
+	}
+	for _, add := range additions {
+		if add == "" {
+			continue
+		}
+		if _, ok := set[add]; ok {
+			continue
+		}
+		set[add] = struct{}{}
+		merged = append(merged, add)
+	}
+	return merged
+}
+
+func toStringSlice(value interface{}) []string {
+	switch typed := value.(type) {
+	case []string:
+		return append([]string(nil), typed...)
+	case []interface{}:
+		result := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if str, ok := item.(string); ok {
+				result = append(result, str)
+			}
+		}
+		return result
+	default:
+		return nil
+	}
+}
+
+func orderedMapFromStruct(value interface{}) *orderedmap.OrderedMap {
+	ordered := orderedmap.New()
+	if value == nil {
+		return ordered
+	}
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return ordered
+	}
+	if err := json.Unmarshal(payload, ordered); err != nil {
+		return orderedmap.New()
+	}
+	return ordered
 }
 
 func storeDependencies(analysis *DependencyAnalysisResponse, extras []ScenarioDependency) error {
@@ -1694,16 +1812,33 @@ func applyDetectedDiffs(scenarioName string, analysis *DependencyAnalysisRespons
 	if err != nil {
 		return nil, err
 	}
+	if os.Getenv("SCENARIO_ANALYZER_TRACE") == "1" {
+		log.Printf("[dependency-apply] %s declared resources=%d scenarios=%d", scenarioName, len(cfg.Dependencies.Resources), len(cfg.Dependencies.Scenarios))
+	}
+	if applyDiffsHook != nil {
+		applyDiffsHook(scenarioName, cfg)
+	}
 
 	rawConfig, err := loadRawServiceConfigMap(scenarioPath)
 	if err != nil {
 		return nil, err
 	}
 	rawDependencies := ensureOrderedMap(rawConfig, "dependencies")
-	rawResources := orderedMapFromValue(rawDependencies, "resources")
-	rawScenarios := orderedMapFromValue(rawDependencies, "scenarios")
+	rawResources := ensureOrderedMap(rawDependencies, "resources")
+	rawScenarios := ensureOrderedMap(rawDependencies, "scenarios")
 	rawDependencies.Set("resources", rawResources)
 	rawDependencies.Set("scenarios", rawScenarios)
+	if os.Getenv("SCENARIO_ANALYZER_TRACE") == "1" {
+		log.Printf("[dependency-apply] raw resources keys=%d", len(rawResources.Keys()))
+	}
+	if len(rawResources.Keys()) == 0 && len(cfg.Dependencies.Resources) > 0 {
+		rawResources = orderedMapFromStruct(cfg.Dependencies.Resources)
+		rawDependencies.Set("resources", rawResources)
+	}
+	if len(rawScenarios.Keys()) == 0 && len(cfg.Dependencies.Scenarios) > 0 {
+		rawScenarios = orderedMapFromStruct(cfg.Dependencies.Scenarios)
+		rawDependencies.Set("scenarios", rawScenarios)
+	}
 
 	resourcesAdded := []string{}
 	if applyResources {
@@ -1837,6 +1972,15 @@ func ensureOrderedMap(parent *orderedmap.OrderedMap, key string) *orderedmap.Ord
 		switch typed := val.(type) {
 		case *orderedmap.OrderedMap:
 			return typed
+		case orderedmap.OrderedMap:
+			converted := orderedmap.New()
+			for _, childKey := range typed.Keys() {
+				if childVal, ok := typed.Get(childKey); ok {
+					converted.Set(childKey, childVal)
+				}
+			}
+			parent.Set(key, converted)
+			return converted
 		case map[string]interface{}:
 			converted := orderedmap.New()
 			for k, v := range typed {
@@ -1886,22 +2030,6 @@ func cloneOrderedMap(src *orderedmap.OrderedMap) *orderedmap.OrderedMap {
 		}
 	}
 	return clone
-}
-
-func orderedMapFromValue(parent *orderedmap.OrderedMap, key string) *orderedmap.OrderedMap {
-	if parent == nil {
-		return orderedmap.New()
-	}
-	if val, ok := parent.Get(key); ok {
-		payload, err := json.Marshal(val)
-		if err == nil {
-			reconstructed := orderedmap.New()
-			if err := json.Unmarshal(payload, reconstructed); err == nil {
-				return reconstructed
-			}
-		}
-	}
-	return orderedmap.New()
 }
 
 func resolveScenarioVersionSpec(dependencyName string) (string, string) {

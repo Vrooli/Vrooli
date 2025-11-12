@@ -837,6 +837,54 @@ func TestInstructionFromStepLoopForEach(t *testing.T) {
 	}
 }
 
+func TestInstructionFromStepLoopTimeoutDefaults(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  14,
+		NodeID: "loop-timeouts-default",
+		Type:   compiler.StepLoop,
+		Params: map[string]any{
+			"loopType":    "forEach",
+			"arraySource": "items",
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("[REQ:BAS-NODE-LOOP] expected defaults to apply when timeouts omitted: %v", err)
+	}
+	if inst.Params.LoopIterationTimeoutMs != defaultLoopIterationTimeoutMs {
+		t.Fatalf("expected iteration timeout default %d, got %d", defaultLoopIterationTimeoutMs, inst.Params.LoopIterationTimeoutMs)
+	}
+	if inst.Params.LoopTotalTimeoutMs != defaultLoopTotalTimeoutMs {
+		t.Fatalf("expected total timeout default %d, got %d", defaultLoopTotalTimeoutMs, inst.Params.LoopTotalTimeoutMs)
+	}
+}
+
+func TestInstructionFromStepLoopTimeoutClamp(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  15,
+		NodeID: "loop-timeouts-clamp",
+		Type:   compiler.StepLoop,
+		Params: map[string]any{
+			"loopType":           "repeat",
+			"count":              3,
+			"iterationTimeoutMs": 10,
+			"totalTimeoutMs":     900000000,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("[REQ:BAS-NODE-LOOP] expected repeat loop to compile for timeout clamp: %v", err)
+	}
+	if inst.Params.LoopIterationTimeoutMs != minLoopIterationTimeoutMs {
+		t.Fatalf("expected iteration timeout to clamp to %d, got %d", minLoopIterationTimeoutMs, inst.Params.LoopIterationTimeoutMs)
+	}
+	if inst.Params.LoopTotalTimeoutMs != maxLoopTotalTimeoutMs {
+		t.Fatalf("expected total timeout to clamp to %d, got %d", maxLoopTotalTimeoutMs, inst.Params.LoopTotalTimeoutMs)
+	}
+}
+
 func TestInstructionFromStepLoopRepeatRequiresCount(t *testing.T) {
 	step := compiler.ExecutionStep{
 		Index:  12,
@@ -878,6 +926,59 @@ func TestInstructionFromStepLoopWhileMissingCondition(t *testing.T) {
 	}
 	if inst.Params.LoopConditionOperator == "" {
 		t.Fatalf("expected default operator to be assigned")
+	}
+}
+
+func TestInstructionFromStepWorkflowCallRequiresID(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  20,
+		NodeID: "workflow-call-missing-id",
+		Type:   compiler.StepWorkflowCall,
+		Params: map[string]any{},
+	}
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected workflow call without workflowId to error")
+	}
+}
+
+func TestInstructionFromStepWorkflowCallParsesConfig(t *testing.T) {
+	workflowID := "123e4567-e89b-12d3-a456-426614174000"
+	step := compiler.ExecutionStep{
+		Index:  21,
+		NodeID: "workflow-call",
+		Type:   compiler.StepWorkflowCall,
+		Params: map[string]any{
+			"workflowId":        workflowID,
+			"workflowName":      "Shared Login",
+			"waitForCompletion": true,
+			"parameters": map[string]any{
+				"username": "{{user}}",
+				"retries":  3,
+			},
+			"outputMapping": map[string]any{
+				"token": "authToken",
+			},
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("expected workflow call instruction to compile: %v", err)
+	}
+	if inst.Params.WorkflowCallID != workflowID {
+		t.Fatalf("expected workflow ID to propagate, got %q", inst.Params.WorkflowCallID)
+	}
+	if inst.Params.WorkflowCallName != "Shared Login" {
+		t.Fatalf("expected workflow name to propagate, got %q", inst.Params.WorkflowCallName)
+	}
+	if inst.Params.WorkflowCallWait == nil || !*inst.Params.WorkflowCallWait {
+		t.Fatalf("expected workflow call to default to wait for completion")
+	}
+	if inst.Params.WorkflowCallParams == nil || inst.Params.WorkflowCallParams["username"] != "{{user}}" {
+		t.Fatalf("expected parameters to persist, got %+v", inst.Params.WorkflowCallParams)
+	}
+	if inst.Params.WorkflowCallOutputs == nil || inst.Params.WorkflowCallOutputs["token"] != "authToken" {
+		t.Fatalf("expected output mapping to persist, got %+v", inst.Params.WorkflowCallOutputs)
 	}
 }
 

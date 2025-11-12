@@ -32,6 +32,7 @@ import (
 
 type mockRepository struct {
 	folders            map[string]*database.WorkflowFolder
+	workflows          map[uuid.UUID]*database.Workflow
 	executionLogs      []*database.ExecutionLog
 	screenshots        []*database.Screenshot
 	updatedExecutions  []*database.Execution
@@ -60,7 +61,10 @@ func (f *fakeEmitter) Events() []events.Event {
 }
 
 func newMockRepository() *mockRepository {
-	return &mockRepository{folders: make(map[string]*database.WorkflowFolder)}
+	return &mockRepository{
+		folders:   make(map[string]*database.WorkflowFolder),
+		workflows: make(map[uuid.UUID]*database.Workflow),
+	}
 }
 
 // Project operations
@@ -97,7 +101,10 @@ func (m *mockRepository) CreateWorkflow(ctx context.Context, workflow *database.
 	return nil
 }
 func (m *mockRepository) GetWorkflow(ctx context.Context, id uuid.UUID) (*database.Workflow, error) {
-	return nil, nil
+	if workflow, ok := m.workflows[id]; ok {
+		return workflow, nil
+	}
+	return nil, database.ErrNotFound
 }
 func (m *mockRepository) GetWorkflowByName(ctx context.Context, name, folderPath string) (*database.Workflow, error) {
 	return nil, nil
@@ -431,8 +438,8 @@ func TestBuildInstructions(t *testing.T) {
 	})
 }
 
-func TestBuildInstructionsWorkflowCallNotSupported(t *testing.T) {
-	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] rejects unsupported workflow call nodes", func(t *testing.T) {
+func TestBuildInstructionsWorkflowCallSupported(t *testing.T) {
+	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] builds workflow call instruction", func(t *testing.T) {
 		client, _ := newTestClient()
 
 		workflow := &database.Workflow{
@@ -443,15 +450,43 @@ func TestBuildInstructionsWorkflowCallNotSupported(t *testing.T) {
 						"id":   "node-1",
 						"type": "workflowCall",
 						"data": map[string]any{
-							"workflowId": "wf-123",
+							"workflowId":        "123e4567-e89b-12d3-a456-426614174000",
+							"workflowName":      "Shared Login",
+							"waitForCompletion": true,
+							"parameters": map[string]any{
+								"username": "{{user}}",
+							},
+							"outputMapping": map[string]any{
+								"token": "authToken",
+							},
 						},
 					},
 				},
 			},
 		}
 
-		if _, err := client.buildInstructions(workflow); err == nil {
-			t.Fatalf("expected error for unsupported workflow call node")
+		instructions, err := client.buildInstructions(workflow)
+		if err != nil {
+			t.Fatalf("expected workflow call instruction to compile: %v", err)
+		}
+		if len(instructions) != 1 {
+			t.Fatalf("expected single instruction, got %d", len(instructions))
+		}
+		instr := instructions[0]
+		if instr.Params.WorkflowCallID != "123e4567-e89b-12d3-a456-426614174000" {
+			t.Fatalf("expected workflowId to populate, got %q", instr.Params.WorkflowCallID)
+		}
+		if instr.Params.WorkflowCallName != "Shared Login" {
+			t.Fatalf("expected workflowName to populate, got %q", instr.Params.WorkflowCallName)
+		}
+		if instr.Params.WorkflowCallWait == nil || !*instr.Params.WorkflowCallWait {
+			t.Fatalf("expected workflow call to wait for completion by default")
+		}
+		if instr.Params.WorkflowCallParams == nil || instr.Params.WorkflowCallParams["username"] != "{{user}}" {
+			t.Fatalf("expected parameters to persist, got %+v", instr.Params.WorkflowCallParams)
+		}
+		if instr.Params.WorkflowCallOutputs == nil || instr.Params.WorkflowCallOutputs["token"] != "authToken" {
+			t.Fatalf("expected output mapping to persist, got %+v", instr.Params.WorkflowCallOutputs)
 		}
 	})
 }
@@ -511,6 +546,85 @@ func TestBuildInstructionsAssertStep(t *testing.T) {
 			t.Fatalf("failure message not parsed: %s", assertStep.Params.FailureMessage)
 		}
 	})
+}
+
+func TestExecuteWorkflowWorkflowCallInline(t *testing.T) {
+	client, repo := newTestClient()
+	childID := uuid.New()
+	repo.workflows[childID] = &database.Workflow{
+		ID: childID,
+		FlowDefinition: database.JSONMap{
+			"nodes": []any{
+				map[string]any{
+					"id":   "child-nav",
+					"type": "navigate",
+					"data": map[string]any{
+						"url": "https://example.com/login",
+					},
+				},
+				map[string]any{
+					"id":   "child-wait",
+					"type": "wait",
+					"data": map[string]any{
+						"type":     "time",
+						"duration": 250,
+					},
+				},
+			},
+			"edges": []any{
+				map[string]any{
+					"id":     "ce-1",
+					"source": "child-nav",
+					"target": "child-wait",
+				},
+			},
+		},
+	}
+	responses := []string{
+		`{"success":true,"steps":[{"index":0,"nodeId":"child-nav","type":"navigate","success":true,"durationMs":120}]}`,
+		`{"success":true,"steps":[{"index":1,"nodeId":"child-wait","type":"wait","success":true,"durationMs":80}]}`,
+		`{"success":true,"steps":[{"index":1,"nodeId":"parent-shot","type":"screenshot","success":true,"durationMs":90}]}`,
+	}
+	session := stubSessionFromPayloads(t, responses)
+	parentWorkflow := &database.Workflow{
+		ID: uuid.New(),
+		FlowDefinition: database.JSONMap{
+			"nodes": []any{
+				map[string]any{
+					"id":   "parent-call",
+					"type": "workflowCall",
+					"data": map[string]any{
+						"workflowId": childID.String(),
+					},
+				},
+				map[string]any{
+					"id":   "parent-shot",
+					"type": "screenshot",
+					"data": map[string]any{},
+				},
+			},
+			"edges": []any{
+				map[string]any{
+					"id":     "pe-1",
+					"source": "parent-call",
+					"target": "parent-shot",
+				},
+			},
+		},
+	}
+	execution := &database.Execution{
+		ID:          uuid.New(),
+		WorkflowID:  parentWorkflow.ID,
+		Status:      "pending",
+		TriggerType: "manual",
+		StartedAt:   time.Now(),
+	}
+	if err := client.ExecuteWorkflow(context.Background(), execution, parentWorkflow, nil); err != nil {
+		t.Fatalf("ExecuteWorkflow returned error: %v", err)
+	}
+	if session.callCount != len(responses) {
+		t.Fatalf("expected %d CDP calls, got %d", len(responses), session.callCount)
+	}
 }
 
 func TestExecuteWorkflowPersistsTelemetry(t *testing.T) {
@@ -1726,6 +1840,69 @@ func TestExecuteLoopStepForEach(t *testing.T) {
 	}
 	if iterations, ok := stepResult.ProbeResult["iterations"].(int); !ok || iterations != 2 {
 		t.Fatalf("expected probe iterations=2, got %v", stepResult.ProbeResult)
+	}
+}
+
+func TestExecuteLoopStepIterationTimeout(t *testing.T) {
+	client, _ := newTestClient()
+	execCtx := runtime.NewExecutionContext()
+	if err := execCtx.Set("rows", []string{"alpha"}); err != nil {
+		t.Fatalf("failed to seed execution context: %v", err)
+	}
+	loopInstruction := runtime.Instruction{
+		Index:  0,
+		NodeID: "loop",
+		Type:   string(compiler.StepLoop),
+		Params: runtime.InstructionParam{
+			LoopType:               "foreach",
+			LoopArraySource:        "rows",
+			LoopMaxIterations:      5,
+			LoopIterationTimeoutMs: 400,
+			LoopTotalTimeoutMs:     5000,
+		},
+	}
+	bodyPlan := &compiler.ExecutionPlan{
+		Steps: []compiler.ExecutionStep{{Index: 0, NodeID: "body-wait", Type: compiler.StepWait, Params: map[string]any{"type": "time", "duration": 25}}},
+	}
+	stepDef := compiler.ExecutionStep{Index: 0, NodeID: "loop", Type: compiler.StepLoop, LoopPlan: bodyPlan}
+	responses := []*runtime.ExecutionResponse{{Success: true, Steps: []runtime.StepResult{{Success: true, DurationMs: 1200}}}}
+	session := stubSessionResponses(t, responses)
+	stepResult, _, _, _, err := client.executeLoopStep(context.Background(), session, loopInstruction, stepDef, execCtx)
+	if err == nil || !strings.Contains(err.Error(), "iteration timeout") {
+		t.Fatalf("expected iteration timeout error, got result=%v err=%v", stepResult, err)
+	}
+}
+
+func TestExecuteLoopStepTotalTimeout(t *testing.T) {
+	client, _ := newTestClient()
+	execCtx := runtime.NewExecutionContext()
+	if err := execCtx.Set("rows", []string{"alpha", "beta"}); err != nil {
+		t.Fatalf("failed to seed execution context: %v", err)
+	}
+	loopInstruction := runtime.Instruction{
+		Index:  0,
+		NodeID: "loop",
+		Type:   string(compiler.StepLoop),
+		Params: runtime.InstructionParam{
+			LoopType:               "foreach",
+			LoopArraySource:        "rows",
+			LoopMaxIterations:      5,
+			LoopIterationTimeoutMs: 1500,
+			LoopTotalTimeoutMs:     1000,
+		},
+	}
+	bodyPlan := &compiler.ExecutionPlan{
+		Steps: []compiler.ExecutionStep{{Index: 0, NodeID: "body-wait", Type: compiler.StepWait, Params: map[string]any{"type": "time", "duration": 25}}},
+	}
+	stepDef := compiler.ExecutionStep{Index: 0, NodeID: "loop", Type: compiler.StepLoop, LoopPlan: bodyPlan}
+	responses := []*runtime.ExecutionResponse{
+		{Success: true, Steps: []runtime.StepResult{{Success: true, DurationMs: 600}}},
+		{Success: true, Steps: []runtime.StepResult{{Success: true, DurationMs: 650}}},
+	}
+	session := stubSessionResponses(t, responses)
+	stepResult, _, _, _, err := client.executeLoopStep(context.Background(), session, loopInstruction, stepDef, execCtx)
+	if err == nil || !strings.Contains(err.Error(), "total timeout") {
+		t.Fatalf("expected total timeout error, got result=%v err=%v", stepResult, err)
 	}
 }
 

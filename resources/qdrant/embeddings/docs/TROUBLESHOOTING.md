@@ -51,7 +51,7 @@ Error: resource-qdrant command not found
 **Diagnosis:**
 ```bash
 # Check if Qdrant is enabled
-cat .vrooli/service.json | jq '.resources.qdrant'
+cat .vrooli/service.json | jq '.dependencies.resources.qdrant'
 
 # Check Qdrant resource installation
 ls -la resources/qdrant/
@@ -62,7 +62,7 @@ ls -la resources/qdrant/
 1. **Enable Qdrant in service configuration:**
 ```bash
 # Edit .vrooli/service.json
-jq '.resources.qdrant.enabled = true' .vrooli/service.json > tmp.json && mv tmp.json .vrooli/service.json
+jq '.dependencies.resources.qdrant.enabled = true' .vrooli/service.json > tmp.json && mv tmp.json .vrooli/service.json
 
 # Re-run setup
 vrooli develop --setup
@@ -931,7 +931,7 @@ cat .vrooli/app-identity.json 2>&1
 
 # Service configuration
 echo "=== SERVICE CONFIG ==="
-cat .vrooli/service.json | jq '.resources.qdrant' 2>&1
+cat .vrooli/service.json | jq '.dependencies.resources.qdrant' 2>&1
 
 # Recent logs
 echo "=== RECENT LOGS ==="

@@ -229,6 +229,191 @@ func use(ctx context.Context) {
 	}
 }
 
+func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	setEnvAndCleanup(t, "API_PORT", "12345")
+	setEnvAndCleanup(t, "DATABASE_URL", "postgres://example:test@localhost:5432/test")
+	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", env.ScenariosDir)
+
+	resourcesDir := filepath.Join(env.TempDir, "resources")
+	os.MkdirAll(filepath.Join(resourcesDir, "postgres"), 0o755)
+	os.MkdirAll(filepath.Join(resourcesDir, "redis"), 0o755)
+	refreshDependencyCatalogs()
+
+	scenarioName := "apply-test"
+	scenarioPath := filepath.Join(env.ScenariosDir, scenarioName)
+	os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755)
+
+	serviceConfig := map[string]interface{}{
+		"$schema": "../../../.vrooli/schemas/service.schema.json",
+		"version": "1.0.0",
+		"service": map[string]interface{}{
+			"name":        scenarioName,
+			"displayName": scenarioName,
+			"description": "",
+			"version":     "1.0.0",
+		},
+		"dependencies": map[string]interface{}{
+			"resources": map[string]interface{}{
+				"postgres": map[string]interface{}{
+					"type":     "postgres",
+					"enabled":  true,
+					"required": true,
+				},
+			},
+			"scenarios": map[string]interface{}{},
+		},
+	}
+	data, _ := json.MarshalIndent(serviceConfig, "", "  ")
+	os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), data, 0o644)
+
+	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	if err != nil {
+		t.Fatalf("failed to load service config: %v", err)
+	}
+	if len(cfg.Dependencies.Resources) == 0 {
+		t.Fatalf("precondition failed: expected postgres in dependencies")
+	}
+	analysis := &DependencyAnalysisResponse{
+		Scenario: scenarioName,
+		DetectedResources: []ScenarioDependency{
+			{ID: "redis-detected", ScenarioName: scenarioName, DependencyType: "resource", DependencyName: "redis", Required: true, AccessMethod: "heuristic"},
+		},
+		ResourceDiff: DependencyDiff{
+			Missing: []DependencyDrift{{Name: "redis"}},
+		},
+	}
+
+	var captured int
+	applyDiffsHook = func(name string, cfg *ServiceConfig) {
+		if name == scenarioName {
+			captured = len(cfg.Dependencies.Resources)
+		}
+	}
+	defer func() { applyDiffsHook = nil }()
+
+	summary, err := applyDetectedDiffs(scenarioName, analysis, true, false)
+	if err != nil {
+		t.Fatalf("applyDetectedDiffs returned error: %v", err)
+	}
+	if changed, _ := summary["changed"].(bool); !changed {
+		t.Fatalf("expected changes to be applied")
+	}
+	if captured == 0 {
+		t.Fatalf("hook observed zero declared resources before apply")
+	}
+
+	cfg, err = loadServiceConfigFromFile(scenarioPath)
+	if err != nil {
+		t.Fatalf("loadServiceConfigFromFile failed: %v", err)
+	}
+	resources := resolvedResourceMap(cfg)
+	if _, ok := resources["postgres"]; !ok {
+		t.Fatalf("existing resource 'postgres' was removed")
+	}
+	if _, ok := resources["redis"]; !ok {
+		t.Fatalf("newly detected resource 'redis' was not added")
+	}
+}
+
+func TestScanForResourceUsageDetectsInitialization(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", env.ScenariosDir)
+	resourcesDir := filepath.Join(env.TempDir, "resources")
+	os.MkdirAll(filepath.Join(resourcesDir, "n8n"), 0o755)
+	refreshDependencyCatalogs()
+
+	scenarioName := "initialization-test"
+	scenarioPath := filepath.Join(env.ScenariosDir, scenarioName)
+	os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755)
+
+	serviceConfig := map[string]interface{}{
+		"$schema": "../../../.vrooli/schemas/service.schema.json",
+		"version": "1.0.0",
+		"service": map[string]interface{}{
+			"name":        scenarioName,
+			"displayName": scenarioName,
+			"description": "",
+			"version":     "1.0.0",
+		},
+		"dependencies": map[string]interface{}{
+			"resources": map[string]interface{}{
+				"n8n": map[string]interface{}{
+					"type":     "n8n",
+					"enabled":  true,
+					"required": true,
+					"initialization": []map[string]interface{}{
+						{"file": "initialization/automation/n8n/workflow.json", "type": "workflow"},
+					},
+				},
+			},
+			"scenarios": map[string]interface{}{},
+		},
+	}
+	data, _ := json.MarshalIndent(serviceConfig, "", "  ")
+	os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), data, 0o644)
+
+	deps, err := scanForResourceUsage(scenarioPath, scenarioName)
+	if err != nil {
+		t.Fatalf("scanForResourceUsage returned error: %v", err)
+	}
+
+	found := false
+	for _, dep := range deps {
+		if dep.DependencyName == "n8n" && dep.DependencyType == "resource" {
+			if dep.AccessMethod != "" && dep.Configuration["initialization_detected"] == true {
+				found = true
+				break
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected n8n to be detected via initialization data")
+	}
+}
+
+func TestLoadServiceConfigIncludesDependencies(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", filepath.Join("..", ".."))
+	cfg, err := loadServiceConfigFromFile(filepath.Join("..", "..", "brand-manager"))
+	if err != nil {
+		t.Fatalf("failed to load brand-manager config: %v", err)
+	}
+	if len(cfg.Dependencies.Resources) == 0 {
+		t.Fatalf("expected dependencies.resources to contain entries")
+	}
+}
+
+func TestRawServiceConfigMapHasDependencies(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	raw, err := loadRawServiceConfigMap(filepath.Join("..", "..", "brand-manager"))
+	if err != nil {
+		t.Fatalf("failed to load raw config: %v", err)
+	}
+	deps := ensureOrderedMap(raw, "dependencies")
+	if len(deps.Keys()) == 0 {
+		t.Fatalf("expected dependencies keys")
+	}
+	resources := ensureOrderedMap(deps, "resources")
+	if len(resources.Keys()) == 0 {
+		t.Fatalf("expected raw resources entries")
+	}
+}
+
 func TestScanForResourceUsageFiltersUnknown(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()

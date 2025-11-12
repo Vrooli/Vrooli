@@ -190,8 +190,8 @@ describe('executionStore [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
       );
 
       const state = useExecutionStore.getState();
-      expect(state.currentExecution?.status).toBe('failed');
-      expect(state.currentExecution?.error).toBe('Execution stopped by user');
+      expect(state.currentExecution?.status).toBe('cancelled');
+      expect(state.currentExecution?.error).toBe('Execution cancelled by user');
       expect(state.currentExecution?.completedAt).toBeTruthy();
     });
 
@@ -719,11 +719,12 @@ describe('executionStore [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
 
       await act(async () => {
         await useExecutionStore.getState().connectWebSocket('exec-1');
+        await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
       const state = useExecutionStore.getState();
       expect(state.socket).toBeTruthy();
-      expect(state.websocketStatus).toBe('connecting'); // Will become 'connected' after async open
+      expect(state.websocketStatus).toBe('connected');
     });
 
     it('disconnects WebSocket [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {

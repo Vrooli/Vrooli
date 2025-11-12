@@ -51,21 +51,28 @@ Every scenario contains the complete genetic code for a deployable application:
     "displayName": "AI Research Assistant",
     "description": "Automated research collection and synthesis"
   },
+  "dependencies": {
+    "resources": {
+      "ollama": {"type": "ai", "required": true},
+      "searxng": {"type": "search", "required": true},
+      "qdrant": {"type": "vectordb", "required": true},
+      "postgres": {"type": "database", "required": true},
+      "minio": {"type": "storage", "required": false},
+      "windmill": {"type": "automation", "required": true}
+    },
+    "scenarios": {
+      "scenario-authenticator": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0"
+      }
+    }
+  },
   "spec": {
     "business": {
       "valueProposition": "Automated research and data synthesis",
       "revenueRange": { "min": 15000, "max": 30000 },
       "targetMarkets": ["consulting", "research", "legal"]
-    },
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "searxng", "type": "search", "optional": false},
-        {"name": "qdrant", "type": "vectordb", "optional": false},
-        {"name": "postgres", "type": "database", "optional": false},
-        {"name": "minio", "type": "storage", "optional": true},
-        {"name": "windmill", "type": "automation", "optional": false}
-      ]
     }
   }
 }
@@ -169,17 +176,15 @@ Scenarios don't contain business logic—they **orchestrate external resources**
 ```json
 // Each resource is like an instrument in an orchestra
 {
-  "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "whisper", "type": "ai"},        // The "ears" - audio input processing
-        {"name": "ollama", "type": "ai"},         // The "brain" - intelligent reasoning
-        {"name": "comfyui", "type": "ai"},        // The "hands" - visual creation
-        {"name": "agent-s2", "type": "agent"},    // The "fingers" - precise interaction
-        {"name": "windmill", "type": "automation"},// The "stage" - user presentation
-        {"name": "n8n", "type": "automation"}     // The "conductor" - workflow orchestration
-      ]
-    }
+  "dependencies": {
+    "resources": [
+      {"name": "whisper", "type": "ai"},        // The "ears" - audio input processing
+      {"name": "ollama", "type": "ai"},         // The "brain" - intelligent reasoning
+      {"name": "comfyui", "type": "ai"},        // The "hands" - visual creation
+      {"name": "agent-s2", "type": "agent"},    // The "fingers" - precise interaction
+      {"name": "windmill", "type": "automation"},// The "stage" - user presentation
+      {"name": "n8n", "type": "automation"}     // The "conductor" - workflow orchestration
+    ]
   }
 }
 ```

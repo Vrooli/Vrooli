@@ -21,6 +21,12 @@ const CONDITION_OPERATORS = [
 ];
 
 const DEFAULT_MAX_ITERATIONS = 100;
+const DEFAULT_ITERATION_TIMEOUT_MS = 45000;
+const DEFAULT_TOTAL_TIMEOUT_MS = 300000;
+const MIN_ITERATION_TIMEOUT_MS = 250;
+const MAX_ITERATION_TIMEOUT_MS = 600000;
+const MIN_TOTAL_TIMEOUT_MS = 1000;
+const MAX_TOTAL_TIMEOUT_MS = 1800000;
 
 const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
   const { getNodes, setNodes } = useReactFlow();
@@ -37,6 +43,8 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
   const [conditionOperator, setConditionOperator] = useState(() => String(nodeData.conditionOperator ?? 'truthy'));
   const [conditionValue, setConditionValue] = useState(() => String(nodeData.conditionValue ?? ''));
   const [conditionExpression, setConditionExpression] = useState(() => String(nodeData.conditionExpression ?? ''));
+  const [iterationTimeoutMs, setIterationTimeoutMs] = useState(() => Number(nodeData.iterationTimeoutMs ?? DEFAULT_ITERATION_TIMEOUT_MS) || DEFAULT_ITERATION_TIMEOUT_MS);
+  const [totalTimeoutMs, setTotalTimeoutMs] = useState(() => Number(nodeData.totalTimeoutMs ?? DEFAULT_TOTAL_TIMEOUT_MS) || DEFAULT_TOTAL_TIMEOUT_MS);
 
   useEffect(() => setLoopType(String(nodeData.loopType ?? 'foreach')), [nodeData.loopType]);
   useEffect(() => setArraySource(String(nodeData.arraySource ?? '')), [nodeData.arraySource]);
@@ -49,6 +57,8 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
   useEffect(() => setConditionOperator(String(nodeData.conditionOperator ?? 'truthy')), [nodeData.conditionOperator]);
   useEffect(() => setConditionValue(String(nodeData.conditionValue ?? '')), [nodeData.conditionValue]);
   useEffect(() => setConditionExpression(String(nodeData.conditionExpression ?? '')), [nodeData.conditionExpression]);
+  useEffect(() => setIterationTimeoutMs(Number(nodeData.iterationTimeoutMs ?? DEFAULT_ITERATION_TIMEOUT_MS) || DEFAULT_ITERATION_TIMEOUT_MS), [nodeData.iterationTimeoutMs]);
+  useEffect(() => setTotalTimeoutMs(Number(nodeData.totalTimeoutMs ?? DEFAULT_TOTAL_TIMEOUT_MS) || DEFAULT_TOTAL_TIMEOUT_MS), [nodeData.totalTimeoutMs]);
 
   const updateNode = useCallback((updates: Record<string, unknown>) => {
     const nodes = getNodes();
@@ -88,6 +98,24 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
     setRepeatCount(normalized);
     updateNode({ count: normalized });
   }, [repeatCount, updateNode]);
+
+  const commitIterationTimeout = useCallback(() => {
+    const normalized = Math.max(
+      MIN_ITERATION_TIMEOUT_MS,
+      Math.min(MAX_ITERATION_TIMEOUT_MS, Math.round(iterationTimeoutMs) || DEFAULT_ITERATION_TIMEOUT_MS),
+    );
+    setIterationTimeoutMs(normalized);
+    updateNode({ iterationTimeoutMs: normalized });
+  }, [iterationTimeoutMs, updateNode]);
+
+  const commitTotalTimeout = useCallback(() => {
+    const normalized = Math.max(
+      MIN_TOTAL_TIMEOUT_MS,
+      Math.min(MAX_TOTAL_TIMEOUT_MS, Math.round(totalTimeoutMs) || DEFAULT_TOTAL_TIMEOUT_MS),
+    );
+    setTotalTimeoutMs(normalized);
+    updateNode({ totalTimeoutMs: normalized });
+  }, [totalTimeoutMs, updateNode]);
 
   return (
     <div className={`workflow-node ${selected ? 'selected' : ''}`}>
@@ -250,6 +278,35 @@ const LoopNode: FC<NodeProps> = ({ id, data, selected }) => {
               placeholder="loop.item"
               className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-gray-400 block mb-1">Iteration Timeout (ms)</label>
+            <input
+              type="number"
+              min={MIN_ITERATION_TIMEOUT_MS}
+              max={MAX_ITERATION_TIMEOUT_MS}
+              value={iterationTimeoutMs}
+              onChange={(event) => setIterationTimeoutMs(Number(event.target.value))}
+              onBlur={commitIterationTimeout}
+              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
+            />
+            <p className="text-gray-500 mt-1">Fails if one pass exceeds this duration.</p>
+          </div>
+          <div>
+            <label className="text-gray-400 block mb-1">Total Timeout (ms)</label>
+            <input
+              type="number"
+              min={MIN_TOTAL_TIMEOUT_MS}
+              max={MAX_TOTAL_TIMEOUT_MS}
+              value={totalTimeoutMs}
+              onChange={(event) => setTotalTimeoutMs(Number(event.target.value))}
+              onBlur={commitTotalTimeout}
+              className="w-full px-2 py-1 bg-flow-bg rounded border border-gray-700 focus:border-flow-accent focus:outline-none"
+            />
+            <p className="text-gray-500 mt-1">Stops the loop if combined time is too high.</p>
           </div>
         </div>
 

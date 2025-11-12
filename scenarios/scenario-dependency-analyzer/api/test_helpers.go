@@ -203,6 +203,21 @@ func configureTestScenariosDir(t *testing.T, env *TestEnvironment) {
 	refreshDependencyCatalogs()
 }
 
+func setEnvAndCleanup(t *testing.T, key, value string) {
+	t.Helper()
+	original, existed := os.LookupEnv(key)
+	if err := os.Setenv(key, value); err != nil {
+		t.Fatalf("failed to set env %s: %v", key, err)
+	}
+	t.Cleanup(func() {
+		if !existed {
+			os.Unsetenv(key)
+			return
+		}
+		os.Setenv(key, original)
+	})
+}
+
 func createTestResourceDirs(t *testing.T, env *TestEnvironment, names ...string) {
 	t.Helper()
 	base := filepath.Join(filepath.Dir(env.ScenariosDir), "resources")

@@ -87,8 +87,8 @@ The service.json file contains everything needed for deployment:
     "displayName": "AI Research Assistant",
     "description": "Enterprise-grade AI research platform"
   },
-  "resources": {
-    "storage": {
+  "dependencies": {
+    "resources": {
       "postgres": {
         "enabled": true,
         "required": true,
@@ -100,16 +100,12 @@ The service.json file contains everything needed for deployment:
             }
           ]
         }
-      }
-    },
-    "ai": {
+      },
       "ollama": {
         "enabled": true,
         "required": true,
         "models": ["qwen2.5:32b", "nomic-embed-text"]
-      }
-    },
-    "automation": {
+      },
       "windmill": {
         "enabled": true,
         "required": true,
@@ -245,9 +241,21 @@ Specify required resources in service.json:
 
 ```json
 {
-  "resources": {
-    "required": ["ollama", "postgresql"],
-    "optional": ["n8n", "redis"]
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "enabled": true,
+        "required": true
+      },
+      "postgresql": {
+        "enabled": true,
+        "required": true
+      },
+      "redis": {
+        "enabled": false,
+        "required": false
+      }
+    }
   }
 }
 ```
