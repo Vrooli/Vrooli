@@ -15,7 +15,7 @@ func (s *Session) ExecuteEvaluate(ctx context.Context, script string, timeoutMs 
 	start := time.Now()
 	result := &StepResult{}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	var evalResult interface{}
@@ -58,7 +58,7 @@ func (s *Session) ExecuteExtract(ctx context.Context, selector, extractType, att
 		return result, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	payload := map[string]any{}
@@ -118,7 +118,7 @@ func (s *Session) ExecuteTabSwitch(ctx context.Context, opts tabSwitchOptions) (
 
 	if opts.WaitForNew {
 		known := s.currentTabSet()
-		waitCtx, cancel := context.WithTimeout(ctx, time.Duration(opts.TimeoutMs)*time.Millisecond)
+		waitCtx, cancel := context.WithTimeout(s.ctx, time.Duration(opts.TimeoutMs)*time.Millisecond)
 		defer cancel()
 		if _, err := s.waitForNewTab(waitCtx, known, time.Duration(opts.TimeoutMs)*time.Millisecond); err != nil {
 			result.Error = err.Error()

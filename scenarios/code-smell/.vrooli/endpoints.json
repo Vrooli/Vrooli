@@ -1,0 +1,86 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/api/v1/health",
+      "method": "GET",
+      "summary": "Overall health",
+      "category": "system",
+      "description": "Returns aggregated service and dependency health."
+    },
+    {
+      "id": "health-live",
+      "path": "/api/v1/health/live",
+      "method": "GET",
+      "summary": "Liveness probe",
+      "category": "system",
+      "description": "Lightweight check used to confirm the process is running."
+    },
+    {
+      "id": "health-ready",
+      "path": "/api/v1/health/ready",
+      "method": "GET",
+      "summary": "Readiness probe",
+      "category": "system",
+      "description": "Reports whether the rule engine has finished loading and the API is ready."
+    },
+    {
+      "id": "analyze-code",
+      "path": "/api/v1/code-smell/analyze",
+      "method": "POST",
+      "summary": "Analyze source for smells",
+      "category": "analysis",
+      "description": "Submits files or repos for smell detection and returns violations."
+    },
+    {
+      "id": "list-rules",
+      "path": "/api/v1/code-smell/rules",
+      "method": "GET",
+      "summary": "List detection rules",
+      "category": "analysis",
+      "description": "Returns the rules and heuristics currently enabled."
+    },
+    {
+      "id": "apply-fix",
+      "path": "/api/v1/code-smell/fix",
+      "method": "POST",
+      "summary": "Apply automated fix",
+      "category": "analysis",
+      "description": "Applies a suggested remediation or custom fix for a violation."
+    },
+    {
+      "id": "queue-status",
+      "path": "/api/v1/code-smell/queue",
+      "method": "GET",
+      "summary": "Active work queue",
+      "category": "analysis",
+      "description": "Shows queued analyses and their progress."
+    },
+    {
+      "id": "learn-pattern",
+      "path": "/api/v1/code-smell/learn",
+      "method": "POST",
+      "summary": "Teach new pattern",
+      "category": "analysis",
+      "description": "Supplies new training examples so the engine can learn additional smells."
+    },
+    {
+      "id": "stats",
+      "path": "/api/v1/code-smell/stats",
+      "method": "GET",
+      "summary": "Usage stats",
+      "category": "analysis",
+      "description": "Returns aggregated counts of scans, fixes, and rule performance."
+    },
+    {
+      "id": "docs",
+      "path": "/api/v1/docs",
+      "method": "GET",
+      "summary": "API docs",
+      "category": "system",
+      "description": "Serves the generated API documentation bundle."
+    }
+  ]
+}

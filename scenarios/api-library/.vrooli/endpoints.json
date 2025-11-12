@@ -1,0 +1,358 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "category": "system",
+      "description": "Returns API readiness plus dependency status."
+    },
+    {
+      "id": "search-apis",
+      "path": "/api/v1/search",
+      "method": "GET",
+      "summary": "Search APIs",
+      "category": "search",
+      "description": "Keyword search across APIs with optional query params."
+    },
+    {
+      "id": "search-apis-advanced",
+      "path": "/api/v1/search",
+      "method": "POST",
+      "summary": "Semantic search APIs",
+      "category": "search",
+      "description": "Performs semantic search with structured filters in the request body."
+    },
+    {
+      "id": "list-apis",
+      "path": "/api/v1/apis",
+      "method": "GET",
+      "summary": "List APIs",
+      "category": "apis",
+      "description": "Returns all APIs with paging and filters."
+    },
+    {
+      "id": "create-api",
+      "path": "/api/v1/apis",
+      "method": "POST",
+      "summary": "Create API",
+      "category": "apis",
+      "description": "Adds a new API entry to the catalog."
+    },
+    {
+      "id": "get-api",
+      "path": "/api/v1/apis/{id}",
+      "method": "GET",
+      "summary": "Get API details",
+      "category": "apis",
+      "description": "Returns metadata for a specific API."
+    },
+    {
+      "id": "update-api",
+      "path": "/api/v1/apis/{id}",
+      "method": "PUT",
+      "summary": "Update API",
+      "category": "apis",
+      "description": "Updates API metadata fields."
+    },
+    {
+      "id": "delete-api",
+      "path": "/api/v1/apis/{id}",
+      "method": "DELETE",
+      "summary": "Delete API",
+      "category": "apis",
+      "description": "Removes an API from the catalog."
+    },
+    {
+      "id": "list-api-notes",
+      "path": "/api/v1/apis/{id}/notes",
+      "method": "GET",
+      "summary": "List API notes",
+      "category": "notes",
+      "description": "Returns reviewer notes tied to an API."
+    },
+    {
+      "id": "add-api-note",
+      "path": "/api/v1/apis/{id}/notes",
+      "method": "POST",
+      "summary": "Add API note",
+      "category": "notes",
+      "description": "Adds a new note or gotcha for an API."
+    },
+    {
+      "id": "list-api-endpoints",
+      "path": "/api/v1/apis/{id}/endpoints",
+      "method": "GET",
+      "summary": "List API endpoints",
+      "category": "apis",
+      "description": "Shows documented endpoints for a specific API."
+    },
+    {
+      "id": "list-configured-apis",
+      "path": "/api/v1/configured",
+      "method": "GET",
+      "summary": "List configured APIs",
+      "category": "apis",
+      "description": "Returns APIs with credentials already configured."
+    },
+    {
+      "id": "mark-api-configured",
+      "path": "/api/v1/apis/{id}/configure",
+      "method": "POST",
+      "summary": "Mark API configured",
+      "category": "apis",
+      "description": "Flags an API as configured with credentials."
+    },
+    {
+      "id": "request-research",
+      "path": "/api/v1/request-research",
+      "method": "POST",
+      "summary": "Request API research",
+      "category": "research",
+      "description": "Submits a research ticket for a capability."
+    },
+    {
+      "id": "calculate-cost",
+      "path": "/api/v1/calculate-cost",
+      "method": "POST",
+      "summary": "Estimate API cost",
+      "category": "pricing",
+      "description": "Calculates cost estimates for anticipated usage."
+    },
+    {
+      "id": "list-api-versions",
+      "path": "/api/v1/apis/{id}/versions",
+      "method": "GET",
+      "summary": "List API versions",
+      "category": "versions",
+      "description": "Returns version history for an API."
+    },
+    {
+      "id": "create-api-version",
+      "path": "/api/v1/apis/{id}/versions",
+      "method": "POST",
+      "summary": "Add API version",
+      "category": "versions",
+      "description": "Adds or updates version metadata for an API."
+    },
+    {
+      "id": "export-apis",
+      "path": "/api/v1/export",
+      "method": "GET",
+      "summary": "Export APIs",
+      "category": "apis",
+      "description": "Exports APIs as JSON/CSV for offline analysis."
+    },
+    {
+      "id": "update-api-status",
+      "path": "/api/v1/apis/{id}/status",
+      "method": "PUT",
+      "summary": "Update API status",
+      "category": "apis",
+      "description": "Sets lifecycle status and sunset info."
+    },
+    {
+      "id": "list-categories",
+      "path": "/api/v1/categories",
+      "method": "GET",
+      "summary": "List API categories",
+      "category": "taxonomy",
+      "description": "Returns categories with API counts."
+    },
+    {
+      "id": "list-tags",
+      "path": "/api/v1/tags",
+      "method": "GET",
+      "summary": "List API tags",
+      "category": "taxonomy",
+      "description": "Returns popular API tags."
+    },
+    {
+      "id": "update-api-tags",
+      "path": "/api/v1/apis/{id}/tags",
+      "method": "PUT",
+      "summary": "Update API tags",
+      "category": "taxonomy",
+      "description": "Replaces the tags associated with an API."
+    },
+    {
+      "id": "list-snippets",
+      "path": "/api/v1/apis/{id}/snippets",
+      "method": "GET",
+      "summary": "List integration snippets",
+      "category": "snippets",
+      "description": "Returns code snippets tied to an API."
+    },
+    {
+      "id": "create-snippet",
+      "path": "/api/v1/apis/{id}/snippets",
+      "method": "POST",
+      "summary": "Create integration snippet",
+      "category": "snippets",
+      "description": "Adds a reusable integration snippet."
+    },
+    {
+      "id": "popular-snippets",
+      "path": "/api/v1/snippets/popular",
+      "method": "GET",
+      "summary": "Popular snippets",
+      "category": "snippets",
+      "description": "Returns the most-used snippets."
+    },
+    {
+      "id": "get-snippet",
+      "path": "/api/v1/snippets/{snippet_id}",
+      "method": "GET",
+      "summary": "Get snippet",
+      "category": "snippets",
+      "description": "Returns metadata plus code for a snippet."
+    },
+    {
+      "id": "vote-snippet",
+      "path": "/api/v1/snippets/{snippet_id}/vote",
+      "method": "POST",
+      "summary": "Vote on snippet",
+      "category": "snippets",
+      "description": "Records a helpful/not-helpful vote."
+    },
+    {
+      "id": "list-recipes",
+      "path": "/api/v1/apis/{id}/recipes",
+      "method": "GET",
+      "summary": "List integration recipes",
+      "category": "recipes",
+      "description": "Lists multi-step integration recipes for an API."
+    },
+    {
+      "id": "create-recipe",
+      "path": "/api/v1/apis/{id}/recipes",
+      "method": "POST",
+      "summary": "Create integration recipe",
+      "category": "recipes",
+      "description": "Creates a new integration recipe."
+    },
+    {
+      "id": "get-recipe",
+      "path": "/api/v1/recipes/{id}",
+      "method": "GET",
+      "summary": "Get recipe",
+      "category": "recipes",
+      "description": "Returns recipe details by ID."
+    },
+    {
+      "id": "update-recipe",
+      "path": "/api/v1/recipes/{id}",
+      "method": "PUT",
+      "summary": "Update recipe",
+      "category": "recipes",
+      "description": "Updates a recipe definition."
+    },
+    {
+      "id": "delete-recipe",
+      "path": "/api/v1/recipes/{id}",
+      "method": "DELETE",
+      "summary": "Delete recipe",
+      "category": "recipes",
+      "description": "Deletes a recipe."
+    },
+    {
+      "id": "successful-recipes",
+      "path": "/api/v1/recipes/successful",
+      "method": "GET",
+      "summary": "Successful recipes",
+      "category": "recipes",
+      "description": "Returns recipes with high success rates."
+    },
+    {
+      "id": "compare-apis",
+      "path": "/api/v1/compare",
+      "method": "POST",
+      "summary": "Compare APIs",
+      "category": "analysis",
+      "description": "Compares APIs on pricing, capability, and fit."
+    },
+    {
+      "id": "track-api-usage",
+      "path": "/api/v1/apis/{id}/usage",
+      "method": "POST",
+      "summary": "Track API usage",
+      "category": "analysis",
+      "description": "Logs usage metrics for an API."
+    },
+    {
+      "id": "get-api-analytics",
+      "path": "/api/v1/apis/{id}/analytics",
+      "method": "GET",
+      "summary": "Get API analytics",
+      "category": "analysis",
+      "description": "Returns usage and performance analytics."
+    },
+    {
+      "id": "recommend-apis",
+      "path": "/api/v1/recommendations",
+      "method": "GET",
+      "summary": "Recommend APIs",
+      "category": "analysis",
+      "description": "Provides recommendation results for the current query context."
+    },
+    {
+      "id": "create-webhook",
+      "path": "/api/v1/webhooks",
+      "method": "POST",
+      "summary": "Create webhook",
+      "category": "webhooks",
+      "description": "Registers a webhook callback."
+    },
+    {
+      "id": "list-webhooks",
+      "path": "/api/v1/webhooks",
+      "method": "GET",
+      "summary": "List webhooks",
+      "category": "webhooks",
+      "description": "Returns registered webhooks."
+    },
+    {
+      "id": "delete-webhook",
+      "path": "/api/v1/webhooks/{id}",
+      "method": "DELETE",
+      "summary": "Delete webhook",
+      "category": "webhooks",
+      "description": "Deletes a webhook registration."
+    },
+    {
+      "id": "test-webhook",
+      "path": "/api/v1/webhooks/{id}/test",
+      "method": "POST",
+      "summary": "Test webhook",
+      "category": "webhooks",
+      "description": "Sends a test payload to a webhook."
+    },
+    {
+      "id": "get-codegen-spec",
+      "path": "/api/v1/codegen/apis/{id}",
+      "method": "GET",
+      "summary": "Get API codegen spec",
+      "category": "codegen",
+      "description": "Returns OpenAPI / SDK spec metadata for an API."
+    },
+    {
+      "id": "search-codegen-apis",
+      "path": "/api/v1/codegen/search",
+      "method": "POST",
+      "summary": "Search codegen APIs",
+      "category": "codegen",
+      "description": "Searches APIs optimized for SDK generation."
+    },
+    {
+      "id": "list-codegen-templates",
+      "path": "/api/v1/codegen/templates/{language}",
+      "method": "GET",
+      "summary": "List codegen templates",
+      "category": "codegen",
+      "description": "Lists available code generation templates for a language."
+    }
+  ]
+}

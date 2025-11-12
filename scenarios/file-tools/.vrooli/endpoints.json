@@ -1,0 +1,142 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health",
+      "category": "system",
+      "description": "Simple availability check for orchestrators."
+    },
+    {
+      "id": "compress",
+      "path": "/api/v1/files/compress",
+      "method": "POST",
+      "summary": "Compress files",
+      "category": "files",
+      "description": "Creates archives with configurable compression formats."
+    },
+    {
+      "id": "extract",
+      "path": "/api/v1/files/extract",
+      "method": "POST",
+      "summary": "Extract archives",
+      "category": "files",
+      "description": "Unpacks archives into a destination path."
+    },
+    {
+      "id": "file-operation",
+      "path": "/api/v1/files/operation",
+      "method": "POST",
+      "summary": "General file operation",
+      "category": "files",
+      "description": "Performs copy, move, rename, delete, and similar actions."
+    },
+    {
+      "id": "metadata",
+      "path": "/api/v1/files/metadata",
+      "method": "GET",
+      "summary": "Get metadata",
+      "category": "metadata",
+      "description": "Returns metadata for a single file or folder, driven by query params."
+    },
+    {
+      "id": "metadata-extract",
+      "path": "/api/v1/files/metadata/extract",
+      "method": "POST",
+      "summary": "Extract metadata",
+      "category": "metadata",
+      "description": "Extracts EXIF/embedded metadata from uploaded files."
+    },
+    {
+      "id": "checksum",
+      "path": "/api/v1/files/checksum",
+      "method": "POST",
+      "summary": "Generate checksum",
+      "category": "integrity",
+      "description": "Calculates MD5/SHA hashes for verification."
+    },
+    {
+      "id": "split",
+      "path": "/api/v1/files/split",
+      "method": "POST",
+      "summary": "Split files",
+      "category": "files",
+      "description": "Splits large files into evenly sized chunks."
+    },
+    {
+      "id": "merge",
+      "path": "/api/v1/files/merge",
+      "method": "POST",
+      "summary": "Merge files",
+      "category": "files",
+      "description": "Merges multiple chunks or documents into a single file."
+    },
+    {
+      "id": "detect-duplicates",
+      "path": "/api/v1/files/duplicates/detect",
+      "method": "POST",
+      "summary": "Detect duplicates",
+      "category": "integrity",
+      "description": "Finds duplicate files using checksum or heuristic matching."
+    },
+    {
+      "id": "organize",
+      "path": "/api/v1/files/organize",
+      "method": "POST",
+      "summary": "Organize library",
+      "category": "files",
+      "description": "Re-arranges files into rules-based folder structures."
+    },
+    {
+      "id": "search",
+      "path": "/api/v1/files/search",
+      "method": "GET",
+      "summary": "Search files",
+      "category": "files",
+      "description": "Performs metadata/content search across managed files."
+    },
+    {
+      "id": "relationship-map",
+      "path": "/api/v1/files/relationships/map",
+      "method": "POST",
+      "summary": "Map relationships",
+      "category": "insights",
+      "description": "Builds relationship graphs between related files."
+    },
+    {
+      "id": "storage-optimize",
+      "path": "/api/v1/files/storage/optimize",
+      "method": "POST",
+      "summary": "Optimize storage",
+      "category": "insights",
+      "description": "Analyzes and recommends storage optimization actions."
+    },
+    {
+      "id": "access-analyze",
+      "path": "/api/v1/files/access/analyze",
+      "method": "POST",
+      "summary": "Analyze access patterns",
+      "category": "insights",
+      "description": "Evaluates access logs to highlight hot/cold files."
+    },
+    {
+      "id": "integrity-monitor",
+      "path": "/api/v1/files/integrity/monitor",
+      "method": "POST",
+      "summary": "Monitor integrity",
+      "category": "integrity",
+      "description": "Schedules or runs integrity monitoring jobs across repositories."
+    },
+    {
+      "id": "docs",
+      "path": "/docs",
+      "method": "GET",
+      "summary": "API docs",
+      "category": "system",
+      "description": "Serves the API documentation bundle."
+    }
+  ]
+}

@@ -475,7 +475,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     const meta = deriveConditionMetadata(connection.sourceHandle ?? undefined);
     const nextEdge: Edge = {
       ...connection,
-      data: connection.data ? { ...connection.data } : undefined,
+      data: (connection as any).data ? { ...(connection as any).data } : undefined,
     } as Edge;
     if (meta) {
       nextEdge.data = { ...(nextEdge.data ?? {}), condition: meta.condition };

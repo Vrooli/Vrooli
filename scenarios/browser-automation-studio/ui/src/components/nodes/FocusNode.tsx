@@ -260,7 +260,7 @@ const FocusNodeComponent: FC<NodeProps> = (props) => (
   />
 );
 
-export const BlurNode = memo<FC<NodeProps>>((props) => (
+export const BlurNode: FC<NodeProps> = memo((props) => (
   <FocusBlurNode
     {...props}
     mode="blur"

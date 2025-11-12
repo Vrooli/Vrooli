@@ -17,7 +17,7 @@ func (s *Session) ExecuteClick(ctx context.Context, selector string, timeoutMs, 
 	start := time.Now()
 	result := &StepResult{}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	err := chromedp.Run(timeoutCtx,
@@ -52,7 +52,7 @@ func (s *Session) ExecuteWait(ctx context.Context, selector string, timeoutMs, w
 	start := time.Now()
 	result := &StepResult{}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	err := chromedp.Run(timeoutCtx, chromedp.WaitVisible(selector, s.frameQueryOptions(chromedp.ByQuery)...))
@@ -84,7 +84,7 @@ func (s *Session) ExecuteAssert(ctx context.Context, selector, mode, expectedVal
 	start := time.Now()
 	result := &StepResult{DebugContext: make(map[string]interface{})}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	var currentURL string
@@ -201,7 +201,7 @@ func (s *Session) ExecuteType(ctx context.Context, selector, text string, clearF
 	start := time.Now()
 	result := &StepResult{}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	actions := []chromedp.Action{
@@ -245,7 +245,7 @@ func (s *Session) ExecuteUploadFile(ctx context.Context, selector string, files 
 		return result, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	if err := chromedp.Run(timeoutCtx,
@@ -293,7 +293,7 @@ func (s *Session) ExecuteKeyboard(ctx context.Context, keyValue, eventType strin
 	normalizedEvent := normalizeKeyboardEventType(eventType)
 	result.DebugContext["eventType"] = normalizedEvent
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	dispatch := func(event input.KeyType) error {

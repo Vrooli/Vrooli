@@ -1,0 +1,150 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health",
+      "category": "system",
+      "description": "Reports crypto tools service readiness and dependency status."
+    },
+    {
+      "id": "docs",
+      "path": "/docs",
+      "method": "GET",
+      "summary": "API docs",
+      "category": "docs",
+      "description": "Serves the crypto tools API documentation."
+    },
+    {
+      "id": "list-resources",
+      "path": "/api/v1/resources",
+      "method": "GET",
+      "summary": "List resources",
+      "category": "resources",
+      "description": "Lists stored crypto automation resources."
+    },
+    {
+      "id": "create-resource",
+      "path": "/api/v1/resources",
+      "method": "POST",
+      "summary": "Create resource",
+      "category": "resources",
+      "description": "Creates a new crypto automation resource."
+    },
+    {
+      "id": "get-resource",
+      "path": "/api/v1/resources/{id}",
+      "method": "GET",
+      "summary": "Get resource",
+      "category": "resources",
+      "description": "Returns details for a single resource."
+    },
+    {
+      "id": "update-resource",
+      "path": "/api/v1/resources/{id}",
+      "method": "PUT",
+      "summary": "Update resource",
+      "category": "resources",
+      "description": "Updates an existing resource."
+    },
+    {
+      "id": "delete-resource",
+      "path": "/api/v1/resources/{id}",
+      "method": "DELETE",
+      "summary": "Delete resource",
+      "category": "resources",
+      "description": "Deletes a stored resource."
+    },
+    {
+      "id": "execute-workflow",
+      "path": "/api/v1/execute",
+      "method": "POST",
+      "summary": "Execute workflow",
+      "category": "workflows",
+      "description": "Triggers a crypto workflow execution."
+    },
+    {
+      "id": "list-executions",
+      "path": "/api/v1/executions",
+      "method": "GET",
+      "summary": "List executions",
+      "category": "workflows",
+      "description": "Lists workflow execution history."
+    },
+    {
+      "id": "get-execution",
+      "path": "/api/v1/executions/{id}",
+      "method": "GET",
+      "summary": "Get execution",
+      "category": "workflows",
+      "description": "Returns a single workflow execution record."
+    },
+    {
+      "id": "crypto-hash",
+      "path": "/api/v1/crypto/hash",
+      "method": "POST",
+      "summary": "Hash data",
+      "category": "crypto",
+      "description": "Generates hashes using algorithms like SHA, bcrypt, or scrypt."
+    },
+    {
+      "id": "crypto-encrypt",
+      "path": "/api/v1/crypto/encrypt",
+      "method": "POST",
+      "summary": "Encrypt data",
+      "category": "crypto",
+      "description": "Encrypts payloads using AES and related algorithms."
+    },
+    {
+      "id": "crypto-decrypt",
+      "path": "/api/v1/crypto/decrypt",
+      "method": "POST",
+      "summary": "Decrypt data",
+      "category": "crypto",
+      "description": "Decrypts payloads returning plaintext."
+    },
+    {
+      "id": "crypto-key-generate",
+      "path": "/api/v1/crypto/keys/generate",
+      "method": "POST",
+      "summary": "Generate key",
+      "category": "crypto",
+      "description": "Generates new encryption key material."
+    },
+    {
+      "id": "crypto-keys-list",
+      "path": "/api/v1/crypto/keys",
+      "method": "GET",
+      "summary": "List keys",
+      "category": "crypto",
+      "description": "Lists stored keys managed by the service."
+    },
+    {
+      "id": "crypto-keys-get",
+      "path": "/api/v1/crypto/keys/{id}",
+      "method": "GET",
+      "summary": "Get key",
+      "category": "crypto",
+      "description": "Returns a single key reference."
+    },
+    {
+      "id": "crypto-sign",
+      "path": "/api/v1/crypto/sign",
+      "method": "POST",
+      "summary": "Sign payload",
+      "category": "crypto",
+      "description": "Produces digital signatures for supplied data."
+    },
+    {
+      "id": "crypto-verify",
+      "path": "/api/v1/crypto/verify",
+      "method": "POST",
+      "summary": "Verify signature",
+      "category": "crypto",
+      "description": "Verifies signatures created by the sign endpoint."
+    }
+  ]
+}

@@ -22,7 +22,7 @@ func (s *Session) ExecuteFrameSwitch(ctx context.Context, opts frameSwitchOption
 		opts.TimeoutMs = 30000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(opts.TimeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(opts.TimeoutMs)*time.Millisecond)
 	defer cancel()
 
 	result := &StepResult{DebugContext: map[string]interface{}{

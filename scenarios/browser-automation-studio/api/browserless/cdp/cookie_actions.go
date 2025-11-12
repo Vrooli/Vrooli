@@ -28,7 +28,7 @@ func (s *Session) ExecuteSetCookie(ctx context.Context, params runtime.Instructi
 		timeout = 30000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeout)*time.Millisecond)
 	defer cancel()
 
 	cmd := network.SetCookie(params.CookieName, params.CookieValue)
@@ -95,7 +95,7 @@ func (s *Session) ExecuteGetCookie(ctx context.Context, params runtime.Instructi
 		timeout = 30000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeout)*time.Millisecond)
 	defer cancel()
 
 	cmd := network.GetCookies()
@@ -169,7 +169,7 @@ func (s *Session) ExecuteClearCookie(ctx context.Context, params runtime.Instruc
 		timeout = 30000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeout)*time.Millisecond)
 	defer cancel()
 
 	var actionErr error

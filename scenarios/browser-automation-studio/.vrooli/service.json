@@ -252,7 +252,14 @@
         "enabled": true,
         "required": false,
         "description": "AI workflow generation and debugging assistance"
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (resource_cli)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

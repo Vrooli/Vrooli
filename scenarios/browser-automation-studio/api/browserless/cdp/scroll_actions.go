@@ -40,7 +40,7 @@ func (s *Session) ExecuteScroll(ctx context.Context, opts scrollOptions, timeout
 	result.DebugContext["direction"] = opts.direction
 	result.DebugContext["amount"] = opts.amount
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	var actionErr error
@@ -101,7 +101,7 @@ func (s *Session) ExecuteRotate(ctx context.Context, orientation string, angle i
 	}
 
 	width, height := resolveViewportForOrientation(s.viewportWidth, s.viewportHeight, orientation)
-	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 	defer cancel()
 
 	orientationType := deriveScreenOrientationType(orientation, angle)

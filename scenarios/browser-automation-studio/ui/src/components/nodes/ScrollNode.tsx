@@ -163,7 +163,7 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
 
   const showDirection = scrollType === 'page' || scrollType === 'untilVisible';
   const showAmount = scrollType === 'page' || scrollType === 'untilVisible';
-  const showBehavior = scrollType !== 'untilVisible' || scrollType === 'page';
+  const showBehavior = scrollType !== 'untilVisible' && scrollType === 'page';
   const showSelector = scrollType === 'element';
   const showTargetSelector = scrollType === 'untilVisible';
   const showPosition = scrollType === 'position';

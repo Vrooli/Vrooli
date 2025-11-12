@@ -3,6 +3,7 @@ package cdp
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
@@ -17,6 +18,16 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 	switch instruction.Type {
 	case "navigate":
 		url := instruction.Params.URL
+
+		// Handle scenario destination type
+		if instruction.Params.DestinationType == "scenario" {
+			scenarioURL, urlErr := resolveScenarioURL(instruction.Params.Scenario, instruction.Params.ScenarioPath)
+			if urlErr != nil {
+				return nil, fmt.Errorf("failed to resolve scenario URL for %s: %w", instruction.Params.Scenario, urlErr)
+			}
+			url = scenarioURL
+		}
+
 		waitUntil := instruction.Params.WaitUntil
 		if waitUntil == "" {
 			waitUntil = "load"
@@ -499,4 +510,36 @@ func (s *Session) LastHTML() string {
 // SetLastHTML is not needed in CDP mode - stub for compatibility
 func (s *Session) SetLastHTML(html string) {
 	// No-op: CDP keeps browser state naturally
+}
+
+// resolveScenarioURL resolves a scenario name to its UI URL using the vrooli CLI
+func resolveScenarioURL(scenarioName, scenarioPath string) (string, error) {
+	if scenarioName == "" {
+		return "", fmt.Errorf("scenario name is required for destinationType=scenario")
+	}
+
+	// Call vrooli CLI to get scenario URL
+	cmd := exec.Command("vrooli", "scenario", "open", scenarioName, "--print-url")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve scenario %s URL: %w", scenarioName, err)
+	}
+
+	baseURL := strings.TrimSpace(string(output))
+	if baseURL == "" {
+		return "", fmt.Errorf("vrooli CLI returned empty URL for scenario %s", scenarioName)
+	}
+
+	// Append scenario path if provided
+	if scenarioPath != "" {
+		// Ensure scenarioPath starts with /
+		if !strings.HasPrefix(scenarioPath, "/") {
+			scenarioPath = "/" + scenarioPath
+		}
+		// Remove trailing slash from baseURL if present
+		baseURL = strings.TrimSuffix(baseURL, "/")
+		return baseURL + scenarioPath, nil
+	}
+
+	return baseURL, nil
 }

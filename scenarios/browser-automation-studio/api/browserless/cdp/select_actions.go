@@ -27,7 +27,7 @@ func (s *Session) ExecuteSelect(ctx context.Context, selector, mode, value, text
 		timeoutMs = 30000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	var nodes []*cdp.Node

@@ -1,0 +1,102 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "category": "system",
+      "description": "Reports service status and dependencies."
+    },
+    {
+      "id": "api-health",
+      "path": "/api/health",
+      "method": "GET",
+      "summary": "API namespace health",
+      "category": "system",
+      "description": "Health probe under /api for compatibility with API gateways."
+    },
+    {
+      "id": "api-docs",
+      "path": "/api/docs",
+      "method": "GET",
+      "summary": "API documentation",
+      "category": "docs",
+      "description": "Serves the generated API reference bundle."
+    },
+    {
+      "id": "audio-edit",
+      "path": "/api/v1/audio/edit",
+      "method": "POST",
+      "summary": "Edit audio",
+      "category": "audio",
+      "description": "Runs trimming, fading, and gain adjustments per payload settings."
+    },
+    {
+      "id": "audio-convert",
+      "path": "/api/v1/audio/convert",
+      "method": "POST",
+      "summary": "Convert audio",
+      "category": "audio",
+      "description": "Converts audio files to the requested format and bitrate."
+    },
+    {
+      "id": "audio-metadata-get",
+      "path": "/api/v1/audio/metadata/{id}",
+      "method": "GET",
+      "summary": "Get audio metadata",
+      "category": "audio",
+      "description": "Returns stored metadata for a processed audio asset."
+    },
+    {
+      "id": "audio-metadata-create",
+      "path": "/api/v1/audio/metadata",
+      "method": "POST",
+      "summary": "Extract audio metadata",
+      "category": "audio",
+      "description": "Uploads a file and extracts technical metadata tags."
+    },
+    {
+      "id": "audio-enhance",
+      "path": "/api/v1/audio/enhance",
+      "method": "POST",
+      "summary": "Enhance audio",
+      "category": "audio",
+      "description": "Applies denoise, EQ, and mastering style improvements."
+    },
+    {
+      "id": "audio-analyze",
+      "path": "/api/v1/audio/analyze",
+      "method": "POST",
+      "summary": "Analyze audio",
+      "category": "audio",
+      "description": "Produces waveform stats, loudness, and detected segments."
+    },
+    {
+      "id": "audio-vad",
+      "path": "/api/v1/audio/vad",
+      "method": "POST",
+      "summary": "Run voice activity detection",
+      "category": "audio",
+      "description": "Detects spoken segments and silence ranges."
+    },
+    {
+      "id": "audio-remove-silence",
+      "path": "/api/v1/audio/remove-silence",
+      "method": "POST",
+      "summary": "Remove silence",
+      "category": "audio",
+      "description": "Trims leading/trailing silence using configured thresholds."
+    },
+    {
+      "id": "audio-status",
+      "path": "/api/v1/status",
+      "method": "GET",
+      "summary": "Service status",
+      "category": "system",
+      "description": "Returns uptime, directories, and capability list."
+    }
+  ]
+}

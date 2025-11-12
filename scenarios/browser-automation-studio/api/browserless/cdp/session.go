@@ -123,7 +123,9 @@ func NewSession(ctx context.Context, browserlessURL string, viewportWidth, viewp
 		log.Infof("Connecting to browserless CDP at: %s", wsURL)
 	}
 
-	allocCtx, cancelAllocator := chromedp.NewRemoteAllocator(ctx, wsURL, chromedp.NoModifyURL)
+	// Use context.Background() for allocator to prevent premature cancellation
+	// The passed ctx is only used for WebSocket URL resolution above
+	allocCtx, cancelAllocator := chromedp.NewRemoteAllocator(context.Background(), wsURL, chromedp.NoModifyURL)
 	s.allocCtx = allocCtx
 
 	logf := func(string, ...interface{}) {}

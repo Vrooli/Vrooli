@@ -12,7 +12,8 @@ func (s *Session) ExecuteNavigate(ctx context.Context, url string, waitUntil str
 	start := time.Now()
 	result := &StepResult{}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	// Use session context (not request context) to prevent premature cancellation
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	err := chromedp.Run(timeoutCtx,

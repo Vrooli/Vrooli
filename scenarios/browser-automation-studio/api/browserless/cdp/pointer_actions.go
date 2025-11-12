@@ -30,7 +30,7 @@ func (s *Session) ExecuteHover(ctx context.Context, selector string, timeoutMs, 
 		durationMs = 10000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	box, err := s.resolveElementBox(timeoutCtx, selector)
@@ -103,7 +103,7 @@ func (s *Session) ExecuteDragAndDrop(ctx context.Context, opts dragDropOptions, 
 		opts.holdMs = 0
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	sourceBox, err := s.resolveElementBox(timeoutCtx, opts.sourceSelector)

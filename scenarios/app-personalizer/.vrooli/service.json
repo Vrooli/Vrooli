@@ -194,7 +194,14 @@
         "enabled": true,
         "required": false,
         "purpose": "app versions and modification history storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

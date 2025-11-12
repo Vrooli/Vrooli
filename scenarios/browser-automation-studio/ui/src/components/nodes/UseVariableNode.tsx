@@ -127,7 +127,7 @@ const UseVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
             onBlur={() => updateNodeData({ transform })}
             placeholder="Hello, {{value}}!"
           />
-          <p className="text-[10px] text-gray-500 mt-1">Use {{value}} to reference the current variable contents.</p>
+          <p className="text-[10px] text-gray-500 mt-1">Use {`{{value}}`} to reference the current variable contents.</p>
         </div>
         <label className="flex items-center gap-2 text-gray-400">
           <input

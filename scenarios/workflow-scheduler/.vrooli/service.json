@@ -264,7 +264,14 @@
         "enabled": true,
         "required": true,
         "purpose": "Execution locks, distributed caching, pub/sub for real-time updates"
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }
