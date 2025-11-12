@@ -20,7 +20,28 @@
       "postgres-storage",
       "qdrant-vectors",
       "native-go-reasoning"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/agent-metareasoning-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -125,7 +146,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Reasoning API: http://localhost:${API_PORT}/reasoning\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-metareasoning-manager --help'",
+          "run": "echo '\ud83d\ude80 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Reasoning API: http://localhost:${API_PORT}/reasoning\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-metareasoning-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -153,13 +174,13 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Reasoning API: http://localhost:$API_PORT/reasoning\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:${UI_PORT}\\n  CLI: agent-metareasoning-manager --help\\n\\nReasoning endpoints:\\n  POST /reasoning/pros-cons\\n  POST /reasoning/swot\\n  POST /reasoning/risk-assessment\\n  POST /reasoning/self-review\\n  POST /reasoning/chain'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Reasoning API: http://localhost:$API_PORT/reasoning\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:${UI_PORT}\\n  CLI: agent-metareasoning-manager --help\\n\\nReasoning endpoints:\\n  POST /reasoning/pros-cons\\n  POST /reasoning/swot\\n  POST /reasoning/risk-assessment\\n  POST /reasoning/self-review\\n  POST /reasoning/chain'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing",
+      "description": "Comprehensive phased testing for agent-metareasoning-manager",
       "steps": [
         {
           "name": "run-phased-tests",

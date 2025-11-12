@@ -21,7 +21,21 @@
         "name": "Vrooli Team",
         "email": "team@vrooli.com"
       }
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/scenario-auditor"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -112,7 +126,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"✅ Scenario Auditor is ready:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
+          "run": "echo \"\u2705 Scenario Auditor is ready:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
         }
       ]
     },
@@ -139,37 +153,17 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"✅ Scenario Auditor is running:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
+          "run": "echo \"\u2705 Scenario Auditor is running:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
         }
       ]
     },
     "test": {
-      "description": "Run Scenario Auditor test suite",
+      "description": "Comprehensive phased testing for scenario-auditor",
       "steps": [
         {
-          "name": "test-unit",
-          "run": "cd test && ./phases/test-unit.sh",
-          "description": "Run unit tests"
-        },
-        {
-          "name": "test-integration",
-          "run": "cd test && ./phases/test-integration.sh",
-          "description": "Run integration tests"
-        },
-        {
-          "name": "test-rules-engine",
-          "run": "cd test && ./phases/test-rules-engine.sh",
-          "description": "Test rule engine functionality"
-        },
-        {
-          "name": "test-ui-practices",
-          "run": "cd test && ./phases/test-ui-practices.sh",
-          "description": "Validate UI testing best practices"
-        },
-        {
-          "name": "test-service-json",
-          "run": "cd test && ./phases/test-service-json.sh",
-          "description": "Test service.json validation"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

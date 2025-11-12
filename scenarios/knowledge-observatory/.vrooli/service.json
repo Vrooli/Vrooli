@@ -18,7 +18,28 @@
       "postgres-storage",
       "qdrant-vectors",
       "dashboard-ui"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/knowledge-observatory"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -129,7 +150,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔭 Knowledge Observatory initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: knowledge-observatory --help\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}'",
+          "run": "echo '\ud83d\udd2d Knowledge Observatory initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: knowledge-observatory --help\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}'",
           "description": "Display service access URLs"
         }
       ]
@@ -157,18 +178,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔭 Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
+          "run": "echo '\ud83d\udd2d Knowledge Observatory running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: knowledge-observatory --help'",
           "description": "Display service URLs and usage information"
         }
       ]
     },
     "test": {
-      "description": "Run phased Knowledge Observatory test suite",
+      "description": "Comprehensive phased testing for knowledge-observatory",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute phased scenario tests"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

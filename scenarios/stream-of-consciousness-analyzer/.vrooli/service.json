@@ -21,7 +21,28 @@
       "redis-cache",
       "qdrant-vectors",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/stream-of-consciousness-analyzer"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -163,12 +184,12 @@
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing",
+      "description": "Comprehensive phased testing for stream-of-consciousness-analyzer",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute phased test suite"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

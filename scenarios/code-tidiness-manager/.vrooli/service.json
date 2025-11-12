@@ -17,7 +17,28 @@
       "postgres-storage",
       "redis-cache",
       "dashboard-ui"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/code-tidiness-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -126,7 +147,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🧹 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help'",
+          "run": "echo '\ud83e\uddf9 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -154,18 +175,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🧹 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
+          "run": "echo '\ud83e\uddf9 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Phased scenario testing using shared runner",
+      "description": "Comprehensive phased testing for code-tidiness-manager",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute structured scenario test phases"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

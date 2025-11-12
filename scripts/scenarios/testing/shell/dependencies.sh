@@ -314,7 +314,9 @@ _validate_resources() {
 
     # Get enabled/required resources
     local resources
-    resources=$(jq -r '.resources | to_entries[] | select(.value.enabled == true or .value.required == true) | .key' "$service_json" 2>/dev/null || echo "")
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
+    resources=$(jq -r "$jq_resources | to_entries[] | select(.value.enabled == true or .value.required == true) | .key" "$service_json" 2>/dev/null || echo "")
 
     if [ -z "$resources" ]; then
         echo "  ℹ️  No resources configured"

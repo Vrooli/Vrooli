@@ -55,7 +55,7 @@ _testing_playbooks__wait_for_execution() {
 
     while true; do
         local exec_resp
-        exec_resp=$(curl -s "$api_base/executions/${execution_id}" || true)
+        exec_resp=$(curl -s --max-time 10 "$api_base/executions/${execution_id}" || true)
         local status
         status=$(printf '%s\n' "$exec_resp" | jq -r '.status // "unknown"')
 
@@ -116,7 +116,7 @@ _testing_playbooks__execute_adhoc_workflow() {
 
     # Execute workflow via adhoc endpoint
     local resp
-    resp=$(curl -s -X POST \
+    resp=$(curl -s --max-time 30 -X POST \
         -H 'Content-Type: application/json' \
         -d "$payload" \
         "$api_base/workflows/execute-adhoc")
@@ -254,9 +254,7 @@ testing::playbooks::run_workflow() {
     if declare -F testing::core::wait_for_scenario >/dev/null 2>&1; then
         if ! testing::core::wait_for_scenario "$scenario_name" "$readiness_timeout" >/dev/null 2>&1; then
             echo "❌ Scenario $scenario_name did not become ready" >&2
-            if [ "$started_scenario" = true ]; then
-                vrooli scenario stop "$scenario_name" >/dev/null 2>&1 || true
-            fi
+            # Leave scenario running for debugging
             return 1
         fi
     fi
@@ -264,9 +262,7 @@ testing::playbooks::run_workflow() {
     local api_port
     api_port=$(_testing_playbooks__resolve_api_port "$scenario_name") || {
         echo "❌ Unable to resolve API_PORT for $scenario_name" >&2
-        if [ "$started_scenario" = true ]; then
-            vrooli scenario stop "$scenario_name" >/dev/null 2>&1 || true
-        fi
+        # Leave scenario running for debugging
         return 1
     }
 
@@ -277,9 +273,7 @@ testing::playbooks::run_workflow() {
     local execution_id
     if ! execution_id=$(_testing_playbooks__execute_adhoc_workflow "$api_base" "$workflow_path"); then
         echo "❌ Failed to start adhoc workflow execution" >&2
-        if [ "$started_scenario" = true ]; then
-            vrooli scenario stop "$scenario_name" >/dev/null 2>&1 || true
-        fi
+        # Leave scenario running for debugging
         return 1
     fi
 
@@ -289,16 +283,12 @@ testing::playbooks::run_workflow() {
 
     local execution_summary
     if execution_summary=$(_testing_playbooks__wait_for_execution "$api_base" "$execution_id" 360); then
-        if [ "$started_scenario" = true ]; then
-            vrooli scenario stop "$scenario_name" >/dev/null 2>&1 || true
-        fi
+        # Leave scenario running for subsequent tests/workflows
         return 0
     else
         echo "❌ Adhoc workflow execution failed" >&2
         printf '%s\n' "$execution_summary" >&2
-        if [ "$started_scenario" = true ]; then
-            vrooli scenario stop "$scenario_name" >/dev/null 2>&1 || true
-        fi
+        # Leave scenario running even on failure for debugging
         return 1
     fi
 }

@@ -1,27 +1,33 @@
 {
   "service": {
-    "name": "test-data-generator"
+    "name": "test-data-generator",
+    "displayName": "Test Data Generator",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "generation",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/test-data-generator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "description": "Universal test data generator for all formats - JSON, YAML, CSV, XML, images, audio, video, PDFs",
+    "version": "1.0.0"
   },
   "version": "1.0.0",
-  "description": "Universal test data generator for all formats - JSON, YAML, CSV, XML, images, audio, video, PDFs",
-  "category": "generation",
-  "status": "testing",
-  "metadata": {
-    "author": "AI Agent",
-    "created": "2024-01-09",
-    "updated": "2024-01-09",
-    "tags": [
-      "test",
-      "mock",
-      "data",
-      "generation",
-      "faker",
-      "media"
-    ],
-    "revenue_potential": "5000-10000",
-    "reusability_score": 10,
-    "complexity": "medium"
-  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -213,17 +219,17 @@
       "interval": 30000,
       "startup_grace_period": 10000
     },
-    "version": "2.0.0"
-  },
-  "test": {
-    "description": "Comprehensive phased testing",
-    "steps": [
-      {
-        "name": "run-phased-tests",
-        "run": "test/run-tests.sh",
-        "description": "Execute phased test suite"
-      }
-    ]
+    "version": "2.0.0",
+    "test": {
+      "description": "Comprehensive phased testing for test-data-generator",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    }
   },
   "dependencies": {
     "resources": {

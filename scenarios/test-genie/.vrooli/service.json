@@ -18,7 +18,28 @@
       "go-api",
       "express-ui",
       "comprehensive-testing"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/test-genie"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -113,7 +134,7 @@
       "steps": [
         {
           "name": "verify-resources",
-          "run": "echo '🔍 Verifying required resources...' && resource-postgres status && resource-ollama status",
+          "run": "echo '\ud83d\udd0d Verifying required resources...' && resource-postgres status && resource-ollama status",
           "description": "Verify required resources are available",
           "condition": {
             "always": true
@@ -174,7 +195,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '\\n🚀 Test Genie initialized successfully!'\\necho '  📊 Dashboard: http://localhost:${UI_PORT}'\\necho '  🔧 API: http://localhost:${API_PORT}'\\necho '  💻 CLI: test-genie --help'\\necho '  📚 Generate tests: test-genie generate <scenario> --types unit,integration'\\necho '  🏗️  Create vault: test-genie vault <scenario> --phases setup,develop,test'",
+          "run": "echo '\\n\ud83d\ude80 Test Genie initialized successfully!'\\necho '  \ud83d\udcca Dashboard: http://localhost:${UI_PORT}'\\necho '  \ud83d\udd27 API: http://localhost:${API_PORT}'\\necho '  \ud83d\udcbb CLI: test-genie --help'\\necho '  \ud83d\udcda Generate tests: test-genie generate <scenario> --types unit,integration'\\necho '  \ud83c\udfd7\ufe0f  Create vault: test-genie vault <scenario> --phases setup,develop,test'",
           "description": "Display service access information"
         }
       ]
@@ -210,56 +231,18 @@
         },
         {
           "name": "show-urls",
-          "run": "sleep 3 && echo '\\n🚀 Test Genie services started!'\\necho '  📊 Dashboard: http://localhost:${UI_PORT}'\\necho '  🔧 API: http://localhost:${API_PORT}'\\necho '  💻 CLI: test-genie --help'\\necho '\\n💡 Quick start:'\\necho '  test-genie generate my-scenario --types unit,integration'\\necho '  test-genie vault my-scenario --phases setup,develop,test'",
+          "run": "sleep 3 && echo '\\n\ud83d\ude80 Test Genie services started!'\\necho '  \ud83d\udcca Dashboard: http://localhost:${UI_PORT}'\\necho '  \ud83d\udd27 API: http://localhost:${API_PORT}'\\necho '  \ud83d\udcbb CLI: test-genie --help'\\necho '\\n\ud83d\udca1 Quick start:'\\necho '  test-genie generate my-scenario --types unit,integration'\\necho '  test-genie vault my-scenario --phases setup,develop,test'",
           "description": "Display running services information"
         }
       ]
     },
     "test": {
-      "description": "Test Test Genie functionality",
+      "description": "Comprehensive phased testing for test-genie",
       "steps": [
         {
-          "name": "test-go-compilation",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Verify Go code compiles",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "API_PORT=$(vrooli scenario port test-genie API_PORT 2>/dev/null || echo 17907); curl -f http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-ui-health",
-          "run": "UI_PORT=$(vrooli scenario port test-genie UI_PORT 2>/dev/null || echo 35621); curl -f http://localhost:${UI_PORT}/health",
-          "description": "Test UI health endpoint"
-        },
-        {
-          "name": "test-database-connection",
-          "run": "API_PORT=$(vrooli scenario port test-genie API_PORT 2>/dev/null || echo 17907); curl -f -X POST http://localhost:${API_PORT}/api/v1/test-analysis/coverage -H 'Content-Type: application/json' -d '{\"scenario_name\":\"test\",\"source_code_paths\":[\".\"]}' >/dev/null",
-          "description": "Test database connectivity"
-        },
-        {
-          "name": "test-ai-integration",
-          "run": "curl -f http://localhost:${OLLAMA_PORT:-11434}/api/tags >/dev/null",
-          "description": "Test AI service connectivity"
-        },
-        {
-          "name": "test-test-generation",
-          "run": "API_PORT=$(vrooli scenario port test-genie API_PORT 2>/dev/null || echo 17907); curl -f -X POST http://localhost:${API_PORT}/api/v1/test-suite/generate -H 'Content-Type: application/json' -d '{\"scenario_name\":\"test-scenario\",\"test_types\":[\"unit\"],\"coverage_target\":80}' >/dev/null",
-          "description": "Test core test generation functionality"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "test-genie status && test-genie generate test-demo --types unit --coverage 80 >/dev/null",
-          "description": "Test CLI functionality"
-        },
-        {
           "name": "run-phased-tests",
-          "run": "test/run-tests.sh --preset comprehensive",
-          "description": "Run phased scenario test suite"
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

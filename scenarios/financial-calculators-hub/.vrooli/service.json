@@ -18,7 +18,28 @@
       "api-service",
       "go-api",
       "professional-ui"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/financial-calculators-hub"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -114,7 +135,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '💰 Financial Calculators Hub initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
+          "run": "echo '\ud83d\udcb0 Financial Calculators Hub initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
           "description": "Display service URLs"
         }
       ]
@@ -142,33 +163,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '💰 Financial Calculators Hub running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
+          "run": "echo '\ud83d\udcb0 Financial Calculators Hub running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: financial-calculators-hub --help'",
           "description": "Display running services"
         }
       ]
     },
     "test": {
-      "description": "Test Financial Calculators Hub",
+      "description": "Comprehensive phased testing for financial-calculators-hub",
       "steps": [
         {
-          "name": "test-calculations",
-          "run": "cd lib && go test ./...",
-          "description": "Test financial calculations"
-        },
-        {
-          "name": "test-api",
-          "run": "cd api && go test ./...",
-          "description": "Test API endpoints"
-        },
-        {
-          "name": "test-cli",
-          "run": "$HOME/.vrooli/bin/financial-calculators-hub fire --age 30 --savings 100000 --income 100000 --expenses 50000",
-          "description": "Test CLI FIRE calculation"
-        },
-        {
-          "name": "test-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

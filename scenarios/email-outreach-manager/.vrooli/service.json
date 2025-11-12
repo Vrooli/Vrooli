@@ -20,7 +20,28 @@
       "redis-queue",
       "marketing-intelligence",
       "relationship-aware-communications"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/email-outreach-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -165,7 +186,7 @@
         },
         {
           "name": "verify-dependencies",
-          "run": "echo \"Verifying dependencies...\" && (command -v contact-book &>/dev/null && echo \"✅ contact-book CLI available\" || echo \"⚠️  contact-book CLI not found - manual data entry will be used\")",
+          "run": "echo \"Verifying dependencies...\" && (command -v contact-book &>/dev/null && echo \"\u2705 contact-book CLI available\" || echo \"\u26a0\ufe0f  contact-book CLI not found - manual data entry will be used\")",
           "description": "Check optional dependencies"
         },
         {
@@ -186,7 +207,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Email Outreach Manager initialized\\n  API: http://localhost:${EMAIL_OUTREACH_API_PORT}\\n  UI: http://localhost:${EMAIL_OUTREACH_UI_PORT}\\n  CLI: email-outreach-manager --help\\n  Database: PostgreSQL ready'",
+          "run": "echo '\ud83d\ude80 Email Outreach Manager initialized\\n  API: http://localhost:${EMAIL_OUTREACH_API_PORT}\\n  UI: http://localhost:${EMAIL_OUTREACH_UI_PORT}\\n  CLI: email-outreach-manager --help\\n  Database: PostgreSQL ready'",
           "description": "Display service access information"
         }
       ]
@@ -214,18 +235,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Email Outreach Manager running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: email-outreach-manager --help\\n  Health: http://localhost:$API_PORT/health'",
+          "run": "echo '\ud83d\ude80 Email Outreach Manager running:\\n  API: http://localhost:$API_PORT\\n  UI: http://localhost:$UI_PORT\\n  CLI: email-outreach-manager --help\\n  Health: http://localhost:$API_PORT/health'",
           "description": "Display service access URLs"
         }
       ]
     },
     "test": {
-      "description": "Run phased scenario tests",
+      "description": "Comprehensive phased testing for email-outreach-manager",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute scenario test phases"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -244,15 +265,5 @@
         }
       ]
     }
-  },
-  "test": {
-    "description": "Comprehensive phased testing using shared runner",
-    "steps": [
-      {
-        "name": "run-phased-tests",
-        "run": "test/run-tests.sh",
-        "description": "Execute scenario test phases"
-      }
-    ]
   }
 }

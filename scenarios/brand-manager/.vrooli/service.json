@@ -23,7 +23,28 @@
       "postgres-storage",
       "minio-storage",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/brand-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -136,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Brand Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
+          "run": "echo '\ud83d\ude80 Brand Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: brand-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -164,57 +185,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Brand Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
+          "run": "echo '\ud83d\ude80 Brand Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: brand-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test Brand Manager API and workflows",
+      "description": "Comprehensive phased testing for brand-manager",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-brands-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/brands",
-          "description": "Test API brands endpoint"
-        },
-        {
-          "name": "test-integration-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/integrations",
-          "description": "Test API integrations endpoint"
-        },
-        {
-          "name": "test-brand-generation",
-          "run": "bash test/test-brand-generation.sh",
-          "description": "Test brand generation workflow"
-        },
-        {
-          "name": "test-ui-health",
-          "run": "curl -sf http://localhost:$UI_PORT",
-          "description": "Test UI health endpoint",
-          "condition": {
-            "file_exists": "ui/server.js"
-          }
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats brand-manager.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/brand-manager.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -233,16 +215,6 @@
         }
       ]
     }
-  },
-  "test": {
-    "description": "Phased testing for brand-manager scenario",
-    "steps": [
-      {
-        "name": "run-phased-tests",
-        "description": "Execute phased scenario test suite",
-        "run": "test/run-tests.sh"
-      }
-    ]
   },
   "dependencies": {
     "resources": {

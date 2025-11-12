@@ -12,7 +12,28 @@
       "integration",
       "pricing",
       "search"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/api-library"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -222,31 +243,14 @@
       ]
     },
     "test": {
-      "description": "Run test suite",
+      "description": "Comprehensive phased testing for api-library",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash test/run-tests.sh",
-          "description": "Execute phased test suite"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     }
-  },
-  "metadata": {
-    "author": "Vrooli AI",
-    "created": "2024-01-09",
-    "lastModified": "2024-01-09",
-    "prdLink": "PRD.md",
-    "testSuite": "test/run-tests.sh"
-  },
-  "test": {
-    "description": "Phased scenario validation",
-    "steps": [
-      {
-        "name": "run-phased-tests",
-        "run": "test/run-tests.sh",
-        "description": "Execute phased testing suite"
-      }
-    ]
   }
 }

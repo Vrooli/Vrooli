@@ -1,9 +1,33 @@
 {
   "service": {
-    "name": "video-downloader"
+    "name": "video-downloader",
+    "displayName": "Video Downloader",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/video-downloader"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "description": "Video downloader service with Go API and React UI",
+    "version": "2.0.0"
   },
   "version": "2.0.0",
-  "description": "Video downloader service with Go API and React UI",
   "enabled": true,
   "ports": {
     "api": {
@@ -111,7 +135,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '📹 Video Downloader initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '\ud83d\udcf9 Video Downloader initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -138,7 +162,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: video-downloader --help'",
           "description": "Display running service URLs"
         }
       ]
@@ -158,17 +182,17 @@
           "description": "Stop UI process"
         }
       ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for video-downloader",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
     }
-  },
-  "test": {
-    "description": "Comprehensive phased testing",
-    "steps": [
-      {
-        "name": "run-phased-tests",
-        "run": "test/run-tests.sh",
-        "description": "Execute phased testing suite"
-      }
-    ]
   },
   "dependencies": {
     "resources": {

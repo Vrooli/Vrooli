@@ -10,14 +10,33 @@
       "family",
       "dashboard",
       "safe-browsing"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": [
+      "interface",
+      "family"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/kids-dashboard"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "version": "1.0.0",
-  "category": [
-    "interface",
-    "family"
-  ],
-  "status": "active",
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -26,29 +45,6 @@
     "ui": {
       "env_var": "UI_PORT",
       "range": "35000-39999"
-    }
-  },
-  "metadata": {
-    "author": "Vrooli Team",
-    "created": "2025-01-06",
-    "updated": "2025-01-06",
-    "tags": [
-      "kids",
-      "children",
-      "family",
-      "dashboard",
-      "safe-browsing"
-    ],
-    "targetAudience": {
-      "ageRange": "5-12",
-      "userType": "children",
-      "parentalSupervision": "recommended"
-    },
-    "uiStyle": {
-      "theme": "playful",
-      "colorScheme": "bright",
-      "animations": "enabled",
-      "soundEffects": "optional"
     }
   },
   "deployment": {
@@ -229,17 +225,12 @@
       ]
     },
     "test": {
-      "description": "Run kids-dashboard test suite",
+      "description": "Comprehensive phased testing for kids-dashboard",
       "steps": [
         {
-          "name": "run-unit-tests",
-          "run": "cd api && go test -v -cover -coverprofile=coverage.out ./...",
-          "description": "Run Go unit tests with coverage"
-        },
-        {
-          "name": "show-coverage",
-          "run": "cd api && go tool cover -func=coverage.out | tail -1",
-          "description": "Display coverage summary"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     }

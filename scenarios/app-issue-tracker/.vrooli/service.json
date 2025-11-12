@@ -17,7 +17,28 @@
       "no-database-required",
       "portable",
       "git-friendly"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/app-issue-tracker"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -138,7 +159,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '📁 File-Based Issue Tracker initialized\\n  📊 Management: ./issues/manage.sh status\\n  🌐 API: http://localhost:${API_PORT}\\n  🎯 CLI: app-issue-tracker --help\\n  📂 Issues: ./issues/\\n  📝 Templates: ./issues/templates/\\n\\n💡 Create issues with:\\n  app-issue-tracker create --title \"Issue title\" --priority high\\n  ./issues/manage.sh add\\n  cp issues/templates/bug-template.yaml issues/open/123-new.yaml'",
+          "run": "echo '\ud83d\udcc1 File-Based Issue Tracker initialized\\n  \ud83d\udcca Management: ./issues/manage.sh status\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83c\udfaf CLI: app-issue-tracker --help\\n  \ud83d\udcc2 Issues: ./issues/\\n  \ud83d\udcdd Templates: ./issues/templates/\\n\\n\ud83d\udca1 Create issues with:\\n  app-issue-tracker create --title \"Issue title\" --priority high\\n  ./issues/manage.sh add\\n  cp issues/templates/bug-template.yaml issues/open/123-new.yaml'",
           "description": "Display service information"
         }
       ]
@@ -166,48 +187,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '📁 File-Based Issue Tracker running:\\n  🌐 Web UI (dev): http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT\\n  🎯 CLI: app-issue-tracker --help\\n  📊 Management: ./issues/manage.sh status\\n\\n📝 Create issues:\\n  app-issue-tracker create --title \"Bug title\" --priority high\\n  ./issues/manage.sh add\\n\\n📂 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./issues/manage.sh search \"keyword\"'",
+          "run": "echo '\ud83d\udcc1 File-Based Issue Tracker running:\\n  \ud83c\udf10 Web UI (dev): http://localhost:$UI_PORT\\n  \ud83d\udce1 API: http://localhost:$API_PORT\\n  \ud83c\udfaf CLI: app-issue-tracker --help\\n  \ud83d\udcca Management: ./issues/manage.sh status\\n\\n\ud83d\udcdd Create issues:\\n  app-issue-tracker create --title \"Bug title\" --priority high\\n  ./issues/manage.sh add\\n\\n\ud83d\udcc2 File Operations:\\n  ls issues/open/*.yaml\\n  mv issues/open/001-bug.yaml issues/investigating/\\n  ./issues/manage.sh search \"keyword\"'",
           "description": "Display service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test file-based issue tracker functionality",
+      "description": "Comprehensive phased testing for app-issue-tracker",
       "steps": [
         {
-          "name": "test-file-structure",
-          "run": "test -d issues/open && test -d issues/templates && echo '✓ Directory structure exists' || (echo '✗ Directory structure missing' && exit 1)",
-          "description": "Verify file structure exists"
-        },
-        {
-          "name": "test-templates",
-          "run": "test -f issues/templates/bug-template.yaml && test -f issues/templates/feature-template.yaml && echo '✓ Templates exist' || (echo '✗ Templates missing' && exit 1)",
-          "description": "Verify issue templates exist"
-        },
-        {
-          "name": "test-management-cli",
-          "run": "bash issues/manage.sh status",
-          "description": "Test issue management CLI"
-        },
-        {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation for file-based API"
-        },
-        {
-          "name": "test-file-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health && echo '✓ File-based API healthy' || echo '⚠ API not running (expected if not started)'",
-          "description": "Test file-based API health endpoint"
-        },
-        {
-          "name": "test-issue-creation",
-          "run": "bash -c 'cd \"$PWD\" && timeout 10s ./issues/manage.sh status > /dev/null && echo \"✓ Issue management working\"' || echo '⚠ Issue management test skipped'",
-          "description": "Test issue file operations"
-        },
-        {
-          "name": "test-main-cli",
-          "run": "bash cli/app-issue-tracker.sh --help | grep -q 'App Issue Tracker' && echo '✓ CLI working' || echo '⚠ CLI test skipped'",
-          "description": "Test main CLI functionality"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -241,16 +232,6 @@
         }
       ]
     }
-  },
-  "test": {
-    "description": "Comprehensive phased testing",
-    "steps": [
-      {
-        "name": "run-phased-tests",
-        "run": "test/run-tests.sh",
-        "description": "Execute phased test suite"
-      }
-    ]
   },
   "dependencies": {
     "resources": {

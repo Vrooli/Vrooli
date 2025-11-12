@@ -99,6 +99,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
       ariaLabelledBy={titleId}
       size="default"
       className="bg-flow-node border border-gray-700 shadow-2xl"
+      data-testid="project-modal"
     >
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-gray-700">

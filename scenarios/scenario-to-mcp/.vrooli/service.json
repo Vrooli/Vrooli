@@ -17,7 +17,28 @@
       "react-ui",
       "go-api",
       "postgres-storage"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/scenario-to-mcp"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -131,7 +152,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario to MCP initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help'",
+          "run": "echo '\ud83d\ude80 Scenario to MCP initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -168,47 +189,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help\\n\\nKey endpoints:\\n  GET /api/v1/mcp/endpoints - List all MCP endpoints\\n  POST /api/v1/mcp/add - Add MCP to scenario\\n  GET /api/v1/mcp/registry - Service discovery'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help\\n\\nKey endpoints:\\n  GET /api/v1/mcp/endpoints - List all MCP endpoints\\n  POST /api/v1/mcp/add - Add MCP to scenario\\n  GET /api/v1/mcp/registry - Service discovery'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test Scenario to MCP services",
+      "description": "Comprehensive phased testing for scenario-to-mcp",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-registry-health",
-          "run": "curl -sf http://localhost:$REGISTRY_PORT/api/v1/mcp/registry",
-          "description": "Test registry endpoint"
-        },
-        {
-          "name": "test-mcp-detection",
-          "run": "node lib/detector.test.js",
-          "description": "Test MCP detection library",
-          "condition": {
-            "file_exists": "lib/detector.test.js"
-          }
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats scenario-to-mcp.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/scenario-to-mcp.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

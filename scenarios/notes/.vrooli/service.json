@@ -24,7 +24,28 @@
       "redis-cache",
       "qdrant-vectors",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/notes"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -135,7 +156,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '📝 SmartNotes initialized\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
+          "run": "printf '\ud83d\udcdd SmartNotes initialized\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
           "description": "Display service URLs"
         }
       ]
@@ -163,18 +184,18 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '🚀 SmartNotes running:\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
+          "run": "printf '\ud83d\ude80 SmartNotes running:\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
           "description": "Display running services"
         }
       ]
     },
     "test": {
-      "description": "Test SmartNotes services",
+      "description": "Comprehensive phased testing for notes",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "./test/run-tests.sh",
-          "description": "Run comprehensive test suite"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

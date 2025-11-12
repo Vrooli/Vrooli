@@ -17,7 +17,28 @@
       "business-tools",
       "postgres-storage",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/privacy-terms-generator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -129,7 +150,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Privacy & Terms Generator initialized\\n  UI: http://localhost:${UI_PORT}\\n  CLI: privacy-terms-generator --help'",
+          "run": "echo '\ud83d\ude80 Privacy & Terms Generator initialized\\n  UI: http://localhost:${UI_PORT}\\n  CLI: privacy-terms-generator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -157,18 +178,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  CLI: privacy-terms-generator --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  CLI: privacy-terms-generator --help'",
           "description": "Display running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test privacy & terms generator",
+      "description": "Comprehensive phased testing for privacy-terms-generator",
       "steps": [
         {
-          "name": "run-test-suite",
+          "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Run comprehensive test suite (all phases)"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

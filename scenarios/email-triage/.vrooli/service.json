@@ -5,10 +5,30 @@
     "name": "email-triage",
     "displayName": "Email Triage",
     "description": "AI-powered multi-tenant email management and triage system",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "automation",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/email-triage"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
-  "category": "automation",
-  "type": "scenario",
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -59,17 +79,6 @@
       "rule_generation": "phi3.5:3.8b",
       "classification": "phi3.5:3.8b"
     }
-  },
-  "metadata": {
-    "created_at": "2025-01-09",
-    "business_value": "$20K-50K per deployment",
-    "target_users": [
-      "business-professionals",
-      "executives",
-      "support-teams"
-    ],
-    "integration_complexity": "moderate",
-    "maintenance_level": "low"
   },
   "lifecycle": {
     "version": "2.0.0",
@@ -202,12 +211,12 @@
       ]
     },
     "test": {
-      "description": "Run email-triage test suite",
+      "description": "Comprehensive phased testing for email-triage",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "cd test && DEV_MODE=true API_PORT=${API_PORT} UI_PORT=${UI_PORT} bash test.sh",
-          "description": "Execute phased test suite"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     }

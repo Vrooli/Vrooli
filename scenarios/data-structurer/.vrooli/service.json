@@ -18,7 +18,28 @@
       "postgres-storage",
       "ollama-ai",
       "unstructured-io"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/data-structurer"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -123,7 +144,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Data Structurer initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help'",
+          "run": "echo '\ud83d\ude80 Data Structurer initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help'",
           "description": "Display service access information"
         }
       ]
@@ -142,66 +163,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
+          "run": "echo '\ud83d\ude80 Data Structurer running:\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: data-structurer --help\\n\\nExample usage:\\n  data-structurer create-schema \"contacts\" ./examples/contact-schema.json\\n  data-structurer process [schema-id] ./document.pdf'",
           "description": "Display running service information and usage examples"
         }
       ]
     },
     "test": {
-      "description": "Test data structurer API, CLI, and processing pipeline",
+      "description": "Comprehensive phased testing for data-structurer",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-schema-endpoints",
-          "run": "bash tests/test-schema-api.sh",
-          "description": "Test schema CRUD operations",
-          "condition": {
-            "file_exists": "tests/test-schema-api.sh"
-          }
-        },
-        {
-          "name": "test-processing-pipeline",
-          "run": "bash tests/test-processing.sh",
-          "description": "Test document processing pipeline",
-          "condition": {
-            "file_exists": "tests/test-processing.sh"
-          }
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats data-structurer.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/data-structurer.bats"
-          }
-        },
-        {
-          "name": "test-resource-integration",
-          "run": "bash tests/test-resource-integration.sh",
-          "description": "Test postgres, ollama, and unstructured-io integration",
-          "condition": {
-            "file_exists": "tests/test-resource-integration.sh"
-          }
-        },
-        {
-          "name": "test-export-functionality",
-          "run": "bash tests/test-export.sh",
-          "description": "Test data export in JSON, CSV, and YAML formats",
-          "condition": {
-            "file_exists": "tests/test-export.sh"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

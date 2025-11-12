@@ -22,7 +22,28 @@
       "go-api",
       "postgres-storage",
       "redis-cache"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/chore-tracking"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -136,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎮 ChoreQuest initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83c\udfae ChoreQuest initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -164,18 +185,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 ChoreQuest running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\ude80 ChoreQuest running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]
     },
     "test": {
-      "description": "Run phased scenario tests",
+      "description": "Comprehensive phased testing for chore-tracking",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute shared phased testing suite"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

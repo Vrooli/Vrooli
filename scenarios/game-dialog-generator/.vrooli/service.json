@@ -22,7 +22,28 @@
       "whisper-tts",
       "real-time-generation",
       "batch-processing"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/game-dialog-generator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -176,7 +197,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🌿 Game Dialog Generator initialized! 🎮 UI: http://localhost:${UI_PORT} 🔧 API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
+          "run": "echo '\ud83c\udf3f Game Dialog Generator initialized! \ud83c\udfae UI: http://localhost:${UI_PORT} \ud83d\udd27 API: http://localhost:${API_PORT} \ud83d\udcbb CLI: game-dialog-generator --help'",
           "description": "Display service access URLs with jungle theme"
         }
       ]
@@ -204,18 +225,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🌿 Services running! 🎮 Jungle UI: http://localhost:${UI_PORT} 🔧 Dialog API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
+          "run": "echo '\ud83c\udf3f Services running! \ud83c\udfae Jungle UI: http://localhost:${UI_PORT} \ud83d\udd27 Dialog API: http://localhost:${API_PORT} \ud83d\udcbb CLI: game-dialog-generator --help'",
           "description": "Display all running service URLs with jungle theme"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing",
+      "description": "Comprehensive phased testing for game-dialog-generator",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute shared phased test suite"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

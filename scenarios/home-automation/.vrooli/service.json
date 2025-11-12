@@ -24,7 +24,28 @@
       "claude-code-integration",
       "ai-powered-validation",
       "business-premium"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/home-automation"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -231,65 +252,12 @@
       ]
     },
     "test": {
-      "description": "Test home automation system functionality",
+      "description": "Comprehensive phased testing for home-automation",
       "steps": [
         {
-          "name": "test-api-build",
-          "run": "cd api && go test ./...",
-          "description": "Run API unit tests"
-        },
-        {
-          "name": "test-home-assistant-integration",
-          "run": "./test/test-home-assistant-integration.sh",
-          "description": "Test Home Assistant CLI integration",
-          "condition": {
-            "file_exists": "test/test-home-assistant-integration.sh"
-          }
-        },
-        {
-          "name": "test-auth-integration",
-          "run": "./test/test-auth-integration.sh",
-          "description": "Test scenario-authenticator integration",
-          "condition": {
-            "file_exists": "test/test-auth-integration.sh"
-          }
-        },
-        {
-          "name": "test-calendar-integration",
-          "run": "./test/test-calendar-integration.sh",
-          "description": "Test calendar service integration",
-          "condition": {
-            "file_exists": "test/test-calendar-integration.sh"
-          }
-        },
-        {
-          "name": "test-device-control",
-          "run": "./test/test-device-control.sh",
-          "description": "Test device control with permission validation",
-          "condition": {
-            "file_exists": "test/test-device-control.sh"
-          }
-        },
-        {
-          "name": "test-automation-generation",
-          "run": "./test/test-automation-generation.sh",
-          "description": "Test AI automation generation via Claude Code",
-          "condition": {
-            "file_exists": "test/test-automation-generation.sh"
-          }
-        },
-        {
-          "name": "test-cli",
-          "run": "./cli/home-automation status --json",
-          "description": "Test CLI functionality"
-        },
-        {
-          "name": "test-ui-integration",
-          "run": "./test/test-ui-integration.sh",
-          "description": "Test UI device control and real-time updates",
-          "condition": {
-            "file_exists": "test/test-ui-integration.sh"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -307,46 +275,6 @@
           "description": "Stop UI process"
         }
       ]
-    }
-  },
-  "integration": {
-    "shared_capabilities": [
-      {
-        "name": "device_control",
-        "description": "Physical device control with permission validation for any scenario",
-        "endpoint": "/api/v1/devices/{device_id}/control",
-        "cli": "home-automation devices control",
-        "workflow": "initialization/n8n/home-assistant-device-control.json"
-      },
-      {
-        "name": "automation_generation",
-        "description": "AI-powered automation generation from natural language for any IoT scenario",
-        "endpoint": "/api/v1/automations/generate",
-        "cli": "home-automation automations create",
-        "workflow": "initialization/n8n/automation-safety-validator.json"
-      },
-      {
-        "name": "permission_management",
-        "description": "Multi-user device access control template for IoT scenarios",
-        "endpoint": "/api/v1/profiles",
-        "cli": "home-automation profiles"
-      },
-      {
-        "name": "schedule_awareness",
-        "description": "Calendar-integrated context switching for time-aware automations",
-        "endpoint": "/api/v1/context",
-        "cli": "home-automation context",
-        "events": [
-          "home.context.changed",
-          "home.schedule.updated"
-        ]
-      }
-    ],
-    "example_integration": {
-      "api": "const response = await fetch(`http://localhost:${process.env.HOME_AUTOMATION_API_PORT}/api/v1/devices`, { headers: { 'Authorization': `Bearer ${jwt_token}` } });",
-      "cli": "home-automation devices list --profile $PROFILE_ID --filter lights",
-      "workflow": "Use home-assistant-device-control.json workflow with device_id and action parameters",
-      "events": "Subscribe to home.device.state_changed for real-time device updates"
     }
   },
   "business": {

@@ -17,7 +17,28 @@
       "go-api",
       "postgres-storage",
       "systematic-review"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/visited-tracker"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -117,7 +138,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Visited Tracker initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "run": "echo '\ud83d\ude80 Visited Tracker initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -145,18 +166,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for visited-tracker using the new testing architecture",
+      "description": "Comprehensive phased testing for visited-tracker",
       "steps": [
         {
-          "name": "run-tests",
+          "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

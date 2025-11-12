@@ -21,7 +21,28 @@
       "postgres-storage",
       "redis-cache",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/app-monitor"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -129,7 +150,7 @@
         },
         {
           "name": "verify-docker-access",
-          "run": "docker version > /dev/null && echo '✅ Docker access verified' || echo '❌ Docker access required for app monitoring'",
+          "run": "docker version > /dev/null && echo '\u2705 Docker access verified' || echo '\u274c Docker access required for app monitoring'",
           "description": "Verify Docker access for app monitoring"
         },
         {
@@ -139,7 +160,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
+          "run": "echo '\ud83d\ude80 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -167,7 +188,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
+          "run": "echo '\ud83d\ude80 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -195,44 +216,18 @@
         },
         {
           "name": "show-dev-services",
-          "run": "echo '🚀 App Monitor (DEV MODE) running:\\n  UI Dashboard: http://localhost:${VITE_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help\\n\\n🔥 Hot reload enabled - changes will update automatically'",
+          "run": "echo '\ud83d\ude80 App Monitor (DEV MODE) running:\\n  UI Dashboard: http://localhost:${VITE_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help\\n\\n\ud83d\udd25 Hot reload enabled - changes will update automatically'",
           "description": "Display development service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test app monitor API and CLI",
+      "description": "Comprehensive phased testing for app-monitor",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-apps-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/apps",
-          "description": "Test API apps endpoint"
-        },
-        {
-          "name": "test-docker-access",
-          "run": "curl -sf http://localhost:$API_PORT/api/v1/docker/info",
-          "description": "Test Docker API access through app monitor"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats app-monitor.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/app-monitor.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -251,16 +246,6 @@
         }
       ]
     }
-  },
-  "test": {
-    "description": "Phased scenario validation",
-    "steps": [
-      {
-        "name": "run-phased-tests",
-        "run": "test/run-tests.sh",
-        "description": "Execute phased test suite"
-      }
-    ]
   },
   "dependencies": {
     "resources": {

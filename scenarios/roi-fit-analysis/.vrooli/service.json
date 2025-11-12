@@ -25,7 +25,28 @@
       "qdrant-vectors",
       "ollama-ai",
       "native-go-analysis"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/roi-fit-analysis"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -173,12 +194,12 @@
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing",
+      "description": "Comprehensive phased testing for roi-fit-analysis",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute structured, dependency, unit, integration, business, and performance phases"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

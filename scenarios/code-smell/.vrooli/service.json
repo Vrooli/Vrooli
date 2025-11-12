@@ -14,7 +14,28 @@
       "technical-debt",
       "auto-fix",
       "maintenance"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/code-smell"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "enabled": true,
   "ports": {
@@ -26,26 +47,6 @@
       "env_var": "UI_PORT",
       "range": "35000-39999"
     }
-  },
-  "metadata": {
-    "author": "AI Agent",
-    "created": "2025-09-07",
-    "keywords": [
-      "quality",
-      "lint",
-      "smell",
-      "technical-debt",
-      "auto-fix",
-      "maintenance"
-    ],
-    "capabilities": [
-      "smell-detection",
-      "auto-fix",
-      "pattern-learning",
-      "hot-reload"
-    ],
-    "revenue_potential": "$20K-$40K per deployment",
-    "business_value": "Saves 100+ developer hours/month in code review and maintenance"
   },
   "initialization": {
     "rules": {
@@ -105,26 +106,6 @@
       "max_memory_mb": 2048,
       "request_timeout_seconds": 30
     }
-  },
-  "integrations": {
-    "scenarios": [
-      {
-        "name": "visited-tracker",
-        "type": "api",
-        "endpoint": "http://localhost:${VISITED_TRACKER_PORT:-8091}/api/v1",
-        "required": false
-      },
-      {
-        "name": "git-manager",
-        "type": "events",
-        "subscribe": [
-          "git.commit.pending"
-        ],
-        "publish": [
-          "code-smell.analysis.completed"
-        ]
-      }
-    ]
   },
   "deployment": {
     "docker": {
@@ -289,17 +270,17 @@
           "description": "Display service URLs"
         }
       ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for code-smell",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
     }
-  },
-  "test": {
-    "description": "Phased testing via shared runner",
-    "steps": [
-      {
-        "name": "run-phased-tests",
-        "run": "test/run-tests.sh",
-        "description": "Execute scenario test phases"
-      }
-    ]
   },
   "dependencies": {
     "resources": {

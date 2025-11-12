@@ -19,7 +19,28 @@
       "go-api",
       "postgres-storage",
       "redis-cache"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/workflow-scheduler"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -128,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Workflow Scheduler initialized\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
+          "run": "echo '\ud83d\ude80 Workflow Scheduler initialized\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -161,67 +182,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Workflow Scheduler running:\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://your-webhook-url'",
+          "run": "echo '\ud83d\ude80 Workflow Scheduler running:\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://your-webhook-url'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test Workflow Scheduler API and scheduling engine",
+      "description": "Comprehensive phased testing for workflow-scheduler",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-database-connection",
-          "run": "curl -sf http://localhost:$API_PORT/api/system/db-status",
-          "description": "Test database connectivity"
-        },
-        {
-          "name": "test-redis-connection",
-          "run": "curl -sf http://localhost:$API_PORT/api/system/redis-status",
-          "description": "Test Redis connectivity"
-        },
-        {
-          "name": "test-schedule-endpoints",
-          "run": "curl -sf http://localhost:$API_PORT/api/schedules && curl -sf http://localhost:$API_PORT/api/executions",
-          "description": "Test main API endpoints"
-        },
-        {
-          "name": "test-cron-validation",
-          "run": "curl -sf \"http://localhost:$API_PORT/api/cron/validate?expression=0%209%20*%20*%20*\"",
-          "description": "Test cron expression validation"
-        },
-        {
-          "name": "test-schedule-creation",
-          "run": "bash test/test-schedule-creation.sh",
-          "description": "Test schedule creation workflow"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats scheduler-cli.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/scheduler-cli.bats"
-          }
-        },
-        {
-          "name": "run-integration-tests",
-          "run": "bash test/integration-test.sh",
-          "description": "Run comprehensive integration tests",
-          "condition": {
-            "file_exists": "test/integration-test.sh"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

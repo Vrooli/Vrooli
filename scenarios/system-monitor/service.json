@@ -1,15 +1,7 @@
 {
-  "name": "system-monitor",
-  "version": "1.0.0",
-  "description": "Server monitoring with AI-driven anomaly investigation",
   "runtime": {
     "protected": true,
     "protection_reason": "System health monitoring - needed to detect issues during automation"
-  },
-  "metadata": {
-    "category": "vrooli-helpers",
-    "importance": "important",
-    "auto_start": false
   },
   "ports": {
     "api": {
@@ -48,9 +40,48 @@
       "interval": 30000,
       "startup_grace_period": 10000
     },
-    "version": "2.0.0"
+    "version": "2.0.0",
+    "test": {
+      "description": "Comprehensive phased testing for system-monitor",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    }
   },
   "dependencies": {
     "resources": {}
+  },
+  "service": {
+    "name": "system-monitor",
+    "description": "Server monitoring with AI-driven anomaly investigation",
+    "version": "1.0.0",
+    "displayName": "System Monitor",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "vrooli-helpers",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/system-monitor"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "importance": "important"
   }
 }

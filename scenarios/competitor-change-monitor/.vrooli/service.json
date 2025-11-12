@@ -22,7 +22,28 @@
       "postgres-storage",
       "redis-cache",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/competitor-change-monitor"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -136,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Competitor Monitor initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\udd0d Competitor Monitor initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -164,23 +185,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\ude80 Competitor Monitor running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]
     },
     "test": {
-      "description": "Test Competitor Monitor services",
+      "description": "Comprehensive phased testing for competitor-change-monitor",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health"
-        },
-        {
-          "name": "test-competitors",
-          "run": "curl -sf http://localhost:$API_PORT/api/competitors",
-          "description": "Test competitors endpoint"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

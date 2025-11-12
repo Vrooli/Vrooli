@@ -17,7 +17,28 @@
       "postgres-storage",
       "ollama-ai",
       "kid-friendly"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/retro-game-launcher"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -128,7 +149,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '\ud83d\ude80 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -156,44 +177,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '\ud83d\ude80 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test retro game launcher API, UI, and CLI",
+      "description": "Comprehensive phased testing for retro-game-launcher",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-games-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/games",
-          "description": "Test API games endpoint"
-        },
-        {
-          "name": "test-ui-serving",
-          "run": "curl -sf http://localhost:$UI_PORT",
-          "description": "Test UI is serving content"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats retro-game-launcher.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/retro-game-launcher.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -212,16 +207,6 @@
         }
       ]
     }
-  },
-  "test": {
-    "description": "Phased scenario test suite",
-    "steps": [
-      {
-        "name": "run-phased-tests",
-        "run": "test/run-tests.sh",
-        "description": "Execute phased scenario testing"
-      }
-    ]
   },
   "dependencies": {
     "resources": {

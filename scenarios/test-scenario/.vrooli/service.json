@@ -1,7 +1,31 @@
 {
   "service": {
     "name": "test-scenario",
-    "description": "Test scenario for Vrooli"
+    "description": "Test scenario for Vrooli",
+    "displayName": "Test Scenario",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/test-scenario"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "version": "1.0.0"
   },
   "version": "1.0.0",
   "lifecycle": {
@@ -86,7 +110,17 @@
       "interval": 30000,
       "startup_grace_period": 10000
     },
-    "version": "2.0.0"
+    "version": "2.0.0",
+    "test": {
+      "description": "Comprehensive phased testing for test-scenario",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    }
   },
   "ports": {
     "api": {

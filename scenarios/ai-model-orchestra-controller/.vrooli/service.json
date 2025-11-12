@@ -20,7 +20,28 @@
       "ollama-models",
       "postgres-storage",
       "redis-caching"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/ai-model-orchestra-controller"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -183,15 +204,12 @@
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for ai-model-orchestra-controller using the new testing architecture",
+      "description": "Comprehensive phased testing for ai-model-orchestra-controller",
       "steps": [
         {
-          "name": "run-comprehensive-tests",
+          "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)",
-          "condition": {
-            "file_exists": "test/run-tests.sh"
-          }
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

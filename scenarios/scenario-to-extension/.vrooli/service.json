@@ -1,18 +1,34 @@
 {
   "service": {
-    "name": "scenario-to-extension"
+    "name": "scenario-to-extension",
+    "displayName": "Scenario To Extension",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "automation",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/scenario-to-extension"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "description": "Transform Vrooli scenarios into powerful browser extensions with content scripts, background services, and popup interfaces",
+    "version": "1.0.0"
   },
   "displayName": "Browser Extension Generator",
-  "description": "Transform Vrooli scenarios into powerful browser extensions with content scripts, background services, and popup interfaces",
   "version": "1.0.0",
-  "category": "automation",
-  "tags": [
-    "browser-extension",
-    "automation",
-    "web-integration",
-    "chrome-extension",
-    "firefox-extension"
-  ],
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -179,12 +195,12 @@
       ]
     },
     "test": {
-      "description": "Run comprehensive test suite",
+      "description": "Comprehensive phased testing for scenario-to-extension",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "./test/run-tests.sh",
-          "description": "Execute phased test suite"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     }

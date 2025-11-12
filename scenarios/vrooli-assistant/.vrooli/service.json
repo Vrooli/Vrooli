@@ -17,7 +17,28 @@
       "context-capture",
       "screenshot",
       "productivity"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/vrooli-assistant"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -114,7 +135,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Vrooli Assistant initialized\\n  API and Web UI: http://localhost:${API_PORT}\\n  CLI: vrooli-assistant --help\\n  Electron overlay: set ENABLE_ELECTRON_OVERLAY=1 before start to enable\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
+          "run": "echo '\ud83d\ude80 Vrooli Assistant initialized\\n  API and Web UI: http://localhost:${API_PORT}\\n  CLI: vrooli-assistant --help\\n  Electron overlay: set ENABLE_ELECTRON_OVERLAY=1 before start to enable\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
           "description": "Display service access info"
         }
       ]
@@ -143,48 +164,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Vrooli Assistant running:\\n  API and Web UI: http://localhost:$API_PORT\\n  Electron overlay: enable by setting ENABLE_ELECTRON_OVERLAY=1 before start\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
+          "run": "echo '\ud83d\ude80 Vrooli Assistant running:\\n  API and Web UI: http://localhost:$API_PORT\\n  Electron overlay: enable by setting ENABLE_ELECTRON_OVERLAY=1 before start\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
           "description": "Display running service info"
         }
       ]
     },
     "test": {
-      "description": "Test Vrooli Assistant functionality",
+      "description": "Comprehensive phased testing for vrooli-assistant",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation"
-        },
-        {
-          "name": "test-web-ui-build",
-          "run": "cd ui && npm run build",
-          "description": "Ensure web UI builds successfully"
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-capture-endpoint",
-          "run": "bash test/test-capture-endpoint.sh",
-          "description": "Test issue capture endpoint"
-        },
-        {
-          "name": "test-electron-hotkey",
-          "run": "./cli/vrooli-assistant test-hotkey",
-          "description": "Test global hotkey registration"
-        },
-        {
-          "name": "test-screenshot",
-          "run": "API_PORT=${API_PORT} ./cli/vrooli-assistant capture \"Test screenshot capture\"",
-          "description": "Test screenshot capture"
-        },
-        {
-          "name": "run-standard-tests",
+          "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Run standard Vrooli test phases"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

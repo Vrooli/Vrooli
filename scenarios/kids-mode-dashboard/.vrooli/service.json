@@ -5,7 +5,29 @@
     "name": "kids-mode-dashboard",
     "displayName": "Kids Mode Dashboard",
     "description": "A safe, engaging dashboard for kids mode applications",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/kids-mode-dashboard"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -99,7 +121,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 Kids Mode Dashboard initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: kids-mode-dashboard --help'",
+          "run": "echo '\ud83c\udfa8 Kids Mode Dashboard initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: kids-mode-dashboard --help'",
           "description": "Display service URLs"
         }
       ]
@@ -127,21 +149,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 Kids Mode Dashboard running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: kids-mode-dashboard --help'",
+          "run": "echo '\ud83c\udfa8 Kids Mode Dashboard running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: kids-mode-dashboard --help'",
           "description": "Display service URLs and usage information"
         }
       ]
     },
     "test": {
-      "description": "Run Kids Mode Dashboard tests",
+      "description": "Comprehensive phased testing for kids-mode-dashboard",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

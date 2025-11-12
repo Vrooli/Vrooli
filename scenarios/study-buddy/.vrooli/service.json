@@ -22,7 +22,28 @@
       "qdrant-vectors",
       "ollama-ai",
       "kid-friendly"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/study-buddy"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -176,12 +197,12 @@
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for Study Buddy",
+      "description": "Comprehensive phased testing for study-buddy",
       "steps": [
         {
           "name": "run-phased-tests",
-          "description": "Execute study-buddy's phased test suite",
-          "run": "test/run-tests.sh"
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

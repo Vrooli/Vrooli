@@ -19,7 +19,28 @@
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/smart-shopping-assistant"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -32,25 +53,6 @@
       "description": "Shopping Assistant UI port",
       "range": "35000-39999"
     }
-  },
-  "integrations": {
-    "scenarios": [
-      {
-        "name": "scenario-authenticator",
-        "purpose": "Multi-profile user management",
-        "required": false
-      },
-      {
-        "name": "deep-research",
-        "purpose": "Comprehensive product research and analysis",
-        "required": false
-      },
-      {
-        "name": "contact-book",
-        "purpose": "Gift recommendations based on relationships",
-        "required": false
-      }
-    ]
   },
   "lifecycle": {
     "version": "2.0.0",
@@ -146,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🛒 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "run": "echo '\ud83d\uded2 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -174,18 +176,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🛒 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "run": "echo '\ud83d\uded2 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Run phased scenario tests via shared orchestrator",
+      "description": "Comprehensive phased testing for smart-shopping-assistant",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute the scenario's phased test suite"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

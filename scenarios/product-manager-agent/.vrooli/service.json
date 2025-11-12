@@ -15,7 +15,28 @@
       "redis-cache",
       "ollama-ai",
       "qdrant-vectors"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/product-manager-agent"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -117,7 +138,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎯 Product Manager Agent initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '\ud83c\udfaf Product Manager Agent initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -149,7 +170,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎯 Product Manager Agent running\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "run": "echo '\ud83c\udfaf Product Manager Agent running\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -167,6 +188,16 @@
           "name": "stop-ui",
           "run": "pkill -f \"scenarios/product-manager-agent.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/product-manager-agent.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for product-manager-agent",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     }

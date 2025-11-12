@@ -23,7 +23,28 @@
       "postgres-storage",
       "redis-cache",
       "no-n8n"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/period-tracker"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -154,7 +175,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🩸 Period Tracker initialized\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally'",
+          "run": "echo '\ud83e\ude78 Period Tracker initialized\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally'",
           "description": "Display service URLs and privacy notice"
         }
       ]
@@ -187,18 +208,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  🔐 All health data encrypted and stored locally only'",
+          "run": "echo '\ud83d\ude80 Period Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PERIOD_TRACKER_UI_PORT}\\n  API: http://localhost:${PERIOD_TRACKER_API_PORT}\\n  \ud83d\udd10 All health data encrypted and stored locally only'",
           "description": "Display running services with privacy notice"
         }
       ]
     },
     "test": {
-      "description": "Run phased scenario tests",
+      "description": "Comprehensive phased testing for period-tracker",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute phased scenario validation"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

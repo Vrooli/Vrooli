@@ -10,7 +10,28 @@
       "documentation",
       "prd-management",
       "validation"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/prd-control-tower"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -122,12 +143,12 @@
         },
         {
           "name": "initialize-database",
-          "run": "if command -v psql &> /dev/null; then psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} -f initialization/postgres/schema.sql 2>/dev/null || echo '⚠️  Database schema initialization skipped (psql connection failed - run schema manually via docker exec)'; else echo '⚠️  Database initialization skipped (psql not available - run: docker exec vrooli-postgres-main psql -U vrooli -d vrooli -f /path/to/schema.sql)'; fi",
+          "run": "if command -v psql &> /dev/null; then psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} -f initialization/postgres/schema.sql 2>/dev/null || echo '\u26a0\ufe0f  Database schema initialization skipped (psql connection failed - run schema manually via docker exec)'; else echo '\u26a0\ufe0f  Database initialization skipped (psql not available - run: docker exec vrooli-postgres-main psql -U vrooli -d vrooli -f /path/to/schema.sql)'; fi",
           "description": "Run schema in shared vrooli database (optional if using containerized DB)"
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 PRD Control Tower initialized\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
+          "run": "echo \"\ud83d\ude80 PRD Control Tower initialized\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
           "description": "Display service access URLs"
         }
       ]
@@ -165,28 +186,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 PRD Control Tower running\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
+          "run": "echo \"\ud83d\ude80 PRD Control Tower running\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test PRD Control Tower functionality",
+      "description": "Comprehensive phased testing for prd-control-tower",
       "steps": [
         {
-          "name": "test-structure",
-          "run": "bash test/phases/test-structure.sh",
-          "description": "Validate project structure"
-        },
-        {
-          "name": "test-dependencies",
-          "run": "bash test/phases/test-dependencies.sh",
-          "description": "Check required dependencies"
-        },
-        {
-          "name": "test-integration",
-          "run": "bash test/phases/test-integration.sh",
-          "description": "Run integration tests"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

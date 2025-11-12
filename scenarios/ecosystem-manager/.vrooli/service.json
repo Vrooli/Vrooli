@@ -14,7 +14,28 @@
       "metadata",
       "maintenance",
       "self-improvement"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/ecosystem-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "maintenance": {
     "canDeactivate": true,
@@ -184,12 +205,12 @@
       ]
     },
     "test": {
-      "description": "Run Ecosystem Manager tests",
+      "description": "Comprehensive phased testing for ecosystem-manager",
       "steps": [
         {
-          "name": "api-tests",
-          "run": "cd api && go test ./...",
-          "description": "Run Go API tests"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -211,87 +232,6 @@
           "run": "find queue/in-progress -name \"*.yaml\" -mmin +120 2>/dev/null | xargs -I {} mv {} queue/pending/ || true",
           "description": "Move stale in-progress tasks back to pending"
         }
-      ]
-    }
-  },
-  "metadata": {
-    "operations": {
-      "resource-generator": {
-        "description": "Generate new resources with v2.0 compliance",
-        "effort_estimate": "4h",
-        "deliverables": [
-          "PRD.md",
-          "Directory structure",
-          "Health checks",
-          "CLI integration"
-        ]
-      },
-      "resource-improver": {
-        "description": "Improve existing resources for compliance and reliability",
-        "effort_estimate": "2h",
-        "deliverables": [
-          "Updated PRD.md",
-          "Enhanced health checks",
-          "Better CLI"
-        ]
-      },
-      "scenario-generator": {
-        "description": "Generate new scenarios with comprehensive PRDs",
-        "effort_estimate": "6h",
-        "deliverables": [
-          "PRD.md",
-          "API implementation",
-          "UI",
-          "Tests",
-          "Documentation"
-        ]
-      },
-      "scenario-improver": {
-        "description": "Improve existing scenarios for PRD completion",
-        "effort_estimate": "3h",
-        "deliverables": [
-          "PRD progression",
-          "Feature enhancements",
-          "Better UX"
-        ]
-      }
-    },
-    "categories": {
-      "resource_categories": [
-        "ai-ml",
-        "storage",
-        "automation",
-        "monitoring",
-        "communication",
-        "security"
-      ],
-      "scenario_categories": [
-        "productivity",
-        "ai-tools",
-        "business",
-        "personal",
-        "automation",
-        "entertainment"
-      ]
-    },
-    "queue": {
-      "statuses": [
-        "pending",
-        "in-progress",
-        "completed",
-        "failed"
-      ],
-      "max_concurrent": 3,
-      "retry_attempts": 2,
-      "cooldown_minutes": 15
-    },
-    "monitoring": {
-      "metrics": [
-        "tasks_created",
-        "tasks_completed",
-        "success_rate",
-        "average_completion_time",
-        "prd_completion_percentage"
       ]
     }
   },

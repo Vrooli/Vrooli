@@ -20,27 +20,31 @@
       "age-appropriate",
       "reading",
       "creative"
-    ]
-  },
-  "metadata": {
-    "author": "Vrooli Team",
-    "created": "2025-01-06",
-    "updated": "2025-01-06",
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
     "category": [
       "education",
       "family",
       "creative"
     ],
-    "targetAudience": {
-      "ageRange": "3-12",
-      "userType": "children",
-      "parentalSupervision": "optional"
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/bedtime-story-generator"
     },
-    "uiStyle": {
-      "theme": "cozy-bedroom",
-      "colorScheme": "time-adaptive",
-      "animations": "gentle",
-      "soundEffects": "optional"
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
   "ports": {
@@ -203,27 +207,12 @@
       ]
     },
     "test": {
-      "description": "Test story generation and reading",
+      "description": "Comprehensive phased testing for bedtime-story-generator",
       "steps": [
         {
-          "name": "test-api-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Verify API builds"
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health || echo 'API not running'",
-          "description": "Check API health"
-        },
-        {
-          "name": "test-story-generation",
-          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/stories/generate -H 'Content-Type: application/json' -d '{\"age_group\":\"6-8\",\"theme\":\"adventure\"}' || echo 'Story generation test'",
-          "description": "Test story generation"
-        },
-        {
-          "name": "test-cli",
-          "run": "bedtime-story status || echo 'CLI test'",
-          "description": "Test CLI functionality"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

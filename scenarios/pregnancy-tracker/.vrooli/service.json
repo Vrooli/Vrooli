@@ -24,7 +24,28 @@
       "postgres-storage",
       "redis-cache",
       "no-n8n"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/pregnancy-tracker"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -176,7 +197,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🤰 Pregnancy Tracker initialized\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally\\n  Search: Full-text search enabled'",
+          "run": "echo '\ud83e\udd30 Pregnancy Tracker initialized\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally\\n  Search: Full-text search enabled'",
           "description": "Display service URLs and features"
         }
       ]
@@ -211,18 +232,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Pregnancy Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  🔐 All health data encrypted locally\\n  🔍 Full-text search available\\n  📚 Evidence-based content with citations'",
+          "run": "echo '\ud83d\ude80 Pregnancy Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  \ud83d\udd10 All health data encrypted locally\\n  \ud83d\udd0d Full-text search available\\n  \ud83d\udcda Evidence-based content with citations'",
           "description": "Display running services with features"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for Pregnancy Tracker",
+      "description": "Comprehensive phased testing for pregnancy-tracker",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute structure, dependency, unit, integration, business, and performance phases"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

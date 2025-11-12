@@ -23,7 +23,28 @@
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/morning-vision-walk"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -137,7 +158,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🌅 Morning Vision Walk initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83c\udf05 Morning Vision Walk initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
@@ -165,23 +186,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '\ud83d\ude80 Morning Vision Walk running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display running services"
         }
       ]
     },
     "test": {
-      "description": "Test Morning Vision Walk services",
+      "description": "Comprehensive phased testing for morning-vision-walk",
       "steps": [
         {
-          "name": "test-api",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health"
-        },
-        {
-          "name": "test-conversation",
-          "run": "curl -sf http://localhost:$API_PORT/api/conversation/start",
-          "description": "Test conversation endpoint"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -200,14 +216,6 @@
         }
       ]
     }
-  },
-  "integrations": {
-    "scenarios": [
-      "stream-of-consciousness-analyzer",
-      "task-planner",
-      "mind-maps"
-    ],
-    "description": "Integrates with other scenarios to provide comprehensive planning and brainstorming capabilities"
   },
   "dependencies": {
     "resources": {

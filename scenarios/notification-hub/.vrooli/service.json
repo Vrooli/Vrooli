@@ -22,7 +22,28 @@
       "nodejs-server",
       "postgres-storage",
       "redis-cache"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/notification-hub"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -116,7 +137,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔔 Notification Hub initialized\\n  Web Dashboard: http://localhost:${UI_PORT}\\n  API Docs: http://localhost:${API_PORT}/docs\\n  API: http://localhost:${API_PORT}\\n  CLI: notification-hub --help'",
+          "run": "echo '\ud83d\udd14 Notification Hub initialized\\n  Web Dashboard: http://localhost:${UI_PORT}\\n  API Docs: http://localhost:${API_PORT}/docs\\n  API: http://localhost:${API_PORT}\\n  CLI: notification-hub --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -144,18 +165,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔔 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
+          "run": "echo '\ud83d\udd14 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test notification hub API and delivery workflows",
+      "description": "Comprehensive phased testing for notification-hub",
       "steps": [
         {
-          "name": "run-tests",
+          "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Run comprehensive test suite via phased testing architecture"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

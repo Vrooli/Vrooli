@@ -12,7 +12,28 @@
       "iframe",
       "go-api",
       "vanilla-js"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/web-console"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -133,12 +154,12 @@
       ]
     },
     "test": {
-      "description": "Placeholder tests for Web Console",
+      "description": "Comprehensive phased testing for web-console",
       "steps": [
         {
-          "name": "lint-and-build",
-          "run": "cd api && go vet ./...",
-          "description": "Run Go vet checks"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

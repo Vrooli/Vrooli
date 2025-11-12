@@ -28,11 +28,9 @@
     },
     "license": "MIT",
     "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
     "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
   "ports": {
@@ -196,44 +194,12 @@
       ]
     },
     "test": {
-      "description": "Test application functionality",
+      "description": "Comprehensive phased testing for math-tools",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build ./cmd/server/main.go && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
-        },
-        {
-          "name": "test-go-unit",
-          "run": "cd api && go test ./... -v",
-          "description": "Run Go unit tests",
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://127.0.0.1:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats cli-tests.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/cli-tests.bats"
-          }
-        },
-        {
-          "name": "test-integration",
-          "run": "bash test/phases/test-integration.sh",
-          "description": "Run full integration tests",
-          "condition": {
-            "file_exists": "test/phases/test-integration.sh"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -415,129 +381,6 @@
           "rampUp": "30s"
         }
       }
-    }
-  },
-  "metadata": {
-    "businessModel": {
-      "purpose": "commercial",
-      "valueProposition": "Enterprise-grade mathematical computation platform eliminating need for MATLAB/Mathematica licenses at 90% cost savings",
-      "targetMarket": "data scientists, researchers, quantitative analysts, engineers, financial institutions",
-      "painPoints": [
-        "MATLAB licenses cost $2,000-$10,000+ per user annually",
-        "Existing tools difficult to integrate into modern web applications - lack REST API access",
-        "Proprietary formats and vendor lock-in create switching costs"
-      ],
-      "solution": "Comprehensive mathematical computation via REST API and CLI - statistics, calculus, optimization, forecasting, linear algebra - all through simple HTTP endpoints",
-      "competitiveAdvantage": "Modern API-first architecture, zero licensing fees, containerized deployment, comprehensive test coverage, production-ready performance (105K+ req/s)",
-      "revenuePotential": {
-        "initial": "$15,000",
-        "recurring": "$25,000",
-        "expansion": "$50,000",
-        "totalEstimate": "$90,000"
-      },
-      "marketDemand": {
-        "level": "high",
-        "growth": "15-20% annually",
-        "evidence": "Growing data science market, increased demand for API-based mathematical tools, shift from desktop to cloud computing"
-      },
-      "roi": {
-        "developmentCost": "$20,000",
-        "timeToMarket": "2-3 months",
-        "breakEven": "2-4 enterprise deployments"
-      }
-    },
-    "performance": {
-      "targets": {
-        "initializationTime": "5m",
-        "responseTime": {
-          "p50": "100ms",
-          "p95": "500ms",
-          "p99": "1000ms"
-        },
-        "throughput": {
-          "minimum": 50,
-          "target": 100,
-          "peak": 500
-        },
-        "availability": "99.9%",
-        "errorRate": "<1%"
-      },
-      "resources": {
-        "cpu": {
-          "minimum": "0.5",
-          "target": "1.0",
-          "maximum": "2.0"
-        },
-        "memory": {
-          "minimum": "512Mi",
-          "target": "1Gi",
-          "maximum": "2Gi"
-        },
-        "storage": {
-          "database": "10Gi",
-          "files": "20Gi"
-        }
-      }
-    },
-    "customization": {
-      "variables": {
-        "APP_NAME": {
-          "type": "string",
-          "default": "Math Tools",
-          "description": "Application display name"
-        },
-        "COMPANY_NAME": {
-          "type": "string",
-          "default": "Vrooli",
-          "description": "Customer company name"
-        },
-        "PRIMARY_COLOR": {
-          "type": "string",
-          "default": "#2563eb",
-          "description": "Brand primary color (blue for mathematical/technical feel)"
-        },
-        "DATABASE_NAME": {
-          "type": "string",
-          "default": "math_tools",
-          "description": "Database name"
-        }
-      },
-      "features": {
-        "authentication": {
-          "enabled": true,
-          "provider": "bearer-token",
-          "sso": false
-        },
-        "notifications": {
-          "enabled": false,
-          "channels": []
-        },
-        "analytics": {
-          "enabled": true,
-          "provider": "internal"
-        },
-        "payments": {
-          "enabled": false,
-          "provider": "none"
-        }
-      },
-      "integrations": [
-        {
-          "name": "postgresql",
-          "type": "database",
-          "required": true
-        },
-        {
-          "name": "redis",
-          "type": "cache",
-          "required": true
-        },
-        {
-          "name": "minio",
-          "type": "storage",
-          "required": false
-        }
-      ]
     }
   },
   "dependencies": {

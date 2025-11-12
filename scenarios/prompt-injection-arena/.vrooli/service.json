@@ -19,7 +19,28 @@
       "ollama-integration",
       "n8n-workflows",
       "qdrant-vectors"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/prompt-injection-arena"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -127,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Prompt Injection Arena initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
+          "run": "echo '\ud83d\ude80 Prompt Injection Arena initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -155,18 +176,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Arena UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Arena UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test prompt injection arena API, CLI and security sandbox",
+      "description": "Comprehensive phased testing for prompt-injection-arena",
       "steps": [
         {
-          "name": "run-test-suite",
-          "run": "bash test/run-tests.sh",
-          "description": "Run comprehensive test suite"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

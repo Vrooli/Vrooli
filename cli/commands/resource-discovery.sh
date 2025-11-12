@@ -17,6 +17,8 @@ source "$ROOT_DIR/scripts/lib/cli-framework.sh" || {
 # Global variables
 RESOURCES_DIR="$ROOT_DIR/resources"
 SCHEMAS_DIR="$ROOT_DIR/.vrooli/schemas"
+JQ_RESOURCES_EXPR="$var_JQ_RESOURCES_EXPR"
+[[ -z "$JQ_RESOURCES_EXPR" ]] && JQ_RESOURCES_EXPR='(.dependencies.resources // {})'
 
 # Function to list all available resources with descriptions
 resource_catalog() {
@@ -155,10 +157,12 @@ resource_config() {
             # Generate complete service.json snippet
             cat <<EOF
 {
-  "\$schema": ".vrooli/schemas/resources-v2.schema.json",
+  "\$schema": ".vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "resources": {
-    "$resource": $config
+  "dependencies": {
+    "resources": {
+      "$resource": $config
+    }
   }
 }
 EOF
@@ -183,7 +187,7 @@ resource_validate() {
         return 1
     fi
     
-    local resources=$(jq -r '.resources | keys[]' "$service_file" 2>/dev/null)
+    local resources=$(jq -r "${JQ_RESOURCES_EXPR} | keys[]" "$service_file" 2>/dev/null)
     
     if [[ -z "$resources" ]]; then
         echo "ERROR: No resources found in $service_file" >&2
@@ -195,7 +199,7 @@ resource_validate() {
     echo "Validating resources in $service_file..."
     
     for resource in $resources; do
-        local resource_config=$(jq ".resources[\"$resource\"]" "$service_file")
+        local resource_config=$(jq --arg resource "$resource" "${JQ_RESOURCES_EXPR} | .[$resource]" "$service_file")
         local resource_type="${resource}"
         
         # Check if explicit type is specified

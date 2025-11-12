@@ -17,7 +17,27 @@
       "developer-tools",
       "storybook-alternative",
       "component-showcase"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/react-component-library"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -208,32 +228,12 @@
       ]
     },
     "test": {
-      "description": "Run React Component Library tests",
+      "description": "Comprehensive phased testing for react-component-library",
       "steps": [
         {
-          "name": "test-api",
-          "run": "cd api && echo '\ud83e\uddea Testing Go API...' && go test ./... -v",
-          "description": "Run Go API unit tests"
-        },
-        {
-          "name": "test-ui",
-          "run": "cd ui && echo '\u269b\ufe0f Testing React UI...' && npm test -- --watchAll=false --coverage",
-          "description": "Run React UI tests"
-        },
-        {
-          "name": "test-cli",
-          "run": "cd cli && echo '\ud83d\udcbb Testing CLI...' && ./test.sh",
-          "description": "Run CLI integration tests"
-        },
-        {
-          "name": "test-integration",
-          "run": "echo '\ud83d\udd17 Testing integration...' && ./test.sh --integration",
-          "description": "Run integration tests with all components"
-        },
-        {
-          "name": "test-accessibility",
-          "run": "echo '\u267f Testing accessibility...' && react-component-library test --accessibility --all",
-          "description": "Run accessibility tests on all components"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

@@ -18,7 +18,28 @@
       "claude-code-integration",
       "git-trackable",
       "workaround-database"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/core-debugger"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -135,7 +156,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Core Debugger initialized\\n  📊 Status Page: http://localhost:${UI_PORT}\\n  📡 API: http://localhost:${API_PORT}\\n  🎯 CLI: core-debugger --help\\n  📂 Data: ./data/\\n\\n💡 Check core health:\\n  core-debugger check-health\\n  core-debugger list-issues\\n  core-debugger status --verbose'",
+          "run": "echo '\ud83d\udd0d Core Debugger initialized\\n  \ud83d\udcca Status Page: http://localhost:${UI_PORT}\\n  \ud83d\udce1 API: http://localhost:${API_PORT}\\n  \ud83c\udfaf CLI: core-debugger --help\\n  \ud83d\udcc2 Data: ./data/\\n\\n\ud83d\udca1 Check core health:\\n  core-debugger check-health\\n  core-debugger list-issues\\n  core-debugger status --verbose'",
           "description": "Display service information"
         }
       ]
@@ -177,18 +198,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔍 Core Debugger running:\\n  📊 Status Page: http://localhost:$UI_PORT\\n  📡 API: http://localhost:$API_PORT/health\\n  🎯 CLI: core-debugger --help\\n\\n🔬 Monitor core components:\\n  core-debugger status\\n  core-debugger check-health --component cli\\n  core-debugger list-issues --severity critical\\n\\n📝 Report issues:\\n  core-debugger report-issue --component orchestrator --description \"Error details\"\\n  core-debugger analyze-issue <issue-id>'",
+          "run": "echo '\ud83d\udd0d Core Debugger running:\\n  \ud83d\udcca Status Page: http://localhost:$UI_PORT\\n  \ud83d\udce1 API: http://localhost:$API_PORT/health\\n  \ud83c\udfaf CLI: core-debugger --help\\n\\n\ud83d\udd2c Monitor core components:\\n  core-debugger status\\n  core-debugger check-health --component cli\\n  core-debugger list-issues --severity critical\\n\\n\ud83d\udcdd Report issues:\\n  core-debugger report-issue --component orchestrator --description \"Error details\"\\n  core-debugger analyze-issue <issue-id>'",
           "description": "Display running services and usage"
         }
       ]
     },
     "test": {
-      "description": "Phased testing for core-debugger scenario",
+      "description": "Comprehensive phased testing for core-debugger",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute structured scenario test phases"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

@@ -17,7 +17,28 @@
       "go-api",
       "postgres-storage",
       "scenario-authenticator-integration"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/device-sync-hub"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -125,7 +146,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🚀 Device Sync Hub initialized\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n📱 Access from mobile: Replace localhost with your computers IP address'",
+          "run": "echo -e '\ud83d\ude80 Device Sync Hub initialized\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n\ud83d\udcf1 Access from mobile: Replace localhost with your computers IP address'",
           "description": "Display service access URLs and mobile setup instructions"
         }
       ]
@@ -167,39 +188,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🚀 Device Sync Hub running\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n📱 Mobile Access: Replace localhost with your IP address\\n  Example: http://192.168.1.100:${UI_PORT:-37865}'",
+          "run": "echo -e '\ud83d\ude80 Device Sync Hub running\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n\ud83d\udcf1 Mobile Access: Replace localhost with your IP address\\n  Example: http://192.168.1.100:${UI_PORT:-37865}'",
           "description": "Display service access URLs"
         }
       ]
     },
     "test": {
-      "description": "Run integration tests for Device Sync Hub",
-      "env": {
-        "VROOLI_LIFECYCLE_MANAGED": "true",
-        "API_PORT": "${API_PORT:-17865}",
-        "UI_PORT": "${UI_PORT:-37865}",
-        "AUTH_SERVICE_URL": "http://localhost:15785",
-        "AUTH_PORT": "15785",
-        "STORAGE_PATH": "${PWD}/data/files",
-        "POSTGRES_URL": "postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/vrooli?sslmode=disable",
-        "DEFAULT_EXPIRY_HOURS": "1"
-      },
+      "description": "Comprehensive phased testing for device-sync-hub",
       "steps": [
         {
-          "name": "run-integration-tests",
-          "run": "test/integration.sh",
-          "description": "Execute comprehensive integration tests",
-          "condition": {
-            "file_exists": "test/integration.sh"
-          }
-        },
-        {
-          "name": "fallback-basic-tests",
-          "run": "echo '⚠️  Integration test runner not found, running basic tests...' && cd api && go build -o test-build . && rm test-build && curl -sf http://localhost:$API_PORT/health",
-          "description": "Fallback to basic tests if integration runner not available",
-          "condition": {
-            "file_not_exists": "test/integration.sh"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

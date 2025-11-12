@@ -1,10 +1,32 @@
 {
   "version": "1.0.0",
-  "description": "Automated WCAG compliance testing, remediation, and monitoring for all Vrooli scenarios",
-  "category": "compliance",
-  "status": "development",
   "service": {
-    "name": "accessibility-compliance-hub"
+    "name": "accessibility-compliance-hub",
+    "displayName": "Accessibility Compliance Hub",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "compliance",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/accessibility-compliance-hub"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "description": "Automated WCAG compliance testing, remediation, and monitoring for all Vrooli scenarios",
+    "version": "1.0.0"
   },
   "ports": {
     "api": {
@@ -39,37 +61,6 @@
         "accessible_patterns",
         "issue_embeddings"
       ]
-    }
-  },
-  "integrations": {
-    "ollama": {
-      "model": "llama3.2",
-      "purpose": "Analyze complex accessibility issues and suggest fixes"
-    },
-    "browserless": {
-      "purpose": "DOM analysis and visual regression testing"
-    }
-  },
-  "metadata": {
-    "author": "Vrooli AI",
-    "tags": [
-      "accessibility",
-      "compliance",
-      "wcag",
-      "ada",
-      "a11y",
-      "audit"
-    ],
-    "capabilities": [
-      "wcag-compliance-testing",
-      "auto-remediation",
-      "pattern-learning",
-      "compliance-reporting"
-    ],
-    "businessValue": {
-      "revenueRange": "$25K-$75K per enterprise",
-      "costSavings": "Prevents $50K-$500K ADA lawsuits",
-      "marketExpansion": "15% (users with disabilities)"
     }
   },
   "lifecycle": {
@@ -178,12 +169,12 @@
       ]
     },
     "test": {
-      "description": "Run phased scenario test suite",
+      "description": "Comprehensive phased testing for accessibility-compliance-hub",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute accessibility-compliance-hub phased tests"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

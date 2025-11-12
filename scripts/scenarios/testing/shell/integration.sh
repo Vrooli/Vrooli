@@ -12,7 +12,8 @@ testing::integration::validate_all() {
         --config-phase-key "integration" \
         || true
 
-    local scenario_name="${TESTING_PHASE_SCENARIO_NAME:-$(basename "$(pwd)")}" 
+    local scenario_dir="${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}"
+    local scenario_name="$(basename "$scenario_dir")" 
 
     if ! testing::phase::run_bas_automation_validations --scenario "$scenario_name" --manage-runtime auto; then
         local bas_rc=$?

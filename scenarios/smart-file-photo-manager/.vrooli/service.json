@@ -22,7 +22,28 @@
       "qdrant-vectors",
       "minio-storage",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/smart-file-photo-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -130,7 +151,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "run": "echo '\ud83d\ude80 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -166,49 +187,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "run": "echo '\ud83d\ude80 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test smart file photo manager API and workflows",
+      "description": "Comprehensive phased testing for smart-file-photo-manager",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-files-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/files",
-          "description": "Test API files endpoint"
-        },
-        {
-          "name": "test-search-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/search?q=test",
-          "description": "Test API search endpoint"
-        },
-        {
-          "name": "test-upload-endpoint",
-          "run": "bash test/test-upload-endpoint.sh",
-          "description": "Test file upload endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats smart-file-photo-manager.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/smart-file-photo-manager.bats"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -227,16 +217,6 @@
         }
       ]
     }
-  },
-  "test": {
-    "description": "Phased scenario testing",
-    "steps": [
-      {
-        "name": "run-phased-tests",
-        "run": "test/run-tests.sh",
-        "description": "Execute phased testing suite"
-      }
-    ]
   },
   "dependencies": {
     "resources": {

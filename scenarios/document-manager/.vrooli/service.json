@@ -23,7 +23,28 @@
       "redis-cache",
       "qdrant-vectors",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/document-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -36,18 +57,6 @@
       "description": "Document manager web interface port",
       "range": "35000-39999"
     }
-  },
-  "business_model": {
-    "type": "saas",
-    "target_revenue": "$25000-50000",
-    "target_market": "Development teams, technical writers, documentation managers",
-    "key_features": [
-      "Multi-application documentation monitoring",
-      "AI-powered improvement suggestions",
-      "Automated agent workflows",
-      "User-controlled approval processes",
-      "Comprehensive analytics dashboard"
-    ]
   },
   "lifecycle": {
     "version": "2.0.0",
@@ -148,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Document Manager initialized\\n  Web Interface: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager\\n  Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: document-manager --help'",
+          "run": "echo '\ud83d\ude80 Document Manager initialized\\n  Web Interface: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/document_manager\\n  Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: document-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -186,78 +195,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Document Manager running:\\n  Web Interface: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$API_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help'",
+          "run": "echo '\ud83d\ude80 Document Manager running:\\n  Web Interface: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Coordination API: http://localhost:$API_PORT\\n  Vector search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: document-manager --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "test": {
-      "description": "Test document manager with unit tests, integration tests, and CLI validation",
+      "description": "Comprehensive phased testing for document-manager",
       "steps": [
         {
-          "name": "test-go-unit",
-          "run": "cd api && go test -v -timeout=60s -coverprofile=coverage.out ./...",
-          "description": "Run Go unit tests with coverage",
-          "condition": {
-            "file_exists": "api/main_test.go"
-          }
-        },
-        {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-database-connection",
-          "run": "curl -sf http://localhost:$API_PORT/api/system/db-status",
-          "description": "Test database connectivity"
-        },
-        {
-          "name": "test-vector-db-connection",
-          "run": "curl -sf http://localhost:$API_PORT/api/system/vector-status",
-          "description": "Test vector database connectivity"
-        },
-        {
-          "name": "test-ai-integration",
-          "run": "curl -sf http://localhost:$API_PORT/api/system/ai-status",
-          "description": "Test AI model integration"
-        },
-        {
-          "name": "test-application-endpoints",
-          "run": "curl -sf http://localhost:$API_PORT/api/applications && curl -sf http://localhost:$API_PORT/api/agents && curl -sf http://localhost:$API_PORT/api/queue",
-          "description": "Test main API endpoints"
-        },
-        {
-          "name": "test-ui-health",
-          "run": "curl -sf http://localhost:$UI_PORT/ui-health",
-          "description": "Test UI server health endpoint",
-          "condition": {
-            "file_exists": "ui/server.js"
-          }
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats document-manager.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/document-manager.bats"
-          }
-        },
-        {
-          "name": "run-integration-tests",
-          "run": "bash test/integration-test.sh",
-          "description": "Run comprehensive integration tests",
-          "condition": {
-            "file_exists": "test/integration-test.sh"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

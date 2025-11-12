@@ -20,7 +20,28 @@
       "postgres-storage",
       "ollama-analysis",
       "strategic-consciousness"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/tech-tree-designer"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -136,7 +157,7 @@
         },
         {
           "name": "show-urls",
-          "run": "cat <<EOF\n🚀 Tech Tree Designer initialized\n  Strategic Dashboard: http://localhost:${UI_PORT}\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  CLI: tech-tree-designer --help\n\n🎯 Civilization Progress: Ready for strategic intelligence acceleration\nEOF",
+          "run": "cat <<EOF\n\ud83d\ude80 Tech Tree Designer initialized\n  Strategic Dashboard: http://localhost:${UI_PORT}\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  CLI: tech-tree-designer --help\n\n\ud83c\udfaf Civilization Progress: Ready for strategic intelligence acceleration\nEOF",
           "description": "Display tech tree access URLs and strategic overview"
         }
       ]
@@ -164,18 +185,18 @@
         },
         {
           "name": "show-urls",
-          "run": "cat <<EOF\n🚀 Strategic Intelligence System Online:\n  📊 Tech Tree Dashboard: http://localhost:${UI_PORT}\n  🧠 Analysis API: http://localhost:${API_PORT}\n  📈 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  🎯 Strategic CLI: tech-tree-designer --help\n\n🌟 Ready to guide Vrooli's evolution toward superintelligence\nEOF",
+          "run": "cat <<EOF\n\ud83d\ude80 Strategic Intelligence System Online:\n  \ud83d\udcca Tech Tree Dashboard: http://localhost:${UI_PORT}\n  \ud83e\udde0 Analysis API: http://localhost:${API_PORT}\n  \ud83d\udcc8 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  \ud83c\udfaf Strategic CLI: tech-tree-designer --help\n\n\ud83c\udf1f Ready to guide Vrooli's evolution toward superintelligence\nEOF",
           "description": "Display all running strategic planning services"
         }
       ]
     },
     "test": {
-      "description": "Run phased testing suite",
+      "description": "Comprehensive phased testing for tech-tree-designer",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute phased scenario tests"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

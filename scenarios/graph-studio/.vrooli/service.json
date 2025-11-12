@@ -21,7 +21,28 @@
       "go-api",
       "react-ui",
       "postgres-storage"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/graph-studio"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "environment": {
     "PREVIEW_ACCESS_TOKEN": {
@@ -146,7 +167,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Graph Studio initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
+          "run": "echo '\ud83d\ude80 Graph Studio initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -192,21 +213,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
+          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Run comprehensive Graph Studio test suite",
+      "description": "Comprehensive phased testing for graph-studio",
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "cd test && ./run-tests.sh",
-          "description": "Execute phased test suite (unit, integration, API, CLI, UI)",
-          "condition": {
-            "file_exists": "test/run-tests.sh"
-          }
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

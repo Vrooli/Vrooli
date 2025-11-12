@@ -19,7 +19,28 @@
       "javascript-ui",
       "postgres-storage",
       "claude-integration"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/saas-landing-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -127,7 +148,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 SaaS Landing Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: saas-landing-manager --help\"",
+          "run": "echo \"\ud83d\ude80 SaaS Landing Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: saas-landing-manager --help\"",
           "description": "Display service access URLs"
         }
       ]
@@ -155,18 +176,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: saas-landing-manager --help\"",
+          "run": "echo \"\ud83d\ude80 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: saas-landing-manager --help\"",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing suite",
+      "description": "Comprehensive phased testing for saas-landing-manager",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute structure, dependency, unit, integration, business, and performance phases"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

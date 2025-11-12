@@ -22,7 +22,28 @@
       "position-aware-filtering",
       "book-analysis",
       "literary-discussion"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/no-spoilers-book-talk"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -111,7 +132,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '📚 No Spoilers Book Talk initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: no-spoilers-book-talk --help'",
+          "run": "echo '\ud83d\udcda No Spoilers Book Talk initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: no-spoilers-book-talk --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -130,18 +151,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '📚 No Spoilers Book Talk running:\\n  API: http://localhost:$API_PORT\\n  Upload books: POST /api/v1/books/upload\\n  Start chat: POST /api/v1/books/{book_id}/chat\\n  CLI: no-spoilers-book-talk --help'",
+          "run": "echo '\ud83d\udcda No Spoilers Book Talk running:\\n  API: http://localhost:$API_PORT\\n  Upload books: POST /api/v1/books/upload\\n  Start chat: POST /api/v1/books/{book_id}/chat\\n  CLI: no-spoilers-book-talk --help'",
           "description": "Display running service information"
         }
       ]
     },
     "test": {
-      "description": "Phased scenario testing suite",
+      "description": "Comprehensive phased testing for no-spoilers-book-talk",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute phased tests (structure, dependencies, unit, integration, business, performance)"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

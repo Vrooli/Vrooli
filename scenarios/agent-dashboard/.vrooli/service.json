@@ -17,7 +17,28 @@
       "developer-tools",
       "go-api",
       "lifecycle-management"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/agent-dashboard"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -105,7 +126,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e \"🚀 Agent Dashboard initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
+          "run": "echo -e \"\ud83d\ude80 Agent Dashboard initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
           "description": "Display service access URLs"
         }
       ]
@@ -133,18 +154,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e \"🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
+          "run": "echo -e \"\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for agent-dashboard using the new testing architecture",
+      "description": "Comprehensive phased testing for agent-dashboard",
       "steps": [
         {
-          "name": "run-comprehensive-tests",
+          "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

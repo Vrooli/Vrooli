@@ -19,7 +19,28 @@
       "native-go-processing",
       "postgres-storage",
       "cli-integration"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/chart-generator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -131,7 +152,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 Chart Generator initialized\\n  Style Management UI: http://localhost:${UI_PORT}\\n  Chart Generation API: http://localhost:${API_PORT}\\n  CLI: chart-generator --help\\n  \\n📊 Quick Test: chart-generator generate bar --data sample-data.json --format png,svg'",
+          "run": "echo '\ud83c\udfa8 Chart Generator initialized\\n  Style Management UI: http://localhost:${UI_PORT}\\n  Chart Generation API: http://localhost:${API_PORT}\\n  CLI: chart-generator --help\\n  \\n\ud83d\udcca Quick Test: chart-generator generate bar --data sample-data.json --format png,svg'",
           "description": "Display service access URLs and usage examples"
         }
       ]
@@ -159,56 +180,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 Chart Generator Services Running:\\n  Style Management: http://localhost:${UI_PORT}\\n  Chart API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n📋 CLI Usage: chart-generator --help'",
+          "run": "echo '\ud83c\udfa8 Chart Generator Services Running:\\n  Style Management: http://localhost:${UI_PORT}\\n  Chart API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n\ud83d\udccb CLI Usage: chart-generator --help'",
           "description": "Display all running service URLs and CLI info"
         }
       ]
     },
     "test": {
-      "description": "Comprehensive testing of chart generation capabilities",
+      "description": "Comprehensive phased testing for chart-generator",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go API compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:${API_PORT}/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-chart-generation-api",
-          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/charts/generate -H 'Content-Type: application/json' -d '{\"chart_type\":\"bar\",\"data\":[{\"x\":\"A\",\"y\":10},{\"x\":\"B\",\"y\":20}],\"export_formats\":[\"png\"]}'",
-          "description": "Test chart generation via API"
-        },
-        {
-          "name": "test-styles-api",
-          "run": "curl -sf http://localhost:${API_PORT}/api/v1/styles",
-          "description": "Test styles listing API endpoint"
-        },
-        {
-          "name": "test-cli-basic-generation",
-          "run": "echo '[{\"x\":\"Test\",\"y\":42}]' | ./cli/chart-generator generate bar --data - --format png --output /tmp",
-          "description": "Test CLI chart generation with sample data"
-        },
-        {
-          "name": "test-cli-styles",
-          "run": "./cli/chart-generator styles --json",
-          "description": "Test CLI styles listing"
-        },
-        {
-          "name": "test-native-endpoints",
-          "run": "curl -sf http://localhost:${API_PORT}/chart-generator -X POST -H 'Content-Type: application/json' -d '{\"chart_type\":\"bar\",\"data\":[{\"x\":\"Test\",\"y\":42}]}' && curl -sf http://localhost:${API_PORT}/validate-data -X POST -H 'Content-Type: application/json' -d '{\"data\":[{\"x\":\"A\",\"y\":10}]}' && curl -sf http://localhost:${API_PORT}/styles",
-          "description": "Test native Go endpoints replacing n8n workflows"
-        },
-        {
-          "name": "test-database-schema",
-          "run": "echo 'Database schema test skipped (would require postgres running)'",
-          "description": "Verify database schema initialization"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

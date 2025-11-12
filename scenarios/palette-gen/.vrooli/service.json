@@ -21,7 +21,28 @@
       "n8n-workflows",
       "redis-cache",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/palette-gen"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -132,7 +153,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🎨 Palette Gen initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: palette-gen --help'",
+          "run": "echo -e '\ud83c\udfa8 Palette Gen initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: palette-gen --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -160,18 +181,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo -e '🎨 Palette Gen running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: palette-gen --help'",
+          "run": "echo -e '\ud83c\udfa8 Palette Gen running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: palette-gen --help'",
           "description": "Display running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test Palette Gen services",
+      "description": "Comprehensive phased testing for palette-gen",
       "steps": [
         {
-          "name": "run-test-suite",
+          "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Run comprehensive test suite"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

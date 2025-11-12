@@ -18,6 +18,10 @@
         "name": {
           "type": "string"
         },
+        "parent": {
+          "type": "string",
+          "const": "vrooli"
+        },
         "displayName": {
           "type": "string"
         },
@@ -26,8 +30,91 @@
         },
         "version": {
           "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "description": "Scenario classification (e.g., business-application, helper)"
+        },
+        "category": {
+          "type": "string",
+          "description": "High-level scenario category"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Free-form keywords for search and filtering"
+        },
+        "maintainers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "repository": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "default": "git"
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "directory": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "license": {
+          "type": "string"
+        },
+        "homepage": {
+          "type": "string",
+          "format": "uri"
+        },
+        "documentation": {
+          "type": "string",
+          "format": "uri"
+        },
+        "support": {
+          "type": "object",
+          "properties": {
+            "issues": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "additionalProperties": false
+        },
+        "importance": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "important",
+            "standard",
+            "experimental"
+          ]
         }
-      }
+      },
+      "additionalProperties": false
     },
     "ports": {
       "type": "object",

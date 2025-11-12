@@ -13,7 +13,28 @@
       "calendar-integration",
       "go-api",
       "cli"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/time-tools"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -81,7 +102,7 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '🚀 Time Tools ready!\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
+          "run": "printf '\ud83d\ude80 Time Tools ready!\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
           "description": "Display service endpoints"
         }
       ]
@@ -100,18 +121,18 @@
         },
         {
           "name": "show-urls",
-          "run": "printf '🚀 Time Tools running\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
+          "run": "printf '\ud83d\ude80 Time Tools running\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
           "description": "Display runtime endpoints"
         }
       ]
     },
     "test": {
-      "description": "Execute phased test suite",
+      "description": "Comprehensive phased testing for time-tools",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute structure, dependency, unit, and integration phases"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

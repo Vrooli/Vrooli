@@ -18,7 +18,28 @@
       "postgres-storage",
       "redis-cache",
       "ai-enhanced"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/elo-swipe"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -150,18 +171,6 @@
       "method": "GET",
       "expected_status": 200
     }
-  },
-  "metadata": {
-    "created_at": "2024-01-04",
-    "updated_at": "2024-01-04",
-    "author": "AI Agent",
-    "status": "development",
-    "capabilities": [
-      "ranking",
-      "prioritization",
-      "preference-learning",
-      "elo-ratings"
-    ]
   },
   "environment": {
     "POSTGRES_HOST": "localhost",
@@ -311,12 +320,12 @@
       ]
     },
     "test": {
-      "description": "Run comprehensive test suite",
+      "description": "Comprehensive phased testing for elo-swipe",
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "./test/run-tests.sh",
-          "description": "Execute smoke, unit, and integration tests"
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     }

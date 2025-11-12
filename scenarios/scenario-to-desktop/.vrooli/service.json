@@ -1,11 +1,33 @@
 {
   "service": {
-    "name": "scenario-to-desktop"
+    "name": "scenario-to-desktop",
+    "displayName": "Scenario To Desktop",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "automation",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/scenario-to-desktop"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "description": "Transform Vrooli scenarios into professional desktop applications using Electron and other frameworks",
+    "version": "1.0.0"
   },
   "version": "1.0.0",
-  "description": "Transform Vrooli scenarios into professional desktop applications using Electron and other frameworks",
-  "type": "scenario",
-  "category": "automation",
   "keywords": [
     "desktop",
     "electron",
@@ -14,8 +36,6 @@
     "packaging",
     "distribution"
   ],
-  "author": "Vrooli Platform",
-  "license": "MIT",
   "requirements": {
     "node_version": ">=18.0.0",
     "platform": [
@@ -38,125 +58,12 @@
       "description": "Desktop build UI server port"
     }
   },
-  "cli_commands": [
-    {
-      "name": "status",
-      "description": "Show desktop generation system status",
-      "flags": [
-        "--json",
-        "--verbose"
-      ]
-    },
-    {
-      "name": "generate",
-      "description": "Generate desktop application for a scenario",
-      "arguments": [
-        "scenario_name"
-      ],
-      "flags": [
-        "--framework",
-        "--template",
-        "--platforms",
-        "--output",
-        "--features"
-      ]
-    },
-    {
-      "name": "build",
-      "description": "Build a desktop application project",
-      "arguments": [
-        "desktop_path"
-      ],
-      "flags": [
-        "--platforms",
-        "--sign",
-        "--publish"
-      ]
-    },
-    {
-      "name": "test",
-      "description": "Test desktop application functionality",
-      "arguments": [
-        "app_path"
-      ],
-      "flags": [
-        "--platforms",
-        "--headless"
-      ]
-    },
-    {
-      "name": "package",
-      "description": "Package desktop application for distribution",
-      "arguments": [
-        "app_path"
-      ],
-      "flags": [
-        "--store",
-        "--enterprise"
-      ]
-    },
-    {
-      "name": "templates",
-      "description": "List available templates",
-      "flags": [
-        "--json",
-        "--detail"
-      ]
-    }
-  ],
-  "integrations": {
-    "provides_to": [
-      {
-        "scenario": "system-monitor",
-        "capability": "Native desktop system monitoring application",
-        "interface": "API/CLI"
-      },
-      {
-        "scenario": "personal-digital-twin",
-        "capability": "Offline-capable desktop assistant application",
-        "interface": "API/CLI"
-      },
-      {
-        "scenario": "document-manager",
-        "capability": "Desktop document management with native file integration",
-        "interface": "API/CLI"
-      }
-    ],
-    "consumes_from": [
-      {
-        "scenario": "browserless",
-        "capability": "Desktop application UI testing and screenshot capture",
-        "fallback": "Manual testing instructions"
-      },
-      {
-        "scenario": "notification-hub",
-        "capability": "Build completion notifications",
-        "fallback": "CLI output only"
-      }
-    ]
-  },
   "deployment": {
     "type": "service",
     "auto_start": true,
     "health_check_interval": 30,
     "restart_policy": "on-failure",
     "max_restarts": 3
-  },
-  "development": {
-    "hot_reload": true,
-    "debug_mode": true,
-    "test_runner": "jest",
-    "linting": true
-  },
-  "metadata": {
-    "created": "2025-09-04",
-    "updated": "2025-09-04",
-    "status": "active",
-    "maturity": "stable",
-    "documentation": "README.md",
-    "repository": "https://github.com/vrooli/vrooli",
-    "issues": "https://github.com/vrooli/vrooli/issues",
-    "homepage": "https://vrooli.com/scenarios/scenario-to-desktop"
   },
   "lifecycle": {
     "health": {
@@ -296,17 +203,12 @@
       ]
     },
     "test": {
-      "description": "Run scenario tests",
+      "description": "Comprehensive phased testing for scenario-to-desktop",
       "steps": [
         {
-          "name": "test-api",
-          "run": "cd api && go test -v -timeout 120s -coverprofile=coverage.out ./...",
-          "description": "Run API unit tests"
-        },
-        {
-          "name": "test-cli",
-          "run": "cd cli && bats scenario-to-desktop.bats || echo 'CLI tests not yet implemented'",
-          "description": "Run CLI tests"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     }

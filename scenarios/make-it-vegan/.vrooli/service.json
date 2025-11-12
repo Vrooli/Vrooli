@@ -21,7 +21,28 @@
       "n8n-workflows",
       "postgres-storage",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/make-it-vegan"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -132,7 +153,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🥬 Make It Vegan initialized' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  n8n workflows: http://localhost:'${RESOURCE_PORTS[n8n]} && echo '  CLI: make-it-vegan --help'",
+          "run": "echo '\ud83e\udd6c Make It Vegan initialized' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  n8n workflows: http://localhost:'${RESOURCE_PORTS[n8n]} && echo '  CLI: make-it-vegan --help'",
           "description": "Display service URLs"
         }
       ]
@@ -160,28 +181,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🥬 Make It Vegan running:' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  CLI: make-it-vegan --help'",
+          "run": "echo '\ud83e\udd6c Make It Vegan running:' && echo '  UI: http://localhost:'$UI_PORT && echo '  API: http://localhost:'$API_PORT && echo '  CLI: make-it-vegan --help'",
           "description": "Display service URLs and usage information"
         }
       ]
     },
     "test": {
-      "description": "Test Make It Vegan",
+      "description": "Comprehensive phased testing for make-it-vegan",
       "steps": [
         {
-          "name": "test-api-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation"
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health || echo 'API health check failed'",
-          "description": "Test API health"
-        },
-        {
-          "name": "test-cli",
-          "run": "make-it-vegan check 'milk, eggs, flour' || true",
-          "description": "Test CLI functionality"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

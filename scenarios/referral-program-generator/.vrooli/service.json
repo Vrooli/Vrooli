@@ -17,7 +17,28 @@
       "postgres-storage",
       "automated-implementation",
       "cross-scenario-enhancement"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/referral-program-generator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -125,7 +146,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Referral Program Generator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: referral-program-generator --help'",
+          "run": "echo '\ud83d\ude80 Referral Program Generator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: referral-program-generator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -159,12 +180,12 @@
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing",
+      "description": "Comprehensive phased testing for referral-program-generator",
       "steps": [
         {
           "name": "run-phased-tests",
           "run": "test/run-tests.sh",
-          "description": "Execute scenario phased test suite"
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

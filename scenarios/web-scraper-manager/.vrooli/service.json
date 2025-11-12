@@ -23,7 +23,28 @@
       "qdrant-vectors",
       "minio-storage",
       "ollama-ai"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/web-scraper-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -150,7 +171,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: web-scraper-manager --help'",
+          "run": "echo '\ud83d\ude80 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: web-scraper-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -183,18 +204,18 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
+          "run": "echo '\ud83d\ude80 Web Scraper Manager running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: web-scraper-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test web scraper manager using phased testing architecture",
+      "description": "Comprehensive phased testing for web-scraper-manager",
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "bash test/run-tests.sh",
-          "description": "Run all test phases (structure, dependencies, unit, api, integration, business, performance)"
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

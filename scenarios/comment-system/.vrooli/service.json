@@ -21,7 +21,28 @@
       "markdown-support",
       "threading",
       "moderation-ready"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "social",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/comment-system"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -220,7 +241,7 @@
       ]
     },
     "test": {
-      "description": "Execute phased scenario test suite",
+      "description": "Comprehensive phased testing for comment-system",
       "steps": [
         {
           "name": "run-phased-tests",
@@ -244,13 +265,5 @@
         }
       ]
     }
-  },
-  "metadata": {
-    "category": "social",
-    "business_value": "Adds collaborative discussion capabilities to every Vrooli scenario",
-    "technical_value": "Universal microservice that eliminates need for custom comment systems",
-    "reusability_score": 10,
-    "enhances_scenarios": "*",
-    "revenue_potential": "15K-30K"
   }
 }

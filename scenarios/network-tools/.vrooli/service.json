@@ -28,11 +28,9 @@
     },
     "license": "MIT",
     "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
     "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
   "ports": {
@@ -196,44 +194,12 @@
       ]
     },
     "test": {
-      "description": "Test application functionality",
+      "description": "Comprehensive phased testing for network-tools",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build ./cmd/server/ && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
-        },
-        {
-          "name": "test-go-unit",
-          "run": "cd api && go test ./... -v",
-          "description": "Run Go unit tests",
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-cli-commands",
-          "run": "cd cli && bats cli-tests.bats",
-          "description": "Run CLI test suite",
-          "condition": {
-            "file_exists": "cli/cli-tests.bats"
-          }
-        },
-        {
-          "name": "test-integration",
-          "run": "bash test.sh",
-          "description": "Run full integration tests",
-          "condition": {
-            "file_exists": "test.sh"
-          }
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },
@@ -415,137 +381,6 @@
           "rampUp": "30s"
         }
       }
-    }
-  },
-  "metadata": {
-    "businessModel": {
-      "purpose": "commercial",
-      "valueProposition": "Complete network operations platform without external dependencies",
-      "targetMarket": "developers",
-      "painPoints": [
-        "Fragmented network testing tools requiring multiple licenses",
-        "Lack of unified API for network operations",
-        "Complex integration of network monitoring and testing"
-      ],
-      "solution": "Unified network operations platform with HTTP, DNS, SSL, and API testing capabilities",
-      "competitiveAdvantage": "Integrated network operations with AI-enhanced analysis and zero external dependencies",
-      "revenuePotential": {
-        "initial": "$20,000",
-        "recurring": "$5,000/month",
-        "expansion": "$100,000",
-        "totalEstimate": "$180,000/year"
-      },
-      "marketDemand": {
-        "level": "High",
-        "growth": "25% YoY",
-        "evidence": "Growing demand for unified network monitoring and API testing solutions"
-      },
-      "roi": {
-        "developmentCost": "$15,000",
-        "timeToMarket": "2 weeks",
-        "breakEven": "3 months"
-      }
-    },
-    "performance": {
-      "targets": {
-        "initializationTime": "5m",
-        "responseTime": {
-          "p50": "100ms",
-          "p95": "500ms",
-          "p99": "1000ms"
-        },
-        "throughput": {
-          "minimum": 50,
-          "target": 100,
-          "peak": 500
-        },
-        "availability": "99.9%",
-        "errorRate": "<1%"
-      },
-      "resources": {
-        "cpu": {
-          "minimum": "0.5",
-          "target": "1.0",
-          "maximum": "2.0"
-        },
-        "memory": {
-          "minimum": "512Mi",
-          "target": "1Gi",
-          "maximum": "2Gi"
-        },
-        "storage": {
-          "database": "10Gi",
-          "files": "20Gi"
-        }
-      }
-    },
-    "customization": {
-      "variables": {
-        "APP_NAME": {
-          "type": "string",
-          "default": "Network Tools",
-          "description": "Application display name"
-        },
-        "COMPANY_NAME": {
-          "type": "string",
-          "default": "Vrooli",
-          "description": "Customer company name"
-        },
-        "PRIMARY_COLOR": {
-          "type": "string",
-          "default": "#0066CC",
-          "description": "Brand primary color"
-        },
-        "DATABASE_NAME": {
-          "type": "string",
-          "default": "network_tools",
-          "description": "Database name"
-        }
-      },
-      "features": {
-        "authentication": {
-          "enabled": true,
-          "provider": "api-key",
-          "sso": false
-        },
-        "notifications": {
-          "enabled": true,
-          "channels": [
-            "email",
-            "webhook"
-          ]
-        },
-        "analytics": {
-          "enabled": true,
-          "provider": "internal"
-        },
-        "payments": {
-          "enabled": false,
-          "provider": "stripe"
-        }
-      },
-      "integrations": [
-        {
-          "name": "HTTP Client",
-          "type": "network",
-          "required": true
-        },
-        {
-          "name": "DNS Resolver",
-          "type": "network",
-          "required": true
-        },
-        {
-          "name": "SSL/TLS Validator",
-          "type": "security",
-          "required": true
-        }
-      ]
-    },
-    "aiGeneration": {
-      "enabled": true,
-      "placeholders": {},
-      "instructions": "All placeholders have been replaced with actual values for the network-tools scenario"
     }
   },
   "dependencies": {

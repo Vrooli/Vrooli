@@ -1,11 +1,33 @@
 {
   "service": {
-    "name": "quiz-generator"
+    "name": "quiz-generator",
+    "displayName": "Quiz Generator",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "education",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/quiz-generator"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "description": "AI-powered quiz generation and assessment platform",
+    "version": "1.0.0"
   },
   "version": "1.0.0",
-  "description": "AI-powered quiz generation and assessment platform",
-  "category": "education",
-  "status": "active",
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -15,19 +37,6 @@
       "env_var": "UI_PORT",
       "range": "35000-39999"
     }
-  },
-  "metadata": {
-    "author": "AI Agent",
-    "created": "2024-09-05",
-    "last_updated": "2024-09-05",
-    "tags": [
-      "education",
-      "assessment",
-      "quiz",
-      "ai",
-      "learning"
-    ],
-    "documentation": "docs/README.md"
   },
   "deployment": {
     "type": "docker-compose",
@@ -157,12 +166,12 @@
       ]
     },
     "test": {
-      "description": "Run quiz-generator tests",
+      "description": "Comprehensive phased testing for quiz-generator",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash test/run-tests.sh",
-          "description": "Execute test suite via shared test runner"
+          "name": "run-phased-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

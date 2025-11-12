@@ -12,7 +12,28 @@
       "automation",
       "ai-coordinator",
       "vrooli-core"
-    ]
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/swarm-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
   },
   "ports": {
     "api": {
@@ -147,17 +168,17 @@
         },
         {
           "name": "show-urls",
-          "run": "echo \"✅ Swarm Manager is running at http://localhost:${UI_PORT}\""
+          "run": "echo \"\u2705 Swarm Manager is running at http://localhost:${UI_PORT}\""
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing using shared runner",
+      "description": "Comprehensive phased testing for swarm-manager",
       "steps": [
         {
           "name": "run-phased-tests",
-          "run": "./test/run-tests.sh",
-          "description": "Execute scenario test phases"
+          "run": "test/run-tests.sh",
+          "description": "Execute phased scenario test suite"
         }
       ]
     },

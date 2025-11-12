@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 source "${SCRIPT_DIR}/../utils/var.sh"
 source "${SCRIPT_DIR}/../utils/log.sh"
+source "${SCRIPT_DIR}/dependencies.sh"
 
 scenario::run() {
     local scenario_name="$1"
@@ -20,6 +21,15 @@ scenario::run() {
     # Get the phase (default to 'develop' if not specified)
     local phase="${1:-develop}"
     shift || true
+
+    if scenario::dependencies::phase_requires_bootstrap "$phase"; then
+        scenario::dependencies::stack_push "$scenario_name"
+        if ! scenario::dependencies::ensure_started "$scenario_name" "$phase"; then
+            scenario::dependencies::stack_pop "$scenario_name"
+            return 1
+        fi
+        scenario::dependencies::stack_pop "$scenario_name"
+    fi
     
     # Check for optional flags
     local clean_stale=false
