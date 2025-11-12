@@ -1,157 +1,140 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import NodePalette from '../NodePalette';
+import { ALL_NODE_TYPES } from '../../constants/nodeCategories';
 
-describe('NodePalette [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP] [REQ:BAS-WORKFLOW-NODE-TYPES]', () => {
-  it('renders key node types [REQ:BAS-WORKFLOW-NODE-TYPES]', () => {
-    render(<NodePalette />);
-
-    // Verify representative node types are rendered
-    expect(screen.getByText('Navigate')).toBeInTheDocument();
-    expect(screen.getByText('Click')).toBeInTheDocument();
-    expect(screen.getByText('Type')).toBeInTheDocument();
-    expect(screen.getByText('Shortcut')).toBeInTheDocument();
-    expect(screen.getByText('Screenshot')).toBeInTheDocument();
-    expect(screen.getByText('Wait')).toBeInTheDocument();
-    expect(screen.getByText('Extract')).toBeInTheDocument();
-    expect(screen.getByText('Assert')).toBeInTheDocument();
-    expect(screen.getByText('Focus')).toBeInTheDocument();
-    expect(screen.getByText('Blur')).toBeInTheDocument();
-    expect(screen.getByText('Call Workflow')).toBeInTheDocument();
-    expect(screen.getByText('Drag & Drop')).toBeInTheDocument();
-    expect(screen.getByText('Upload File')).toBeInTheDocument();
-    expect(screen.getByText('Rotate')).toBeInTheDocument();
-    expect(screen.getByText('Gesture')).toBeInTheDocument();
-    expect(screen.getByText('Conditional')).toBeInTheDocument();
-    expect(screen.getByText('Loop')).toBeInTheDocument();
+const getNodeLabel = (label: string) =>
+  screen.getByText((_, element) => {
+    if (!element) {
+      return false;
+    }
+    const text = element.textContent?.trim().toLowerCase();
+    const className = (element as HTMLElement).className ?? '';
+    return text === label.toLowerCase() && className.includes('font-medium');
   });
 
-  it('renders node descriptions', () => {
-    render(<NodePalette />);
-
-    expect(screen.getByText('Navigate to URL or scenario')).toBeInTheDocument();
-    expect(screen.getByText('Click an element')).toBeInTheDocument();
-    expect(screen.getByText('Type text in input')).toBeInTheDocument();
-    expect(screen.getByText('Capture screenshot')).toBeInTheDocument();
-  });
-
-  it('renders pro tip section', () => {
-    render(<NodePalette />);
-
-    expect(screen.getByText('PRO TIP')).toBeInTheDocument();
-    expect(screen.getByText(/Connect nodes by dragging/i)).toBeInTheDocument();
-  });
-
-  it('makes all nodes draggable [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', () => {
-    const { container } = render(<NodePalette />);
-
-    const draggableNodes = container.querySelectorAll('[draggable="true"]');
-
-    // Should have draggable cards for every palette entry
-    expect(draggableNodes).toHaveLength(25);
-  });
-
-  it('sets correct data on drag start for navigate node [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', () => {
-    const { container } = render(<NodePalette />);
-
-    const navigateNode = container.querySelector('[draggable="true"]');
-    expect(navigateNode).toBeTruthy();
-
-    const setDataMock = vi.fn();
-    const dataTransfer = {
-      setData: setDataMock,
-      effectAllowed: '',
-    } as unknown as DataTransfer;
-
-    fireEvent.dragStart(navigateNode!, {
-      dataTransfer,
+describe(
+  'NodePalette [REQ:BAS-UX-PALETTE-CATEGORIES] [REQ:BAS-UX-PALETTE-SEARCH] [REQ:BAS-UX-PALETTE-QUICK-ACCESS] [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP] [REQ:BAS-WORKFLOW-NODE-TYPES]',
+  () => {
+    beforeEach(() => {
+      window.localStorage.clear();
     });
 
-    expect(setDataMock).toHaveBeenCalledWith('nodeType', 'navigate');
-    expect(dataTransfer.effectAllowed).toBe('move');
-  });
+    it('renders categories and exposes every node definition [REQ:BAS-UX-PALETTE-CATEGORIES] [REQ:BAS-WORKFLOW-NODE-TYPES]', () => {
+      const { container } = render(<NodePalette />);
 
-  it('sets correct data on drag start for click node [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', () => {
-    const { container } = render(<NodePalette />);
+      expect(screen.getByText('Navigation & Context')).toBeInTheDocument();
+      expect(screen.getByText('Pointer & Gestures')).toBeInTheDocument();
+      expect(screen.getByText('Forms & Input')).toBeInTheDocument();
 
-    const draggableNodes = container.querySelectorAll('[draggable="true"]');
-    const clickNode = draggableNodes[1]; // Second node is 'click'
+      expect(screen.getByText('Navigate')).toBeInTheDocument();
+      expect(screen.getByText('Click')).toBeInTheDocument();
+      expect(screen.getByText('Type')).toBeInTheDocument();
+      expect(screen.getByText('Shortcut')).toBeInTheDocument();
+      expect(screen.getByText('Screenshot')).toBeInTheDocument();
+      expect(screen.getByText('Wait')).toBeInTheDocument();
+      expect(screen.getByText('Extract')).toBeInTheDocument();
+      expect(screen.getByText('Assert')).toBeInTheDocument();
+      expect(screen.getByText('Focus')).toBeInTheDocument();
+      expect(screen.getByText('Blur')).toBeInTheDocument();
+      expect(screen.getByText('Call Workflow')).toBeInTheDocument();
+      expect(screen.getByText('Drag & Drop')).toBeInTheDocument();
+      expect(screen.getByText('Upload File')).toBeInTheDocument();
+      expect(screen.getByText('Rotate')).toBeInTheDocument();
+      expect(screen.getByText('Gesture')).toBeInTheDocument();
+      expect(screen.getByText('Frame Switch')).toBeInTheDocument();
+      expect(screen.getByText('Conditional')).toBeInTheDocument();
+      expect(screen.getByText('Loop')).toBeInTheDocument();
+      expect(screen.getByText('Set Cookie')).toBeInTheDocument();
+      expect(screen.getByText('Get Storage')).toBeInTheDocument();
+      expect(screen.getByText('Network Mock')).toBeInTheDocument();
 
-    const setDataMock = vi.fn();
-    const dataTransfer = {
-      setData: setDataMock,
-      effectAllowed: '',
-    } as unknown as DataTransfer;
-
-    fireEvent.dragStart(clickNode, {
-      dataTransfer,
+      const nodeCards = Array.from(container.querySelectorAll('[data-node-type]'));
+      const uniqueTypes = new Set(nodeCards.map((card) => card.getAttribute('data-node-type')));
+      expect(uniqueTypes.size).toBe(ALL_NODE_TYPES.length);
     });
 
-    expect(setDataMock).toHaveBeenCalledWith('nodeType', 'click');
-    expect(dataTransfer.effectAllowed).toBe('move');
-  });
+    it('filters nodes with search and highlights matches [REQ:BAS-UX-PALETTE-SEARCH]', () => {
+      render(<NodePalette />);
 
-  it('renders icons for each node type', () => {
-    const { container } = render(<NodePalette />);
+      const searchInput = screen.getByPlaceholderText(/Search nodes/);
+      fireEvent.change(searchInput, { target: { value: 'cookie' } });
 
-    // Check that icons are rendered (lucide-react icons render as SVGs)
-    const icons = container.querySelectorAll('svg');
+      expect(screen.getByText('Storage & Network')).toBeInTheDocument();
+      expect(screen.queryByText('Navigation & Context')).not.toBeInTheDocument();
 
-    // Should have at least 10 icons (9 node types + 1 pro tip icon)
-    expect(icons.length).toBeGreaterThanOrEqual(10);
-  });
+      expect(getNodeLabel('Set Cookie')).toBeInTheDocument();
+      expect(getNodeLabel('Get Cookie')).toBeInTheDocument();
+      expect(getNodeLabel('Clear Cookie')).toBeInTheDocument();
+      expect(screen.queryByText('Navigate')).not.toBeInTheDocument();
 
-  it('applies hover styles to node cards', () => {
-    const { container } = render(<NodePalette />);
-
-    const firstNode = container.querySelector('[draggable="true"]');
-    expect(firstNode).toBeTruthy();
-
-    // Check that hover classes are present
-    expect(firstNode?.className).toContain('hover:border-flow-accent');
-    expect(firstNode?.className).toContain('cursor-move');
-  });
-
-  it('renders with proper section heading', () => {
-    render(<NodePalette />);
-
-    const heading = screen.getByText('Drag nodes to canvas');
-    expect(heading).toBeInTheDocument();
-    expect(heading.tagName).toBe('H3');
-  });
-
-  it('displays node colors correctly', () => {
-    const { container } = render(<NodePalette />);
-
-    // Navigate should have blue color
-    const navigateIcon = container.querySelector('.text-blue-400');
-    expect(navigateIcon).toBeInTheDocument();
-
-    // Click should have green color
-    const clickIcon = container.querySelector('.text-green-400');
-    expect(clickIcon).toBeInTheDocument();
-
-    // Type should have yellow color
-    const typeIcon = container.querySelector('.text-yellow-400');
-    expect(typeIcon).toBeInTheDocument();
-  });
-
-  it('all node items have proper structure [REQ:BAS-WORKFLOW-NODE-TYPES]', () => {
-    const { container } = render(<NodePalette />);
-
-    const nodeCards = container.querySelectorAll('[draggable="true"]');
-
-    nodeCards.forEach((card) => {
-      // Each card should have icon, label, and description
-      const icon = card.querySelector('svg');
-      expect(icon).toBeTruthy();
-
-      const label = card.querySelector('.font-medium');
-      expect(label).toBeTruthy();
-
-      const description = card.querySelector('.text-xs.text-gray-500');
-      expect(description).toBeTruthy();
+      const highlights = screen.getAllByText(
+        (content, element) => element?.tagName === 'MARK' && content.toLowerCase() === 'cookie',
+      );
+      expect(highlights.length).toBeGreaterThanOrEqual(1);
     });
-  });
-});
+
+    it('records recents on drag and clears search [REQ:BAS-UX-PALETTE-QUICK-ACCESS] [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', async () => {
+      const { container } = render(<NodePalette />);
+
+      const searchInput = screen.getByPlaceholderText(/Search nodes/);
+      fireEvent.change(searchInput, { target: { value: 'cookie' } });
+
+      const setCookieCard = container.querySelector('[data-node-type="setCookie"]');
+      expect(setCookieCard).toBeTruthy();
+
+      const dataTransfer = {
+        setData: vi.fn(),
+        effectAllowed: '',
+      } as unknown as DataTransfer;
+
+      fireEvent.dragStart(setCookieCard!, { dataTransfer });
+
+      await waitFor(() => expect(screen.getByText('Quick Access')).toBeInTheDocument());
+      expect((searchInput as HTMLInputElement).value).toBe('');
+      expect(screen.getByText('Recent')).toBeInTheDocument();
+      const recentsHeading = screen.getByText('Recent');
+      const recentsContainer = recentsHeading.parentElement?.parentElement;
+      expect(recentsContainer?.querySelector('[data-node-type="setCookie"]')).toBeTruthy();
+      expect(dataTransfer.setData).toHaveBeenCalledWith('nodeType', 'setCookie');
+      expect(dataTransfer.effectAllowed).toBe('move');
+    });
+
+    it('limits favorites to five entries and persists ordering [REQ:BAS-UX-PALETTE-QUICK-ACCESS]', async () => {
+      render(<NodePalette />);
+
+      const favoriteTargets = [
+        'Navigate',
+        'Click',
+        'Hover',
+        'Drag & Drop',
+        'Focus',
+        'Blur',
+      ];
+
+      favoriteTargets.forEach((label) => {
+        const toggle = screen.getByLabelText(`Add ${label} to favorites`);
+        fireEvent.click(toggle);
+      });
+
+      const favoritesSection = await screen.findByText('Favorites');
+      expect(favoritesSection).toBeInTheDocument();
+      const favoritesHeading = await screen.findByText('Favorites');
+      const favoritesContainer = favoritesHeading.parentElement?.querySelectorAll('[data-node-type]') ?? [];
+      const favoriteTypes = Array.from(favoritesContainer)
+        .map((card) => card.getAttribute('data-node-type'))
+        .filter((value): value is string => Boolean(value));
+      expect(favoriteTypes).toHaveLength(5);
+      expect(favoriteTypes).not.toContain('navigate');
+      expect(favoriteTypes).toContain('blur');
+
+      await waitFor(() => {
+        const stored = window.localStorage.getItem('bas.palette.favorites');
+        expect(stored).toBeTruthy();
+        const parsed = JSON.parse(stored ?? '[]');
+        expect(parsed).toHaveLength(5);
+        expect(parsed.includes('blur')).toBe(true);
+      });
+    });
+  },
+);

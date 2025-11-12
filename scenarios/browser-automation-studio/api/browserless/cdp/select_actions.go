@@ -32,9 +32,9 @@ func (s *Session) ExecuteSelect(ctx context.Context, selector, mode, value, text
 
 	var nodes []*cdp.Node
 	if err := chromedp.Run(timeoutCtx,
-		chromedp.WaitVisible(selector, chromedp.ByQuery),
-		chromedp.ScrollIntoView(selector, chromedp.ByQuery),
-		chromedp.Nodes(selector, &nodes, chromedp.ByQuery),
+		chromedp.WaitVisible(selector, s.frameQueryOptions(chromedp.ByQuery)...),
+		chromedp.ScrollIntoView(selector, s.frameQueryOptions(chromedp.ByQuery)...),
+		chromedp.Nodes(selector, &nodes, s.frameQueryOptions(chromedp.ByQuery)...),
 	); err != nil {
 		result.Error = fmt.Sprintf("select target %s unavailable: %v", selector, err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
@@ -140,7 +140,7 @@ func (s *Session) ExecuteSelect(ctx context.Context, selector, mode, value, text
     })()`, string(scriptBytes))
 
 	var evalResult selectEvalResult
-	if err := chromedp.Run(timeoutCtx, chromedp.Evaluate(script, &evalResult)); err != nil {
+	if err := s.evalWithFrame(timeoutCtx, script, &evalResult); err != nil {
 		result.Error = fmt.Sprintf("select script failed: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err

@@ -324,6 +324,16 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 			CloseOld:   instruction.Params.TabCloseOld,
 		}
 		result, err = s.ExecuteTabSwitch(ctx, opts)
+	case "frameSwitch":
+		opts := frameSwitchOptions{
+			SwitchBy:  instruction.Params.FrameSwitchBy,
+			Index:     instruction.Params.FrameIndex,
+			Name:      instruction.Params.FrameName,
+			Selector:  instruction.Params.FrameSelector,
+			URLMatch:  instruction.Params.FrameURLMatch,
+			TimeoutMs: instruction.Params.TimeoutMs,
+		}
+		result, err = s.ExecuteFrameSwitch(ctx, opts)
 	case "conditional":
 		opts := conditionalOptions{
 			Type:           instruction.Params.ConditionType,
@@ -345,6 +355,20 @@ func (s *Session) ExecuteInstruction(ctx context.Context, instruction runtime.In
 		result, err = s.ExecuteSetVariable(ctx, instruction)
 	case "useVariable":
 		result, err = executeUseVariableInstruction(instruction)
+	case "setCookie":
+		result, err = s.ExecuteSetCookie(ctx, instruction.Params)
+	case "getCookie":
+		result, err = s.ExecuteGetCookie(ctx, instruction.Params)
+	case "clearCookie":
+		result, err = s.ExecuteClearCookie(ctx, instruction.Params)
+	case "setStorage":
+		result, err = s.ExecuteSetStorage(ctx, instruction.Params)
+	case "getStorage":
+		result, err = s.ExecuteGetStorage(ctx, instruction.Params)
+	case "clearStorage":
+		result, err = s.ExecuteClearStorage(ctx, instruction.Params)
+	case "networkMock":
+		result, err = s.ExecuteNetworkMock(ctx, instruction.Params)
 	default:
 		return nil, fmt.Errorf("unsupported node type: %s", instruction.Type)
 	}

@@ -186,6 +186,277 @@ func TestInstructionFromStepUploadFileMultiplePaths(t *testing.T) {
 	}
 }
 
+func TestInstructionFromStepSetCookieSuccess(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  7,
+		NodeID: "cookie-set-1",
+		Type:   compiler.StepSetCookie,
+		Params: map[string]any{
+			"name":       " sessionId ",
+			"value":      "abc123",
+			"url":        "https://example.com/app",
+			"sameSite":   "LAX",
+			"ttlSeconds": 90,
+			"waitForMs":  150,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("setCookie should compile: %v", err)
+	}
+	if inst.Params.CookieName != "sessionId" {
+		t.Fatalf("expected cookie name to trim whitespace, got %q", inst.Params.CookieName)
+	}
+	if inst.Params.CookieURL != "https://example.com/app" {
+		t.Fatalf("expected url to persist, got %q", inst.Params.CookieURL)
+	}
+	if inst.Params.CookieSameSite != "lax" {
+		t.Fatalf("expected sameSite normalization, got %q", inst.Params.CookieSameSite)
+	}
+	if inst.Params.CookieTTLSeconds != 90 {
+		t.Fatalf("expected ttlSeconds to propagate, got %d", inst.Params.CookieTTLSeconds)
+	}
+	if inst.Params.WaitForMs != 150 {
+		t.Fatalf("expected waitForMs to propagate, got %d", inst.Params.WaitForMs)
+	}
+}
+
+func TestInstructionFromStepNetworkMockResponse(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  11,
+		NodeID: "network-mock-1",
+		Type:   compiler.StepNetworkMock,
+		Params: map[string]any{
+			"urlPattern": " https://api.example.com/* ",
+			"method":     "post",
+			"mockType":   "response",
+			"statusCode": 202,
+			"delayMs":    1200,
+			"headers": map[string]any{
+				"Content-Type": "application/json",
+			},
+			"body": map[string]any{
+				"ok": true,
+			},
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating networkMock instruction: %v", err)
+	}
+	if inst.Params.NetworkURLPattern != "https://api.example.com/*" {
+		t.Fatalf("expected trimmed pattern, got %q", inst.Params.NetworkURLPattern)
+	}
+	if inst.Params.NetworkMethod != "POST" {
+		t.Fatalf("expected method to normalize to POST, got %q", inst.Params.NetworkMethod)
+	}
+	if inst.Params.NetworkMockType != "response" {
+		t.Fatalf("expected mock type response, got %q", inst.Params.NetworkMockType)
+	}
+	if inst.Params.NetworkStatusCode != 202 {
+		t.Fatalf("expected status code 202, got %d", inst.Params.NetworkStatusCode)
+	}
+	if inst.Params.NetworkDelayMs != 1200 {
+		t.Fatalf("expected delay to persist, got %d", inst.Params.NetworkDelayMs)
+	}
+	headers := inst.Params.NetworkHeaders
+	if len(headers) != 1 || headers["Content-Type"] != "application/json" {
+		t.Fatalf("expected header map to normalize, got %v", headers)
+	}
+	body, ok := inst.Params.NetworkBody.(map[string]any)
+	if !ok || body["ok"] != true {
+		t.Fatalf("expected body to round-trip as map, got %#v", inst.Params.NetworkBody)
+	}
+}
+
+func TestInstructionFromStepNetworkMockAbortDefaults(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  12,
+		NodeID: "network-mock-2",
+		Type:   compiler.StepNetworkMock,
+		Params: map[string]any{
+			"urlPattern":  "https://api.example.com/*",
+			"mockType":    "abort",
+			"abortReason": "blocked",
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating abort mock instruction: %v", err)
+	}
+	if inst.Params.NetworkMockType != "abort" {
+		t.Fatalf("expected abort mock type, got %q", inst.Params.NetworkMockType)
+	}
+	if inst.Params.NetworkAbortReason != "BlockedByClient" {
+		t.Fatalf("expected abort reason to normalize, got %q", inst.Params.NetworkAbortReason)
+	}
+	if inst.Params.NetworkMethod != "" {
+		t.Fatalf("expected empty method when not provided, got %q", inst.Params.NetworkMethod)
+	}
+}
+
+func TestInstructionFromStepNetworkMockDelayRequiresDuration(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  13,
+		NodeID: "network-mock-3",
+		Type:   compiler.StepNetworkMock,
+		Params: map[string]any{
+			"urlPattern": "https://example.com/*",
+			"mockType":   "delay",
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when delay mock omits delayMs")
+	}
+}
+
+func TestInstructionFromStepNetworkMockMissingPattern(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  14,
+		NodeID: "network-mock-4",
+		Type:   compiler.StepNetworkMock,
+		Params: map[string]any{
+			"mockType": "response",
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when urlPattern is missing")
+	}
+}
+
+func TestInstructionFromStepSetCookieRequiresTarget(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  8,
+		NodeID: "cookie-set-2",
+		Type:   compiler.StepSetCookie,
+		Params: map[string]any{
+			"name":  "session",
+			"value": "123",
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when url and domain missing")
+	}
+}
+
+func TestInstructionFromStepGetCookieDefaults(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  9,
+		NodeID: "cookie-get-1",
+		Type:   compiler.StepGetCookie,
+		Params: map[string]any{
+			"name": "auth",
+		},
+	}
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("getCookie should compile: %v", err)
+	}
+	if inst.Params.CookieName != "auth" {
+		t.Fatalf("expected cookie name to propagate")
+	}
+	if inst.Params.CookieResultFormat != "value" {
+		t.Fatalf("expected default format to be value, got %q", inst.Params.CookieResultFormat)
+	}
+	if inst.Params.StoreResult != "auth" {
+		t.Fatalf("expected default storeResult to match name, got %q", inst.Params.StoreResult)
+	}
+}
+
+func TestInstructionFromStepClearCookieAll(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  10,
+		NodeID: "cookie-clear-1",
+		Type:   compiler.StepClearCookie,
+		Params: map[string]any{
+			"clearAll": true,
+		},
+	}
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("clearCookie should compile: %v", err)
+	}
+	if !inst.Params.CookieClearAll {
+		t.Fatalf("expected clearAll flag to be set")
+	}
+}
+
+func TestInstructionFromStepSetStorageNormalizesType(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  11,
+		NodeID: "storage-set-1",
+		Type:   compiler.StepSetStorage,
+		Params: map[string]any{
+			"storageType": "session",
+			"key":         "token",
+			"value":       "abc",
+			"valueType":   "json",
+			"timeoutMs":   8000,
+		},
+	}
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("setStorage should compile: %v", err)
+	}
+	if inst.Params.StorageType != "sessionStorage" {
+		t.Fatalf("expected storage type normalization, got %q", inst.Params.StorageType)
+	}
+	if inst.Params.StorageValueType != "json" {
+		t.Fatalf("expected value type to remain json, got %q", inst.Params.StorageValueType)
+	}
+	if inst.Params.TimeoutMs != 8000 {
+		t.Fatalf("expected timeout to propagate, got %d", inst.Params.TimeoutMs)
+	}
+}
+
+func TestInstructionFromStepGetStorageDefaults(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  12,
+		NodeID: "storage-get-1",
+		Type:   compiler.StepGetStorage,
+		Params: map[string]any{
+			"key": "profile",
+		},
+	}
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("getStorage should compile: %v", err)
+	}
+	if inst.Params.StorageType != "localStorage" {
+		t.Fatalf("expected default storage to be localStorage, got %q", inst.Params.StorageType)
+	}
+	if inst.Params.StoreResult != "profile" {
+		t.Fatalf("expected storeResult to default to key, got %q", inst.Params.StoreResult)
+	}
+	if inst.Params.StorageResultFormat != "text" {
+		t.Fatalf("expected default result format text, got %q", inst.Params.StorageResultFormat)
+	}
+}
+
+func TestInstructionFromStepClearStorageAll(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  13,
+		NodeID: "storage-clear-1",
+		Type:   compiler.StepClearStorage,
+		Params: map[string]any{
+			"clearAll": true,
+		},
+	}
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("clearStorage should compile: %v", err)
+	}
+	if !inst.Params.StorageClearAll {
+		t.Fatalf("expected storage clearAll flag to be set")
+	}
+}
+
 func TestInstructionFromStepTabSwitchIndex(t *testing.T) {
 	step := compiler.ExecutionStep{
 		Index:  6,
@@ -233,6 +504,52 @@ func TestInstructionFromStepTabSwitchTitleMissingPattern(t *testing.T) {
 
 	if _, err := instructionFromStep(context.Background(), step); err == nil {
 		t.Fatalf("expected error when titleMatch missing")
+	}
+}
+
+func TestInstructionFromStepFrameSwitchSelector(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  9,
+		NodeID: "frame-switch-1",
+		Type:   compiler.StepFrameSwitch,
+		Params: map[string]any{
+			"switchBy":  "selector",
+			"selector":  " iframe#main ",
+			"timeoutMs": 5000,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating frameSwitch instruction: %v", err)
+	}
+	if inst.Type != "frameSwitch" {
+		t.Fatalf("expected instruction type frameSwitch, got %s", inst.Type)
+	}
+	if inst.Params.FrameSwitchBy != "selector" {
+		t.Fatalf("expected switchBy=selector, got %q", inst.Params.FrameSwitchBy)
+	}
+	if inst.Params.FrameSelector != "iframe#main" {
+		t.Fatalf("expected selector to be trimmed, got %q", inst.Params.FrameSelector)
+	}
+	if inst.Params.TimeoutMs != 5000 {
+		t.Fatalf("expected timeout to propagate, got %d", inst.Params.TimeoutMs)
+	}
+}
+
+func TestInstructionFromStepFrameSwitchIndexValidation(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  10,
+		NodeID: "frame-switch-2",
+		Type:   compiler.StepFrameSwitch,
+		Params: map[string]any{
+			"switchBy": "index",
+			"index":    -1,
+		},
+	}
+
+	if _, err := instructionFromStep(context.Background(), step); err == nil {
+		t.Fatalf("expected error when frame index is negative")
 	}
 }
 

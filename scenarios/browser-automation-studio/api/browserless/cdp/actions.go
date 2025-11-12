@@ -12,11 +12,10 @@ import (
 
 	"github.com/chromedp/cdproto/dom"
 	"github.com/chromedp/cdproto/input"
-	"github.com/chromedp/chromedp"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 )
 
-func checkSelectorVisibility(ctx context.Context, selector string) (bool, bool, error) {
+func (s *Session) checkSelectorVisibility(ctx context.Context, selector string) (bool, bool, error) {
 	var res struct {
 		Found   bool `json:"found"`
 		Visible bool `json:"visible"`
@@ -32,7 +31,7 @@ func checkSelectorVisibility(ctx context.Context, selector string) (bool, bool, 
 		return { found: true, visible: vertVisible && horizVisible };
 	})()`, selector)
 
-	if err := chromedp.Run(ctx, chromedp.Evaluate(script, &res)); err != nil {
+	if err := s.evalWithFrame(ctx, script, &res); err != nil {
 		return false, false, err
 	}
 	return res.Found, res.Visible, nil

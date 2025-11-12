@@ -55,135 +55,166 @@ type Instruction struct {
 
 // InstructionParam captures the parameter payload for a Browserless instruction.
 type InstructionParam struct {
-	URL                     string   `json:"url,omitempty"`
-	Scenario                string   `json:"scenario,omitempty"`        // Scenario name for navigate nodes
-	ScenarioPath            string   `json:"scenarioPath,omitempty"`    // Scenario path for navigate nodes
-	DestinationType         string   `json:"destinationType,omitempty"` // url or scenario
-	WaitUntil               string   `json:"waitUntil,omitempty"`
-	TimeoutMs               int      `json:"timeoutMs,omitempty"`
-	WaitForMs               int      `json:"waitForMs,omitempty"`
-	WaitType                string   `json:"waitType,omitempty"`
-	DurationMs              int      `json:"durationMs,omitempty"`
-	MovementSteps           int      `json:"movementSteps,omitempty"`
-	DragSourceSelector      string   `json:"dragSourceSelector,omitempty"`
-	DragTargetSelector      string   `json:"dragTargetSelector,omitempty"`
-	DragHoldMs              int      `json:"dragHoldMs,omitempty"`
-	DragSteps               int      `json:"dragSteps,omitempty"`
-	DragDurationMs          int      `json:"dragDurationMs,omitempty"`
-	DragOffsetX             int      `json:"dragOffsetX,omitempty"`
-	DragOffsetY             int      `json:"dragOffsetY,omitempty"`
-	Selector                string   `json:"selector,omitempty"`
-	WaitForSelector         string   `json:"waitForSelector,omitempty"`
-	FilePaths               []string `json:"filePaths,omitempty"`
-	FilePath                string   `json:"filePath,omitempty"`
-	SelectionMode           string   `json:"selectionMode,omitempty"`
-	Name                    string   `json:"name,omitempty"`
-	FullPage                *bool    `json:"fullPage,omitempty"`
-	ViewportWidth           int      `json:"viewportWidth,omitempty"`
-	ViewportHeight          int      `json:"viewportHeight,omitempty"`
-	RotateOrientation       string   `json:"rotateOrientation,omitempty"`
-	RotateAngle             int      `json:"rotateAngle,omitempty"`
-	GestureType             string   `json:"gestureType,omitempty"`
-	GestureDirection        string   `json:"gestureDirection,omitempty"`
-	GestureSelector         string   `json:"gestureSelector,omitempty"`
-	GestureStartX           int      `json:"gestureStartX,omitempty"`
-	GestureStartY           int      `json:"gestureStartY,omitempty"`
-	GestureEndX             int      `json:"gestureEndX,omitempty"`
-	GestureEndY             int      `json:"gestureEndY,omitempty"`
-	GestureDistance         int      `json:"gestureDistance,omitempty"`
-	GestureScale            float64  `json:"gestureScale,omitempty"`
-	GestureDurationMs       int      `json:"gestureDurationMs,omitempty"`
-	GestureHoldMs           int      `json:"gestureHoldMs,omitempty"`
-	GestureSteps            int      `json:"gestureSteps,omitempty"`
-	GestureHasStart         bool     `json:"gestureHasStart,omitempty"`
-	GestureHasEnd           bool     `json:"gestureHasEnd,omitempty"`
-	GestureHasStartX        bool     `json:"gestureHasStartX,omitempty"`
-	GestureHasStartY        bool     `json:"gestureHasStartY,omitempty"`
-	GestureHasEndX          bool     `json:"gestureHasEndX,omitempty"`
-	GestureHasEndY          bool     `json:"gestureHasEndY,omitempty"`
-	Button                  string   `json:"button,omitempty"`
-	ClickCount              int      `json:"clickCount,omitempty"`
-	Text                    string   `json:"text,omitempty"`
-	DelayMs                 int      `json:"delayMs,omitempty"`
-	Clear                   *bool    `json:"clear,omitempty"`
-	Submit                  *bool    `json:"submit,omitempty"`
-	ExtractType             string   `json:"extractType,omitempty"`
-	Attribute               string   `json:"attribute,omitempty"`
-	AllMatches              *bool    `json:"allMatches,omitempty"`
-	FocusSelector           string   `json:"focusSelector,omitempty"`
-	HighlightSelectors      []string `json:"highlightSelectors,omitempty"`
-	HighlightColor          string   `json:"highlightColor,omitempty"`
-	HighlightPadding        int      `json:"highlightPadding,omitempty"`
-	HighlightBorderRadius   int      `json:"highlightBorderRadius,omitempty"`
-	MaskSelectors           []string `json:"maskSelectors,omitempty"`
-	MaskOpacity             float64  `json:"maskOpacity,omitempty"`
-	Background              string   `json:"background,omitempty"`
-	ZoomFactor              float64  `json:"zoomFactor,omitempty"`
-	CaptureDomSnapshot      bool     `json:"captureDomSnapshot,omitempty"`
-	AssertMode              string   `json:"assertMode,omitempty"`
-	ExpectedValue           any      `json:"expectedValue,omitempty"`
-	FailureMessage          string   `json:"failureMessage,omitempty"`
-	Expression              string   `json:"expression,omitempty"`
-	StoreResult             string   `json:"storeResult,omitempty"`
-	VariableName            string   `json:"variableName,omitempty"`
-	VariableSource          string   `json:"variableSource,omitempty"`
-	VariableValue           any      `json:"variableValue,omitempty"`
-	VariableStoreAs         string   `json:"variableStoreAs,omitempty"`
-	VariableTransform       string   `json:"variableTransform,omitempty"`
-	VariableRequired        *bool    `json:"variableRequired,omitempty"`
-	ConditionType           string   `json:"conditionType,omitempty"`
-	ConditionExpression     string   `json:"conditionExpression,omitempty"`
-	ConditionSelector       string   `json:"conditionSelector,omitempty"`
-	ConditionVariable       string   `json:"conditionVariable,omitempty"`
-	ConditionOperator       string   `json:"conditionOperator,omitempty"`
-	ConditionValue          any      `json:"conditionValue,omitempty"`
-	ConditionNegate         *bool    `json:"conditionNegate,omitempty"`
-	ConditionPollIntervalMs int      `json:"conditionPollIntervalMs,omitempty"`
-	CaseSensitive           *bool    `json:"caseSensitive,omitempty"`
-	Negate                  *bool    `json:"negate,omitempty"`
-	ContinueOnFailure       *bool    `json:"continueOnFailure,omitempty"`
-	RetryAttempts           int      `json:"retryAttempts,omitempty"`
-	RetryDelayMs            int      `json:"retryDelayMs,omitempty"`
-	RetryBackoffFactor      float64  `json:"retryBackoffFactor,omitempty"`
-	ProbeX                  int      `json:"probeX,omitempty"`
-	ProbeY                  int      `json:"probeY,omitempty"`
-	ProbeRadius             int      `json:"probeRadius,omitempty"`
-	ProbeSamples            int      `json:"probeSamples,omitempty"`
-	ShortcutKeys            []string `json:"shortcutKeys,omitempty"`
-	ShortcutDelayMs         int      `json:"shortcutDelayMs,omitempty"`
-	KeyValue                string   `json:"keyValue,omitempty"`
-	KeyEventType            string   `json:"keyEventType,omitempty"`
-	KeyModifiers            []string `json:"keyModifiers,omitempty"`
-	ScrollType              string   `json:"scrollType,omitempty"`
-	ScrollDirection         string   `json:"scrollDirection,omitempty"`
-	ScrollAmount            int      `json:"scrollAmount,omitempty"`
-	ScrollBehavior          string   `json:"scrollBehavior,omitempty"`
-	ScrollX                 int      `json:"scrollX,omitempty"`
-	ScrollY                 int      `json:"scrollY,omitempty"`
-	ScrollTargetSelector    string   `json:"scrollTargetSelector,omitempty"`
-	ScrollMaxAttempts       int      `json:"scrollMaxAttempts,omitempty"`
-	OptionValue             string   `json:"optionValue,omitempty"`
-	OptionText              string   `json:"optionText,omitempty"`
-	OptionIndex             int      `json:"optionIndex,omitempty"`
-	OptionValues            []string `json:"optionValues,omitempty"`
-	MultiSelect             bool     `json:"multiSelect,omitempty"`
-	TabSwitchBy             string   `json:"tabSwitchBy,omitempty"`
-	TabIndex                int      `json:"tabIndex,omitempty"`
-	TabTitleMatch           string   `json:"tabTitleMatch,omitempty"`
-	TabURLMatch             string   `json:"tabUrlMatch,omitempty"`
-	TabWaitForNew           bool     `json:"tabWaitForNew,omitempty"`
-	TabCloseOld             bool     `json:"tabCloseOld,omitempty"`
-	LoopType                string   `json:"loopType,omitempty"`
-	LoopArraySource         string   `json:"loopArraySource,omitempty"`
-	LoopCount               int      `json:"loopCount,omitempty"`
-	LoopConditionExpression string   `json:"loopConditionExpression,omitempty"`
-	LoopConditionType       string   `json:"loopConditionType,omitempty"`
-	LoopConditionVariable   string   `json:"loopConditionVariable,omitempty"`
-	LoopConditionOperator   string   `json:"loopConditionOperator,omitempty"`
-	LoopConditionValue      any      `json:"loopConditionValue,omitempty"`
-	LoopMaxIterations       int      `json:"loopMaxIterations,omitempty"`
-	LoopItemVariable        string   `json:"loopItemVariable,omitempty"`
-	LoopIndexVariable       string   `json:"loopIndexVariable,omitempty"`
+	URL                     string            `json:"url,omitempty"`
+	Scenario                string            `json:"scenario,omitempty"`        // Scenario name for navigate nodes
+	ScenarioPath            string            `json:"scenarioPath,omitempty"`    // Scenario path for navigate nodes
+	DestinationType         string            `json:"destinationType,omitempty"` // url or scenario
+	WaitUntil               string            `json:"waitUntil,omitempty"`
+	TimeoutMs               int               `json:"timeoutMs,omitempty"`
+	WaitForMs               int               `json:"waitForMs,omitempty"`
+	WaitType                string            `json:"waitType,omitempty"`
+	DurationMs              int               `json:"durationMs,omitempty"`
+	MovementSteps           int               `json:"movementSteps,omitempty"`
+	DragSourceSelector      string            `json:"dragSourceSelector,omitempty"`
+	DragTargetSelector      string            `json:"dragTargetSelector,omitempty"`
+	DragHoldMs              int               `json:"dragHoldMs,omitempty"`
+	DragSteps               int               `json:"dragSteps,omitempty"`
+	DragDurationMs          int               `json:"dragDurationMs,omitempty"`
+	DragOffsetX             int               `json:"dragOffsetX,omitempty"`
+	DragOffsetY             int               `json:"dragOffsetY,omitempty"`
+	Selector                string            `json:"selector,omitempty"`
+	WaitForSelector         string            `json:"waitForSelector,omitempty"`
+	FilePaths               []string          `json:"filePaths,omitempty"`
+	FilePath                string            `json:"filePath,omitempty"`
+	SelectionMode           string            `json:"selectionMode,omitempty"`
+	Name                    string            `json:"name,omitempty"`
+	FullPage                *bool             `json:"fullPage,omitempty"`
+	ViewportWidth           int               `json:"viewportWidth,omitempty"`
+	ViewportHeight          int               `json:"viewportHeight,omitempty"`
+	RotateOrientation       string            `json:"rotateOrientation,omitempty"`
+	RotateAngle             int               `json:"rotateAngle,omitempty"`
+	GestureType             string            `json:"gestureType,omitempty"`
+	GestureDirection        string            `json:"gestureDirection,omitempty"`
+	GestureSelector         string            `json:"gestureSelector,omitempty"`
+	GestureStartX           int               `json:"gestureStartX,omitempty"`
+	GestureStartY           int               `json:"gestureStartY,omitempty"`
+	GestureEndX             int               `json:"gestureEndX,omitempty"`
+	GestureEndY             int               `json:"gestureEndY,omitempty"`
+	GestureDistance         int               `json:"gestureDistance,omitempty"`
+	GestureScale            float64           `json:"gestureScale,omitempty"`
+	GestureDurationMs       int               `json:"gestureDurationMs,omitempty"`
+	GestureHoldMs           int               `json:"gestureHoldMs,omitempty"`
+	GestureSteps            int               `json:"gestureSteps,omitempty"`
+	GestureHasStart         bool              `json:"gestureHasStart,omitempty"`
+	GestureHasEnd           bool              `json:"gestureHasEnd,omitempty"`
+	GestureHasStartX        bool              `json:"gestureHasStartX,omitempty"`
+	GestureHasStartY        bool              `json:"gestureHasStartY,omitempty"`
+	GestureHasEndX          bool              `json:"gestureHasEndX,omitempty"`
+	GestureHasEndY          bool              `json:"gestureHasEndY,omitempty"`
+	Button                  string            `json:"button,omitempty"`
+	ClickCount              int               `json:"clickCount,omitempty"`
+	Text                    string            `json:"text,omitempty"`
+	DelayMs                 int               `json:"delayMs,omitempty"`
+	Clear                   *bool             `json:"clear,omitempty"`
+	Submit                  *bool             `json:"submit,omitempty"`
+	ExtractType             string            `json:"extractType,omitempty"`
+	Attribute               string            `json:"attribute,omitempty"`
+	AllMatches              *bool             `json:"allMatches,omitempty"`
+	FocusSelector           string            `json:"focusSelector,omitempty"`
+	HighlightSelectors      []string          `json:"highlightSelectors,omitempty"`
+	HighlightColor          string            `json:"highlightColor,omitempty"`
+	HighlightPadding        int               `json:"highlightPadding,omitempty"`
+	HighlightBorderRadius   int               `json:"highlightBorderRadius,omitempty"`
+	MaskSelectors           []string          `json:"maskSelectors,omitempty"`
+	MaskOpacity             float64           `json:"maskOpacity,omitempty"`
+	Background              string            `json:"background,omitempty"`
+	ZoomFactor              float64           `json:"zoomFactor,omitempty"`
+	CaptureDomSnapshot      bool              `json:"captureDomSnapshot,omitempty"`
+	AssertMode              string            `json:"assertMode,omitempty"`
+	ExpectedValue           any               `json:"expectedValue,omitempty"`
+	FailureMessage          string            `json:"failureMessage,omitempty"`
+	Expression              string            `json:"expression,omitempty"`
+	StoreResult             string            `json:"storeResult,omitempty"`
+	VariableName            string            `json:"variableName,omitempty"`
+	VariableSource          string            `json:"variableSource,omitempty"`
+	VariableValue           any               `json:"variableValue,omitempty"`
+	VariableStoreAs         string            `json:"variableStoreAs,omitempty"`
+	VariableTransform       string            `json:"variableTransform,omitempty"`
+	VariableRequired        *bool             `json:"variableRequired,omitempty"`
+	ConditionType           string            `json:"conditionType,omitempty"`
+	ConditionExpression     string            `json:"conditionExpression,omitempty"`
+	ConditionSelector       string            `json:"conditionSelector,omitempty"`
+	ConditionVariable       string            `json:"conditionVariable,omitempty"`
+	ConditionOperator       string            `json:"conditionOperator,omitempty"`
+	ConditionValue          any               `json:"conditionValue,omitempty"`
+	ConditionNegate         *bool             `json:"conditionNegate,omitempty"`
+	ConditionPollIntervalMs int               `json:"conditionPollIntervalMs,omitempty"`
+	CaseSensitive           *bool             `json:"caseSensitive,omitempty"`
+	Negate                  *bool             `json:"negate,omitempty"`
+	ContinueOnFailure       *bool             `json:"continueOnFailure,omitempty"`
+	RetryAttempts           int               `json:"retryAttempts,omitempty"`
+	RetryDelayMs            int               `json:"retryDelayMs,omitempty"`
+	RetryBackoffFactor      float64           `json:"retryBackoffFactor,omitempty"`
+	ProbeX                  int               `json:"probeX,omitempty"`
+	ProbeY                  int               `json:"probeY,omitempty"`
+	ProbeRadius             int               `json:"probeRadius,omitempty"`
+	ProbeSamples            int               `json:"probeSamples,omitempty"`
+	ShortcutKeys            []string          `json:"shortcutKeys,omitempty"`
+	ShortcutDelayMs         int               `json:"shortcutDelayMs,omitempty"`
+	KeyValue                string            `json:"keyValue,omitempty"`
+	KeyEventType            string            `json:"keyEventType,omitempty"`
+	KeyModifiers            []string          `json:"keyModifiers,omitempty"`
+	ScrollType              string            `json:"scrollType,omitempty"`
+	ScrollDirection         string            `json:"scrollDirection,omitempty"`
+	ScrollAmount            int               `json:"scrollAmount,omitempty"`
+	ScrollBehavior          string            `json:"scrollBehavior,omitempty"`
+	ScrollX                 int               `json:"scrollX,omitempty"`
+	ScrollY                 int               `json:"scrollY,omitempty"`
+	ScrollTargetSelector    string            `json:"scrollTargetSelector,omitempty"`
+	ScrollMaxAttempts       int               `json:"scrollMaxAttempts,omitempty"`
+	OptionValue             string            `json:"optionValue,omitempty"`
+	OptionText              string            `json:"optionText,omitempty"`
+	OptionIndex             int               `json:"optionIndex,omitempty"`
+	OptionValues            []string          `json:"optionValues,omitempty"`
+	MultiSelect             bool              `json:"multiSelect,omitempty"`
+	TabSwitchBy             string            `json:"tabSwitchBy,omitempty"`
+	TabIndex                int               `json:"tabIndex,omitempty"`
+	TabTitleMatch           string            `json:"tabTitleMatch,omitempty"`
+	TabURLMatch             string            `json:"tabUrlMatch,omitempty"`
+	TabWaitForNew           bool              `json:"tabWaitForNew,omitempty"`
+	TabCloseOld             bool              `json:"tabCloseOld,omitempty"`
+	FrameSwitchBy           string            `json:"frameSwitchBy,omitempty"`
+	FrameIndex              int               `json:"frameIndex,omitempty"`
+	FrameName               string            `json:"frameName,omitempty"`
+	FrameSelector           string            `json:"frameSelector,omitempty"`
+	FrameURLMatch           string            `json:"frameUrlMatch,omitempty"`
+	LoopType                string            `json:"loopType,omitempty"`
+	LoopArraySource         string            `json:"loopArraySource,omitempty"`
+	LoopCount               int               `json:"loopCount,omitempty"`
+	LoopConditionExpression string            `json:"loopConditionExpression,omitempty"`
+	LoopConditionType       string            `json:"loopConditionType,omitempty"`
+	LoopConditionVariable   string            `json:"loopConditionVariable,omitempty"`
+	LoopConditionOperator   string            `json:"loopConditionOperator,omitempty"`
+	LoopConditionValue      any               `json:"loopConditionValue,omitempty"`
+	LoopMaxIterations       int               `json:"loopMaxIterations,omitempty"`
+	LoopItemVariable        string            `json:"loopItemVariable,omitempty"`
+	LoopIndexVariable       string            `json:"loopIndexVariable,omitempty"`
+	CookieName              string            `json:"cookieName,omitempty"`
+	CookieValue             string            `json:"cookieValue,omitempty"`
+	CookieURL               string            `json:"cookieUrl,omitempty"`
+	CookieDomain            string            `json:"cookieDomain,omitempty"`
+	CookiePath              string            `json:"cookiePath,omitempty"`
+	CookieSameSite          string            `json:"cookieSameSite,omitempty"`
+	CookieExpiresAt         string            `json:"cookieExpiresAt,omitempty"`
+	CookieResultFormat      string            `json:"cookieResultFormat,omitempty"`
+	CookieTTLSeconds        int               `json:"cookieTtlSeconds,omitempty"`
+	CookieHTTPOnly          *bool             `json:"cookieHttpOnly,omitempty"`
+	CookieSecure            *bool             `json:"cookieSecure,omitempty"`
+	CookieClearAll          bool              `json:"cookieClearAll,omitempty"`
+	StorageType             string            `json:"storageType,omitempty"`
+	StorageKey              string            `json:"storageKey,omitempty"`
+	StorageValue            string            `json:"storageValue,omitempty"`
+	StorageValueType        string            `json:"storageValueType,omitempty"`
+	StorageResultFormat     string            `json:"storageResultFormat,omitempty"`
+	StorageClearAll         bool              `json:"storageClearAll,omitempty"`
+	NetworkURLPattern       string            `json:"networkUrlPattern,omitempty"`
+	NetworkMethod           string            `json:"networkMethod,omitempty"`
+	NetworkMockType         string            `json:"networkMockType,omitempty"`
+	NetworkStatusCode       int               `json:"networkStatusCode,omitempty"`
+	NetworkHeaders          map[string]string `json:"networkHeaders,omitempty"`
+	NetworkBody             any               `json:"networkBody,omitempty"`
+	NetworkDelayMs          int               `json:"networkDelayMs,omitempty"`
+	NetworkAbortReason      string            `json:"networkAbortReason,omitempty"`
 }
 
 // InstructionsFromPlan converts a compiled execution plan into Browserless instructions.
@@ -379,6 +410,13 @@ const (
 	maxConditionalPollInterval     = 2000
 )
 
+const (
+	defaultNetworkMockStatus = 200
+	minHTTPStatusCode        = 100
+	maxHTTPStatusCode        = 599
+	maxNetworkDelayMs        = 600000
+)
+
 type extractConfig struct {
 	Selector    string `json:"selector"`
 	ExtractType string `json:"extractType"`
@@ -408,6 +446,15 @@ type tabSwitchConfig struct {
 	WaitForNew bool   `json:"waitForNew"`
 	TimeoutMs  int    `json:"timeoutMs"`
 	CloseOld   bool   `json:"closeOld"`
+}
+
+type frameSwitchConfig struct {
+	SwitchBy  string `json:"switchBy"`
+	Index     int    `json:"index"`
+	Name      string `json:"name"`
+	Selector  string `json:"selector"`
+	URLMatch  string `json:"urlMatch"`
+	TimeoutMs int    `json:"timeoutMs"`
 }
 
 type evaluateConfig struct {
@@ -477,6 +524,82 @@ type loopConfig struct {
 	ConditionVariable   string `json:"conditionVariable"`
 	ConditionOperator   string `json:"conditionOperator"`
 	ConditionValue      any    `json:"conditionValue"`
+}
+
+type setCookieConfig struct {
+	Name       string `json:"name"`
+	Value      string `json:"value"`
+	URL        string `json:"url"`
+	Domain     string `json:"domain"`
+	Path       string `json:"path"`
+	SameSite   string `json:"sameSite"`
+	Secure     *bool  `json:"secure"`
+	HTTPOnly   *bool  `json:"httpOnly"`
+	ExpiresAt  string `json:"expiresAt"`
+	TTLSeconds int    `json:"ttlSeconds"`
+	MaxAge     int    `json:"maxAgeSeconds"`
+	TimeoutMs  int    `json:"timeoutMs"`
+	WaitForMs  int    `json:"waitForMs"`
+}
+
+type getCookieConfig struct {
+	Name        string `json:"name"`
+	URL         string `json:"url"`
+	Domain      string `json:"domain"`
+	Path        string `json:"path"`
+	ResultAs    string `json:"resultFormat"`
+	StoreResult string `json:"storeResult"`
+	StoreAs     string `json:"storeAs"`
+	TimeoutMs   int    `json:"timeoutMs"`
+	WaitForMs   int    `json:"waitForMs"`
+}
+
+type clearCookieConfig struct {
+	Name      string `json:"name"`
+	URL       string `json:"url"`
+	Domain    string `json:"domain"`
+	Path      string `json:"path"`
+	ClearAll  bool   `json:"clearAll"`
+	TimeoutMs int    `json:"timeoutMs"`
+	WaitForMs int    `json:"waitForMs"`
+}
+
+type setStorageConfig struct {
+	StorageType string `json:"storageType"`
+	Key         string `json:"key"`
+	Value       string `json:"value"`
+	ValueType   string `json:"valueType"`
+	TimeoutMs   int    `json:"timeoutMs"`
+	WaitForMs   int    `json:"waitForMs"`
+}
+
+type getStorageConfig struct {
+	StorageType string `json:"storageType"`
+	Key         string `json:"key"`
+	ResultAs    string `json:"resultFormat"`
+	StoreResult string `json:"storeResult"`
+	StoreAs     string `json:"storeAs"`
+	TimeoutMs   int    `json:"timeoutMs"`
+	WaitForMs   int    `json:"waitForMs"`
+}
+
+type clearStorageConfig struct {
+	StorageType string `json:"storageType"`
+	Key         string `json:"key"`
+	ClearAll    bool   `json:"clearAll"`
+	TimeoutMs   int    `json:"timeoutMs"`
+	WaitForMs   int    `json:"waitForMs"`
+}
+
+type networkMockConfig struct {
+	URLPattern  string            `json:"urlPattern"`
+	Method      string            `json:"method"`
+	MockType    string            `json:"mockType"`
+	StatusCode  int               `json:"statusCode"`
+	Headers     map[string]string `json:"headers"`
+	Body        any               `json:"body"`
+	DelayMs     int               `json:"delayMs"`
+	AbortReason string            `json:"abortReason"`
 }
 
 type keyboardModifierSpec struct {
@@ -1195,6 +1318,278 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if cfg.CloseOld {
 			base.Params.TabCloseOld = true
 		}
+	case compiler.StepFrameSwitch:
+		// [REQ:BAS-NODE-FRAME-SWITCH]
+		var cfg frameSwitchConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("frameSwitch node %s has invalid data: %w", step.NodeID, err)
+		}
+		mode := strings.ToLower(strings.TrimSpace(cfg.SwitchBy))
+		if mode == "" {
+			mode = "selector"
+		}
+		switch mode {
+		case "selector":
+			selector := strings.TrimSpace(cfg.Selector)
+			if selector == "" {
+				return Instruction{}, fmt.Errorf("frameSwitch node %s requires selector when switchBy=selector", step.NodeID)
+			}
+			base.Params.FrameSelector = selector
+		case "index":
+			if cfg.Index < 0 {
+				return Instruction{}, fmt.Errorf("frameSwitch node %s requires non-negative index", step.NodeID)
+			}
+			base.Params.FrameIndex = cfg.Index
+		case "name":
+			name := strings.TrimSpace(cfg.Name)
+			if name == "" {
+				return Instruction{}, fmt.Errorf("frameSwitch node %s requires name when switchBy=name", step.NodeID)
+			}
+			base.Params.FrameName = name
+		case "url":
+			pattern := strings.TrimSpace(cfg.URLMatch)
+			if pattern == "" {
+				return Instruction{}, fmt.Errorf("frameSwitch node %s requires urlMatch when switchBy=url", step.NodeID)
+			}
+			base.Params.FrameURLMatch = pattern
+		case "parent", "main":
+			// no-op
+		default:
+			return Instruction{}, fmt.Errorf("frameSwitch node %s has unsupported switchBy %q", step.NodeID, cfg.SwitchBy)
+		}
+		base.Params.FrameSwitchBy = mode
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+	case compiler.StepSetCookie:
+		var cfg setCookieConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("setCookie node %s has invalid data: %w", step.NodeID, err)
+		}
+		name := strings.TrimSpace(cfg.Name)
+		if name == "" {
+			return Instruction{}, fmt.Errorf("setCookie node %s requires name", step.NodeID)
+		}
+		value := cfg.Value
+		if value == "" {
+			return Instruction{}, fmt.Errorf("setCookie node %s requires value", step.NodeID)
+		}
+		targetURL := strings.TrimSpace(cfg.URL)
+		domain := strings.TrimSpace(cfg.Domain)
+		if targetURL == "" && domain == "" {
+			return Instruction{}, fmt.Errorf("setCookie node %s requires url or domain", step.NodeID)
+		}
+		path := strings.TrimSpace(cfg.Path)
+		if path == "" && domain != "" {
+			path = "/"
+		}
+		base.Params.CookieName = name
+		base.Params.CookieValue = value
+		if targetURL != "" {
+			base.Params.CookieURL = targetURL
+		}
+		if domain != "" {
+			base.Params.CookieDomain = domain
+		}
+		if path != "" {
+			base.Params.CookiePath = path
+		}
+		if sameSite := normalizeCookieSameSite(cfg.SameSite); sameSite != "" {
+			base.Params.CookieSameSite = sameSite
+		}
+		if cfg.Secure != nil {
+			base.Params.CookieSecure = cfg.Secure
+		}
+		if cfg.HTTPOnly != nil {
+			base.Params.CookieHTTPOnly = cfg.HTTPOnly
+		}
+		if expires := strings.TrimSpace(cfg.ExpiresAt); expires != "" {
+			base.Params.CookieExpiresAt = expires
+		}
+		ttl := cfg.TTLSeconds
+		if ttl == 0 && cfg.MaxAge > 0 {
+			ttl = cfg.MaxAge
+		}
+		if ttl > 0 {
+			base.Params.CookieTTLSeconds = ttl
+		}
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+	case compiler.StepGetCookie:
+		var cfg getCookieConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("getCookie node %s has invalid data: %w", step.NodeID, err)
+		}
+		name := strings.TrimSpace(cfg.Name)
+		if name == "" {
+			return Instruction{}, fmt.Errorf("getCookie node %s requires name", step.NodeID)
+		}
+		base.Params.CookieName = name
+		if url := strings.TrimSpace(cfg.URL); url != "" {
+			base.Params.CookieURL = url
+		}
+		if domain := strings.TrimSpace(cfg.Domain); domain != "" {
+			base.Params.CookieDomain = domain
+		}
+		if path := strings.TrimSpace(cfg.Path); path != "" {
+			base.Params.CookiePath = path
+		}
+		base.Params.CookieResultFormat = normalizeCookieResultFormat(cfg.ResultAs)
+		store := strings.TrimSpace(firstNonEmpty(cfg.StoreAs, cfg.StoreResult))
+		if store == "" {
+			store = name
+		}
+		base.Params.StoreResult = store
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+	case compiler.StepClearCookie:
+		var cfg clearCookieConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("clearCookie node %s has invalid data: %w", step.NodeID, err)
+		}
+		name := strings.TrimSpace(cfg.Name)
+		targetURL := strings.TrimSpace(cfg.URL)
+		domain := strings.TrimSpace(cfg.Domain)
+		path := strings.TrimSpace(cfg.Path)
+		clearAll := cfg.ClearAll || (name == "" && targetURL == "" && domain == "")
+		if clearAll {
+			base.Params.CookieClearAll = true
+		} else {
+			if name == "" {
+				return Instruction{}, fmt.Errorf("clearCookie node %s requires name when not clearing all", step.NodeID)
+			}
+			if targetURL == "" && domain == "" {
+				return Instruction{}, fmt.Errorf("clearCookie node %s requires url or domain when targeting a specific cookie", step.NodeID)
+			}
+			base.Params.CookieName = name
+		}
+		if targetURL != "" {
+			base.Params.CookieURL = targetURL
+		}
+		if domain != "" {
+			base.Params.CookieDomain = domain
+		}
+		if path != "" {
+			base.Params.CookiePath = path
+		}
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+	case compiler.StepSetStorage:
+		var cfg setStorageConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("setStorage node %s has invalid data: %w", step.NodeID, err)
+		}
+		key := strings.TrimSpace(cfg.Key)
+		if key == "" {
+			return Instruction{}, fmt.Errorf("setStorage node %s requires key", step.NodeID)
+		}
+		base.Params.StorageType = normalizeStorageType(cfg.StorageType)
+		base.Params.StorageKey = key
+		base.Params.StorageValue = cfg.Value
+		base.Params.StorageValueType = normalizeStorageValueType(cfg.ValueType)
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+	case compiler.StepGetStorage:
+		var cfg getStorageConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("getStorage node %s has invalid data: %w", step.NodeID, err)
+		}
+		key := strings.TrimSpace(cfg.Key)
+		if key == "" {
+			return Instruction{}, fmt.Errorf("getStorage node %s requires key", step.NodeID)
+		}
+		base.Params.StorageType = normalizeStorageType(cfg.StorageType)
+		base.Params.StorageKey = key
+		base.Params.StorageResultFormat = normalizeStorageResultFormat(cfg.ResultAs)
+		store := strings.TrimSpace(firstNonEmpty(cfg.StoreAs, cfg.StoreResult))
+		if store == "" {
+			store = key
+		}
+		base.Params.StoreResult = store
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+	case compiler.StepClearStorage:
+		var cfg clearStorageConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("clearStorage node %s has invalid data: %w", step.NodeID, err)
+		}
+		base.Params.StorageType = normalizeStorageType(cfg.StorageType)
+		key := strings.TrimSpace(cfg.Key)
+		clearAll := cfg.ClearAll || key == ""
+		if clearAll {
+			base.Params.StorageClearAll = true
+		} else {
+			base.Params.StorageKey = key
+		}
+		if cfg.TimeoutMs > 0 {
+			base.Params.TimeoutMs = cfg.TimeoutMs
+		}
+		if cfg.WaitForMs > 0 {
+			base.Params.WaitForMs = cfg.WaitForMs
+		}
+	case compiler.StepNetworkMock:
+		var cfg networkMockConfig
+		if err := decodeParams(step.Params, &cfg); err != nil {
+			return Instruction{}, fmt.Errorf("networkMock node %s has invalid data: %w", step.NodeID, err)
+		}
+		pattern := strings.TrimSpace(cfg.URLPattern)
+		if pattern == "" {
+			return Instruction{}, fmt.Errorf("networkMock node %s requires urlPattern", step.NodeID)
+		}
+		mockType := normalizeNetworkMockType(cfg.MockType)
+		if mockType == "" {
+			mockType = "response"
+		}
+		base.Params.NetworkURLPattern = pattern
+		base.Params.NetworkMockType = mockType
+		if method := normalizeHTTPMethod(cfg.Method); method != "" {
+			base.Params.NetworkMethod = method
+		}
+		if delay := clampNetworkDelayMs(cfg.DelayMs); delay > 0 {
+			base.Params.NetworkDelayMs = delay
+		}
+		switch mockType {
+		case "response":
+			status := cfg.StatusCode
+			if status == 0 {
+				status = defaultNetworkMockStatus
+			}
+			base.Params.NetworkStatusCode = clampHTTPStatusCode(status)
+			if normalized := normalizeHeaderMap(cfg.Headers); len(normalized) > 0 {
+				base.Params.NetworkHeaders = normalized
+			}
+			if cfg.Body != nil {
+				base.Params.NetworkBody = cfg.Body
+			}
+		case "abort":
+			base.Params.NetworkAbortReason = normalizeNetworkAbortReason(cfg.AbortReason)
+		case "delay":
+			if base.Params.NetworkDelayMs == 0 {
+				return Instruction{}, fmt.Errorf("networkMock node %s requires delayMs for delay mocks", step.NodeID)
+			}
+		default:
+			return Instruction{}, fmt.Errorf("networkMock node %s has unsupported mockType %q", step.NodeID, mockType)
+		}
 	case compiler.StepExtract:
 		var cfg extractConfig
 		if err := decodeParams(step.Params, &cfg); err != nil {
@@ -1529,6 +1924,55 @@ func normalizeScrollBehavior(raw string) string {
 		return "smooth"
 	default:
 		return "auto"
+	}
+}
+
+func normalizeCookieSameSite(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "lax":
+		return "lax"
+	case "strict":
+		return "strict"
+	case "none", "no_restriction", "no-restriction":
+		return "none"
+	default:
+		return ""
+	}
+}
+
+func normalizeCookieResultFormat(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "object", "full", "cookie":
+		return "object"
+	default:
+		return "value"
+	}
+}
+
+func normalizeStorageType(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "session", "sessionstorage", "session-storage":
+		return "sessionStorage"
+	default:
+		return "localStorage"
+	}
+}
+
+func normalizeStorageValueType(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "json", "object":
+		return "json"
+	default:
+		return "text"
+	}
+}
+
+func normalizeStorageResultFormat(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "json", "object":
+		return "json"
+	default:
+		return "text"
 	}
 }
 
@@ -1962,6 +2406,96 @@ func clampInt(value, minValue, maxValue int) int {
 		return maxValue
 	}
 	return value
+}
+
+func clampNetworkDelayMs(value int) int {
+	if value <= 0 {
+		return 0
+	}
+	return clampInt(value, 0, maxNetworkDelayMs)
+}
+
+func clampHTTPStatusCode(value int) int {
+	if value <= 0 {
+		return defaultNetworkMockStatus
+	}
+	return clampInt(value, minHTTPStatusCode, maxHTTPStatusCode)
+}
+
+func normalizeHTTPMethod(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || trimmed == "*" {
+		return ""
+	}
+	lower := strings.ToLower(trimmed)
+	if lower == "any" || lower == "all" {
+		return ""
+	}
+	return strings.ToUpper(trimmed)
+}
+
+func normalizeNetworkMockType(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "response", "mock", "reply":
+		return "response"
+	case "abort", "fail", "block":
+		return "abort"
+	case "delay", "throttle", "slow":
+		return "delay"
+	default:
+		return strings.ToLower(strings.TrimSpace(raw))
+	}
+}
+
+func normalizeNetworkAbortReason(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "aborted", "abort":
+		return "Aborted"
+	case "blocked", "blockedbyclient":
+		return "BlockedByClient"
+	case "blockedbyresponse":
+		return "BlockedByResponse"
+	case "timedout", "timeout":
+		return "TimedOut"
+	case "accessdenied":
+		return "AccessDenied"
+	case "connectionclosed":
+		return "ConnectionClosed"
+	case "connectionreset":
+		return "ConnectionReset"
+	case "connectionrefused":
+		return "ConnectionRefused"
+	case "connectionaborted":
+		return "ConnectionAborted"
+	case "connectionfailed":
+		return "ConnectionFailed"
+	case "namenotresolved":
+		return "NameNotResolved"
+	case "internetdisconnected":
+		return "InternetDisconnected"
+	case "addressunreachable":
+		return "AddressUnreachable"
+	default:
+		return "Failed"
+	}
+}
+
+func normalizeHeaderMap(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return nil
+	}
+	normalized := make(map[string]string, len(input))
+	for key, value := range input {
+		trimmedKey := strings.TrimSpace(key)
+		if trimmedKey == "" {
+			continue
+		}
+		normalized[trimmedKey] = strings.TrimSpace(value)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
 }
 
 func coerceBool(value any) (bool, error) {

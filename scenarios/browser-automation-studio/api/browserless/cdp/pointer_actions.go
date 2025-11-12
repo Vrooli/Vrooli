@@ -219,7 +219,7 @@ func (s *Session) ExecuteDragAndDrop(ctx context.Context, opts dragDropOptions, 
         return true;
     })()`, strconv.Quote(opts.sourceSelector), strconv.Quote(opts.targetSelector), dropX, dropY)
 
-	if err := chromedp.Run(timeoutCtx, chromedp.Evaluate(dragEventScript, nil)); err != nil {
+	if err := s.evalWithFrame(timeoutCtx, dragEventScript, nil); err != nil {
 		result.Error = fmt.Sprintf("failed to dispatch HTML5 drag events: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err

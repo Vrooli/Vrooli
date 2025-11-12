@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chromedp/chromedp"
 	"github.com/vrooli/browser-automation-studio/browserless/runtime"
 )
 
@@ -110,7 +109,7 @@ func (s *Session) evaluateExpressionCondition(ctx context.Context, expression st
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
-	if err := chromedp.Run(ctxWithTimeout, chromedp.Evaluate(script, &evaluation)); err != nil {
+	if err := s.evalWithFrame(ctxWithTimeout, script, &evaluation); err != nil {
 		return false, nil, err
 	}
 	if evaluation.Error != "" {
@@ -130,7 +129,7 @@ func (s *Session) evaluateElementCondition(ctx context.Context, selector string,
 
 	for {
 		var exists bool
-		err := chromedp.Run(ctx, chromedp.Evaluate(fmt.Sprintf("!!document.querySelector(%s)", strconv.Quote(trimmed)), &exists))
+		err := s.evalWithFrame(ctx, fmt.Sprintf("!!document.querySelector(%s)", strconv.Quote(trimmed)), &exists)
 		if err == nil && exists {
 			return true, nil
 		}

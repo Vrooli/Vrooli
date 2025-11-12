@@ -40,8 +40,16 @@ const (
 	StepSetVariable  StepType = "setVariable"
 	StepUseVariable  StepType = "useVariable"
 	StepTabSwitch    StepType = "tabSwitch"
+	StepFrameSwitch  StepType = "frameSwitch"
 	StepConditional  StepType = "conditional"
 	StepLoop         StepType = "loop"
+	StepSetCookie    StepType = "setCookie"
+	StepGetCookie    StepType = "getCookie"
+	StepClearCookie  StepType = "clearCookie"
+	StepSetStorage   StepType = "setStorage"
+	StepGetStorage   StepType = "getStorage"
+	StepClearStorage StepType = "clearStorage"
+	StepNetworkMock  StepType = "networkMock"
 )
 
 const (
@@ -86,8 +94,16 @@ var supportedStepTypes = map[StepType]struct{}{
 	StepSetVariable:  {},
 	StepUseVariable:  {},
 	StepTabSwitch:    {},
+	StepFrameSwitch:  {},
 	StepConditional:  {},
 	StepLoop:         {},
+	StepSetCookie:    {},
+	StepGetCookie:    {},
+	StepClearCookie:  {},
+	StepSetStorage:   {},
+	StepGetStorage:   {},
+	StepClearStorage: {},
+	StepNetworkMock:  {},
 }
 
 // ExecutionPlan represents a validated sequence of steps derived from a workflow definition.

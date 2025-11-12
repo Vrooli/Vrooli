@@ -111,6 +111,15 @@ type tabSwitchOptions struct {
 	CloseOld   bool
 }
 
+type frameSwitchOptions struct {
+	SwitchBy  string
+	Index     int
+	Name      string
+	Selector  string
+	URLMatch  string
+	TimeoutMs int
+}
+
 type conditionalOptions struct {
 	Type           string
 	Expression     string

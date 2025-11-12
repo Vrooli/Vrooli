@@ -56,9 +56,9 @@ func (s *Session) resolveElementBox(ctx context.Context, selector string) (*dom.
 
 	var nodes []*cdp.Node
 	if err := chromedp.Run(ctx,
-		chromedp.WaitVisible(trimmed, chromedp.ByQuery),
-		chromedp.ScrollIntoView(trimmed, chromedp.ByQuery),
-		chromedp.Nodes(trimmed, &nodes, chromedp.ByQuery),
+		chromedp.WaitVisible(trimmed, s.frameQueryOptions(chromedp.ByQuery)...),
+		chromedp.ScrollIntoView(trimmed, s.frameQueryOptions(chromedp.ByQuery)...),
+		chromedp.Nodes(trimmed, &nodes, s.frameQueryOptions(chromedp.ByQuery)...),
 	); err != nil {
 		return nil, err
 	}

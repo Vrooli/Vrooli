@@ -19,7 +19,7 @@ func (s *Session) ExecuteEvaluate(ctx context.Context, script string, timeoutMs 
 	defer cancel()
 
 	var evalResult interface{}
-	if err := chromedp.Run(timeoutCtx, chromedp.Evaluate(script, &evalResult)); err != nil {
+	if err := s.evalWithFrame(timeoutCtx, script, &evalResult); err != nil {
 		result.Error = fmt.Sprintf("Evaluate failed: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err
@@ -62,7 +62,7 @@ func (s *Session) ExecuteExtract(ctx context.Context, selector, extractType, att
 	defer cancel()
 
 	payload := map[string]any{}
-	if err := chromedp.Run(timeoutCtx, chromedp.Evaluate(script, &payload)); err != nil {
+	if err := s.evalWithFrame(timeoutCtx, script, &payload); err != nil {
 		result.Error = fmt.Sprintf("extract failed: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err

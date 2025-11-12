@@ -46,6 +46,14 @@ import SetVariableNode from './nodes/SetVariableNode';
 import UseVariableNode from './nodes/UseVariableNode';
 import UploadFileNode from './nodes/UploadFileNode';
 import TabSwitchNode from './nodes/TabSwitchNode';
+import FrameSwitchNode from './nodes/FrameSwitchNode';
+import SetCookieNode from './nodes/SetCookieNode';
+import GetCookieNode from './nodes/GetCookieNode';
+import ClearCookieNode from './nodes/ClearCookieNode';
+import SetStorageNode from './nodes/SetStorageNode';
+import GetStorageNode from './nodes/GetStorageNode';
+import ClearStorageNode from './nodes/ClearStorageNode';
+import NetworkMockNode from './nodes/NetworkMockNode';
 import ConditionalNode from './nodes/ConditionalNode';
 import LoopNode from './nodes/LoopNode';
 import WorkflowToolbar from './WorkflowToolbar';
@@ -69,8 +77,16 @@ const nodeTypes: NodeTypes = {
 	rotate: RotateNode,
 	gesture: GestureNode,
 	tabSwitch: TabSwitchNode,
+	frameSwitch: FrameSwitchNode,
   conditional: ConditionalNode,
   setVariable: SetVariableNode,
+  setCookie: SetCookieNode,
+  getCookie: GetCookieNode,
+  clearCookie: ClearCookieNode,
+  setStorage: SetStorageNode,
+  getStorage: GetStorageNode,
+  clearStorage: ClearStorageNode,
+  networkMock: NetworkMockNode,
   type: TypeNode,
   shortcut: ShortcutNode,
   keyboard: KeyboardNode,

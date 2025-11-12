@@ -151,12 +151,12 @@ func (s *Session) scrollPage(ctx context.Context, direction string, amount int, 
 		dx, dy := scrollDeltaFromDirection(direction, amount)
 		script = fmt.Sprintf(`window.scrollBy({ left: %d, top: %d, behavior: %q });`, dx, dy, behavior)
 	}
-	return chromedp.Run(ctx, chromedp.Evaluate(script, nil))
+	return s.evalWithFrame(ctx, script, nil)
 }
 
 func (s *Session) scrollToPosition(ctx context.Context, x, y int, behavior string) error {
 	script := fmt.Sprintf(`window.scrollTo({ left: %d, top: %d, behavior: %q });`, x, y, scrollBehaviorOrAuto(behavior))
-	return chromedp.Run(ctx, chromedp.Evaluate(script, nil))
+	return s.evalWithFrame(ctx, script, nil)
 }
 
 func (s *Session) scrollElementIntoView(ctx context.Context, selector, behavior string) error {
@@ -171,7 +171,7 @@ func (s *Session) scrollElementIntoView(ctx context.Context, selector, behavior 
         element.scrollIntoView({ behavior: %q, block: 'center', inline: 'nearest' });
         return true;
     })()`, selector, selector, scrollBehaviorOrAuto(behavior))
-	return chromedp.Run(ctx, chromedp.Evaluate(script, nil))
+	return s.evalWithFrame(ctx, script, nil)
 }
 
 func (s *Session) scrollUntilVisible(ctx context.Context, opts scrollOptions) error {
@@ -192,7 +192,7 @@ func (s *Session) scrollUntilVisible(ctx context.Context, opts scrollOptions) er
 	}
 
 	for i := 0; i < attempts; i++ {
-		found, visible, err := checkSelectorVisibility(ctx, target)
+		found, visible, err := s.checkSelectorVisibility(ctx, target)
 		if err != nil {
 			return err
 		}

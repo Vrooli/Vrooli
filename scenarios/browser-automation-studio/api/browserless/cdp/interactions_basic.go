@@ -21,8 +21,8 @@ func (s *Session) ExecuteClick(ctx context.Context, selector string, timeoutMs, 
 	defer cancel()
 
 	err := chromedp.Run(timeoutCtx,
-		chromedp.WaitVisible(selector, chromedp.ByQuery),
-		chromedp.Click(selector, chromedp.ByQuery),
+		chromedp.WaitVisible(selector, s.frameQueryOptions(chromedp.ByQuery)...),
+		chromedp.Click(selector, s.frameQueryOptions(chromedp.ByQuery)...),
 	)
 	if err != nil {
 		result.Error = fmt.Sprintf("Click failed: %v", err)
@@ -55,7 +55,7 @@ func (s *Session) ExecuteWait(ctx context.Context, selector string, timeoutMs, w
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
-	err := chromedp.Run(timeoutCtx, chromedp.WaitVisible(selector, chromedp.ByQuery))
+	err := chromedp.Run(timeoutCtx, chromedp.WaitVisible(selector, s.frameQueryOptions(chromedp.ByQuery)...))
 	if err != nil {
 		result.Error = fmt.Sprintf("Wait failed: selector %s not found", selector)
 		result.DurationMs = int(time.Since(start).Milliseconds())
@@ -92,14 +92,14 @@ func (s *Session) ExecuteAssert(ctx context.Context, selector, mode, expectedVal
 	result.DebugContext["url"] = currentURL
 
 	var testIDs []string
-	chromedp.Run(s.ctx,
-		chromedp.Evaluate(`Array.from(document.querySelectorAll('[data-testid]')).map(el => el.getAttribute('data-testid'))`, &testIDs),
-	)
+	if err := s.evalWithFrame(s.ctx, `Array.from(document.querySelectorAll('[data-testid]')).map(el => el.getAttribute('data-testid'))`, &testIDs); err != nil {
+		s.log.WithError(err).Warn("failed to enumerate data-testid attributes")
+	}
 	result.DebugContext["allTestIds"] = testIDs
 
 	switch mode {
 	case "exists":
-		if err := chromedp.Run(timeoutCtx, chromedp.WaitVisible(selector, chromedp.ByQuery)); err != nil {
+		if err := chromedp.Run(timeoutCtx, chromedp.WaitVisible(selector, s.frameQueryOptions(chromedp.ByQuery)...)); err != nil {
 			result.Error = fmt.Sprintf("Expected selector %q to exist", selector)
 			result.DebugContext["exists"] = false
 			result.DurationMs = int(time.Since(start).Milliseconds())
@@ -108,7 +108,7 @@ func (s *Session) ExecuteAssert(ctx context.Context, selector, mode, expectedVal
 		result.DebugContext["exists"] = true
 	case "not_exists":
 		var nodes []*cdp.Node
-		err := chromedp.Run(timeoutCtx, chromedp.Nodes(selector, &nodes, chromedp.ByQuery))
+		err := chromedp.Run(timeoutCtx, chromedp.Nodes(selector, &nodes, s.frameQueryOptions(chromedp.ByQuery)...))
 		if err == nil && len(nodes) > 0 {
 			result.Error = fmt.Sprintf("Expected selector %q to be absent but it exists", selector)
 			result.DebugContext["exists"] = true
@@ -118,13 +118,13 @@ func (s *Session) ExecuteAssert(ctx context.Context, selector, mode, expectedVal
 		result.DebugContext["exists"] = false
 	case "exists_or_not":
 		var nodes []*cdp.Node
-		chromedp.Run(s.ctx, chromedp.Nodes(selector, &nodes, chromedp.ByQuery))
+		chromedp.Run(s.ctx, chromedp.Nodes(selector, &nodes, s.frameQueryOptions(chromedp.ByQuery)...))
 		result.DebugContext["exists"] = len(nodes) > 0
 	case "text_equals", "text_contains":
 		var text string
 		err := chromedp.Run(timeoutCtx,
-			chromedp.WaitVisible(selector, chromedp.ByQuery),
-			chromedp.Text(selector, &text, chromedp.ByQuery),
+			chromedp.WaitVisible(selector, s.frameQueryOptions(chromedp.ByQuery)...),
+			chromedp.Text(selector, &text, s.frameQueryOptions(chromedp.ByQuery)...),
 		)
 		if err != nil {
 			result.Error = fmt.Sprintf("Failed to get text from %q: %v", selector, err)
@@ -205,13 +205,13 @@ func (s *Session) ExecuteType(ctx context.Context, selector, text string, clearF
 	defer cancel()
 
 	actions := []chromedp.Action{
-		chromedp.WaitVisible(selector, chromedp.ByQuery),
-		chromedp.Click(selector, chromedp.ByQuery),
+		chromedp.WaitVisible(selector, s.frameQueryOptions(chromedp.ByQuery)...),
+		chromedp.Click(selector, s.frameQueryOptions(chromedp.ByQuery)...),
 	}
 	if clearFirst {
-		actions = append(actions, chromedp.Clear(selector, chromedp.ByQuery))
+		actions = append(actions, chromedp.Clear(selector, s.frameQueryOptions(chromedp.ByQuery)...))
 	}
-	actions = append(actions, chromedp.SendKeys(selector, text, chromedp.ByQuery))
+	actions = append(actions, chromedp.SendKeys(selector, text, s.frameQueryOptions(chromedp.ByQuery)...))
 
 	if err := chromedp.Run(timeoutCtx, actions...); err != nil {
 		result.Error = fmt.Sprintf("Type failed: %v", err)
@@ -249,8 +249,8 @@ func (s *Session) ExecuteUploadFile(ctx context.Context, selector string, files 
 	defer cancel()
 
 	if err := chromedp.Run(timeoutCtx,
-		chromedp.WaitVisible(selector, chromedp.ByQuery),
-		chromedp.SetUploadFiles(selector, files, chromedp.ByQuery),
+		chromedp.WaitVisible(selector, s.frameQueryOptions(chromedp.ByQuery)...),
+		chromedp.SetUploadFiles(selector, files, s.frameQueryOptions(chromedp.ByQuery)...),
 	); err != nil {
 		result.Error = fmt.Sprintf("Upload failed: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())

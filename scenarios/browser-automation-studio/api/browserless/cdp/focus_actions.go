@@ -22,9 +22,9 @@ func (s *Session) ExecuteFocus(ctx context.Context, selector string, timeoutMs, 
 	defer cancel()
 
 	if err := chromedp.Run(timeoutCtx,
-		chromedp.WaitVisible(selector, chromedp.ByQuery),
-		chromedp.ScrollIntoView(selector, chromedp.ByQuery),
-		chromedp.Focus(selector, chromedp.ByQuery),
+		chromedp.WaitVisible(selector, s.frameQueryOptions(chromedp.ByQuery)...),
+		chromedp.ScrollIntoView(selector, s.frameQueryOptions(chromedp.ByQuery)...),
+		chromedp.Focus(selector, s.frameQueryOptions(chromedp.ByQuery)...),
 	); err != nil {
 		result.Error = fmt.Sprintf("focus failed: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
@@ -77,10 +77,14 @@ func (s *Session) ExecuteBlur(ctx context.Context, selector string, timeoutMs, w
 
 	var evalResult interface{}
 	if err := chromedp.Run(timeoutCtx,
-		chromedp.WaitReady(selector, chromedp.ByQuery),
-		chromedp.ScrollIntoView(selector, chromedp.ByQuery),
-		chromedp.Evaluate(script, &evalResult),
+		chromedp.WaitReady(selector, s.frameQueryOptions(chromedp.ByQuery)...),
+		chromedp.ScrollIntoView(selector, s.frameQueryOptions(chromedp.ByQuery)...),
 	); err != nil {
+		result.Error = fmt.Sprintf("blur failed: %v", err)
+		result.DurationMs = int(time.Since(start).Milliseconds())
+		return result, err
+	}
+	if err := s.evalWithFrame(timeoutCtx, script, &evalResult); err != nil {
 		result.Error = fmt.Sprintf("blur failed: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err

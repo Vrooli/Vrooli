@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
@@ -53,6 +54,10 @@ type Session struct {
 	pointerX           float64
 	pointerY           float64
 	pointerInitialized bool
+	frameMu            sync.RWMutex
+	frameStack         []*frameScope
+	networkMockMu      sync.RWMutex
+	networkMocks       []*networkMockRule
 }
 
 // Telemetry collects console logs and network events
@@ -201,7 +206,7 @@ func (s *Session) closeAllTargets() {
 }
 
 func (s *Session) configureContext(ctx context.Context) error {
-	return chromedp.Run(ctx,
+	if err := chromedp.Run(ctx,
 		chromedp.EmulateViewport(int64(s.viewportWidth), int64(s.viewportHeight)),
 		chromedp.ActionFunc(func(runCtx context.Context) error {
 			if err := runtime.Enable().Do(runCtx); err != nil {
@@ -216,7 +221,11 @@ func (s *Session) configureContext(ctx context.Context) error {
 			s.attachTelemetry(runCtx)
 			return nil
 		}),
-	)
+	); err != nil {
+		return err
+	}
+	s.ensureNetworkMocksForContext(ctx)
+	return nil
 }
 
 func (s *Session) installBrowserListeners(ctx context.Context) {
@@ -243,6 +252,8 @@ func (s *Session) attachTelemetry(ctx context.Context) {
 			s.handleNetworkResponse(ev)
 		case *network.EventLoadingFailed:
 			s.handleNetworkFailed(ev)
+		case *fetch.EventRequestPaused:
+			go s.processFetchIntercept(ctx, ev)
 		}
 	})
 }
@@ -353,6 +364,16 @@ func (s *Session) snapshotTabs() []tabRecord {
 		}
 	}
 	return result
+}
+
+func (s *Session) snapshotTargetContexts() []context.Context {
+	s.ctxMu.RLock()
+	defer s.ctxMu.RUnlock()
+	contexts := make([]context.Context, 0, len(s.targetContexts))
+	for _, ctx := range s.targetContexts {
+		contexts = append(contexts, ctx)
+	}
+	return contexts
 }
 
 func (s *Session) currentTabSet() map[target.ID]struct{} {
