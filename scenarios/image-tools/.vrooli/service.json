@@ -64,42 +64,6 @@
       }
     }
   },
-  "api": {
-    "type": "rest",
-    "framework": "go-fiber",
-    "endpoints": [
-      {
-        "path": "/api/v1/image/compress",
-        "method": "POST",
-        "description": "Compress image with quality settings"
-      },
-      {
-        "path": "/api/v1/image/resize",
-        "method": "POST",
-        "description": "Resize image to specific dimensions"
-      },
-      {
-        "path": "/api/v1/image/convert",
-        "method": "POST",
-        "description": "Convert between image formats"
-      },
-      {
-        "path": "/api/v1/image/metadata",
-        "method": "POST",
-        "description": "Strip or modify image metadata"
-      },
-      {
-        "path": "/api/v1/image/batch",
-        "method": "POST",
-        "description": "Process multiple images with same settings"
-      },
-      {
-        "path": "/api/v1/plugins",
-        "method": "GET",
-        "description": "List available format plugins"
-      }
-    ]
-  },
   "ui": {
     "type": "static",
     "framework": "vanilla-js",

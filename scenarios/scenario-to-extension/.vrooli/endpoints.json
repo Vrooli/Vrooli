@@ -1,0 +1,136 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health status",
+      "description": "Returns service uptime information so the lifecycle system can verify the API is alive.",
+      "category": "system"
+    },
+    {
+      "id": "api-health",
+      "path": "/api/v1/health",
+      "method": "GET",
+      "summary": "Versioned health check",
+      "description": "Same as the root health endpoint but namespaced under /api/v1 for client consistency.",
+      "category": "system"
+    },
+    {
+      "id": "generate-extension",
+      "path": "/api/v1/extension/generate",
+      "method": "POST",
+      "summary": "Generate extension",
+      "description": "Starts an asynchronous build that turns a scenario specification into a browser extension bundle.",
+      "category": "extension",
+      "request": {
+        "type": "object",
+        "required": [
+          "scenario_name",
+          "config"
+        ],
+        "properties": {
+          "scenario_name": "string",
+          "template_type": "string (full | content-script-only | background-only | popup-only)",
+          "config": {
+            "type": "object",
+            "required": [
+              "app_name",
+              "api_endpoint"
+            ],
+            "properties": {
+              "app_name": "string",
+              "app_description": "string",
+              "api_endpoint": "string (URL)",
+              "permissions": "string[]",
+              "host_permissions": "string[]",
+              "version": "string",
+              "author_name": "string",
+              "license": "string"
+            }
+          }
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "build_id": "string",
+          "extension_path": "string",
+          "install_instructions": "string",
+          "test_command": "string",
+          "status": "string"
+        }
+      }
+    },
+    {
+      "id": "get-build-status",
+      "path": "/api/v1/extension/status/{build_id}",
+      "method": "GET",
+      "summary": "Get build status",
+      "description": "Returns the current status, logs, and file path for a previously requested build.",
+      "category": "extension",
+      "params": {
+        "build_id": {
+          "type": "string",
+          "description": "Identifier returned by the generate endpoint"
+        }
+      }
+    },
+    {
+      "id": "download-extension",
+      "path": "/api/v1/extension/download/{build_id}",
+      "method": "GET",
+      "summary": "Download built extension",
+      "description": "Streams a ZIP archive for a completed extension build.",
+      "category": "extension",
+      "params": {
+        "build_id": {
+          "type": "string",
+          "description": "Identifier of a build whose status is ready"
+        }
+      },
+      "response": {
+        "type": "binary",
+        "content_type": "application/zip"
+      }
+    },
+    {
+      "id": "test-extension",
+      "path": "/api/v1/extension/test",
+      "method": "POST",
+      "summary": "Test extension",
+      "description": "Runs automated tests against a packaged extension using Browserless, returning pass/fail data.",
+      "category": "extension",
+      "request": {
+        "type": "object",
+        "required": [
+          "extension_path"
+        ],
+        "properties": {
+          "extension_path": "string",
+          "test_sites": "string[]",
+          "screenshot": "boolean",
+          "headless": "boolean"
+        }
+      }
+    },
+    {
+      "id": "list-templates",
+      "path": "/api/v1/extension/templates",
+      "method": "GET",
+      "summary": "List extension templates",
+      "description": "Returns the available template archetypes and their metadata from the templates directory.",
+      "category": "extension"
+    },
+    {
+      "id": "list-builds",
+      "path": "/api/v1/extension/builds",
+      "method": "GET",
+      "summary": "List extension builds",
+      "description": "Returns recent build requests, including status, timestamps, and configuration metadata.",
+      "category": "extension"
+    }
+  ]
+}

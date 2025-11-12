@@ -214,46 +214,6 @@
       ]
     }
   },
-  "api": {
-    "base_url": "http://localhost:${API_PORT}/api",
-    "endpoints": [
-      {
-        "path": "/tasks",
-        "method": "GET",
-        "description": "Get tasks with optional filters (status, type, operation, category)"
-      },
-      {
-        "path": "/tasks",
-        "method": "POST",
-        "description": "Create new task"
-      },
-      {
-        "path": "/tasks/{id}",
-        "method": "GET",
-        "description": "Get specific task"
-      },
-      {
-        "path": "/tasks/{id}/status",
-        "method": "PUT",
-        "description": "Update task status and progress"
-      },
-      {
-        "path": "/tasks/{id}/prompt",
-        "method": "GET",
-        "description": "Get prompt configuration for task"
-      },
-      {
-        "path": "/operations",
-        "method": "GET",
-        "description": "Get available operation types"
-      },
-      {
-        "path": "/maintenance/state",
-        "method": "POST",
-        "description": "Update maintenance state (active/inactive)"
-      }
-    ]
-  },
   "ui": {
     "enabled": true,
     "path": "/",

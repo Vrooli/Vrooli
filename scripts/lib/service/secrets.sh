@@ -520,7 +520,8 @@ secrets::set_template() {
     # Update service.json with template substitution
     local updated_json
     local jq_path
-    jq_path=".resources.${service_path}.${key}"
+    local jq_namespace="dependencies.resources"
+    jq_path=".${jq_namespace}.${service_path}.${key}"
     local template_value="{{$template_var}}"
     
     updated_json=$(jq --arg path "$jq_path" --arg value "$template_value" '
@@ -792,12 +793,14 @@ secrets::update_project_config() {
   "$schema": "./schemas/service.schema.json",
   "version": "1.0.0",
   "enabled": true,
-  "resources": {
-    "ai": {},
-    "automation": {},
-    "storage": {},
-    "agents": {},
-    "execution": {}
+  "dependencies": {
+    "resources": {
+      "ai": {},
+      "automation": {},
+      "storage": {},
+      "agents": {},
+      "execution": {}
+    }
   }
 }'
     fi
@@ -805,7 +808,7 @@ secrets::update_project_config() {
     # Update the config with the new resource configuration
     local updated_config
     if updated_config=$(echo "$existing_config" | jq --arg path "$config_path" --argjson config "$config_json" '
-        setpath(["resources"] + ($path | split(".")); $config)
+        setpath(["dependencies", "resources"] + ($path | split(".")); $config)
     '); then
         # Write updated config
         echo "$updated_config" > "$project_config_file"

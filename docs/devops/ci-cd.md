@@ -240,15 +240,14 @@ Scenarios define their testing and deployment requirements in `.vrooli/service.j
     "displayName": "AI Research Assistant",
     "description": "Enterprise research automation platform"
   },
+  "dependencies": {
+    "resources": {
+      "ollama": {"enabled": true, "required": true},
+      "qdrant": {"enabled": true, "required": true},
+      "postgres": {"enabled": true, "required": true},
+    }
+  },
   "spec": {
-    "dependencies": {
-      "resources": [
-        {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "qdrant", "type": "vectordb", "optional": false},
-        {"name": "postgres", "type": "database", "optional": false},
-        {"name": "n8n", "type": "automation", "optional": false}
-      ]
-    },
     "testing": {
       "timeout": 600,
       "requiresDisplay": false,

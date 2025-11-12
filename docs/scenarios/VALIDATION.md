@@ -67,13 +67,13 @@ scenario/
     "version": "1.0.0",                   // ✅ Required
     "complexity": "basic|intermediate|advanced" // ✅ Required
   },
+  "dependencies": {
+    "resources": [                       // ✅ Required - must be valid
+      {"name": "ollama", "type": "ai", "optional": false},
+      {"name": "postgres", "type": "database", "optional": false}
+    ]
+  },
   "spec": {
-    "dependencies": {
-      "resources": [                       // ✅ Required - must be valid
-        {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "postgres", "type": "database", "optional": false}
-      ]
-    },
     "business": {
       "valueProposition": "Clear value",   // ✅ Required
       "revenueRange": {                   // ✅ Required

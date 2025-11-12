@@ -156,8 +156,8 @@ Scenarios can declare PostgreSQL requirements in their service.json:
 ```json
 // In scenarios/my-scenario/.vrooli/service.json
 {
-  "resources": {
-    "storage": {
+  "dependencies": {
+    "resources": {
       "postgres": {
         "enabled": true,
         "required": true,
@@ -178,8 +178,8 @@ Scenarios can declare Redis requirements for caching:
 ```json
 // In scenarios/my-scenario/.vrooli/service.json
 {
-  "resources": {
-    "storage": {
+  "dependencies": {
+    "resources": {
       "redis": {
         "enabled": true,
         "required": true,
@@ -202,8 +202,8 @@ Scenarios can integrate with Vault for secrets through Vrooli's shared Vault res
 ```json
 // In scenarios/my-scenario/.vrooli/service.json
 {
-  "resources": {
-    "storage": {
+  "dependencies": {
+    "resources": {
       "vault": {
         "enabled": true,
         "required": true,

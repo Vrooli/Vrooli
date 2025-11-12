@@ -1,0 +1,407 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health",
+      "description": "Returns API uptime plus dependency diagnostics for orchestrators.",
+      "category": "system"
+    },
+    {
+      "id": "list-tasks",
+      "path": "/api/tasks",
+      "method": "GET",
+      "summary": "List tasks",
+      "description": "Returns every ecosystem target/task with schedule, status, and ownership.",
+      "category": "tasks"
+    },
+    {
+      "id": "create-task",
+      "path": "/api/tasks",
+      "method": "POST",
+      "summary": "Create task",
+      "description": "Creates a new target task including automation metadata and prompts.",
+      "category": "tasks"
+    },
+    {
+      "id": "list-active-targets",
+      "path": "/api/tasks/active-targets",
+      "method": "GET",
+      "summary": "Active targets",
+      "description": "Lists tasks currently in progress or scheduled for execution.",
+      "category": "tasks"
+    },
+    {
+      "id": "get-task",
+      "path": "/api/tasks/{id}",
+      "method": "GET",
+      "summary": "Get task",
+      "description": "Retrieves a single task by identifier with full configuration.",
+      "category": "tasks",
+      "params": {
+        "id": {
+          "type": "string",
+          "description": "Task identifier"
+        }
+      }
+    },
+    {
+      "id": "update-task",
+      "path": "/api/tasks/{id}",
+      "method": "PUT",
+      "summary": "Update task",
+      "description": "Updates task metadata, schedule, and automation bindings.",
+      "category": "tasks",
+      "params": {
+        "id": {
+          "type": "string",
+          "description": "Task identifier"
+        }
+      }
+    },
+    {
+      "id": "delete-task",
+      "path": "/api/tasks/{id}",
+      "method": "DELETE",
+      "summary": "Delete task",
+      "description": "Removes a task and associated execution history.",
+      "category": "tasks",
+      "params": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "id": "update-task-status",
+      "path": "/api/tasks/{id}/status",
+      "method": "PUT",
+      "summary": "Update task status",
+      "description": "Manually changes task lifecycle status (pause, resume, cancel).",
+      "category": "tasks",
+      "params": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "id": "get-task-logs",
+      "path": "/api/tasks/{id}/logs",
+      "method": "GET",
+      "summary": "Task logs",
+      "description": "Returns structured log entries for a specific task.",
+      "category": "observability",
+      "params": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "id": "list-task-executions",
+      "path": "/api/tasks/{id}/executions",
+      "method": "GET",
+      "summary": "Task execution history",
+      "description": "Returns historical execution metadata for a task.",
+      "category": "executions",
+      "params": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "id": "get-execution-prompt",
+      "path": "/api/tasks/{id}/executions/{execution_id}/prompt",
+      "method": "GET",
+      "summary": "Execution prompt",
+      "description": "Returns the assembled prompt used for a given execution.",
+      "category": "executions",
+      "params": {
+        "id": {
+          "type": "string"
+        },
+        "execution_id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "id": "get-execution-output",
+      "path": "/api/tasks/{id}/executions/{execution_id}/output",
+      "method": "GET",
+      "summary": "Execution output",
+      "description": "Returns the LLM/tool output for an execution.",
+      "category": "executions",
+      "params": {
+        "id": {
+          "type": "string"
+        },
+        "execution_id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "id": "get-execution-metadata",
+      "path": "/api/tasks/{id}/executions/{execution_id}/metadata",
+      "method": "GET",
+      "summary": "Execution metadata",
+      "description": "Returns execution timing, costs, and resource usage metadata.",
+      "category": "executions",
+      "params": {
+        "id": {
+          "type": "string"
+        },
+        "execution_id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "id": "list-executions",
+      "path": "/api/executions",
+      "method": "GET",
+      "summary": "All executions",
+      "description": "Returns execution records across every task for fleet views.",
+      "category": "executions"
+    },
+    {
+      "id": "get-task-prompt",
+      "path": "/api/tasks/{id}/prompt",
+      "method": "GET",
+      "summary": "Task prompt",
+      "description": "Returns the stored prompt template for a task.",
+      "category": "prompts",
+      "params": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "id": "get-assembled-prompt",
+      "path": "/api/tasks/{id}/prompt/assembled",
+      "method": "GET",
+      "summary": "Assembled prompt",
+      "description": "Returns the fully assembled prompt with substitutions applied.",
+      "category": "prompts",
+      "params": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "id": "prompt-viewer",
+      "path": "/api/prompt-viewer",
+      "method": "POST",
+      "summary": "Prompt viewer",
+      "description": "Renders prompts or templates for preview/testing.",
+      "category": "prompts"
+    },
+    {
+      "id": "queue-status",
+      "path": "/api/queue/status",
+      "method": "GET",
+      "summary": "Queue status",
+      "description": "Shows queue depth, throughput, and current processor state.",
+      "category": "queue"
+    },
+    {
+      "id": "queue-resume-diagnostics",
+      "path": "/api/queue/resume-diagnostics",
+      "method": "GET",
+      "summary": "Queue diagnostics",
+      "description": "Returns diagnostic information about resume/safety checks.",
+      "category": "queue"
+    },
+    {
+      "id": "queue-trigger",
+      "path": "/api/queue/trigger",
+      "method": "POST",
+      "summary": "Trigger queue",
+      "description": "Manually triggers queue processing immediately.",
+      "category": "queue"
+    },
+    {
+      "id": "queue-reset-rate-limit",
+      "path": "/api/queue/reset-rate-limit",
+      "method": "POST",
+      "summary": "Reset queue rate limit",
+      "description": "Clears adaptive rate limiting to allow new work.",
+      "category": "queue"
+    },
+    {
+      "id": "recycler-test",
+      "path": "/api/recycler/test",
+      "method": "POST",
+      "summary": "Test recycler",
+      "description": "Runs the automation recycler process in dry-run/test mode.",
+      "category": "recycler"
+    },
+    {
+      "id": "recycler-preview-prompt",
+      "path": "/api/recycler/preview-prompt",
+      "method": "POST",
+      "summary": "Preview recycler prompt",
+      "description": "Builds the recycler prompt template to inspect changes.",
+      "category": "recycler"
+    },
+    {
+      "id": "list-logs",
+      "path": "/api/logs",
+      "method": "GET",
+      "summary": "Scenario logs",
+      "description": "Returns aggregated logs across services for operational debugging.",
+      "category": "observability"
+    },
+    {
+      "id": "list-running-processes",
+      "path": "/api/processes/running",
+      "method": "GET",
+      "summary": "Running processes",
+      "description": "Returns processes the queue currently controls, including external workers.",
+      "category": "queue"
+    },
+    {
+      "id": "set-maintenance-state",
+      "path": "/api/maintenance/state",
+      "method": "POST",
+      "summary": "Set maintenance",
+      "description": "Toggles maintenance mode which pauses queue execution.",
+      "category": "queue"
+    },
+    {
+      "id": "queue-stop",
+      "path": "/api/queue/stop",
+      "method": "POST",
+      "summary": "Stop queue",
+      "description": "Stops the queue processor gracefully.",
+      "category": "queue"
+    },
+    {
+      "id": "queue-start",
+      "path": "/api/queue/start",
+      "method": "POST",
+      "summary": "Start queue",
+      "description": "Starts or resumes the queue processor.",
+      "category": "queue"
+    },
+    {
+      "id": "queue-terminate-process",
+      "path": "/api/queue/processes/terminate",
+      "method": "POST",
+      "summary": "Terminate process",
+      "description": "Kills a stuck queue-managed process.",
+      "category": "queue"
+    },
+    {
+      "id": "get-settings",
+      "path": "/api/settings",
+      "method": "GET",
+      "summary": "Get settings",
+      "description": "Returns ecosystem configuration, recycler settings, and limits.",
+      "category": "settings"
+    },
+    {
+      "id": "update-settings",
+      "path": "/api/settings",
+      "method": "PUT",
+      "summary": "Update settings",
+      "description": "Updates global ecosystem settings including rate limits and models.",
+      "category": "settings"
+    },
+    {
+      "id": "reset-settings",
+      "path": "/api/settings/reset",
+      "method": "POST",
+      "summary": "Reset settings",
+      "description": "Restores settings to defaults.",
+      "category": "settings"
+    },
+    {
+      "id": "list-recycler-models",
+      "path": "/api/settings/recycler/models",
+      "method": "GET",
+      "summary": "Recycler models",
+      "description": "Lists supported models for recycler automation steps.",
+      "category": "settings"
+    },
+    {
+      "id": "list-resources",
+      "path": "/api/resources",
+      "method": "GET",
+      "summary": "Discover resources",
+      "description": "Returns resources available on the host along with state and metadata.",
+      "category": "discovery"
+    },
+    {
+      "id": "list-scenarios",
+      "path": "/api/scenarios",
+      "method": "GET",
+      "summary": "Discover scenarios",
+      "description": "Returns Vrooli scenarios detected in the workspace and their status.",
+      "category": "discovery"
+    },
+    {
+      "id": "resource-status",
+      "path": "/api/resources/{name}/status",
+      "method": "GET",
+      "summary": "Resource status",
+      "description": "Returns readiness and diagnostics for a specific resource.",
+      "category": "discovery",
+      "params": {
+        "name": {
+          "type": "string",
+          "description": "Resource name"
+        }
+      }
+    },
+    {
+      "id": "scenario-status",
+      "path": "/api/scenarios/{name}/status",
+      "method": "GET",
+      "summary": "Scenario status",
+      "description": "Returns health + version info for a scenario.",
+      "category": "discovery",
+      "params": {
+        "name": {
+          "type": "string",
+          "description": "Scenario name"
+        }
+      }
+    },
+    {
+      "id": "list-operations",
+      "path": "/api/operations",
+      "method": "GET",
+      "summary": "Operations catalog",
+      "description": "Returns predefined operations/recipes the ecosystem can execute.",
+      "category": "discovery"
+    },
+    {
+      "id": "list-categories",
+      "path": "/api/categories",
+      "method": "GET",
+      "summary": "Category catalog",
+      "description": "Lists scenario/resource categories for filtering.",
+      "category": "discovery"
+    }
+  ],
+  "websockets": [
+    {
+      "path": "/ws",
+      "description": "Streams task, execution, and queue events to dashboards for real-time updates.",
+      "events": {
+        "task.updated": "Task metadata changed",
+        "execution.completed": "Execution finished",
+        "queue.state": "Queue state/blip updates"
+      }
+    }
+  ]
+}

@@ -15,7 +15,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    folder_path: '',
+    folder_path: '/home/user/automation-projects',
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);

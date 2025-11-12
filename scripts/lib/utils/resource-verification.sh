@@ -236,8 +236,10 @@ resource_verify::get_required_resources() {
     fi
     
     # Extract resources marked as required=true
+    local jq_resources="$var_JQ_RESOURCES_EXPR"
+    [[ -z "$jq_resources" ]] && jq_resources='(.dependencies.resources // {})'
     local required_resources
-    required_resources=$(jq -r '.resources | to_entries[] | select(.value.required == true) | .key' "$service_json" 2>/dev/null | tr '\n' ' ' || echo "")
+    required_resources=$(jq -r "${jq_resources} | to_entries[] | select(.value.required == true) | .key" "$service_json" 2>/dev/null | tr '\n' ' ' || echo "")
     
     echo "$required_resources"
 }

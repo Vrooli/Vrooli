@@ -85,27 +85,6 @@
       }
     }
   },
-  "api": {
-    "enabled": true,
-    "port": "${PORT_TOKEN_ECONOMY_API:-11080}",
-    "host": "0.0.0.0",
-    "cors": {
-      "enabled": true,
-      "origins": [
-        "*"
-      ]
-    },
-    "rateLimit": {
-      "enabled": true,
-      "requests": 1000,
-      "window": "1m"
-    },
-    "endpoints": {
-      "health": "/health",
-      "metrics": "/metrics",
-      "base": "/api/v1"
-    }
-  },
   "ui": {
     "enabled": true,
     "port": "${PORT_TOKEN_ECONOMY_UI:-11081}",

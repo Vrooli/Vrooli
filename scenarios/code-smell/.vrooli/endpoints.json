@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
   "version": "1.0.0",
   "endpoints": [
     {
@@ -7,80 +7,90 @@
       "path": "/api/v1/health",
       "method": "GET",
       "summary": "Service health",
-      "category": "system",
-      "description": "Aggregated service health including rules engine readiness."
+      "description": "Returns overall service status, timestamp, and version so monitors can check availability.",
+      "category": "system"
     },
     {
       "id": "health-live",
       "path": "/api/v1/health/live",
       "method": "GET",
       "summary": "Liveness check",
-      "category": "system",
-      "description": "Fast liveness probe for orchestration."
+      "description": "Indicates whether the API process is alive.",
+      "category": "system"
     },
     {
       "id": "health-ready",
       "path": "/api/v1/health/ready",
       "method": "GET",
       "summary": "Readiness check",
-      "category": "system",
-      "description": "Confirms rules engine and workers are ready."
+      "description": "Verifies the rules engine is loaded and the service is ready to accept analysis requests.",
+      "category": "system"
     },
     {
-      "id": "analyze",
+      "id": "analyze-code",
       "path": "/api/v1/code-smell/analyze",
       "method": "POST",
       "summary": "Analyze code",
+      "description": "Runs the rules engine across submitted files and returns detected violations, auto-fixes, and metrics.",
       "category": "analysis",
-      "description": "Runs the smell detector against submitted file paths."
+      "request": {
+        "type": "object",
+        "properties": {
+          "paths": "array of file paths or globs",
+          "rules": "array of rule ids to apply",
+          "autoFix": "boolean",
+          "riskThreshold": "string"
+        },
+        "required": ["paths"]
+      }
     },
     {
       "id": "list-rules",
       "path": "/api/v1/code-smell/rules",
       "method": "GET",
       "summary": "List rules",
-      "category": "rules",
-      "description": "Returns available detection rules and metadata."
+      "description": "Returns the currently configured smell rules, metadata, and severity so clients can filter results.",
+      "category": "analysis"
     },
     {
-      "id": "autofix",
+      "id": "apply-fix",
       "path": "/api/v1/code-smell/fix",
       "method": "POST",
       "summary": "Apply fix",
-      "category": "remediation",
-      "description": "Requests an auto-fix / reviewer workflow for a violation."
+      "description": "Submits a fix request for a violation, optionally overriding the suggested patch.",
+      "category": "analysis"
     },
     {
-      "id": "queue",
+      "id": "queue-status",
       "path": "/api/v1/code-smell/queue",
       "method": "GET",
-      "summary": "View queue",
-      "category": "analysis",
-      "description": "Shows queued smell investigations awaiting action."
+      "summary": "Queue status",
+      "description": "Returns the current remediation queue, pending violations, and processing order.",
+      "category": "analysis"
     },
     {
-      "id": "learn",
+      "id": "learn-patterns",
       "path": "/api/v1/code-smell/learn",
       "method": "POST",
-      "summary": "Submit learning feedback",
-      "category": "analysis",
-      "description": "Feeds positive/negative signals into the learning system."
+      "summary": "Learn new patterns",
+      "description": "Feeds new pattern data so the detector can improve future smell detection.",
+      "category": "analysis"
     },
     {
       "id": "stats",
       "path": "/api/v1/code-smell/stats",
       "method": "GET",
-      "summary": "Usage stats",
-      "category": "analysis",
-      "description": "Returns aggregated run statistics and auto-fix rates."
+      "summary": "Service stats",
+      "description": "Returns aggregate statistics: violations detected, auto-fixed counts, and review backlog.",
+      "category": "analysis"
     },
     {
-      "id": "docs",
+      "id": "api-docs",
       "path": "/api/v1/docs",
       "method": "GET",
       "summary": "API docs",
-      "category": "system",
-      "description": "Serves the built API documentation bundle."
+      "description": "Serves generated API documentation for the Code Smell Detector endpoints.",
+      "category": "system"
     }
   ]
 }

@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "endpoints": [
     {
-      "id": "health-check",
+      "id": "health",
       "path": "/health",
       "method": "GET",
       "summary": "Service health",
-      "description": "Reports service status, database connectivity, ffmpeg availability, and storage backend.",
+      "description": "Reports API status, database connectivity, ffmpeg availability, and storage mode.",
       "category": "system"
     },
     {
@@ -15,85 +15,85 @@
       "path": "/api/health",
       "method": "GET",
       "summary": "API namespace health",
-      "description": "Health payload exposed under /api for ingress routing.",
+      "description": "Same payload as /health exposed under /api for compatibility.",
       "category": "system"
     },
     {
-      "id": "audio-edit",
+      "id": "edit-audio",
       "path": "/api/v1/audio/edit",
       "method": "POST",
       "summary": "Edit audio",
-      "description": "Executes trimming, merging, splitting, fades, normalization, and volume automation on supplied audio.",
-      "category": "audio-processing"
+      "description": "Applies trim, merge, fade, normalization, and other editing operations on uploaded audio files.",
+      "category": "audio"
     },
     {
-      "id": "audio-convert",
+      "id": "convert-audio",
       "path": "/api/v1/audio/convert",
       "method": "POST",
-      "summary": "Convert format",
-      "description": "Converts uploaded audio to the requested codec/sample rate/bit depth using ffmpeg pipelines.",
-      "category": "audio-processing"
+      "summary": "Convert audio format",
+      "description": "Converts audio between codecs/sample rates/bitrates using ffmpeg.",
+      "category": "audio"
     },
     {
-      "id": "audio-metadata-get",
+      "id": "get-audio-metadata",
       "path": "/api/v1/audio/metadata/{id}",
       "method": "GET",
-      "summary": "Get metadata",
-      "description": "Returns stored metadata (duration, bitrate, channels, waveform stats) for a processed file.",
-      "category": "metadata",
+      "summary": "Get audio metadata",
+      "description": "Returns stored metadata for a processed audio asset using its identifier.",
+      "category": "audio",
       "params": {
         "id": {
-          "type": "uuid",
-          "description": "Metadata document identifier"
+          "type": "string",
+          "description": "Metadata record identifier"
         }
       }
     },
     {
-      "id": "audio-metadata-create",
+      "id": "analyze-audio-metadata",
       "path": "/api/v1/audio/metadata",
       "method": "POST",
-      "summary": "Extract metadata",
-      "description": "Extracts metadata such as bpm, key, channels, and spectrum from uploaded audio.",
-      "category": "metadata"
+      "summary": "Analyze metadata",
+      "description": "Uploads audio and extracts metadata such as duration, channels, loudness, and waveform statistics.",
+      "category": "audio"
     },
     {
-      "id": "audio-enhance",
+      "id": "enhance-audio",
       "path": "/api/v1/audio/enhance",
       "method": "POST",
       "summary": "Enhance audio",
-      "description": "Runs denoise, EQ, leveling, and mastering passes.",
-      "category": "audio-processing"
+      "description": "Applies denoise, EQ, dynamics, and quality improvements to audio inputs.",
+      "category": "audio"
     },
     {
-      "id": "audio-analyze",
+      "id": "analyze-audio",
       "path": "/api/v1/audio/analyze",
       "method": "POST",
       "summary": "Analyze audio",
-      "description": "Performs deep analysis such as beat detection, speech/music classification, and loudness scoring.",
-      "category": "analytics"
+      "description": "Runs deep analysis including loudness, spectral fingerprints, and scene detection.",
+      "category": "audio"
     },
     {
-      "id": "audio-vad",
+      "id": "voice-activity-detection",
       "path": "/api/v1/audio/vad",
       "method": "POST",
       "summary": "Voice activity detection",
-      "description": "Detects speech segments and returns timestamp intervals for transcription workflows.",
-      "category": "analytics"
+      "description": "Detects speech segments within the uploaded audio clip.",
+      "category": "audio"
     },
     {
-      "id": "audio-remove-silence",
+      "id": "remove-silence",
       "path": "/api/v1/audio/remove-silence",
       "method": "POST",
       "summary": "Remove silence",
-      "description": "Identifies and trims silence regions in uploaded clips.",
-      "category": "audio-processing"
+      "description": "Trims leading/trailing or internal silence sections automatically.",
+      "category": "audio"
     },
     {
-      "id": "status",
+      "id": "service-status",
       "path": "/api/v1/status",
       "method": "GET",
       "summary": "Service status",
-      "description": "Returns uptime, configured directories, and capability list for dashboards.",
+      "description": "Returns uptime, directories, enabled capabilities, and resource availability for the audio tools service.",
       "category": "system"
     },
     {
@@ -101,7 +101,7 @@
       "path": "/api/docs",
       "method": "GET",
       "summary": "API docs",
-      "description": "Serves API documentation payload for UI/docs consumers.",
+      "description": "Serves generated API documentation with endpoint descriptions and sample payloads.",
       "category": "system"
     }
   ]

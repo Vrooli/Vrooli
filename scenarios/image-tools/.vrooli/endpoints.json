@@ -1,0 +1,156 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health-check",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health status",
+      "description": "Reports API readiness plus plugin registry, storage, and processing subsystem health.",
+      "category": "system"
+    },
+    {
+      "id": "list-plugins",
+      "path": "/api/v1/plugins",
+      "method": "GET",
+      "summary": "List image plugins",
+      "description": "Returns all registered encoder/decoder plugins (JPEG, PNG, WebP, SVG) and their capabilities.",
+      "category": "catalog"
+    },
+    {
+      "id": "list-presets",
+      "path": "/api/v1/presets",
+      "method": "GET",
+      "summary": "List processing presets",
+      "description": "Returns curated preset configurations for common optimization tasks (web, print, thumbnails, etc.).",
+      "category": "presets"
+    },
+    {
+      "id": "get-preset",
+      "path": "/api/v1/presets/{name}",
+      "method": "GET",
+      "summary": "Get preset details",
+      "description": "Retrieves the operations, quality defaults, and notes for a named preset.",
+      "category": "presets",
+      "params": {
+        "name": {
+          "type": "string",
+          "description": "Preset identifier"
+        }
+      }
+    },
+    {
+      "id": "compress-image",
+      "path": "/api/v1/image/compress",
+      "method": "POST",
+      "summary": "Compress uploaded image",
+      "description": "Accepts an image upload and applies plugin-specific compression/quality tuning before returning optimized output.",
+      "category": "image-processing",
+      "request": {
+        "type": "binary",
+        "content_type": "multipart/form-data",
+        "description": "Use file field 'image' plus optional form fields (quality, format)."
+      }
+    },
+    {
+      "id": "resize-image",
+      "path": "/api/v1/image/resize",
+      "method": "POST",
+      "summary": "Resize image",
+      "description": "Resizes an uploaded image to the requested width/height with optional aspect handling and algorithm selection.",
+      "category": "image-processing",
+      "request": {
+        "type": "binary",
+        "content_type": "multipart/form-data",
+        "description": "Upload file 'image' and include form values width, height, maintain_aspect, algorithm."
+      }
+    },
+    {
+      "id": "convert-image",
+      "path": "/api/v1/image/convert",
+      "method": "POST",
+      "summary": "Convert image format",
+      "description": "Converts the uploaded image into a different format (e.g., PNG→WebP) using plugin options.",
+      "category": "image-processing",
+      "request": {
+        "type": "binary",
+        "content_type": "multipart/form-data",
+        "description": "Upload file 'image' with a target_format field and optional plugin options."
+      }
+    },
+    {
+      "id": "edit-metadata",
+      "path": "/api/v1/image/metadata",
+      "method": "POST",
+      "summary": "Modify metadata",
+      "description": "Strips or merges EXIF/IPTC metadata according to the JSON or form instructions provided alongside the file.",
+      "category": "image-processing",
+      "request": {
+        "type": "binary",
+        "content_type": "multipart/form-data",
+        "description": "Upload file 'image' and provide metadata instructions in the form body."
+      }
+    },
+    {
+      "id": "batch-process",
+      "path": "/api/v1/image/batch",
+      "method": "POST",
+      "summary": "Batch process images",
+      "description": "Executes a sequence of operations (compress, resize, convert) against multiple uploaded images in one request.",
+      "category": "image-processing",
+      "request": {
+        "type": "binary",
+        "content_type": "multipart/form-data",
+        "description": "Upload multiple files plus a JSON operations payload indicating steps to run."
+      }
+    },
+    {
+      "id": "inspect-image",
+      "path": "/api/v1/image/info",
+      "method": "POST",
+      "summary": "Inspect image",
+      "description": "Analyzes an uploaded image and returns detected format, dimensions, color profile, and estimated optimization tips.",
+      "category": "image-processing",
+      "request": {
+        "type": "binary",
+        "content_type": "multipart/form-data",
+        "description": "Upload file 'image' for inspection."
+      }
+    },
+    {
+      "id": "image-proxy",
+      "path": "/api/v1/image/proxy",
+      "method": "GET",
+      "summary": "Proxy stored image",
+      "description": "Streams an image from MinIO/local storage or approved file paths back to the caller.",
+      "category": "utilities",
+      "query": {
+        "url": {
+          "type": "string",
+          "description": "Storage URL or file URL to proxy",
+          "required": true
+        }
+      }
+    },
+    {
+      "id": "apply-preset",
+      "path": "/api/v1/image/preset/{name}",
+      "method": "POST",
+      "summary": "Apply preset",
+      "description": "Runs the named preset pipeline (quality, resize, conversions) against the uploaded image and returns the processed asset.",
+      "category": "presets",
+      "params": {
+        "name": {
+          "type": "string",
+          "description": "Preset identifier"
+        }
+      },
+      "request": {
+        "type": "binary",
+        "content_type": "multipart/form-data",
+        "description": "Upload file 'image'; optional overrides may be provided in form fields."
+      }
+    }
+  ]
+}

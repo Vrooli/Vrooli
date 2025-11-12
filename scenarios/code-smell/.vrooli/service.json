@@ -47,19 +47,6 @@
     "revenue_potential": "$20K-$40K per deployment",
     "business_value": "Saves 100+ developer hours/month in code review and maintenance"
   },
-  "api": {
-    "enabled": true,
-    "port": "${CODE_SMELL_API_PORT:-8090}",
-    "base_path": "/api/v1",
-    "health_check": "/api/v1/health",
-    "documentation": "/api/v1/docs",
-    "cors": {
-      "enabled": true,
-      "origins": [
-        "http://localhost:*"
-      ]
-    }
-  },
   "cli": {
     "enabled": true,
     "binary": "code-smell",
