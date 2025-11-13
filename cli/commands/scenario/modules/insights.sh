@@ -23,16 +23,17 @@ scenario::insights::collect_data() {
     local scenario_path="${APP_ROOT}/scenarios/${scenario_name}"
 
     if [[ ! -d "$scenario_path" ]]; then
-        echo '{"stack":{},"resources":{},"packages":{},"lifecycle":{}}'
+        echo '{"stack":{},"resources":{},"scenario_dependencies":{},"packages":{},"lifecycle":{}}'
         return 0
     fi
 
     local service_json
     service_json=$(scenario::insights::find_service_json "$scenario_path")
 
-    local stack_json resources_json packages_json lifecycle_json metadata_json documentation_json health_config_json production_bundle_json
+    local stack_json resources_json packages_json lifecycle_json metadata_json documentation_json health_config_json production_bundle_json scenario_dependencies_json
     stack_json=$(scenario::insights::collect_stack_data "$scenario_path" "$service_json")
     resources_json=$(scenario::insights::collect_resource_data "$scenario_name" "$service_json")
+    scenario_dependencies_json=$(scenario::insights::collect_scenario_dependencies "$scenario_name" "$service_json")
     packages_json=$(scenario::insights::collect_workspace_packages "$scenario_path")
     lifecycle_json=$(scenario::insights::collect_lifecycle_data "$service_json")
     metadata_json=$(scenario::insights::collect_metadata "$scenario_name" "$service_json")
@@ -43,13 +44,14 @@ scenario::insights::collect_data() {
     jq -n \
         --argjson stack "$stack_json" \
         --argjson resources "$resources_json" \
+        --argjson scenario_dependencies "$scenario_dependencies_json" \
         --argjson packages "$packages_json" \
         --argjson lifecycle "$lifecycle_json" \
         --argjson metadata "$metadata_json" \
         --argjson documentation "$documentation_json" \
         --argjson health_config "$health_config_json" \
         --argjson production_bundle "$production_bundle_json" \
-        '{stack: $stack, resources: $resources, packages: $packages, lifecycle: $lifecycle, metadata: $metadata, documentation: $documentation, health_config: $health_config, production_bundle: $production_bundle}'
+        '{stack: $stack, resources: $resources, scenario_dependencies: $scenario_dependencies, packages: $packages, lifecycle: $lifecycle, metadata: $metadata, documentation: $documentation, health_config: $health_config, production_bundle: $production_bundle}'
 }
 
 # Collect high-level metadata (display name, description, tags)
@@ -351,6 +353,125 @@ scenario::insights::collect_resource_data() {
         required: ([.[] | select(.required == true)] | length),
         required_running: ([.[] | select(.required == true and .running == true)] | length),
         issues: ([.[] | select(.required == true and (.running != true or .status == "running_with_issues" or .status == "not_installed"))] | length)
+    }')
+
+    jq -n --argjson items "$items_json" --argjson summary "$summary" '{items: $items, summary: $summary}'
+}
+
+scenario::insights::collect_scenario_dependencies() {
+    local scenario_name="$1"
+    local service_json="$2"
+
+    if [[ -z "$service_json" ]] || [[ ! -f "$service_json" ]]; then
+        echo '{"items":[],"summary":{"total":0,"required":0,"required_running":0,"issues":0}}'
+        return 0
+    fi
+
+    local scenario_entries
+    scenario_entries=$(jq -c '(.dependencies.scenarios // {}) | to_entries[] | {
+        name: .key,
+        required: (.value.required // true),
+        description: (.value.description // ""),
+        version: (.value.version // ""),
+        version_range: (.value.versionRange // .value.version_range // ""),
+        source: (.value.source // "")
+    }' "$service_json" 2>/dev/null || echo '')
+
+    if [[ -z "$scenario_entries" ]]; then
+        echo '{"items":[],"summary":{"total":0,"required":0,"required_running":0,"issues":0}}'
+        return 0
+    fi
+
+    local api_port="${VROOLI_API_PORT:-8092}"
+    local api_url="http://localhost:${api_port}"
+    local -a items=()
+
+    while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+
+        local name required description version version_range source
+        name=$(echo "$entry" | jq -r '.name')
+        required=$(echo "$entry" | jq -r '.required')
+        description=$(echo "$entry" | jq -r '.description')
+        version=$(echo "$entry" | jq -r '.version')
+        version_range=$(echo "$entry" | jq -r '.version_range')
+        source=$(echo "$entry" | jq -r '.source')
+
+        local scenario_path="${APP_ROOT}/scenarios/${name}"
+        local installed=false
+        [[ -d "$scenario_path" ]] && installed=true
+
+        local status="unknown"
+        local running=false
+        local note=""
+
+        if [[ "$installed" != "true" ]]; then
+            status="not_installed"
+            note="Scenario directory missing (expected scenarios/${name})"
+        else
+            if command -v curl >/dev/null 2>&1; then
+                local response=""
+                response=$(curl -sS --connect-timeout 2 --max-time 5 "${api_url}/scenarios/${name}/status" 2>/dev/null || echo "")
+                if [[ -n "$response" ]]; then
+                    local success
+                    success=$(echo "$response" | jq -r '.success // false' 2>/dev/null || echo "false")
+                    if [[ "$success" == "true" ]]; then
+                        status=$(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)
+                        [[ "$status" == "running" ]] && running=true
+                    else
+                        status="not_registered"
+                        note=$(echo "$response" | jq -r '.error // "Scenario not registered"' 2>/dev/null)
+                    fi
+                else
+                    status="unknown"
+                    note="Unable to query scenario status"
+                fi
+            else
+                status="unknown"
+                note="curl not available"
+            fi
+        fi
+
+        local item
+        item=$(jq -n \
+            --arg name "$name" \
+            --arg description "$description" \
+            --arg version "$version" \
+            --arg version_range "$version_range" \
+            --arg source "$source" \
+            --arg status "$status" \
+            --arg note "$note" \
+            --argjson required "$required" \
+            --argjson running "$running" \
+            --argjson installed "$installed" \
+            '{
+                name: $name,
+                description: (if $description == "" then null else $description end),
+                version: (if $version == "" then null else $version end),
+                version_range: (if $version_range == "" then null else $version_range end),
+                source: (if $source == "" then null else $source end),
+                required: $required,
+                status: $status,
+                running: $running,
+                installed: $installed,
+                note: (if $note == "" then null else $note end)
+            }')
+        items+=("$item")
+    done <<< "$scenario_entries"
+
+    local items_json
+    if [[ ${#items[@]} -gt 0 ]]; then
+        items_json=$(printf '%s\n' "${items[@]}" | jq -s '.')
+    else
+        items_json='[]'
+    fi
+
+    local summary
+    summary=$(echo "$items_json" | jq '{
+        total: length,
+        required: ([.[] | select(.required == true)] | length),
+        required_running: ([.[] | select(.required == true and .running == true)] | length),
+        issues: ([.[] | select(.required == true and .running != true)] | length)
     }')
 
     jq -n --argjson items "$items_json" --argjson summary "$summary" '{items: $items, summary: $summary}'
@@ -692,7 +813,7 @@ scenario::insights::display_resources() {
         return 0
     fi
 
-    echo "Dependencies:"
+    echo "Resource Dependencies:"
     echo "$items_json" | jq -c '.[]' | while read -r item; do
         local name required running status note
         name=$(echo "$item" | jq -r '.name')
@@ -726,6 +847,77 @@ scenario::insights::display_resources() {
             printf ' — start with: vrooli resource start %s' "$name"
         elif [[ "$status" == "not_installed" ]]; then
             printf ' — install with: vrooli resource install %s' "$name"
+        fi
+        printf '\n'
+    done
+    echo ""
+}
+
+scenario::insights::display_scenario_dependencies() {
+    local insights_json="$1"
+    local items_json
+    items_json=$(echo "$insights_json" | jq -c '.scenario_dependencies.items // []' 2>/dev/null || echo '[]')
+
+    if [[ "$items_json" == "[]" ]]; then
+        return 0
+    fi
+
+    echo "Scenario Dependencies:"
+    echo "$items_json" | jq -c '.[]' | while read -r item; do
+        local name required status note version version_range
+        name=$(echo "$item" | jq -r '.name')
+        required=$(echo "$item" | jq -r '.required')
+        status=$(echo "$item" | jq -r '.status // "unknown"')
+        note=$(echo "$item" | jq -r '.note // empty')
+        version=$(echo "$item" | jq -r '.version // empty')
+        version_range=$(echo "$item" | jq -r '.version_range // empty')
+
+        local label="$name"
+        if [[ -n "$version_range" ]]; then
+            label="$label (needs $version_range)"
+        elif [[ -n "$version" ]]; then
+            label="$label (v$version)"
+        fi
+
+        local icon descriptor=""
+        case "$status" in
+            running)
+                icon="✅"
+                ;;
+            stopped)
+                icon=$([[ "$required" == "true" ]] && echo "❌" || echo "⚠️")
+                descriptor="stopped"
+                ;;
+            not_installed|not_registered)
+                icon="❌"
+                descriptor="missing"
+                ;;
+            *)
+                icon="ℹ️"
+                descriptor="$status"
+                ;;
+        esac
+
+        printf '  %s %s' "$icon" "$label"
+        if [[ -n "$descriptor" && "$descriptor" != "running" ]]; then
+            printf ' (%s)' "$descriptor"
+        fi
+
+        if [[ -n "$note" ]]; then
+            printf ' — %s' "$note"
+        else
+            case "$status" in
+                stopped)
+                    if [[ "$required" == "true" ]]; then
+                        printf ' — start with: vrooli scenario start %s' "$name"
+                    else
+                        printf ' — optional, start when needed'
+                    fi
+                    ;;
+                not_installed|not_registered)
+                    printf ' — ensure scenario exists in scenarios/%s' "$name"
+                    ;;
+            esac
         fi
         printf '\n'
     done

@@ -145,6 +145,7 @@ scenario::lifecycle::restart() {
     # This is critical for detecting stale code after agent modifications
     (
         export FORCE_SETUP=true
+        export FORCE_SETUP_SCENARIO="$scenario_name"
         scenario::lifecycle::start "$scenario_name" "$@"
     )
 }

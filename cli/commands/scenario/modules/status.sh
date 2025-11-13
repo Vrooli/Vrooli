@@ -165,7 +165,7 @@ scenario::status::format_json_individual() {
     diagnostic_data=$(scenario::health::collect_all_diagnostic_data "$scenario_name" "$response" "$status")
 
     local insights_json
-    insights_json=$(scenario::insights::collect_data "$scenario_name" 2>/dev/null || echo '{"stack":{},"resources":{},"packages":{},"lifecycle":{}}')
+    insights_json=$(scenario::insights::collect_data "$scenario_name" 2>/dev/null || echo '{"stack":{},"resources":{},"scenario_dependencies":{},"packages":{},"lifecycle":{}}')
 
     local scenario_path="${APP_ROOT}/scenarios/${scenario_name}"
 
@@ -267,7 +267,7 @@ scenario::status::format_display_individual() {
     runtime_formatted=$(echo "$response" | jq -r '.data.runtime // "N/A"' 2>/dev/null)
 
     local insights_json
-    insights_json=$(scenario::insights::collect_data "$scenario_name" 2>/dev/null || echo '{"stack":{},"resources":{},"packages":{},"lifecycle":{}}')
+    insights_json=$(scenario::insights::collect_data "$scenario_name" 2>/dev/null || echo '{"stack":{},"resources":{},"scenario_dependencies":{},"packages":{},"lifecycle":{}}')
     
     echo "📋 SCENARIO: $scenario_name"
     echo "═══════════════════════════════════════"
@@ -309,7 +309,9 @@ scenario::status::format_display_individual() {
         echo "$port_status" | jq -r 'to_entries[] | "  \(.key): http://localhost:\(.value.port) - \(if .value.listening then "✓ listening" else "✗ not listening" end)"' 2>/dev/null
     fi
 
+    echo ""
     scenario::insights::display_resources "$insights_json"
+    scenario::insights::display_scenario_dependencies "$insights_json"
     scenario::insights::display_workspace_packages "$insights_json"
     scenario::insights::display_lifecycle "$insights_json"
     scenario::insights::display_health_config "$insights_json"
