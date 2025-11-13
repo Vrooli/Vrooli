@@ -35,6 +35,8 @@ VALIDATE_SERVICE_JSON=""
 VALIDATE_VERBOSE=false
 VALIDATE_ERRORS=0
 VALIDATE_WARNINGS=0
+VALIDATE_JQ_RESOURCES_EXPR="$var_JQ_RESOURCES_EXPR"
+[[ -z "$VALIDATE_JQ_RESOURCES_EXPR" ]] && VALIDATE_JQ_RESOURCES_EXPR='(.dependencies.resources // {})'
 
 # Color codes (not readonly since script can be sourced)
 RED='\033[0;31m'
@@ -221,6 +223,16 @@ def validate_basic_schema(service_json):
     errors = []
     warnings = []
     scenario_path = os.environ.get('VALIDATE_SCENARIO_PATH')
+    initialization_map = {}
+
+    if scenario_path:
+        init_root = os.path.join(scenario_path, 'initialization')
+        if os.path.isdir(init_root):
+            for current_root, _, files in os.walk(init_root):
+                if files:
+                    key = os.path.basename(current_root)
+                    rel_path = os.path.relpath(current_root, scenario_path)
+                    initialization_map.setdefault(key, set()).add(rel_path)
     
     # Check required top-level fields
     if 'version' not in service_json:
@@ -246,29 +258,49 @@ def validate_basic_schema(service_json):
             if 'range' not in port_config and 'fixed' not in port_config:
                 errors.append(f"Port '{port_name}' must have either 'range' or 'fixed'")
     
-    # Check resources
+    # Guard against legacy layout
     if 'resources' in service_json:
+        errors.append("Legacy top-level 'resources' field detected. Move entries under dependencies.resources")
+
+    dependencies = service_json.get('dependencies')
+    if dependencies is None:
+        errors.append("Missing required field: dependencies")
+        dependencies = {}
+    elif not isinstance(dependencies, dict):
+        errors.append("Field 'dependencies' must be an object")
+        dependencies = {}
+
+    resources_declared = isinstance(dependencies, dict) and 'resources' in dependencies
+    resources = dependencies.get('resources', {}) if isinstance(dependencies, dict) else {}
+    if resources_declared and not isinstance(resources, dict):
+        errors.append("Field 'dependencies.resources' must be an object")
+        resources = {}
+
+    if resources_declared:
         resource_count = 0
-        for category, resources in service_json['resources'].items():
-            for name, config in resources.items():
-                if config.get('enabled', False):
-                    resource_count += 1
-                    if config.get('required', False):
-                        # Check for initialization in config or actual files
-                        if 'initialization' not in config and category in ['automation', 'storage']:
-                            # Check if initialization directory exists with files
-                            if scenario_path:
-                                init_dir = os.path.join(scenario_path, 'initialization', category, name)
-                                if os.path.exists(init_dir) and os.listdir(init_dir):
-                                    warnings.append(f"Resource '{name}' has initialization files but no 'initialization' field in service.json")
-                                else:
-                                    warnings.append(f"Resource '{name}' is required but has no initialization")
-                            else:
-                                warnings.append(f"Resource '{name}' is required but has no initialization field")
-        
+        for name, config in resources.items():
+            if not isinstance(config, dict):
+                errors.append(f"Resource '{name}' configuration must be an object")
+                continue
+
+            if config.get('enabled', False):
+                resource_count += 1
+
+            if config.get('required', False) and 'initialization' not in config:
+                init_paths = sorted(initialization_map.get(name, []))
+                if init_paths:
+                    formatted_paths = ', '.join(init_paths)
+                    warnings.append(
+                        f"Resource '{name}' has initialization files ({formatted_paths}) but no 'initialization' entries in dependencies.resources"
+                    )
+                else:
+                    warnings.append(
+                        f"Resource '{name}' is required but missing 'initialization' entries in dependencies.resources"
+                    )
+
         if resource_count == 0:
             warnings.append("No resources are enabled")
-    
+
     return errors, warnings
 
 try:
@@ -397,7 +429,7 @@ validate_file_paths() {
         
         # Check initialization file paths
         local init_files
-        init_files=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq -r '.resources // {} | to_entries | .[] | .value | to_entries | .[] | .value.initialization?.workflows[]?.file // empty, .value.initialization?.apps[]?.file // empty, .value.initialization?.scripts[]?.file // empty' 2>/dev/null || true)
+        init_files=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq -r "${VALIDATE_JQ_RESOURCES_EXPR} | to_entries | .[] | .value | to_entries | .[] | .value.initialization?.workflows[]?.file // empty, .value.initialization?.apps[]?.file // empty, .value.initialization?.scripts[]?.file // empty" 2>/dev/null || true)
         
         if [[ -n "$init_files" ]]; then
             while IFS= read -r file; do
@@ -427,11 +459,12 @@ validate_resources() {
     
     local enabled_resources=0
     local required_resources=0
+    local jq_resources="$VALIDATE_JQ_RESOURCES_EXPR"
     
     if command -v jq >/dev/null 2>&1; then
-        enabled_resources=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq '[.resources // {} | to_entries | .[] | .value | to_entries | .[] | select(.value.enabled == true)] | length' 2>/dev/null || echo "0")
+        enabled_resources=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq "[$jq_resources | to_entries | .[] | .value | to_entries | .[] | select(.value.enabled == true)] | length" 2>/dev/null || echo "0")
         
-        required_resources=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq '[.resources // {} | to_entries | .[] | .value | to_entries | .[] | select(.value.required == true)] | length' 2>/dev/null || echo "0")
+        required_resources=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq "[$jq_resources | to_entries | .[] | .value | to_entries | .[] | select(.value.required == true)] | length" 2>/dev/null || echo "0")
         
         if [[ $enabled_resources -eq 0 ]]; then
             print_warning "No resources are enabled"
@@ -442,16 +475,8 @@ validate_resources() {
         # List resources if verbose
         if [[ "$VALIDATE_VERBOSE" == "true" ]] && [[ $enabled_resources -gt 0 ]]; then
             local resource_list
-            resource_list=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq -r '
-                .resources // {} | 
-                to_entries | 
-                .[] | 
-                .value | 
-                to_entries | 
-                .[] | 
-                select(.value.enabled == true) | 
-                "\(.key) (\(if .value.required then "required" else "optional" end))"
-            ' 2>/dev/null || true)
+            local jq_program="$jq_resources | to_entries | .[] | .value | to_entries | .[] | select(.value.enabled == true) | \"\\(.key) (\\(if .value.required then \\\"required\\\" else \\\"optional\\\" end))\""
+            resource_list=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq -r "$jq_program" 2>/dev/null || true)
             
             if [[ -n "$resource_list" ]]; then
                 while IFS= read -r resource; do
@@ -476,18 +501,14 @@ validate_resource_initializations() {
     local passed=0
     local failed=0
     local skipped=0
+    local jq_resources="$VALIDATE_JQ_RESOURCES_EXPR"
     
     # Process each resource category
     for category in ai automation agents storage execution; do
         print_info "Processing category: $category"
         # Get resources in this category
         local resources
-        resources=$(timeout 5 echo "$VALIDATE_SERVICE_JSON" | jq -r "
-            .resources.$category // {} | 
-            to_entries[] | 
-            select(.value.enabled == true) | 
-            .key
-        " 2>/dev/null || true)
+        resources=$(timeout 5 echo "$VALIDATE_SERVICE_JSON" | jq -r "($jq_resources).$category // {} | to_entries[] | select(.value.enabled == true) | .key" 2>/dev/null || true)
         
         print_info "Found resources in $category: $resources"
         
@@ -498,9 +519,7 @@ validate_resource_initializations() {
             
             # Get initialization array
             local init_items
-            init_items=$(timeout 5 echo "$VALIDATE_SERVICE_JSON" | jq -c "
-                .resources.$category.\"$resource_type\".initialization // []
-            " 2>/dev/null || echo "[]")
+            init_items=$(timeout 5 echo "$VALIDATE_SERVICE_JSON" | jq -c "($jq_resources).$category.\"$resource_type\".initialization // []" 2>/dev/null || echo "[]")
             
             print_info "Processing $resource_type with initialization items: $init_items"
             

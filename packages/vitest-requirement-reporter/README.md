@@ -139,6 +139,16 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
 
 **Best Practice**: Use suite-level tags for shared requirements, test-level tags for specific requirements.
 
+## Propagating Package Updates
+
+After modifying this reporter inside the monorepo, run the refresh helper so dependent scenarios reinstall and rebuild with the new code:
+
+```bash
+./scripts/scenarios/tools/refresh-shared-package.sh vitest-requirement-reporter <scenario|all> [--no-restart]
+```
+
+The helper rebuilds the package, filters to the scenarios that include `@vrooli/vitest-requirement-reporter`, runs `vrooli scenario setup`, and restarts just the ones that were already running (unless you pass `--no-restart`).
+
 ## Troubleshooting
 
 ### Requirements Not Showing in Phase Results

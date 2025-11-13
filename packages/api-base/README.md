@@ -61,12 +61,39 @@ const app = createScenarioServer({
 app.listen(process.env.UI_PORT)
 ```
 
+> 🔄 **Fast proxying by default:** `createScenarioServer` now reuses HTTP connections between the UI and API, so proxied requests feel as fast as direct calls. Pass `proxyKeepAlive: false` (or provide a custom `proxyAgent`) to opt out when working with servers that don't support keep-alive.
+
+> 🌀 **Streaming-first proxy:** `/api` is mounted before any body parsing so uploads and SSE stay streamable. UI-owned routes still get JSON parsing by default, and you can customize it with `bodyParser`:
+>
+> ```ts
+> createScenarioServer({
+>   bodyParser: (app) => {
+>     app.use(express.json({ limit: '25mb' }))
+>     app.use(express.urlencoded({ extended: true }))
+>   }
+> })
+> ```
+>
+> Pass `bodyParser: false` if your UI server is entirely static.
+
+> 🗃️ **Cached SPA fallback:** `dist/index.html` is cached in memory (and auto-invalidates when the file changes) so proxied page loads skip redundant disk reads. Set `cacheIndexHtml: false` if you need to regenerate HTML every request.
+
 This automatically sets up:
 - `/health` endpoint with API connectivity checks
 - `/config` endpoint with runtime configuration
 - `/api/*` proxy to your API server
 - Static file serving from `./dist`
 - SPA fallback routing
+
+## Propagating Changes to Scenarios
+
+After editing `@vrooli/api-base`, run the refresh helper so scenarios rebuild with the updated bundle:
+
+```bash
+./scripts/scenarios/tools/refresh-shared-package.sh api-base <scenario|all> [--no-restart]
+```
+
+The script rebuilds this package, finds every targeted scenario that actually depends on `@vrooli/api-base`, runs `vrooli scenario setup`, and automatically restarts only the scenarios that were already running (unless you pass `--no-restart`). Stopped scenarios stay stopped after setup.
 
 ## The Vrooli Pattern
 
