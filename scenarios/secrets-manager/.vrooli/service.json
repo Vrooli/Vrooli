@@ -232,7 +232,26 @@
         "enabled": false,
         "required": false,
         "purpose": "caching scan results between runs"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (resource_cli)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

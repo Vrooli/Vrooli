@@ -233,7 +233,20 @@
         "required": false,
         "purpose": "Auto-open browser tabs for dashboard URLs in profiles",
         "fallback": "Manual URL display to user console"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

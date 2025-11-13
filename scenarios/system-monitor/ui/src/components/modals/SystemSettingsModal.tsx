@@ -54,7 +54,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setError(null);
     
     try {
-      const response = await fetch(buildApiUrl('/api/settings'));
+      const response = await fetch(buildApiUrl('/settings'));
       const data: SettingsResponse = await response.json();
       
       if (data.success && data.settings) {
@@ -80,7 +80,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setSuccessMessage(null);
     
     try {
-      const response = await fetch(buildApiUrl('/api/settings'), {
+      const response = await fetch(buildApiUrl('/settings'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -118,7 +118,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
     setSuccessMessage(null);
     
     try {
-      const response = await fetch(buildApiUrl('/api/settings/reset'), {
+      const response = await fetch(buildApiUrl('/settings/reset'), {
         method: 'POST'
       });
       

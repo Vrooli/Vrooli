@@ -246,7 +246,14 @@
         "enabled": true,
         "required": false,
         "purpose": "Caching frequently requested palettes and user sessions"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

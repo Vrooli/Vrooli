@@ -242,7 +242,20 @@
         "enabled": true,
         "required": false,
         "purpose": "Cache generated QR codes and track batch jobs"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

@@ -110,7 +110,7 @@ const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => 
   }, []);
 
   const fetchMetrics = useCallback(async () => {
-    const data = await handleApiCall<MetricsResponse>('/api/metrics/current');
+    const data = await handleApiCall<MetricsResponse>('/metrics/current');
     if (data) {
       setMetrics(data);
       setError(null);
@@ -131,7 +131,7 @@ const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => 
   }, [handleApiCall]);
 
   const fetchDetailedMetrics = useCallback(async () => {
-    const data = await handleApiCall<DetailedMetrics>('/api/metrics/detailed');
+    const data = await handleApiCall<DetailedMetrics>('/metrics/detailed');
     if (data) {
       setDetailedMetrics(data);
       const diskPercent = data.memory_details?.disk_usage?.percent;
@@ -152,7 +152,7 @@ const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => 
   }, [handleApiCall]);
 
   const fetchMetricsTimeline = useCallback(async (windowSeconds = 120) => {
-    const data = await handleApiCall<MetricsTimelineResponse>(`/api/metrics/timeline?window=${windowSeconds}`);
+    const data = await handleApiCall<MetricsTimelineResponse>(`/metrics/timeline?window=${windowSeconds}`);
     if (!data || !data.samples) {
       return;
     }
@@ -186,14 +186,14 @@ const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => 
   }, [handleApiCall]);
 
   const fetchProcessMonitorData = useCallback(async () => {
-    const data = await handleApiCall<ProcessMonitorData>('/api/metrics/processes');
+    const data = await handleApiCall<ProcessMonitorData>('/metrics/processes');
     if (data) {
       setProcessMonitorData(data);
     }
   }, [handleApiCall]);
 
   const fetchInfrastructureData = useCallback(async () => {
-    const data = await handleApiCall<InfrastructureMonitorData>('/api/metrics/infrastructure');
+    const data = await handleApiCall<InfrastructureMonitorData>('/metrics/infrastructure');
     if (data) {
       setInfrastructureData(data);
       const { storage_io, timestamp } = data;
@@ -226,7 +226,7 @@ const handleApiCall = useCallback(async <T,>(url: string): Promise<T | null> => 
   }, [handleApiCall]);
 
   const fetchInvestigations = useCallback(async () => {
-    const data = await handleApiCall<Investigation[]>('/api/investigations?limit=10');
+    const data = await handleApiCall<Investigation[]>('/investigations?limit=10');
     if (Array.isArray(data)) {
       const sorted = [...data].sort((a, b) => {
         const aTime = Date.parse(a.start_time ?? a.timestamp ?? '');

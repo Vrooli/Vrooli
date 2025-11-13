@@ -76,7 +76,7 @@ export const StatusIndicator = ({ fallbackOnline = true }: StatusIndicatorProps)
     try {
       setIsToggling(true);
 
-      const response = await fetch(buildApiUrl('/api/maintenance/state'), {
+      const response = await fetch(buildApiUrl('/maintenance/state'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

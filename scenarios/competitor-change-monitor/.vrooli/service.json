@@ -274,7 +274,14 @@
         "enabled": true,
         "required": true,
         "purpose": "Analyze changes for relevance and generate insights"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

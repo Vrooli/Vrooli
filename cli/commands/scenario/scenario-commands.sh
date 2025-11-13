@@ -36,6 +36,7 @@ SUBCOMMANDS:
     start <name> [options]  Start a scenario
     start <name1> <name2>...Start multiple scenarios
     start-all               Start all available scenarios
+    setup <name>            Run the setup lifecycle for a scenario
     restart <name> [options] Restart a scenario (stop then start)
     stop <name>             Stop a running scenario
     stop-all                Stop all running scenarios
@@ -99,6 +100,9 @@ main() {
             ;;
         start-all)
             scenario::lifecycle::start_all "$@"
+            ;;
+        setup)
+            scenario::lifecycle::setup "$@"
             ;;
         restart)
             scenario::lifecycle::restart "$@"

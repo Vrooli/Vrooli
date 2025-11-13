@@ -252,7 +252,14 @@
         "enabled": true,
         "required": false,
         "purpose": "Cache frequently checked ingredients for faster responses"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

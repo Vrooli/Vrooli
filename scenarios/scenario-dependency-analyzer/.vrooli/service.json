@@ -255,6 +255,44 @@
         "enabled": false,
         "required": false,
         "purpose": "Cache frequently accessed dependency data and analysis results for performance optimization"
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {
+      "data-tools": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "description": "Auto-detected dependency via direct_cli"
+      },
+      "browser-automation-studio": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "description": "Auto-detected dependency via direct_cli"
+      },
+      "app-issue-tracker": {
+        "required": true,
+        "version": "2.0.0-file-based",
+        "versionRange": ">=2.0.0-file-based",
+        "description": "Auto-detected dependency via scenario_port_cli"
       }
     }
   }

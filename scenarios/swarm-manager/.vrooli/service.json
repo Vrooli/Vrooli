@@ -240,6 +240,14 @@
         "required": false,
         "description": "Local LLM for lightweight task analysis"
       }
+    },
+    "scenarios": {
+      "core-debugger": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "description": "Auto-detected dependency via direct_cli"
+      }
     }
   }
 }

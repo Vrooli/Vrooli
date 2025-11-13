@@ -35,12 +35,18 @@ const normalizeBasename = (value?: string | null) => {
     return '';
   }
 
+  // Treat dot-based base paths ('.', './', '/.') as equivalent to the root.
+  if (/^\/?\.\/?$/.test(trimmed)) {
+    return '';
+  }
+
   const withLeading = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   if (withLeading === '/') {
     return '/';
   }
 
-  return withLeading.replace(/\/+$/, '');
+  const normalized = withLeading.replace(/\/+$/, '');
+  return normalized === '/.' ? '/' : normalized;
 };
 
 const pickProxyCandidate = (info?: AppMonitorProxyInfo): string | undefined => {

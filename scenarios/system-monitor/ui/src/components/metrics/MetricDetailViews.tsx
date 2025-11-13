@@ -762,7 +762,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           params.set('include_files', 'true');
         }
 
-        const response = await fetch(buildApiUrl(`/api/metrics/disk/details?${params.toString()}`), {
+        const response = await fetch(buildApiUrl(`/metrics/disk/details?${params.toString()}`), {
           signal: controller.signal
         });
         if (!response.ok) {

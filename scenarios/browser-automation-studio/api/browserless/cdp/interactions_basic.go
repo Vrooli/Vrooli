@@ -17,7 +17,7 @@ func (s *Session) ExecuteClick(ctx context.Context, selector string, timeoutMs, 
 	start := time.Now()
 	result := &StepResult{}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	err := chromedp.Run(timeoutCtx,
@@ -52,17 +52,35 @@ func (s *Session) ExecuteWait(ctx context.Context, selector string, timeoutMs, w
 	start := time.Now()
 	result := &StepResult{}
 
-	// Use the passed-in ctx (execution context) as parent, not s.ctx (session context)
-	// This ensures the node timeout is respected even if session has longer timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	s.log.WithFields(map[string]interface{}{
+		"selector":   selector,
+		"timeoutMs":  timeoutMs,
+		"waitAfter": waitAfterMs,
+	}).Info("ExecuteWait starting")
+
+	// Create timeout context from s.ctx (chromedp browser context), not from passed-in ctx
+	// This ensures WaitReady has access to the browser session while still respecting timeout
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
-	err := chromedp.Run(timeoutCtx, chromedp.WaitVisible(selector, s.frameQueryOptions(chromedp.ByQuery)...))
+	// Try to get page HTML for debugging
+	var htmlContent string
+	if err := chromedp.Run(s.ctx, chromedp.OuterHTML("html", &htmlContent)); err == nil {
+		s.log.WithField("html_length", len(htmlContent)).Info("Retrieved page HTML")
+		if len(htmlContent) > 0 && len(htmlContent) < 5000 {
+			s.log.WithField("html", htmlContent).Debug("Full page HTML")
+		}
+	}
+
+	err := chromedp.Run(timeoutCtx, chromedp.WaitReady(selector, s.frameQueryOptions(chromedp.ByQuery)...))
 	if err != nil {
+		s.log.WithError(err).WithField("selector", selector).Error("WaitReady failed")
 		result.Error = fmt.Sprintf("Wait failed: selector %s not found", selector)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err
 	}
+
+	s.log.WithField("selector", selector).Info("WaitReady succeeded")
 
 	if waitAfterMs > 0 {
 		time.Sleep(time.Duration(waitAfterMs) * time.Millisecond)
@@ -86,8 +104,8 @@ func (s *Session) ExecuteAssert(ctx context.Context, selector, mode, expectedVal
 	start := time.Now()
 	result := &StepResult{DebugContext: make(map[string]interface{})}
 
-	// Use the passed-in ctx (execution context) as parent, not s.ctx (session context)
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	// Create timeout context from s.ctx (chromedp browser context)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	var currentURL string
@@ -204,7 +222,7 @@ func (s *Session) ExecuteType(ctx context.Context, selector, text string, clearF
 	start := time.Now()
 	result := &StepResult{}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	actions := []chromedp.Action{
@@ -248,7 +266,7 @@ func (s *Session) ExecuteUploadFile(ctx context.Context, selector string, files 
 		return result, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	if err := chromedp.Run(timeoutCtx,
@@ -296,7 +314,7 @@ func (s *Session) ExecuteKeyboard(ctx context.Context, keyValue, eventType strin
 	normalizedEvent := normalizeKeyboardEventType(eventType)
 	result.DebugContext["eventType"] = normalizedEvent
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	dispatch := func(event input.KeyType) error {

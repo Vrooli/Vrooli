@@ -52,12 +52,31 @@ _testing_playbooks__wait_for_execution() {
     local timeout="${3:-240}"
     local start_ts
     start_ts=$(date +%s)
+    local last_status=""
+    local last_progress=-1
+    local poll_count=0
 
     while true; do
         local exec_resp
         exec_resp=$(curl -s --max-time 10 "$api_base/executions/${execution_id}" || true)
         local status
         status=$(printf '%s\n' "$exec_resp" | jq -r '.status // "unknown"')
+        local progress
+        progress=$(printf '%s\n' "$exec_resp" | jq -r '.progress // 0')
+        local current_step
+        current_step=$(printf '%s\n' "$exec_resp" | jq -r '.current_step // ""')
+
+        # Log progress updates (every 5 polls or when status/progress changes)
+        poll_count=$((poll_count + 1))
+        if [ "$status" != "$last_status" ] || [ "$progress" != "$last_progress" ] || [ $((poll_count % 5)) -eq 0 ]; then
+            if [ -n "$current_step" ] && [ "$current_step" != "null" ]; then
+                echo "   [${status}] ${progress}% - ${current_step}" >&2
+            else
+                echo "   [${status}] ${progress}%" >&2
+            fi
+            last_status="$status"
+            last_progress="$progress"
+        fi
 
         case "$status" in
             completed|success)
@@ -270,6 +289,10 @@ testing::playbooks::run_workflow() {
     api_base=$(_testing_playbooks__api_base "$api_port")
 
     # Execute workflow via adhoc endpoint (no DB persistence)
+    local workflow_name
+    workflow_name=$(basename "$workflow_path" .json)
+    echo "🚀 Starting workflow: ${workflow_name}" >&2
+
     local execution_id
     if ! execution_id=$(_testing_playbooks__execute_adhoc_workflow "$api_base" "$workflow_path"); then
         echo "❌ Failed to start adhoc workflow execution" >&2
@@ -277,16 +300,27 @@ testing::playbooks::run_workflow() {
         return 1
     fi
 
+    echo "   Execution ID: ${execution_id}" >&2
+
     TESTING_PLAYBOOKS_LAST_EXECUTION_ID="$execution_id"
     TESTING_PLAYBOOKS_LAST_WORKFLOW_ID=""  # No workflow persisted
     TESTING_PLAYBOOKS_LAST_SCENARIO="$scenario_name"
 
+    local start_time
+    start_time=$(date +%s)
     local execution_summary
     if execution_summary=$(_testing_playbooks__wait_for_execution "$api_base" "$execution_id" 360); then
+        local end_time
+        end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        echo "✅ Workflow ${workflow_name} completed in ${duration}s" >&2
         # Leave scenario running for subsequent tests/workflows
         return 0
     else
-        echo "❌ Adhoc workflow execution failed" >&2
+        local end_time
+        end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        echo "❌ Workflow ${workflow_name} failed after ${duration}s" >&2
         printf '%s\n' "$execution_summary" >&2
         # Leave scenario running even on failure for debugging
         return 1

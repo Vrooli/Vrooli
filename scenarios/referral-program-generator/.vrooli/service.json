@@ -246,7 +246,14 @@
         "enabled": true,
         "required": false,
         "purpose": "Vector database for semantic search of optimal referral patterns and marketing copy templates"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (resource_cli)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

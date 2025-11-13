@@ -10,7 +10,7 @@ interface InvestigationsPanelProps {
 export const InvestigationsPanel = ({ investigations, embedded = false }: InvestigationsPanelProps) => {
   const triggerInvestigation = async () => {
     try {
-      const response = await fetch(buildApiUrl('/api/investigations/trigger'), {
+      const response = await fetch(buildApiUrl('/investigations/trigger'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

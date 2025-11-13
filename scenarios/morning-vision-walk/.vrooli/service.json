@@ -276,7 +276,14 @@
         "enabled": true,
         "required": true,
         "purpose": "Store embeddings of past conversations and insights for context retrieval"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

@@ -785,62 +785,70 @@ func main() {
 	// Health endpoint
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 
-	// Metrics endpoints
-	r.HandleFunc("/api/metrics/current", getCurrentMetricsHandler).Methods("GET")
-	r.HandleFunc("/api/metrics/timeline", getMetricsTimelineHandler).Methods("GET")
-	r.HandleFunc("/api/metrics/detailed", getDetailedMetricsHandler).Methods("GET")
-	r.HandleFunc("/api/metrics/processes", getProcessMonitorHandler).Methods("GET")
-	r.HandleFunc("/api/metrics/infrastructure", getInfrastructureMonitorHandler).Methods("GET")
-	r.HandleFunc("/api/metrics/disk/details", getDiskDetailsHandler).Methods("GET")
+	registerAPIRoutes := func(router *mux.Router) {
+		// Metrics endpoints
+		router.HandleFunc("/metrics/current", getCurrentMetricsHandler).Methods("GET")
+		router.HandleFunc("/metrics/timeline", getMetricsTimelineHandler).Methods("GET")
+		router.HandleFunc("/metrics/detailed", getDetailedMetricsHandler).Methods("GET")
+		router.HandleFunc("/metrics/processes", getProcessMonitorHandler).Methods("GET")
+		router.HandleFunc("/metrics/infrastructure", getInfrastructureMonitorHandler).Methods("GET")
+		router.HandleFunc("/metrics/disk/details", getDiskDetailsHandler).Methods("GET")
 
-	// Settings endpoints
-	r.HandleFunc("/api/settings", settingsHandler.GetSettings).Methods("GET")
-	r.HandleFunc("/api/settings", settingsHandler.UpdateSettings).Methods("PUT")
-	r.HandleFunc("/api/settings/reset", settingsHandler.ResetSettings).Methods("POST")
-	r.HandleFunc("/api/maintenance/state", settingsHandler.GetMaintenanceState).Methods("GET")
-	r.HandleFunc("/api/maintenance/state", settingsHandler.SetMaintenanceState).Methods("POST")
+		// Settings endpoints
+		router.HandleFunc("/settings", settingsHandler.GetSettings).Methods("GET")
+		router.HandleFunc("/settings", settingsHandler.UpdateSettings).Methods("PUT")
+		router.HandleFunc("/settings/reset", settingsHandler.ResetSettings).Methods("POST")
+		router.HandleFunc("/maintenance/state", settingsHandler.GetMaintenanceState).Methods("GET")
+		router.HandleFunc("/maintenance/state", settingsHandler.SetMaintenanceState).Methods("POST")
 
-	// Investigation endpoints
-	r.HandleFunc("/api/investigations", listInvestigationsHandler).Methods("GET")
-	r.HandleFunc("/api/investigations/latest", getLatestInvestigationHandler).Methods("GET")
-	r.HandleFunc("/api/investigations/trigger", triggerInvestigationHandler).Methods("POST")
-	r.HandleFunc("/api/investigations/scripts", listInvestigationScriptsHandler).Methods("GET")
-	r.HandleFunc("/api/investigations/scripts/{id}", getInvestigationScriptHandler).Methods("GET")
-	r.HandleFunc("/api/investigations/scripts/{id}/execute", executeInvestigationScriptHandler).Methods("POST")
-	r.HandleFunc("/api/investigations/agent/spawn", spawnAgentHandler).Methods("POST")
-	r.HandleFunc("/api/investigations/agent/{id}/status", getAgentStatusHandler).Methods("GET")
-	r.HandleFunc("/api/investigations/agent/current", getCurrentAgentHandler).Methods("GET")
-	r.HandleFunc("/api/investigations/cooldown", getCooldownStatusHandler).Methods("GET")
-	r.HandleFunc("/api/investigations/cooldown/reset", resetCooldownHandler).Methods("POST")
-	r.HandleFunc("/api/investigations/cooldown/period", updateCooldownPeriodHandler).Methods("PUT")
-	r.HandleFunc("/api/investigations/triggers", getTriggersHandler).Methods("GET")
-	r.HandleFunc("/api/investigations/triggers/{id}", updateTriggerHandler).Methods("PUT")
-	r.HandleFunc("/api/investigations/triggers/{id}/threshold", updateTriggerThresholdHandler).Methods("PUT")
-	r.HandleFunc("/api/investigations/{id}", getInvestigationHandler).Methods("GET")
-	r.HandleFunc("/api/investigations/{id}/status", updateInvestigationStatusHandler).Methods("PUT")
-	r.HandleFunc("/api/investigations/{id}/findings", updateInvestigationFindingsHandler).Methods("PUT")
-	r.HandleFunc("/api/investigations/{id}/progress", updateInvestigationProgressHandler).Methods("PUT")
-	r.HandleFunc("/api/investigations/{id}/step", addInvestigationStepHandler).Methods("POST")
+		// Investigation endpoints
+		router.HandleFunc("/investigations", listInvestigationsHandler).Methods("GET")
+		router.HandleFunc("/investigations/latest", getLatestInvestigationHandler).Methods("GET")
+		router.HandleFunc("/investigations/trigger", triggerInvestigationHandler).Methods("POST")
+		router.HandleFunc("/investigations/scripts", listInvestigationScriptsHandler).Methods("GET")
+		router.HandleFunc("/investigations/scripts/{id}", getInvestigationScriptHandler).Methods("GET")
+		router.HandleFunc("/investigations/scripts/{id}/execute", executeInvestigationScriptHandler).Methods("POST")
+		router.HandleFunc("/investigations/agent/spawn", spawnAgentHandler).Methods("POST")
+		router.HandleFunc("/investigations/agent/{id}/status", getAgentStatusHandler).Methods("GET")
+		router.HandleFunc("/investigations/agent/current", getCurrentAgentHandler).Methods("GET")
+		router.HandleFunc("/investigations/cooldown", getCooldownStatusHandler).Methods("GET")
+		router.HandleFunc("/investigations/cooldown/reset", resetCooldownHandler).Methods("POST")
+		router.HandleFunc("/investigations/cooldown/period", updateCooldownPeriodHandler).Methods("PUT")
+		router.HandleFunc("/investigations/triggers", getTriggersHandler).Methods("GET")
+		router.HandleFunc("/investigations/triggers/{id}", updateTriggerHandler).Methods("PUT")
+		router.HandleFunc("/investigations/triggers/{id}/threshold", updateTriggerThresholdHandler).Methods("PUT")
+		router.HandleFunc("/investigations/{id}", getInvestigationHandler).Methods("GET")
+		router.HandleFunc("/investigations/{id}/status", updateInvestigationStatusHandler).Methods("PUT")
+		router.HandleFunc("/investigations/{id}/findings", updateInvestigationFindingsHandler).Methods("PUT")
+		router.HandleFunc("/investigations/{id}/progress", updateInvestigationProgressHandler).Methods("PUT")
+		router.HandleFunc("/investigations/{id}/step", addInvestigationStepHandler).Methods("POST")
 
-	// Report endpoints
-	r.HandleFunc("/api/reports", listReportsHandler).Methods("GET")
-	r.HandleFunc("/api/reports/{id}", getReportHandler).Methods("GET")
-	r.HandleFunc("/api/reports/generate", generateReportHandler).Methods("POST")
+		// Report endpoints
+		router.HandleFunc("/reports", listReportsHandler).Methods("GET")
+		router.HandleFunc("/reports/{id}", getReportHandler).Methods("GET")
+		router.HandleFunc("/reports/generate", generateReportHandler).Methods("POST")
 
-	// New MonitoringProcessor endpoints
-	r.HandleFunc("/api/monitoring/threshold-check", thresholdMonitorHandler).Methods("POST")
-	r.HandleFunc("/api/monitoring/investigate-anomaly", anomalyInvestigationHandler).Methods("POST")
-	r.HandleFunc("/api/monitoring/generate-report", systemReportHandler).Methods("POST")
+		// New MonitoringProcessor endpoints
+		router.HandleFunc("/monitoring/threshold-check", thresholdMonitorHandler).Methods("POST")
+		router.HandleFunc("/monitoring/investigate-anomaly", anomalyInvestigationHandler).Methods("POST")
+		router.HandleFunc("/monitoring/generate-report", systemReportHandler).Methods("POST")
 
-	// Debug logs endpoint for UI troubleshooting
-	r.HandleFunc("/api/logs", getLogsHandler).Methods("GET")
+		// Debug logs endpoint for UI troubleshooting
+		router.HandleFunc("/logs", getLogsHandler).Methods("GET")
 
-	// Error logs endpoint for system output
-	r.HandleFunc("/api/errors", getErrorsHandler).Methods("GET")
-	r.HandleFunc("/api/errors/mark-read", markErrorsReadHandler).Methods("POST")
+		// Error logs endpoint for system output
+		router.HandleFunc("/errors", getErrorsHandler).Methods("GET")
+		router.HandleFunc("/errors/mark-read", markErrorsReadHandler).Methods("POST")
 
-	// Process management endpoints
-	r.HandleFunc("/api/processes/{pid}/kill", killProcessHandler).Methods("POST")
+		// Process management endpoints
+		router.HandleFunc("/processes/{pid}/kill", killProcessHandler).Methods("POST")
+
+		// API health endpoint
+		router.HandleFunc("/health", healthHandler).Methods("GET")
+	}
+
+	registerAPIRoutes(r.PathPrefix("/api").Subrouter())
+	registerAPIRoutes(r.PathPrefix("/api/v1").Subrouter())
 
 	// Enable CORS
 	r.Use(corsMiddleware)
@@ -4095,5 +4103,6 @@ func systemReportHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
+
 // Test change
 // Test change

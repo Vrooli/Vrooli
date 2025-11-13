@@ -92,8 +92,8 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
       // Load triggers and cooldown status
       const [triggersResponse, cooldownResponse] = await Promise.all([
-        fetch(buildApiUrl('/api/investigations/triggers')),
-        fetch(buildApiUrl('/api/investigations/cooldown'))
+        fetch(buildApiUrl('/investigations/triggers')),
+        fetch(buildApiUrl('/investigations/cooldown'))
       ]);
       
       if (triggersResponse.ok) {
@@ -150,7 +150,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
       const trigger = triggers.find(t => t.id === triggerId);
       if (!trigger) return;
       
-      const response = await fetch(buildApiUrl(`/api/investigations/triggers/${triggerId}`), {
+      const response = await fetch(buildApiUrl(`/investigations/triggers/${triggerId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: !trigger.enabled })
@@ -174,7 +174,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
       const trigger = triggers.find(t => t.id === triggerId);
       if (!trigger) return;
       
-      const response = await fetch(buildApiUrl(`/api/investigations/triggers/${triggerId}`), {
+      const response = await fetch(buildApiUrl(`/investigations/triggers/${triggerId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ auto_fix: !trigger.autoFix })
@@ -195,7 +195,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
   const handleUpdateCooldownPeriod = async (newPeriodSeconds: number) => {
     try {
-      const response = await fetch(buildApiUrl('/api/investigations/cooldown/period'), {
+      const response = await fetch(buildApiUrl('/investigations/cooldown/period'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -224,7 +224,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
   const handleUpdateTriggerThreshold = async (triggerId: string, newThreshold: number) => {
     try {
-      const response = await fetch(buildApiUrl(`/api/investigations/triggers/${triggerId}/threshold`), {
+      const response = await fetch(buildApiUrl(`/investigations/triggers/${triggerId}/threshold`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ threshold: newThreshold })
@@ -246,7 +246,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
   const handleResetCooldown = async () => {
     try {
-      const response = await fetch(buildApiUrl('/api/investigations/cooldown/reset'), {
+      const response = await fetch(buildApiUrl('/investigations/cooldown/reset'), {
         method: 'POST'
       });
       

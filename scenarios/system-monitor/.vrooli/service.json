@@ -65,76 +65,6 @@
       "description": "Web UI dashboard port"
     }
   },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "store metrics, thresholds, investigations, and reports",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "questdb": {
-        "type": "questdb",
-        "enabled": true,
-        "required": true,
-        "purpose": "time series data for metrics and performance analytics",
-        "initialization": [
-          {
-            "file": "initialization/questdb/server.conf",
-            "type": "config"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "real-time alerts and caching",
-        "initialization": [
-          {
-            "file": "initialization/redis/redis.conf",
-            "type": "config"
-          }
-        ]
-      },
-      "node-red": {
-        "type": "node-red",
-        "enabled": true,
-        "required": true,
-        "purpose": "anomaly detection flows"
-      },
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2:3b"
-        ],
-        "purpose": "anomaly investigation and analysis"
-      },
-      "codex": {
-        "type": "codex",
-        "enabled": true,
-        "required": false,
-        "purpose": "deep system investigation using Codex tooling",
-        "models": [
-          "codex-mini-latest"
-        ]
-      },
-      "grafana": {
-        "type": "grafana",
-        "enabled": true,
-        "required": false,
-        "purpose": "advanced metrics visualization"
-      }
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -285,5 +215,88 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "store metrics, thresholds, investigations, and reports",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "questdb": {
+        "type": "questdb",
+        "enabled": true,
+        "required": true,
+        "purpose": "time series data for metrics and performance analytics",
+        "initialization": [
+          {
+            "file": "initialization/questdb/server.conf",
+            "type": "config"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "real-time alerts and caching",
+        "initialization": [
+          {
+            "file": "initialization/redis/redis.conf",
+            "type": "config"
+          }
+        ]
+      },
+      "node-red": {
+        "type": "node-red",
+        "enabled": true,
+        "required": true,
+        "purpose": "anomaly detection flows"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2:3b"
+        ],
+        "purpose": "anomaly investigation and analysis"
+      },
+      "codex": {
+        "type": "codex",
+        "enabled": true,
+        "required": false,
+        "purpose": "deep system investigation using Codex tooling",
+        "models": [
+          "codex-mini-latest"
+        ]
+      },
+      "grafana": {
+        "type": "grafana",
+        "enabled": true,
+        "required": false,
+        "purpose": "advanced metrics visualization"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

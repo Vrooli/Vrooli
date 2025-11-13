@@ -1,4 +1,4 @@
-import { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { KeyboardEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   CheckCircle,
@@ -10,7 +10,8 @@ import {
   Search,
   X,
   ChevronDown,
-  Filter as FilterIcon
+  Filter as FilterIcon,
+  Sparkles,
 } from 'lucide-react'
 import { buildApiUrl } from '../utils/apiClient'
 import { usePrepareDraft } from '../utils/useDraft'
@@ -114,6 +115,69 @@ export default function Catalog() {
     }
   }, [entries])
 
+  const coverage = useMemo(() => {
+    if (!catalogCounts.total) {
+      return 0
+    }
+    return Math.round((catalogCounts.withPrd / catalogCounts.total) * 100)
+  }, [catalogCounts])
+
+  const missingPercentage = useMemo(() => {
+    if (!catalogCounts.total) {
+      return 0
+    }
+    return Math.round((catalogCounts.missing / catalogCounts.total) * 100)
+  }, [catalogCounts])
+
+  const statHighlights = useMemo(() => {
+    const highlights: Array<{
+      key: string
+      label: string
+      value: string
+      description: string
+      icon: ReactNode
+      tone: 'slate' | 'success' | 'info' | 'warning'
+      chip?: string
+    }> = [
+      {
+        key: 'total',
+        label: 'Total entities',
+        value: catalogCounts.total.toLocaleString(),
+        description: 'Scenarios & resources monitored',
+        icon: <Layers size={18} aria-hidden="true" />,
+        tone: 'slate',
+      },
+      {
+        key: 'with-prd',
+        label: 'With PRD',
+        value: catalogCounts.withPrd.toLocaleString(),
+        description: `${coverage}% coverage`,
+        icon: <CheckCircle size={18} aria-hidden="true" />,
+        tone: 'success',
+        chip: `${coverage}%`,
+      },
+      {
+        key: 'drafts',
+        label: 'Active drafts',
+        value: catalogCounts.drafts.toLocaleString(),
+        description: 'Awaiting review',
+        icon: <FileEdit size={18} aria-hidden="true" />,
+        tone: 'info',
+      },
+      {
+        key: 'missing',
+        label: 'Missing PRDs',
+        value: catalogCounts.missing.toLocaleString(),
+        description: `${missingPercentage}% need attention`,
+        icon: <XCircle size={18} aria-hidden="true" />,
+        tone: 'warning',
+        chip: 'Action needed',
+      },
+    ]
+
+    return highlights
+  }, [catalogCounts, coverage, missingPercentage])
+
   const filterOptions = useMemo(() => ([
     { value: 'all' as const, label: `All (${catalogCounts.total})` },
     { value: 'scenario' as const, label: `Scenarios (${catalogCounts.scenarios})` },
@@ -180,28 +244,47 @@ export default function Catalog() {
     )
   }
 
+  const draftsLabel = catalogCounts.drafts === 1 ? 'Draft' : 'Drafts'
+
   return (
-    <div className="container">
-      <header className="page-header">
-        <h1 className="page-title">
-          <span className="page-title__icon" aria-hidden="true">
-            <ClipboardList size={28} strokeWidth={2.5} />
+    <div className="container catalog-page">
+      <header className="page-header page-header--catalog">
+        <span className="page-eyebrow">Product operations</span>
+        <div className="page-header__body">
+          <div className="page-header__text">
+            <h1 className="page-title">
+              <span className="page-title__icon" aria-hidden="true">
+                <ClipboardList size={28} strokeWidth={2.5} />
+              </span>
+              <span>PRD Control Tower</span>
+            </h1>
+            <p className="subtitle">
+              Centralized management, validation, and publishing for {catalogCounts.total.toLocaleString()} tracked entities with {coverage}% PRD coverage so far.
+            </p>
+          </div>
+          <Link to="/drafts" className="nav-button" aria-label={`View ${catalogCounts.drafts} ${draftsLabel.toLowerCase()}`}>
+            <Layers size={18} aria-hidden="true" />
+            <span className="nav-button__label">
+              <strong>View Drafts</strong>
+              <small>Curate updates</small>
+            </span>
+            <span className="nav-button__pill">{catalogCounts.drafts}</span>
+          </Link>
+        </div>
+        <div className="insight-banner" role="status" aria-live="polite">
+          <span className="insight-banner__icon" aria-hidden="true">
+            <Sparkles size={18} />
           </span>
-          <span>PRD Control Tower</span>
-        </h1>
-        <p className="subtitle">
-          Centralized management, validation, and publishing of Product Requirements Documents
-        </p>
+          <div>
+            <p className="insight-banner__title">Quality pulse</p>
+            <p className="insight-banner__body">
+              {catalogCounts.withPrd.toLocaleString()} PRDs published · {catalogCounts.missing.toLocaleString()} gaps remain ({missingPercentage}% of catalog)
+            </p>
+          </div>
+        </div>
       </header>
 
-      <div className="nav-links">
-        <Link to="/drafts" className="nav-link">
-          <Layers size={16} aria-hidden="true" />
-          <span>View Drafts ({catalogCounts.drafts})</span>
-        </Link>
-      </div>
-
-      <div className="controls">
+      <section className="surface-card catalog-toolbar" aria-label="Catalog controls">
         <div className="search-field">
           <label htmlFor="catalog-search" className="sr-only">Search catalog</label>
           <Search className="search-field__icon" size={18} aria-hidden="true" />
@@ -256,32 +339,25 @@ export default function Catalog() {
             </div>
           )}
         </div>
-      </div>
+      </section>
 
-      <div className="stats">
-        <div className="stat-item">
-          <span className="stat-label">Total Entities</span>
-          <span className="stat-value">{catalogCounts.total}</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">With PRD</span>
-          <span className="stat-value has-prd-color">
-            {catalogCounts.withPrd}
-          </span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">Drafts</span>
-          <span className="stat-value draft-color">
-            {catalogCounts.drafts}
-          </span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">Missing</span>
-          <span className="stat-value missing-color">
-            {catalogCounts.missing}
-          </span>
-        </div>
-      </div>
+      <section className="stat-panel" aria-label="Catalog health overview">
+        {statHighlights.map((stat) => (
+          <article key={stat.key} className={`stat-card stat-card--${stat.tone}`}>
+            <div className="stat-card__icon" aria-hidden="true">
+              {stat.icon}
+            </div>
+            <div className="stat-card__content">
+              <span className="stat-card__label">{stat.label}</span>
+              <div className="stat-card__value-row">
+                <span className="stat-card__value">{stat.value}</span>
+                {stat.chip ? <span className="stat-card__chip">{stat.chip}</span> : null}
+              </div>
+              <p className="stat-card__description">{stat.description}</p>
+            </div>
+          </article>
+        ))}
+      </section>
 
       <div className="catalog-grid">
         {filteredEntries.length === 0 ? (

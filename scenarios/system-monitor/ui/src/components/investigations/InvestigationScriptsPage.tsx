@@ -45,7 +45,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
     setLoading(true);
     setErrorMessage(null);
     try {
-      const response = await fetch(buildApiUrl('/api/investigations/scripts'));
+      const response = await fetch(buildApiUrl('/investigations/scripts'));
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
       }
@@ -101,7 +101,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
     }
     setIsFetchingContent(true);
     try {
-      const response = await fetch(buildApiUrl(`/api/investigations/scripts/${encodeURIComponent(script.id)}`));
+      const response = await fetch(buildApiUrl(`/investigations/scripts/${encodeURIComponent(script.id)}`));
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
       }
@@ -198,7 +198,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
     setSaveError(null);
     if (!isDesktop) {
       try {
-        const response = await fetch(buildApiUrl(`/api/investigations/scripts/${encodeURIComponent(script.id)}`));
+        const response = await fetch(buildApiUrl(`/investigations/scripts/${encodeURIComponent(script.id)}`));
         if (!response.ok) {
           throw new Error(`Request failed with status ${response.status}`);
         }

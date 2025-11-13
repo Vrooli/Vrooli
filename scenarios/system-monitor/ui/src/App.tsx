@@ -180,7 +180,7 @@ function App() {
 
   const fetchActiveAgents = useCallback(async () => {
     try {
-      const response = await fetch(buildApiUrl('/api/investigations/agent/current'));
+      const response = await fetch(buildApiUrl('/investigations/agent/current'));
       if (response.status === 404) {
         setAgents([]);
         return;
@@ -209,7 +209,7 @@ function App() {
     setSpawnAgentError(null);
     setIsSpawningAgent(true);
     try {
-      const response = await fetch(buildApiUrl('/api/investigations/agent/spawn'), {
+      const response = await fetch(buildApiUrl('/investigations/agent/spawn'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -288,7 +288,7 @@ function App() {
         requestBody.note = note;
       }
 
-      const response = await fetch(buildApiUrl('/api/investigations/trigger'), {
+      const response = await fetch(buildApiUrl('/investigations/trigger'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -328,7 +328,7 @@ function App() {
     });
 
     try {
-      const response = await fetch(buildApiUrl(`/api/investigations/agent/${encodeURIComponent(agentId)}/stop`), {
+      const response = await fetch(buildApiUrl(`/investigations/agent/${encodeURIComponent(agentId)}/stop`), {
         method: 'POST'
       });
 
@@ -382,7 +382,7 @@ function App() {
     const pollOnce = async () => {
       await Promise.all(activeAgents.map(async agent => {
         try {
-          const response = await fetch(buildApiUrl(`/api/investigations/agent/${encodeURIComponent(agent.id)}/status`));
+          const response = await fetch(buildApiUrl(`/investigations/agent/${encodeURIComponent(agent.id)}/status`));
           if (!response.ok) {
             return;
           }
@@ -529,7 +529,7 @@ function App() {
 
       const requestBody = scriptContent ? { content: scriptContent } : {};
 
-      const response = await fetch(buildApiUrl(`/api/investigations/scripts/${encodeURIComponent(scriptId)}/execute`), {
+      const response = await fetch(buildApiUrl(`/investigations/scripts/${encodeURIComponent(scriptId)}/execute`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -58,68 +58,6 @@
       "range": "35000-39999"
     }
   },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "historical foliage data and user trips",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "real-time weather data caching"
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/n8n/foliage-data-fetcher.json",
-            "type": "workflow",
-            "name": "foliage-data-fetcher",
-            "active": true
-          },
-          {
-            "file": "initialization/n8n/weather-integration.json",
-            "type": "workflow",
-            "name": "weather-integration",
-            "active": true
-          },
-          {
-            "file": "initialization/n8n/foliage-predictor.json",
-            "type": "workflow",
-            "name": "foliage-predictor",
-            "active": true
-          }
-        ]
-      },
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2:3b"
-        ],
-        "purpose": "foliage predictions and pattern analysis"
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": false,
-        "purpose": "weather data scraping"
-      }
-    }
-  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -269,5 +207,74 @@
         }
       ]
     }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "historical foliage data and user trips",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "real-time weather data caching"
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/n8n/foliage-data-fetcher.json",
+            "type": "workflow",
+            "name": "foliage-data-fetcher",
+            "active": true
+          },
+          {
+            "file": "initialization/n8n/weather-integration.json",
+            "type": "workflow",
+            "name": "weather-integration",
+            "active": true
+          },
+          {
+            "file": "initialization/n8n/foliage-predictor.json",
+            "type": "workflow",
+            "name": "foliage-predictor",
+            "active": true
+          }
+        ]
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.2:3b"
+        ],
+        "purpose": "foliage predictions and pattern analysis"
+      },
+      "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "weather data scraping"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
   }
 }

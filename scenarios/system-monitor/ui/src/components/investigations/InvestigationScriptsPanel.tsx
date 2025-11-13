@@ -44,7 +44,7 @@ export const InvestigationScriptsPanel = ({
     setLoading(true);
     setErrorMessage(null);
     try {
-      const response = await fetch(buildApiUrl('/api/investigations/scripts'));
+      const response = await fetch(buildApiUrl('/investigations/scripts'));
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
       }
@@ -71,7 +71,7 @@ export const InvestigationScriptsPanel = ({
 
   const openScript = async (script: InvestigationScript) => {
     try {
-      const response = await fetch(buildApiUrl(`/api/investigations/scripts/${encodeURIComponent(script.id)}`));
+      const response = await fetch(buildApiUrl(`/investigations/scripts/${encodeURIComponent(script.id)}`));
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
       }

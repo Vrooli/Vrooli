@@ -1,4 +1,6 @@
 {
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
   "service": {
     "name": "video-downloader",
     "displayName": "Video Downloader",
@@ -27,7 +29,6 @@
     "description": "Video downloader service with Go API and React UI",
     "version": "2.0.0"
   },
-  "version": "2.0.0",
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -199,8 +200,14 @@
       },
       "postgres": {
         "required": false
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
-  },
-  "$schema": "../../../.vrooli/schemas/service.schema.json"
+    },
+    "scenarios": {}
+  }
 }

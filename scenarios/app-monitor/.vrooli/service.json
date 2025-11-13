@@ -258,6 +258,26 @@
         "enabled": true,
         "required": false,
         "purpose": "Headless browser for capturing diagnostics when iframe bridge fails (console logs, network requests, screenshots, page HTML)"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {
+      "app-issue-tracker": {
+        "required": true,
+        "version": "2.0.0-file-based",
+        "versionRange": ">=2.0.0-file-based",
+        "description": "Auto-detected dependency via scenario_port_cli"
+      },
+      "scenario-auditor": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "description": "Auto-detected dependency via scenario_port_cli"
       }
     }
   }

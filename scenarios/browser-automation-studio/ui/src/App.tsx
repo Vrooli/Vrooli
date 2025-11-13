@@ -359,7 +359,7 @@ function App() {
   // Dashboard View
   if (currentView === 'dashboard') {
     return (
-      <div className="h-screen flex flex-col bg-flow-bg">
+      <div className="h-screen flex flex-col bg-flow-bg" data-testid="app-ready">
         <Suspense fallback={
           <div className="h-screen flex items-center justify-center bg-flow-bg">
             <div className="text-flow-text">Loading dashboard...</div>
@@ -384,7 +384,7 @@ function App() {
   // Project Detail View
   if (currentView === 'project-detail' && currentProject) {
     return (
-      <div className="h-screen flex flex-col bg-flow-bg">
+      <div className="h-screen flex flex-col bg-flow-bg" data-testid="app-ready">
         <Suspense fallback={
           <div className="h-screen flex items-center justify-center bg-flow-bg">
             <div className="text-flow-text">Loading project...</div>
@@ -416,8 +416,8 @@ function App() {
   // Project Workflow View (fallback)
   return (
     <ReactFlowProvider>
-      <div className="h-screen flex flex-col bg-flow-bg">
-        <Header 
+      <div className="h-screen flex flex-col bg-flow-bg" data-testid="app-ready">
+        <Header
           onNewWorkflow={() => setShowAIModal(true)}
           onBackToDashboard={currentView === 'project-workflow' ? handleBackToProjectDetail : handleBackToDashboard}
           currentProject={currentProject}

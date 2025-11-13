@@ -229,7 +229,14 @@
         "enabled": false,
         "required": false,
         "description": "New scenario creation workflow"
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (resource_cli)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

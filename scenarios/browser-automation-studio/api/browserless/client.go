@@ -189,6 +189,18 @@ func makeFrameFilename(stepIndex int, stepName string) string {
 
 // ExecuteWorkflow executes the supplied workflow via Browserless, capturing artifacts per step.
 func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execution, workflow *database.Workflow, emitter events.Sink) error {
+	// Apply workflow-level execution timeout (default: 2 minutes)
+	// This prevents workflows from hanging indefinitely if steps retry continuously
+	workflowTimeout := 2 * time.Minute
+	if timeoutEnv := os.Getenv("WORKFLOW_EXECUTION_TIMEOUT_MINUTES"); timeoutEnv != "" {
+		if minutes, err := strconv.Atoi(timeoutEnv); err == nil && minutes > 0 {
+			workflowTimeout = time.Duration(minutes) * time.Minute
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, workflowTimeout)
+	defer cancel()
+
 	plan, instructions, err := c.compileWorkflow(ctx, workflow)
 	if err != nil {
 		return err
@@ -232,6 +244,13 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 	var lastReplayScreenshot []byte
 
 	for _, instruction := range instructions {
+		// Check if workflow execution timeout has been exceeded
+		if ctx.Err() != nil {
+			c.log.WithField("execution_id", execution.ID).WithError(ctx.Err()).Warn("Workflow execution canceled or timed out")
+			execution.CurrentStep = "Timeout"
+			return fmt.Errorf("workflow execution timeout exceeded: %w", ctx.Err())
+		}
+
 		if !activeNodes[instruction.NodeID] {
 			continue
 		}

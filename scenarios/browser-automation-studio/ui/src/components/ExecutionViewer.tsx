@@ -2994,17 +2994,18 @@ function ActiveExecutionViewer({
   ]);
 
   const getStatusIcon = () => {
+    const statusTestId = `execution-status-${execution.status}`;
     switch (execution.status) {
       case "running":
-        return <Loader size={16} className="animate-spin text-blue-400" />;
+        return <Loader size={16} className="animate-spin text-blue-400" data-testid={statusTestId} />;
       case "completed":
-        return <CheckCircle size={16} className="text-green-400" />;
+        return <CheckCircle size={16} className="text-green-400" data-testid={statusTestId} />;
       case "failed":
-        return <XCircle size={16} className="text-red-400" />;
+        return <XCircle size={16} className="text-red-400" data-testid={statusTestId} />;
       case "cancelled":
-        return <AlertTriangle size={16} className="text-yellow-400" />;
+        return <AlertTriangle size={16} className="text-yellow-400" data-testid={statusTestId} />;
       default:
-        return <Clock size={16} className="text-gray-400" />;
+        return <Clock size={16} className="text-gray-400" data-testid={statusTestId} />;
     }
   };
 
@@ -3022,7 +3023,7 @@ function ActiveExecutionViewer({
   };
 
   return (
-    <div className="h-full flex flex-col bg-flow-node min-h-0">
+    <div className="h-full flex flex-col bg-flow-node min-h-0" data-testid="execution-viewer">
       <div className="flex items-center justify-between p-3 border-b border-gray-800">
         <div className="flex items-center gap-3">
           {getStatusIcon()}
@@ -3030,13 +3031,14 @@ function ActiveExecutionViewer({
             <div className="text-sm font-medium text-white">
               Execution #{execution.id.slice(0, 8)}
             </div>
-            <div className="text-xs text-gray-500">{statusMessage}</div>
+            <div className="text-xs text-gray-500" data-testid="execution-status">{statusMessage}</div>
             {heartbeatDescriptor && (
-              <div className="mt-1 flex items-center gap-2 text-[11px]">
+              <div className="mt-1 flex items-center gap-2 text-[11px]" data-testid="execution-heartbeat">
                 {heartbeatDescriptor.tone === "stalled" ? (
                   <AlertTriangle
                     size={12}
                     className={heartbeatDescriptor.iconClass}
+                    data-testid={heartbeatDescriptor.tone === "stalled" ? "heartbeat-lag-warning" : undefined}
                   />
                 ) : (
                   <Activity
@@ -3044,7 +3046,7 @@ function ActiveExecutionViewer({
                     className={heartbeatDescriptor.iconClass}
                   />
                 )}
-                <span className={heartbeatDescriptor.textClass}>
+                <span className={heartbeatDescriptor.textClass} data-testid="heartbeat-status">
                   {heartbeatDescriptor.label}
                 </span>
                 {inStepLabel && execution.lastHeartbeat && (
@@ -3093,6 +3095,7 @@ function ActiveExecutionViewer({
             }
             onClick={handleOpenExportDialog}
             disabled={replayFrames.length === 0}
+            data-testid="export-replay-button"
           >
             <Download size={14} />
           </button>
@@ -3839,6 +3842,7 @@ function ActiveExecutionViewer({
                           ? "border-flow-accent/80 shadow-[0_22px_50px_rgba(59,130,246,0.35)]"
                           : "border-gray-800 hover:border-flow-accent/50 hover:shadow-[0_15px_40px_rgba(59,130,246,0.2)]",
                       )}
+                      data-testid="timeline-frame"
                     >
                       <div className="bg-slate-900/80 px-3 py-2 flex items-center justify-between text-xs text-slate-300">
                         <span className="truncate font-medium">
@@ -3853,6 +3857,7 @@ function ActiveExecutionViewer({
                         alt={screenshot.stepName}
                         loading="lazy"
                         className="block w-full"
+                        data-testid="execution-screenshot"
                       />
                     </div>
                   ))}
@@ -3900,10 +3905,10 @@ function ActiveExecutionViewer({
             )}
           </div>
         ) : (
-          <div className="flex-1 overflow-auto p-3">
+          <div className="flex-1 overflow-auto p-3" data-testid="execution-logs">
             <div className="terminal-output">
               {execution.logs.map((log) => (
-                <div key={log.id} className="flex gap-2 mb-1">
+                <div key={log.id} className="flex gap-2 mb-1" data-testid="log-entry">
                   <span className="text-xs text-gray-600">
                     {format(log.timestamp, "HH:mm:ss")}
                   </span>

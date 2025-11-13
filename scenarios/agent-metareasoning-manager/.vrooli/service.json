@@ -254,7 +254,14 @@
         "enabled": true,
         "required": false,
         "purpose": "Vector database for semantic search of reasoning patterns, workflow templates, and decision history - enables AI-powered similarity matching and recommendation of relevant metareasoning strategies"
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
       }
-    }
+    },
+    "scenarios": {}
   }
 }

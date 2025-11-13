@@ -149,6 +149,19 @@ scenario::lifecycle::restart() {
     )
 }
 
+scenario::lifecycle::setup() {
+    local scenario_name="${1:-}"
+    [[ -z "$scenario_name" ]] && {
+        log::error "Scenario name required"
+        log::info "Usage: vrooli scenario setup <name>"
+        return 1
+    }
+    shift
+
+    log::info "Running setup for scenario: $scenario_name"
+    scenario::run "$scenario_name" setup "$@"
+}
+
 # Stop a specific scenario
 scenario::lifecycle::stop() {
     local scenario_name="${1:-}"

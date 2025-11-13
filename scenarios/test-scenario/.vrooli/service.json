@@ -1,4 +1,6 @@
 {
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
   "service": {
     "name": "test-scenario",
     "description": "Test scenario for Vrooli",
@@ -27,7 +29,13 @@
     },
     "version": "1.0.0"
   },
-  "version": "1.0.0",
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Primary API port"
+    }
+  },
   "lifecycle": {
     "setup": {
       "description": "Prepare test-scenario binaries and CLI",
@@ -122,15 +130,15 @@
       ]
     }
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "range": "15000-19999",
-      "description": "Primary API port"
-    }
-  },
   "dependencies": {
-    "resources": {}
-  },
-  "$schema": "../../../.vrooli/schemas/service.schema.json"
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Auto-detected via analyzer (heuristic)"
+      }
+    },
+    "scenarios": {}
+  }
 }

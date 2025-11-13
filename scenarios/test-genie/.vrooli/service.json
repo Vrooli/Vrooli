@@ -304,6 +304,14 @@
           "timeout": 5000
         }
       }
+    },
+    "scenarios": {
+      "app-issue-tracker": {
+        "required": true,
+        "version": "2.0.0-file-based",
+        "versionRange": ">=2.0.0-file-based",
+        "description": "Auto-detected dependency via scenario_port_cli"
+      }
     }
   }
 }
