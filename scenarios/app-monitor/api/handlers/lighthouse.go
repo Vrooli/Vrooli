@@ -20,6 +20,12 @@ type LighthouseHandler struct {
 	appRoot string
 }
 
+const (
+	lighthouseConfigRelativePath = ".vrooli/lighthouse.json"
+	lighthouseInitCommand        = "scripts/scenarios/testing/lighthouse/config.sh init"
+	lighthouseSetupHint          = "Use scripts/scenarios/testing/lighthouse/config.sh init inside each scenario to scaffold Lighthouse tests."
+)
+
 // NewLighthouseHandler creates a new Lighthouse handler
 func NewLighthouseHandler() *LighthouseHandler {
 	appRoot := os.Getenv("APP_ROOT")
@@ -38,18 +44,18 @@ type LighthouseRunRequest struct {
 
 // LighthouseReport represents a single Lighthouse audit result
 type LighthouseReport struct {
-	ID        string                 `json:"id"`
-	Timestamp time.Time              `json:"timestamp"`
-	PageID    string                 `json:"page_id"`
-	PageLabel string                 `json:"page_label"`
-	URL       string                 `json:"url"`
-	Viewport  string                 `json:"viewport"`
-	Status    string                 `json:"status"`
-	Scores    map[string]float64     `json:"scores"`
-	Failures  []map[string]any       `json:"failures"`
-	Warnings  []map[string]any       `json:"warnings"`
-	ReportURL string                 `json:"report_url"`
-	JSONPath  string                 `json:"json_path"`
+	ID        string             `json:"id"`
+	Timestamp time.Time          `json:"timestamp"`
+	PageID    string             `json:"page_id"`
+	PageLabel string             `json:"page_label"`
+	URL       string             `json:"url"`
+	Viewport  string             `json:"viewport"`
+	Status    string             `json:"status"`
+	Scores    map[string]float64 `json:"scores"`
+	Failures  []map[string]any   `json:"failures"`
+	Warnings  []map[string]any   `json:"warnings"`
+	ReportURL string             `json:"report_url"`
+	JSONPath  string             `json:"json_path"`
 }
 
 // LighthouseHistory represents historical Lighthouse data
@@ -61,10 +67,10 @@ type LighthouseHistory struct {
 
 // TrendData represents performance trends over time
 type TrendData struct {
-	Performance  []TrendPoint `json:"performance"`
+	Performance   []TrendPoint `json:"performance"`
 	Accessibility []TrendPoint `json:"accessibility"`
 	BestPractices []TrendPoint `json:"best_practices"`
-	SEO          []TrendPoint `json:"seo"`
+	SEO           []TrendPoint `json:"seo"`
 }
 
 // TrendPoint represents a single data point in a trend
@@ -89,12 +95,16 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 		req.Pages = nil
 	}
 
-	// Check if scenario exists and has Lighthouse config
-	scenarioPath := filepath.Join(h.appRoot, "scenarios", scenarioName)
-	configPath := filepath.Join(scenarioPath, ".lighthouse", "config.json")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": fmt.Sprintf("Scenario %s has no .lighthouse/config.json", scenarioName),
+	scenarioPath := h.scenarioPath(scenarioName)
+	configPath := h.configPath(scenarioName)
+	if _, err := os.Stat(configPath); err != nil {
+		if os.IsNotExist(err) {
+			h.respondMissingConfig(c, scenarioName)
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   fmt.Sprintf("Failed to inspect Lighthouse config for %s", scenarioName),
+			"details": err.Error(),
 		})
 		return
 	}
@@ -150,6 +160,72 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 		"timestamp": time.Now().UTC(),
 		"reports":   reports,
 		"output":    output,
+	})
+}
+
+// ListMissingConfigs returns all scenarios that are missing Lighthouse configuration.
+// GET /api/v1/lighthouse/missing-configs
+func (h *LighthouseHandler) ListMissingConfigs(c *gin.Context) {
+	scenariosDir := filepath.Join(h.appRoot, "scenarios")
+	entries, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to inspect scenarios directory",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	missing := make([]map[string]string, 0)
+	total := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		total++
+		configPath := h.configPath(name)
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			missing = append(missing, map[string]string{
+				"scenario":      name,
+				"expected_path": configPath,
+			})
+		}
+	}
+
+	sort.Slice(missing, func(i, j int) bool {
+		return missing[i]["scenario"] < missing[j]["scenario"]
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"missing": missing,
+		"count":   len(missing),
+		"total":   total,
+	})
+}
+
+func (h *LighthouseHandler) scenarioPath(name string) string {
+	return filepath.Join(h.appRoot, "scenarios", name)
+}
+
+func (h *LighthouseHandler) configPath(name string) string {
+	return filepath.Join(h.scenarioPath(name), lighthouseConfigRelativePath)
+}
+
+func (h *LighthouseHandler) respondMissingConfig(c *gin.Context, scenarioName string) {
+	scenarioDir := filepath.Join("scenarios", scenarioName)
+	initCommand := fmt.Sprintf("cd %s && %s", scenarioDir, lighthouseInitCommand)
+
+	c.JSON(http.StatusNotFound, gin.H{
+		"error":           fmt.Sprintf("Scenario %s has no %s", scenarioName, lighthouseConfigRelativePath),
+		"missing_config":  true,
+		"scenario":        scenarioName,
+		"expected_path":   h.configPath(scenarioName),
+		"hint":            lighthouseSetupHint,
+		"suggested_steps": []string{initCommand},
 	})
 }
 
@@ -376,7 +452,7 @@ func (h *LighthouseHandler) calculateTrends(reports []LighthouseReport) *TrendDa
 		Performance:   make([]TrendPoint, 0),
 		Accessibility: make([]TrendPoint, 0),
 		BestPractices: make([]TrendPoint, 0),
-		SEO:          make([]TrendPoint, 0),
+		SEO:           make([]TrendPoint, 0),
 	}
 
 	for _, report := range reports {

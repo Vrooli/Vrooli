@@ -165,6 +165,7 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 		v1.GET("/docker/containers", h.docker.GetContainers)
 
 		// Lighthouse testing endpoints
+		v1.GET("/lighthouse/missing-configs", h.lighthouse.ListMissingConfigs)
 		v1.POST("/scenarios/:scenario/lighthouse/run", h.lighthouse.RunLighthouse)
 		v1.GET("/scenarios/:scenario/lighthouse/history", h.lighthouse.GetLighthouseHistory)
 		v1.GET("/scenarios/:scenario/lighthouse/report/:reportId", h.lighthouse.GetLighthouseReport)

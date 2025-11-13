@@ -248,6 +248,11 @@ export interface ReportIssuePayload {
   captures?: ReportIssueCapturePayload[];
 }
 
+export interface LighthouseMissingScenario {
+  scenario: string;
+  expected_path?: string;
+}
+
 export interface ScenarioIssueSummary {
   id: string;
   title: string;
@@ -404,6 +409,21 @@ export const appService = {
     } catch (error) {
       logger.warn(`Failed to fetch fallback diagnostics for ${appId}`, error);
       return null;
+    }
+  },
+
+  async listScenariosMissingLighthouseConfigs(): Promise<LighthouseMissingScenario[]> {
+    try {
+      const { data } = await api.get<{ missing?: LighthouseMissingScenario[] }>(
+        '/lighthouse/missing-configs',
+      );
+      if (!data?.missing || !Array.isArray(data.missing)) {
+        return [];
+      }
+      return data.missing;
+    } catch (error) {
+      logger.warn('Failed to load Lighthouse coverage inventory', error);
+      return [];
     }
   },
 
