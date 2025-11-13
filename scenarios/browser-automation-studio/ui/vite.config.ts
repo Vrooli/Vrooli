@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { defineProject } from 'vitest/config';
 import type { ViteDevServer, Plugin, Connect } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -21,6 +22,32 @@ const mainEntry = path.resolve(__dirname, 'index.html');
 const composerEntry = path.resolve(__dirname, 'src/export/composer.html');
 const MAX_VITEST_THREADS = Math.max(1, Number(process.env.VITEST_MAX_THREADS ?? '2'));
 const MIN_VITEST_THREADS = Math.max(1, Math.min(MAX_VITEST_THREADS, Number(process.env.VITEST_MIN_THREADS ?? '1')));
+const PROJECT_BASE_TEST_CONFIG = {
+  environment: 'jsdom',
+  setupFiles: './src/test-utils/setupTests.ts',
+  globals: true,
+};
+
+const THREADS_ONE = {
+  threads: {
+    maxThreads: 1,
+    minThreads: 1,
+  },
+};
+
+const THREADS_TWO = {
+  threads: {
+    maxThreads: 2,
+    minThreads: 1,
+  },
+};
+
+const FORKS_ONE = {
+  forks: {
+    maxForks: 1,
+    minForks: 1,
+  },
+};
 
 interface HealthResponse {
   status: 'healthy' | 'degraded';
@@ -153,25 +180,27 @@ const healthEndpointPlugin = (): Plugin => ({
   },
 });
 
+const ALIASES = {
+  '@': path.resolve(__dirname, './src'),
+  '@components': path.resolve(__dirname, './src/components'),
+  '@hooks': path.resolve(__dirname, './src/hooks'),
+  '@stores': path.resolve(__dirname, './src/stores'),
+  '@utils': path.resolve(__dirname, './src/utils'),
+  '@types': path.resolve(__dirname, './src/types'),
+  '@api': path.resolve(__dirname, './src/api'),
+};
+
 export default defineConfig({
   base: './',
   plugins: [react(), healthEndpointPlugin()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@hooks': path.resolve(__dirname, './src/hooks'),
-      '@stores': path.resolve(__dirname, './src/stores'),
-      '@utils': path.resolve(__dirname, './src/utils'),
-      '@types': path.resolve(__dirname, './src/types'),
-      '@api': path.resolve(__dirname, './src/api'),
-    },
+    alias: ALIASES,
   },
   test: {
     environment: 'jsdom',
     setupFiles: './src/test-utils/setupTests.ts',
     globals: true,
-    include: ['src/**/*.{test,spec}.{ts,tsx,mjs}'],
+    include: [],
     exclude: ['node_modules/**'],
     poolOptions: {
       threads: {
@@ -213,6 +242,61 @@ export default defineConfig({
         url: 'http://localhost:3000/',
       },
     },
+    projects: [
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'stores',
+          include: [
+            'src/stores/**/*.test.{ts,tsx}',
+            'src/stores/**/*.spec.{ts,tsx}',
+            'src/hooks/useWorkflowVariables.test.ts',
+          ],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'components-core',
+          include: [
+            'src/components/ProjectModal.test.tsx',
+            'src/components/ResponsiveDialog.test.tsx',
+            'src/components/__tests__/VariableSuggestionList.test.tsx',
+            'src/components/__tests__/ExecutionViewer.test.tsx',
+            'src/components/__tests__/WorkflowToolbar.test.tsx',
+            'src/components/ProjectDetail.test.tsx',
+          ],
+        pool: 'threads',
+        poolOptions: THREADS_TWO,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'components-palette',
+          include: ['src/components/__tests__/NodePalette.test.tsx'],
+          pool: 'forks',
+          poolOptions: FORKS_ONE,
+          reuseWorkers: false,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'workflow-builder',
+          include: ['src/components/__tests__/WorkflowBuilder.test.tsx'],
+          pool: 'forks',
+          poolOptions: FORKS_ONE,
+          reuseWorkers: false,
+        },
+      }),
+    ],
   },
   server: {
     port: parseInt(UI_PORT),

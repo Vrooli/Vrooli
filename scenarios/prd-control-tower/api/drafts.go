@@ -149,43 +149,16 @@ func handleCreateDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate UUID for new drafts
-	draftID := uuid.New().String()
-	now := time.Now()
-
-	// Insert into database and capture the actual ID (which may differ on conflict)
-	var actualID string
-	err := db.QueryRow(`
-		INSERT INTO drafts (id, entity_type, entity_name, content, owner, created_at, updated_at, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		ON CONFLICT (entity_type, entity_name)
-		DO UPDATE SET content = $4, owner = $5, updated_at = $7
-		RETURNING id
-	`, draftID, req.EntityType, req.EntityName, req.Content, nullString(req.Owner), now, now, DraftStatusDraft).Scan(&actualID)
-
+	draft, err := upsertDraft(req.EntityType, req.EntityName, req.Content, req.Owner)
 	if err != nil {
 		respondInternalError(w, "Failed to create draft", err)
 		return
 	}
 
-	// Use the actual ID from the database
-	draftID = actualID
-
 	// Write draft to filesystem
-	if err := saveDraftToFile(req.EntityType, req.EntityName, req.Content); err != nil {
+	if err := saveDraftToFile(draft.EntityType, draft.EntityName, draft.Content); err != nil {
 		respondInternalError(w, "Failed to save draft file", err)
 		return
-	}
-
-	draft := Draft{
-		ID:         draftID,
-		EntityType: req.EntityType,
-		EntityName: req.EntityName,
-		Content:    req.Content,
-		Owner:      req.Owner,
-		CreatedAt:  now,
-		UpdatedAt:  now,
-		Status:     DraftStatusDraft,
 	}
 
 	respondJSON(w, http.StatusCreated, draft)
@@ -343,6 +316,51 @@ func syncDraftFilesystemWithDatabase(exec dbExecutor) error {
 
 		return nil
 	})
+}
+
+func upsertDraft(entityType, entityName, content, owner string) (Draft, error) {
+	if db == nil {
+		return Draft{}, ErrDatabaseNotAvailable
+	}
+
+	if !isValidEntityType(entityType) {
+		return Draft{}, fmt.Errorf("invalid entity type %q", entityType)
+	}
+
+	now := time.Now()
+	generatedID := uuid.New().String()
+	var actualID string
+	var createdAt, updatedAt time.Time
+	var status string
+	ownerValue := nullString(owner)
+
+	err := db.QueryRow(`
+		INSERT INTO drafts (id, entity_type, entity_name, content, owner, created_at, updated_at, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $6, $7)
+		ON CONFLICT (entity_type, entity_name)
+		DO UPDATE SET content = EXCLUDED.content, owner = EXCLUDED.owner, updated_at = EXCLUDED.updated_at
+		RETURNING id, created_at, updated_at, status
+	`, generatedID, entityType, entityName, content, ownerValue, now, DraftStatusDraft).Scan(&actualID, &createdAt, &updatedAt, &status)
+	if err != nil {
+		return Draft{}, err
+	}
+
+	draft := Draft{
+		ID:         actualID,
+		EntityType: entityType,
+		EntityName: entityName,
+		Content:    content,
+		Owner:      owner,
+		CreatedAt:  createdAt,
+		UpdatedAt:  updatedAt,
+		Status:     status,
+	}
+
+	if !ownerValue.Valid {
+		draft.Owner = ""
+	}
+
+	return draft, nil
 }
 
 func saveDraftToFile(entityType string, entityName string, content string) error {

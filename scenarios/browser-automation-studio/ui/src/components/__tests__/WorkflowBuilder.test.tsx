@@ -52,6 +52,12 @@ import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import type { Node, Edge } from 'reactflow';
 
+const useWorkflowStoreMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../stores/workflowStore', () => ({
+  useWorkflowStore: useWorkflowStoreMock,
+}));
+
 if (typeof window !== 'undefined' && typeof (window as any).DragEvent === 'undefined') {
   class DragEventPolyfill extends Event {
     dataTransfer: DataTransfer;
@@ -173,41 +179,40 @@ const createMockEdge = (overrides: Partial<Edge> = {}): Edge => ({
   ...overrides,
 });
 
-describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
-  let mockWorkflowStore: ReturnType<typeof vi.fn>;
+const createBaseStoreState = () => ({
+  nodes: [],
+  edges: [],
+  workflows: [],
+  currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
+  isDirty: false,
+  hasVersionConflict: false,
+  updateWorkflow: vi.fn(),
+  scheduleAutosave: vi.fn(),
+  cancelAutosave: vi.fn(),
+  loadWorkflows: vi.fn().mockResolvedValue([]),
+});
 
+const applyWorkflowStoreState = (overrides?: Partial<ReturnType<typeof createBaseStoreState>>) => {
+  const state = { ...createBaseStoreState(), ...overrides };
+  useWorkflowStoreMock.mockImplementation((selector?: (s: typeof state) => any) => (selector ? selector(state) : state));
+  return state;
+};
+
+const importWorkflowBuilder = async () => (await import('../WorkflowBuilder')).default;
+
+describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Default mock for workflowStore
-    mockWorkflowStore = vi.fn((selector) => {
-      const state = {
-        nodes: [],
-        edges: [],
-        currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
-        isDirty: false,
-        hasVersionConflict: false,
-        updateWorkflow: vi.fn(),
-        scheduleAutosave: vi.fn(),
-        cancelAutosave: vi.fn(),
-      };
-      return selector ? selector(state) : state;
-    });
-
-    vi.doMock('../../stores/workflowStore', () => ({
-      useWorkflowStore: mockWorkflowStore,
-    }));
+    applyWorkflowStoreState();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    useWorkflowStoreMock.mockReset();
   });
 
   describe('Basic Rendering', () => {
     it('renders canvas in visual mode by default [REQ:BAS-WORKFLOW-BUILDER-CORE]', async () => {
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
       expect(screen.getByTestId('react-flow-canvas')).toBeInTheDocument();
@@ -216,22 +221,9 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
     });
 
     it('renders with empty canvas when no workflow loaded [REQ:BAS-WORKFLOW-BUILDER-CORE]', async () => {
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation((selector) => {
-        const state = {
-          nodes: [],
-          edges: [],
-          currentWorkflow: null,
-          isDirty: false,
-          hasVersionConflict: false,
-          updateWorkflow: vi.fn(),
-          scheduleAutosave: vi.fn(),
-          cancelAutosave: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      });
+      applyWorkflowStoreState({ currentWorkflow: null });
 
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       const { container } = render(<WorkflowBuilder />);
 
       const canvas = screen.getByTestId('react-flow-canvas');
@@ -244,23 +236,9 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
         createMockNode({ id: 'node-1', type: 'navigate' }),
         createMockNode({ id: 'node-2', type: 'click' }),
       ];
+      applyWorkflowStoreState({ nodes: mockNodes });
 
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation((selector) => {
-        const state = {
-          nodes: mockNodes,
-          edges: [],
-          currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
-          isDirty: false,
-          hasVersionConflict: false,
-          updateWorkflow: vi.fn(),
-          scheduleAutosave: vi.fn(),
-          cancelAutosave: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      });
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
       // Note: Due to ReactFlow mocking limitations, we verify nodes are passed to ReactFlow
@@ -272,9 +250,7 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
 
   describe('View Mode Switching', () => {
     it('switches to code view when code button clicked [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]', async () => {
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       const user = userEvent.setup();
       render(<WorkflowBuilder />);
 
@@ -286,9 +262,7 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
     });
 
     it('switches back to visual view when visual button clicked [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]', async () => {
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       const user = userEvent.setup();
       render(<WorkflowBuilder />);
 
@@ -307,23 +281,9 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
     it('displays workflow JSON in code view [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]', async () => {
       const mockNodes = [createMockNode({ id: 'node-1', type: 'navigate' })];
       const mockEdges = [createMockEdge({ id: 'edge-1', source: 'node-1', target: 'node-2' })];
+      applyWorkflowStoreState({ nodes: mockNodes, edges: mockEdges });
 
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation((selector) => {
-        const state = {
-          nodes: mockNodes,
-          edges: mockEdges,
-          currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
-          isDirty: false,
-          hasVersionConflict: false,
-          updateWorkflow: vi.fn(),
-          scheduleAutosave: vi.fn(),
-          cancelAutosave: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      });
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       const user = userEvent.setup();
       render(<WorkflowBuilder />);
 
@@ -343,9 +303,7 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
 
   describe('Toolbar Integration', () => {
     it('renders WorkflowToolbar in visual mode [REQ:BAS-WORKFLOW-BUILDER-ZOOM]', async () => {
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
       // WorkflowToolbar renders zoom controls - tested in WorkflowToolbar.test.tsx
@@ -354,9 +312,7 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
     });
 
     it('does not render WorkflowToolbar in code mode', async () => {
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       const user = userEvent.setup();
       render(<WorkflowBuilder />);
 
@@ -371,9 +327,7 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
 
   describe('Drag and Drop', () => {
     it('accepts drop events on canvas [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', async () => {
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
       const canvas = screen.getByTestId('react-flow-canvas');
@@ -392,23 +346,9 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
 
     it('creates node when dropped on canvas [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', async () => {
       const updateWorkflow = vi.fn();
+      applyWorkflowStoreState({ updateWorkflow });
 
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation((selector) => {
-        const state = {
-          nodes: [],
-          edges: [],
-          currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
-          isDirty: false,
-          hasVersionConflict: false,
-          updateWorkflow,
-          scheduleAutosave: vi.fn(),
-          cancelAutosave: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      });
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
       const canvas = screen.getByTestId('react-flow-canvas');
@@ -438,23 +378,9 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
   describe('Autosave Integration', () => {
     it('schedules autosave when workflow becomes dirty [REQ:BAS-WORKFLOW-PERSIST-CRUD]', async () => {
       const scheduleAutosave = vi.fn();
+      applyWorkflowStoreState({ isDirty: true, scheduleAutosave });
 
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation((selector) => {
-        const state = {
-          nodes: [],
-          edges: [],
-          currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
-          isDirty: true,  // Workflow is dirty
-          hasVersionConflict: false,
-          updateWorkflow: vi.fn(),
-          scheduleAutosave,
-          cancelAutosave: vi.fn(),
-        };
-        return selector ? selector(state) : state;
-      });
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
       await waitFor(() => {
@@ -464,23 +390,9 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
 
     it('cancels autosave when version conflict detected [REQ:BAS-WORKFLOW-PERSIST-CRUD]', async () => {
       const cancelAutosave = vi.fn();
+      applyWorkflowStoreState({ isDirty: true, hasVersionConflict: true, cancelAutosave });
 
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation((selector) => {
-        const state = {
-          nodes: [],
-          edges: [],
-          currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
-          isDirty: true,
-          hasVersionConflict: true,  // Version conflict
-          updateWorkflow: vi.fn(),
-          scheduleAutosave: vi.fn(),
-          cancelAutosave,
-        };
-        return selector ? selector(state) : state;
-      });
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
       await waitFor(() => {
@@ -490,23 +402,9 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
 
     it('cancels autosave when no current workflow [REQ:BAS-WORKFLOW-PERSIST-CRUD]', async () => {
       const cancelAutosave = vi.fn();
+      applyWorkflowStoreState({ currentWorkflow: null, cancelAutosave });
 
-      const { useWorkflowStore } = await import('../../stores/workflowStore');
-      vi.mocked(useWorkflowStore).mockImplementation((selector) => {
-        const state = {
-          nodes: [],
-          edges: [],
-          currentWorkflow: null,  // No workflow
-          isDirty: false,
-          hasVersionConflict: false,
-          updateWorkflow: vi.fn(),
-          scheduleAutosave: vi.fn(),
-          cancelAutosave,
-        };
-        return selector ? selector(state) : state;
-      });
-
-      const WorkflowBuilder = (await import('../WorkflowBuilder')).default;
+      const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
       await waitFor(() => {

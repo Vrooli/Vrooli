@@ -123,6 +123,7 @@ describe('Host Scenario Pattern Integration', () => {
   // Test data
   const childId = 'test-child-scenario'
   const testMessages: string[] = []
+  let childHtmlRequestCount = 0
 
   beforeAll(async () => {
     // Allocate ports
@@ -195,6 +196,7 @@ describe('Host Scenario Pattern Integration', () => {
       setupRoutes: (app) => {
         // Serve a simple HTML page for testing
         app.get('/index.html', (req, res) => {
+          childHtmlRequestCount += 1
           res.setHeader('Content-Type', 'text/html')
           res.send(`<!DOCTYPE html>
 <html>
@@ -522,6 +524,38 @@ describe('Host Scenario Pattern Integration', () => {
     expect(result.body).toContain('__VROOLI_PROXY_INFO__')
     expect(result.body).toContain(childId)
     expect(result.body).toContain('host-scenario')
+  })
+
+  it('streams child HTML responses using chunked encoding on cache miss', async () => {
+    hostProxyController?.invalidate(childId)
+    const result = await makeRequest(hostUiPort, `/apps/${childId}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+
+    expect(result.status).toBe(200)
+    expect(result.headers['transfer-encoding']).toBe('chunked')
+  })
+
+  it('caches child HTML responses between requests and invalidates on demand', async () => {
+    hostProxyController?.invalidate(childId)
+    childHtmlRequestCount = 0
+
+    await makeRequest(hostUiPort, `/apps/${childId}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+    expect(childHtmlRequestCount).toBe(1)
+
+    await makeRequest(hostUiPort, `/apps/${childId}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+    expect(childHtmlRequestCount).toBe(1)
+
+    hostProxyController?.invalidate(childId)
+
+    await makeRequest(hostUiPort, `/apps/${childId}/proxy/index.html`, {
+      headers: { accept: 'text/html' },
+    })
+    expect(childHtmlRequestCount).toBe(2)
   })
 
   it('child assets are served through proxy', async () => {

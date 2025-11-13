@@ -88,6 +88,27 @@ if (hasAssetExtension('/main.js?v=123')) { /* true */ }
 if (startsWithAssetPrefix('/@vite/client')) { /* true */ }
 ```
 
+### 4. Cached Proxy HTML
+
+**Problem**: Every iframe navigation forced the host to refetch the child scenario's HTML, even when nothing changed. That meant an extra localhost hop plus repeated metadata injection work, causing first-paint delays each time the iframe reloaded.
+
+**Solution**: `createScenarioProxyHost()` now caches the fully built HTML response per app/path, reusing it until you invalidate it or the TTL expires. Enable/disable or tune it via:
+
+```typescript
+const controller = createScenarioProxyHost({
+  hostScenario: 'app-monitor',
+  fetchAppMetadata,
+  cacheProxyHtml: true,             // default
+  proxyHtmlCacheTtlMs: 30_000,      // default: metadata TTL
+  proxyHtmlCacheMaxEntries: 200,    // cap memory
+})
+
+// Whenever you redeploy a child scenario, nuke its entry:
+controller.invalidate(appId)
+```
+
+The cache automatically skips responses that include `Set-Cookie` headers, pings the child UI before reusing an entry so downtime still surfaces immediately, and injects fresh proxy metadata on every request.
+
 ## Implementation Pattern
 
 ### Step 1: Create Base Server

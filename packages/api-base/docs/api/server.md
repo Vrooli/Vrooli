@@ -124,6 +124,8 @@ const app = createScenarioServer({
 
   // Extend API proxy timeout (default 15s)
   proxyTimeoutMs: 60000,
+  // Connection reuse controls (default keep-alive on)
+  proxyKeepAlive: true,
 
   // Custom config
   configBuilder: (env) => ({
@@ -148,6 +150,8 @@ const app = createScenarioServer({
   },
 })
 ```
+
+> Need full control over pooling? Pass `proxyAgent: new http.Agent({...})` to reuse an existing agent, or set `proxyKeepAlive: false` to fall back to one-request-per-connection behavior.
 
 **With Proxy Metadata Injection:**
 ```typescript

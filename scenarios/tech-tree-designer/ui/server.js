@@ -1,26 +1,27 @@
-const express = require('express');
-const path = require('path');
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { startScenarioServer } from '@vrooli/api-base/server'
 
-const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT || 3000;
-const API_PORT = process.env.API_PORT;
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-// Serve static files from dist directory
-app.use(express.static(path.join(__dirname, 'dist')));
+const SERVICE_NAME = 'tech-tree-designer'
+const VERSION = process.env.npm_package_version || '1.0.0'
+const DEFAULT_UI_PORT = process.env.UI_PORT || process.env.PORT || '3000'
+const API_PORT = process.env.API_PORT
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'healthy', service: 'tech-tree-designer-ui' });
-});
+function requireEnv(value, name) {
+  if (!value) {
+    throw new Error(`[${SERVICE_NAME}] Missing required environment variable: ${name}`)
+  }
+  return value
+}
 
-// Catch all route - serve index.html for SPA routing
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-app.listen(PORT, () => {
-    console.log(`Tech Tree Designer UI running on http://localhost:${PORT}`);
-    if (API_PORT) {
-        console.log(`API available at http://localhost:${API_PORT}`);
-    }
-});
+startScenarioServer({
+  uiPort: requireEnv(DEFAULT_UI_PORT, 'UI_PORT'),
+  apiPort: requireEnv(API_PORT, 'API_PORT'),
+  distDir: path.join(__dirname, 'dist'),
+  serviceName: SERVICE_NAME,
+  version: VERSION,
+  corsOrigins: '*',
+})

@@ -765,6 +765,9 @@ export default function Drafts() {
       </div>
 
       <div className="back-link-container">
+        <Link to="/backlog" className="back-link">
+          ← Go to Backlog
+        </Link>
         <Link to="/" className="back-link">
           ← Back to Catalog
         </Link>

@@ -11,6 +11,7 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express'
 import { HOP_BY_HOP_HEADERS, DEFAULT_PROXY_TIMEOUT, LOOPBACK_HOST } from '../shared/constants.js'
 import type { ProxyOptions } from '../shared/types.js'
 import { parsePort } from '../shared/utils.js'
+import { resolveProxyAgent } from './agent.js'
 
 /**
  * Proxy a request to the API server
@@ -48,6 +49,8 @@ export async function proxyToApi(
     timeout = DEFAULT_PROXY_TIMEOUT,
     headers: additionalHeaders = {},
     verbose = false,
+    keepAlive = true,
+    agent,
   } = options
 
   // Parse port
@@ -90,6 +93,8 @@ export async function proxyToApi(
     console.log(`[proxy] ${req.method} ${targetPath} -> ${apiHost}:${portNumber}${targetPath}`)
   }
 
+  const resolvedAgent = resolveProxyAgent({ agent, keepAlive })
+
   return new Promise<void>((resolve) => {
     const proxyReq = http.request(
       {
@@ -99,6 +104,7 @@ export async function proxyToApi(
         method: req.method,
         headers: proxyHeaders,
         timeout,
+        agent: resolvedAgent,
       },
       (proxyRes: http.IncomingMessage) => {
         // Set status code

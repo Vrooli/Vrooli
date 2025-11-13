@@ -35,6 +35,8 @@ source "${APP_ROOT}/cli/lib/output-formatter.sh"
 RESOURCES_DIR="${var_RESOURCES_DIR}"
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
 RESOURCE_REGISTRY="${var_ROOT_DIR}/.vrooli/resource-registry"
+JQ_RESOURCES_EXPR="$var_JQ_RESOURCES_EXPR"
+[[ -z "$JQ_RESOURCES_EXPR" ]] && JQ_RESOURCES_EXPR='(.dependencies.resources // {})'
 
 # Show help for resource commands
 show_resource_help() {
@@ -284,10 +286,7 @@ collect_resource_list_data() {
     local config_resources=()
     local config_data=""
     if [[ -f "$RESOURCES_CONFIG" ]]; then
-        config_data=$(jq -r '
-            .resources | to_entries[] | 
-            "\(.key)/\(.value.enabled)"
-        ' "$RESOURCES_CONFIG" 2>/dev/null || echo "")
+        config_data=$(jq -r "${JQ_RESOURCES_EXPR} | to_entries[] | \"\(.key)/\(.value.enabled)\"" "$RESOURCES_CONFIG" 2>/dev/null || echo "")
         
         # Build array of configured resources
         while IFS= read -r resource_line; do
@@ -336,10 +335,10 @@ collect_resource_list_data() {
         local enabled="false"
         local registered="false"
         if [[ -f "$RESOURCES_CONFIG" ]]; then
-            local config_entry=$(jq -r --arg name "$name" '.resources[$name] // null' "$RESOURCES_CONFIG" 2>/dev/null)
+            local config_entry=$(jq -r --arg name "$name" "${JQ_RESOURCES_EXPR} | .[$name] // null" "$RESOURCES_CONFIG" 2>/dev/null)
             if [[ "$config_entry" != "null" ]]; then
                 registered="true"
-                enabled=$(jq -r --arg name "$name" '.resources[$name].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
+                enabled=$(jq -r --arg name "$name" "${JQ_RESOURCES_EXPR} | .[$name].enabled // false" "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
             fi
         fi
         
@@ -412,7 +411,7 @@ collect_resource_status_data() {
     # Check if enabled in config (flat structure)
     local enabled="false"
     if [[ -f "$RESOURCES_CONFIG" ]]; then
-        enabled=$(jq -r --arg res "$resource_name" '.resources[$res].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
+        enabled=$(jq -r --arg res "$resource_name" "${JQ_RESOURCES_EXPR} | .[$res].enabled // false" "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
     fi
     
     # Check running status using resource CLI only
@@ -906,11 +905,7 @@ resource_start_all() {
     
     # Parse enabled resources from config
     local enabled_resources
-    enabled_resources=$(jq -r '
-        .resources | to_entries[] | 
-        select(.value.enabled == true) | 
-        .key
-    ' "$RESOURCES_CONFIG" 2>/dev/null)
+    enabled_resources=$(jq -r "${JQ_RESOURCES_EXPR} | to_entries[] | select(.value.enabled == true) | .key" "$RESOURCES_CONFIG" 2>/dev/null)
     
     if [[ -z "$enabled_resources" ]]; then
         log::info "No resources are enabled"

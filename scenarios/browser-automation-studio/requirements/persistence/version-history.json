@@ -17,10 +17,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/stores/workflowStore.autosave.test.mjs",
+          "ref": "ui/src/stores/workflowStore.test.ts",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Covers debounce saves, conflict suppression, and history refresh logic."
+          "notes": "Covers autosave, debounce saves, conflict suppression, and history refresh logic."
         },
         {
           "type": "test",

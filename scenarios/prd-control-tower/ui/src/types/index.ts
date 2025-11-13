@@ -150,3 +150,51 @@ export interface PublishResponse {
   backup_path?: string
   published_at: string
 }
+
+export type BacklogStatus = 'pending' | 'converted' | 'archived'
+
+export interface BacklogEntry {
+  id: string
+  idea_text: string
+  entity_type: EntityType
+  suggested_name: string
+  status: BacklogStatus
+  created_at: string
+  updated_at: string
+  converted_draft_id?: string
+}
+
+export interface BacklogListResponse {
+  entries: BacklogEntry[]
+  total: number
+}
+
+export interface BacklogCreateItem {
+  idea_text: string
+  entity_type?: EntityType
+  suggested_name?: string
+}
+
+export interface BacklogCreateRequest {
+  raw_input?: string
+  entity_type?: EntityType
+  entries?: BacklogCreateItem[]
+}
+
+export interface BacklogCreateResponse {
+  entries: BacklogEntry[]
+}
+
+export interface BacklogConvertRequest {
+  entry_ids: string[]
+}
+
+export interface BacklogConvertResult {
+  entry: BacklogEntry
+  draft?: Draft
+  error?: string
+}
+
+export interface BacklogConvertResponse {
+  results: BacklogConvertResult[]
+}

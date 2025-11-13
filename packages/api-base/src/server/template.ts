@@ -13,9 +13,70 @@ import * as http from 'node:http'
 import type { ServerTemplateOptions } from '../shared/types.js'
 import { createConfigEndpoint } from './config.js'
 import { createHealthEndpoint } from './health.js'
-import { proxyToApi, createProxyMiddleware, proxyWebSocketUpgrade } from './proxy.js'
+import { createProxyMiddleware, proxyWebSocketUpgrade } from './proxy.js'
 import { injectProxyMetadata, injectScenarioConfig } from './inject.js'
+import { resolveProxyAgent } from './agent.js'
 import { parsePort, isAssetRequest } from '../shared/utils.js'
+
+const IMMUTABLE_ASSET_EXTENSIONS = new Set([
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.css',
+  '.map',
+  '.json',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.svg',
+  '.ico',
+  '.webp',
+  '.avif',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.otf',
+  '.mp4',
+  '.webm',
+  '.mp3',
+  '.wav',
+])
+
+const HASHED_FILENAME_PATTERN = /[-_][A-Za-z0-9_\-]{6,}\./
+const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
+
+function isImmutableBuildAsset(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase()
+  if (!IMMUTABLE_ASSET_EXTENSIONS.has(ext)) {
+    return false
+  }
+
+  const normalizedPath = filePath.split(path.sep).join('/')
+  if (!normalizedPath.includes('/assets/')) {
+    return false
+  }
+
+  const fileName = path.basename(filePath)
+  return HASHED_FILENAME_PATTERN.test(fileName)
+}
+
+function applyStaticCacheHeaders(res: Response, filePath: string): void {
+  if (isImmutableBuildAsset(filePath)) {
+    res.setHeader('Cache-Control', `public, max-age=${ONE_YEAR_SECONDS}, immutable`)
+    return
+  }
+
+  if (path.basename(filePath).toLowerCase() === 'index.html') {
+    res.setHeader('Cache-Control', 'no-store, max-age=0')
+    return
+  }
+
+  if (!res.getHeader('Cache-Control')) {
+    res.setHeader('Cache-Control', 'public, max-age=0')
+  }
+}
 
 /**
  * Default allowed CORS origins
@@ -209,6 +270,44 @@ function createHtmlInjectionMiddleware(options: ServerTemplateOptions) {
   }
 }
 
+interface IndexHtmlCacheEntry {
+  content: string
+  mtimeMs: number
+  size: number
+}
+
+function createIndexHtmlLoader(indexPath: string, useCache: boolean, verbose: boolean) {
+  let cached: IndexHtmlCacheEntry | null = null
+
+  return () => {
+    if (!useCache) {
+      return fs.readFileSync(indexPath, 'utf-8')
+    }
+
+    const stats = fs.statSync(indexPath)
+    const shouldRefresh = !cached ||
+      cached.mtimeMs !== stats.mtimeMs ||
+      cached.size !== stats.size
+
+    if (shouldRefresh) {
+      const content = fs.readFileSync(indexPath, 'utf-8')
+      cached = {
+        content,
+        mtimeMs: stats.mtimeMs,
+        size: stats.size,
+      }
+
+      if (verbose) {
+        console.log(`[server] Cached index.html (${stats.size} bytes) for SPA fallback`)
+      }
+
+      return content
+    }
+
+    return cached!.content
+  }
+}
+
 /**
  * Create a complete scenario server
  *
@@ -241,6 +340,20 @@ function createHtmlInjectionMiddleware(options: ServerTemplateOptions) {
  * })
  * ```
  */
+function applyBodyParser(app: Express, setting: ServerTemplateOptions['bodyParser']) {
+  if (setting === false) {
+    return
+  }
+
+  if (typeof setting === 'function') {
+    setting(app)
+    return
+  }
+
+  // Default: standard JSON parser for UI-owned routes
+  app.use(express.json({ limit: '10mb' }))
+}
+
 export function createScenarioServer(options: ServerTemplateOptions): Express {
   const {
     uiPort,
@@ -261,6 +374,10 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     wsPathTransform,
     proxyHeaders,
     proxyTimeoutMs,
+    proxyKeepAlive,
+    proxyAgent,
+    bodyParser = 'json',
+    cacheIndexHtml = true,
   } = options
 
   // Parse ports
@@ -281,9 +398,6 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
   // Disable X-Powered-By header for security
   app.disable('x-powered-by')
 
-  // JSON body parser for API routes
-  app.use(express.json({ limit: '10mb' }))
-
   // CORS middleware
   app.use(createCorsMiddleware(corsOrigins, verbose))
 
@@ -292,6 +406,8 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     app.use(createHtmlInjectionMiddleware(options))
   }
 
+  const resolvedProxyAgent = resolveProxyAgent({ agent: proxyAgent, keepAlive: proxyKeepAlive })
+
   // API proxy middleware
   app.use('/api', createProxyMiddleware({
     apiPort: parsedApiPort,
@@ -299,7 +415,11 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     verbose,
     headers: proxyHeaders,
     timeout: proxyTimeoutMs,
+    agent: resolvedProxyAgent,
   }))
+
+  // Apply body parser AFTER proxy middleware so API requests stay streaming
+  applyBodyParser(app, bodyParser)
 
   // Config endpoint
   if (configBuilder) {
@@ -341,6 +461,8 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
 
   // Resolve dist directory
   const absoluteDistDir = path.isAbsolute(distDir) ? distDir : path.resolve(process.cwd(), distDir)
+  const indexPath = path.join(absoluteDistDir, 'index.html')
+  const loadIndexHtml = createIndexHtmlLoader(indexPath, cacheIndexHtml !== false, verbose)
 
   // Check if dist directory exists
   if (!fs.existsSync(absoluteDistDir)) {
@@ -348,8 +470,12 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     console.warn('[server] Static files will not be served. Run build first.')
   }
 
-  // Serve static files
-  app.use(express.static(absoluteDistDir))
+  // Serve static files with production-friendly caching
+  app.use(express.static(absoluteDistDir, {
+    setHeaders: (res, servedPath) => {
+      applyStaticCacheHeaders(res as Response, servedPath)
+    },
+  }))
 
   // SPA fallback - serve index.html for all other routes
   // IMPORTANT: This must be smart about assets to avoid returning HTML for .js/.css/etc requests
@@ -383,8 +509,6 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     }
 
     // For non-asset routes, serve index.html (SPA fallback)
-    const indexPath = path.join(absoluteDistDir, 'index.html')
-
     if (!fs.existsSync(indexPath)) {
       res.status(404).send('Application not built. Run build command first.')
       return
@@ -398,7 +522,8 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     // that wraps res.send (like base tag injection) will be triggered.
     // sendFile() bypasses wrapped send() interceptors!
     try {
-      const htmlContent = fs.readFileSync(indexPath, 'utf-8')
+      const htmlContent = loadIndexHtml()
+      res.setHeader('Cache-Control', 'no-store, max-age=0')
       res.type('text/html').send(htmlContent)
     } catch (error) {
       if (verbose) {

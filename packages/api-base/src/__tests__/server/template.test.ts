@@ -3,11 +3,15 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import express from 'express'
 import { createScenarioServer, startScenarioServer } from '../../server/template.js'
 import * as proxyModule from '../../server/proxy.js'
 import type { ServerTemplateOptions } from '../../shared/types.js'
 import type { Server } from 'node:http'
 import * as http from 'node:http'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import * as os from 'node:os'
 
 // Helper to make HTTP requests to test server
 async function makeRequest(server: Server, path: string, method: string = 'GET'): Promise<{
@@ -51,6 +55,69 @@ async function makeRequest(server: Server, path: string, method: string = 'GET')
     req.end()
   })
 }
+
+async function postJson(server: Server, path: string, payload: Record<string, unknown>) {
+  const address = server.address()
+  if (!address || typeof address === 'string') {
+    throw new Error('Server not listening')
+  }
+
+  const body = JSON.stringify(payload)
+
+  return new Promise<{ status: number; body: any; headers: http.IncomingHttpHeaders }>((resolve, reject) => {
+    const options = {
+      hostname: 'localhost',
+      port: address.port,
+      path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }
+
+    const req = http.request(options, (res) => {
+      let responseBody = ''
+      res.on('data', chunk => { responseBody += chunk })
+      res.on('end', () => {
+        resolve({
+          status: res.statusCode || 500,
+          body: responseBody ? JSON.parse(responseBody) : null,
+          headers: res.headers,
+        })
+      })
+    })
+
+    req.on('error', reject)
+    req.write(body)
+    req.end()
+  })
+}
+
+function createTempDist(html: string, extraFiles?: Record<string, string>) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'api-base-dist-'))
+  const distDir = path.join(root, 'dist')
+  fs.mkdirSync(distDir, { recursive: true })
+  const indexPath = path.join(distDir, 'index.html')
+  fs.writeFileSync(indexPath, html, 'utf-8')
+
+  if (extraFiles) {
+    for (const [relativePath, contents] of Object.entries(extraFiles)) {
+      const filePath = path.join(distDir, relativePath)
+      fs.mkdirSync(path.dirname(filePath), { recursive: true })
+      fs.writeFileSync(filePath, contents, 'utf-8')
+    }
+  }
+
+  return {
+    distDir,
+    indexPath,
+    cleanup: () => {
+      fs.rmSync(root, { recursive: true, force: true })
+    },
+  }
+}
+
 
 describe('createScenarioServer', () => {
   it('creates Express app', () => {
@@ -613,41 +680,190 @@ describe('createScenarioServer HTTP endpoints', () => {
 
     server = app.listen(0)
 
-    // Make POST request with JSON body
+    const result = await postJson(server, '/echo', { test: 'data' })
+
+    expect(result.status).toBe(200)
+    expect(result.body.received).toEqual({ test: 'data' })
+  })
+
+  it('supports disabling body parser entirely', async () => {
+    const app = createScenarioServer({
+      uiPort: 33012,
+      apiPort: 8080,
+      distDir: './dist',
+      bodyParser: false,
+      setupRoutes: (app) => {
+        app.post('/noop', (req, res) => {
+          res.json({ body: req.body ?? null })
+        })
+      },
+    })
+
+    server = app.listen(0)
+    const result = await postJson(server, '/noop', { foo: 'bar' })
+
+    expect(result.status).toBe(200)
+    expect(result.body).toEqual({ body: null })
+  })
+
+  it('marks SPA fallback responses as no-store', async () => {
+    const temp = createTempDist('<html><body>fallback</body></html>')
+    try {
+      const app = createScenarioServer({
+        uiPort: 33013,
+        apiPort: 8080,
+        distDir: temp.distDir,
+      })
+
+      server = app.listen(0)
+      const result = await makeRequest(server, '/some/deep/link')
+
+      expect(result.status).toBe(200)
+      expect(result.headers['cache-control']).toBe('no-store, max-age=0')
+      expect(typeof result.body).toBe('string')
+    } finally {
+      temp.cleanup()
+    }
+  })
+
+  it('serves hashed assets with immutable cache headers', async () => {
+    const temp = createTempDist('<html><body>assets</body></html>', {
+      'assets/app-main-abc12345.js': 'console.log("immutable")',
+    })
+
+    try {
+      const app = createScenarioServer({
+        uiPort: 33014,
+        apiPort: 8080,
+        distDir: temp.distDir,
+      })
+
+      server = app.listen(0)
+      const result = await makeRequest(server, '/assets/app-main-abc12345.js')
+
+      expect(result.status).toBe(200)
+      expect(result.headers['cache-control']).toBe('public, max-age=31536000, immutable')
+    } finally {
+      temp.cleanup()
+    }
+  })
+
+  it('caches index.html between SPA fallback requests when enabled', async () => {
+    const temp = createTempDist('<html><body>version-one</body></html>')
+    const originalLog = console.log
+    const logs: string[] = []
+    console.log = (...args: any[]) => {
+      logs.push(args.join(' '))
+    }
+
+    try {
+      const app = createScenarioServer({
+        uiPort: 33020,
+        apiPort: 8080,
+        distDir: temp.distDir,
+        verbose: true,
+      })
+
+      server = app.listen(0)
+
+      const first = await makeRequest(server, '/spa-first')
+      expect(first.body).toContain('version-one')
+
+      const second = await makeRequest(server, '/spa-second')
+      expect(second.body).toContain('version-one')
+
+      const cacheLogs = logs.filter(line => line.includes('Cached index.html'))
+      expect(cacheLogs.length).toBe(1)
+
+      await new Promise(resolve => setTimeout(resolve, 5))
+      fs.writeFileSync(temp.indexPath, '<html><body>version-two</body></html>', 'utf-8')
+
+      const third = await makeRequest(server, '/spa-third')
+      expect(third.body).toContain('version-two')
+
+      const refreshedLogs = logs.filter(line => line.includes('Cached index.html'))
+      expect(refreshedLogs.length).toBe(2)
+    } finally {
+      console.log = originalLog
+      temp.cleanup()
+    }
+  })
+
+  it('skips caching when cacheIndexHtml is disabled', async () => {
+    const temp = createTempDist('<html><body>no-cache</body></html>')
+    const originalLog = console.log
+    const logs: string[] = []
+    console.log = (...args: any[]) => {
+      logs.push(args.join(' '))
+    }
+
+    try {
+      const app = createScenarioServer({
+        uiPort: 33021,
+        apiPort: 8080,
+        distDir: temp.distDir,
+        cacheIndexHtml: false,
+        verbose: true,
+      })
+
+      server = app.listen(0)
+
+      await makeRequest(server, '/no-cache-one')
+      await makeRequest(server, '/no-cache-two')
+
+      const cacheLogs = logs.filter(line => line.includes('Cached index.html'))
+      expect(cacheLogs.length).toBe(0)
+    } finally {
+      console.log = originalLog
+      temp.cleanup()
+    }
+  })
+
+  it('accepts custom body parser configurator', async () => {
+    const app = createScenarioServer({
+      uiPort: 33013,
+      apiPort: 8080,
+      distDir: './dist',
+      bodyParser: (expressApp) => {
+        expressApp.use(express.text({ type: '*/*' }))
+      },
+      setupRoutes: (app) => {
+        app.post('/text', (req, res) => {
+          res.json({ raw: req.body })
+        })
+      },
+    })
+
+    server = app.listen(0)
     const address = server.address()
     if (!address || typeof address === 'string') {
       throw new Error('Server not listening')
     }
 
-    const postData = JSON.stringify({ test: 'data' })
+    const payload = 'hello world'
 
-    const result = await new Promise<any>((resolve, reject) => {
-      const options = {
+    const result = await new Promise<{ status: number; body: any }>((resolve, reject) => {
+      const req = http.request({
         hostname: 'localhost',
-        port: (address as any).port,
-        path: '/echo',
+        port: address.port,
+        path: '/text',
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData),
+          'Content-Type': 'text/plain',
+          'Content-Length': Buffer.byteLength(payload),
         },
-      }
-
-      const req = http.request(options, (res) => {
-        let body = ''
-        res.on('data', (chunk) => { body += chunk })
-        res.on('end', () => {
-          resolve({ status: res.statusCode, body: JSON.parse(body) })
-        })
+      }, (res) => {
+        let data = ''
+        res.on('data', chunk => { data += chunk })
+        res.on('end', () => resolve({ status: res.statusCode || 0, body: JSON.parse(data) }))
       })
-
       req.on('error', reject)
-      req.write(postData)
+      req.write(payload)
       req.end()
     })
 
     expect(result.status).toBe(200)
-    expect(result.body.received).toEqual({ test: 'data' })
+    expect(result.body).toEqual({ raw: 'hello world' })
   })
 })
 

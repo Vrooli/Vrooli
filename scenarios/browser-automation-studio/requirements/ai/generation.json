@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-08T02:32:14.182Z"
+    "last_synced_at": "2025-11-12T21:42:52.787Z"
   },
   "requirements": [
     {
@@ -27,7 +27,7 @@
           "type": "test",
           "ref": "test/phases/test-integration.sh",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Integration phase invokes AI generation smoke tests."
         },
         {
@@ -45,7 +45,7 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "Generated workflows pass deterministic validation",
       "description": "Ensures AI-generated workflows satisfy compilation constraints, have valid node references, and produce consistent execution plans.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
@@ -59,7 +59,7 @@
           "type": "automation",
           "ref": "test/playbooks/ai/generated-smoke.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow validates AI-generated workflow compilation, node references, and execution plan consistency."
         },
         {

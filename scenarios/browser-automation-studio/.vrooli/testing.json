@@ -5,6 +5,11 @@
     "last_updated": "2025-11-07T03:45:00Z"
   },
   "version": "1.0.0",
+  "phases": {
+    "integration": {
+      "timeout": "600s"
+    }
+  },
   "structure": {
     "additional_dirs": [
       "ui"

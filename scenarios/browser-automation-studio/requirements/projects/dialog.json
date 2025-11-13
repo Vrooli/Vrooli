@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-08T02:32:14.183Z"
+    "last_synced_at": "2025-11-13T17:00:49.569Z"
   },
   "requirements": [
     {
@@ -22,20 +22,6 @@
           "phase": "integration",
           "status": "failing",
           "notes": "BAS workflow asserting modal visibility for each trigger once exported."
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/components/__tests__/ProjectModal.test.tsx",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Auto-added from vitest evidence"
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/components/__tests__/ResponsiveDialog.test.tsx",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
@@ -71,20 +57,6 @@
         },
         {
           "type": "test",
-          "ref": "ui/src/components/__tests__/ProjectModal.test.tsx",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Auto-added from vitest evidence"
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/components/__tests__/ResponsiveDialog.test.tsx",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Auto-added from vitest evidence"
-        },
-        {
-          "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
           "status": "implemented",
@@ -117,20 +89,6 @@
         },
         {
           "type": "test",
-          "ref": "ui/src/components/__tests__/ProjectModal.test.tsx",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Auto-added from vitest evidence"
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/stores/__tests__/projectStore.test.ts",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Auto-added from vitest evidence"
-        },
-        {
-          "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
           "status": "implemented",
@@ -160,20 +118,6 @@
           "phase": "integration",
           "status": "failing",
           "notes": "BAS workflow submits failing payloads and asserts inline error copy (pending export)."
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/components/__tests__/ProjectModal.test.tsx",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Auto-added from vitest evidence"
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/stores/__tests__/projectStore.test.ts",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",

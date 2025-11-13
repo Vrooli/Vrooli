@@ -98,6 +98,7 @@ const healthEndpointPlugin = () => ({
 });
 
 export default defineConfig({
+  base: './',
   plugins: [react(), healthEndpointPlugin()],
   server: {
     port: parseInt(UI_PORT, 10),

@@ -465,6 +465,14 @@ interface ServerTemplateOptions {
   setupRoutes?: (app: any) => void
   proxyMetadata?: ProxyInfo
   scenarioConfig?: ScenarioConfig
+  wsPathPrefix?: string
+  wsPathTransform?: (path: string) => string
+  proxyHeaders?: Record<string, string> | ((req: any) => Record<string, string>)
+  proxyTimeoutMs?: number
+  proxyKeepAlive?: boolean
+  proxyAgent?: import('node:http').Agent
+  bodyParser?: 'json' | false | ((app: any) => void)
+  cacheIndexHtml?: boolean
 }
 ```
 
@@ -486,6 +494,14 @@ interface ServerTemplateOptions {
 | `setupRoutes` | `function` | - | Custom route setup function |
 | `proxyMetadata` | [`ProxyInfo`](#proxyinfo) | - | Metadata to inject into HTML |
 | `scenarioConfig` | [`ScenarioConfig`](#scenarioconfig) | - | Config to inject into HTML |
+| `wsPathPrefix` | `string` | - | Mount path that should be proxied for WebSockets |
+| `wsPathTransform` | `function` | replace prefix with `/api/v1` | Override how WS paths are rewritten before hitting the API |
+| `proxyHeaders` | `Record<string, string> \| (req) => Record<string, string>` | - | Extra headers appended to every proxied request |
+| `proxyTimeoutMs` | `number` | `15000` | Override HTTP proxy timeout |
+| `proxyKeepAlive` | `boolean` | `true` | Control whether UI->API connections are pooled |
+| `proxyAgent` | `Agent` | shared keep-alive agent | Provide your own Node HTTP agent |
+| `bodyParser` | `'json' \| false \| (app) => void` | `'json'` | Configure body parsing for UI-owned routes (runs after the `/api` proxy) |
+| `cacheIndexHtml` | `boolean` | `true` | Cache `dist/index.html` between SPA fallback requests (auto-invalidates on rebuilds) |
 
 **Example:**
 

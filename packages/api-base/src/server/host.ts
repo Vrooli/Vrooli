@@ -1,5 +1,6 @@
 import express, { type Request, type Response, type Router } from 'express'
 import * as http from 'node:http'
+import * as net from 'node:net'
 import type {
   ScenarioProxyHostOptions,
   ScenarioProxyHostController,
@@ -15,8 +16,10 @@ import {
 } from '../shared/constants.js'
 import { buildProxyMetadata, injectProxyMetadata, injectBaseTag } from './inject.js'
 import { proxyToApi, proxyWebSocketUpgrade } from './proxy.js'
+import { resolveProxyAgent } from './agent.js'
 
 const DEFAULT_CACHE_TTL_MS = 30_000
+const UPSTREAM_CHECK_TIMEOUT_MS = 500
 const SLUGIFY_REGEX = /[^a-z0-9]+/g
 const PATH_TRAVERSAL_PATTERN = /(^|\/|\\)\.\.(?=\/|\\|$)/
 
@@ -30,6 +33,21 @@ interface ProxyContext {
 interface CachedContext {
   context: ProxyContext
   timestamp: number
+}
+
+interface HtmlCacheEntry {
+  status: number
+  headers: http.IncomingHttpHeaders
+  body: string
+  injected: boolean
+  timestamp: number
+  insertedAt: number
+}
+
+interface HtmlCachePointer {
+  appId: string
+  path: string
+  insertedAt: number
 }
 
 function normalizePrefix(prefix: string): string {
@@ -343,41 +361,198 @@ function buildProxyContext(
   }
 }
 
-async function fetchHtmlFromUi(options: {
+const HEAD_CLOSE_TAG = '</head>'
+const HEAD_BUFFER_LIMIT = 512 * 1024 // 512KB safety net
+
+class StreamingHeadInjector {
+  private buffer = ''
+  private injected = false
+
+  constructor(private readonly options: {
+    metadata: ProxyInfo
+    patchFetch: boolean
+    basePath: string
+    baseTagAttribute: string
+  }) {}
+
+  process(chunk: string): string {
+    if (this.injected) {
+      return chunk
+    }
+
+    this.buffer += chunk
+    const lower = this.buffer.toLowerCase()
+    const closeIndex = lower.indexOf(HEAD_CLOSE_TAG)
+
+    if (closeIndex === -1) {
+      if (this.buffer.length > HEAD_BUFFER_LIMIT) {
+        return this.flush()
+      }
+      return ''
+    }
+
+    const endIndex = closeIndex + HEAD_CLOSE_TAG.length
+    const headPortion = this.buffer.slice(0, endIndex)
+    const remainder = this.buffer.slice(endIndex)
+
+    const transformedHead = this.applyInjections(headPortion)
+    this.injected = true
+    this.buffer = ''
+
+    return transformedHead + remainder
+  }
+
+  flush(): string {
+    if (this.injected) {
+      return ''
+    }
+
+    const leftover = this.buffer
+    this.buffer = ''
+    this.injected = true
+    if (!leftover) {
+      return ''
+    }
+
+    return this.applyInjections(leftover)
+  }
+
+  private applyInjections(html: string): string {
+    const { metadata, patchFetch, basePath, baseTagAttribute } = this.options
+
+    let output = injectProxyMetadata(html, metadata, { patchFetch })
+    output = injectBaseTag(output, basePath, {
+      skipIfExists: true,
+      dataAttribute: baseTagAttribute,
+    })
+    return output
+  }
+}
+
+async function streamProxiedHtml(options: {
+  appId: string
+  targetUrl: string
+  res: Response
   upstreamHost: string
-  port: number
-  path: string
-  headers: http.OutgoingHttpHeaders
+  upstreamPort: number
+  requestHeaders: http.IncomingHttpHeaders
   timeout: number
-}): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: string }> {
-  return new Promise((resolve, reject) => {
+  metadata: ProxyInfo
+  basePath: string
+  patchFetch: boolean
+  baseTagAttribute: string
+  proxyHeaderName?: string
+  upstreamAgent?: http.Agent
+  shouldCache: (response: { status: number; headers: http.IncomingHttpHeaders }) => boolean
+  onCacheStore: (payload: {
+    status: number
+    headers: http.IncomingHttpHeaders
+    body: string
+  }) => void
+  onCacheSkip: () => void
+}): Promise<void> {
+  return await new Promise((resolve, reject) => {
+    let settled = false
+    const fail = (error: Error) => {
+      if (settled) {
+        return
+      }
+      settled = true
+      if (!options.res.headersSent) {
+        options.res.status(502).json({
+          error: 'Failed to proxy application',
+          details: error.message,
+        })
+      } else {
+        options.res.destroy(error)
+      }
+      options.onCacheSkip()
+      reject(error)
+    }
+
     const request = http.request(
       {
         hostname: options.upstreamHost,
-        port: options.port,
-        path: options.path,
+        port: options.upstreamPort,
+        path: options.targetUrl,
         method: 'GET',
-        headers: options.headers,
+        headers: {
+          ...options.requestHeaders,
+          host: `${options.upstreamHost}:${options.upstreamPort}`,
+        },
         timeout: options.timeout,
+        agent: options.upstreamAgent,
       },
-      (response) => {
-        let data = ''
-        response.setEncoding('utf8')
-        response.on('data', (chunk) => {
-          data += chunk
+      (upstreamRes) => {
+        const status = upstreamRes.statusCode || 500
+        const headers = upstreamRes.headers
+        const injector = new StreamingHeadInjector({
+          metadata: options.metadata,
+          patchFetch: options.patchFetch,
+          basePath: options.basePath,
+          baseTagAttribute: options.baseTagAttribute,
         })
-        response.on('end', () => {
-          resolve({
-            status: response.statusCode || 500,
-            headers: response.headers,
-            body: data,
-          })
+
+        const cacheable = options.shouldCache({ status, headers })
+        const cachedChunks: string[] = []
+
+        options.res.status(status)
+        const headerEntries = cloneHeaders(headers)
+        for (const [key, value] of Object.entries(headerEntries)) {
+          options.res.setHeader(key, value as string)
+        }
+
+        if (options.proxyHeaderName) {
+          options.res.setHeader(options.proxyHeaderName, options.appId)
+        }
+
+        options.res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+
+        upstreamRes.setEncoding('utf8')
+
+        upstreamRes.on('data', (chunk: string) => {
+          const output = injector.process(chunk)
+          if (!output) {
+            return
+          }
+          options.res.write(output)
+          if (cacheable) {
+            cachedChunks.push(output)
+          }
+        })
+
+        upstreamRes.on('end', () => {
+          const tail = injector.flush()
+          if (tail) {
+            options.res.write(tail)
+            if (cacheable) {
+              cachedChunks.push(tail)
+            }
+          }
+          options.res.end()
+
+          if (cacheable) {
+            options.onCacheStore({
+              status,
+              headers: copyIncomingHeaders(headers),
+              body: cachedChunks.join(''),
+            })
+          } else {
+            options.onCacheSkip()
+          }
+
+          settled = true
+          resolve()
+        })
+
+        upstreamRes.on('error', (error: Error) => {
+          fail(error)
         })
       }
     )
 
-    request.on('error', (error) => {
-      reject(error)
+    request.on('error', (error: Error) => {
+      fail(error)
     })
 
     request.on('timeout', () => {
@@ -393,7 +568,7 @@ function forwardHttpRequest(
   res: Response,
   relativeUrl: string,
   targetPort: number,
-  options: { upstreamHost: string; timeout: number; verbose: boolean }
+  options: { upstreamHost: string; timeout: number; verbose: boolean; agent?: http.Agent }
 ): Promise<void> {
   const normalizedUrl = relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`
   const proxyReq = Object.create(req)
@@ -403,6 +578,7 @@ function forwardHttpRequest(
     apiHost: options.upstreamHost,
     timeout: options.timeout,
     verbose: options.verbose,
+    agent: options.agent,
   })
 }
 
@@ -418,6 +594,20 @@ function cloneHeaders(headers: http.IncomingHttpHeaders): Record<string, string 
     result[key] = value
   }
   return result
+}
+
+function copyIncomingHeaders(headers: http.IncomingHttpHeaders): http.IncomingHttpHeaders {
+  const clone: http.IncomingHttpHeaders = {}
+  for (const [key, value] of Object.entries(headers)) {
+    if (Array.isArray(value)) {
+      clone[key] = [...value]
+      continue
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      clone[key] = value
+    }
+  }
+  return clone
 }
 
 export function createScenarioProxyHost(options: ScenarioProxyHostOptions): ScenarioProxyHostController {
@@ -438,12 +628,174 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
   const router: Router = express.Router()
   const cache = new Map<string, CachedContext>()
   const cacheTtl = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS
+  const htmlCacheEnabled = options.cacheProxyHtml !== false
+  const htmlCacheTtl = options.proxyHtmlCacheTtlMs ?? cacheTtl
+  const htmlCacheMaxEntries = options.proxyHtmlCacheMaxEntries ?? 200
+  const htmlCache = new Map<string, Map<string, HtmlCacheEntry>>()
+  const htmlCacheOrder: HtmlCachePointer[] = []
+  let htmlCacheEntries = 0
+  const htmlCacheActive = htmlCacheEnabled && htmlCacheTtl > 0 && htmlCacheMaxEntries > 0
   const upstreamHost = options.upstreamHost ?? LOOPBACK_HOST
   const timeout = options.timeoutMs ?? DEFAULT_PROXY_TIMEOUT
   const verbose = Boolean(options.verbose)
   const patchFetch = options.patchFetch ?? false
   const childBaseTagAttr = options.childBaseTagAttribute || 'data-proxy-host'
   const proxyHeaderName = options.proxiedAppHeader || 'x-vrooli-proxied-app'
+  const upstreamAgent = resolveProxyAgent({
+    agent: options.proxyAgent,
+    keepAlive: options.proxyKeepAlive,
+  })
+
+  function clearHtmlCacheEntries(appId?: string): void {
+    if (!htmlCacheEntries) {
+      return
+    }
+    if (!appId) {
+      htmlCache.clear()
+      htmlCacheOrder.length = 0
+      htmlCacheEntries = 0
+      return
+    }
+    const bucket = htmlCache.get(appId)
+    if (!bucket) {
+      return
+    }
+    const removed = bucket.size
+    htmlCache.delete(appId)
+    htmlCacheEntries = Math.max(0, htmlCacheEntries - removed)
+    for (let i = htmlCacheOrder.length - 1; i >= 0; i -= 1) {
+      if (htmlCacheOrder[i].appId === appId) {
+        htmlCacheOrder.splice(i, 1)
+      }
+    }
+  }
+
+function removeHtmlCacheEntry(appId: string, path: string, expectedInsertedAt?: number): void {
+  const bucket = htmlCache.get(appId)
+  if (!bucket) {
+    return
+  }
+  const normalizedPath = path || '/'
+  const entry = bucket.get(normalizedPath)
+  if (!entry) {
+    return
+  }
+  if (expectedInsertedAt && entry.insertedAt !== expectedInsertedAt) {
+    return
+  }
+  bucket.delete(normalizedPath)
+  htmlCacheEntries = Math.max(0, htmlCacheEntries - 1)
+  if (bucket.size === 0) {
+    htmlCache.delete(appId)
+  }
+}
+
+  function enforceHtmlCacheLimit(): void {
+    if (!htmlCacheActive) {
+      return
+    }
+    while (htmlCacheEntries > htmlCacheMaxEntries) {
+      const oldest = htmlCacheOrder.shift()
+      if (!oldest) {
+        htmlCacheEntries = Math.min(htmlCacheEntries, htmlCacheMaxEntries)
+        break
+      }
+      removeHtmlCacheEntry(oldest.appId, oldest.path, oldest.insertedAt)
+    }
+  }
+
+function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCacheEntry, 'timestamp' | 'insertedAt'>): void {
+    if (!htmlCacheActive) {
+      return
+    }
+    const normalizedPath = path || '/'
+    let bucket = htmlCache.get(appId)
+    if (!bucket) {
+      bucket = new Map<string, HtmlCacheEntry>()
+      htmlCache.set(appId, bucket)
+    }
+    const now = Date.now()
+    const wasPresent = bucket.has(normalizedPath)
+    bucket.set(normalizedPath, {
+      ...payload,
+      timestamp: now,
+      insertedAt: now,
+    })
+    if (!wasPresent) {
+      htmlCacheEntries += 1
+    }
+    htmlCacheOrder.push({ appId, path: normalizedPath, insertedAt: now })
+    enforceHtmlCacheLimit()
+  }
+
+  function getCachedHtmlEntry(appId: string, path: string): HtmlCacheEntry | null {
+    if (!htmlCacheActive) {
+      return null
+    }
+    const normalizedPath = path || '/'
+    const bucket = htmlCache.get(appId)
+    if (!bucket) {
+      return null
+    }
+    const entry = bucket.get(normalizedPath)
+    if (!entry) {
+      return null
+    }
+    if (Date.now() - entry.timestamp > htmlCacheTtl) {
+      removeHtmlCacheEntry(appId, normalizedPath)
+      return null
+    }
+    return entry
+  }
+
+  function responseIsCacheable(response: { status: number; headers: http.IncomingHttpHeaders }): boolean {
+    if (!htmlCacheActive) {
+      return false
+    }
+    if (response.status !== 200) {
+      return false
+    }
+    const contentTypeHeader = response.headers['content-type']
+    const contentType = Array.isArray(contentTypeHeader) ? contentTypeHeader[0] : contentTypeHeader
+    if (!contentType || typeof contentType !== 'string' || !contentType.includes('text/html')) {
+      return false
+    }
+    if (response.headers['set-cookie']) {
+      return false
+    }
+    return true
+  }
+
+  async function ensureUpstreamReachable(port: number): Promise<boolean> {
+    if (!htmlCacheActive) {
+      return true
+    }
+    return await new Promise((resolve) => {
+      let settled = false
+      const finish = (value: boolean) => {
+        if (settled) {
+          return
+        }
+        settled = true
+        resolve(value)
+      }
+
+      const socket = net.createConnection({ host: upstreamHost, port }, () => {
+        socket.end()
+        finish(true)
+      })
+
+      const timeoutForCheck = Math.max(50, Math.min(timeout, UPSTREAM_CHECK_TIMEOUT_MS))
+      socket.setTimeout(timeoutForCheck, () => {
+        socket.destroy()
+        finish(false)
+      })
+
+      socket.on('error', () => {
+        finish(false)
+      })
+    })
+  }
 
   async function getProxyContext(appId: string): Promise<ProxyContext> {
     const now = Date.now()
@@ -493,46 +845,78 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
           upstreamHost,
           timeout,
           verbose,
+          agent: upstreamAgent,
         })
         return
       }
 
       if (isHtmlLikeRequest(req, relativeUrl)) {
         const targetUrl = relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`
-        const htmlResponse = await fetchHtmlFromUi({
+        let htmlResponse = getCachedHtmlEntry(appId, targetUrl)
+
+        if (htmlResponse) {
+          const upstreamReachable = await ensureUpstreamReachable(context.uiPort)
+          if (!upstreamReachable) {
+            removeHtmlCacheEntry(appId, targetUrl)
+            htmlResponse = null
+          }
+        }
+
+        if (htmlResponse) {
+          let body = htmlResponse.body
+          if (!htmlResponse.injected) {
+            const metadataPayload = { ...context.metadata, generatedAt: Date.now() }
+            body = injectProxyMetadata(body, metadataPayload, { patchFetch })
+            const basePath = `${context.metadata.primary.path || `${appsPrefix}/${appId}/${proxySegment}`}/`
+            body = injectBaseTag(body, basePath, {
+              skipIfExists: true,
+              dataAttribute: childBaseTagAttr,
+            })
+          }
+
+          const headerEntries = cloneHeaders(htmlResponse.headers)
+          for (const [key, value] of Object.entries(headerEntries)) {
+            res.setHeader(key, value as string)
+          }
+
+          if (proxyHeaderName) {
+            res.setHeader(proxyHeaderName, appId)
+          }
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+          res.status(htmlResponse.status).send(body)
+          return
+        }
+
+        const metadataPayload = { ...context.metadata, generatedAt: Date.now() }
+        const basePath = `${context.metadata.primary.path || `${appsPrefix}/${appId}/${proxySegment}`}/`
+
+        await streamProxiedHtml({
+          appId,
+          targetUrl,
+          res,
           upstreamHost,
-          port: context.uiPort,
-          path: targetUrl,
-          headers: {
-            ...req.headers,
-            host: `${upstreamHost}:${context.uiPort}`,
-          },
+          upstreamPort: context.uiPort,
+          requestHeaders: req.headers,
           timeout,
+          metadata: metadataPayload,
+          basePath,
+          patchFetch,
+          baseTagAttribute: childBaseTagAttr,
+          proxyHeaderName,
+          upstreamAgent,
+          shouldCache: responseIsCacheable,
+          onCacheStore: ({ status, headers, body }) => {
+            setCachedHtmlEntry(appId, targetUrl, {
+              status,
+              headers,
+              body,
+              injected: true,
+            })
+          },
+          onCacheSkip: () => {
+            removeHtmlCacheEntry(appId, targetUrl)
+          },
         })
-
-        let body = htmlResponse.body
-        const contentType = htmlResponse.headers['content-type'] || 'text/html'
-
-        if (typeof body === 'string' && contentType.includes('text/html')) {
-          const metadataPayload = { ...context.metadata, generatedAt: Date.now() }
-          body = injectProxyMetadata(body, metadataPayload, { patchFetch })
-          const basePath = `${context.metadata.primary.path || `${appsPrefix}/${appId}/${proxySegment}`}/`
-          body = injectBaseTag(body, basePath, {
-            skipIfExists: true,
-            dataAttribute: childBaseTagAttr,
-          })
-        }
-
-        const headerEntries = cloneHeaders(htmlResponse.headers)
-        for (const [key, value] of Object.entries(headerEntries)) {
-          res.setHeader(key, value as string)
-        }
-
-        if (proxyHeaderName) {
-          res.setHeader(proxyHeaderName, appId)
-        }
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-        res.status(htmlResponse.status).send(body)
         return
       }
 
@@ -540,8 +924,10 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
         upstreamHost,
         timeout,
         verbose,
+        agent: upstreamAgent,
       })
     } catch (error) {
+      removeHtmlCacheEntry(appId, relativeUrl)
       console.error(`[proxy-host] Failed to proxy app ${appId}:`, error instanceof Error ? error.message : error)
       if (!res.headersSent) {
         res.status(502).json({ error: 'Failed to proxy application', details: error instanceof Error ? error.message : 'Unknown error' })
@@ -577,6 +963,7 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
         upstreamHost,
         timeout,
         verbose,
+        agent: upstreamAgent,
       })
     } catch (error) {
       console.error(`[proxy-host] Failed to proxy port ${appId}/${portKey}:`, error instanceof Error ? error.message : error)
@@ -716,8 +1103,10 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
   function invalidate(appId?: string): void {
     if (appId) {
       cache.delete(appId)
+      clearHtmlCacheEntries(appId)
     } else {
       cache.clear()
+      clearHtmlCacheEntries()
     }
   }
 
@@ -725,6 +1114,9 @@ export function createScenarioProxyHost(options: ScenarioProxyHostOptions): Scen
     router,
     handleUpgrade,
     invalidate,
-    clearCache: () => cache.clear(),
+    clearCache: () => {
+      cache.clear()
+      clearHtmlCacheEntries()
+    },
   }
 }

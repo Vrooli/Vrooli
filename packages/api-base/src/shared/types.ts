@@ -5,6 +5,8 @@
  * client and server implementations.
  */
 
+import type { Agent } from 'node:http'
+
 /**
  * Browser-like window environment
  *
@@ -235,6 +237,10 @@ export interface ProxyOptions {
   headers?: Record<string, string> | ((req: any) => Record<string, string>)
   /** Whether to log proxy requests */
   verbose?: boolean
+  /** Whether to reuse HTTP connections (defaults to true) */
+  keepAlive?: boolean
+  /** Custom HTTP agent to use for proxying */
+  agent?: Agent
 }
 
 /**
@@ -295,6 +301,16 @@ export interface ScenarioProxyHostOptions {
   proxiedAppHeader?: string
   /** Host-owned endpoints that should never be rewritten */
   hostEndpoints?: HostEndpointDefinition[]
+  /** Whether to reuse upstream HTTP connections (defaults to true) */
+  proxyKeepAlive?: boolean
+  /** Custom HTTP agent for upstream requests */
+  proxyAgent?: Agent
+  /** Cache proxied HTML responses for faster reloads (default: true) */
+  cacheProxyHtml?: boolean
+  /** TTL for cached HTML responses in milliseconds (defaults to metadata cache TTL) */
+  proxyHtmlCacheTtlMs?: number
+  /** Maximum number of cached HTML entries retained at once */
+  proxyHtmlCacheMaxEntries?: number
 }
 
 /**
@@ -399,6 +415,14 @@ export interface ServerTemplateOptions {
   proxyHeaders?: Record<string, string> | ((req: any) => Record<string, string>)
   /** Override default 15s API proxy timeout (in milliseconds) */
   proxyTimeoutMs?: number
+  /** Enable/disable keep-alive between UI and API (defaults to true) */
+  proxyKeepAlive?: boolean
+  /** Custom HTTP agent for UI->API proxying */
+  proxyAgent?: Agent
+  /** Body parser to apply AFTER the /api proxy. Pass false to disable or provide a custom configurator */
+  bodyParser?: 'json' | false | ((app: any) => void)
+  /** Cache dist/index.html between requests (auto-invalidates when the file changes) */
+  cacheIndexHtml?: boolean
 }
 
 /**

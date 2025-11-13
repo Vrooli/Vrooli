@@ -346,6 +346,297 @@ _testing_runner_record() {
     TESTING_RUNNER_EXECUTION_ITEMS+=("$key")
 }
 
+_testing_runner_join_list() {
+    local separator="$1"
+    shift || true
+    local result=""
+    local first=true
+    for item in "$@"; do
+        if [ "$first" = true ]; then
+            result="$item"
+            first=false
+        else
+            result+="$separator$item"
+        fi
+    done
+    echo "$result"
+}
+
+_testing_runner_friendly_label() {
+    local key="$1"
+    local type="${TESTING_RUNNER_ITEM_TYPE[$key]:-}"
+    local display="${TESTING_RUNNER_ITEM_DISPLAY[$key]:-}" 
+
+    case "$type" in
+        phase)
+            echo "phase '${display#phase-}'"
+            ;;
+        test)
+            echo "test '${display#test-}'"
+            ;;
+        *)
+            echo "$display"
+            ;;
+    esac
+}
+
+testing::runner::print_contextual_tips() {
+    local overall_duration="${1:-0}"
+    if ! [[ "$overall_duration" =~ ^[0-9]+$ ]]; then
+        overall_duration=0
+    fi
+
+    local -a tips=()
+    local -a timed_out=()
+    local -a timed_out_stalled=()
+    local -a missing=()
+    local -a not_exec=()
+    local -a failed_items=()
+    local -a log_refs=()
+    local -a high_timeout_workflows=()
+    local -a wait_saturation_info=()
+    local stuck_timeout_threshold=30
+    local wait_saturation_threshold=5
+    local api_port="${API_PORT:-17695}"
+    local -A timed_out_stalled_lookup=()
+    local -A scanned_timeout_logs=()
+    local -A scanned_wait_logs=()
+    local -A scanned_missing_logs=()
+    local -A execution_lookup=()
+    local -A missing_req_lookup=()
+    local python_available=true
+    if ! command -v python3 >/dev/null 2>&1; then
+        python_available=false
+    fi
+
+    for key in "${TESTING_RUNNER_EXECUTION_ITEMS[@]}"; do
+        local status="${TESTING_RUNNER_STATUS[$key]:-}"
+        if [ -z "$status" ]; then
+            continue
+        fi
+        local label=$(_testing_runner_friendly_label "$key")
+        local log_path="${TESTING_RUNNER_LOG_PATH[$key]:-}"
+        local duration="${TESTING_RUNNER_DURATION[$key]:-0}"
+        if ! [[ "$duration" =~ ^[0-9]+$ ]]; then
+            duration=0
+        fi
+
+        if [ -n "$log_path" ] && [ -f "$log_path" ] && [ -z "${scanned_timeout_logs[$log_path]:-}" ]; then
+            scanned_timeout_logs[$log_path]=1
+
+            local execution_id
+            execution_id=$(awk '/Execution ID:/ {print $3}' "$log_path" | tail -n1)
+            if [ -n "$execution_id" ]; then
+                execution_lookup["$label"]="$execution_id"
+            fi
+
+            while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                local detail="${line#*\[WF_TIMEOUT_HIGH\] }"
+                if [ -z "$detail" ] || [ "$detail" = "$line" ]; then
+                    detail="$(basename "$log_path") reports workflow timeout >90s"
+                fi
+                high_timeout_workflows+=("$detail")
+            done < <(grep -F "[WF_TIMEOUT_HIGH]" "$log_path" 2>/dev/null || true)
+
+            if [ "$python_available" = true ] && [ -z "${scanned_wait_logs[$log_path]:-}" ]; then
+                scanned_wait_logs[$log_path]=1
+                local saturation_output
+                saturation_output=$(python3 - "$log_path" "$wait_saturation_threshold" <<'PY'
+import re, sys
+path = sys.argv[1]
+threshold = int(sys.argv[2])
+results = {}
+try:
+    with open(path, 'r', errors='ignore') as fh:
+        prev = None
+        streak = 0
+        for line in fh:
+            match = re.search(r"\[running\]\s+\d+% - wait \(([^)]+)\)", line)
+            if not match:
+                prev = None
+                streak = 0
+                continue
+            step = match.group(1)
+            if step == prev:
+                streak += 1
+            else:
+                prev = step
+                streak = 1
+            if streak >= threshold:
+                results[step] = max(results.get(step, threshold), streak)
+except FileNotFoundError:
+    pass
+for step, count in results.items():
+    print(f"{step}|{count}")
+PY
+)
+                if [ -n "$saturation_output" ]; then
+                    while IFS= read -r saturation_line; do
+                        [ -z "$saturation_line" ] && continue
+                        wait_saturation_info+=("$label|$saturation_line")
+                    done <<< "$saturation_output"
+                fi
+            fi
+
+            if [ -z "${scanned_missing_logs[$log_path]:-}" ]; then
+                scanned_missing_logs[$log_path]=1
+                while IFS= read -r missing_line; do
+                    [ -z "$missing_line" ] && continue
+                    local ids
+                    ids=$(printf '%s' "$missing_line" | sed 's/.*://')
+                    ids=${ids// /}
+                    IFS=',' read -r -a req_array <<< "$ids"
+                    for req in "${req_array[@]}"; do
+                        [ -z "$req" ] && continue
+                        missing_req_lookup["$req"]=1
+                    done
+                done < <(grep -F "Expected requirements missing coverage" "$log_path" 2>/dev/null || true)
+            fi
+        fi
+
+        case "$status" in
+            timed_out)
+                timed_out+=("$label")
+                if [ -n "$log_path" ]; then
+                    log_refs+=("$label log: $log_path")
+                fi
+                if [ -n "$log_path" ] && [ "$duration" -ge "$stuck_timeout_threshold" ] && \
+                   grep -Fq "Expected requirements missing coverage" "$log_path" 2>/dev/null; then
+                    timed_out_stalled+=("$label")
+                    timed_out_stalled_lookup["$label"]=1
+                fi
+                ;;
+            failed)
+                failed_items+=("$label")
+                if [ -n "$log_path" ]; then
+                    log_refs+=("$label log: $log_path")
+                fi
+                ;;
+            missing)
+                missing+=("$label")
+                ;;
+            not_executable)
+                not_exec+=("$label")
+                ;;
+        esac
+    done
+
+    if [ ${#timed_out[@]} -gt 0 ]; then
+        if [ ${#timed_out_stalled[@]} -gt 0 ]; then
+            local stalled_joined=$(_testing_runner_join_list ", " "${timed_out_stalled[@]}")
+            tips+=("• $stalled_joined ran past ${stuck_timeout_threshold}s and still left workflows uncovered. Consider lowering per-workflow wait/timeout inside the playbooks or raising the overall phase timeout so later workflows can run.")
+        fi
+
+        local -a regular_timeouts=()
+        for item in "${timed_out[@]}"; do
+            if [ -z "${timed_out_stalled_lookup["$item"]+x}" ]; then
+                regular_timeouts+=("$item")
+            fi
+        done
+
+        if [ ${#regular_timeouts[@]} -gt 0 ]; then
+            local joined=$(_testing_runner_join_list ", " "${regular_timeouts[@]}")
+            tips+=("• Timed out: $joined. Inspect the scenario logs or rerun with '--timeout 2' to grant more time once the root cause is understood.")
+        fi
+    fi
+
+    if [ ${#wait_saturation_info[@]} -gt 0 ]; then
+        local -a saturation_descriptions=()
+        for info in "${wait_saturation_info[@]}"; do
+            local friendly="${info%%|*}"
+            local remainder="${info#*|}"
+            local step="${remainder%%|*}"
+            local count="${remainder##*|}"
+            saturation_descriptions+=("$friendly stuck on '$step' (~${count} waits)")
+        done
+        local joined=$(_testing_runner_join_list "; " "${saturation_descriptions[@]}")
+        tips+=("• Wait saturation detected: $joined. This usually means the UI state never appeared or the selector is brittle—tag elements with stable data-testids and tighten the BAS selectors described in the UI automation guides below.")
+    fi
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        local joined=$(_testing_runner_join_list ", " "${missing[@]}")
+        tips+=("• Missing scripts for $joined. Ensure the phase/test scripts exist in the scenario test directory or update the runner configuration.")
+    fi
+
+    if [ ${#not_exec[@]} -gt 0 ]; then
+        local joined=$(_testing_runner_join_list ", " "${not_exec[@]}")
+        tips+=("• Non-executable scripts for $joined. Run 'chmod +x' on the corresponding files so they can be invoked.")
+    fi
+
+    if [ ${#failed_items[@]} -gt 0 ]; then
+        local joined=$(_testing_runner_join_list ", " "${failed_items[@]}")
+        tips+=("• Failed items: $joined. Review their logs for assertion errors or stack traces.")
+    fi
+
+    if [ ${#log_refs[@]} -gt 0 ]; then
+        local joined=$(_testing_runner_join_list "; " "${log_refs[@]}")
+        tips+=("• Logs to inspect: $joined")
+    fi
+
+    if [ ${#missing_req_lookup[@]} -gt 0 ]; then
+        local -a sorted_missing=()
+        local req
+        for req in "${!missing_req_lookup[@]}"; do
+            sorted_missing+=("$req")
+        done
+        IFS=$'\n' sorted_missing=($(printf '%s\n' "${sorted_missing[@]}" | sort))
+        unset IFS
+        local joined=$(_testing_runner_join_list ", " "${sorted_missing[@]}")
+        if [ ${#timed_out[@]} -gt 0 ]; then
+            tips+=("• Requirements still uncovered ($joined) because integration exited early. Fix the blocking telemetry/seed workflows, rerun, then sync the registry using the requirement tracking process described below.")
+        else
+            tips+=("• Requirements still uncovered ($joined). Link each requirement to a BAS workflow validation or author a workflow following the requirement and UI automation guides listed below.")
+        fi
+    fi
+
+    local -A execution_tip_lookup=()
+    for item in "${timed_out[@]}"; do
+        if [ -n "${execution_lookup[$item]:-}" ]; then
+            execution_tip_lookup["$item:${execution_lookup[$item]}"]=1
+        fi
+    done
+    for item in "${failed_items[@]}"; do
+        if [ -n "${execution_lookup[$item]:-}" ]; then
+            execution_tip_lookup["$item:${execution_lookup[$item]}"]=1
+        fi
+    done
+
+    if [ ${#execution_tip_lookup[@]} -gt 0 ]; then
+        local -a execution_entries=()
+        local entry
+        for entry in "${!execution_tip_lookup[@]}"; do
+            local friendly="${entry%%:*}"
+            local exec_id="${entry#*:}"
+            execution_entries+=("$friendly → $exec_id")
+        done
+        local joined=$(_testing_runner_join_list "; " "${execution_entries[@]}")
+        tips+=("• Execution artifacts: $joined. Fetch screenshots & DOM snapshots via curl http://localhost:${api_port}/api/v1/executions/<ID>/artifacts or load them in the BAS Execution Viewer as explained in the docs below.")
+    fi
+
+    if [ ${#high_timeout_workflows[@]} -gt 0 ]; then
+        local joined=$(_testing_runner_join_list "; " "${high_timeout_workflows[@]}")
+        tips+=("• Workflow timeouts too high (>90s): $joined. Lower BAS workflow timeouts so each run completes faster and avoids starving other workflows.")
+    fi
+
+    if [ "$overall_duration" -gt 600 ]; then
+        tips+=("• Entire test selection ran ${overall_duration}s (>600s). Consider trimming per-workflow waits or splitting phases so runs stay under 10 minutes.")
+    fi
+
+    echo "💡 Troubleshooting tips:"
+    if [ ${#tips[@]} -eq 0 ]; then
+        echo "   • Ensure $TESTING_RUNNER_SCENARIO_NAME scenario is running: vrooli scenario start $TESTING_RUNNER_SCENARIO_NAME"
+        echo "   • Check dependencies: vrooli resource start postgres"
+        echo "   • Install CLI: cd cli && ./install.sh"
+        echo "   • Run individual phases for detailed debugging"
+        return
+    fi
+
+    for tip in "${tips[@]}"; do
+        echo "   $tip"
+    done
+}
+
 # -----------------------------------------------------------------------------
 # Phase & test execution
 # -----------------------------------------------------------------------------
@@ -748,16 +1039,15 @@ _testing_runner_print_summary() {
         log::error "❌ Test execution completed with failures"
         log::error "   $failed of $total items failed"
         echo ""
-        echo "💡 Troubleshooting tips:"
-        echo "   • Ensure $TESTING_RUNNER_SCENARIO_NAME scenario is running: vrooli scenario start $TESTING_RUNNER_SCENARIO_NAME"
-        echo "   • Check dependencies: vrooli resource start postgres"
-        echo "   • Install CLI: cd cli && ./install.sh"
-        echo "   • Run individual phases for detailed debugging"
+        testing::runner::print_contextual_tips "$total_duration"
     fi
 
     echo ""
     echo "📚 For more information, see:"
     echo "   • docs/testing/architecture/PHASED_TESTING.md"
+    echo "   • docs/testing/guides/writing-testable-uis.md"
+    echo "   • docs/testing/guides/ui-automation-with-bas.md"
+    echo "   • docs/testing/guides/requirement-tracking-quick-start.md"
     echo "   • Test files in: $TESTING_RUNNER_TEST_DIR"
     echo ""
 }

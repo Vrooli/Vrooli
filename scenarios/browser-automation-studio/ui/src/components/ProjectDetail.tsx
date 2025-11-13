@@ -79,7 +79,6 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   const [showEditProjectModal, setShowEditProjectModal] = useState(false);
   const [isImportingRecording, setIsImportingRecording] = useState(false);
   const [activeTab, setActiveTab] = useState<'workflows' | 'executions'>('workflows');
-  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const [showStatsPopover, setShowStatsPopover] = useState(false);
   const [showViewModeDropdown, setShowViewModeDropdown] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -105,9 +104,11 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   });
   const { deleteProject } = useProjectStore();
   const { bulkDeleteWorkflows } = useWorkflowStore();
-  const { loadExecution } = useExecutionStore();
+  const loadExecution = useExecutionStore((state) => state.loadExecution);
+  const startExecution = useExecutionStore((state) => state.startExecution);
+  const closeExecutionViewer = useExecutionStore((state) => state.closeViewer);
   const currentExecution = useExecutionStore((state) => state.currentExecution);
-  const isExecutionViewerOpen = Boolean(selectedExecutionId && currentExecution);
+  const isExecutionViewerOpen = Boolean(currentExecution);
 
   // Memoize filtered workflows to prevent recalculation on every render
   const filteredWorkflows = useMemo(() => {
@@ -387,31 +388,23 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
 
   const handleExecuteWorkflow = useCallback(async (e: React.MouseEvent, workflowId: string) => {
     e.stopPropagation(); // Prevent workflow selection
-    setExecutionInProgress(prev => ({ ...prev, [workflowId]: true }));
-    
+    setExecutionInProgress((prev) => ({ ...prev, [workflowId]: true }));
+
     try {
-      const config = await getConfig();
-      const response = await fetch(`${config.API_URL}/workflows/${workflowId}/execute`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      await startExecution(workflowId);
+      setActiveTab('executions');
+      logger.info('Workflow execution started', {
+        component: 'ProjectDetail',
+        action: 'handleExecuteWorkflow',
+        workflowId,
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to execute workflow: ${response.status}`);
-      }
-
-      const result = await response.json();
-      logger.info('Workflow execution started', { component: 'ProjectDetail', action: 'handleExecuteWorkflow', workflowId, result });
-      // You could show a success message here
     } catch (error) {
       logger.error('Failed to execute workflow', { component: 'ProjectDetail', action: 'handleExecuteWorkflow', workflowId }, error);
       alert('Failed to execute workflow. Please try again.');
     } finally {
-      setExecutionInProgress(prev => ({ ...prev, [workflowId]: false }));
+      setExecutionInProgress((prev) => ({ ...prev, [workflowId]: false }));
     }
-  }, []);
+  }, [startExecution]);
 
   const toggleSelectionMode = useCallback(() => {
     setSelectionMode((prev) => {
@@ -497,7 +490,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
 
   const handleSelectExecution = useCallback(async (execution: { id: string }) => {
     try {
-      setSelectedExecutionId(execution.id);
+      setActiveTab('executions');
       await loadExecution(execution.id);
     } catch (error) {
       logger.error('Failed to load execution details', { component: 'ProjectDetail', action: 'handleSelectExecution', executionId: execution.id }, error);
@@ -506,8 +499,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
   }, [loadExecution]);
 
   const handleCloseExecutionViewer = useCallback(() => {
-    setSelectedExecutionId(null);
-  }, []);
+    closeExecutionViewer();
+  }, [closeExecutionViewer]);
 
   const toggleFolder = useCallback((path: string) => {
     const newExpanded = new Set(expandedFolders);

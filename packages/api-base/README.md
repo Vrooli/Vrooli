@@ -11,6 +11,7 @@ Universal API connectivity for Vrooli scenarios. Handles API resolution, WebSock
 - 🧪 **Fully Tested**: 156 unit tests covering all edge cases
 - 📦 **Zero Config**: Just `resolveApiBase({ appendSuffix: true })` and you're done
 - 🔄 **Backwards Compatible**: Supports existing proxy patterns
+- ⚡ **Proxy Host Cache**: Built-in HTML caching for embedded scenarios (tunable via `cacheProxyHtml`)
 
 ## Installation
 
@@ -82,7 +83,7 @@ This automatically sets up:
 - `/health` endpoint with API connectivity checks
 - `/config` endpoint with runtime configuration
 - `/api/*` proxy to your API server
-- Static file serving from `./dist`
+- Static file serving from `./dist` (hashed assets served with immutable caching, SPA shell stays no-store)
 - SPA fallback routing
 
 ## Propagating Changes to Scenarios

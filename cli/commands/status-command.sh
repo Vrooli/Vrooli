@@ -35,6 +35,8 @@ source "${APP_ROOT}/scripts/lib/utils/zombie-detector.sh" 2>/dev/null || true
 # Configuration paths
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
 API_BASE="http://localhost:${VROOLI_API_PORT:-8092}"
+JQ_RESOURCES_EXPR="$var_JQ_RESOURCES_EXPR"
+[[ -z "$JQ_RESOURCES_EXPR" ]] && JQ_RESOURCES_EXPR='(.dependencies.resources // {})'
 
 # Show help for status command
 show_status_help() {
@@ -171,17 +173,13 @@ collect_resource_data() {
     # Get configured resources
     local config_resources=()
     if [[ -f "$RESOURCES_CONFIG" ]]; then
-        local jq_query='
-            .resources | to_entries[] | 
-            "\(.key)/\(.value.enabled)"
-        '
         while IFS= read -r line; do
             if [[ -n "$line" ]]; then
                 local name="${line%%/*}"
                 local enabled="${line#*/}"
                 config_resources+=("$name:$enabled")
             fi
-        done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null || true)
+        done < <(jq -r "${JQ_RESOURCES_EXPR} | to_entries[] | \"\(.key)/\(.value.enabled)\"" "$RESOURCES_CONFIG" 2>/dev/null || true)
     fi
     
     # Build combined list of all resources (registered and unregistered)

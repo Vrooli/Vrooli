@@ -8,6 +8,11 @@ import type { ProxyOptions } from '../../shared/types.js'
 import { mockRequest, mockResponse } from '../helpers/mock-request.js'
 import * as http from 'node:http'
 import { EventEmitter } from 'node:events'
+import { resetProxyAgentsForTesting } from '../../server/agent.js'
+
+afterEach(() => {
+  resetProxyAgentsForTesting()
+})
 
 describe('proxyToApi', () => {
   it('rejects invalid API port', async () => {

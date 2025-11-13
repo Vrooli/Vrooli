@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-12T02:14:46.943Z"
+    "last_synced_at": "2025-11-13T17:00:49.568Z"
   },
   "requirements": [
     {
@@ -32,20 +32,6 @@
         },
         {
           "type": "test",
-          "ref": "ui/tests/executionEventProcessor.heartbeat.test.mjs",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Ensures heartbeat events update progress state in the UI store."
-        },
-        {
-          "type": "test",
-          "ref": "ui/tests/executionEventProcessor.assertion.test.mjs",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Confirms assertion payloads render readable log entries."
-        },
-        {
-          "type": "test",
           "ref": "test/phases/test-unit.sh",
           "phase": "unit",
           "status": "implemented",
@@ -56,7 +42,7 @@
           "ref": "ui/src/stores/executionStore.test.ts",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence"
+          "notes": "Tests heartbeat events and execution state management"
         },
         {
           "type": "test",
@@ -89,6 +75,13 @@
           "phase": "integration",
           "status": "failing",
           "notes": "Integration phase invokes the telemetry smoke automation through run_workflow_yaml."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/ProjectDetail.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Auto-added from vitest evidence"
         }
       ]
     },

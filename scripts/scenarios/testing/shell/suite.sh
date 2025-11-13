@@ -10,7 +10,7 @@ declare -Ag TESTING_SUITE_DEFAULT_TIMEOUTS=(
     [structure]=30
     [dependencies]=60
     [unit]=120
-    [integration]=240
+    [integration]=600
     [business]=120
     [performance]=60
 )

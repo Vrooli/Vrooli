@@ -36,7 +36,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act, type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Execution, TimelineFrame, LogEntry } from '../../stores/executionStore';
 import type { Screenshot } from '../../stores/executionEventProcessor';
@@ -161,7 +161,7 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
       expect(container.firstChild).not.toBeNull();
     });
 
-    it('renders active execution viewer when execution provided [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
+    it('renders active execution viewer when execution provided [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {
       const mockExecution = createMockExecution();
 
       // Update mock state
@@ -169,12 +169,17 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
       mockExecutionStoreState.viewerWorkflowId = 'workflow-1';
       mockExecutionStoreState.executions = [mockExecution];
 
-      const { container } = render(
-        <ExecutionViewer
-          workflowId="workflow-1"
-          execution={mockExecution}
-        />
-      );
+      let rendered: RenderResult | undefined;
+      await act(async () => {
+        rendered = render(
+          <ExecutionViewer
+            workflowId="workflow-1"
+            execution={mockExecution}
+          />
+        );
+      });
+
+      const { container } = rendered!;
 
       // Should render the active execution viewer
       expect(container.firstChild).not.toBeNull();
@@ -196,22 +201,24 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
   });
 
   describe('Execution Status Display', () => {
-    it('displays running execution status [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
+    it('displays running execution status [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {
       const mockExecution = createMockExecution({ status: 'running' });
 
       mockExecutionStoreState.currentExecution = mockExecution;
       mockExecutionStoreState.viewerWorkflowId = 'workflow-1';
       mockExecutionStoreState.executions = [mockExecution];
 
-      render(
-        <ExecutionViewer workflowId="workflow-1" execution={mockExecution} />
-      );
+      await act(async () => {
+        render(
+          <ExecutionViewer workflowId="workflow-1" execution={mockExecution} />
+        );
+      });
 
       // ActiveExecutionViewer should render with running execution
       // Detailed status icon/badge testing belongs in ActiveExecutionViewer tests
     });
 
-    it('displays completed execution status [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
+    it('displays completed execution status [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {
       const mockExecution = createMockExecution({
         status: 'completed',
         progress: 100,
@@ -222,14 +229,16 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
       mockExecutionStoreState.viewerWorkflowId = 'workflow-1';
       mockExecutionStoreState.executions = [mockExecution];
 
-      render(
-        <ExecutionViewer workflowId="workflow-1" execution={mockExecution} />
-      );
+      await act(async () => {
+        render(
+          <ExecutionViewer workflowId="workflow-1" execution={mockExecution} />
+        );
+      });
 
       // ActiveExecutionViewer should render with completed execution
     });
 
-    it('displays failed execution with error [REQ:BAS-EXEC-TELEMETRY-STREAM]', () => {
+    it('displays failed execution with error [REQ:BAS-EXEC-TELEMETRY-STREAM]', async () => {
       const mockExecution = createMockExecution({
         status: 'failed',
         error: 'Selector not found: .submit-button',
@@ -240,9 +249,11 @@ describe('ExecutionViewer [REQ:BAS-EXEC-TELEMETRY-STREAM] [REQ:BAS-REPLAY-SCREEN
       mockExecutionStoreState.viewerWorkflowId = 'workflow-1';
       mockExecutionStoreState.executions = [mockExecution];
 
-      render(
-        <ExecutionViewer workflowId="workflow-1" execution={mockExecution} />
-      );
+      await act(async () => {
+        render(
+          <ExecutionViewer workflowId="workflow-1" execution={mockExecution} />
+        );
+      });
 
       // ActiveExecutionViewer should render with failed execution
       // Error message display tested in ActiveExecutionViewer tests

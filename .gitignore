@@ -181,7 +181,20 @@ test-dist/
 
 # Temporary files
 tmp/
+tmp-*/
+tmp_*/
 temp/
+temp-*/
+temp_*/
+.tmp/
+.tmp-*/
+.tmp_*/
+.temp/
+.temp-*/
+.temp_*/
+debug/
+debug-*/
+debug_*/
 *.tmp
 *.backup
 *.bak

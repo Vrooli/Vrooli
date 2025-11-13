@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Filter as FilterIcon,
   Sparkles,
+  StickyNote,
 } from 'lucide-react'
 import { buildApiUrl } from '../utils/apiClient'
 import { usePrepareDraft } from '../utils/useDraft'
@@ -262,14 +263,23 @@ export default function Catalog() {
               Centralized management, validation, and publishing for {catalogCounts.total.toLocaleString()} tracked entities with {coverage}% PRD coverage so far.
             </p>
           </div>
-          <Link to="/drafts" className="nav-button" aria-label={`View ${catalogCounts.drafts} ${draftsLabel.toLowerCase()}`}>
-            <Layers size={18} aria-hidden="true" />
-            <span className="nav-button__label">
-              <strong>View Drafts</strong>
-              <small>Curate updates</small>
-            </span>
-            <span className="nav-button__pill">{catalogCounts.drafts}</span>
-          </Link>
+          <div className="page-header__actions">
+            <Link to="/backlog" className="nav-button nav-button--secondary" aria-label="Open idea backlog">
+              <StickyNote size={18} aria-hidden="true" />
+              <span className="nav-button__label">
+                <strong>Backlog</strong>
+                <small>Capture ideas</small>
+              </span>
+            </Link>
+            <Link to="/drafts" className="nav-button" aria-label={`View ${catalogCounts.drafts} ${draftsLabel.toLowerCase()}`}>
+              <Layers size={18} aria-hidden="true" />
+              <span className="nav-button__label">
+                <strong>View Drafts</strong>
+                <small>Curate updates</small>
+              </span>
+              <span className="nav-button__pill">{catalogCounts.drafts}</span>
+            </Link>
+          </div>
         </div>
         <div className="insight-banner" role="status" aria-live="polite">
           <span className="insight-banner__icon" aria-hidden="true">

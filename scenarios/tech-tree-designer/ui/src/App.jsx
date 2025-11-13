@@ -20,33 +20,9 @@ import ReactFlow, { Background, Controls, MiniMap, useEdgesState, useNodesState 
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 import 'react-flow-renderer/dist/style.css'
 
-const resolveDefaultApiPort = () => {
-  const candidates = [
-    import.meta.env.VITE_API_PORT,
-    import.meta.env.VITE_PROXY_API_PORT,
-    import.meta.env.API_PORT
-  ]
+const API_BASE = resolveApiBase({ appendSuffix: true })
 
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string' && candidate.trim().length > 0) {
-      return candidate.trim()
-    }
-  }
-
-  return '8080'
-}
-
-const DEFAULT_API_PORT = resolveDefaultApiPort()
-
-const API_BASE = resolveApiBase({
-  explicitUrl: typeof import.meta.env.VITE_API_BASE_URL === 'string'
-    ? import.meta.env.VITE_API_BASE_URL.trim()
-    : undefined,
-  defaultPort: DEFAULT_API_PORT,
-  appendSuffix: true
-})
-
-const apiUrl = (path) => buildApiUrl(path, { baseUrl: API_BASE, appendSuffix: false })
+const apiUrl = (path) => buildApiUrl(path, { baseUrl: API_BASE })
 
 const stageTypePalette = {
   foundation: '#10b981',

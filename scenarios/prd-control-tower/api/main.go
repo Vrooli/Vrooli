@@ -99,6 +99,13 @@ func main() {
 	apiV1.HandleFunc("/drafts/{id}", handleUpdateDraft).Methods("PUT")
 	apiV1.HandleFunc("/drafts/{id}", handleDeleteDraft).Methods("DELETE")
 
+	// Backlog endpoints
+	apiV1.HandleFunc("/backlog", handleListBacklog).Methods("GET")
+	apiV1.HandleFunc("/backlog", handleCreateBacklogEntries).Methods("POST")
+	apiV1.HandleFunc("/backlog/convert", handleConvertBacklogEntries).Methods("POST")
+	apiV1.HandleFunc("/backlog/{id}/convert", handleConvertSingleBacklogEntry).Methods("POST")
+	apiV1.HandleFunc("/backlog/{id}", handleDeleteBacklogEntry).Methods("DELETE")
+
 	// Validation and AI endpoints
 	apiV1.HandleFunc("/drafts/validate", handleValidatePRD).Methods("POST")
 	apiV1.HandleFunc("/drafts/{id}/validate", handleValidateDraft).Methods("POST")

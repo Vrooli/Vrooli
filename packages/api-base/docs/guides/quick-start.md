@@ -132,6 +132,8 @@ app.listen(PORT, () => {
 })
 ```
 
+> 🌀 **Streaming-first proxy:** `/api` is now proxied before any body parsing so uploads stay streamable. UI-owned routes still get JSON parsing by default, and you can customize it with the new `bodyParser` option (pass `false` to disable or a function that mounts your own parsers).
+
 This automatically sets up:
 - Static file serving from `./dist`
 - `/api/*` proxy to your API server
@@ -362,6 +364,34 @@ const app = createScenarioServer({
 These headers are automatically added to:
 - All HTTP API proxy requests (`/api/*`)
 - All WebSocket upgrade requests (if `wsPathPrefix` is configured)
+
+### Disable Proxy Keep-Alive (rare)
+
+The UI server now reuses HTTP connections to your API for faster proxied calls. If you're working with an upstream that can't handle keep-alive (or you're debugging socket churn), turn it off explicitly:
+
+```javascript
+const app = createScenarioServer({
+  uiPort: 3000,
+  apiPort: 8080,
+  distDir: './dist',
+  proxyKeepAlive: false,  // one request per connection
+})
+```
+
+Prefer customizing the agent instead of disabling it altogether:
+
+```javascript
+import http from 'node:http'
+
+const app = createScenarioServer({
+  uiPort: 3000,
+  apiPort: 8080,
+  distDir: './dist',
+  proxyAgent: new http.Agent({ keepAlive: true, maxSockets: 20 }),
+})
+```
+
+You get the same knobs when hosting other scenarios via `createScenarioProxyHost` (`proxyKeepAlive` + `proxyAgent`).
 
 ### Verbose Logging
 

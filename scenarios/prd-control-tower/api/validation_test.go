@@ -105,6 +105,9 @@ func TestRunScenarioAuditor(t *testing.T) {
 
 // TestHandleValidatePRD tests the published PRD validation endpoint
 func TestHandleValidatePRD(t *testing.T) {
+	// Ensure scenario-auditor CLI lookup fails quickly so tests don't invoke the real binary
+	t.Setenv("PATH", "")
+
 	tests := []struct {
 		name           string
 		requestBody    any
@@ -413,6 +416,10 @@ func TestValidatePRDRequestStructure(t *testing.T) {
 
 // TestRunScenarioAuditorWithRealCommand tests with actual command execution (if available)
 func TestRunScenarioAuditorWithRealCommand(t *testing.T) {
+	if os.Getenv("RUN_SCENARIO_AUDITOR_TESTS") != "1" {
+		t.Skip("Skipping scenario-auditor integration test; set RUN_SCENARIO_AUDITOR_TESTS=1 to enable")
+	}
+
 	// Check if scenario-auditor is available
 	if _, err := exec.LookPath("scenario-auditor"); err != nil {
 		t.Skip("scenario-auditor not available, skipping integration test")

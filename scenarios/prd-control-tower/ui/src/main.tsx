@@ -7,6 +7,7 @@ import { ConfirmDialogProvider } from './utils/confirmDialog'
 import Catalog from './pages/Catalog'
 import PRDViewer from './pages/PRDViewer'
 import Drafts from './pages/Drafts'
+import Backlog from './pages/Backlog'
 import './index.css'
 
 declare global {
@@ -49,6 +50,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/prd/:type/:name" element={<PRDViewer />} />
           <Route path="/drafts" element={<Drafts />} />
           <Route path="/draft/:entityType/:entityName" element={<Drafts />} />
+          <Route path="/backlog" element={<Backlog />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>
