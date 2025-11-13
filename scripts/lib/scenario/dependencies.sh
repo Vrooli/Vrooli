@@ -8,9 +8,71 @@ if [[ -n "${_SCENARIO_DEPENDENCIES_SH:-}" ]]; then
 fi
 _SCENARIO_DEPENDENCIES_SH=1
 
-# These arrays are shared across all dependency operations
+# These arrays/maps are shared across all dependency operations. READY tracks
+# which scenarios have already been ensured so we never restart shared deps
+# multiple times during a single command.
 # shellcheck disable=SC2034 # referenced via functions in this file
 declare -ag SCENARIO_DEPENDENCY_STACK=()
+declare -Ag SCENARIO_DEPENDENCIES_READY=()
+
+################################################################################
+# Common helpers
+################################################################################
+scenario::dependencies::ensure_lifecycle_loaded() {
+    if ! declare -F lifecycle::is_scenario_running >/dev/null 2>&1; then
+        # lifecycle.sh expects var_ROOT_DIR to be set by var.sh
+        source "${var_ROOT_DIR}/scripts/lib/utils/lifecycle.sh"
+    fi
+}
+
+scenario::dependencies::ensure_setup_loaded() {
+    if ! declare -F setup::is_needed >/dev/null 2>&1; then
+        source "${var_ROOT_DIR}/scripts/lib/utils/setup.sh" 2>/dev/null || true
+    fi
+}
+
+scenario::dependencies::ready_reset() {
+    SCENARIO_DEPENDENCIES_READY=()
+}
+
+scenario::dependencies::mark_ready() {
+    local name="$1"
+    SCENARIO_DEPENDENCIES_READY["$name"]=1
+}
+
+scenario::dependencies::is_ready() {
+    local name="$1"
+    [[ -n "${SCENARIO_DEPENDENCIES_READY[$name]:-}" ]]
+}
+
+scenario::dependencies::is_running_and_current() {
+    local dependency="$1"
+
+    scenario::dependencies::ensure_lifecycle_loaded || return 1
+
+    if ! lifecycle::is_scenario_running "$dependency"; then
+        return 1
+    fi
+
+    if ! lifecycle::is_scenario_healthy "$dependency"; then
+        return 1
+    fi
+
+    local scenario_path="${var_ROOT_DIR}/scenarios/${dependency}"
+    if [[ ! -d "$scenario_path" ]]; then
+        return 1
+    fi
+
+    scenario::dependencies::ensure_setup_loaded
+    if declare -F setup::is_needed >/dev/null 2>&1; then
+        if setup::is_needed "$scenario_path"; then
+            # setup::is_needed returns 0 when setup is needed (i.e., stale)
+            return 1
+        fi
+    fi
+
+    return 0
+}
 
 ################################################################################
 # Internal stack helpers
@@ -113,6 +175,11 @@ scenario::dependencies::ensure_started() {
             return 1
         fi
 
+        if scenario::dependencies::is_ready "$dependency"; then
+            log::debug "Dependency '$dependency' already ensured; skipping"
+            continue
+        fi
+
         if ! scenario::dependencies::start_dependency "$scenario_name" "$dependency" "$dependency_phase"; then
             return 1
         fi
@@ -138,10 +205,21 @@ scenario::dependencies::start_dependency() {
     fi
 
     log::info "🔗 Ensuring dependency '$dependency' for scenario '$parent'"
+
+    if scenario::dependencies::is_running_and_current "$dependency"; then
+        # Never stop/restart a dependency that's already healthy because other
+        # parents may rely on the same processes.
+        log::debug "Dependency '$dependency' already running and current"
+        scenario::dependencies::mark_ready "$dependency"
+        return 0
+    fi
+
     if ! scenario::run "$dependency" "$dependency_phase"; then
         log::error "Failed to start dependency '$dependency' required by '$parent'"
         return 1
     fi
+
+    scenario::dependencies::mark_ready "$dependency"
 
     return 0
 }

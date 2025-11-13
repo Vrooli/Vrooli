@@ -25,10 +25,24 @@ setup::is_needed() {
     # Reset global array for setup reasons
     SETUP_REASONS=()
 
-    # Track if force setup is active
+    # Track if force setup is active and whether it applies to this scenario
     local force_setup="${FORCE_SETUP:-false}"
+    local force_setup_target="${FORCE_SETUP_SCENARIO:-}"
+    local scenario_name_from_path
+    scenario_name_from_path=$(basename "$check_path")
+    scenario_name_from_path=${scenario_name_from_path:-$check_path}
+
+    # FORCE_SETUP_SCENARIO scopes forced rebuilds to the scenario being
+    # restarted so dependencies aren't rebuilt just because a parent restarts.
+    local force_setup_applies=false
     if [[ "$force_setup" == "true" ]]; then
-        log::debug "FORCE_SETUP=true, forcing setup verification"
+        if [[ -z "$force_setup_target" || "$force_setup_target" == "$scenario_name_from_path" ]]; then
+            force_setup_applies=true
+        fi
+    fi
+
+    if [[ "$force_setup_applies" == "true" ]]; then
+        log::debug "FORCE_SETUP=true for scenario '$scenario_name_from_path', forcing setup verification"
         SETUP_REASONS+=("Forced rebuild (restart)")
     fi
 
@@ -38,7 +52,7 @@ setup::is_needed() {
     if [[ ! -f "$service_json" ]]; then
         log::debug "No service.json found at $check_path, assuming setup not needed"
         # Unless FORCE_SETUP is true
-        [[ "$force_setup" == "true" ]] && return 0
+        [[ "$force_setup_applies" == "true" ]] && return 0
         return 1
     fi
 
@@ -49,7 +63,7 @@ setup::is_needed() {
     if [[ -z "$has_condition" ]]; then
         log::debug "No setup condition defined, setup not needed"
         # Unless FORCE_SETUP is true
-        [[ "$force_setup" == "true" ]] && return 0
+        [[ "$force_setup_applies" == "true" ]] && return 0
         return 1
     fi
 
@@ -60,12 +74,12 @@ setup::is_needed() {
     if [[ "$checks" == "[]" ]]; then
         log::debug "No setup checks defined, setup not needed"
         # Unless FORCE_SETUP is true
-        [[ "$force_setup" == "true" ]] && return 0
+        [[ "$force_setup_applies" == "true" ]] && return 0
         return 1
     fi
 
     # Run each check
-    local setup_needed="$force_setup"  # Initialize to force_setup value
+    local setup_needed="$force_setup_applies"  # Initialize to force_setup value
     local check_count=0
     
     while IFS= read -r check; do

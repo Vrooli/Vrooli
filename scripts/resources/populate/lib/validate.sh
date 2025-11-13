@@ -34,17 +34,17 @@ validate::scenario() {
     
     # Check resources section
     local resources
-    resources=$(echo "$config" | jq -r '.resources // {}')
+    resources=$(echo "$config" | jq -r '.dependencies.resources // {}')
     if [[ "$resources" == "{}" ]]; then
         log::warn "No resources defined in scenario"
     fi
     
     # Validate each resource configuration
     local resource_names
-    resource_names=$(echo "$config" | jq -r '.resources | keys[]' 2>/dev/null || true)
+    resource_names=$(echo "$config" | jq -r '.dependencies.resources | keys[]' 2>/dev/null || true)
     
     for resource in $resource_names; do
-        if ! validate::resource_config "$resource" "$(echo "$config" | jq -c ".resources[\"$resource\"]")"; then
+        if ! validate::resource_config "$resource" "$(echo "$config" | jq -c ".dependencies.resources[\"$resource\"]")"; then
             is_valid=false
         fi
     done

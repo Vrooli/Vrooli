@@ -12,10 +12,14 @@ scenario::run() {
     shift
     
     local scenario_path="${var_ROOT_DIR}/scenarios/${scenario_name}"
-    
+
     if [[ ! -d "$scenario_path" ]]; then
         log::error "Scenario not found: $scenario_name"
         return 1
+    fi
+
+    if [[ ${#SCENARIO_DEPENDENCY_STACK[@]} -eq 0 ]]; then
+        scenario::dependencies::ready_reset
     fi
     
     # Get the phase (default to 'develop' if not specified)
@@ -93,13 +97,22 @@ scenario::run() {
                 source "${SCRIPT_DIR}/../utils/setup.sh" 2>/dev/null || true
 
                 local force_setup="${FORCE_SETUP:-false}"
+                local force_setup_target="${FORCE_SETUP_SCENARIO:-}"
+                local force_setup_applies=false
+                if [[ "$force_setup" == "true" ]]; then
+                    if [[ -z "$force_setup_target" || "$force_setup_target" == "$scenario_name" ]]; then
+                        # Only honor forced rebuilds for the scenario the user
+                        # explicitly restarted so dependencies stay untouched.
+                        force_setup_applies=true
+                    fi
+                fi
                 if command -v setup::is_needed >/dev/null 2>&1; then
                     if setup::is_needed "$scenario_path"; then
                         log::warning "⚠️  Scenario running but code is stale (${SETUP_REASONS[*]:-binaries/bundles outdated}), restarting..."
                         lifecycle::stop_scenario_processes "$scenario_name"
                         sleep 2
                         # Continue to normal execution below
-                    elif [[ "$force_setup" == "true" ]]; then
+                    elif [[ "$force_setup_applies" == "true" ]]; then
                         log::info "🔄 Forced restart requested, stopping and rebuilding..."
                         lifecycle::stop_scenario_processes "$scenario_name"
                         sleep 2
