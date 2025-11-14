@@ -8,6 +8,8 @@ import Catalog from './pages/Catalog'
 import PRDViewer from './pages/PRDViewer'
 import Drafts from './pages/Drafts'
 import Backlog from './pages/Backlog'
+import RequirementsExplorer from './pages/RequirementsExplorer'
+import OperationalTargetsExplorer from './pages/OperationalTargetsExplorer'
 import './styles/global.css'
 import './styles/legacy.css'
 
@@ -52,6 +54,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/drafts" element={<Drafts />} />
           <Route path="/draft/:entityType/:entityName" element={<Drafts />} />
           <Route path="/backlog" element={<Backlog />} />
+          <Route path="/requirements/:entityType/:entityName" element={<RequirementsExplorer />} />
+          <Route path="/targets/:entityType/:entityName" element={<OperationalTargetsExplorer />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>

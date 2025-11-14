@@ -1,0 +1,63 @@
+{
+  "_metadata": {
+    "description": "AI-assisted content generation and rewriting requirements",
+    "domain": "ai",
+    "last_updated": "2025-11-14"
+  },
+  "requirements": [
+    {
+      "id": "PCT-AI-GENERATE",
+      "category": "ai.api",
+      "prd_ref": "Functional Requirements > Must Have > AI-assisted section generation via resource-openrouter",
+      "title": "AI generates PRD sections from prompts",
+      "description": "Verifies POST /api/v1/drafts/{id}/ai/generate-section calls resource-openrouter with context and returns generated markdown.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ai_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestGenerateAIContent validates HTTP and CLI integration paths"
+        }
+      ]
+    },
+    {
+      "id": "PCT-AI-CONTEXT",
+      "category": "ai.prompts",
+      "prd_ref": "AI Service > prompt templating",
+      "title": "AI prompts include existing PRD, violations, and template context",
+      "description": "Ensures buildPrompt includes draft content, structure violations, and missing sections in context.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ai_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestBuildPrompt validates context assembly"
+        }
+      ]
+    },
+    {
+      "id": "PCT-AI-REWRITE",
+      "category": "ai.ui",
+      "prd_ref": "Session 25 > Draft workspace upgrades > AI assistant controls",
+      "title": "AI assistant rewrites selections for template compliance",
+      "description": "Confirms AIAssistantDialog accepts section selection, generates revision, and allows insert/replace operations.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/drafts/AIAssistantDialog.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Dialog functional, generates rewrites and applies to editor"
+        }
+      ]
+    }
+  ]
+}

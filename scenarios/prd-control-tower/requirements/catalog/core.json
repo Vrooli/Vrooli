@@ -1,0 +1,95 @@
+{
+  "_metadata": {
+    "description": "Catalog enumeration and PRD status tracking requirements",
+    "domain": "catalog",
+    "last_updated": "2025-11-14"
+  },
+  "requirements": [
+    {
+      "id": "PCT-CATALOG-ENUMERATE",
+      "category": "catalog.api",
+      "prd_ref": "Core Components > PRD Catalog Service",
+      "title": "Catalog enumerates all scenarios and resources with PRD status",
+      "description": "Verifies GET /api/v1/catalog returns complete list of entities by globbing scenarios/*/PRD.md and resources/*/PRD.md, detecting draft presence, and extracting descriptions.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/catalog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestEnumerateEntities, TestHandleGetCatalog with mock filesystem"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-integration.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Integration test calls /api/v1/catalog and verifies 253+ entities"
+        }
+      ]
+    },
+    {
+      "id": "PCT-CATALOG-VIEW-PRD",
+      "category": "catalog.api",
+      "prd_ref": "Functional Requirements > Must Have > Published PRD viewer (read-only, properly formatted markdown)",
+      "title": "Published PRD viewer renders markdown correctly",
+      "description": "Confirms GET /api/v1/catalog/{type}/{name} returns PRD content with proper markdown formatting.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/catalog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestHandleGetPublishedPRD validates PRD content retrieval"
+        },
+        {
+          "type": "manual",
+          "ref": "ui/src/pages/PRDViewer.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "PRD viewer page displays markdown with ReactMarkdown"
+        }
+      ]
+    },
+    {
+      "id": "PCT-CATALOG-STATUS",
+      "category": "catalog.ui",
+      "prd_ref": "Catalog View > Status indicators",
+      "title": "Catalog displays accurate status badges for each entity",
+      "description": "Ensures UI renders ✅ Has PRD, ⚠️ Violations, ❌ Missing, 📝 Draft Pending badges based on API response.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/pages/Catalog.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Manual verification via UI screenshot showing status chips"
+        }
+      ]
+    },
+    {
+      "id": "PCT-CATALOG-FILTER",
+      "category": "catalog.ui",
+      "prd_ref": "Catalog View > Filter by type, search by name",
+      "title": "Catalog supports search and filter operations",
+      "description": "Confirms search input filters entities by name/type and UI updates reactively.",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/pages/Catalog.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Search bar functional, filters working in UI"
+        }
+      ]
+    }
+  ]
+}

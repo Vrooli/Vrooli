@@ -23,11 +23,14 @@ func handleGetRequirements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Enrich requirements with test file references and PRD validation
+	enrichedGroups := enrichRequirementsWithTestsAndValidation(entityType, entityName, groups)
+
 	response := RequirementsResponse{
 		EntityType: entityType,
 		EntityName: entityName,
 		UpdatedAt:  time.Now(),
-		Groups:     groups,
+		Groups:     enrichedGroups,
 	}
 
 	respondJSON(w, http.StatusOK, response)
@@ -55,13 +58,17 @@ func handleGetOperationalTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	linkedTargets, unmatched := linkTargetsAndRequirements(targets, groups)
+	// Enrich requirements with test files and PRD validation first
+	enrichedGroups := enrichRequirementsWithTestsAndValidation(entityType, entityName, groups)
+
+	// Link targets and requirements bidirectionally
+	linkedTargets, enrichedUnmatched := linkTargetsAndRequirements(targets, enrichedGroups)
 
 	response := OperationalTargetsResponse{
 		EntityType:            entityType,
 		EntityName:            entityName,
 		Targets:               linkedTargets,
-		UnmatchedRequirements: unmatched,
+		UnmatchedRequirements: enrichedUnmatched,
 	}
 
 	respondJSON(w, http.StatusOK, response)

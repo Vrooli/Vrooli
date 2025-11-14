@@ -27,6 +27,7 @@ export interface Draft {
   entity_name: string
   content: string
   owner?: string
+  source_backlog_id?: string  // Optional link to originating backlog entry
   created_at: string
   updated_at: string
   status: DraftStatus
@@ -208,6 +209,21 @@ export interface RequirementValidation {
   notes?: string
 }
 
+export interface TestFileReference {
+  file_path: string
+  requirement_id: string
+  lines: number[]
+  test_names: string[]
+}
+
+export interface PRDValidationIssue {
+  requirement_id: string
+  prd_ref: string
+  issue_type: 'missing_section' | 'ambiguous_match' | 'no_checkbox' | 'invalid_format'
+  message: string
+  suggestions?: string[]
+}
+
 export interface RequirementRecord {
   id: string
   category?: string
@@ -219,6 +235,8 @@ export interface RequirementRecord {
   file_path?: string
   validation?: RequirementValidation[]
   linked_operational_target_ids?: string[]
+  test_files?: TestFileReference[]
+  prd_ref_issue?: PRDValidationIssue
 }
 
 export interface RequirementGroup {

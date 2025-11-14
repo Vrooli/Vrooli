@@ -147,6 +147,10 @@ export default function Drafts() {
       onViewModeChange={setViewMode}
       onOpenMeta={openMetaDialog}
       onCloseMeta={closeMetaDialog}
+      onPublishSuccess={() => {
+        // Navigate to catalog after successful publish
+        navigate('/')
+      }}
     />
   ) : null
 

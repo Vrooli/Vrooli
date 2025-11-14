@@ -21,6 +21,8 @@ type RequirementRecord struct {
 	FilePath      string                  `json:"file_path"`
 	Validations   []RequirementValidation `json:"validation"`
 	LinkedTargets []string                `json:"linked_operational_target_ids"`
+	TestFiles     []TestFileReference     `json:"test_files,omitempty"`    // Test files that reference this requirement
+	PRDRefIssue   *PRDValidationIssue     `json:"prd_ref_issue,omitempty"` // Issue with prd_ref if any
 }
 
 type RequirementGroup struct {

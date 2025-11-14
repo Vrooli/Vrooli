@@ -1,0 +1,70 @@
+{
+  "_metadata": {
+    "description": "Requirements registry parsing and operational target linkage requirements",
+    "domain": "requirements",
+    "last_updated": "2025-11-14"
+  },
+  "requirements": [
+    {
+      "id": "PCT-REQ-PARSE",
+      "category": "requirements.api",
+      "prd_ref": "Session 25 > Requirements registry ingestion",
+      "title": "Requirements registry loader ingests modular index.json + imports",
+      "description": "Verifies GET /api/v1/catalog/{type}/{name}/requirements parses requirements/ folder with index.json and imports, returning flattened requirement tree.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/requirements_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestRequirementsLoader with modular registry fixtures"
+        }
+      ]
+    },
+    {
+      "id": "PCT-REQ-TARGETS",
+      "category": "requirements.api",
+      "prd_ref": "Session 25 > Operational target coverage",
+      "title": "Operational target parser extracts checklist items from PRD",
+      "description": "Ensures GET /api/v1/catalog/{type}/{name}/targets parses PRD for functional requirement checklists and flags targets with no linked requirements.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/requirements_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestRequirementsLoader validates requirements ingestion and target parsing logic"
+        }
+      ]
+    },
+    {
+      "id": "PCT-REQ-LINKAGE",
+      "category": "requirements.ui",
+      "prd_ref": "Session 25 > Draft workspace upgrades",
+      "title": "Draft workspace surfaces target coverage and unmatched requirements",
+      "description": "Confirms DraftEditorPane displays OperationalTargetsPanel and RequirementSummaryPanel with linkage heuristics via prd_ref.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/drafts/OperationalTargetsPanel.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Panel displays targets with coverage status and unmatched requirements"
+        },
+        {
+          "type": "manual",
+          "ref": "ui/src/components/drafts/RequirementSummaryPanel.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Panel shows requirement tree with prd_ref linkage"
+        }
+      ]
+    }
+  ]
+}

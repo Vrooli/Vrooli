@@ -122,7 +122,7 @@ func convertBacklogEntries(entryIDs []string) ([]BacklogConvertResult, error) {
 		}
 
 		content := buildBacklogDraftContent(entry.IdeaText, entityName)
-		draft, err := upsertDraft(entry.EntityType, entityName, content, "")
+		draft, err := upsertDraftWithBacklog(entry.EntityType, entityName, content, "", entry.ID)
 		if err != nil {
 			results = append(results, BacklogConvertResult{Entry: entry, Error: err.Error()})
 			continue

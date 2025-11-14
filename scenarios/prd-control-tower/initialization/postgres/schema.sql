@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS drafts (
     entity_name VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
     owner VARCHAR(255),
+    source_backlog_id UUID NULL,  -- Optional link to originating backlog entry
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'validating', 'ready', 'published')),

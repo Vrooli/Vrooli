@@ -21,14 +21,15 @@ var ErrDatabaseNotAvailable = errors.New("database not available")
 
 // Draft represents a PRD draft with metadata
 type Draft struct {
-	ID         string    `json:"id"`
-	EntityType string    `json:"entity_type"`
-	EntityName string    `json:"entity_name"`
-	Content    string    `json:"content"`
-	Owner      string    `json:"owner,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	Status     string    `json:"status"`
+	ID              string    `json:"id"`
+	EntityType      string    `json:"entity_type"`
+	EntityName      string    `json:"entity_name"`
+	Content         string    `json:"content"`
+	Owner           string    `json:"owner,omitempty"`
+	SourceBacklogID *string   `json:"source_backlog_id,omitempty"`  // Optional link to originating backlog entry
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	Status          string    `json:"status"`
 }
 
 // CreateDraftRequest represents the request to create a new draft
@@ -63,7 +64,7 @@ func handleListDrafts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.Query(`
-		SELECT id, entity_type, entity_name, content, owner, created_at, updated_at, status
+		SELECT id, entity_type, entity_name, content, owner, source_backlog_id, created_at, updated_at, status
 		FROM drafts
 		ORDER BY updated_at DESC
 	`)
@@ -77,6 +78,7 @@ func handleListDrafts(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var draft Draft
 		var owner sql.NullString
+		var sourceBacklogID sql.NullString
 
 		err := rows.Scan(
 			&draft.ID,
@@ -84,6 +86,7 @@ func handleListDrafts(w http.ResponseWriter, r *http.Request) {
 			&draft.EntityName,
 			&draft.Content,
 			&owner,
+			&sourceBacklogID,
 			&draft.CreatedAt,
 			&draft.UpdatedAt,
 			&draft.Status,
@@ -95,6 +98,9 @@ func handleListDrafts(w http.ResponseWriter, r *http.Request) {
 
 		if owner.Valid {
 			draft.Owner = owner.String
+		}
+		if sourceBacklogID.Valid {
+			draft.SourceBacklogID = &sourceBacklogID.String
 		}
 
 		drafts = append(drafts, draft)
@@ -319,6 +325,10 @@ func syncDraftFilesystemWithDatabase(exec dbExecutor) error {
 }
 
 func upsertDraft(entityType, entityName, content, owner string) (Draft, error) {
+	return upsertDraftWithBacklog(entityType, entityName, content, owner, "")
+}
+
+func upsertDraftWithBacklog(entityType, entityName, content, owner, sourceBacklogID string) (Draft, error) {
 	if db == nil {
 		return Draft{}, ErrDatabaseNotAvailable
 	}
@@ -332,15 +342,17 @@ func upsertDraft(entityType, entityName, content, owner string) (Draft, error) {
 	var actualID string
 	var createdAt, updatedAt time.Time
 	var status string
+	var returnedBacklogID sql.NullString
 	ownerValue := nullString(owner)
+	backlogIDValue := nullString(sourceBacklogID)
 
 	err := db.QueryRow(`
-		INSERT INTO drafts (id, entity_type, entity_name, content, owner, created_at, updated_at, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $6, $7)
+		INSERT INTO drafts (id, entity_type, entity_name, content, owner, source_backlog_id, created_at, updated_at, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8)
 		ON CONFLICT (entity_type, entity_name)
-		DO UPDATE SET content = EXCLUDED.content, owner = EXCLUDED.owner, updated_at = EXCLUDED.updated_at
-		RETURNING id, created_at, updated_at, status
-	`, generatedID, entityType, entityName, content, ownerValue, now, DraftStatusDraft).Scan(&actualID, &createdAt, &updatedAt, &status)
+		DO UPDATE SET content = EXCLUDED.content, owner = EXCLUDED.owner, source_backlog_id = EXCLUDED.source_backlog_id, updated_at = EXCLUDED.updated_at
+		RETURNING id, created_at, updated_at, status, source_backlog_id
+	`, generatedID, entityType, entityName, content, ownerValue, backlogIDValue, now, DraftStatusDraft).Scan(&actualID, &createdAt, &updatedAt, &status, &returnedBacklogID)
 	if err != nil {
 		return Draft{}, err
 	}
@@ -358,6 +370,9 @@ func upsertDraft(entityType, entityName, content, owner string) (Draft, error) {
 
 	if !ownerValue.Valid {
 		draft.Owner = ""
+	}
+	if returnedBacklogID.Valid {
+		draft.SourceBacklogID = &returnedBacklogID.String
 	}
 
 	return draft, nil
@@ -395,9 +410,10 @@ func getDraftByID(draftID string) (Draft, error) {
 
 	var draft Draft
 	var owner sql.NullString
+	var sourceBacklogID sql.NullString
 
 	err := db.QueryRow(`
-		SELECT id, entity_type, entity_name, content, owner, created_at, updated_at, status
+		SELECT id, entity_type, entity_name, content, owner, source_backlog_id, created_at, updated_at, status
 		FROM drafts
 		WHERE id = $1
 	`, draftID).Scan(
@@ -406,6 +422,7 @@ func getDraftByID(draftID string) (Draft, error) {
 		&draft.EntityName,
 		&draft.Content,
 		&owner,
+		&sourceBacklogID,
 		&draft.CreatedAt,
 		&draft.UpdatedAt,
 		&draft.Status,
@@ -417,6 +434,9 @@ func getDraftByID(draftID string) (Draft, error) {
 
 	if owner.Valid {
 		draft.Owner = owner.String
+	}
+	if sourceBacklogID.Valid {
+		draft.SourceBacklogID = &sourceBacklogID.String
 	}
 
 	return draft, nil

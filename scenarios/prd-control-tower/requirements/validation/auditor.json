@@ -1,0 +1,65 @@
+{
+  "_metadata": {
+    "description": "PRD structure validation via scenario-auditor integration",
+    "module": "validation.auditor",
+    "last_validated_at": "2025-11-14T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PCT-VALIDATE-CALL",
+      "category": "validation.api",
+      "prd_ref": "Functional Requirements > Must Have > Integration with scenario-auditor",
+      "title": "Validation service calls scenario-auditor API for PRD structure checks",
+      "description": "Verifies POST /api/v1/drafts/{id}/validate calls scenario-auditor with draft content and returns violations.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/validation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestRunScenarioAuditor with HTTP and CLI integration"
+        }
+      ]
+    },
+    {
+      "id": "PCT-VALIDATE-CACHE",
+      "category": "validation.caching",
+      "prd_ref": "Audit Service > caching to avoid repeated checks",
+      "title": "Validation results cache in PostgreSQL with timestamp",
+      "description": "Ensures validation results persist to database and are reused until draft content changes.",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/validation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestValidationRequestCaching verifies cache behavior"
+        }
+      ]
+    },
+    {
+      "id": "PCT-VALIDATE-DISPLAY",
+      "category": "validation.ui",
+      "prd_ref": "Draft Management > Validate structure against standards",
+      "title": "Draft workspace displays violations with severity and recommendations",
+      "description": "Confirms StructureChecklist component renders missing sections and violation counts from validation API.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/drafts/StructureChecklist.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Checklist displays missing sections and compliance status"
+        }
+      ]
+    }
+  ]
+}
