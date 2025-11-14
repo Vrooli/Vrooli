@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -109,6 +110,10 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 		return
 	}
 
+	// Track phase results timestamp so we can detect freshly generated output
+	phaseResultsPath := h.phaseResultsPath(scenarioName)
+	prevPhaseMod := fileModTime(phaseResultsPath)
+
 	// Execute lighthouse runner via bash
 	cmd := exec.CommandContext(c.Request.Context(),
 		"bash", "-c",
@@ -136,20 +141,45 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 		output += "\n" + stderr.String()
 	}
 
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":  "Lighthouse execution failed",
-			"output": output,
-			"cmd":    cmd.String(),
-		})
-		return
+	resultsUpdated := fileModTime(phaseResultsPath).After(prevPhaseMod)
+
+	// Load reports whenever the run succeeded or new artifacts were produced
+	var reports []LighthouseReport
+	if err == nil || resultsUpdated {
+		var loadErr error
+		reports, loadErr = h.loadLatestReports(scenarioName)
+		if loadErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to load Lighthouse reports",
+				"details": loadErr.Error(),
+				"output":  output,
+			})
+			return
+		}
 	}
 
-	// Load and return latest reports
-	reports, err := h.loadLatestReports(scenarioName)
 	if err != nil {
+		// If the runner exited with a non-zero status but still produced fresh artifacts,
+		// return them with a "failed" status so the UI can surface the new results.
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && resultsUpdated {
+			c.JSON(http.StatusOK, gin.H{
+				"scenario":  scenarioName,
+				"timestamp": time.Now().UTC(),
+				"reports":   reports,
+				"output":    output,
+				"status":    "failed",
+				"exit_code": exitErr.ExitCode(),
+				"run_error": "Lighthouse audits reported failures",
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to load Lighthouse reports",
+			"error":   "Lighthouse execution failed",
+			"output":  output,
+			"cmd":     cmd.String(),
+			"status":  "error",
 			"details": err.Error(),
 		})
 		return
@@ -160,6 +190,7 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 		"timestamp": time.Now().UTC(),
 		"reports":   reports,
 		"output":    output,
+		"status":    "passed",
 	})
 }
 
@@ -213,6 +244,18 @@ func (h *LighthouseHandler) scenarioPath(name string) string {
 
 func (h *LighthouseHandler) configPath(name string) string {
 	return filepath.Join(h.scenarioPath(name), lighthouseConfigRelativePath)
+}
+
+func (h *LighthouseHandler) phaseResultsPath(name string) string {
+	return filepath.Join(h.scenarioPath(name), "coverage", "phase-results", "lighthouse.json")
+}
+
+func fileModTime(path string) time.Time {
+	info, err := os.Stat(path)
+	if err != nil {
+		return time.Time{}
+	}
+	return info.ModTime()
 }
 
 func (h *LighthouseHandler) respondMissingConfig(c *gin.Context, scenarioName string) {

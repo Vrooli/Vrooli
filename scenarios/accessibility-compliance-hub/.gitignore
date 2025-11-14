@@ -24,3 +24,7 @@ ui/build/
 
 # Go build cache
 api/go.sum.backup
+
+# Lighthouse test artifacts
+test/artifacts/lighthouse/*.html
+test/artifacts/lighthouse/*.json

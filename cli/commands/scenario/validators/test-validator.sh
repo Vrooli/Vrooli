@@ -448,13 +448,7 @@ scenario::test::check_coverage_status() {
     local scenario_name="$1"
     local scenario_path="$2"
 
-    local repo_root
-    repo_root=$(builtin cd "$scenario_path/../.." && pwd -P)
-    local aggregate_path="$repo_root/coverage/${scenario_name}/aggregate.json"
-
-    if [[ -f "$scenario_path/.coverage/aggregate.json" ]]; then
-        aggregate_path="$scenario_path/.coverage/aggregate.json"
-    fi
+    local aggregate_path="$scenario_path/coverage/${scenario_name}/aggregate.json"
 
     if [[ ! -f "$aggregate_path" ]]; then
         echo '{"status": "missing", "message": "Coverage artifacts not generated"}'
@@ -499,7 +493,7 @@ scenario::test::check_coverage_status() {
         summary_message="Coverage generated"
     fi
 
-    local rel_path="${aggregate_path#$repo_root/}"
+    local rel_path="${aggregate_path#$scenario_path/}"
     echo "{\"status\": \"present\", \"message\": \"$summary_message\", \"generated_at\": \"$generated_at\", \"path\": \"$rel_path\", \"languages\": $languages_json}"
 }
 

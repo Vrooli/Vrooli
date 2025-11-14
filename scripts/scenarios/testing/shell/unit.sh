@@ -25,7 +25,9 @@ testing::unit::_cleanup_work_dir() {
     fi
 
     if [ -n "${TESTING_NODE_COVERAGE_LINK_PATH:-}" ]; then
-        rm -rf "${TESTING_NODE_COVERAGE_LINK_PATH}"
+        if [ -L "${TESTING_NODE_COVERAGE_LINK_PATH}" ]; then
+            rm -f "${TESTING_NODE_COVERAGE_LINK_PATH}"
+        fi
         unset TESTING_NODE_COVERAGE_LINK_PATH
     fi
 

@@ -139,7 +139,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --filter tech-tree-designer-ui --config.lockfile-dir=./ --no-frozen-lockfile",
+          "run": "cd ui && pnpm install --ignore-workspace --no-frozen-lockfile",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -151,9 +151,9 @@
           "description": "Build interactive tech tree visualization interface"
         },
         {
-          "name": "seed-civilization-tree",
-          "run": "./cli/tech-tree-designer progress --list > /dev/null",
-          "description": "Validate civilization progress data is accessible via CLI"
+          "name": "verify-civilization-data",
+          "run": "./scripts/verify-postgres-data.sh",
+          "description": "Validate civilization progress data directly in Postgres"
         },
         {
           "name": "show-urls",
@@ -210,7 +210,7 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"ui.*dev\" || true; sleep 1; pkill -9 -f \"ui.*dev\" 2>/dev/null || true",
+          "run": "pkill -f \"tech-tree-designer/ui/server\" || true; sleep 1; pkill -9 -f \"tech-tree-designer/ui/server\" 2>/dev/null || true",
           "description": "Stop UI development server"
         }
       ]
@@ -230,7 +230,7 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "data"
+            "type": "seed"
           }
         ]
       },
