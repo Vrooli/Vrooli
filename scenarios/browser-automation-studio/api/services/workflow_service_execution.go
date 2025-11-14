@@ -413,6 +413,8 @@ func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, execution *d
 
 	// Update status to running and broadcast
 	execution.Status = "running"
+	now := time.Now()
+	execution.LastHeartbeat = &now
 	if err := s.repo.UpdateExecution(persistenceCtx, execution); err != nil {
 		s.log.WithError(err).Error("Failed to update execution status to running")
 		return

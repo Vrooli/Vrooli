@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS executions (
     parameters JSONB,
     started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP WITH TIME ZONE,
+    last_heartbeat TIMESTAMP WITH TIME ZONE,
     error TEXT,
     result JSONB,
     progress INTEGER DEFAULT 0,
@@ -85,6 +86,7 @@ CREATE INDEX idx_executions_workflow ON executions(workflow_id);
 CREATE INDEX idx_executions_status ON executions(status);
 CREATE INDEX idx_executions_started_at ON executions(started_at);
 CREATE INDEX idx_executions_trigger_type ON executions(trigger_type);
+CREATE INDEX idx_executions_last_heartbeat ON executions(last_heartbeat);
 
 -- Execution logs table
 CREATE TABLE IF NOT EXISTS execution_logs (

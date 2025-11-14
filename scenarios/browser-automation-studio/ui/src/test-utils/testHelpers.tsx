@@ -1,4 +1,4 @@
-import { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
@@ -22,20 +22,6 @@ export function createTestQueryClient() {
 }
 
 /**
- * Test wrapper that provides react-query context.
- */
-interface AllProvidersProps {
-  children: React.ReactNode;
-  queryClient?: QueryClient;
-}
-
-function AllProviders({ children, queryClient }: AllProvidersProps) {
-  const client = queryClient ?? createTestQueryClient();
-
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-}
-
-/**
  * Custom render function that wraps components with necessary providers.
  */
 export function renderWithProviders(
@@ -43,11 +29,14 @@ export function renderWithProviders(
   options?: RenderOptions & { queryClient?: QueryClient }
 ) {
   const { queryClient, ...renderOptions } = options ?? {};
+  const resolvedClient = queryClient ?? createTestQueryClient();
+
+  const Wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={resolvedClient}>{children}</QueryClientProvider>
+  );
 
   return render(ui, {
-    wrapper: ({ children }) => (
-      <AllProviders queryClient={queryClient}>{children}</AllProviders>
-    ),
+    wrapper: Wrapper,
     ...renderOptions,
   });
 }

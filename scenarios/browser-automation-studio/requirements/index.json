@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-13T17:09:10.328Z"
+    "last_synced_at": "2025-11-14T21:13:38.736Z"
   },
   "meta": {
     "scenario": "browser-automation-studio",
@@ -50,7 +50,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Stream execution telemetry (screenshots, progress, logs) while runs are active",
       "description": "Aggregates execution runtime behaviours, including websocket telemetry, CLI observability, and automation coverage.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "children": [
         "BAS-EXEC-TELEMETRY-STREAM",

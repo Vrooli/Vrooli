@@ -528,11 +528,31 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
     }
 
     const wsBase = config.WS_URL.endsWith('/') ? config.WS_URL : `${config.WS_URL}/`;
+
+    const toAbsoluteWsUrl = (value: string): string => {
+      if (/^wss?:\/\//i.test(value)) {
+        return value;
+      }
+      if (typeof window !== 'undefined' && window.location) {
+        if (value.startsWith('/')) {
+          return `${window.location.origin}${value}`;
+        }
+        try {
+          return new URL(value, window.location.origin).toString();
+        } catch {
+          const normalized = value.startsWith('/') ? value : `/${value}`;
+          return `${window.location.origin}${normalized}`;
+        }
+      }
+      return value;
+    };
+
+    const absoluteWsBase = toAbsoluteWsUrl(wsBase);
     let wsUrl: URL;
     try {
-      wsUrl = new URL('ws', wsBase);
+      wsUrl = new URL(absoluteWsBase);
     } catch (err) {
-      logger.error('Failed to construct WebSocket URL', { component: 'ExecutionStore', action: 'connectWebSocket', executionId, wsBase }, err);
+      logger.error('Failed to construct WebSocket URL', { component: 'ExecutionStore', action: 'connectWebSocket', executionId, wsBase: absoluteWsBase }, err);
       set({ websocketStatus: 'error', websocketAttempts: attempt });
       return;
     }

@@ -105,7 +105,7 @@ describe('ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]',
     getConfigMock.mockResolvedValue({ API_URL: apiBase });
     executionStoreState.startExecution.mockResolvedValue(undefined);
 
-    fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    fetchMock = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === `${apiBase}/projects/${project.id}/workflows`) {
         return Promise.resolve({

@@ -140,6 +140,7 @@ type Execution struct {
 	Parameters      JSONMap        `json:"parameters,omitempty" db:"parameters"`
 	StartedAt       time.Time      `json:"started_at" db:"started_at"`
 	CompletedAt     *time.Time     `json:"completed_at,omitempty" db:"completed_at"`
+	LastHeartbeat   *time.Time     `json:"last_heartbeat,omitempty" db:"last_heartbeat"`
 	Error           NullableString `json:"error,omitempty" db:"error"`
 	Result          JSONMap        `json:"result,omitempty" db:"result"`
 	Progress        int            `json:"progress" db:"progress"`

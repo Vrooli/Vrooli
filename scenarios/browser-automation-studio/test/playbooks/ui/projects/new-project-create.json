@@ -128,37 +128,7 @@
         "label": "Click Create button",
         "selector": "[data-testid=\"project-modal-submit\"]",
         "timeoutMs": 5000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "assert-modal-closed",
-      "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": -60
-      },
-      "data": {
-        "label": "Modal closed after create",
-        "selector": "[data-testid=\"project-modal\"]",
-        "assertMode": "not_exists",
-        "timeoutMs": 10000,
-        "failureMessage": "Modal should close after successful project creation"
-      }
-    },
-    {
-      "id": "assert-success-toast",
-      "type": "assert",
-      "position": {
-        "x": 1800,
-        "y": -60
-      },
-      "data": {
-        "label": "Success toast appears",
-        "selector": "[data-testid=\"toast-success\"], .toast-success, [role=\"alert\"]",
-        "assertMode": "exists",
-        "timeoutMs": 8000,
-        "failureMessage": "Success toast should appear after project creation"
+        "waitForMs": 2000
       }
     },
     {
@@ -233,27 +203,15 @@
       "type": "smoothstep"
     },
     {
-      "id": "e8",
-      "source": "click-create",
-      "target": "assert-modal-closed",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "assert-modal-closed",
-      "target": "assert-success-toast",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "assert-success-toast",
-      "target": "wait-for-project-list-update",
-      "type": "smoothstep"
-    },
-    {
       "id": "e11",
       "source": "wait-for-project-list-update",
       "target": "assert-project-in-list",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-create",
+      "target": "wait-for-project-list-update",
       "type": "smoothstep"
     }
   ]

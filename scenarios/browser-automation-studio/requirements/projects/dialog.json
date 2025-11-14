@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-14T15:18:12.007Z"
+    "last_synced_at": "2025-11-14T17:45:07.265Z"
   },
   "requirements": [
     {
@@ -91,14 +91,14 @@
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]
@@ -109,28 +109,28 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Project creation enforces inline validation rules",
       "description": "Covers empty name, duplicate detection, and invalid characters with accessible error messaging surfaced inside the dialog.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/new-project-validation.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "BAS workflow submits failing payloads and asserts inline error copy (pending export)."
         },
         {
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]

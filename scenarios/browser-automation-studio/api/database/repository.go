@@ -573,9 +573,9 @@ func (r *repository) GetExecution(ctx context.Context, id uuid.UUID) (*Execution
 
 func (r *repository) UpdateExecution(ctx context.Context, execution *Execution) error {
 	query := `
-		UPDATE executions 
-		SET status = :status, completed_at = :completed_at, error = :error, 
-		    result = :result, progress = :progress, current_step = :current_step
+		UPDATE executions
+		SET status = :status, completed_at = :completed_at, last_heartbeat = :last_heartbeat,
+		    error = :error, result = :result, progress = :progress, current_step = :current_step
 		WHERE id = :id`
 
 	_, err := r.db.NamedExecContext(ctx, query, execution)

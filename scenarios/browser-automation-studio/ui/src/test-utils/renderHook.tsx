@@ -1,5 +1,4 @@
 // Simplified hook rendering utility for testing custom hooks
-import { ReactElement } from 'react';
 import { render } from '@testing-library/react';
 
 interface RenderHookResult<TResult, TProps> {

@@ -390,6 +390,8 @@ func (c *Client) ExecuteWorkflow(ctx context.Context, execution *database.Execut
 
 		execution.Progress = progress
 		execution.CurrentStep = fmt.Sprintf("%s (%s)", step.Type, step.NodeID)
+		now := time.Now()
+		execution.LastHeartbeat = &now
 
 		if err := c.repo.UpdateExecution(ctx, execution); err != nil {
 			c.log.WithError(err).Warn("Failed to persist execution progress")

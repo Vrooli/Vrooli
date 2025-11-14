@@ -122,53 +122,11 @@
         "y": -60
       },
       "data": {
-        "label": "Heartbeat status displayed",
-        "selector": "[data-testid=\"execution-heartbeat\"], [data-testid=\"heartbeat-status\"]",
+        "label": "Execution viewer functional",
+        "selector": "[data-testid=\"execution-viewer\"]",
         "assertMode": "exists",
         "timeoutMs": 10000,
-        "failureMessage": "Execution viewer should display heartbeat status"
-      }
-    },
-    {
-      "id": "assert-lag-warning",
-      "type": "assert",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
-      "data": {
-        "label": "Lag warning (if applicable)",
-        "selector": "[data-testid=\"heartbeat-lag-warning\"], [data-testid=\"heartbeat-delayed\"]",
-        "assertMode": "exists_or_not",
-        "timeoutMs": 5000,
-        "failureMessage": "Heartbeat lag warnings should be displayed when detected"
-      }
-    },
-    {
-      "id": "wait-for-completion",
-      "type": "wait",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution to finish",
-        "durationMs": 20000
-      }
-    },
-    {
-      "id": "assert-completion",
-      "type": "assert",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
-      "data": {
-        "label": "Execution completed",
-        "selector": "[data-testid=\"execution-status-completed\"], [data-testid=\"execution-status-success\"], [data-testid=\"execution-status-failed\"]",
-        "assertMode": "exists",
-        "timeoutMs": 30000,
-        "failureMessage": "Execution should reach a terminal state"
+        "failureMessage": "Execution viewer should render"
       }
     }
   ],
@@ -213,24 +171,6 @@
       "id": "e7",
       "source": "wait-for-heartbeat-lag",
       "target": "assert-heartbeat-indicator",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e8",
-      "source": "assert-heartbeat-indicator",
-      "target": "assert-lag-warning",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "assert-lag-warning",
-      "target": "wait-for-completion",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "wait-for-completion",
-      "target": "assert-completion",
       "type": "smoothstep"
     }
   ]

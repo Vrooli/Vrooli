@@ -17,8 +17,7 @@ if (typeof window !== 'undefined') {
   }
 
   // Enable React 18 concurrent features in tests
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
   // Mock matchMedia for responsive components
   Object.defineProperty(window, 'matchMedia', {

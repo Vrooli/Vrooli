@@ -1,8 +1,50 @@
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect, useId, useMemo, useRef } from 'react';
 import { logger } from '../utils/logger';
 import { X, FolderOpen, AlertCircle } from 'lucide-react';
 import { useProjectStore, Project } from '../stores/projectStore';
 import ResponsiveDialog from './ResponsiveDialog';
+
+const normalizePath = (value: string) => value.replace(/\\/g, '/');
+const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
+const trimLeadingSlash = (value: string) => value.replace(/^\/+/, '');
+const parentDirectory = (value: string) => {
+  const normalized = trimTrailingSlash(normalizePath(value));
+  const idx = normalized.lastIndexOf('/');
+  return idx > 0 ? normalized.slice(0, idx) : normalized;
+};
+const slugifySegment = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+const deriveWorkspaceRoot = (folderPath?: string) => {
+  if (!folderPath) {
+    return '';
+  }
+  const normalized = normalizePath(folderPath);
+  const marker = '/scenarios/';
+  const idx = normalized.indexOf(marker);
+  if (idx > 0) {
+    return normalized.slice(0, idx);
+  }
+  return parentDirectory(normalized);
+};
+const deriveProjectsHomeDir = (folderPath?: string) => {
+  if (!folderPath) {
+    return '';
+  }
+  return parentDirectory(folderPath);
+};
+const buildAutoFolderPath = (baseDir: string, projectName: string, fallbackSegment: string) => {
+  if (!baseDir) {
+    return '';
+  }
+  const base = trimTrailingSlash(normalizePath(baseDir));
+  const slug = slugifySegment(projectName);
+  const segment = slug || fallbackSegment;
+  return `${base}/${trimLeadingSlash(segment)}`;
+};
 
 interface ProjectModalProps {
   onClose: () => void;
@@ -11,14 +53,31 @@ interface ProjectModalProps {
 }
 
 function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
-  const { createProject, updateProject, isLoading, error } = useProjectStore();
+  const { createProject, updateProject, isLoading, error, projects } = useProjectStore();
+  const detectedPathSource = useMemo(() => {
+    if (project?.folder_path) {
+      return project.folder_path;
+    }
+    const candidate = projects.find((entry) => Boolean(entry.folder_path));
+    return candidate?.folder_path ?? '';
+  }, [project, projects]);
+  const workspaceRoot = useMemo(() => deriveWorkspaceRoot(detectedPathSource), [detectedPathSource]);
+  const projectsHomeDir = useMemo(() => {
+    const home = deriveProjectsHomeDir(project?.folder_path ?? detectedPathSource);
+    if (home) {
+      return home;
+    }
+    return workspaceRoot ? `${trimTrailingSlash(normalizePath(workspaceRoot))}/scenarios/browser-automation-studio/data/projects` : '';
+  }, [project, detectedPathSource, workspaceRoot]);
+  const generatedFolderSuffixRef = useRef(`project-${Date.now().toString(36)}`);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    folder_path: '/home/user/automation-projects',
+    folder_path: '',
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFolderPathDirty, setIsFolderPathDirty] = useState(false);
   const titleId = useId();
 
   const isEditing = !!project;
@@ -30,14 +89,28 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
         description: project.description || '',
         folder_path: project.folder_path,
       });
+      setIsFolderPathDirty(true);
     } else {
-      // Set default folder path for new projects
-      setFormData(prev => ({
-        ...prev,
-        folder_path: '/home/user/automation-projects',
-      }));
+      setIsFolderPathDirty(false);
     }
   }, [project]);
+
+  useEffect(() => {
+    if (project) {
+      return;
+    }
+    if (!projectsHomeDir) {
+      return;
+    }
+    if (isFolderPathDirty) {
+      return;
+    }
+    const nextSegment = formData.name.trim() ? slugifySegment(formData.name) || generatedFolderSuffixRef.current : generatedFolderSuffixRef.current;
+    const candidate = buildAutoFolderPath(projectsHomeDir, nextSegment, generatedFolderSuffixRef.current);
+    if (candidate && candidate !== formData.folder_path) {
+      setFormData((prev) => ({ ...prev, folder_path: candidate }));
+    }
+  }, [project, projectsHomeDir, formData.name, isFolderPathDirty, formData.folder_path]);
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -54,6 +127,12 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
       errors.folder_path = 'Folder path is required';
     } else if (!formData.folder_path.startsWith('/')) {
       errors.folder_path = 'Folder path must be an absolute path starting with /';
+    } else if (workspaceRoot) {
+      const normalizedTarget = normalizePath(formData.folder_path);
+      const normalizedRoot = trimTrailingSlash(normalizePath(workspaceRoot));
+      if (!normalizedTarget.startsWith(normalizedRoot)) {
+        errors.folder_path = `Folder path must stay inside ${normalizedRoot}`;
+      }
     }
 
     setValidationErrors(errors);
@@ -72,12 +151,17 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
     try {
       if (isEditing && project) {
         const updated = await updateProject(project.id, formData);
+        onClose(); // Close modal before navigation
+        // Small delay to ensure modal unmounts before navigation
+        await new Promise(resolve => setTimeout(resolve, 100));
         onSuccess?.(updated);
       } else {
         const newProject = await createProject(formData);
+        onClose(); // Close modal before navigation
+        // Small delay to ensure modal unmounts before navigation
+        await new Promise(resolve => setTimeout(resolve, 100));
         onSuccess?.(newProject);
       }
-      onClose();
     } catch (error) {
       logger.error('Failed to save project', { component: 'ProjectModal', action: 'handleSave' }, error);
     } finally {
@@ -85,12 +169,18 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
     }
   };
 
-  const suggestedPaths = [
-    '/home/user/automation-projects',
-    '/scenarios/visited-tracker/tests',
-    '/scenarios/browser-automation-studio/tests',
-    '/tests/browser-automation/shared',
-  ];
+  const suggestedPaths = useMemo(() => {
+    if (!projectsHomeDir) {
+      return ['/tmp/browser-automation-studio/projects'];
+    }
+    const suggestions = [
+      buildAutoFolderPath(projectsHomeDir, formData.name, generatedFolderSuffixRef.current),
+      `${trimTrailingSlash(projectsHomeDir)}/recordings`,
+      `${trimTrailingSlash(projectsHomeDir)}/workflow-runs`,
+      `${trimTrailingSlash(projectsHomeDir)}/exports`,
+    ];
+    return Array.from(new Set(suggestions.filter(Boolean)));
+  }, [projectsHomeDir, formData.name]);
 
   return (
     <ResponsiveDialog
@@ -174,7 +264,10 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
             <input
               type="text"
               value={formData.folder_path}
-              onChange={(e) => setFormData(prev => ({ ...prev, folder_path: e.target.value }))}
+              onChange={(e) => {
+                setIsFolderPathDirty(true);
+                setFormData(prev => ({ ...prev, folder_path: e.target.value }));
+              }}
               className={`w-full px-3 py-2 bg-flow-bg border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent ${
                 validationErrors.folder_path ? 'border-red-500' : 'border-gray-700'
               }`}
@@ -182,6 +275,9 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
             />
             {validationErrors.folder_path && (
               <p className="mt-1 text-red-400 text-xs">{validationErrors.folder_path}</p>
+            )}
+            {!validationErrors.folder_path && workspaceRoot && (
+              <p className="mt-1 text-xs text-gray-500">Detected workspace root: {workspaceRoot}</p>
             )}
             
             {/* Suggested Paths */}
@@ -192,7 +288,10 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
                   <button
                     key={path}
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, folder_path: path }))}
+                    onClick={() => {
+                      setIsFolderPathDirty(true);
+                      setFormData(prev => ({ ...prev, folder_path: path }));
+                    }}
                     className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-xs text-gray-300 rounded transition-colors"
                   >
                     {path}

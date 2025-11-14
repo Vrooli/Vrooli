@@ -224,7 +224,7 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
       applyWorkflowStoreState({ currentWorkflow: null });
 
       const WorkflowBuilder = await importWorkflowBuilder();
-      const { container } = render(<WorkflowBuilder />);
+      render(<WorkflowBuilder />);
 
       const canvas = screen.getByTestId('react-flow-canvas');
       expect(canvas).toHaveAttribute('data-nodes-count', '0');

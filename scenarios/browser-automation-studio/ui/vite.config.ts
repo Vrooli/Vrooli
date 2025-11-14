@@ -28,13 +28,6 @@ const PROJECT_BASE_TEST_CONFIG = {
   globals: true,
 };
 
-const THREADS_ONE = {
-  threads: {
-    maxThreads: 1,
-    minThreads: 1,
-  },
-};
-
 const THREADS_TWO = {
   threads: {
     maxThreads: 2,

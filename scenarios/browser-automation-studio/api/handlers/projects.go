@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -100,20 +101,26 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Check if project with this name or folder path already exists
-	if existingProject, err := h.workflowService.GetProjectByName(ctx, req.Name); err != nil {
-		h.log.WithError(err).WithField("name", req.Name).Error("Failed to check project name uniqueness")
+	existingProject, err := h.workflowService.GetProjectByName(ctx, req.Name)
+	if err != nil && !errors.Is(err, database.ErrNotFound) {
+		// Only treat as error if it's not a "not found" result
+		h.log.WithError(err).WithField("name", req.Name).Error("Database error checking project name uniqueness")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_by_name"}))
 		return
-	} else if existingProject != nil {
+	}
+	if existingProject != nil {
 		h.respondError(w, ErrProjectAlreadyExists.WithMessage("Project with this name already exists"))
 		return
 	}
 
-	if existingProject, err := h.workflowService.GetProjectByFolderPath(ctx, absPath); err != nil {
-		h.log.WithError(err).WithField("folder_path", absPath).Error("Failed to check project folder uniqueness")
+	existingByPath, err := h.workflowService.GetProjectByFolderPath(ctx, absPath)
+	if err != nil && !errors.Is(err, database.ErrNotFound) {
+		// Only treat as error if it's not a "not found" result
+		h.log.WithError(err).WithField("folder_path", absPath).Error("Database error checking project folder uniqueness")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project_by_folder"}))
 		return
-	} else if existingProject != nil {
+	}
+	if existingByPath != nil {
 		h.respondError(w, ErrProjectAlreadyExists.WithMessage("Project with this folder path already exists"))
 		return
 	}

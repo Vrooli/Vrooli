@@ -246,6 +246,8 @@ function App() {
   };
 
   const handleProjectCreated = (project: Project) => {
+    // Show success toast
+    toast.success(`Project "${project.name}" created successfully`);
     // Automatically select the newly created project
     openProject(project);
   };

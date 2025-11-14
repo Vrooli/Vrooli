@@ -3097,7 +3097,7 @@ function ActiveExecutionViewer({
             </div>
             <div className="text-xs text-gray-500" data-testid="execution-status">{statusMessage}</div>
             {heartbeatDescriptor && (
-              <div className="mt-1 flex items-center gap-2 text-[11px]" data-testid="execution-heartbeat">
+              <div className="mt-1 flex items-center gap-2 text-[11px]" data-testid="heartbeat-indicator">
                 {heartbeatDescriptor.tone === "stalled" ? (
                   <AlertTriangle
                     size={12}
@@ -3255,7 +3255,7 @@ function ActiveExecutionViewer({
 
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">
         {activeTab === "replay" ? (
-          <div className="flex-1 overflow-auto p-3 space-y-3">
+          <div className="flex-1 overflow-auto p-3 space-y-3" data-testid="replay-viewer">
             {!hasTimeline && (
               <div className="rounded-lg border border-dashed border-slate-700/60 bg-slate-900/60 px-4 py-3 text-sm text-slate-200/80">
                 Replay frames stream in as each action runs. Leave this tab open
@@ -4410,6 +4410,7 @@ function ActiveExecutionViewer({
                   ? isExporting || isExportPreviewLoading
                   : isExporting || replayFrames.length === 0
               }
+              data-testid={isExporting ? "export-in-progress" : "export-confirm-button"}
             >
               {exportFormat === "json" ? (
                 isExporting || isExportPreviewLoading ? (

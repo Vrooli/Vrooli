@@ -36,10 +36,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act, type RenderResult } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import type { Execution, TimelineFrame, LogEntry } from '../../stores/executionStore';
-import type { Screenshot } from '../../stores/executionEventProcessor';
+import { render, act, type RenderResult } from '@testing-library/react';
+import type { Execution } from '../../stores/executionStore';
 
 // Mock modules
 vi.mock('../../config', () => ({
@@ -85,32 +83,6 @@ const createMockExecution = (overrides: Partial<Execution> = {}): Execution => (
   screenshots: [],
   timeline: [],
   logs: [],
-  ...overrides,
-});
-
-const createMockTimelineFrame = (overrides: Partial<TimelineFrame> = {}): TimelineFrame => ({
-  step_index: 0,
-  node_id: 'node-1',
-  step_type: 'navigate',
-  status: 'completed',
-  success: true,
-  duration_ms: 1000,
-  ...overrides,
-});
-
-const createMockLogEntry = (overrides: Partial<LogEntry> = {}): LogEntry => ({
-  id: 'log-1',
-  level: 'info',
-  message: 'Test log entry',
-  timestamp: new Date('2025-01-01T00:00:00Z'),
-  ...overrides,
-});
-
-const createMockScreenshot = (overrides: Partial<Screenshot> = {}): Screenshot => ({
-  id: 'screenshot-1',
-  url: 'https://example.com/screenshot.png',
-  timestamp: new Date('2025-01-01T00:00:00Z'),
-  stepIndex: 0,
   ...overrides,
 });
 
