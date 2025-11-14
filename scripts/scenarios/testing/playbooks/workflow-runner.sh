@@ -321,12 +321,39 @@ testing::playbooks::run_workflow() {
     end_time=$(date +%s)
     local duration=$((end_time - start_time))
 
+    # Fetch assertion and step statistics from timeline
+    local stats_output=""
+    if command -v jq >/dev/null 2>&1; then
+        local timeline
+        timeline=$(curl -s --max-time 5 "$api_base/executions/${execution_id}/timeline" 2>/dev/null || echo '{"frames":[]}')
+
+        local total_steps=0
+        local assert_total=0
+        local assert_passed=0
+        local assert_failed=0
+
+        # Count total steps (all frames are steps)
+        total_steps=$(printf '%s' "$timeline" | jq '.frames | length' 2>/dev/null || echo "0")
+
+        # Count assertions by status (step_type == "assert")
+        assert_total=$(printf '%s' "$timeline" | jq '[.frames[] | select(.step_type == "assert")] | length' 2>/dev/null || echo "0")
+        assert_passed=$(printf '%s' "$timeline" | jq '[.frames[] | select(.step_type == "assert" and .status == "completed")] | length' 2>/dev/null || echo "0")
+        assert_failed=$(printf '%s' "$timeline" | jq '[.frames[] | select(.step_type == "assert" and .status == "failed")] | length' 2>/dev/null || echo "0")
+
+        # Build stats output
+        if [ "$assert_total" -gt 0 ]; then
+            stats_output=" (${total_steps} steps, ${assert_passed}/${assert_total} assertions passed)"
+        elif [ "$total_steps" -gt 0 ]; then
+            stats_output=" (${total_steps} steps)"
+        fi
+    fi
+
     if [ $wait_rc -eq 0 ]; then
-        echo "✅ Workflow ${workflow_name} completed in ${duration}s" >&2
+        echo "✅ Workflow ${workflow_name} completed in ${duration}s${stats_output}" >&2
         return 0
     fi
 
-    echo "❌ Workflow ${workflow_name} failed after ${duration}s" >&2
+    echo "❌ Workflow ${workflow_name} failed after ${duration}s${stats_output}" >&2
     printf '%s\n' "$execution_summary" >&2
 
     if [ $wait_rc -eq 2 ] && [ "$duration" -ge "$workflow_timeout" ]; then
