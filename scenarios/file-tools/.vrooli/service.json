@@ -238,7 +238,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
+            "type": "seed"
           }
         ]
       },
@@ -267,7 +267,7 @@
         "purpose": "Workflow automation and business logic orchestration",
         "initialization": [
           {
-            "file": "initialization/automation/windmill/windmill-app.json",
+            "file": "initialization/automations/windmill/windmill-app.json",
             "type": "app"
           }
         ]

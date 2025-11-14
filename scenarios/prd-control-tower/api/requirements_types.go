@@ -1,0 +1,77 @@
+package main
+
+import "time"
+
+type RequirementValidation struct {
+	Type   string `json:"type"`
+	Ref    string `json:"ref"`
+	Phase  string `json:"phase"`
+	Status string `json:"status"`
+	Notes  string `json:"notes"`
+}
+
+type RequirementRecord struct {
+	ID            string                  `json:"id"`
+	Category      string                  `json:"category"`
+	PRDRef        string                  `json:"prd_ref"`
+	Title         string                  `json:"title"`
+	Description   string                  `json:"description"`
+	Status        string                  `json:"status"`
+	Criticality   string                  `json:"criticality"`
+	FilePath      string                  `json:"file_path"`
+	Validations   []RequirementValidation `json:"validation"`
+	LinkedTargets []string                `json:"linked_operational_target_ids"`
+}
+
+type RequirementGroup struct {
+	ID           string              `json:"id"`
+	Name         string              `json:"name"`
+	Description  string              `json:"description"`
+	FilePath     string              `json:"file_path"`
+	Requirements []RequirementRecord `json:"requirements"`
+	Children     []RequirementGroup  `json:"children"`
+}
+
+type RequirementsResponse struct {
+	EntityType string             `json:"entity_type"`
+	EntityName string             `json:"entity_name"`
+	UpdatedAt  time.Time          `json:"updated_at"`
+	Groups     []RequirementGroup `json:"groups"`
+}
+
+type OperationalTarget struct {
+	ID                 string   `json:"id"`
+	EntityType         string   `json:"entity_type"`
+	EntityName         string   `json:"entity_name"`
+	Category           string   `json:"category"`
+	Criticality        string   `json:"criticality"`
+	Title              string   `json:"title"`
+	Notes              string   `json:"notes"`
+	Status             string   `json:"status"`
+	Path               string   `json:"path"`
+	LinkedRequirements []string `json:"linked_requirement_ids"`
+}
+
+type OperationalTargetsResponse struct {
+	EntityType            string              `json:"entity_type"`
+	EntityName            string              `json:"entity_name"`
+	Targets               []OperationalTarget `json:"targets"`
+	UnmatchedRequirements []RequirementRecord `json:"unmatched_requirements"`
+}
+
+type requirementsFile struct {
+	Metadata     map[string]any           `json:"_metadata"`
+	Imports      []string                 `json:"imports"`
+	Requirements []RequirementRecordInput `json:"requirements"`
+}
+
+type RequirementRecordInput struct {
+	ID          string                  `json:"id"`
+	Category    string                  `json:"category"`
+	PRDRef      string                  `json:"prd_ref"`
+	Title       string                  `json:"title"`
+	Description string                  `json:"description"`
+	Status      string                  `json:"status"`
+	Criticality string                  `json:"criticality"`
+	Validations []RequirementValidation `json:"validation"`
+}

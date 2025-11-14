@@ -1,37 +1,51 @@
-import { KeyboardEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, type NavigateFunction } from 'react-router-dom'
 import {
-  CheckCircle,
   AlertTriangle,
-  XCircle,
-  FileEdit,
+  CheckCircle,
   ClipboardList,
+  FileEdit,
   Layers,
   Search,
-  X,
-  ChevronDown,
-  Filter as FilterIcon,
   Sparkles,
   StickyNote,
+  XCircle,
+  type LucideIcon,
 } from 'lucide-react'
+
+import { Button } from '../components/ui/button'
+import { Badge } from '../components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Input } from '../components/ui/input'
+import { Separator } from '../components/ui/separator'
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { cn } from '../lib/utils'
 import { buildApiUrl } from '../utils/apiClient'
 import { usePrepareDraft } from '../utils/useDraft'
 import type { CatalogEntry, CatalogResponse } from '../types'
+
+type CatalogFilter = 'all' | 'scenario' | 'resource'
+
+type StatusKey = 'draft' | 'published' | 'missing'
+
+const statusMap: Record<StatusKey, { label: string; icon: LucideIcon; badge: 'success' | 'warning' | 'outline' }> = {
+  draft: { label: 'Draft pending', icon: FileEdit, badge: 'warning' },
+  published: { label: 'Has PRD', icon: CheckCircle, badge: 'success' },
+  missing: { label: 'Missing', icon: XCircle, badge: 'outline' },
+}
 
 export default function Catalog() {
   const [entries, setEntries] = useState<CatalogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState<'all' | 'scenario' | 'resource'>('all')
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false)
-  const filterMenuRef = useRef<HTMLDivElement | null>(null)
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<CatalogFilter>('all')
   const navigate = useNavigate()
 
   const { prepareDraft, preparingId } = usePrepareDraft({
     onSuccess: (entityType, entityName) => {
-      setEntries(prevEntries =>
-        prevEntries.map(item =>
+      setEntries(prev =>
+        prev.map(item =>
           item.type === entityType && item.name === entityName
             ? { ...item, has_draft: true }
             : item,
@@ -41,6 +55,8 @@ export default function Catalog() {
   })
 
   const fetchCatalog = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
       const response = await fetch(buildApiUrl('/catalog'))
       if (!response.ok) {
@@ -48,9 +64,9 @@ export default function Catalog() {
       }
       const data: CatalogResponse = await response.json()
       setEntries(data.entries)
-      setLoading(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
       setLoading(false)
     }
   }, [])
@@ -59,413 +75,302 @@ export default function Catalog() {
     fetchCatalog()
   }, [fetchCatalog])
 
-  useEffect(() => {
-    if (!filterMenuOpen) {
-      return
-    }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
-        setFilterMenuOpen(false)
-      }
-    }
-
-    const handleEscape = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setFilterMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    window.addEventListener('keydown', handleEscape)
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      window.removeEventListener('keydown', handleEscape)
-    }
-  }, [filterMenuOpen])
-
   const catalogCounts = useMemo(() => {
-    let scenarios = 0
-    let resources = 0
-    let withPrd = 0
-    let drafts = 0
-
-    entries.forEach((entry) => {
-      if (entry.type === 'scenario') {
-        scenarios += 1
-      }
-      if (entry.type === 'resource') {
-        resources += 1
-      }
-      if (entry.has_prd) {
-        withPrd += 1
-      }
-      if (entry.has_draft) {
-        drafts += 1
-      }
-    })
-
-    return {
-      total: entries.length,
-      scenarios,
-      resources,
-      withPrd,
-      drafts,
-      missing: entries.length - withPrd,
-    }
+    const summary = entries.reduce(
+      (acc, entry) => {
+        acc.total += 1
+        if (entry.type === 'scenario') acc.scenarios += 1
+        if (entry.type === 'resource') acc.resources += 1
+        if (entry.has_prd) acc.withPrd += 1
+        if (entry.has_draft) acc.drafts += 1
+        return acc
+      },
+      { total: 0, scenarios: 0, resources: 0, withPrd: 0, drafts: 0 },
+    )
+    return { ...summary, missing: summary.total - summary.withPrd }
   }, [entries])
 
-  const coverage = useMemo(() => {
-    if (!catalogCounts.total) {
-      return 0
-    }
-    return Math.round((catalogCounts.withPrd / catalogCounts.total) * 100)
-  }, [catalogCounts])
+  const coverage = catalogCounts.total ? Math.round((catalogCounts.withPrd / catalogCounts.total) * 100) : 0
+  const missingPercentage = catalogCounts.total ? Math.round((catalogCounts.missing / catalogCounts.total) * 100) : 0
 
-  const missingPercentage = useMemo(() => {
-    if (!catalogCounts.total) {
-      return 0
-    }
-    return Math.round((catalogCounts.missing / catalogCounts.total) * 100)
-  }, [catalogCounts])
+  const filteredEntries = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return entries.filter(entry => {
+      const matchesSearch =
+        query === '' ||
+        entry.name.toLowerCase().includes(query) ||
+        entry.description.toLowerCase().includes(query)
+      const matchesType = typeFilter === 'all' || entry.type === typeFilter
+      return matchesSearch && matchesType
+    })
+  }, [entries, search, typeFilter])
 
-  const statHighlights = useMemo(() => {
-    const highlights: Array<{
-      key: string
-      label: string
-      value: string
-      description: string
-      icon: ReactNode
-      tone: 'slate' | 'success' | 'info' | 'warning'
-      chip?: string
-    }> = [
+  const stats = useMemo(
+    () => [
       {
         key: 'total',
         label: 'Total entities',
-        value: catalogCounts.total.toLocaleString(),
-        description: 'Scenarios & resources monitored',
-        icon: <Layers size={18} aria-hidden="true" />,
-        tone: 'slate',
+        value: catalogCounts.total,
+        description: 'Scenarios & resources in scope',
       },
       {
         key: 'with-prd',
         label: 'With PRD',
-        value: catalogCounts.withPrd.toLocaleString(),
+        value: catalogCounts.withPrd,
         description: `${coverage}% coverage`,
-        icon: <CheckCircle size={18} aria-hidden="true" />,
-        tone: 'success',
-        chip: `${coverage}%`,
       },
       {
         key: 'drafts',
         label: 'Active drafts',
-        value: catalogCounts.drafts.toLocaleString(),
+        value: catalogCounts.drafts,
         description: 'Awaiting review',
-        icon: <FileEdit size={18} aria-hidden="true" />,
-        tone: 'info',
       },
       {
         key: 'missing',
         label: 'Missing PRDs',
-        value: catalogCounts.missing.toLocaleString(),
+        value: catalogCounts.missing,
         description: `${missingPercentage}% need attention`,
-        icon: <XCircle size={18} aria-hidden="true" />,
-        tone: 'warning',
-        chip: 'Action needed',
       },
-    ]
-
-    return highlights
-  }, [catalogCounts, coverage, missingPercentage])
-
-  const filterOptions = useMemo(() => ([
-    { value: 'all' as const, label: `All (${catalogCounts.total})` },
-    { value: 'scenario' as const, label: `Scenarios (${catalogCounts.scenarios})` },
-    { value: 'resource' as const, label: `Resources (${catalogCounts.resources})` },
-  ]), [catalogCounts])
-
-  const activeFilterOption = filterOptions.find(option => option.value === typeFilter) ?? filterOptions[0]
-
-  const searchLower = filter.toLowerCase()
-
-  const filteredEntries = entries.filter(entry => {
-    const matchesSearch = entry.name.toLowerCase().includes(searchLower) ||
-                         entry.description.toLowerCase().includes(searchLower)
-    const matchesType = typeFilter === 'all' || entry.type === typeFilter
-    return matchesSearch && matchesType
-  })
-
-  const handleFilterChange = useCallback((value: 'all' | 'scenario' | 'resource') => {
-    setTypeFilter(value)
-    setFilterMenuOpen(false)
-  }, [])
-
-  const getStatusBadge = (entry: CatalogEntry) => {
-    if (entry.has_draft) {
-      return (
-        <span className="status-badge draft" title="Draft pending">
-          <FileEdit size={16} />
-          Draft Pending
-        </span>
-      )
-    }
-    if (entry.has_prd) {
-      return (
-        <span className="status-badge has-prd" title="Has PRD">
-          <CheckCircle size={16} />
-          Has PRD
-        </span>
-      )
-    }
-    return (
-      <span className="status-badge missing" title="Missing PRD">
-        <XCircle size={16} />
-        Missing
-      </span>
-    )
-  }
+    ],
+    [catalogCounts, coverage, missingPercentage],
+  )
 
   if (loading) {
     return (
-      <div className="container">
-        <div className="loading">Loading catalog...</div>
+      <div className="app-container">
+        <Card className="border-dashed bg-white/70">
+          <CardContent className="flex items-center gap-3 text-muted-foreground">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+              <Layers size={18} />
+            </span>
+            Loading catalog...
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="container">
-        <div className="error">
-          <AlertTriangle size={24} />
-          <p>Error loading catalog: {error}</p>
-        </div>
+      <div className="app-container">
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="flex items-start gap-3 text-amber-900">
+            <AlertTriangle size={20} className="mt-1" />
+            <div>
+              <p className="font-semibold">Error loading catalog</p>
+              <p>{error}</p>
+              <Button variant="ghost" className="mt-3" onClick={fetchCatalog}>
+                Try again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
-  const draftsLabel = catalogCounts.drafts === 1 ? 'Draft' : 'Drafts'
-
   return (
-    <div className="container catalog-page">
-      <header className="page-header page-header--catalog">
-        <span className="page-eyebrow">Product operations</span>
-        <div className="page-header__body">
-          <div className="page-header__text">
-            <h1 className="page-title">
-              <span className="page-title__icon" aria-hidden="true">
+    <div className="app-container">
+      <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-3">
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Product operations</span>
+            <div className="flex items-center gap-3 text-3xl font-semibold text-slate-900">
+              <span className="rounded-2xl bg-violet-100 p-3 text-violet-600">
                 <ClipboardList size={28} strokeWidth={2.5} />
               </span>
-              <span>PRD Control Tower</span>
-            </h1>
-            <p className="subtitle">
-              Centralized management, validation, and publishing for {catalogCounts.total.toLocaleString()} tracked entities with {coverage}% PRD coverage so far.
+              PRD Control Tower
+            </div>
+            <p className="max-w-3xl text-base text-muted-foreground">
+              Centralized coverage for {catalogCounts.total.toLocaleString()} tracked entities. {coverage}% already ship with a published PRD.
             </p>
           </div>
-          <div className="page-header__actions">
-            <Link to="/backlog" className="nav-button nav-button--secondary" aria-label="Open idea backlog">
-              <StickyNote size={18} aria-hidden="true" />
-              <span className="nav-button__label">
-                <strong>Backlog</strong>
-                <small>Capture ideas</small>
-              </span>
-            </Link>
-            <Link to="/drafts" className="nav-button" aria-label={`View ${catalogCounts.drafts} ${draftsLabel.toLowerCase()}`}>
-              <Layers size={18} aria-hidden="true" />
-              <span className="nav-button__label">
-                <strong>View Drafts</strong>
-                <small>Curate updates</small>
-              </span>
-              <span className="nav-button__pill">{catalogCounts.drafts}</span>
-            </Link>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="secondary" size="lg" asChild>
+              <Link to="/backlog" className="flex items-center gap-2">
+                <StickyNote size={18} />
+                Capture backlog
+              </Link>
+            </Button>
+            <Button size="lg" asChild>
+              <Link to="/drafts" className="flex items-center gap-2">
+                <Layers size={18} />
+                View drafts ({catalogCounts.drafts})
+              </Link>
+            </Button>
           </div>
         </div>
-        <div className="insight-banner" role="status" aria-live="polite">
-          <span className="insight-banner__icon" aria-hidden="true">
+        <Separator className="my-6" />
+        <div className="flex items-start gap-3 rounded-2xl border bg-slate-50/80 p-4 text-sm">
+          <span className="rounded-full bg-violet-100 p-2 text-violet-700">
             <Sparkles size={18} />
           </span>
           <div>
-            <p className="insight-banner__title">Quality pulse</p>
-            <p className="insight-banner__body">
+            <p className="font-medium text-slate-900">Quality pulse</p>
+            <p className="text-muted-foreground">
               {catalogCounts.withPrd.toLocaleString()} PRDs published · {catalogCounts.missing.toLocaleString()} gaps remain ({missingPercentage}% of catalog)
             </p>
           </div>
         </div>
       </header>
 
-      <section className="surface-card catalog-toolbar" aria-label="Catalog controls">
-        <div className="search-field">
-          <label htmlFor="catalog-search" className="sr-only">Search catalog</label>
-          <Search className="search-field__icon" size={18} aria-hidden="true" />
-          <input
-            id="catalog-search"
-            type="text"
-            className="search-input"
-            placeholder="Search by name or description..."
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
-          {filter && (
-            <button
-              type="button"
-              className="search-field__clear"
-              onClick={() => setFilter('')}
-              aria-label="Clear search"
-            >
-              <X size={16} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-        <div className="filter-menu" ref={filterMenuRef}>
-          <span className="filter-menu__label">Show</span>
-          <button
-            type="button"
-            className="filter-menu__trigger"
-            aria-haspopup="listbox"
-            aria-expanded={filterMenuOpen}
-            onClick={() => setFilterMenuOpen(open => !open)}
-          >
-            <span className="filter-menu__trigger-text">
-              <FilterIcon size={16} aria-hidden="true" />
-              <span>{activeFilterOption.label}</span>
-            </span>
-            <ChevronDown size={16} aria-hidden="true" className="filter-menu__trigger-icon" />
-          </button>
-          {filterMenuOpen && (
-            <div className="filter-menu__dropdown" role="listbox" aria-label="Filter catalog entries">
-              {filterOptions.map(option => (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="option"
-                  aria-selected={typeFilter === option.value}
-                  className={`filter-menu__item${typeFilter === option.value ? ' filter-menu__item--active' : ''}`}
-                  onClick={() => handleFilterChange(option.value)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="stat-panel" aria-label="Catalog health overview">
-        {statHighlights.map((stat) => (
-          <article key={stat.key} className={`stat-card stat-card--${stat.tone}`}>
-            <div className="stat-card__icon" aria-hidden="true">
-              {stat.icon}
-            </div>
-            <div className="stat-card__content">
-              <span className="stat-card__label">{stat.label}</span>
-              <div className="stat-card__value-row">
-                <span className="stat-card__value">{stat.value}</span>
-                {stat.chip ? <span className="stat-card__chip">{stat.chip}</span> : null}
-              </div>
-              <p className="stat-card__description">{stat.description}</p>
-            </div>
-          </article>
+      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {stats.map(stat => (
+          <Card key={stat.key} className="bg-white/90">
+            <CardHeader className="pb-2">
+              <CardDescription>{stat.label}</CardDescription>
+              <CardTitle className="text-3xl font-bold">{stat.value.toLocaleString()}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 text-sm text-muted-foreground">{stat.description}</CardContent>
+          </Card>
         ))}
       </section>
 
-      <div className="catalog-grid">
-        {filteredEntries.length === 0 ? (
-          <div className="no-results">
-            <p>No entities found matching your filters.</p>
-          </div>
-        ) : (
-          filteredEntries.map(entry => {
-            const encodedName = encodeURIComponent(entry.name)
-            const prdPath = `/prd/${entry.type}/${encodedName}`
-            const draftPath = `/draft/${entry.type}/${encodedName}`
-            const primaryPath = entry.has_prd ? prdPath : entry.has_draft ? draftPath : null
-            const isNavigable = Boolean(primaryPath)
-            const cardKey = `${entry.type}:${entry.name}`
-
-            const navigateToPrimary = () => {
-              if (!primaryPath) {
-                return
-              }
-              navigate(primaryPath)
-            }
-
-            const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-              if (!primaryPath) {
-                return
-              }
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                navigate(primaryPath)
-              }
-            }
-
-            return (
-              <div
-                key={cardKey}
-                className={`catalog-card${isNavigable ? ' catalog-card--clickable' : ''}`}
-                role={isNavigable ? 'link' : undefined}
-                tabIndex={isNavigable ? 0 : undefined}
-                aria-label={isNavigable ? `View ${entry.has_prd ? 'PRD' : 'draft'} for ${entry.name}` : undefined}
-                onClick={isNavigable ? navigateToPrimary : undefined}
-                onKeyDown={isNavigable ? handleCardKeyDown : undefined}
+      <section className="rounded-3xl border bg-white/90 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="relative w-full max-w-xl">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Input
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              placeholder="Search by name or description..."
+              className="pl-9"
+            />
+            {search && (
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500"
+                onClick={() => setSearch('')}
               >
-                <div className="card-header">
-                  <h3 className="card-title">{entry.name}</h3>
-                  <span className={`type-badge ${entry.type}`}>
-                    {entry.type}
-                  </span>
-                </div>
-                <div className="card-body">
-                  <p className="card-description">
-                    {entry.description || 'No description available'}
-                  </p>
-                </div>
-                <div className="card-footer">
-                  {getStatusBadge(entry)}
-                  <div
-                    className="card-actions"
-                    onClick={(event) => event.stopPropagation()}
-                    onKeyDown={(event) => event.stopPropagation()}
-                  >
-                    {entry.has_prd && (
-                      <Link
-                        to={prdPath}
-                        className="btn-link"
-                      >
-                        View PRD
-                      </Link>
-                    )}
-                    {entry.has_prd && (
-                      <button
-                        type="button"
-                        className="btn-link"
-                        onClick={() => prepareDraft(entry.type, entry.name)}
-                        disabled={preparingId === cardKey}
-                      >
-                        {preparingId === cardKey ? 'Preparing...' : 'Edit PRD'}
-                      </button>
-                    )}
-                    {entry.has_draft && (
-                      <Link
-                        to={draftPath}
-                        className="btn-link"
-                      >
-                        View Draft
-                      </Link>
-                    )}
-                    {!entry.has_prd && !entry.has_draft && (
-                      <button className="btn-link" disabled>
-                        No PRD
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
+                Clear
+              </button>
+            )}
+          </div>
+          <Tabs value={typeFilter} onValueChange={(value: string) => setTypeFilter(value as CatalogFilter)}>
+            <TabsList>
+              <TabsTrigger value="all">All ({catalogCounts.total})</TabsTrigger>
+              <TabsTrigger value="scenario">Scenarios ({catalogCounts.scenarios})</TabsTrigger>
+              <TabsTrigger value="resource">Resources ({catalogCounts.resources})</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </section>
+
+      {filteredEntries.length === 0 ? (
+        <Card className="border-dashed bg-white/80">
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center text-muted-foreground">
+            <Layers size={40} />
+            <p>No entities found matching your filters.</p>
+            <Button variant="outline" onClick={() => setSearch('')}>
+              Reset filters
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {filteredEntries.map(entry => (
+            <CatalogCard
+              key={`${entry.type}:${entry.name}`}
+              entry={entry}
+              navigate={navigate}
+              prepareDraft={prepareDraft}
+              preparingId={preparingId}
+            />
+          ))}
+        </div>
+      )}
     </div>
+  )
+}
+
+type CatalogCardProps = {
+  entry: CatalogEntry
+  navigate: NavigateFunction
+  prepareDraft: (entityType: string, entityName: string) => Promise<void>
+  preparingId: string | null
+}
+
+function CatalogCard({ entry, navigate, prepareDraft, preparingId }: CatalogCardProps) {
+  const encodedName = encodeURIComponent(entry.name)
+  const draftKey = `${entry.type}:${entry.name}`
+  const prdPath = `/prd/${entry.type}/${encodedName}`
+  const draftPath = `/draft/${entry.type}/${encodedName}`
+  const primaryPath = entry.has_prd ? prdPath : entry.has_draft ? draftPath : null
+
+  const status: StatusKey = entry.has_prd ? 'published' : entry.has_draft ? 'draft' : 'missing'
+  const statusMeta = statusMap[status]
+  const StatusIcon = statusMeta.icon
+
+  const onNavigate = () => {
+    if (primaryPath) {
+      navigate(primaryPath)
+    }
+  }
+
+  return (
+    <Card
+      role={primaryPath ? 'link' : undefined}
+      tabIndex={primaryPath ? 0 : -1}
+      onClick={onNavigate}
+      onKeyDown={event => {
+        if (!primaryPath) return
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onNavigate()
+        }
+      }}
+      className={cn(
+        'flex h-full flex-col justify-between border-slate-200 transition hover:-translate-y-0.5 hover:border-slate-400',
+        primaryPath ? 'cursor-pointer' : 'opacity-80',
+      )}
+    >
+      <CardHeader className="space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <CardTitle className="text-xl font-semibold text-slate-900">{entry.name}</CardTitle>
+            <CardDescription className="line-clamp-3 text-sm text-slate-600">
+              {entry.description || 'No description available'}
+            </CardDescription>
+          </div>
+          <Badge variant="secondary" className="capitalize">
+            {entry.type}
+          </Badge>
+        </div>
+        <Badge variant={statusMeta.badge} className="w-fit gap-1 capitalize">
+          <StatusIcon size={14} />
+          {statusMeta.label}
+        </Badge>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-center justify-between gap-3 border-t border-dashed pt-4 text-sm">
+        <div className="flex flex-wrap gap-2" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
+          {entry.has_prd && (
+            <Button variant="ghost" size="sm" asChild>
+              <Link to={prdPath}>View PRD</Link>
+            </Button>
+          )}
+          {entry.has_prd && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={event => {
+                event.stopPropagation()
+                prepareDraft(entry.type, entry.name)
+              }}
+              disabled={preparingId === draftKey}
+            >
+              {preparingId === draftKey ? 'Preparing…' : 'Edit PRD'}
+            </Button>
+          )}
+          {entry.has_draft && (
+            <Button variant="ghost" size="sm" asChild>
+              <Link to={draftPath}>View draft</Link>
+            </Button>
+          )}
+          {!entry.has_prd && !entry.has_draft && (
+            <span className="text-xs text-muted-foreground">No PRD yet</span>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

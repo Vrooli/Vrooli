@@ -48,6 +48,11 @@ export interface UpdateDraftRequest {
   content: string
 }
 
+export interface DraftSaveStatus {
+  type: 'success' | 'error'
+  message: string
+}
+
 export interface CatalogEntry {
   type: EntityType
   name: string
@@ -193,6 +198,63 @@ export interface BacklogConvertResult {
   entry: BacklogEntry
   draft?: Draft
   error?: string
+}
+
+export interface RequirementValidation {
+  type: string
+  ref: string
+  phase: string
+  status: string
+  notes?: string
+}
+
+export interface RequirementRecord {
+  id: string
+  category?: string
+  prd_ref?: string
+  title: string
+  description?: string
+  status?: string
+  criticality?: string
+  file_path?: string
+  validation?: RequirementValidation[]
+  linked_operational_target_ids?: string[]
+}
+
+export interface RequirementGroup {
+  id: string
+  name: string
+  description?: string
+  file_path?: string
+  requirements: RequirementRecord[]
+  children?: RequirementGroup[]
+}
+
+export interface RequirementsResponse {
+  entity_type: EntityType
+  entity_name: string
+  updated_at: string
+  groups: RequirementGroup[]
+}
+
+export interface OperationalTarget {
+  id: string
+  entity_type: EntityType
+  entity_name: string
+  category: string
+  criticality?: string
+  title: string
+  notes?: string
+  status: 'complete' | 'pending'
+  path: string
+  linked_requirement_ids?: string[]
+}
+
+export interface OperationalTargetsResponse {
+  entity_type: EntityType
+  entity_name: string
+  targets: OperationalTarget[]
+  unmatched_requirements: RequirementRecord[]
 }
 
 export interface BacklogConvertResponse {

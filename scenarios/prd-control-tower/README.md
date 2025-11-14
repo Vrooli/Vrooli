@@ -77,6 +77,12 @@ prd-control-tower publish <draft-id>
 - Diff viewer comparing draft vs published
 - Publish to PRD.md with atomic file write
 
+### Requirements & Target Coverage
+- Parse modular `requirements/` registries (JSON + imports) for each scenario/resource
+- Extract operational targets from PRD checklists and link them to requirements via `prd_ref`
+- Surface missing template sections, unlinked targets, and unmatched requirements directly in the draft workspace
+- Expose `/catalog/{type}/{name}/requirements` and `/catalog/{type}/{name}/targets` APIs for UI + automation consumers
+
 ### AI Assistance
 - Generate missing sections with natural language prompts
 - Rewrite sections for template compliance

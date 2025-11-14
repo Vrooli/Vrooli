@@ -8,7 +8,8 @@ import Catalog from './pages/Catalog'
 import PRDViewer from './pages/PRDViewer'
 import Drafts from './pages/Drafts'
 import Backlog from './pages/Backlog'
-import './index.css'
+import './styles/global.css'
+import './styles/legacy.css'
 
 declare global {
   interface Window {

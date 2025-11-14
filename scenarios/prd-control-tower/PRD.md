@@ -51,6 +51,12 @@ make test
 
 ### Improvement History
 
+**Session 25 (2025-11-17)**: Requirement registry ingestion + AI-assisted editor
+- ✅ **Operational target coverage**: Added PRD parser + `/catalog/{type}/{name}/targets` endpoint to extract Functional Requirement checklists, map status (P0/P1/P2), and flag targets with no linked requirements.
+- ✅ **Requirements registry ingestion**: Added loader for modular `requirements/` folders (index/import structure), new caching layer, `/catalog/{type}/{name}/requirements` API, and linkage heuristics tying `prd_ref` entries to operational targets.
+- ✅ **Draft workspace upgrades**: Editor now runs template compliance checks, shows missing sections, surfaces target coverage + unmatched requirements, and exposes AI assistant controls for section/selection rewrites via resource-openrouter.
+- ✅ **Tests**: Added unit tests for operational target parsing + linkage, TS type-check coverage for new UI state, and updated documentation to describe the new capabilities.
+
 **Session 24 (2025-10-18)**: UI health endpoint compliance and CLI test fixes
 - ✅ **UI health endpoint**: Fixed to comply with health-ui.schema.json requirements
   - ui/server.js: Implemented proper health endpoint with api_connectivity field

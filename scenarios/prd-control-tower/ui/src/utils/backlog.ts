@@ -1,4 +1,11 @@
-import type { EntityType } from '../types'
+import { buildApiUrl } from './apiClient'
+import type {
+  BacklogConvertResponse,
+  BacklogConvertResult,
+  BacklogCreateResponse,
+  BacklogEntry,
+  EntityType,
+} from '../types'
 
 export interface PendingIdea {
   id: string
@@ -7,10 +14,18 @@ export interface PendingIdea {
   suggestedName: string
 }
 
-const bulletPattern = /^[\s\-\*•‣∙·]+/
+const bulletPattern = /^[\s\-*•‣∙·]+/
 
 function stripLeadingNumber(value: string): string {
-  return value.replace(/^\d+[\.)]\s*/, '').trim()
+  return value.replace(/^\d+[.)]\s*/, '').trim()
+}
+
+export function sanitizeSlugInput(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 export function slugifyIdea(input: string): string {
@@ -73,4 +88,44 @@ export function parseBacklogInput(raw: string, defaultType: EntityType = 'scenar
   })
 
   return ideas
+}
+
+export async function createBacklogEntriesRequest(ideas: PendingIdea[]): Promise<BacklogEntry[]> {
+  const payload = {
+    entries: ideas.map((idea) => ({
+      idea_text: idea.ideaText,
+      entity_type: idea.entityType,
+      suggested_name: idea.suggestedName,
+    })),
+  }
+
+  const response = await fetch(buildApiUrl('/backlog'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(message || 'Failed to add backlog items')
+  }
+
+  const data: BacklogCreateResponse = await response.json()
+  return data.entries
+}
+
+export async function convertBacklogEntriesRequest(ids: string[]): Promise<BacklogConvertResult[]> {
+  const response = await fetch(buildApiUrl('/backlog/convert'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entry_ids: ids }),
+  })
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(message || 'Failed to convert backlog entries')
+  }
+
+  const data: BacklogConvertResponse = await response.json()
+  return data.results || []
 }
