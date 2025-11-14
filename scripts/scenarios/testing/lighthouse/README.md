@@ -30,19 +30,18 @@ This installs `lighthouse` and `chrome-launcher` required for running audits.
 ```bash
 cd scenarios/browser-automation-studio
 
-# Create .lighthouse directory and config template
-source ../../scripts/scenarios/testing/lighthouse/config.sh
-lighthouse::init_scenario .
+# Create .vrooli directory and config template
+../../scripts/scenarios/testing/lighthouse/config.sh init .
 ```
 
 This creates:
-- `.lighthouse/config.json` - Configuration file
+- `.vrooli/lighthouse.json` - Configuration file
 - `test/artifacts/lighthouse/` - Output directory for reports
 - Updates `.gitignore` to exclude HTML/JSON reports
 
 ### 3. Configure Pages and Thresholds
 
-Edit `.lighthouse/config.json`:
+Edit `.vrooli/lighthouse.json`:
 
 ```json
 {
@@ -88,7 +87,7 @@ scripts/scenarios/testing/lighthouse/
 └── config.sh              # Default configs and utilities
 
 scenarios/<scenario-name>/
-├── .lighthouse/
+├── .vrooli/
 │   ├── config.json        # Page definitions and thresholds
 │   └── custom-config.js   # Optional Lighthouse config overrides
 ├── test/
@@ -108,7 +107,7 @@ test-performance.sh
     ↓
 lighthouse::run_audits (runner.sh)
     ↓
-node runner.js --config .lighthouse/config.json
+node runner.js --config .vrooli/lighthouse.json
     ↓
 For each page:
     - Launch Chrome
@@ -274,17 +273,19 @@ fi
 
 ```bash
 # Initialize Lighthouse for a scenario
-source scripts/scenarios/testing/lighthouse/config.sh
-lighthouse::init_scenario scenarios/my-scenario
+scripts/scenarios/testing/lighthouse/config.sh init scenarios/my-scenario
 
 # Check dependencies
 lighthouse::check_dependencies
 
+# (Optional) Source helpers for advanced usage
+source scripts/scenarios/testing/lighthouse/config.sh
+
 # Validate config file
-lighthouse::validate_config .lighthouse/config.json
+lighthouse::validate_config .vrooli/lighthouse.json
 
 # List configured pages
-lighthouse::list_pages .lighthouse/config.json
+lighthouse::list_pages .vrooli/lighthouse.json
 ```
 
 ---
@@ -293,7 +294,7 @@ lighthouse::list_pages .lighthouse/config.json
 
 ### Linking Pages to Requirements
 
-In `.lighthouse/config.json`:
+In `.vrooli/lighthouse.json`:
 
 ```json
 {
@@ -317,7 +318,7 @@ In `requirements/performance/lighthouse.json`:
   "requirements": [
     {
       "id": "BAS-PERF-HOME-LOAD",
-      "category": "performance.lighthouse",
+      "category": "performance.vrooli",
       "title": "Dashboard loads with >85% performance score",
       "description": "Home page must achieve Lighthouse performance score of 0.85+ on desktop",
       "status": "complete",
@@ -325,7 +326,7 @@ In `requirements/performance/lighthouse.json`:
       "validation": [
         {
           "type": "lighthouse",
-          "ref": ".lighthouse/config.json",
+          "ref": ".vrooli/lighthouse.json",
           "page_id": "home",
           "category": "performance",
           "threshold": 0.85,
@@ -375,7 +376,7 @@ You can add Lighthouse validations to any existing requirement:
     },
     {
       "type": "lighthouse",
-      "ref": ".lighthouse/config.json",
+      "ref": ".vrooli/lighthouse.json",
       "page_id": "home",
       "category": "performance",
       "phase": "performance",
@@ -543,7 +544,7 @@ npm install
 
 ### Example 3: Custom Lighthouse Configuration
 
-Create `.lighthouse/custom-config.js`:
+Create `.vrooli/custom-config.js`:
 
 ```javascript
 module.exports = {
@@ -639,8 +640,8 @@ module.exports = {
 ## 🚀 Next Steps
 
 1. **Install dependencies**: `cd scripts/scenarios/testing/lighthouse && npm install`
-2. **Initialize a scenario**: Use `lighthouse::init_scenario` helper
-3. **Configure pages**: Edit `.lighthouse/config.json`
+2. **Initialize a scenario**: Run `scripts/scenarios/testing/lighthouse/config.sh init <scenario>`
+3. **Configure pages**: Edit `.vrooli/lighthouse.json`
 4. **Define requirements**: Add to `requirements/performance/lighthouse.json`
 5. **Run tests**: `./test/run-tests.sh --phases performance`
 6. **View reports**: Open HTML files in `test/artifacts/lighthouse/`

@@ -388,6 +388,7 @@ testing::runner::print_contextual_tips() {
 
     local -a tips=()
     local -a timed_out=()
+    local -a slow_timeouts=()
     local -a timed_out_stalled=()
     local -a missing=()
     local -a not_exec=()
@@ -438,6 +439,15 @@ testing::runner::print_contextual_tips() {
                 fi
                 high_timeout_workflows+=("$detail")
             done < <(grep -F "[WF_TIMEOUT_HIGH]" "$log_path" 2>/dev/null || true)
+
+            while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                local detail="${line#*\[WF_RUNTIME_SLOW\] }"
+                if [ -z "$detail" ] || [ "$detail" = "$line" ]; then
+                    detail="$(basename "$log_path") reports workflow runtime >90s"
+                fi
+                slow_timeouts+=("$detail")
+            done < <(grep -F "[WF_RUNTIME_SLOW]" "$log_path" 2>/dev/null || true)
 
             if [ "$python_available" = true ] && [ -z "${scanned_wait_logs[$log_path]:-}" ]; then
                 scanned_wait_logs[$log_path]=1
@@ -539,6 +549,11 @@ PY
             local joined=$(_testing_runner_join_list ", " "${regular_timeouts[@]}")
             tips+=("• Timed out: $joined. Inspect the scenario logs or rerun with '--timeout 2' to grant more time once the root cause is understood.")
         fi
+    fi
+
+    if [ ${#slow_timeouts[@]} -gt 0 ]; then
+        local joined=$(_testing_runner_join_list "; " "${slow_timeouts[@]}")
+        tips+=("• Workflows exceeded 90s ($joined). BAS flows should finish quickly—trim waits/selectors or lower per-node timeouts so executions never block the test suite.")
     fi
 
     if [ ${#wait_saturation_info[@]} -gt 0 ]; then

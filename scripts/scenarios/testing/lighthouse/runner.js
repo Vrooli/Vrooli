@@ -81,7 +81,7 @@ Usage:
   node runner.js [options]
 
 Required Options:
-  --config <path>              Path to .lighthouse/config.json
+  --config <path>              Path to .vrooli/lighthouse.json
   --base-url <url>             Base URL of the scenario UI (e.g., http://localhost:3000)
   --output-dir <dir>           Directory to write Lighthouse reports
   --scenario <name>            Scenario name (for phase results)
@@ -94,7 +94,7 @@ Optional:
 
 Example:
   node runner.js \\
-    --config scenarios/browser-automation-studio/.lighthouse/config.json \\
+    --config scenarios/browser-automation-studio/.vrooli/lighthouse.json \\
     --base-url http://localhost:3000 \\
     --output-dir scenarios/browser-automation-studio/test/artifacts/lighthouse \\
     --scenario browser-automation-studio \\

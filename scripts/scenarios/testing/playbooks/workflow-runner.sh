@@ -309,22 +309,30 @@ testing::playbooks::run_workflow() {
     local start_time
     start_time=$(date +%s)
     local execution_summary
+    local wait_rc=0
     if execution_summary=$(_testing_playbooks__wait_for_execution "$api_base" "$execution_id" 360); then
-        local end_time
-        end_time=$(date +%s)
-        local duration=$((end_time - start_time))
-        echo "✅ Workflow ${workflow_name} completed in ${duration}s" >&2
-        # Leave scenario running for subsequent tests/workflows
-        return 0
+        wait_rc=0
     else
-        local end_time
-        end_time=$(date +%s)
-        local duration=$((end_time - start_time))
-        echo "❌ Workflow ${workflow_name} failed after ${duration}s" >&2
-        printf '%s\n' "$execution_summary" >&2
-        # Leave scenario running even on failure for debugging
-        return 1
+        wait_rc=$?
     fi
+
+    local end_time
+    end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+
+    if [ $wait_rc -eq 0 ]; then
+        echo "✅ Workflow ${workflow_name} completed in ${duration}s" >&2
+        return 0
+    fi
+
+    echo "❌ Workflow ${workflow_name} failed after ${duration}s" >&2
+    printf '%s\n' "$execution_summary" >&2
+
+    if [ $wait_rc -eq 2 ] && [ "$duration" -ge 90 ]; then
+        echo "⚠️ [WF_RUNTIME_SLOW] Workflow ${workflow_name} timed out after ${duration}s (execution stalled)" >&2
+    fi
+
+    return 1
 }
 
 export -f testing::playbooks::run_workflow

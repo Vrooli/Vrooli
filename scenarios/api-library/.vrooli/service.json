@@ -57,7 +57,7 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "data"
+            "type": "seed"
           }
         ]
       },
@@ -146,7 +146,7 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "cd ui && pnpm install --filter api-library-ui --config.lockfile-dir=./ --no-frozen-lockfile",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -154,7 +154,7 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "cd ui && pnpm run build",
           "description": "Build production UI bundle"
         },
         {

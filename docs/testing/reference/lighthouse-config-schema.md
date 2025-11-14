@@ -1,13 +1,13 @@
 # Lighthouse Configuration Schema Reference
 
-Complete reference for `.lighthouse/config.json` schema used by Vrooli's Lighthouse testing infrastructure.
+Complete reference for `.vrooli/lighthouse.json` schema used by Vrooli's Lighthouse testing infrastructure.
 
 ## Overview
 
 The Lighthouse configuration file defines which pages to audit, performance/accessibility thresholds, Chrome launch options, and reporting preferences for a scenario's UI testing.
 
 **Schema Version**: 1.0.0
-**Location**: `scenarios/<scenario-name>/.lighthouse/config.json`
+**Location**: `scenarios/<scenario-name>/.vrooli/lighthouse.json`
 **Processed By**: `scripts/scenarios/testing/lighthouse/runner.js`
 
 ---
@@ -141,7 +141,7 @@ Each category has two threshold levels:
 
 **Per-Page vs Global**:
 - Pages can override global thresholds: `pages[].thresholds`
-- Omitted categories use global defaults from `global_options.lighthouse.settings`
+- Omitted categories use global defaults from `global_options.vrooli.settings`
 
 ### Threshold Best Practices
 
@@ -407,7 +407,7 @@ Lighthouse results automatically sync to requirements system via phase results.
   "validation": [
     {
       "type": "lighthouse",
-      "ref": ".lighthouse/config.json",
+      "ref": ".vrooli/lighthouse.json",
       "page_id": "dashboard",
       "category": "performance",
       "threshold": 0.75,
@@ -446,11 +446,11 @@ Validate your config against the schema:
 
 ```bash
 # Check config syntax
-cat .lighthouse/config.json | jq empty
+cat .vrooli/lighthouse.json | jq empty
 
 # Dry-run Lighthouse (doesn't update requirements)
 node scripts/scenarios/testing/lighthouse/runner.js \
-  --config .lighthouse/config.json \
+  --config .vrooli/lighthouse.json \
   --base-url http://localhost:5050 \
   --output-dir /tmp/lighthouse-test \
   --scenario test-scenario \
@@ -496,9 +496,9 @@ node scripts/scenarios/testing/lighthouse/runner.js \
 - [scripts/scenarios/testing/lighthouse/config.sh](/scripts/scenarios/testing/lighthouse/config.sh) - Helper utilities
 
 ### Examples
-- [browser-automation-studio/.lighthouse/](/scenarios/browser-automation-studio/.lighthouse/) - 4-page reference configuration
-- [app-monitor/.lighthouse/](/scenarios/app-monitor/.lighthouse/) - Simple 2-page setup
-- [app-issue-tracker/.lighthouse/](/scenarios/app-issue-tracker/.lighthouse/) - Table-focused testing
+- [browser-automation-studio/.vrooli/](/scenarios/browser-automation-studio/.vrooli/) - 4-page reference configuration
+- [app-monitor/.vrooli/](/scenarios/app-monitor/.vrooli/) - Simple 2-page setup
+- [app-issue-tracker/.vrooli/](/scenarios/app-issue-tracker/.vrooli/) - Table-focused testing
 
 ### External Resources
 - [Lighthouse Configuration](https://github.com/GoogleChrome/lighthouse/blob/main/docs/configuration.md) - Official config documentation

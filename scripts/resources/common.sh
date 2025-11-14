@@ -758,8 +758,34 @@ resources::update_config() {
     local resource_name="$2"
     local base_url="$3"  # Still accept but don't use - for backward compatibility
     local additional_config="${4:-{}}"
-    
-    log::info "Updating resource configuration for $category/$resource_name"
+
+    # Legacy invocation support: resources::update_config "category.resource" '{...}'
+    if [[ -n "$resource_name" && $resource_name =~ ^\{ ]]; then
+        additional_config="$resource_name"
+        resource_name=""
+    fi
+
+    if [[ -z "$resource_name" && -n "$base_url" && $base_url =~ ^\{ ]]; then
+        additional_config="$base_url"
+        base_url=""
+    fi
+
+    if [[ -z "$resource_name" ]]; then
+        if [[ "$category" == *.* ]]; then
+            resource_name="${category##*.}"
+            category="${category%%.*}"
+        else
+            resource_name="$category"
+        fi
+    fi
+
+    if [[ -z "$resource_name" ]]; then
+        resources::handle_error "Resource name could not be resolved" "config"
+        return 1
+    fi
+
+    local log_identifier="${category:-general}/$resource_name"
+    log::info "Updating resource configuration for $log_identifier"
     
     # Create base configuration without baseUrl - let system derive from port_registry.sh
     local resource_config
@@ -832,10 +858,11 @@ resources::update_config() {
     
     # Update configuration atomically
     if jq \
-        --arg category "$category" \
         --arg resource "$resource_name" \
         --argjson config "$resource_config" \
-        '.resources[$category][$resource] = $config' \
+        '.dependencies = (.dependencies // {})
+         | .dependencies.resources = (.dependencies.resources // {})
+         | .dependencies.resources[$resource] = $config' \
         "$VROOLI_RESOURCES_CONFIG" > "$temp_config"; then
         
         # Validate the result
@@ -845,8 +872,8 @@ resources::update_config() {
             
             # Add rollback action
             resources::add_rollback_action \
-                "Remove $category/$resource_name configuration (legacy)" \
-                "jq 'del(.resources.$category.$resource_name)' \"$VROOLI_RESOURCES_CONFIG\" > \"$temp_config\" && mv \"$temp_config\" \"$VROOLI_RESOURCES_CONFIG\"" \
+                "Remove $log_identifier configuration" \
+                "resources::remove_config \"$category\" \"$resource_name\"" \
                 10
             
             return 0
@@ -876,7 +903,22 @@ resources::update_cli_config() {
     local command="$3"
     local additional_config="${4:-{}}"
     
-    log::info "Updating CLI resource configuration for $category/$resource_name"
+    if [[ -z "$resource_name" ]]; then
+        if [[ "$category" == *.* ]]; then
+            resource_name="${category##*.}"
+            category="${category%%.*}"
+        else
+            resource_name="$category"
+        fi
+    fi
+
+    if [[ -z "$resource_name" ]]; then
+        resources::handle_error "Resource name could not be resolved for CLI configuration" "config"
+        return 1
+    fi
+
+    local log_identifier="${category:-general}/$resource_name"
+    log::info "Updating CLI resource configuration for $log_identifier"
     
     # Create CLI-specific configuration
     local resource_config
@@ -921,10 +963,11 @@ resources::update_cli_config() {
     
     # Fallback to manual jq-based update
     if system::is_command "jq"; then
-        if jq --arg category "$category" \
-              --arg resource "$resource_name" \
+        if jq --arg resource "$resource_name" \
               --argjson config "$resource_config" \
-              '.resources[$category][$resource] = $config' \
+              '.dependencies = (.dependencies // {})
+               | .dependencies.resources = (.dependencies.resources // {})
+               | .dependencies.resources[$resource] = $config' \
               "$config_path" > "$temp_config" 2>/dev/null; then
             
             if jq empty "$temp_config" 2>/dev/null; then
@@ -950,7 +993,22 @@ resources::remove_config() {
     local category="$1"
     local resource_name="$2"
     
-    log::info "Removing resource configuration for $category/$resource_name"
+    if [[ -z "$resource_name" ]]; then
+        if [[ "$category" == *.* ]]; then
+            resource_name="${category##*.}"
+            category="${category%%.*}"
+        else
+            resource_name="$category"
+        fi
+    fi
+
+    if [[ -z "$resource_name" ]]; then
+        resources::handle_error "Resource name could not be resolved for removal" "config"
+        return 1
+    fi
+
+    local log_identifier="${category:-general}/$resource_name"
+    log::info "Removing resource configuration for $log_identifier"
     
     # Use TypeScript configuration manager if available
     if [[ -f "$CONFIG_MANAGER_SCRIPT" ]] && system::is_command "node"; then
@@ -985,13 +1043,14 @@ resources::remove_config() {
     }
     
     if jq \
-        --arg category "$category" \
         --arg resource "$resource_name" \
-        'del(.resources[$category][$resource])' \
+        '.dependencies |= (. // {})
+         | .dependencies.resources |= (. // {})
+         | del(.dependencies.resources[$resource])' \
         "$VROOLI_RESOURCES_CONFIG" > "$temp_config"; then
         
         mv "$temp_config" "$VROOLI_RESOURCES_CONFIG"
-        log::success "Removed resource configuration for $category/$resource_name"
+        log::success "Removed resource configuration for $log_identifier"
     else
         trash::safe_remove "$temp_config" --temp
         resources::handle_error "Failed to remove configuration with jq" "config"

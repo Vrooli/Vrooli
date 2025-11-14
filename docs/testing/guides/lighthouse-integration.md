@@ -42,25 +42,22 @@ This installs `lighthouse` (v11+) and `chrome-launcher` globally for the testing
 ```bash
 cd scenarios/your-scenario
 
-# Source the config helper
-source ../../scripts/scenarios/testing/lighthouse/config.sh
-
-# Initialize Lighthouse (creates .lighthouse/config.json and directories)
-lighthouse::init_scenario .
+# Initialize Lighthouse (creates .vrooli/lighthouse.json and directories)
+../../scripts/scenarios/testing/lighthouse/config.sh init .
 ```
 
 This creates:
 ```
 scenarios/your-scenario/
-├── .lighthouse/
-│   └── config.json         # Page definitions and thresholds
+├── .vrooli/
+│   └── lighthouse.json     # Page definitions and thresholds
 ├── test/artifacts/lighthouse/  # Report output directory
 └── .gitignore              # Updated to exclude reports
 ```
 
 ### Step 3: Configure Pages to Test
 
-Edit `.lighthouse/config.json`:
+Edit `.vrooli/lighthouse.json`:
 
 ```json
 {
@@ -125,7 +122,7 @@ source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 testing::phase::init --target-time "180s" --require-runtime
 
 # Run Lighthouse audits if config exists
-if [ -f "${TESTING_PHASE_SCENARIO_DIR}/.lighthouse/config.json" ]; then
+if [ -f "${TESTING_PHASE_SCENARIO_DIR}/.vrooli/lighthouse.json" ]; then
   source "${APP_ROOT}/scripts/scenarios/testing/lighthouse/runner.sh"
 
   if lighthouse::run_audits; then
@@ -134,7 +131,7 @@ if [ -f "${TESTING_PHASE_SCENARIO_DIR}/.lighthouse/config.json" ]; then
     testing::phase::add_error "Lighthouse audits failed"
   fi
 else
-  log::info "No .lighthouse/config.json found; skipping Lighthouse"
+  log::info "No .vrooli/lighthouse.json found; skipping Lighthouse"
 fi
 
 testing::phase::end_with_summary "Performance checks completed"
@@ -153,7 +150,7 @@ Create `requirements/performance/lighthouse.json`:
   "requirements": [
     {
       "id": "YOUR-PERF-HOME-LOAD",
-      "category": "performance.lighthouse",
+      "category": "performance.vrooli",
       "title": "Home page loads with >85% performance score",
       "description": "Home page must achieve Lighthouse performance score of 0.85+ on desktop",
       "status": "in_progress",
@@ -161,7 +158,7 @@ Create `requirements/performance/lighthouse.json`:
       "validation": [
         {
           "type": "lighthouse",
-          "ref": ".lighthouse/config.json",
+          "ref": ".vrooli/lighthouse.json",
           "page_id": "home",
           "category": "performance",
           "threshold": 0.85,
@@ -172,7 +169,7 @@ Create `requirements/performance/lighthouse.json`:
     },
     {
       "id": "YOUR-A11Y-WCAG-AA",
-      "category": "accessibility.lighthouse",
+      "category": "accessibility.vrooli",
       "title": "All pages meet WCAG 2.1 AA standards",
       "description": "Lighthouse accessibility score of 0.90+ across all tested pages",
       "status": "in_progress",
@@ -180,7 +177,7 @@ Create `requirements/performance/lighthouse.json`:
       "validation": [
         {
           "type": "lighthouse",
-          "ref": ".lighthouse/config.json",
+          "ref": ".vrooli/lighthouse.json",
           "page_id": "home",
           "category": "accessibility",
           "threshold": 0.90,
@@ -349,7 +346,7 @@ In requirements files, use type `"lighthouse"`:
   "validation": [
     {
       "type": "lighthouse",
-      "ref": ".lighthouse/config.json",
+      "ref": ".vrooli/lighthouse.json",
       "page_id": "home",
       "category": "performance",
       "threshold": 0.85,
@@ -611,7 +608,7 @@ Check `coverage/phase-results/lighthouse.json` for:
 
 ### Custom Lighthouse Configuration
 
-Create `.lighthouse/custom-config.js`:
+Create `.vrooli/custom-config.js`:
 
 ```javascript
 module.exports = {
@@ -640,7 +637,7 @@ module.exports = {
 const { lighthouse } = require('./scripts/scenarios/testing/lighthouse/runner');
 
 async function runCustomAudit() {
-  const config = require('./scenarios/my-scenario/.lighthouse/config.json');
+  const config = require('./scenarios/my-scenario/.vrooli/lighthouse.json');
   const results = await lighthouse.runForConfig(config, 'http://localhost:3000');
   console.log(results);
 }

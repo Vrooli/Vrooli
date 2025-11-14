@@ -103,14 +103,20 @@ lighthouse::init_scenario() {
     return 1
   fi
 
+  scenario_dir="$(cd "$scenario_dir" && pwd)"
   local scenario_name=$(basename "$scenario_dir")
-  local lighthouse_dir="${scenario_dir}/.lighthouse"
-  local config_file="${lighthouse_dir}/config.json"
+  local repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+  local requirements_dir="${scenario_dir}/requirements"
+  local performance_req_path="${requirements_dir}/performance"
+  local lighthouse_docs="${repo_root}/docs/testing/guides/lighthouse-integration.md"
 
-  # Create .lighthouse directory
-  if [ ! -d "$lighthouse_dir" ]; then
-    mkdir -p "$lighthouse_dir"
-    echo "Created directory: $lighthouse_dir"
+  local config_dir="${scenario_dir}/.vrooli"
+  local config_file="${config_dir}/lighthouse.json"
+
+  # Create config directory
+  if [ ! -d "$config_dir" ]; then
+    mkdir -p "$config_dir"
+    echo "Created directory: $config_dir"
   fi
 
   # Create config template if it doesn't exist
@@ -143,9 +149,11 @@ lighthouse::init_scenario() {
   echo "✅ Lighthouse testing initialized for $scenario_name"
   echo ""
   echo "Next steps:"
-  echo "  1. Edit $config_file to configure pages and thresholds"
-  echo "  2. Add Lighthouse requirements to requirements/*.json"
-  echo "  3. Run tests: ./test/run-tests.sh --phases performance"
+  echo "  1. Edit $config_file to configure pages, routes, and thresholds"
+  echo "  2. Link each page to performance/accessibility requirements under ${performance_req_path}"
+  echo "     (ensure validation entries reference this config so requirement coverage stays synced)"
+  echo "  3. Review the workflow: ${lighthouse_docs}"
+  echo "  4. Run tests: ./test/run-tests.sh --phases performance"
   echo ""
 }
 
@@ -204,10 +212,55 @@ lighthouse::get_score_emoji() {
   fi
 }
 
-# Export functions if being sourced
+# Print CLI help
+lighthouse::print_help() {
+  cat <<'EOF'
+Usage: config.sh <command> [args]
+
+Commands:
+  help                          Show this help message
+  init <scenario-dir>           Scaffold .vrooli/lighthouse.json and artifact dirs
+  template <output> [name]      Write a template config to <output>
+  check-deps                    Validate Node.js/jq/Lighthouse prerequisites
+
+Typical flow:
+  scripts/scenarios/testing/lighthouse/config.sh init scenarios/my-scenario
+  # Edit scenarios/my-scenario/.vrooli/lighthouse.json
+  # Run ./test/phases/test-performance.sh inside the scenario
+EOF
+}
+
+# Export functions if being sourced, otherwise handle CLI invocation
 if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
   export -f lighthouse::create_template_config 2>/dev/null || true
   export -f lighthouse::init_scenario 2>/dev/null || true
   export -f lighthouse::check_dependencies 2>/dev/null || true
   export -f lighthouse::get_score_emoji 2>/dev/null || true
+  export -f lighthouse::print_help 2>/dev/null || true
+else
+  command="${1:-help}"
+  shift || true
+  case "$command" in
+    help|-h|--help)
+      lighthouse::print_help
+      ;;
+    init)
+      lighthouse::init_scenario "${1:-}"
+      ;;
+    template)
+      if [ -z "${1:-}" ]; then
+        echo "Usage: $0 template <output> [scenario-name]" >&2
+        exit 1
+      fi
+      lighthouse::create_template_config "$1" "${2:-my-scenario}"
+      ;;
+    check-deps)
+      lighthouse::check_dependencies
+      ;;
+    *)
+      echo "Unknown command: $command" >&2
+      lighthouse::print_help >&2
+      exit 1
+      ;;
+  esac
 fi

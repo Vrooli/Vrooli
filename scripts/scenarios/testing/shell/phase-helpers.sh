@@ -657,6 +657,10 @@ testing::phase::run_workflow_validations() {
             if [ "$validation_timeout" = "null" ]; then
                 validation_timeout=""
             fi
+            local validation_timeout_int=0
+            if [[ "$validation_timeout" =~ ^[0-9]+$ ]]; then
+                validation_timeout_int="$validation_timeout"
+            fi
 
             local validation_manage_runtime
             validation_manage_runtime=$(printf '%s\n' "$entry" | jq -r '.manage_runtime // ""')
@@ -717,6 +721,14 @@ testing::phase::run_workflow_validations() {
             fi
             if [[ "$validation_keep_workflow" =~ ^(true|1)$ ]]; then
                 args+=(--keep-workflow)
+            fi
+
+            if [ "$validation_timeout_int" -gt 90 ]; then
+                if command -v log::warning >/dev/null 2>&1; then
+                    log::warning "⚠️ [WF_TIMEOUT_HIGH] Workflow ${workflow_label} configured with timeout ${validation_timeout_int}s (>90s)"
+                else
+                    echo "⚠️ [WF_TIMEOUT_HIGH] Workflow ${workflow_label} configured with timeout ${validation_timeout_int}s (>90s)"
+                fi
             fi
 
             if testing::playbooks::run_workflow "${args[@]}"; then
