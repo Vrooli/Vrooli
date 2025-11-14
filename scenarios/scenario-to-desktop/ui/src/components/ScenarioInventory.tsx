@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { Monitor, Package, Search, Download, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Monitor, Package, Search, Download, CheckCircle, XCircle, Loader2, Zap } from "lucide-react";
 
 interface ScenarioDesktopStatus {
   name: string;
@@ -29,12 +30,132 @@ interface ScenariosResponse {
   };
 }
 
+const API_BASE = resolveApiBase({ appendSuffix: true });
+const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
+interface GenerateDesktopButtonProps {
+  scenarioName: string;
+}
+
+function GenerateDesktopButton({ scenarioName }: GenerateDesktopButtonProps) {
+  const queryClient = useQueryClient();
+  const [buildId, setBuildId] = useState<string | null>(null);
+
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(buildUrl('/desktop/generate/quick'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario_name: scenarioName,
+          template_type: 'basic'
+        })
+      });
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(error || 'Failed to generate desktop app');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setBuildId(data.build_id);
+      // Refresh scenarios list to show the new desktop version
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
+      }, 3000);
+    }
+  });
+
+  // Poll build status if we have a buildId
+  const { data: buildStatus } = useQuery({
+    queryKey: ['build-status', buildId],
+    queryFn: async () => {
+      if (!buildId) return null;
+      const res = await fetch(buildUrl(`/desktop/status/${buildId}`));
+      if (!res.ok) throw new Error('Failed to fetch build status');
+      return res.json();
+    },
+    enabled: !!buildId,
+    refetchInterval: (data) => {
+      // Stop polling if build is complete or failed
+      if (data?.status === 'ready' || data?.status === 'failed') {
+        return false;
+      }
+      return 2000; // Poll every 2 seconds while building
+    }
+  });
+
+  const isBuilding = generateMutation.isPending || buildStatus?.status === 'building';
+  const isComplete = buildStatus?.status === 'ready';
+  const isFailed = buildStatus?.status === 'failed' || generateMutation.isError;
+
+  if (isComplete) {
+    return (
+      <div className="ml-4 flex flex-col items-end gap-2">
+        <Badge variant="success" className="gap-1">
+          <CheckCircle className="h-3 w-3" />
+          Generated!
+        </Badge>
+        <p className="text-xs text-slate-400">
+          {buildStatus.output_path}
+        </p>
+      </div>
+    );
+  }
+
+  if (isFailed) {
+    return (
+      <div className="ml-4 flex flex-col items-end gap-2">
+        <Badge variant="destructive" className="gap-1">
+          <XCircle className="h-3 w-3" />
+          Failed
+        </Badge>
+        <p className="text-xs text-red-400">
+          {buildStatus?.error_log?.[0] || generateMutation.error?.message || 'Unknown error'}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setBuildId(null);
+            generateMutation.reset();
+          }}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (isBuilding) {
+    return (
+      <div className="ml-4 flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+        <span className="text-sm text-slate-400">Generating...</span>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="ml-4 gap-2"
+      onClick={() => generateMutation.mutate()}
+      disabled={isBuilding}
+    >
+      <Zap className="h-4 w-4" />
+      Generate Desktop
+    </Button>
+  );
 }
 
 export function ScenarioInventory() {
@@ -44,8 +165,7 @@ export function ScenarioInventory() {
   const { data, isLoading, error } = useQuery<ScenariosResponse>({
     queryKey: ['scenarios-desktop-status'],
     queryFn: async () => {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:19044';
-      const res = await fetch(`${apiUrl}/api/v1/scenarios/desktop-status`);
+      const res = await fetch(buildUrl('/scenarios/desktop-status'));
       if (!res.ok) throw new Error('Failed to fetch scenarios');
       return res.json();
     },
@@ -276,17 +396,7 @@ export function ScenarioInventory() {
                   </div>
 
                   {!scenario.has_desktop && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="ml-4"
-                      onClick={() => {
-                        // TODO: Open generator form with this scenario pre-filled
-                        console.log('Generate desktop for:', scenario.name);
-                      }}
-                    >
-                      Generate Desktop
-                    </Button>
+                    <GenerateDesktopButton scenarioName={scenario.name} />
                   )}
                 </div>
               </CardContent>

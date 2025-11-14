@@ -10,6 +10,7 @@ if (!UI_PORT && process.argv.includes("serve")) {
 }
 
 export default defineConfig({
+  base: "./",
   plugins: [react()],
   resolve: {
     alias: {

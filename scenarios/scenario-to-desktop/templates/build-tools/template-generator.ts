@@ -136,7 +136,10 @@ class DesktopTemplateGenerator {
             
             // Create assets directory and icons
             await this.setupAssets();
-            
+
+            // Copy UI dist files if scenario_dist_path is provided
+            await this.copyUIDistFiles();
+
             // Install dependencies
             await this.installDependencies();
             
@@ -564,7 +567,58 @@ SOFTWARE.`;
         // For now, return empty buffer (files will be empty but present)
         return Buffer.alloc(0);
     }
-    
+
+    private async copyUIDistFiles(): Promise<void> {
+        // Check if scenario_dist_path is provided and valid
+        const distPath = this.config.scenario_dist_path;
+        if (!distPath || distPath === '../ui/dist') {
+            console.log('ℹ️  No UI dist path provided - desktop app will load from external server');
+            return;
+        }
+
+        try {
+            // Validate source path exists
+            const stat = await fs.stat(distPath);
+            if (!stat.isDirectory()) {
+                console.log(`⚠️  UI dist path is not a directory: ${distPath}`);
+                return;
+            }
+
+            // Create renderer directory in output
+            const rendererDir = path.join(this.outputPath, 'renderer');
+            await fs.mkdir(rendererDir, { recursive: true });
+
+            // Copy all files from dist to renderer
+            console.log(`📋 Copying UI files from ${distPath}...`);
+            await this.copyDirectory(distPath, rendererDir);
+            console.log(`✅ Copied UI dist files to renderer/`);
+
+            // Update the template to reference the renderer directory
+            // This happens automatically via the SCENARIO_DIST_PATH variable substitution
+
+        } catch (error) {
+            console.log(`⚠️  Failed to copy UI dist files: ${error}`);
+            console.log('   Desktop app will attempt to load from external server instead');
+        }
+    }
+
+    private async copyDirectory(source: string, destination: string): Promise<void> {
+        await fs.mkdir(destination, { recursive: true });
+
+        const entries = await fs.readdir(source, { withFileTypes: true });
+
+        for (const entry of entries) {
+            const sourcePath = path.join(source, entry.name);
+            const destPath = path.join(destination, entry.name);
+
+            if (entry.isDirectory()) {
+                await this.copyDirectory(sourcePath, destPath);
+            } else {
+                await fs.copyFile(sourcePath, destPath);
+            }
+        }
+    }
+
     private async installDependencies(): Promise<void> {
         console.log('📦 Installing dependencies...');
         

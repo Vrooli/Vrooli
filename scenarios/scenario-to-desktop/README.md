@@ -66,13 +66,29 @@ npm install && npm start
 
 ### 3. Generate Your First Desktop App
 
+**🚀 NEW: One-Click Quick Generate** - The system now automatically detects scenario configuration!
+
 ```bash
-# Method 1: Using the Web UI (Recommended)
+# Method 1: Using the Web UI (Easiest - Recommended!)
 # 1. Open http://localhost:<UI_PORT>
 # 2. Go to "Scenario Inventory" tab
 # 3. Find your scenario and click "Generate Desktop"
+# 4. Watch real-time build progress
+# 5. Desktop app is auto-configured and ready!
 
-# Method 2: Using the CLI
+# The system automatically:
+# - Reads scenario's .vrooli/service.json for metadata
+# - Detects UI port, API port, display name, version
+# - Validates that ui/dist/ is built
+# - Copies UI files to electron wrapper
+# - Generates fully-configured desktop app
+
+# Method 2: Using the API directly
+curl -X POST http://localhost:<API_PORT>/api/v1/desktop/generate/quick \
+  -H "Content-Type: application/json" \
+  -d '{"scenario_name": "picker-wheel", "template_type": "basic"}'
+
+# Method 3: Using the CLI (manual config)
 scenario-to-desktop generate picker-wheel
 
 # The desktop wrapper will be created at:
@@ -260,12 +276,53 @@ GET /api/v1/scenarios/desktop-status     # NEW: All scenarios and desktop status
 
 #### Desktop Operations
 ```http
-POST /api/v1/desktop/generate      # Generate desktop app
+POST /api/v1/desktop/generate      # Generate desktop app (manual config)
+POST /api/v1/desktop/generate/quick # 🆕 Quick generate with auto-detection
 GET  /api/v1/desktop/status/{id}   # Build status
 POST /api/v1/desktop/build         # Build project
 POST /api/v1/desktop/test          # Test functionality
 POST /api/v1/desktop/package       # Package for distribution
 ```
+
+#### Quick Generate (NEW!)
+Auto-detects scenario configuration and generates desktop app:
+
+```http
+POST /api/v1/desktop/generate/quick
+
+Request:
+{
+  "scenario_name": "picker-wheel",
+  "template_type": "basic"  // optional, defaults to "basic"
+}
+
+Response:
+{
+  "build_id": "uuid",
+  "status": "building",
+  "scenario_name": "picker-wheel",
+  "desktop_path": ".../scenarios/picker-wheel/platforms/electron",
+  "detected_metadata": {
+    "name": "picker-wheel",
+    "display_name": "Picker Wheel",
+    "description": "Random selection wheel application",
+    "version": "1.0.0",
+    "has_ui": true,
+    "ui_dist_path": ".../scenarios/picker-wheel/ui/dist",
+    "api_port": 15000,
+    "ui_port": 35000
+  },
+  "status_url": "/api/v1/desktop/status/{build_id}"
+}
+```
+
+**Auto-Detection Features:**
+- Reads `.vrooli/service.json` for metadata
+- Reads `ui/package.json` for additional info
+- Validates `ui/dist/` exists and is built
+- Detects if scenario has API
+- Sets sensible defaults for all config
+- Copies UI files automatically
 
 #### Scenario Discovery (NEW)
 ```http

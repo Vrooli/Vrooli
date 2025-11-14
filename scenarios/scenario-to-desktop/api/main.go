@@ -147,6 +147,7 @@ func (s *Server) setupRoutes() {
 
 	// Desktop application operations
 	s.router.HandleFunc("/api/v1/desktop/generate", s.generateDesktopHandler).Methods("POST")
+	s.router.HandleFunc("/api/v1/desktop/generate/quick", s.quickGenerateDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/status/{build_id}", s.getBuildStatusHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/desktop/build", s.buildDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/test", s.testDesktopHandler).Methods("POST")
@@ -365,6 +366,120 @@ func (s *Server) getTemplateHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(templateConfig)
+}
+
+// Quick generate desktop handler - auto-detects scenario configuration
+func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		ScenarioName string `json:"scenario_name"`
+		TemplateType string `json:"template_type"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	// Validate inputs
+	if request.ScenarioName == "" {
+		http.Error(w, "scenario_name is required", http.StatusBadRequest)
+		return
+	}
+	if request.TemplateType == "" {
+		request.TemplateType = "basic" // Default to basic template
+	}
+
+	// Validate template type
+	validTemplates := []string{"basic", "advanced", "multi_window", "kiosk"}
+	if !contains(validTemplates, request.TemplateType) {
+		http.Error(w, fmt.Sprintf("invalid template_type: %s", request.TemplateType), http.StatusBadRequest)
+		return
+	}
+
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		currentDir, _ := os.Getwd()
+		vrooliRoot = filepath.Join(currentDir, "../../..")
+	}
+
+	// Create analyzer
+	analyzer := NewScenarioAnalyzer(vrooliRoot)
+
+	// Analyze scenario
+	metadata, err := analyzer.AnalyzeScenario(request.ScenarioName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to analyze scenario: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// Validate scenario is ready for desktop generation
+	if !metadata.HasUI {
+		http.Error(w, fmt.Sprintf("Scenario '%s' does not have a built UI. Build it first with: cd scenarios/%s/ui && npm run build",
+			request.ScenarioName, request.ScenarioName), http.StatusBadRequest)
+		return
+	}
+
+	// Create desktop config from metadata
+	config, err := analyzer.CreateDesktopConfigFromMetadata(metadata, request.TemplateType)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create config: %s", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.logger.Info("quick generate request",
+		"scenario", request.ScenarioName,
+		"template", request.TemplateType,
+		"has_ui", metadata.HasUI,
+		"display_name", metadata.DisplayName)
+
+	// Generate build ID
+	buildID := uuid.New().String()
+
+	// Create build status
+	buildStatus := &BuildStatus{
+		BuildID:      buildID,
+		ScenarioName: config.AppName,
+		Status:       "building",
+		Framework:    config.Framework,
+		TemplateType: config.TemplateType,
+		Platforms:    config.Platforms,
+		OutputPath:   filepath.Join(metadata.ScenarioPath, "platforms", "electron"),
+		CreatedAt:    time.Now(),
+		BuildLog:     []string{},
+		ErrorLog:     []string{},
+		Artifacts:    make(map[string]string),
+		Metadata: map[string]interface{}{
+			"auto_detected":  true,
+			"ui_dist_path":   metadata.UIDistPath,
+			"has_api":        config.ServerType == "external",
+			"category":       metadata.Category,
+			"source_version": metadata.Version,
+		},
+	}
+
+	// Store build status
+	s.buildMutex.Lock()
+	s.buildStatuses[buildID] = buildStatus
+	s.buildMutex.Unlock()
+
+	// Start build process asynchronously
+	go s.performDesktopGeneration(buildID, config)
+
+	// Return immediate response
+	response := map[string]interface{}{
+		"build_id":             buildID,
+		"status":               "building",
+		"scenario_name":        config.AppName,
+		"desktop_path":         buildStatus.OutputPath,
+		"detected_metadata":    metadata,
+		"install_instructions": "Run 'npm install && npm run dev' in the output directory",
+		"test_command":         "npm run dev",
+		"status_url":           fmt.Sprintf("/api/v1/desktop/status/%s", buildID),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
 }
 
 // Generate desktop application handler

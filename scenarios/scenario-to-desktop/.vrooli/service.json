@@ -176,8 +176,8 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/scenario-to-desktop.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop.*vite\" 2>/dev/null || true",
-          "description": "Stop Vite UI process"
+          "run": "pkill -f \"scenarios/scenario-to-desktop/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop/ui/server.js\" 2>/dev/null || true",
+          "description": "Stop UI server process"
         }
       ]
     },

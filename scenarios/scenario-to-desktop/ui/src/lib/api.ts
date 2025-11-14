@@ -1,6 +1,7 @@
-import { resolveApiBase } from "@vrooli/api-base";
+import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
+const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
 
 export interface HealthResponse {
   status: string;
@@ -65,7 +66,7 @@ export interface BuildStatus {
 }
 
 export async function fetchHealth(): Promise<HealthResponse> {
-  const response = await fetch(`${API_BASE}/api/v1/health`);
+  const response = await fetch(buildUrl("/health"));
   if (!response.ok) {
     throw new Error(`Health check failed: ${response.statusText}`);
   }
@@ -73,7 +74,7 @@ export async function fetchHealth(): Promise<HealthResponse> {
 }
 
 export async function fetchSystemStatus(): Promise<SystemStatus> {
-  const response = await fetch(`${API_BASE}/api/v1/status`);
+  const response = await fetch(buildUrl("/status"));
   if (!response.ok) {
     throw new Error(`Failed to fetch system status: ${response.statusText}`);
   }
@@ -81,7 +82,7 @@ export async function fetchSystemStatus(): Promise<SystemStatus> {
 }
 
 export async function fetchTemplates(): Promise<{ templates: TemplateInfo[] }> {
-  const response = await fetch(`${API_BASE}/api/v1/templates`);
+  const response = await fetch(buildUrl("/templates"));
   if (!response.ok) {
     throw new Error(`Failed to fetch templates: ${response.statusText}`);
   }
@@ -94,7 +95,7 @@ export async function generateDesktop(config: DesktopConfig): Promise<{
   desktop_path: string;
   install_instructions: string;
 }> {
-  const response = await fetch(`${API_BASE}/api/v1/desktop/generate`, {
+  const response = await fetch(buildUrl("/desktop/generate"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -111,7 +112,7 @@ export async function generateDesktop(config: DesktopConfig): Promise<{
 }
 
 export async function fetchBuildStatus(buildId: string): Promise<BuildStatus> {
-  const response = await fetch(`${API_BASE}/api/v1/desktop/status/${buildId}`);
+  const response = await fetch(buildUrl(`/desktop/status/${buildId}`));
   if (!response.ok) {
     throw new Error(`Failed to fetch build status: ${response.statusText}`);
   }
