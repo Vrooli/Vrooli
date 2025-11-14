@@ -60,6 +60,7 @@ export interface CatalogEntry {
   has_prd: boolean
   prd_path: string
   has_draft: boolean
+  has_requirements: boolean
   description: string
 }
 

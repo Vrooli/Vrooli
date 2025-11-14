@@ -4,17 +4,8 @@ import axios from 'axios'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Search, Book, Code, Filter, Download, Zap, Menu, X } from 'lucide-react'
+import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 import './App.css'
-
-const DEFAULT_API_BASE_URL = (import.meta?.env?.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) || '/api'
-
-const trimTrailingSlash = (value) => {
-  if (!value) {
-    return value
-  }
-
-  return value.endsWith('/') ? value.replace(/\/+$/, '') : value
-}
 
 const normalizeBasePath = (basePath) => {
   if (!basePath || basePath === '/') {
@@ -40,33 +31,8 @@ const detectAppBasename = () => {
   return normalizeBasePath(import.meta?.env?.BASE_URL || '/')
 }
 
-const detectApiBaseUrl = () => {
-  const envOverride = (import.meta?.env?.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.trim())
-    || (import.meta?.env?.VITE_API_URL && import.meta.env.VITE_API_URL.trim())
-    || (import.meta?.env?.VITE_API_BASE_PATH && import.meta.env.VITE_API_BASE_PATH.trim())
-
-  if (envOverride) {
-    return trimTrailingSlash(envOverride)
-  }
-
-  if (typeof window === 'undefined') {
-    return trimTrailingSlash(DEFAULT_API_BASE_URL)
-  }
-
-  if (window.__SCALABLE_APP_COOKBOOK_API_BASE_URL) {
-    return trimTrailingSlash(window.__SCALABLE_APP_COOKBOOK_API_BASE_URL)
-  }
-
-  const origin = window.location.origin
-  const basename = detectAppBasename()
-  const base = basename && basename !== '/' ? `${origin}${basename}` : origin
-  const resolved = `${trimTrailingSlash(base)}/api`
-
-  window.__SCALABLE_APP_COOKBOOK_API_BASE_URL = resolved
-  return resolved
-}
-
-const API_BASE_URL = detectApiBaseUrl()
+const API_BASE_URL = resolveApiBase({ appendSuffix: true })
+const buildApiPath = (path) => buildApiUrl(path, { baseUrl: API_BASE_URL })
 
 const toArray = (value) => {
   if (Array.isArray(value)) {
@@ -130,8 +96,8 @@ function CookbookLayout({ children }) {
     async function fetchData() {
       try {
         const [chaptersRes, statsRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/v1/patterns/chapters`),
-          axios.get(`${API_BASE_URL}/v1/patterns/stats`)
+          axios.get(buildApiPath('/patterns/chapters')),
+          axios.get(buildApiPath('/patterns/stats')),
         ])
         setChapters(chaptersRes.data)
         setStats(statsRes.data)
@@ -558,8 +524,8 @@ function PatternPage() {
     async function fetchPattern() {
       try {
         const [patternRes, recipesRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/v1/patterns/${patternId}`),
-          axios.get(`${API_BASE_URL}/v1/patterns/${patternId}/recipes`)
+          axios.get(buildApiPath(`/patterns/${patternId}`)),
+          axios.get(buildApiPath(`/patterns/${patternId}/recipes`)),
         ])
         setPattern(patternRes.data)
         setRecipes(recipesRes.data.recipes || [])
@@ -667,7 +633,7 @@ function RecipeModal({ recipe, onClose }) {
   useEffect(() => {
     async function fetchImplementations() {
       try {
-        const response = await axios.get(`${API_BASE_URL}/v1/implementations?recipe_id=${recipe.id}`)
+        const response = await axios.get(buildApiPath(`/implementations?recipe_id=${recipe.id}`))
         setImplementations(response.data || [])
         if (response.data?.length > 0) {
           setSelectedLanguage(response.data[0].language)
@@ -802,7 +768,7 @@ function SearchPage() {
         if (value) params.set(key, value)
       })
       
-      const response = await axios.get(`${API_BASE_URL}/v1/patterns/search?${params}`)
+      const response = await axios.get(buildApiPath(`/patterns/search?${params}`))
       setPatterns(response.data.patterns || [])
     } catch (err) {
       console.error('Search failed:', err)
@@ -909,7 +875,7 @@ function ChaptersPage() {
   useEffect(() => {
     async function fetchChapters() {
       try {
-        const response = await axios.get(`${API_BASE_URL}/v1/patterns/chapters`)
+        const response = await axios.get(buildApiPath('/patterns/chapters'))
         setChapters(response.data || [])
       } catch (err) {
         console.error('Failed to fetch chapters:', err)

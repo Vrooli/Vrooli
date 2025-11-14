@@ -461,7 +461,7 @@ func generateTrackingCode() string {
 }
 
 // Setup routes
-func setupRoutes() *mux.Router {
+func setupRoutes() http.Handler {
 	router := mux.NewRouter()
 
 	// API routes
@@ -482,7 +482,7 @@ func setupRoutes() *mux.Router {
 		AllowCredentials: true,
 	})
 
-	return c.Handler(router).(*mux.Router)
+	return c.Handler(router)
 }
 
 // Main function
@@ -512,12 +512,12 @@ func main() {
 	defer db.Close()
 
 	// Setup routes
-	router := setupRoutes()
+	handler := setupRoutes()
 
 	// Start server
 	server := &http.Server{
 		Addr:         ":" + config.Port,
-		Handler:      router,
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

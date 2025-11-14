@@ -21,12 +21,13 @@ import (
 
 // CatalogEntry represents a scenario or resource with its PRD status
 type CatalogEntry struct {
-	Type        string `json:"type"`        // "scenario" or "resource"
-	Name        string `json:"name"`        // Entity name
-	HasPRD      bool   `json:"has_prd"`     // Whether PRD.md exists
-	PRDPath     string `json:"prd_path"`    // Absolute path to PRD.md
-	HasDraft    bool   `json:"has_draft"`   // Whether a draft exists
-	Description string `json:"description"` // Brief description (if available)
+	Type            string `json:"type"`             // "scenario" or "resource"
+	Name            string `json:"name"`             // Entity name
+	HasPRD          bool   `json:"has_prd"`          // Whether PRD.md exists
+	PRDPath         string `json:"prd_path"`         // Absolute path to PRD.md
+	HasDraft        bool   `json:"has_draft"`        // Whether a draft exists
+	HasRequirements bool   `json:"has_requirements"` // Whether requirements/index.json exists
+	Description     string `json:"description"`      // Brief description (if available)
 }
 
 // CatalogResponse represents the catalog API response
@@ -127,6 +128,7 @@ func enumerateEntities(baseDir string, entityType string) ([]CatalogEntry, error
 
 		name := dirEntry.Name()
 		prdPath := filepath.Join(baseDir, name, "PRD.md")
+		requirementsIndexPath := filepath.Join(baseDir, name, "requirements", "index.json")
 
 		// Check if PRD.md exists
 		hasPRD := false
@@ -134,11 +136,18 @@ func enumerateEntities(baseDir string, entityType string) ([]CatalogEntry, error
 			hasPRD = true
 		}
 
+		// Check if requirements/index.json exists
+		hasRequirements := false
+		if _, err := os.Stat(requirementsIndexPath); err == nil {
+			hasRequirements = true
+		}
+
 		entry := CatalogEntry{
-			Type:    entityType,
-			Name:    name,
-			HasPRD:  hasPRD,
-			PRDPath: prdPath,
+			Type:            entityType,
+			Name:            name,
+			HasPRD:          hasPRD,
+			PRDPath:         prdPath,
+			HasRequirements: hasRequirements,
 		}
 
 		// Extract brief description from PRD if available

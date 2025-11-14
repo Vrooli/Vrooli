@@ -7,6 +7,8 @@ import { DraftCardGrid, DraftEditorPane } from '../components/drafts'
 import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card'
+import { TopNav } from '../components/ui/top-nav'
+import { Breadcrumbs } from '../components/ui/breadcrumbs'
 import { useConfirm } from '../utils/confirmDialog'
 import { decodeRouteSegment } from '../utils/formatters'
 
@@ -155,23 +157,24 @@ export default function Drafts() {
   ) : null
 
   if (isDetailRoute) {
+    const breadcrumbItems = [
+      { label: 'Catalog', to: '/' },
+      { label: 'Drafts', to: '/drafts' },
+      { label: selectedDraft?.entity_name || 'Draft' },
+    ]
+
     return (
       <div className="app-container space-y-6">
+        <TopNav />
+        <Breadcrumbs items={breadcrumbItems} />
         {detailContent}
-        <div className="flex flex-wrap gap-4 text-sm">
-          <Link to="/drafts" className="text-primary hover:underline">
-            ← Back to Drafts
-          </Link>
-          <Link to="/" className="text-primary hover:underline">
-            ← Back to Catalog
-          </Link>
-        </div>
       </div>
     )
   }
 
   return (
     <div className="app-container space-y-8">
+      <TopNav />
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
         <div className="space-y-2">
           <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Draft workspace</span>

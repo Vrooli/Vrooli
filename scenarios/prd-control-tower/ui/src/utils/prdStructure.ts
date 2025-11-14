@@ -1,88 +1,39 @@
+// PRD template structure validation aligned with scripts/scenarios/templates/react-vite/PRD.md
+// This validation focuses on CORE required sections while making subsections optional/recommended
+
 const REQUIRED_SECTIONS = [
   // Document structure
   { token: '# Product Requirements Document (PRD)', label: 'Document title', criticality: 'required' },
 
-  // Capability definition
-  { token: '## 🎯 Capability Definition', label: 'Capability definition section', criticality: 'required' },
-  { token: '### Core Capability', label: 'Core capability subsection', criticality: 'required' },
-  { token: '### Intelligence Amplification', label: 'Intelligence amplification subsection', criticality: 'required' },
-  { token: '### Recursive Value', label: 'Recursive value subsection', criticality: 'required' },
-
-  // Success metrics
-  { token: '## 📊 Success Metrics', label: 'Success metrics section', criticality: 'required' },
-  { token: '### Functional Requirements', label: 'Functional requirements subsection', criticality: 'required' },
-  { token: '- **Must Have (P0)**', label: 'P0 requirements', criticality: 'required' },
-  { token: '- **Should Have (P1)**', label: 'P1 requirements', criticality: 'recommended' },
-  { token: '### Performance Criteria', label: 'Performance criteria subsection', criticality: 'required' },
-  { token: '### Quality Gates', label: 'Quality gates subsection', criticality: 'required' },
-
-  // Technical architecture
-  { token: '## 🏗️ Technical Architecture', label: 'Technical architecture section', criticality: 'required' },
-  { token: '### Resource Dependencies', label: 'Resource dependencies subsection', criticality: 'required' },
-  { token: '### Resource Integration Standards', label: 'Resource integration standards subsection', criticality: 'required' },
-  { token: '### Data Models', label: 'Data models subsection', criticality: 'recommended' },
-  { token: '### API Contract', label: 'API contract subsection', criticality: 'recommended' },
-  { token: '### Event Interface', label: 'Event interface subsection', criticality: 'recommended' },
-
-  // CLI contract
-  { token: '## 🖥️ CLI Interface Contract', label: 'CLI contract section', criticality: 'required' },
-  { token: '### Command Structure', label: 'CLI command structure', criticality: 'required' },
-  { token: '### CLI-API Parity Requirements', label: 'CLI-API parity requirements', criticality: 'required' },
-  { token: '### Implementation Standards', label: 'CLI implementation standards', criticality: 'recommended' },
-
-  // Integration requirements
-  { token: '## 🔄 Integration Requirements', label: 'Integration requirements section', criticality: 'required' },
-  { token: '### Upstream Dependencies', label: 'Upstream dependencies subsection', criticality: 'required' },
-  { token: '### Downstream Enablement', label: 'Downstream enablement subsection', criticality: 'required' },
-  { token: '### Cross-Scenario Interactions', label: 'Cross-scenario interactions subsection', criticality: 'recommended' },
-
-  // Style and branding
-  { token: '## 🎨 Style and Branding Requirements', label: 'Style and branding section', criticality: 'recommended' },
-  { token: '### UI/UX Style Guidelines', label: 'UI/UX style guidelines subsection', criticality: 'recommended' },
-  { token: '### Target Audience Alignment', label: 'Target audience alignment subsection', criticality: 'recommended' },
-  { token: '### Brand Consistency Rules', label: 'Brand consistency rules subsection', criticality: 'recommended' },
-
-  // Value proposition
-  { token: '## 💰 Value Proposition', label: 'Value proposition section', criticality: 'required' },
-  { token: '### Business Value', label: 'Business value subsection', criticality: 'required' },
-  { token: '### Technical Value', label: 'Technical value subsection', criticality: 'recommended' },
-
-  // Evolution path
-  { token: '## 🧬 Evolution Path', label: 'Evolution path section', criticality: 'required' },
-  { token: '### Version 1.0 (Current)', label: 'Version 1.0 subsection', criticality: 'required' },
-  { token: '### Version 2.0 (Planned)', label: 'Version 2.0 subsection', criticality: 'recommended' },
-  { token: '### Long-term Vision', label: 'Long-term vision subsection', criticality: 'required' },
-
-  // Lifecycle integration
-  { token: '## 🔄 Scenario Lifecycle Integration', label: 'Lifecycle integration section', criticality: 'required' },
-  { token: '### Direct Scenario Deployment', label: 'Direct scenario deployment subsection', criticality: 'required' },
-  { token: '### Capability Discovery', label: 'Capability discovery subsection', criticality: 'required' },
-  { token: '### Version Management', label: 'Version management subsection', criticality: 'required' },
-
-  // Risk mitigation
-  { token: '## 🚨 Risk Mitigation', label: 'Risk mitigation section', criticality: 'required' },
-  { token: '### Technical Risks', label: 'Technical risks subsection', criticality: 'required' },
-  { token: '### Operational Risks', label: 'Operational risks subsection', criticality: 'required' },
-
-  // Validation criteria
-  { token: '## ✅ Validation Criteria', label: 'Validation criteria section', criticality: 'required' },
-  { token: '### Declarative Test Specification', label: 'Declarative test specification subsection', criticality: 'required' },
-  { token: '### Test Execution Gates', label: 'Test execution gates subsection', criticality: 'recommended' },
-  { token: '### Performance Validation', label: 'Performance validation subsection', criticality: 'recommended' },
-  { token: '### Integration Validation', label: 'Integration validation subsection', criticality: 'recommended' },
-  { token: '### Capability Verification', label: 'Capability verification subsection', criticality: 'required' },
-
-  // Implementation notes
-  { token: '## 📝 Implementation Notes', label: 'Implementation notes section', criticality: 'required' },
-  { token: '### Design Decisions', label: 'Design decisions subsection', criticality: 'required' },
-  { token: '### Known Limitations', label: 'Known limitations subsection', criticality: 'required' },
-  { token: '### Security Considerations', label: 'Security considerations subsection', criticality: 'required' },
-
-  // References
+  // Core sections (required)
+  { token: '## 🎯 Capability Definition', label: 'Capability Definition section', criticality: 'required' },
+  { token: '## 📊 Success Metrics', label: 'Success Metrics section', criticality: 'required' },
+  { token: '## 🏗️ Technical Architecture', label: 'Technical Architecture section', criticality: 'required' },
+  { token: '## 🖥️ CLI Interface Contract', label: 'CLI Interface Contract section', criticality: 'required' },
+  { token: '## 🔄 Integration Requirements', label: 'Integration Requirements section', criticality: 'required' },
+  { token: '## 💰 Value Proposition', label: 'Value Proposition section', criticality: 'required' },
+  { token: '## 🧬 Evolution Path', label: 'Evolution Path section', criticality: 'required' },
+  { token: '## 🔄 Scenario Lifecycle Integration', label: 'Scenario Lifecycle Integration section', criticality: 'required' },
+  { token: '## 🚨 Risk Mitigation', label: 'Risk Mitigation section', criticality: 'required' },
+  { token: '## ✅ Validation Criteria', label: 'Validation Criteria section', criticality: 'required' },
+  { token: '## 📝 Implementation Notes', label: 'Implementation Notes section', criticality: 'required' },
   { token: '## 🔗 References', label: 'References section', criticality: 'required' },
-  { token: '### Documentation', label: 'Documentation subsection', criticality: 'required' },
-  { token: '### Related PRDs', label: 'Related PRDs subsection', criticality: 'recommended' },
-  { token: '### External Resources', label: 'External resources subsection', criticality: 'recommended' },
+
+  // Important subsections (recommended but not required)
+  { token: '### Core Capability', label: 'Core Capability subsection', criticality: 'recommended' },
+  { token: '### Intelligence Amplification', label: 'Intelligence Amplification subsection', criticality: 'recommended' },
+  { token: '### Recursive Value', label: 'Recursive Value subsection', criticality: 'recommended' },
+  { token: '### Functional Requirements', label: 'Functional Requirements subsection', criticality: 'recommended' },
+  { token: '- **Must Have (P0)**', label: 'P0 requirements checklist', criticality: 'recommended' },
+  { token: '### Performance Criteria', label: 'Performance Criteria subsection', criticality: 'recommended' },
+  { token: '### Quality Gates', label: 'Quality Gates subsection', criticality: 'recommended' },
+  { token: '### Resource Dependencies', label: 'Resource Dependencies subsection', criticality: 'recommended' },
+  { token: '### Command Structure', label: 'CLI Command Structure subsection', criticality: 'recommended' },
+  { token: '### Business Value', label: 'Business Value subsection', criticality: 'recommended' },
+  { token: '### Version 1.0 (Current)', label: 'Version 1.0 subsection', criticality: 'recommended' },
+  { token: '### Technical Risks', label: 'Technical Risks subsection', criticality: 'recommended' },
+  { token: '### Design Decisions', label: 'Design Decisions subsection', criticality: 'recommended' },
+  { token: '### Documentation', label: 'Documentation references subsection', criticality: 'recommended' },
 ] as const
 
 export interface SectionStatus {

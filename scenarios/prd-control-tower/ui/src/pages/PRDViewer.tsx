@@ -189,6 +189,18 @@ export default function PRDViewer() {
           onRunDiagnostics={handleRunDiagnostics}
           entityLabel={prd.name}
         />
+
+        <div className="flex flex-wrap gap-4 mt-6 text-sm">
+          <Link to={`/requirements/${type}/${name}`} className="text-primary hover:underline">
+            → View Requirements
+          </Link>
+          <Link to={`/targets/${type}/${name}`} className="text-primary hover:underline">
+            → View Operational Targets
+          </Link>
+          <Link to="/" className="text-primary hover:underline">
+            ← Back to Catalog
+          </Link>
+        </div>
       </div>
     </div>
   )

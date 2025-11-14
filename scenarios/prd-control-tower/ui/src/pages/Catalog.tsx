@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input'
 import { Separator } from '../components/ui/separator'
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { TopNav } from '../components/ui/top-nav'
 import { buildApiUrl } from '../utils/apiClient'
 import { usePrepareDraft } from '../utils/useDraft'
 import type { CatalogEntry, CatalogResponse } from '../types'
@@ -158,6 +159,7 @@ export default function Catalog() {
 
   return (
     <div className="app-container">
+      <TopNav />
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-3">

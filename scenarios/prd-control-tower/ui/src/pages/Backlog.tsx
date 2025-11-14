@@ -16,6 +16,7 @@ import { useBacklogData } from '../hooks/useBacklogData'
 import { BacklogIntakeCard, BacklogPreviewPanel, BacklogEntriesTable } from '../components/backlog'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
+import { TopNav } from '../components/ui/top-nav'
 
 const entityOptions: Array<{ value: EntityType; label: string }> = [
   { value: 'scenario', label: 'Scenario' },
@@ -178,6 +179,7 @@ export default function Backlog() {
 
   return (
     <div className="app-container space-y-8">
+      <TopNav />
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">

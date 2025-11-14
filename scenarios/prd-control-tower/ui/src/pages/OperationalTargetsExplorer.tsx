@@ -7,6 +7,8 @@ import { Input } from '../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
+import { TopNav } from '../components/ui/top-nav'
+import { Breadcrumbs } from '../components/ui/breadcrumbs'
 
 export default function OperationalTargetsExplorer() {
   const { entityType, entityName } = useParams<{ entityType?: string; entityName?: string }>()
@@ -71,8 +73,16 @@ export default function OperationalTargetsExplorer() {
 
   const categories = ['all', ...Object.keys(targetsByCategory).sort()]
 
+  const breadcrumbItems = [
+    { label: 'Catalog', to: '/' },
+    { label: `${entityType}/${entityName}`, to: `/prd/${entityType}/${entityName}` },
+    { label: 'Operational Targets' },
+  ]
+
   return (
     <div className="app-container space-y-6">
+      <TopNav />
+      <Breadcrumbs items={breadcrumbItems} />
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
         <div className="space-y-2">
           <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Operational Targets</span>

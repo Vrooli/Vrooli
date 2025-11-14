@@ -1,26 +1,31 @@
-const express = require('express');
-const path = require('path');
+const path = require('path')
+const { version } = require('./package.json')
 
-const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT || 3000;
-const API_PORT = process.env.API_PORT;
+const uiPortEnv = process.env.UI_PORT || process.env.PORT || '3000'
+const apiPortEnv = process.env.API_PORT
+const uiPort = Number(uiPortEnv) || 3000
 
-// Serve static files from dist directory
-app.use(express.static(path.join(__dirname, 'dist')));
+async function start() {
+  const { createScenarioServer } = await import('@vrooli/api-base/server')
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'healthy', service: 'scalable-app-cookbook-ui' });
-});
+  const app = createScenarioServer({
+    uiPort: uiPortEnv,
+    apiPort: apiPortEnv,
+    distDir: path.join(__dirname, 'dist'),
+    serviceName: 'scalable-app-cookbook',
+    version,
+    corsOrigins: '*',
+  })
 
-// Catch all route - serve index.html for SPA routing
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-app.listen(PORT, () => {
-    console.log(`Scalable App Cookbook UI running on http://localhost:${PORT}`);
-    if (API_PORT) {
-        console.log(`API available at http://localhost:${API_PORT}`);
+  app.listen(uiPort, () => {
+    console.log(`Scalable App Cookbook UI running on http://localhost:${uiPort}`)
+    if (apiPortEnv) {
+      console.log(`Proxying API requests to port ${apiPortEnv}`)
     }
-});
+  })
+}
+
+start().catch((error) => {
+  console.error('Failed to start Scalable App Cookbook UI server:', error)
+  process.exit(1)
+})

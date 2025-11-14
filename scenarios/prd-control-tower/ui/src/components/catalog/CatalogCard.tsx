@@ -79,6 +79,11 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
               <Link to={prdPath}>View PRD</Link>
             </Button>
           )}
+          {entry.has_requirements && (
+            <Button variant="ghost" size="sm" asChild>
+              <Link to={`/requirements/${entry.type}/${encodedName}`}>Requirements</Link>
+            </Button>
+          )}
           {entry.has_prd && (
             <Button
               variant="ghost"
