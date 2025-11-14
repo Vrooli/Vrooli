@@ -14,6 +14,8 @@ scenario-to-desktop is a **permanent intelligence capability** that enables any 
 - **⚡ Multiple Frameworks**: Electron (primary), Tauri, Neutralino support
 - **🎨 Template Variety**: Basic, Advanced, Multi-Window, and Kiosk mode applications
 - **🛠️ Complete Toolchain**: Generation, building, testing, packaging, and distribution
+- **📊 Scenario Inventory**: NEW - View all scenarios and their desktop deployment status
+- **📁 Standardized Structure**: NEW - All desktop apps go to `platforms/electron/` for consistency
 
 ## 🏗️ Architecture
 
@@ -51,31 +53,57 @@ cd ../ui
 npm install && npm start
 ```
 
-### 2. Generate Your First Desktop App
+### 2. Discover Scenarios
 
 ```bash
-# Generate desktop app for picker-wheel scenario
+# View all scenarios and their desktop status
+# Open the web UI at http://localhost:<UI_PORT>
+# Click "Scenario Inventory" tab to see:
+# - Which scenarios have desktop versions
+# - Which are built and ready to distribute
+# - One-click generation for scenarios without desktop support
+```
+
+### 3. Generate Your First Desktop App
+
+```bash
+# Method 1: Using the Web UI (Recommended)
+# 1. Open http://localhost:<UI_PORT>
+# 2. Go to "Scenario Inventory" tab
+# 3. Find your scenario and click "Generate Desktop"
+
+# Method 2: Using the CLI
 scenario-to-desktop generate picker-wheel
 
-# Advanced generation with options
+# The desktop wrapper will be created at:
+# scenarios/picker-wheel/platforms/electron/
+
+# Advanced generation with custom options
 scenario-to-desktop generate picker-wheel \
   --framework electron \
   --template advanced \
-  --platforms win,mac,linux \
-  --output ./picker-wheel-desktop
+  --platforms win,mac,linux
 ```
 
-### 3. Build and Test
+### 4. Build and Test
 
 ```bash
-# Navigate to generated app
-cd ./picker-wheel-desktop
+# First, build your scenario's UI
+cd scenarios/picker-wheel/ui
+npm run build
 
-# Development mode
+# Navigate to the generated desktop wrapper
+cd ../platforms/electron
+
+# Install dependencies
+npm install
+
+# Development mode (with hot reload and DevTools)
 npm run dev
 
 # Build for distribution
-npm run dist
+npm run dist              # Current platform
+npm run dist:all          # All platforms
 ```
 
 ## 💼 Use Cases & Examples
@@ -189,24 +217,82 @@ Professional deployment options:
 - **Enterprise**: MSI/PKG packages with silent install
 - **Auto-updates**: Seamless version management
 
+## 📁 Standardized File Structure
+
+All desktop applications are generated to a consistent location:
+
+```
+scenarios/<scenario-name>/
+├── api/                    # Go API server
+├── cli/                    # Command-line interface
+├── ui/                     # React web application
+│   └── dist/              # Built web app (required for desktop)
+└── platforms/              # Deployment targets
+    └── electron/           # Desktop wrapper (generated)
+        ├── main.ts        # Electron main process
+        ├── preload.ts     # Secure IPC bridge
+        ├── splash.html    # Splash screen
+        ├── package.json   # Desktop dependencies
+        ├── tsconfig.json  # TypeScript config
+        ├── assets/        # Platform icons
+        ├── dist/          # Compiled TypeScript
+        └── dist-electron/ # Built packages
+```
+
+**Why this structure?**
+- ✅ Predictable location for all desktop versions
+- ✅ Easy to check "does this scenario have desktop?"
+- ✅ Won't clutter scenario root when adding iOS/Android later
+- ✅ Separates deployment concerns from source code
+- ✅ CI/CD can easily find and build desktop versions
+
 ## 🌐 API Reference
 
 ### REST Endpoints
 
 #### System Status
 ```http
-GET /api/v1/health          # Health check
-GET /api/v1/status          # System information
-GET /api/v1/templates       # Available templates
+GET /api/v1/health                       # Health check
+GET /api/v1/status                       # System information
+GET /api/v1/templates                    # Available templates
+GET /api/v1/scenarios/desktop-status     # NEW: All scenarios and desktop status
 ```
 
 #### Desktop Operations
 ```http
 POST /api/v1/desktop/generate      # Generate desktop app
 GET  /api/v1/desktop/status/{id}   # Build status
-POST /api/v1/desktop/build         # Build project  
+POST /api/v1/desktop/build         # Build project
 POST /api/v1/desktop/test          # Test functionality
 POST /api/v1/desktop/package       # Package for distribution
+```
+
+#### Scenario Discovery (NEW)
+```http
+GET /api/v1/scenarios/desktop-status
+
+Response:
+{
+  "scenarios": [
+    {
+      "name": "picker-wheel",
+      "display_name": "picker-wheel-desktop",
+      "has_desktop": true,
+      "desktop_path": ".../platforms/electron",
+      "version": "1.0.0",
+      "platforms": ["win", "mac", "linux"],
+      "built": true,
+      "package_size": 47185920,
+      "last_modified": "2025-11-14 15:30:00"
+    }
+  ],
+  "stats": {
+    "total": 130,
+    "with_desktop": 5,
+    "built": 3,
+    "web_only": 125
+  }
+}
 ```
 
 ### Example Generation Request
@@ -220,7 +306,7 @@ POST /api/v1/desktop/package       # Package for distribution
   "framework": "electron",
   "template_type": "basic",
   "platforms": ["win", "mac", "linux"],
-  "output_path": "./desktop-app",
+  "output_path": "",
   "features": {
     "splash": true,
     "autoUpdater": true,
@@ -228,6 +314,8 @@ POST /api/v1/desktop/package       # Package for distribution
   }
 }
 ```
+
+**Note**: Leave `output_path` empty to use the standard location `scenarios/<app_name>/platforms/electron/`. This is the recommended approach for consistency.
 
 ## 💻 CLI Commands
 

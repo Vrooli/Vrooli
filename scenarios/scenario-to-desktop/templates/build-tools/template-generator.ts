@@ -85,16 +85,34 @@ class DesktopTemplateGenerator {
         // The path.resolve() ensures this becomes an absolute path without traversal.
         this.templateBasePath = path.resolve(__dirname, '../../');
 
-        // Validate and sanitize output path to prevent path traversal from user input
-        const resolvedPath = path.resolve(config.output_path);
-        const normalizedPath = path.normalize(resolvedPath);
+        // Determine output path - default to standard platforms/electron/ location
+        let outputPath: string;
 
-        // Ensure the path doesn't contain traversal patterns after normalization
-        if (normalizedPath.includes('..')) {
-            throw new Error('Invalid output path: path traversal detected');
+        if (!config.output_path || config.output_path === '') {
+            // Use standard location: <vrooli-root>/scenarios/<scenario-name>/platforms/electron/
+            const vrooliRoot = process.env.VROOLI_ROOT || path.resolve(__dirname, '../../../../../');
+            outputPath = path.join(
+                vrooliRoot,
+                'scenarios',
+                config.app_name,
+                'platforms',
+                'electron'
+            );
+            console.log(`📁 Using standard location: ${outputPath}`);
+        } else {
+            // Validate and sanitize user-provided output path to prevent path traversal
+            const resolvedPath = path.resolve(config.output_path);
+            const normalizedPath = path.normalize(resolvedPath);
+
+            // Ensure the path doesn't contain traversal patterns after normalization
+            if (normalizedPath.includes('..')) {
+                throw new Error('Invalid output path: path traversal detected');
+            }
+
+            outputPath = normalizedPath;
         }
 
-        this.outputPath = normalizedPath;
+        this.outputPath = outputPath;
     }
     
     async generate(): Promise<void> {

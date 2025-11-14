@@ -1,0 +1,66 @@
+{
+  "module": "scenarios/reference-implementations",
+  "description": "Reference scenario implementations demonstrating desktop generation",
+  "requirements": [
+    {
+      "id": "STD-INTEGRATION-PICKER-WHEEL",
+      "title": "Picker-wheel desktop generation and validation",
+      "description": "Picker-wheel serves as the canonical reference implementation for basic desktop generation",
+      "validation": {
+        "type": "e2e",
+        "test_file": "test/e2e/test-picker-wheel-desktop.sh",
+        "steps": [
+          "Generate desktop app for picker-wheel using basic template",
+          "Verify platforms/electron/ directory structure",
+          "Validate package.json has correct dependencies",
+          "Install dependencies with npm install",
+          "Build TypeScript with npm run build",
+          "Verify compiled files in dist/"
+        ],
+        "assertion": "Picker-wheel desktop app generates, builds, and has correct structure"
+      },
+      "status": "in_progress",
+      "criticality": "P0",
+      "notes": "platforms/electron/ exists for picker-wheel but generation flow needs E2E validation"
+    },
+    {
+      "id": "STD-INTEGRATION-SYSTEM-MONITOR",
+      "title": "System-monitor advanced desktop generation",
+      "description": "System-monitor demonstrates advanced template with system tray and background operation",
+      "validation": {
+        "type": "e2e",
+        "test_file": "test/e2e/test-system-monitor-desktop.sh",
+        "assertion": "System-monitor desktop app uses advanced template features"
+      },
+      "status": "not_started",
+      "criticality": "P1",
+      "notes": "Future reference implementation for advanced features"
+    },
+    {
+      "id": "STD-INTEGRATION-API-CONNECTIVITY",
+      "title": "Desktop apps connect to scenario APIs",
+      "description": "Generated desktop apps successfully connect to and communicate with scenario backend APIs",
+      "validation": {
+        "type": "integration",
+        "test_file": "test/integration/test-api-connectivity.sh",
+        "assertion": "Desktop app can make requests to scenario API and receive responses"
+      },
+      "status": "in_progress",
+      "criticality": "P0",
+      "notes": "Templates have API integration patterns; needs runtime validation"
+    },
+    {
+      "id": "STD-INTEGRATION-UI-LOADING",
+      "title": "Desktop apps load React UI from scenario ui/dist/",
+      "description": "Generated desktop apps correctly load and display the scenario's built React UI",
+      "validation": {
+        "type": "integration",
+        "test_file": "test/integration/test-ui-loading.sh",
+        "assertion": "Electron BrowserWindow displays scenario UI correctly"
+      },
+      "status": "in_progress",
+      "criticality": "P0",
+      "notes": "Templates have UI loading logic; needs runtime validation with real scenario"
+    }
+  ]
+}

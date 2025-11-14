@@ -220,7 +220,7 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "data"
+            "type": "seed"
           }
         ]
       }

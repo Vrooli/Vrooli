@@ -310,7 +310,11 @@ func TestGenerateDesktopHandler(t *testing.T) {
 
 		env.Server.generateDesktopHandler(w, req)
 
-		assertErrorResponse(t, w, http.StatusBadRequest, "output_path")
+		// output_path is now optional - defaults to scenarios/<app_name>/platforms/electron/
+		// So this should succeed, not fail
+		if w.Code != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d", w.Code)
+		}
 	})
 
 	t.Run("InvalidFramework", func(t *testing.T) {
@@ -907,8 +911,9 @@ func TestValidateDesktopConfig(t *testing.T) {
 		}
 
 		err := server.validateDesktopConfig(config)
-		if err == nil || !strings.Contains(err.Error(), "output_path") {
-			t.Error("Expected error for missing output_path")
+		// output_path is now optional - defaults to standard location
+		if err != nil {
+			t.Errorf("Expected no error for missing output_path (defaults to standard location), got: %v", err)
 		}
 	})
 

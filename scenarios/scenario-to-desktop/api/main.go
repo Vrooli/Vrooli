@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -150,6 +151,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/desktop/build", s.buildDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/test", s.testDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/package", s.packageDesktopHandler).Methods("POST")
+
+	// Scenario discovery
+	s.router.HandleFunc("/api/v1/scenarios/desktop-status", s.getScenarioDesktopStatusHandler).Methods("GET")
 
 	// Webhook endpoints
 	s.router.HandleFunc("/api/v1/desktop/webhook/build-complete", s.buildCompleteWebhookHandler).Methods("POST")
@@ -384,6 +388,27 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Set default output path to standard location if not provided
+	if config.OutputPath == "" {
+		vrooliRoot := os.Getenv("VROOLI_ROOT")
+		if vrooliRoot == "" {
+			// Fallback to calculating from current directory
+			// This assumes API is in <vrooli-root>/scenarios/scenario-to-desktop/api/
+			currentDir, _ := os.Getwd()
+			vrooliRoot = filepath.Join(currentDir, "../../..")
+		}
+		config.OutputPath = filepath.Join(
+			vrooliRoot,
+			"scenarios",
+			config.AppName,
+			"platforms",
+			"electron",
+		)
+		s.logger.Info("using standard output path",
+			"scenario", config.AppName,
+			"path", config.OutputPath)
+	}
+
 	// Generate build ID
 	buildID := uuid.New().String()
 
@@ -587,9 +612,7 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 	if config.TemplateType == "" {
 		return fmt.Errorf("template_type is required")
 	}
-	if config.OutputPath == "" {
-		return fmt.Errorf("output_path is required")
-	}
+	// Note: output_path is optional - defaults to standard location if empty
 
 	// Validate framework
 	validFrameworks := []string{"electron", "tauri", "neutralino"}
@@ -772,6 +795,148 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// Get scenario desktop status handler - discovers all scenarios and their desktop deployment status
+func (s *Server) getScenarioDesktopStatusHandler(w http.ResponseWriter, r *http.Request) {
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		// Fallback to calculating from current directory
+		currentDir, _ := os.Getwd()
+		vrooliRoot = filepath.Join(currentDir, "../../..")
+	}
+
+	scenariosPath := filepath.Join(vrooliRoot, "scenarios")
+	entries, err := os.ReadDir(scenariosPath)
+	if err != nil {
+		s.logger.Error("failed to read scenarios directory",
+			"path", scenariosPath,
+			"error", err)
+		http.Error(w, "Failed to read scenarios directory", http.StatusInternalServerError)
+		return
+	}
+
+	type ScenarioDesktopStatus struct {
+		Name            string   `json:"name"`
+		DisplayName     string   `json:"display_name,omitempty"`
+		HasDesktop      bool     `json:"has_desktop"`
+		DesktopPath     string   `json:"desktop_path,omitempty"`
+		Version         string   `json:"version,omitempty"`
+		Platforms       []string `json:"platforms,omitempty"`
+		Built           bool     `json:"built,omitempty"`
+		DistPath        string   `json:"dist_path,omitempty"`
+		LastModified    string   `json:"last_modified,omitempty"`
+		PackageSize     int64    `json:"package_size,omitempty"`
+	}
+
+	var scenarios []ScenarioDesktopStatus
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		scenarioName := entry.Name()
+		electronPath := filepath.Join(scenariosPath, scenarioName, "platforms", "electron")
+
+		status := ScenarioDesktopStatus{
+			Name: scenarioName,
+		}
+
+		// Check if platforms/electron exists
+		if electronInfo, err := os.Stat(electronPath); err == nil && electronInfo.IsDir() {
+			status.HasDesktop = true
+			status.DesktopPath = electronPath
+
+			// Read package.json for details
+			pkgPath := filepath.Join(electronPath, "package.json")
+			if data, err := os.ReadFile(pkgPath); err == nil {
+				var pkg map[string]interface{}
+				if json.Unmarshal(data, &pkg) == nil {
+					if name, ok := pkg["name"].(string); ok {
+						status.DisplayName = name
+					}
+					if version, ok := pkg["version"].(string); ok {
+						status.Version = version
+					}
+				}
+			}
+
+			// Check if dist-electron exists (built packages)
+			distPath := filepath.Join(electronPath, "dist-electron")
+			if distInfo, err := os.Stat(distPath); err == nil && distInfo.IsDir() {
+				status.Built = true
+				status.DistPath = distPath
+				status.LastModified = distInfo.ModTime().Format("2006-01-02 15:04:05")
+
+				// Calculate total size of dist directory
+				var totalSize int64
+				filepath.Walk(distPath, func(_ string, info os.FileInfo, err error) error {
+					if err != nil {
+						return nil
+					}
+					if !info.IsDir() {
+						totalSize += info.Size()
+					}
+					return nil
+				})
+				status.PackageSize = totalSize
+
+				// Try to detect which platforms were built by looking at dist files
+				distEntries, _ := os.ReadDir(distPath)
+				for _, de := range distEntries {
+					name := de.Name()
+					if strings.Contains(name, ".exe") || strings.Contains(name, "win") {
+						status.Platforms = append(status.Platforms, "win")
+					} else if strings.Contains(name, ".dmg") || strings.Contains(name, "mac") {
+						status.Platforms = append(status.Platforms, "mac")
+					} else if strings.Contains(name, ".AppImage") || strings.Contains(name, "linux") {
+						status.Platforms = append(status.Platforms, "linux")
+					}
+				}
+				// Remove duplicates
+				status.Platforms = uniqueStrings(status.Platforms)
+			}
+		}
+
+		scenarios = append(scenarios, status)
+	}
+
+	// Count statistics
+	withDesktop := 0
+	withBuilt := 0
+	for _, s := range scenarios {
+		if s.HasDesktop {
+			withDesktop++
+		}
+		if s.Built {
+			withBuilt++
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"scenarios": scenarios,
+		"stats": map[string]int{
+			"total":        len(scenarios),
+			"with_desktop": withDesktop,
+			"built":        withBuilt,
+			"web_only":     len(scenarios) - withDesktop,
+		},
+	})
+}
+
+// Helper function to remove duplicate strings
+func uniqueStrings(slice []string) []string {
+	seen := make(map[string]bool)
+	result := []string{}
+	for _, val := range slice {
+		if !seen[val] {
+			seen[val] = true
+			result = append(result, val)
+		}
+	}
+	return result
 }
 
 // Middleware

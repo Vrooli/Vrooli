@@ -1,0 +1,129 @@
+{
+  "_comment": "This template should be merged into a scenario's .vrooli/service.json after generating desktop support",
+  "_usage": "Add these lifecycle events to enable desktop building via 'vrooli scenario build-desktop <scenario-name>'",
+
+  "lifecycle": {
+    "build-desktop": {
+      "description": "Build desktop application for this scenario",
+      "condition": {
+        "checks": [
+          {
+            "type": "directory",
+            "path": "platforms/electron",
+            "description": "Desktop wrapper must exist (run scenario-to-desktop generate first)"
+          },
+          {
+            "type": "file",
+            "path": "ui/dist/index.html",
+            "description": "UI must be built first (run 'vrooli scenario build' or 'cd ui && npm run build')"
+          },
+          {
+            "type": "file",
+            "path": "platforms/electron/package.json",
+            "description": "Desktop package.json must exist"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-desktop-deps",
+          "run": "cd platforms/electron && npm install",
+          "description": "Install Electron and desktop dependencies"
+        },
+        {
+          "name": "build-desktop-ts",
+          "run": "cd platforms/electron && npm run build",
+          "description": "Compile TypeScript (main.ts, preload.ts)"
+        },
+        {
+          "name": "package-desktop",
+          "run": "cd platforms/electron && npm run dist",
+          "description": "Package desktop application for distribution"
+        },
+        {
+          "name": "show-artifacts",
+          "run": "echo '✅ Desktop build complete!' && echo 'Artifacts: platforms/electron/dist-electron/' && ls -lh platforms/electron/dist-electron/ | grep -E '\\.(exe|dmg|AppImage|deb)$' || echo 'No packaged artifacts found (dev build only)'",
+          "description": "Display build artifacts"
+        }
+      ]
+    },
+
+    "dev-desktop": {
+      "description": "Run desktop application in development mode",
+      "condition": {
+        "checks": [
+          {
+            "type": "directory",
+            "path": "platforms/electron"
+          },
+          {
+            "type": "file",
+            "path": "ui/dist/index.html",
+            "description": "UI must be built first"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "start-desktop-dev",
+          "run": "cd platforms/electron && npm install && npm run dev",
+          "description": "Start Electron in development mode with DevTools",
+          "background": false
+        }
+      ]
+    },
+
+    "clean-desktop": {
+      "description": "Clean desktop build artifacts",
+      "steps": [
+        {
+          "name": "clean-dist",
+          "run": "rm -rf platforms/electron/dist platforms/electron/dist-electron",
+          "description": "Remove compiled and packaged artifacts"
+        },
+        {
+          "name": "clean-deps",
+          "run": "rm -rf platforms/electron/node_modules",
+          "description": "Remove desktop dependencies"
+        }
+      ]
+    }
+  },
+
+  "_makefile_additions": {
+    "_comment": "Add these targets to the scenario's Makefile",
+    "targets": [
+      {
+        "name": "build-desktop",
+        "command": "vrooli scenario build-desktop $(SCENARIO_NAME)",
+        "description": "Build desktop application"
+      },
+      {
+        "name": "dev-desktop",
+        "command": "vrooli scenario dev-desktop $(SCENARIO_NAME)",
+        "description": "Run desktop app in development mode"
+      },
+      {
+        "name": "clean-desktop",
+        "command": "vrooli scenario clean-desktop $(SCENARIO_NAME)",
+        "description": "Clean desktop build artifacts"
+      }
+    ]
+  },
+
+  "_gitignore_additions": [
+    "# Desktop build artifacts",
+    "platforms/electron/dist/",
+    "platforms/electron/dist-electron/",
+    "platforms/electron/node_modules/",
+    "platforms/electron/*.log",
+    "platforms/electron/.DS_Store"
+  ],
+
+  "_notes": {
+    "ui_build_requirement": "The UI must be built before packaging desktop app. The desktop wrapper loads from ui/dist/",
+    "platform_specific_builds": "Use 'cd platforms/electron && npm run dist:win' for Windows-specific builds",
+    "code_signing": "For production releases, configure code signing certificates in platforms/electron/package.json",
+    "auto_updates": "Configure auto-updates by setting the 'publish' section in platforms/electron/package.json build config"
+  }
+}

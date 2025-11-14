@@ -1,0 +1,97 @@
+{
+  "module": "templates/electron",
+  "description": "Electron template generation and validation requirements",
+  "requirements": [
+    {
+      "id": "STD-TEMPLATE-BASIC",
+      "title": "Basic Electron template generates correctly",
+      "description": "Validates that basic template generates with correct structure: main.ts, preload.ts, package.json, splash.html, tsconfig.json, and assets/",
+      "validation": {
+        "type": "e2e",
+        "test_file": "test/e2e/test-template-generation.sh",
+        "assertion": "All template files present and valid"
+      },
+      "status": "complete",
+      "validated_at": "2025-11-14",
+      "evidence": "API generation endpoint functional, templates/ directory has all files"
+    },
+    {
+      "id": "STD-TEMPLATE-ADVANCED",
+      "title": "Advanced Electron template with system tray and shortcuts",
+      "description": "Validates advanced template includes system tray, global shortcuts, and background operation features",
+      "validation": {
+        "type": "e2e",
+        "test_file": "test/e2e/test-template-generation.sh",
+        "assertion": "Advanced features present in generated main.ts"
+      },
+      "status": "complete",
+      "validated_at": "2025-11-14",
+      "evidence": "templates/advanced/advanced-app.json exists, main.ts has tray/shortcuts code"
+    },
+    {
+      "id": "STD-TEMPLATE-MULTI-WINDOW",
+      "title": "Multi-window template with window management",
+      "description": "Validates multi-window template supports multiple BrowserWindow instances and inter-window communication",
+      "validation": {
+        "type": "e2e",
+        "test_file": "test/e2e/test-template-generation.sh",
+        "assertion": "Multi-window features present in template"
+      },
+      "status": "complete",
+      "validated_at": "2025-11-14",
+      "evidence": "templates/advanced/multi-window.json exists"
+    },
+    {
+      "id": "STD-TEMPLATE-KIOSK",
+      "title": "Kiosk template with fullscreen and security hardening",
+      "description": "Validates kiosk template includes fullscreen mode, security hardening, and auto-restart capabilities",
+      "validation": {
+        "type": "e2e",
+        "test_file": "test/e2e/test-template-generation.sh",
+        "assertion": "Kiosk features present in template"
+      },
+      "status": "complete",
+      "validated_at": "2025-11-14",
+      "evidence": "templates/advanced/kiosk-mode.json exists"
+    },
+    {
+      "id": "STD-FRAMEWORK-ELECTRON",
+      "title": "Electron framework fully supported",
+      "description": "Electron framework is the primary and fully-supported desktop framework",
+      "validation": {
+        "type": "integration",
+        "test_file": "test/phases/test-business.sh",
+        "assertion": "All Electron templates available via API"
+      },
+      "status": "complete",
+      "validated_at": "2025-11-14",
+      "evidence": "All 4 Electron templates functional (business test 5/5 passing)"
+    },
+    {
+      "id": "STD-FRAMEWORK-TAURI",
+      "title": "Tauri framework support (Rust-based)",
+      "description": "Tauri provides smaller binaries and better performance using Rust and native webviews",
+      "validation": {
+        "type": "manual",
+        "test_file": "TBD",
+        "assertion": "Tauri templates generate and build successfully"
+      },
+      "status": "not_started",
+      "criticality": "P2",
+      "notes": "Marked as future enhancement. Requires Rust toolchain and different template structure."
+    },
+    {
+      "id": "STD-FRAMEWORK-NEUTRALINO",
+      "title": "Neutralino framework support (lightweight alternative)",
+      "description": "Neutralino provides ultra-lightweight desktop apps using native OS APIs",
+      "validation": {
+        "type": "manual",
+        "test_file": "TBD",
+        "assertion": "Neutralino templates generate and build successfully"
+      },
+      "status": "not_started",
+      "criticality": "P2",
+      "notes": "Marked as future enhancement. Less common framework, lower priority."
+    }
+  ]
+}
