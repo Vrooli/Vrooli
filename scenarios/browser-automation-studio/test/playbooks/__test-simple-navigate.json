@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "description": "Simple navigation test using direct URL instead of scenario",
+    "version": 1
+  },
+  "nodes": [
+    {
+      "id": "navigate-google",
+      "type": "navigate",
+      "position": { "x": 0, "y": 0 },
+      "data": {
+        "label": "Navigate to Google",
+        "destinationType": "url",
+        "url": "https://www.google.com",
+        "waitUntil": "networkidle2",
+        "timeoutMs": 30000,
+        "waitForMs": 3000
+      }
+    }
+  ],
+  "edges": []
+}

@@ -67,7 +67,7 @@
       },
       "data": {
         "label": "Project modal visible",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "exists",
         "timeoutMs": 10000
       }
@@ -110,7 +110,7 @@
       },
       "data": {
         "label": "Modal remains open",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "exists",
         "timeoutMs": 3000,
         "failureMessage": "Modal should stay open when validation fails"
@@ -170,7 +170,7 @@
       },
       "data": {
         "label": "Modal remains open",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "exists",
         "timeoutMs": 3000
       }

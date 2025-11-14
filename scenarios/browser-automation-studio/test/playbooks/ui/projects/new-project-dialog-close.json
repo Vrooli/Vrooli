@@ -67,7 +67,7 @@
       },
       "data": {
         "label": "Modal is visible",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "exists",
         "timeoutMs": 10000
       }
@@ -95,7 +95,7 @@
       },
       "data": {
         "label": "Modal closed (X button)",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "Modal should close when X button is clicked"
@@ -124,7 +124,7 @@
       },
       "data": {
         "label": "Modal is visible",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "exists",
         "timeoutMs": 10000
       }
@@ -152,7 +152,7 @@
       },
       "data": {
         "label": "Modal closed (Cancel button)",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "Modal should close when Cancel button is clicked"
@@ -181,7 +181,7 @@
       },
       "data": {
         "label": "Modal is visible",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "exists",
         "timeoutMs": 10000
       }
@@ -208,7 +208,7 @@
       },
       "data": {
         "label": "Modal closed (Escape key)",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "Modal should close when Escape key is pressed"

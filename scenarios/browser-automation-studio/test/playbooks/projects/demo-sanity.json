@@ -26,30 +26,59 @@
         "scenarioPath": "/",
         "waitUntil": "networkidle0",
         "timeoutMs": 60000,
-        "waitForMs": 2500
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "wait-app-ready",
+      "type": "wait",
+      "position": {
+        "x": 140,
+        "y": -80
+      },
+      "data": {
+        "label": "Wait for React app to hydrate",
+        "waitType": "element",
+        "selector": "[data-testid=\"app-ready\"]",
+        "timeoutMs": 30000,
+        "waitForMs": 500
       }
     },
     {
       "id": "wait-for-demo-project",
       "type": "wait",
       "position": {
-        "x": 220,
+        "x": 280,
         "y": -120
       },
       "data": {
         "label": "Wait for demo project card",
         "waitType": "element",
-        "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 20000,
         "waitForMs": 1500
+      }
+    },
+    {
+      "id": "debug-screenshot-1",
+      "type": "screenshot",
+      "position": {
+        "x": 420,
+        "y": -140
+      },
+      "data": {
+        "label": "Debug: Before assertion",
+        "fullPage": true,
+        "captureDomSnapshot": true,
+        "waitForMs": 500
       }
     },
     {
       "id": "capture-dashboard",
       "type": "screenshot",
       "position": {
-        "x": 360,
-        "y": -120
+        "x": 420,
+        "y": -60
       },
       "data": {
         "label": "Capture dashboard",
@@ -67,7 +96,7 @@
       },
       "data": {
         "label": "Demo project card exists",
-        "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Demo Browser Automations project card should be visible on dashboard"
@@ -82,8 +111,8 @@
       },
       "data": {
         "label": "Open demo project",
-        "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
-        "waitForSelector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
+        "waitForSelector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 10000,
         "waitForMs": 500
       }
@@ -118,14 +147,26 @@
   ],
   "edges": [
     {
-      "id": "edge-nav-wait",
+      "id": "edge-nav-app-ready",
       "source": "navigate-dashboard",
+      "target": "wait-app-ready",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-app-ready-wait-project",
+      "source": "wait-app-ready",
       "target": "wait-for-demo-project",
       "type": "smoothstep"
     },
     {
-      "id": "edge-wait-capture",
+      "id": "edge-wait-debug",
       "source": "wait-for-demo-project",
+      "target": "debug-screenshot-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-debug-capture",
+      "source": "debug-screenshot-1",
       "target": "capture-dashboard",
       "type": "smoothstep"
     },

@@ -1,16 +1,16 @@
 {
   "_metadata": {
     "description": "Lighthouse performance and accessibility requirements for browser-automation-studio",
-    "module": "performance.lighthouse",
+    "module": "performance.vrooli",
     "last_validated_at": "2025-11-05T00:00:00Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-10T18:00:16.716Z"
+    "last_synced_at": "2025-11-14T02:32:35.231Z"
   },
   "requirements": [
     {
       "id": "BAS-PERF-DASHBOARD-LOAD",
-      "category": "performance.lighthouse",
+      "category": "performance.vrooli",
       "prd_ref": "Performance Requirements > Dashboard Load Time",
       "title": "Dashboard loads with acceptable performance score",
       "description": "Home page (dashboard) must achieve Lighthouse performance score of 0.75+ on desktop. This ensures users experience fast initial load and time-to-interactive for the primary entry point.",
@@ -19,7 +19,7 @@
       "validation": [
         {
           "type": "lighthouse",
-          "ref": ".lighthouse/config.json",
+          "ref": ".vrooli/lighthouse.json",
           "page_id": "dashboard",
           "category": "performance",
           "threshold": 0.75,
@@ -31,7 +31,7 @@
     },
     {
       "id": "BAS-A11Y-DASHBOARD",
-      "category": "accessibility.lighthouse",
+      "category": "accessibility.vrooli",
       "prd_ref": "Accessibility Requirements > WCAG 2.1 AA Compliance",
       "title": "Dashboard meets WCAG 2.1 AA accessibility standards",
       "description": "Dashboard page achieves Lighthouse accessibility score of 0.90+, ensuring keyboard navigation, screen reader support, color contrast, and ARIA labeling meet WCAG 2.1 AA standards.",
@@ -40,7 +40,7 @@
       "validation": [
         {
           "type": "lighthouse",
-          "ref": ".lighthouse/config.json",
+          "ref": ".vrooli/lighthouse.json",
           "page_id": "dashboard",
           "category": "accessibility",
           "threshold": 0.9,
@@ -52,28 +52,28 @@
     },
     {
       "id": "BAS-PERF-WORKFLOW-INTERACTIVE",
-      "category": "performance.lighthouse",
+      "category": "performance.vrooli",
       "prd_ref": "Performance Requirements > Workflow Builder Interactivity",
       "title": "Workflow builder becomes interactive within acceptable timeframe",
       "description": "Workflow builder page achieves Lighthouse performance score of 0.65+. Lower threshold accounts for heavy Monaco editor and React Flow canvas initialization. Focus on Time to Interactive (TTI) and Total Blocking Time (TBT).",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "validation": [
         {
           "type": "lighthouse",
-          "ref": ".lighthouse/config.json",
+          "ref": ".vrooli/lighthouse.json",
           "page_id": "workflow-builder",
           "category": "performance",
           "threshold": 0.65,
           "phase": "performance",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Lower threshold due to canvas + Monaco editor. Focus on interactivity metrics."
         }
       ]
     },
     {
       "id": "BAS-PERF-PROJECTS-PAGE",
-      "category": "performance.lighthouse",
+      "category": "performance.vrooli",
       "prd_ref": "Performance Requirements > Project Management Performance",
       "title": "Projects page loads efficiently",
       "description": "Projects listing/management page achieves Lighthouse performance score of 0.75+, ensuring fast navigation between projects.",
@@ -82,7 +82,7 @@
       "validation": [
         {
           "type": "lighthouse",
-          "ref": ".lighthouse/config.json",
+          "ref": ".vrooli/lighthouse.json",
           "page_id": "project-settings",
           "category": "performance",
           "threshold": 0.75,
@@ -93,7 +93,7 @@
     },
     {
       "id": "BAS-A11Y-MOBILE",
-      "category": "accessibility.lighthouse",
+      "category": "accessibility.vrooli",
       "prd_ref": "Accessibility Requirements > Mobile Accessibility",
       "title": "Mobile UI meets accessibility standards",
       "description": "Mobile viewport maintains Lighthouse accessibility score of 0.90+, ensuring touch targets, viewport configuration, and responsive design maintain accessibility on mobile devices.",
@@ -102,7 +102,7 @@
       "validation": [
         {
           "type": "lighthouse",
-          "ref": ".lighthouse/config.json",
+          "ref": ".vrooli/lighthouse.json",
           "page_id": "mobile-dashboard",
           "category": "accessibility",
           "threshold": 0.9,

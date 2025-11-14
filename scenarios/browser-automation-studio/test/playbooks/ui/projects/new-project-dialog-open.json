@@ -82,7 +82,7 @@
       },
       "data": {
         "label": "Project modal appears",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "exists",
         "timeoutMs": 12000,
         "failureMessage": "Project modal should be visible after clicking the New Project button"

@@ -78,6 +78,12 @@ var (
 		Message: "Required field is missing",
 	}
 
+	ErrInvalidWorkflowPayload = &APIError{
+		Status:  http.StatusBadRequest,
+		Code:    "INVALID_WORKFLOW_PAYLOAD",
+		Message: "Workflow definition payload could not be parsed",
+	}
+
 	// 404 Not Found errors
 	ErrWorkflowNotFound = &APIError{
 		Status:  http.StatusNotFound,

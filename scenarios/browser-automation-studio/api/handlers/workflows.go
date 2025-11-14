@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 	"github.com/vrooli/browser-automation-studio/services"
 )
 
@@ -499,9 +503,40 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 // It is particularly useful for testing scenarios where workflow pollution should be avoided.
 func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	var req ExecuteAdhocWorkflowRequest
-	if err := decodeJSONBody(w, r, &req); err != nil {
-		h.log.WithError(err).Error("Failed to decode adhoc workflow request")
-		h.respondError(w, ErrInvalidRequest)
+	rawBody, err := readLimitedBody(w, r, httpjson.MaxBodyBytes)
+	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			h.respondError(w, ErrRequestTooLarge)
+			return
+		}
+		h.log.WithError(err).Error("Failed to read adhoc workflow request body")
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "failed to read request body"}))
+		return
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(rawBody))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		h.logInvalidWorkflowPayload(err, rawBody)
+		h.respondError(w, ErrInvalidWorkflowPayload.WithDetails(map[string]string{
+			"json_error": err.Error(),
+		}))
+		return
+	}
+
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		h.logInvalidWorkflowPayload(err, rawBody)
+		h.respondError(w, ErrInvalidWorkflowPayload.WithDetails(map[string]string{
+			"json_error": "request body must contain a single JSON object",
+		}))
+		return
+	}
+
+	if len(bytes.TrimSpace(rawBody)) == 0 {
+		h.respondError(w, ErrInvalidWorkflowPayload.WithDetails(map[string]string{
+			"json_error": "request body is empty",
+		}))
 		return
 	}
 
@@ -569,6 +604,36 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondSuccess(w, http.StatusOK, response)
+}
+
+const workflowPayloadPreviewBytes = 512
+
+func readLimitedBody(w http.ResponseWriter, r *http.Request, maxBytes int64) ([]byte, error) {
+	reader := http.MaxBytesReader(w, r.Body, maxBytes)
+	defer reader.Close()
+	return io.ReadAll(reader)
+}
+
+func (h *Handler) logInvalidWorkflowPayload(err error, body []byte) {
+	preview := buildPayloadPreview(body)
+	entry := h.log.WithError(err).
+		WithField("payload_bytes", len(body))
+	if preview != "" {
+		entry = entry.WithField("payload_preview", preview)
+	}
+	entry.Warn("Failed to decode adhoc workflow request payload")
+}
+
+func buildPayloadPreview(body []byte) string {
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 {
+		return ""
+	}
+	if len(trimmed) > workflowPayloadPreviewBytes {
+		trimmed = trimmed[:workflowPayloadPreviewBytes]
+		return string(trimmed) + "…"
+	}
+	return string(trimmed)
 }
 
 func (h *Handler) waitForExecutionCompletion(ctx context.Context, execution *database.Execution) (*database.Execution, error) {

@@ -776,6 +776,11 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
             ...state.currentExecution,
             progress,
             currentStep: currentStep ?? state.currentExecution.currentStep,
+            lastHeartbeat: {
+              step: currentStep ?? state.currentExecution.lastHeartbeat?.step,
+              elapsedMs: 0,
+              timestamp: new Date(),
+            },
           }
         : state.currentExecution,
     }));

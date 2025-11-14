@@ -310,7 +310,8 @@ testing::playbooks::run_workflow() {
     start_time=$(date +%s)
     local execution_summary
     local wait_rc=0
-    if execution_summary=$(_testing_playbooks__wait_for_execution "$api_base" "$execution_id" 360); then
+    local workflow_timeout=${TESTING_PLAYBOOKS_WORKFLOW_TIMEOUT:-90}
+    if execution_summary=$(_testing_playbooks__wait_for_execution "$api_base" "$execution_id" "$workflow_timeout"); then
         wait_rc=0
     else
         wait_rc=$?
@@ -328,7 +329,7 @@ testing::playbooks::run_workflow() {
     echo "❌ Workflow ${workflow_name} failed after ${duration}s" >&2
     printf '%s\n' "$execution_summary" >&2
 
-    if [ $wait_rc -eq 2 ] && [ "$duration" -ge 90 ]; then
+    if [ $wait_rc -eq 2 ] && [ "$duration" -ge "$workflow_timeout" ]; then
         echo "⚠️ [WF_RUNTIME_SLOW] Workflow ${workflow_name} timed out after ${duration}s (execution stalled)" >&2
     fi
 

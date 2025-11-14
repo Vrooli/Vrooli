@@ -7,7 +7,7 @@
   "version": "1.0.0",
   "phases": {
     "integration": {
-      "timeout": "600s"
+      "timeout": "540s"
     }
   },
   "structure": {

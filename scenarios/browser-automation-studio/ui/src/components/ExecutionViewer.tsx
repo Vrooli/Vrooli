@@ -810,6 +810,8 @@ function ActiveExecutionViewer({
     );
   const [selectedScreenshot, setSelectedScreenshot] =
     useState<Screenshot | null>(null);
+  const [hasAutoOpenedScreenshots, setHasAutoOpenedScreenshots] =
+    useState(false);
   const [, setHeartbeatTick] = useState(0);
   const [isStopping, setIsStopping] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
@@ -1660,14 +1662,35 @@ function ActiveExecutionViewer({
     }
   }, [execution.timeline, hasAutoSwitchedToReplay]);
 
+  const derivedHeartbeatTimestamp = useMemo(() => {
+    if (execution.lastHeartbeat?.timestamp) {
+      return execution.lastHeartbeat.timestamp;
+    }
+    const frames = execution.timeline ?? [];
+    for (let idx = frames.length - 1; idx >= 0; idx -= 1) {
+      const frame = frames[idx];
+      const rawTimestamp =
+        frame.completed_at ||
+        frame.completedAt ||
+        frame.started_at ||
+        frame.startedAt;
+      if (rawTimestamp) {
+        const parsed = new Date(rawTimestamp);
+        if (!Number.isNaN(parsed.getTime())) {
+          return parsed;
+        }
+      }
+    }
+    return undefined;
+  }, [execution.lastHeartbeat, execution.timeline]);
+
   const heartbeatAgeSeconds = useMemo(() => {
-    if (!execution.lastHeartbeat || !execution.lastHeartbeat.timestamp) {
+    if (!derivedHeartbeatTimestamp) {
       return null;
     }
-    const age =
-      (Date.now() - execution.lastHeartbeat.timestamp.getTime()) / 1000;
+    const age = (Date.now() - derivedHeartbeatTimestamp.getTime()) / 1000;
     return age < 0 ? 0 : age;
-  }, [execution.lastHeartbeat]);
+  }, [derivedHeartbeatTimestamp]);
 
   const inStepSeconds =
     execution.lastHeartbeat?.elapsedMs != null
@@ -1697,11 +1720,10 @@ function ActiveExecutionViewer({
   type HeartbeatState = "idle" | "awaiting" | "healthy" | "delayed" | "stalled";
 
   const heartbeatState: HeartbeatState = useMemo(() => {
-    if (execution.status !== "running") {
-      return "idle";
-    }
-    if (!execution.lastHeartbeat) {
-      return "awaiting";
+    const isRunning = execution.status === "running";
+    const hasHeartbeat = Boolean(execution.lastHeartbeat || derivedHeartbeatTimestamp);
+    if (!hasHeartbeat) {
+      return isRunning ? "awaiting" : "idle";
     }
     if (heartbeatAgeSeconds == null) {
       return "awaiting";
@@ -1713,44 +1735,74 @@ function ActiveExecutionViewer({
       return "delayed";
     }
     return "healthy";
-  }, [execution.status, execution.lastHeartbeat, heartbeatAgeSeconds]);
+  }, [execution.status, execution.lastHeartbeat, heartbeatAgeSeconds, derivedHeartbeatTimestamp]);
 
   const heartbeatDescriptor = useMemo(() => {
-    switch (heartbeatState) {
-      case "idle":
-        return null;
-      case "awaiting":
-        return {
-          tone: "awaiting" as const,
-          iconClass: "text-amber-400",
-          textClass: "text-amber-200/90",
-          label: "Awaiting first heartbeat…",
-        };
-      case "healthy":
-        return {
-          tone: "healthy" as const,
-          iconClass: "text-blue-400",
-          textClass: "text-blue-200",
-          label: `Heartbeat ${heartbeatAgeLabel ?? "just now"}`,
-        };
-      case "delayed":
-        return {
-          tone: "delayed" as const,
-          iconClass: "text-amber-400",
-          textClass: "text-amber-200",
-          label: `Heartbeat delayed (${formatSeconds(heartbeatAgeSeconds ?? 0)} since last update)`,
-        };
-      case "stalled":
-        return {
-          tone: "stalled" as const,
-          iconClass: "text-red-400",
-          textClass: "text-red-200",
-          label: `Heartbeat stalled (${formatSeconds(heartbeatAgeSeconds ?? 0)} without update)`,
-        };
-      default:
-        return null;
+    const baseDescriptor = (() => {
+      switch (heartbeatState) {
+        case "idle":
+          if (execution.status === "running") {
+            return null;
+          }
+          return {
+            tone: "awaiting" as const,
+            iconClass: "text-amber-400",
+            textClass: "text-amber-200/90",
+            label: "No heartbeats recorded for this run",
+          };
+        case "awaiting":
+          return {
+            tone: "awaiting" as const,
+            iconClass: "text-amber-400",
+            textClass: "text-amber-200/90",
+            label: "Awaiting first heartbeat…",
+          };
+        case "healthy":
+          return {
+            tone: "healthy" as const,
+            iconClass: "text-blue-400",
+            textClass: "text-blue-200",
+            label: `Heartbeat ${heartbeatAgeLabel ?? "just now"}`,
+          };
+        case "delayed":
+          return {
+            tone: "delayed" as const,
+            iconClass: "text-amber-400",
+            textClass: "text-amber-200",
+            label: `Heartbeat delayed (${formatSeconds(heartbeatAgeSeconds ?? 0)} since last update)`,
+          };
+        case "stalled":
+          return {
+            tone: "stalled" as const,
+            iconClass: "text-red-400",
+            textClass: "text-red-200",
+            label: `Heartbeat stalled (${formatSeconds(heartbeatAgeSeconds ?? 0)} without update)`,
+          };
+        default:
+          return null;
+      }
+    })();
+
+    if (!baseDescriptor) {
+      return null;
     }
-  }, [heartbeatState, heartbeatAgeLabel, heartbeatAgeSeconds]);
+
+    const labelWithSource = execution.lastHeartbeat
+      ? baseDescriptor.label
+      : `${baseDescriptor.label} (timeline activity)`;
+
+    if (execution.status !== "running") {
+      return {
+        ...baseDescriptor,
+        label: `${labelWithSource} • Final heartbeat snapshot`,
+      };
+    }
+
+    return {
+      ...baseDescriptor,
+      label: labelWithSource,
+    };
+  }, [heartbeatState, heartbeatAgeLabel, heartbeatAgeSeconds, execution.status, execution.lastHeartbeat]);
 
   const statusMessage = useMemo(() => {
     const label =
@@ -2615,6 +2667,7 @@ function ActiveExecutionViewer({
   useEffect(() => {
     setIsComposerReady(false);
     composerFrameStateRef.current = { frameIndex: 0, progress: 0 };
+    setHasAutoOpenedScreenshots(false);
   }, [execution.id]);
 
   useEffect(() => {
@@ -2689,7 +2742,15 @@ function ActiveExecutionViewer({
     if (!alreadySelected) {
       setSelectedScreenshot(screenshots[screenshots.length - 1]);
     }
-  }, [screenshots, selectedScreenshot]);
+    if (
+      screenshots.length > 0 &&
+      !hasAutoOpenedScreenshots &&
+      activeTab !== "screenshots"
+    ) {
+      setActiveTab("screenshots");
+      setHasAutoOpenedScreenshots(true);
+    }
+  }, [screenshots, selectedScreenshot, hasAutoOpenedScreenshots, activeTab]);
 
   useEffect(() => {
     if (!selectedScreenshot) {
@@ -2712,6 +2773,9 @@ function ActiveExecutionViewer({
       replayFrames.length > 0
     ) {
       setActiveTab("replay");
+    }
+    if (activeTab === "screenshots") {
+      setHasAutoOpenedScreenshots(true);
     }
   }, [activeTab, screenshots.length, replayFrames.length]);
 
@@ -3132,6 +3196,7 @@ function ActiveExecutionViewer({
 
       <div className="flex border-b border-gray-800">
         <button
+          data-testid="execution-tab-replay"
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "replay"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -3145,6 +3210,7 @@ function ActiveExecutionViewer({
           Replay ({replayFrames.length})
         </button>
         <button
+          data-testid="execution-tab-screenshots"
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "screenshots"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -3156,6 +3222,7 @@ function ActiveExecutionViewer({
           Screenshots ({screenshots.length})
         </button>
         <button
+          data-testid="execution-tab-logs"
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "logs"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -3168,6 +3235,7 @@ function ActiveExecutionViewer({
         </button>
         {showExecutionSwitcher && (
           <button
+            data-testid="execution-tab-executions"
             className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
               activeTab === "executions"
                 ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -4517,6 +4585,7 @@ function EmptyExecutionViewer({
 
       <div className="flex border-b border-gray-800">
         <button
+          data-testid="execution-tab-replay"
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "replay"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -4528,6 +4597,7 @@ function EmptyExecutionViewer({
           Replay (0)
         </button>
         <button
+          data-testid="execution-tab-screenshots"
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "screenshots"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -4539,6 +4609,7 @@ function EmptyExecutionViewer({
           Screenshots (0)
         </button>
         <button
+          data-testid="execution-tab-logs"
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "logs"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -4551,6 +4622,7 @@ function EmptyExecutionViewer({
         </button>
         {showExecutionSwitcher && (
           <button
+            data-testid="execution-tab-executions"
             className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
               activeTab === "executions"
                 ? "bg-flow-bg text-white border-b-2 border-flow-accent"

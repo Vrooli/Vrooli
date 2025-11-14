@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-13T17:00:49.569Z"
+    "last_synced_at": "2025-11-14T15:18:12.007Z"
   },
   "requirements": [
     {
@@ -13,14 +13,14 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "New project dialog opens from primary entry points",
       "description": "Verifies the modal opens via the \"Create Project\" button, keyboard shortcuts, and toolbar menu so operators can begin authoring without page reloads.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/new-project-dialog-open.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow asserting modal visibility for each trigger once exported."
         },
         {
@@ -45,14 +45,14 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "New project dialog closes through all affordances",
       "description": "Ensures the modal dismisses through the X button, cancel button, backdrop click, and Escape key, restoring the underlying canvas state.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/new-project-dialog-close.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow covering dismissal affordances (pending export)."
         },
         {
@@ -109,14 +109,14 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Project creation enforces inline validation rules",
       "description": "Covers empty name, duplicate detection, and invalid characters with accessible error messaging surfaced inside the dialog.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/new-project-validation.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow submits failing payloads and asserts inline error copy (pending export)."
         },
         {

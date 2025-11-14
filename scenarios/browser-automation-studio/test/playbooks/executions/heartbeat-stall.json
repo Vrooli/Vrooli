@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for demo project",
-        "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Open demo project",
-        "selector": "[data-testid=\"project-card-86157b4f-e7be-4e31-8e0c-f183e500356d\"]",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 10000,
         "waitForMs": 1000
       }
@@ -111,7 +111,7 @@
       },
       "data": {
         "label": "Wait for heartbeat monitoring",
-        "durationMs": 15000
+        "durationMs": 2000
       }
     },
     {

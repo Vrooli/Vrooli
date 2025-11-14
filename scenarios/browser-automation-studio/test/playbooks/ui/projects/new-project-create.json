@@ -67,7 +67,7 @@
       },
       "data": {
         "label": "Project modal visible",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "exists",
         "timeoutMs": 10000
       }
@@ -140,7 +140,7 @@
       },
       "data": {
         "label": "Modal closed after create",
-        "selector": "[data-testid=\"responsive-dialog-content\"]",
+        "selector": "[data-testid=\"project-modal\"]",
         "assertMode": "not_exists",
         "timeoutMs": 10000,
         "failureMessage": "Modal should close after successful project creation"

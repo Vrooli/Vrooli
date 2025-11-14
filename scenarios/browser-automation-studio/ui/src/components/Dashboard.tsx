@@ -25,10 +25,14 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
     fetchProjects();
   }, [fetchProjects]);
 
-  const filteredProjects = projects.filter(project =>
-    project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const normalizedSearch = searchTerm.toLowerCase();
+  const filteredProjects = projects.filter(project => {
+    const nameMatch = project.name?.toLowerCase().includes(normalizedSearch) ?? false;
+    const descriptionMatch = project.description
+      ? project.description.toLowerCase().includes(normalizedSearch)
+      : false;
+    return nameMatch || descriptionMatch;
+  });
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -215,7 +219,9 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                 key={project.id}
                 onClick={() => onProjectSelect(project)}
                 className="bg-flow-node border border-gray-700 rounded-lg p-5 sm:p-6 cursor-pointer hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/20 transition-all"
-                data-testid={`project-card-${project.id}`}
+                data-testid="project-card"
+                data-project-id={project.id}
+                data-project-name={project.name}
               >
                 {/* Project Header */}
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-4">
@@ -224,7 +230,13 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                       <FolderOpen size={16} className="text-flow-accent" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-white truncate max-w-[12rem] sm:max-w-32" title={project.name} data-testid={`project-card-title-${project.id}`}>
+                      <h3
+                        className="font-semibold text-white truncate max-w-[12rem] sm:max-w-32"
+                        title={project.name}
+                        data-testid="project-card-title"
+                        data-project-id={project.id}
+                        data-project-name={project.name}
+                      >
                         {project.name}
                       </h3>
                     </div>

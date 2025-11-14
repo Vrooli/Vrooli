@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-13T17:00:49.568Z"
+    "last_synced_at": "2025-11-14T02:32:35.230Z"
   },
   "requirements": [
     {
@@ -80,7 +80,7 @@
           "type": "test",
           "ref": "ui/src/components/ProjectDetail.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Auto-added from vitest evidence"
         }
       ]
