@@ -20,7 +20,8 @@ func (s *Server) findBuiltPackage(distPath, platform string) (string, error) {
 	case "win":
 		patterns = []string{"*.exe"}
 	case "mac":
-		patterns = []string{"*.dmg"}
+		// Accept both DMG (macOS builds) and ZIP (Linux cross-compilation)
+		patterns = []string{"*.dmg", "*.zip"}
 	case "linux":
 		patterns = []string{"*.AppImage", "*.deb"}
 	default:
@@ -39,6 +40,30 @@ func (s *Server) findBuiltPackage(distPath, platform string) (string, error) {
 			if platform == "win" && len(matches) > 1 {
 				for _, match := range matches {
 					if strings.Contains(strings.ToLower(match), "setup") {
+						return match, nil
+					}
+				}
+			}
+			// For Mac, prefer x64 over arm64 when both exist, and non-arm64 zip files
+			if platform == "mac" && len(matches) > 1 {
+				// First, try to find x64-specific file (not arm64)
+				for _, match := range matches {
+					lowerMatch := strings.ToLower(match)
+					if !strings.Contains(lowerMatch, "arm64") && !strings.Contains(lowerMatch, "blockmap") {
+						return match, nil
+					}
+				}
+				// If only arm64 exists, return the first non-blockmap one
+				for _, match := range matches {
+					if !strings.Contains(strings.ToLower(match), "blockmap") {
+						return match, nil
+					}
+				}
+			}
+			// Filter out blockmap files for Mac
+			if platform == "mac" {
+				for _, match := range matches {
+					if !strings.Contains(strings.ToLower(match), "blockmap") {
 						return match, nil
 					}
 				}
