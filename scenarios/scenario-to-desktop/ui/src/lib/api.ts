@@ -51,18 +51,31 @@ export interface DesktopConfig {
   window: Record<string, unknown>;
 }
 
+export interface PlatformBuildResult {
+  platform: string;
+  status: "pending" | "building" | "ready" | "failed" | "skipped";
+  started_at?: string;
+  completed_at?: string;
+  error_log?: string[];
+  artifact?: string;
+  file_size?: number;
+  skip_reason?: string;
+}
+
 export interface BuildStatus {
   build_id: string;
   scenario_name: string;
-  status: "building" | "ready" | "failed";
+  status: "building" | "ready" | "partial" | "failed";
   framework: string;
   template_type: string;
   platforms: string[];
+  platform_results?: Record<string, PlatformBuildResult>;
   output_path: string;
   created_at: string;
   completed_at?: string;
   error_log?: string[];
   build_log?: string[];
+  artifacts?: Record<string, string>;
 }
 
 export async function fetchHealth(): Promise<HealthResponse> {
@@ -117,4 +130,37 @@ export async function fetchBuildStatus(buildId: string): Promise<BuildStatus> {
     throw new Error(`Failed to fetch build status: ${response.statusText}`);
   }
   return response.json();
+}
+
+export async function buildScenarioDesktop(
+  scenarioName: string,
+  platforms?: string[]
+): Promise<{
+  build_id: string;
+  status: string;
+  scenario: string;
+  desktop_path: string;
+  platforms: string[];
+  status_url: string;
+}> {
+  const response = await fetch(buildUrl(`/desktop/build/${scenarioName}`), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      platforms: platforms || ["win", "mac", "linux"]
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || "Failed to build desktop application");
+  }
+
+  return response.json();
+}
+
+export function getDownloadUrl(scenarioName: string, platform: string): string {
+  return buildUrl(`/desktop/download/${scenarioName}/${platform}`);
 }

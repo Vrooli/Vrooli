@@ -1501,60 +1501,55 @@ code {
   box-shadow: none;
 }
 
+.tech-tree-canvas--fullscreen,
 .tech-tree-canvas:fullscreen,
 .tech-tree-canvas:-webkit-full-screen {
-  border-radius: 0;
-  border: none;
-  box-shadow: none;
-  width: 100vw;
-  height: 100vh;
-  max-width: none;
-  max-height: none; /* Remove max-height constraint */
-  margin: 0;
-  padding: clamp(var(--spacing-md), 4vw, var(--spacing-2xl));
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.92));
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: clamp(var(--spacing-md), 4vw, var(--spacing-2xl)) !important;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.92)) !important;
   /* Ensure flexbox works properly in fullscreen */
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .tech-tree-canvas--immersive {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  max-width: none;
-  max-height: none; /* Remove max-height constraint */
-  border: none;
-  border-radius: 0;
-  margin: 0;
-  padding: clamp(var(--spacing-md), 4vw, var(--spacing-2xl));
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.92));
-  z-index: 2200;
-  overflow: auto;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: clamp(var(--spacing-md), 4vw, var(--spacing-2xl)) !important;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.92)) !important;
+  z-index: 2200 !important;
+  overflow: auto !important;
   /* Ensure flexbox works properly in immersive mode */
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
+.tech-tree-canvas--fullscreen .tech-tree-flow,
 .tech-tree-canvas:fullscreen .tech-tree-flow,
-.tech-tree-canvas:-webkit-full-screen .tech-tree-flow {
-  min-height: 0;
-  height: auto; /* Let flex: 1 handle the height */
-  flex: 1; /* Fill remaining space after header */
-}
-
+.tech-tree-canvas:-webkit-full-screen .tech-tree-flow,
 .tech-tree-canvas--immersive .tech-tree-flow {
-  min-height: 0;
-  height: auto; /* Let flex: 1 handle the height */
-  flex: 1; /* Fill remaining space after header */
+  min-height: 0 !important;
+  /* Let flex handle height in fullscreen */
+  flex: 1 !important;
 }
 
+.tech-tree-canvas--fullscreen .tech-tree-canvas__header,
 .tech-tree-canvas:fullscreen .tech-tree-canvas__header,
-.tech-tree-canvas:-webkit-full-screen .tech-tree-canvas__header {
-  align-items: center;
-}
-
+.tech-tree-canvas:-webkit-full-screen .tech-tree-canvas__header,
 .tech-tree-canvas--immersive .tech-tree-canvas__header {
   align-items: center;
 }
@@ -1594,10 +1589,17 @@ code {
   color: rgba(248, 113, 113, 0.95);
 }
 
+.tech-tree-graph-wrapper {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .tech-tree-flow {
   flex: 1;
   min-height: 26rem;
-  /* Explicit height ensures React Flow always has a defined viewport */
+  /* Height 100% allows React Flow to fill the wrapper */
   height: 100%;
   border-radius: var(--radius-md);
   overflow: hidden;

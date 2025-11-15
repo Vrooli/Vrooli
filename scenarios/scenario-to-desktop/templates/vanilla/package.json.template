@@ -58,7 +58,7 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "assets/icon.icns",
+      "icon": "assets/icon.png",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "assets/entitlements.mac.plist",
@@ -91,15 +91,13 @@
           "arch": ["x64", "ia32"]
         }
       ],
-      "icon": "assets/icon.ico",
+      "icon": "assets/icon.png",
       "publisherName": "{{PUBLISHER_NAME}}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
-      "installerIcon": "assets/icon.ico",
-      "uninstallerIcon": "assets/icon.ico",
       "license": "assets/license.txt"
     },
     "linux": {

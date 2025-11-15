@@ -72,21 +72,34 @@ type DesktopConfig struct {
 	Styling map[string]interface{} `json:"styling"`
 }
 
+// PlatformBuildResult represents the result of building for a specific platform
+type PlatformBuildResult struct {
+	Platform    string     `json:"platform"`
+	Status      string     `json:"status"` // building, ready, failed, skipped
+	StartedAt   *time.Time `json:"started_at,omitempty"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	ErrorLog    []string   `json:"error_log,omitempty"`
+	Artifact    string     `json:"artifact,omitempty"`
+	FileSize    int64      `json:"file_size,omitempty"`
+	SkipReason  string     `json:"skip_reason,omitempty"` // e.g., "Wine not installed"
+}
+
 // BuildStatus represents the status of a desktop application build
 type BuildStatus struct {
-	BuildID      string                 `json:"build_id"`
-	ScenarioName string                 `json:"scenario_name"`
-	Status       string                 `json:"status"` // building, ready, failed
-	Framework    string                 `json:"framework"`
-	TemplateType string                 `json:"template_type"`
-	Platforms    []string               `json:"platforms"`
-	OutputPath   string                 `json:"output_path"`
-	CreatedAt    time.Time              `json:"created_at"`
-	CompletedAt  *time.Time             `json:"completed_at,omitempty"`
-	ErrorLog     []string               `json:"error_log,omitempty"`
-	BuildLog     []string               `json:"build_log,omitempty"`
-	Artifacts    map[string]string      `json:"artifacts,omitempty"`
-	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	BuildID         string                 `json:"build_id"`
+	ScenarioName    string                 `json:"scenario_name"`
+	Status          string                 `json:"status"` // building, ready, partial, failed
+	Framework       string                 `json:"framework"`
+	TemplateType    string                 `json:"template_type"`
+	Platforms       []string               `json:"platforms"`
+	PlatformResults map[string]*PlatformBuildResult `json:"platform_results,omitempty"`
+	OutputPath      string                 `json:"output_path"`
+	CreatedAt       time.Time              `json:"created_at"`
+	CompletedAt     *time.Time             `json:"completed_at,omitempty"`
+	ErrorLog        []string               `json:"error_log,omitempty"`
+	BuildLog        []string               `json:"build_log,omitempty"`
+	Artifacts       map[string]string      `json:"artifacts,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // TemplateInfo represents information about available templates
@@ -155,6 +168,15 @@ func (s *Server) setupRoutes() {
 
 	// Scenario discovery
 	s.router.HandleFunc("/api/v1/scenarios/desktop-status", s.getScenarioDesktopStatusHandler).Methods("GET")
+
+	// Build by scenario name (simplified endpoint)
+	s.router.HandleFunc("/api/v1/desktop/build/{scenario_name}", s.buildScenarioDesktopHandler).Methods("POST")
+
+	// Download built packages
+	s.router.HandleFunc("/api/v1/desktop/download/{scenario_name}/{platform}", s.downloadDesktopHandler).Methods("GET")
+
+	// Delete desktop application
+	s.router.HandleFunc("/api/v1/desktop/delete/{scenario_name}", s.deleteDesktopHandler).Methods("DELETE")
 
 	// Webhook endpoints
 	s.router.HandleFunc("/api/v1/desktop/webhook/build-complete", s.buildCompleteWebhookHandler).Methods("POST")
@@ -584,6 +606,240 @@ func (s *Server) getBuildStatusHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(status)
 }
 
+// Build scenario desktop application by name (simplified endpoint)
+func (s *Server) buildScenarioDesktopHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scenarioName := vars["scenario_name"]
+
+	if scenarioName == "" {
+		http.Error(w, "scenario_name is required", http.StatusBadRequest)
+		return
+	}
+
+	// Get Vrooli root
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		currentDir, _ := os.Getwd()
+		vrooliRoot = filepath.Join(currentDir, "../../..")
+	}
+
+	// Check if desktop wrapper exists
+	desktopPath := filepath.Join(vrooliRoot, "scenarios", scenarioName, "platforms", "electron")
+	if _, err := os.Stat(desktopPath); os.IsNotExist(err) {
+		http.Error(w, fmt.Sprintf("Desktop wrapper not found for '%s'. Generate it first.", scenarioName), http.StatusNotFound)
+		return
+	}
+
+	// Optional: Parse build options from request body
+	var options struct {
+		Platforms []string `json:"platforms"` // win, mac, linux
+		Clean     bool     `json:"clean"`     // Clean before building
+	}
+	if r.Body != nil {
+		json.NewDecoder(r.Body).Decode(&options)
+	}
+
+	// Default to all platforms if not specified
+	if len(options.Platforms) == 0 {
+		options.Platforms = []string{"win", "mac", "linux"}
+	}
+
+	buildID := uuid.New().String()
+
+	// Initialize platform results
+	platformResults := make(map[string]*PlatformBuildResult)
+	for _, platform := range options.Platforms {
+		platformResults[platform] = &PlatformBuildResult{
+			Platform: platform,
+			Status:   "pending",
+		}
+	}
+
+	// Create build status
+	buildStatus := &BuildStatus{
+		BuildID:         buildID,
+		ScenarioName:    scenarioName,
+		Status:          "building",
+		OutputPath:      desktopPath,
+		CreatedAt:       time.Now(),
+		Platforms:       options.Platforms,
+		PlatformResults: platformResults,
+		BuildLog:        []string{},
+		ErrorLog:        []string{},
+		Artifacts:       make(map[string]string),
+	}
+
+	s.buildMutex.Lock()
+	s.buildStatuses[buildID] = buildStatus
+	s.buildMutex.Unlock()
+
+	s.logger.Info("starting desktop build",
+		"scenario", scenarioName,
+		"build_id", buildID,
+		"platforms", options.Platforms)
+
+	// Start build process asynchronously
+	go s.performScenarioDesktopBuild(buildID, scenarioName, desktopPath, options.Platforms, options.Clean)
+
+	response := map[string]interface{}{
+		"build_id":     buildID,
+		"status":       "building",
+		"scenario":     scenarioName,
+		"desktop_path": desktopPath,
+		"platforms":    options.Platforms,
+		"status_url":   fmt.Sprintf("/api/v1/desktop/status/%s", buildID),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+// Download desktop application package
+func (s *Server) downloadDesktopHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scenarioName := vars["scenario_name"]
+	platform := vars["platform"]
+
+	if scenarioName == "" || platform == "" {
+		http.Error(w, "scenario_name and platform are required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate platform
+	validPlatforms := []string{"win", "mac", "linux"}
+	if !contains(validPlatforms, platform) {
+		http.Error(w, fmt.Sprintf("Invalid platform '%s'. Must be one of: win, mac, linux", platform), http.StatusBadRequest)
+		return
+	}
+
+	// Get Vrooli root
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		currentDir, _ := os.Getwd()
+		vrooliRoot = filepath.Join(currentDir, "../../..")
+	}
+
+	// Find built package
+	distPath := filepath.Join(vrooliRoot, "scenarios", scenarioName, "platforms", "electron", "dist-electron")
+	packageFile, err := s.findBuiltPackage(distPath, platform)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Built package not found: %s. Build the desktop app first.", err), http.StatusNotFound)
+		return
+	}
+
+	// Get file info
+	fileInfo, err := os.Stat(packageFile)
+	if err != nil {
+		http.Error(w, "Failed to read package file", http.StatusInternalServerError)
+		return
+	}
+
+	// Set appropriate content-type and headers
+	contentType := "application/octet-stream"
+	filename := filepath.Base(packageFile)
+
+	if strings.HasSuffix(packageFile, ".exe") {
+		contentType = "application/x-msdownload"
+	} else if strings.HasSuffix(packageFile, ".dmg") {
+		contentType = "application/x-apple-diskimage"
+	} else if strings.HasSuffix(packageFile, ".AppImage") {
+		contentType = "application/x-executable"
+	} else if strings.HasSuffix(packageFile, ".deb") {
+		contentType = "application/vnd.debian.binary-package"
+	}
+
+	s.logger.Info("serving download",
+		"scenario", scenarioName,
+		"platform", platform,
+		"file", filename,
+		"size", fileInfo.Size())
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
+
+	// Stream file to client
+	http.ServeFile(w, r, packageFile)
+}
+
+// Delete desktop application handler
+func (s *Server) deleteDesktopHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scenarioName := vars["scenario_name"]
+
+	if scenarioName == "" {
+		http.Error(w, "scenario_name is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate scenario name to prevent path traversal
+	if strings.Contains(scenarioName, "..") || strings.Contains(scenarioName, "/") || strings.Contains(scenarioName, "\\") {
+		http.Error(w, "Invalid scenario name", http.StatusBadRequest)
+		return
+	}
+
+	// Get Vrooli root
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		currentDir, _ := os.Getwd()
+		vrooliRoot = filepath.Join(currentDir, "../../..")
+	}
+
+	// Construct desktop path - MUST be exactly platforms/electron/
+	desktopPath := filepath.Join(vrooliRoot, "scenarios", scenarioName, "platforms", "electron")
+
+	// Security check: Verify the path is actually inside platforms/electron
+	absDesktopPath, err := filepath.Abs(desktopPath)
+	if err != nil {
+		http.Error(w, "Failed to resolve desktop path", http.StatusInternalServerError)
+		return
+	}
+
+	expectedPrefix := filepath.Join(vrooliRoot, "scenarios", scenarioName, "platforms", "electron")
+	absExpectedPrefix, _ := filepath.Abs(expectedPrefix)
+	if absDesktopPath != absExpectedPrefix {
+		s.logger.Error("path traversal attempt detected",
+			"scenario", scenarioName,
+			"expected", absExpectedPrefix,
+			"actual", absDesktopPath)
+		http.Error(w, "Security violation: invalid path", http.StatusBadRequest)
+		return
+	}
+
+	// Check if desktop directory exists
+	if _, err := os.Stat(desktopPath); os.IsNotExist(err) {
+		http.Error(w, fmt.Sprintf("Desktop version does not exist for scenario '%s'", scenarioName), http.StatusNotFound)
+		return
+	}
+
+	// Remove the entire platforms/electron directory
+	if err := os.RemoveAll(desktopPath); err != nil {
+		s.logger.Error("failed to delete desktop directory",
+			"scenario", scenarioName,
+			"path", desktopPath,
+			"error", err)
+		http.Error(w, fmt.Sprintf("Failed to delete desktop directory: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.logger.Info("deleted desktop application",
+		"scenario", scenarioName,
+		"path", desktopPath)
+
+	// Return success response
+	response := map[string]interface{}{
+		"status":        "success",
+		"scenario_name": scenarioName,
+		"deleted_path":  desktopPath,
+		"message":       fmt.Sprintf("Desktop version of '%s' deleted successfully", scenarioName),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
 // Build desktop application handler
 func (s *Server) buildDesktopHandler(w http.ResponseWriter, r *http.Request) {
 	var request struct {
@@ -900,6 +1156,320 @@ func (s *Server) testDependencies(appPath string) bool {
 	cmd.Dir = appPath
 	err := cmd.Run()
 	return err == nil
+}
+
+// Perform scenario desktop build (async) - simplified version for scenario builds
+func (s *Server) performScenarioDesktopBuild(buildID, scenarioName, desktopPath string, platforms []string, clean bool) {
+	s.buildMutex.RLock()
+	status := s.buildStatuses[buildID]
+	s.buildMutex.RUnlock()
+
+	defer func() {
+		if r := recover(); r != nil {
+			s.buildMutex.Lock()
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Panic during build: %v", r))
+			now := time.Now()
+			status.CompletedAt = &now
+			s.buildMutex.Unlock()
+		}
+	}()
+
+	s.logger.Info("build started", "scenario", scenarioName, "build_id", buildID)
+
+	// Phase 1: Common build steps (clean, install, compile)
+	var commonSteps []struct {
+		name    string
+		command string
+	}
+
+	if clean {
+		commonSteps = append(commonSteps, struct {
+			name    string
+			command string
+		}{"clean", "npm run clean"})
+	}
+
+	commonSteps = append(commonSteps, []struct {
+		name    string
+		command string
+	}{
+		{"install", "npm install"},
+		{"compile", "npm run build"},
+	}...)
+
+	// Execute common steps
+	for i, step := range commonSteps {
+		s.logger.Info("executing build step",
+			"scenario", scenarioName,
+			"step", step.name,
+			"progress", fmt.Sprintf("%d/%d", i+1, len(commonSteps)))
+
+		cmd := exec.Command("bash", "-c", step.command)
+		cmd.Dir = desktopPath
+
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		s.buildMutex.Lock()
+		logEntry := fmt.Sprintf("[%s] %s", step.name, step.command)
+		if err != nil {
+			logEntry += fmt.Sprintf("\nFAILED: %v", err)
+		} else {
+			logEntry += "\nSUCCESS"
+		}
+		if err != nil || len(outputStr) < 500 {
+			logEntry += fmt.Sprintf("\nOutput: %s", outputStr)
+		} else {
+			logEntry += fmt.Sprintf("\nOutput: %s... (%d bytes)", outputStr[:500], len(outputStr))
+		}
+		status.BuildLog = append(status.BuildLog, logEntry)
+
+		if err != nil {
+			// Common step failed - mark all platforms as failed
+			for _, platform := range platforms {
+				if result, ok := status.PlatformResults[platform]; ok {
+					result.Status = "failed"
+					result.ErrorLog = append(result.ErrorLog, fmt.Sprintf("Common build step '%s' failed", step.name))
+					result.ErrorLog = append(result.ErrorLog, outputStr)
+					now := time.Now()
+					result.CompletedAt = &now
+				}
+			}
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("%s failed: %v", step.name, err))
+			status.ErrorLog = append(status.ErrorLog, outputStr)
+			now := time.Now()
+			status.CompletedAt = &now
+			s.buildMutex.Unlock()
+
+			s.logger.Error("common build step failed",
+				"scenario", scenarioName,
+				"build_id", buildID,
+				"step", step.name,
+				"error", err)
+			return
+		}
+		s.buildMutex.Unlock()
+	}
+
+	// Phase 2: Build each platform independently
+	distPath := filepath.Join(desktopPath, "dist-electron")
+	var wg sync.WaitGroup
+
+	for _, platform := range platforms {
+		wg.Add(1)
+		go func(plt string) {
+			defer wg.Done()
+			s.buildPlatform(buildID, scenarioName, desktopPath, distPath, plt)
+		}(platform)
+	}
+
+	// Wait for all platform builds to complete
+	wg.Wait()
+
+	// Determine overall build status
+	s.buildMutex.Lock()
+	successCount := 0
+	failedCount := 0
+	skippedCount := 0
+
+	for _, result := range status.PlatformResults {
+		switch result.Status {
+		case "ready":
+			successCount++
+		case "failed":
+			failedCount++
+		case "skipped":
+			skippedCount++
+		}
+	}
+
+	if successCount > 0 && failedCount == 0 && skippedCount == 0 {
+		status.Status = "ready"
+	} else if successCount > 0 {
+		status.Status = "partial"
+	} else {
+		status.Status = "failed"
+	}
+
+	now := time.Now()
+	status.CompletedAt = &now
+	s.buildMutex.Unlock()
+
+	s.logger.Info("build completed",
+		"scenario", scenarioName,
+		"build_id", buildID,
+		"status", status.Status,
+		"success", successCount,
+		"failed", failedCount,
+		"skipped", skippedCount)
+}
+
+// buildPlatform builds for a specific platform with dependency checking
+func (s *Server) buildPlatform(buildID, scenarioName, desktopPath, distPath, platform string) {
+	s.buildMutex.RLock()
+	status := s.buildStatuses[buildID]
+	result := status.PlatformResults[platform]
+	s.buildMutex.RUnlock()
+
+	// Check platform dependencies
+	if platform == "win" {
+		if !s.isWineInstalled() {
+			s.buildMutex.Lock()
+			result.Status = "skipped"
+			result.SkipReason = "Wine not installed (required for Windows builds on Linux). Install with: sudo apt install wine"
+			now := time.Now()
+			result.CompletedAt = &now
+			s.buildMutex.Unlock()
+			s.logger.Warn("skipping Windows build - Wine not installed", "scenario", scenarioName)
+			return
+		}
+	}
+
+	// Mark platform build as started
+	s.buildMutex.Lock()
+	result.Status = "building"
+	now := time.Now()
+	result.StartedAt = &now
+	s.buildMutex.Unlock()
+
+	// Determine build command
+	var distCommand string
+	switch platform {
+	case "win":
+		distCommand = "npm run dist:win"
+	case "mac":
+		distCommand = "npm run dist:mac"
+	case "linux":
+		distCommand = "npm run dist:linux"
+	default:
+		s.buildMutex.Lock()
+		result.Status = "failed"
+		result.ErrorLog = append(result.ErrorLog, fmt.Sprintf("Unknown platform: %s", platform))
+		now := time.Now()
+		result.CompletedAt = &now
+		s.buildMutex.Unlock()
+		return
+	}
+
+	s.logger.Info("building platform",
+		"scenario", scenarioName,
+		"build_id", buildID,
+		"platform", platform)
+
+	cmd := exec.Command("bash", "-c", distCommand)
+	cmd.Dir = desktopPath
+
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	s.buildMutex.Lock()
+	logEntry := fmt.Sprintf("[package-%s] %s", platform, distCommand)
+	if err != nil {
+		logEntry += fmt.Sprintf("\nFAILED: %v", err)
+		result.Status = "failed"
+		result.ErrorLog = append(result.ErrorLog, outputStr)
+	} else {
+		logEntry += "\nSUCCESS"
+		result.Status = "ready"
+	}
+	if len(outputStr) < 500 {
+		logEntry += fmt.Sprintf("\nOutput: %s", outputStr)
+	} else {
+		logEntry += fmt.Sprintf("\nOutput: %s... (%d bytes)", outputStr[:500], len(outputStr))
+	}
+	status.BuildLog = append(status.BuildLog, logEntry)
+	now = time.Now()
+	result.CompletedAt = &now
+	s.buildMutex.Unlock()
+
+	if err != nil {
+		s.logger.Error("platform build failed",
+			"scenario", scenarioName,
+			"build_id", buildID,
+			"platform", platform,
+			"error", err)
+		return
+	}
+
+	// Find built package
+	packageFile, err := s.findBuiltPackage(distPath, platform)
+	if err == nil {
+		fileInfo, _ := os.Stat(packageFile)
+		s.buildMutex.Lock()
+		result.Artifact = packageFile
+		if fileInfo != nil {
+			result.FileSize = fileInfo.Size()
+		}
+		status.Artifacts[platform] = packageFile
+		s.buildMutex.Unlock()
+
+		s.logger.Info("platform build succeeded",
+			"scenario", scenarioName,
+			"platform", platform,
+			"artifact", packageFile)
+	} else {
+		s.buildMutex.Lock()
+		result.Status = "failed"
+		result.ErrorLog = append(result.ErrorLog, fmt.Sprintf("Built package not found: %v", err))
+		s.buildMutex.Unlock()
+
+		s.logger.Warn("platform package not found",
+			"scenario", scenarioName,
+			"platform", platform,
+			"error", err)
+	}
+}
+
+// isWineInstalled checks if Wine is installed on the system
+func (s *Server) isWineInstalled() bool {
+	cmd := exec.Command("which", "wine")
+	err := cmd.Run()
+	return err == nil
+}
+
+// findBuiltPackage finds the built package file for a specific platform
+func (s *Server) findBuiltPackage(distPath, platform string) (string, error) {
+	// Check if dist-electron directory exists
+	if _, err := os.Stat(distPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("dist-electron directory not found at %s", distPath)
+	}
+
+	// Platform-specific file patterns
+	var patterns []string
+	switch platform {
+	case "win":
+		patterns = []string{"*.exe"}
+	case "mac":
+		patterns = []string{"*.dmg"}
+	case "linux":
+		patterns = []string{"*.AppImage", "*.deb"}
+	default:
+		return "", fmt.Errorf("unknown platform: %s", platform)
+	}
+
+	// Search for matching files
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(filepath.Join(distPath, pattern))
+		if err != nil {
+			continue
+		}
+		if len(matches) > 0 {
+			// Return the first match (usually there's only one)
+			// Prefer Setup.exe over portable.exe for Windows
+			if platform == "win" && len(matches) > 1 {
+				for _, match := range matches {
+					if strings.Contains(strings.ToLower(match), "setup") {
+						return match, nil
+					}
+				}
+			}
+			return matches[0], nil
+		}
+	}
+
+	return "", fmt.Errorf("no built package found for platform %s in %s", platform, distPath)
 }
 
 // Utility functions

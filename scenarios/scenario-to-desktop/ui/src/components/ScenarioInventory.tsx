@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
+import type { PlatformBuildResult } from "../lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { Monitor, Package, Search, Download, CheckCircle, XCircle, Loader2, Zap } from "lucide-react";
+import { Monitor, Package, Search, Download, CheckCircle, XCircle, Loader2, Zap, Hammer, ExternalLink, AlertCircle, ChevronDown, ChevronUp, Copy, Check, RefreshCw, Trash2, FileDown } from "lucide-react";
 
 interface ScenarioDesktopStatus {
   name: string;
@@ -155,6 +156,666 @@ function GenerateDesktopButton({ scenarioName }: GenerateDesktopButtonProps) {
       <Zap className="h-4 w-4" />
       Generate Desktop
     </Button>
+  );
+}
+
+interface RegenerateButtonProps {
+  scenarioName: string;
+}
+
+function RegenerateButton({ scenarioName }: RegenerateButtonProps) {
+  const queryClient = useQueryClient();
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [buildId, setBuildId] = useState<string | null>(null);
+
+  const regenerateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(buildUrl('/desktop/generate/quick'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario_name: scenarioName,
+          template_type: 'basic'
+        })
+      });
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(error || 'Failed to regenerate desktop app');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setBuildId(data.build_id);
+      setShowConfirm(false);
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
+      }, 3000);
+    }
+  });
+
+  // Poll build status if we have a buildId
+  const { data: buildStatus } = useQuery({
+    queryKey: ['regenerate-status', buildId],
+    queryFn: async () => {
+      if (!buildId) return null;
+      const res = await fetch(buildUrl(`/desktop/status/${buildId}`));
+      if (!res.ok) throw new Error('Failed to fetch build status');
+      return res.json();
+    },
+    enabled: !!buildId,
+    refetchInterval: (data) => {
+      if (data?.status === 'ready' || data?.status === 'failed') {
+        return false;
+      }
+      return 2000;
+    },
+  });
+
+  const isBuilding = regenerateMutation.isPending || (buildStatus && buildStatus.status === 'building');
+  const isComplete = buildStatus?.status === 'ready';
+  const isFailed = buildStatus?.status === 'failed';
+
+  if (isComplete) {
+    return (
+      <Badge variant="success" className="gap-1">
+        <CheckCircle className="h-3 w-3" />
+        Regenerated!
+      </Badge>
+    );
+  }
+
+  if (isFailed) {
+    return (
+      <div className="flex gap-2">
+        <Badge variant="destructive" className="gap-1">
+          <XCircle className="h-3 w-3" />
+          Failed
+        </Badge>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setBuildId(null);
+            regenerateMutation.reset();
+            setShowConfirm(true);
+          }}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (isBuilding) {
+    return (
+      <div className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
+        <span className="text-sm text-slate-400">Regenerating...</span>
+      </div>
+    );
+  }
+
+  if (showConfirm) {
+    return (
+      <div className="flex flex-col gap-2 p-3 bg-yellow-950/20 border border-yellow-800/30 rounded">
+        <div className="flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div className="text-xs text-yellow-200">
+            <p className="font-semibold">Regenerate desktop app?</p>
+            <p className="text-yellow-300/80 mt-1">This will overwrite existing files. Make sure you've saved any custom changes.</p>
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowConfirm(false)}
+            disabled={isBuilding}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => regenerateMutation.mutate()}
+            disabled={isBuilding}
+          >
+            <RefreshCw className="h-3 w-3 mr-1" />
+            Confirm Regenerate
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => setShowConfirm(true)}
+      disabled={isBuilding}
+      className="gap-1"
+    >
+      <RefreshCw className="h-4 w-4" />
+      Regenerate
+    </Button>
+  );
+}
+
+interface DeleteButtonProps {
+  scenarioName: string;
+}
+
+function DeleteButton({ scenarioName }: DeleteButtonProps) {
+  const queryClient = useQueryClient();
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(buildUrl(`/desktop/delete/${scenarioName}`), {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(error || 'Failed to delete desktop app');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setShowConfirm(false);
+      setConfirmText("");
+      queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
+    }
+  });
+
+  const isDeleting = deleteMutation.isPending;
+  const isSuccess = deleteMutation.isSuccess;
+  const isFailed = deleteMutation.isError;
+
+  if (isSuccess) {
+    return (
+      <Badge variant="default" className="gap-1">
+        <CheckCircle className="h-3 w-3" />
+        Deleted
+      </Badge>
+    );
+  }
+
+  if (isFailed) {
+    return (
+      <div className="flex gap-2">
+        <Badge variant="destructive" className="gap-1">
+          <XCircle className="h-3 w-3" />
+          Failed
+        </Badge>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            deleteMutation.reset();
+            setShowConfirm(true);
+          }}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (isDeleting) {
+    return (
+      <div className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin text-red-400" />
+        <span className="text-sm text-slate-400">Deleting...</span>
+      </div>
+    );
+  }
+
+  if (showConfirm) {
+    const isConfirmValid = confirmText === scenarioName;
+
+    return (
+      <div className="flex flex-col gap-3 p-4 bg-red-950/20 border border-red-800/30 rounded">
+        <div className="flex items-start gap-2">
+          <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm text-red-200">
+            <p className="font-semibold text-red-300">⚠️ Permanent Deletion</p>
+            <p className="text-red-300/90 mt-1">
+              This will <strong>permanently delete</strong> all desktop files for <strong>{scenarioName}</strong>.
+            </p>
+            <p className="text-red-300/80 mt-2 text-xs">
+              This includes generated templates, built packages, and all configuration.
+            </p>
+            <p className="text-red-300/80 mt-2 text-xs font-semibold">
+              This action cannot be undone!
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <div>
+            <label className="text-xs text-red-300 font-medium">
+              Type the scenario name "<span className="font-mono font-bold">{scenarioName}</span>" to confirm:
+            </label>
+            <Input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={scenarioName}
+              className="mt-1 font-mono text-sm"
+              autoFocus
+            />
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setShowConfirm(false);
+                setConfirmText("");
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => deleteMutation.mutate()}
+              disabled={isDeleting || !isConfirmValid}
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Confirm Delete
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => setShowConfirm(true)}
+      disabled={isDeleting}
+      className="gap-1 text-red-400 hover:text-red-300 border-red-800/30 hover:border-red-700/50"
+    >
+      <Trash2 className="h-4 w-4" />
+      Delete
+    </Button>
+  );
+}
+
+interface PlatformChipProps {
+  platform: string;
+  result?: PlatformBuildResult;
+  scenarioName: string;
+}
+
+function PlatformChip({ platform, result, scenarioName }: PlatformChipProps) {
+  const [showError, setShowError] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const platformIcons: Record<string, string> = {
+    win: '🪟',
+    mac: '🍎',
+    linux: '🐧'
+  };
+
+  const platformNames: Record<string, string> = {
+    win: 'Windows',
+    mac: 'macOS',
+    linux: 'Linux'
+  };
+
+  const handleDownload = () => {
+    const downloadUrl = buildUrl(`/desktop/download/${scenarioName}/${platform}`);
+    window.open(downloadUrl, '_blank');
+  };
+
+  const handleCopyErrors = async () => {
+    if (!result?.error_log) return;
+    const errorText = result.error_log.join('\n\n---\n\n');
+    await navigator.clipboard.writeText(errorText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Determine chip style based on status
+  let chipClass = "flex items-center gap-2 px-3 py-2 rounded-lg border transition-all";
+  let icon = null;
+  let statusText = "";
+
+  if (!result || result.status === "pending") {
+    chipClass += " bg-slate-800 border-slate-600 text-slate-400";
+    icon = <div className="h-2 w-2 rounded-full bg-slate-500" />;
+    statusText = "Pending";
+  } else if (result.status === "building") {
+    chipClass += " bg-blue-950/30 border-blue-700 text-blue-300 animate-pulse";
+    icon = <Loader2 className="h-3 w-3 animate-spin" />;
+    statusText = "Building";
+  } else if (result.status === "ready") {
+    chipClass += " bg-green-950/30 border-green-700 text-green-300 hover:border-green-600 cursor-pointer";
+    icon = <CheckCircle className="h-3 w-3" />;
+    statusText = "Ready";
+  } else if (result.status === "failed") {
+    chipClass += " bg-red-950/30 border-red-700 text-red-300";
+    icon = <XCircle className="h-3 w-3" />;
+    statusText = "Failed";
+  } else if (result.status === "skipped") {
+    chipClass += " bg-yellow-950/30 border-yellow-700 text-yellow-300";
+    icon = <AlertCircle className="h-3 w-3" />;
+    statusText = "Skipped";
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div
+        className={chipClass}
+        onClick={result?.status === "ready" ? handleDownload : undefined}
+        title={result?.status === "ready" ? "Click to download" : undefined}
+      >
+        <span className="text-lg">{platformIcons[platform]}</span>
+        {icon}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs font-medium">{platformNames[platform]}</span>
+          <span className="text-[10px] opacity-80">{statusText}</span>
+        </div>
+        {result?.file_size && result.status === "ready" && (
+          <span className="text-[10px] ml-auto opacity-70">{formatBytes(result.file_size)}</span>
+        )}
+        {result?.status === "ready" && (
+          <FileDown className="h-3 w-3 ml-auto" />
+        )}
+      </div>
+
+      {/* Show skip reason for skipped platforms */}
+      {result?.status === "skipped" && result.skip_reason && (
+        <div className="bg-yellow-950/20 border border-yellow-800/30 rounded p-2 text-xs text-yellow-300">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">{result.skip_reason}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Show error details for failed platforms */}
+      {result?.status === "failed" && result.error_log && result.error_log.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => setShowError(!showError)}
+            >
+              {showError ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {showError ? 'Hide' : 'Show'} Error
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={handleCopyErrors}
+            >
+              {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+          {showError && (
+            <div className="bg-red-950/20 border border-red-800/30 rounded p-2 text-[10px] font-mono text-red-300 max-h-32 overflow-y-auto">
+              {result.error_log.map((error, idx) => (
+                <div key={idx} className="whitespace-pre-wrap break-words mb-1 opacity-90">
+                  {error}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface BuildDesktopButtonProps {
+  scenarioName: string;
+}
+
+function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
+  const queryClient = useQueryClient();
+  const [buildId, setBuildId] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const buildMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(buildUrl(`/desktop/build/${scenarioName}`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platforms: ['win', 'mac', 'linux'] // Build all platforms
+        })
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(error.message || 'Failed to start build');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setBuildId(data.build_id);
+      setMutationError(null);
+    },
+    onError: (error: Error) => {
+      setMutationError(error.message);
+      setShowErrors(true);
+    }
+  });
+
+  // Poll build status if we have a buildId
+  const { data: buildStatus } = useQuery({
+    queryKey: ['build-status', buildId],
+    queryFn: async () => {
+      if (!buildId) return null;
+      const res = await fetch(buildUrl(`/desktop/status/${buildId}`));
+      if (!res.ok) throw new Error('Failed to fetch build status');
+      return res.json();
+    },
+    enabled: !!buildId,
+    refetchInterval: (data) => {
+      // Stop polling if build is complete
+      if (data?.status === 'ready' || data?.status === 'partial' || data?.status === 'failed') {
+        return false;
+      }
+      return 3000; // Poll every 3 seconds during build
+    },
+  });
+
+  // Refresh scenarios list when build completes
+  if ((buildStatus?.status === 'ready' || buildStatus?.status === 'partial') && buildId) {
+    queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
+  }
+
+  const isBuilding = buildMutation.isPending || (buildStatus && buildStatus.status === 'building');
+  const isSuccess = buildStatus?.status === 'ready' || buildStatus?.status === 'partial';
+  const isFailed = buildStatus?.status === 'failed';
+
+  // Show platform chips when build has results
+  if (buildStatus?.platform_results) {
+    const platforms = ['win', 'mac', 'linux'];
+
+    return (
+      <div className="flex flex-col gap-3 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {platforms.map(platform => (
+            <PlatformChip
+              key={platform}
+              platform={platform}
+              result={buildStatus.platform_results?.[platform]}
+              scenarioName={scenarioName}
+            />
+          ))}
+        </div>
+
+        {/* Show overall status */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {buildStatus.status === 'ready' && (
+              <div className="flex items-center gap-1 text-green-400">
+                <CheckCircle className="h-4 w-4" />
+                <span className="text-sm">All platforms built successfully</span>
+              </div>
+            )}
+            {buildStatus.status === 'partial' && (
+              <div className="flex items-center gap-1 text-yellow-400">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">Some platforms built successfully</span>
+              </div>
+            )}
+            {buildStatus.status === 'failed' && (
+              <div className="flex items-center gap-1 text-red-400">
+                <XCircle className="h-4 w-4" />
+                <span className="text-sm">Build failed</span>
+              </div>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setBuildId(null);
+              setShowErrors(false);
+              setMutationError(null);
+              setCopied(false);
+              buildMutation.mutate();
+            }}
+          >
+            Rebuild All
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show mutation error
+  if (mutationError) {
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-red-400">
+            <XCircle className="h-4 w-4" />
+            <span className="text-sm">Failed to start build</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setMutationError(null);
+              buildMutation.mutate();
+            }}
+          >
+            Retry
+          </Button>
+        </div>
+        <div className="bg-red-950/20 border border-red-800/30 rounded p-3 text-xs text-red-300">
+          {mutationError}
+        </div>
+      </div>
+    );
+  }
+
+  if (isBuilding) {
+    // Show platform chips with building status
+    if (buildStatus?.platform_results) {
+      const platforms = ['win', 'mac', 'linux'];
+      return (
+        <div className="flex flex-col gap-3 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {platforms.map(platform => (
+              <PlatformChip
+                key={platform}
+                platform={platform}
+                result={buildStatus.platform_results?.[platform]}
+                scenarioName={scenarioName}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2 text-blue-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Building platforms...</span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-2 text-blue-400">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-sm">Starting build...</span>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="default"
+      size="sm"
+      className="gap-2"
+      onClick={() => buildMutation.mutate()}
+    >
+      <Hammer className="h-4 w-4" />
+      Build Desktop App
+    </Button>
+  );
+}
+
+interface DownloadButtonsProps {
+  scenarioName: string;
+  platforms?: string[];
+}
+
+function DownloadButtons({ scenarioName, platforms = [] }: DownloadButtonsProps) {
+  const handleDownload = (platform: string) => {
+    const downloadUrl = buildUrl(`/desktop/download/${scenarioName}/${platform}`);
+    window.open(downloadUrl, '_blank');
+  };
+
+  const platformIcons: Record<string, string> = {
+    win: '🪟',
+    mac: '🍎',
+    linux: '🐧'
+  };
+
+  const platformNames: Record<string, string> = {
+    win: 'Windows',
+    mac: 'macOS',
+    linux: 'Linux'
+  };
+
+  if (platforms.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex gap-2">
+      {platforms.map((platform) => (
+        <Button
+          key={platform}
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => handleDownload(platform)}
+        >
+          <Download className="h-3 w-3" />
+          <span>{platformIcons[platform]}</span>
+          {platformNames[platform]}
+        </Button>
+      ))}
+    </div>
   );
 }
 
@@ -391,6 +1052,31 @@ export function ScenarioInventory() {
                     {scenario.desktop_path && (
                       <div className="mt-2 ml-13 text-xs text-slate-500">
                         {scenario.desktop_path}
+                      </div>
+                    )}
+
+                    {/* Action buttons based on state */}
+                    {scenario.has_desktop && scenario.built && scenario.platforms && (
+                      <div className="mt-3 ml-13">
+                        <DownloadButtons
+                          scenarioName={scenario.name}
+                          platforms={scenario.platforms}
+                        />
+                      </div>
+                    )}
+
+                    {scenario.has_desktop && !scenario.built && (
+                      <div className="mt-3 ml-13 flex flex-wrap gap-2">
+                        <BuildDesktopButton scenarioName={scenario.name} />
+                        <RegenerateButton scenarioName={scenario.name} />
+                        <DeleteButton scenarioName={scenario.name} />
+                      </div>
+                    )}
+
+                    {scenario.has_desktop && scenario.built && (
+                      <div className="mt-3 ml-13 flex flex-wrap gap-2">
+                        <RegenerateButton scenarioName={scenario.name} />
+                        <DeleteButton scenarioName={scenario.name} />
                       </div>
                     )}
                   </div>

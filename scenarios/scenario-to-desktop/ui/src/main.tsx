@@ -8,7 +8,7 @@ import "./styles.css";
 const queryClient = new QueryClient();
 
 if (window.top !== window.self) {
-  initIframeBridgeChild();
+  initIframeBridgeChild({ appId: "scenario-to-desktop" });
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

@@ -217,10 +217,16 @@ class DesktopTemplateGenerator {
                     ? relativePath.replace('.template', '')
                     : relativePath;
                 
+                // Determine if file should be processed as template
+                // Always process: .template files, and common code/config files that may contain variables
+                const templateExtensions = ['.ts', '.js', '.json', '.html', '.md', '.yml', '.yaml', '.xml', '.sh'];
+                const isTemplateByExtension = templateExtensions.some(ext => entry.name.endsWith(ext));
+                const isTemplateByName = entry.name.includes('.template') || entry.name.includes('{{');
+
                 files.push({
                     sourcePath: fullPath,
                     targetPath,
-                    isTemplate: entry.name.includes('.template') || entry.name.includes('{{')
+                    isTemplate: isTemplateByName || isTemplateByExtension
                 });
             }
         }
@@ -281,18 +287,18 @@ class DesktopTemplateGenerator {
             API_ENDPOINT: this.config.api_endpoint,
             SCENARIO_DIST_PATH: this.config.scenario_dist_path || '../ui/dist',
             
-            // Window config
-            WINDOW_WIDTH: this.config.window.width || 1200,
-            WINDOW_HEIGHT: this.config.window.height || 800,
-            WINDOW_BACKGROUND: this.config.window.background || '#f5f5f5',
-            
-            // Features (boolean values)
-            ENABLE_SPLASH: this.config.features.splash ?? true,
-            ENABLE_MENU: this.config.features.menu ?? true,
-            ENABLE_SYSTEM_TRAY: this.config.features.systemTray ?? false,
-            ENABLE_AUTO_UPDATER: this.config.features.autoUpdater ?? true,
-            ENABLE_SINGLE_INSTANCE: this.config.features.singleInstance ?? true,
-            ENABLE_DEV_TOOLS: this.config.features.devTools ?? true,
+            // Window config (use optional chaining for safety)
+            WINDOW_WIDTH: this.config.window?.width || 1200,
+            WINDOW_HEIGHT: this.config.window?.height || 800,
+            WINDOW_BACKGROUND: this.config.window?.background || '#f5f5f5',
+
+            // Features (boolean values) (use optional chaining for safety)
+            ENABLE_SPLASH: this.config.features?.splash ?? true,
+            ENABLE_MENU: this.config.features?.menu ?? true,
+            ENABLE_SYSTEM_TRAY: this.config.features?.systemTray ?? false,
+            ENABLE_AUTO_UPDATER: this.config.features?.autoUpdater ?? true,
+            ENABLE_SINGLE_INSTANCE: this.config.features?.singleInstance ?? true,
+            ENABLE_DEV_TOOLS: this.config.features?.devTools ?? true,
             
             // Styling
             SPLASH_BACKGROUND_START: this.config.styling?.splashBackgroundStart || '#4a90e2',
@@ -524,16 +530,14 @@ exports.default = async function notarizing(context) {
             await fs.writeFile(iconPath, iconData);
         }
 
-        // Create platform-specific icons (with path validation)
-        const platformIcons = ['icon.ico', 'icon.icns', 'icon.png'];
-        for (const iconName of platformIcons) {
-            const iconPath = path.join(assetsDir, iconName);
-            if (!iconPath.startsWith(assetsDir)) {
-                throw new Error('Invalid platform icon path detected');
-            }
-            const iconSize = iconName === 'icon.icns' || iconName === 'icon.png' ? 512 : 256;
-            await fs.writeFile(iconPath, this.generatePlaceholderIcon(iconSize));
+        // Create main icon.png (512x512) - electron-builder will convert to ICO/ICNS as needed
+        // We don't generate .ico or .icns placeholders because electron-builder requires
+        // specific multi-resolution formats that are complex to generate properly
+        const mainIconPath = path.join(assetsDir, 'icon.png');
+        if (!mainIconPath.startsWith(assetsDir)) {
+            throw new Error('Invalid platform icon path detected');
         }
+        await fs.writeFile(mainIconPath, this.generatePlaceholderIcon(512));
         
         // Create license file
         const licenseContent = `${this.config.app_display_name}
@@ -563,9 +567,97 @@ SOFTWARE.`;
     }
     
     private generatePlaceholderIcon(size: number): Buffer {
-        // This is a placeholder - in a real implementation, you'd generate or copy actual icons
-        // For now, return empty buffer (files will be empty but present)
-        return Buffer.alloc(0);
+        // Generate a minimal valid 256x256 PNG (minimum size for electron-builder)
+        // This creates a simple gray square that electron-builder can process and convert
+
+        // For sizes < 256, we still generate 256x256 (electron-builder minimum)
+        // For sizes >= 256, we generate the requested size
+        const actualSize = Math.max(size, 256);
+
+        // Create a simple PNG with a solid color
+        // We'll create the smallest valid PNG possible for the requested dimensions
+        const png = this.createMinimalPNG(actualSize, actualSize);
+        return png;
+    }
+
+    private createMinimalPNG(width: number, height: number): Buffer {
+        // Create a minimal PNG file with specified dimensions
+        // This generates a solid gray image that's valid for electron-builder
+
+        // PNG uses scanlines with a filter byte, so each row is (width * 4 + 1) bytes for RGBA
+        const bytesPerPixel = 4; // RGBA
+        const bytesPerRow = width * bytesPerPixel + 1; // +1 for filter byte
+        const rawData = Buffer.alloc(height * bytesPerRow);
+
+        // Fill with filter byte 0 (None) and gray pixels (0x80808080 = medium gray, opaque)
+        for (let y = 0; y < height; y++) {
+            const rowStart = y * bytesPerRow;
+            rawData[rowStart] = 0; // Filter byte: None
+
+            for (let x = 0; x < width; x++) {
+                const pixelStart = rowStart + 1 + x * bytesPerPixel;
+                rawData[pixelStart] = 0x80;     // R: medium gray
+                rawData[pixelStart + 1] = 0x80; // G: medium gray
+                rawData[pixelStart + 2] = 0x80; // B: medium gray
+                rawData[pixelStart + 3] = 0xFF; // A: fully opaque
+            }
+        }
+
+        // Compress the raw data using deflate (zlib)
+        const zlib = require('zlib');
+        const compressedData = zlib.deflateSync(rawData, { level: 9 });
+
+        // Build PNG file structure
+        const chunks: Buffer[] = [];
+
+        // PNG signature
+        chunks.push(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]));
+
+        // IHDR chunk
+        chunks.push(this.createPNGChunk('IHDR', this.createIHDR(width, height)));
+
+        // IDAT chunk (compressed image data)
+        chunks.push(this.createPNGChunk('IDAT', compressedData));
+
+        // IEND chunk
+        chunks.push(this.createPNGChunk('IEND', Buffer.alloc(0)));
+
+        return Buffer.concat(chunks);
+    }
+
+    private createIHDR(width: number, height: number): Buffer {
+        const ihdr = Buffer.alloc(13);
+        ihdr.writeUInt32BE(width, 0);       // Width
+        ihdr.writeUInt32BE(height, 4);      // Height
+        ihdr.writeUInt8(8, 8);              // Bit depth
+        ihdr.writeUInt8(6, 9);              // Color type: RGBA
+        ihdr.writeUInt8(0, 10);             // Compression method
+        ihdr.writeUInt8(0, 11);             // Filter method
+        ihdr.writeUInt8(0, 12);             // Interlace method
+        return ihdr;
+    }
+
+    private createPNGChunk(type: string, data: Buffer): Buffer {
+        const length = Buffer.alloc(4);
+        length.writeUInt32BE(data.length, 0);
+
+        const typeBuffer = Buffer.from(type, 'ascii');
+        const crc = this.crc32(Buffer.concat([typeBuffer, data]));
+        const crcBuffer = Buffer.alloc(4);
+        crcBuffer.writeUInt32BE(crc >>> 0, 0);
+
+        return Buffer.concat([length, typeBuffer, data, crcBuffer]);
+    }
+
+    private crc32(data: Buffer): number {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < data.length; i++) {
+            crc = crc ^ data[i];
+            for (let j = 0; j < 8; j++) {
+                crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+            }
+        }
+        return crc ^ 0xFFFFFFFF;
     }
 
     private async copyUIDistFiles(): Promise<void> {

@@ -103,6 +103,7 @@ function createSplashWindow() {
 
 async function createMainWindow() {
     console.log("[Desktop App] Creating main window (hidden)...");
+    const appIcon = getAppIcon();
     mainWindow = new BrowserWindow({
         width: APP_CONFIG.WINDOW_WIDTH,
         height: APP_CONFIG.WINDOW_HEIGHT,
@@ -114,7 +115,7 @@ async function createMainWindow() {
             nodeIntegration: false,
             contextIsolation: true,
         },
-        icon: getAppIcon(),
+        ...(appIcon && { icon: appIcon }),
     });
 
     // Handle external link clicks
@@ -252,19 +253,19 @@ function createApplicationMenu() {
                 { role: "cut" },
                 { role: "copy" },
                 { role: "paste" },
-                { role: "selectall" }
+                { role: "selectAll" }
             ]
         },
         {
             label: "View",
             submenu: [
                 { role: "reload" },
-                { role: "forcereload" },
-                { role: "toggledevtools" },
+                { role: "forceReload" },
+                { role: "toggleDevTools" },
                 { type: "separator" },
-                { role: "resetzoom" },
-                { role: "zoomin" },
-                { role: "zoomout" },
+                { role: "resetZoom" },
+                { role: "zoomIn" },
+                { role: "zoomOut" },
                 { type: "separator" },
                 { role: "togglefullscreen" }
             ]
@@ -391,13 +392,18 @@ function setupAutoUpdater() {
 // File operations
 ipcMain.handle("file:save", async (event, data: { content: string; defaultPath?: string }) => {
     if (!mainWindow) return null;
-    
-    const result = await dialog.showSaveDialog(mainWindow, {
-        defaultPath: data.defaultPath,
+
+    const dialogOptions: Electron.SaveDialogOptions = {
         filters: [
             { name: "All Files", extensions: ["*"] }
         ]
-    });
+    };
+
+    if (data.defaultPath) {
+        dialogOptions.defaultPath = data.defaultPath;
+    }
+
+    const result = await dialog.showSaveDialog(mainWindow, dialogOptions);
     
     if (result.canceled) return null;
     

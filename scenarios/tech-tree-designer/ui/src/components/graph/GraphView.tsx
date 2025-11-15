@@ -436,7 +436,7 @@ const GraphView: React.FC<GraphViewProps> = ({
         graphNotice={graphNotice}
       />
 
-      <div onContextMenu={handleContextMenu}>
+      <div className="tech-tree-graph-wrapper" onContextMenu={handleContextMenu}>
         <GraphCanvas
           nodes={graphNodes}
           edges={graphEdges}

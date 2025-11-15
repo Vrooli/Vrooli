@@ -101,25 +101,87 @@ scenario-to-desktop generate picker-wheel \
   --platforms win,mac,linux
 ```
 
-### 4. Build and Test
+### 4. Build Desktop Packages
+
+**🚀 NEW: One-Click Building from UI**
 
 ```bash
-# First, build your scenario's UI
-cd scenarios/picker-wheel/ui
-npm run build
+# Method 1: Using the Web UI (Easiest!)
+# 1. Open http://localhost:<UI_PORT>
+# 2. Go to "Scenario Inventory" tab
+# 3. Find scenario with "Desktop" badge
+# 4. Click "Build Desktop App" button
+# 5. Watch real-time build progress
+# 6. Download buttons appear when ready!
 
-# Navigate to the generated desktop wrapper
-cd ../platforms/electron
+# Method 2: Using the API directly
+curl -X POST http://localhost:<API_PORT>/api/v1/desktop/build/picker-wheel \
+  -H "Content-Type: application/json" \
+  -d '{"platforms": ["win"]}'
 
-# Install dependencies
+# Method 3: Manual build in desktop wrapper
+cd scenarios/picker-wheel/platforms/electron
 npm install
+npm run build
+npm run dist:win    # Build Windows executable
+```
 
-# Development mode (with hot reload and DevTools)
-npm run dev
+**Build Process**:
+1. Installs npm dependencies in electron wrapper
+2. Compiles TypeScript (main.ts, preload.ts)
+3. Packages with electron-builder for target platform(s)
+4. Creates installers in `dist-electron/`:
+   - Windows: `<name>-Setup-<version>.exe`
+   - macOS: `<name>-<version>.dmg`
+   - Linux: `<name>-<version>.AppImage`, `<name>-<version>.deb`
+
+### 5. Download and Test on Windows
+
+**🪟 Testing from Your Windows Laptop**
+
+```bash
+# Step 1: Access scenario-to-desktop through app-monitor proxy
+1. Connect to your secure tunnel
+2. Navigate to scenario-to-desktop UI
+3. Go to Scenario Inventory
+
+# Step 2: Download the Windows executable
+1. Find scenario with "Built" badge
+2. See 🪟 Windows download button
+3. Click to download .exe file
+4. Save to your Windows machine
+
+# Step 3: Install and test
+1. Run the downloaded Setup.exe
+2. Windows SmartScreen: Click "More info" → "Run anyway"
+3. Follow installation wizard
+4. Launch the installed desktop app
+5. Verify all functionality works
+```
+
+**Download URL Pattern**:
+```
+http://localhost:<API_PORT>/api/v1/desktop/download/<scenario-name>/<platform>
+
+Examples:
+- Windows: /api/v1/desktop/download/picker-wheel/win
+- macOS:   /api/v1/desktop/download/picker-wheel/mac
+- Linux:   /api/v1/desktop/download/picker-wheel/linux
+```
+
+### 6. Development and Testing
+
+```bash
+# Development mode (local testing on server)
+cd scenarios/picker-wheel/platforms/electron
+npm run dev              # Launch with DevTools
 
 # Build for distribution
-npm run dist              # Current platform
-npm run dist:all          # All platforms
+npm run dist             # Current platform only
+npm run dist:win         # Windows executable
+npm run dist:mac         # macOS DMG
+npm run dist:linux       # Linux AppImage
+npm run dist:all         # All platforms
 ```
 
 ## 💼 Use Cases & Examples
@@ -276,12 +338,14 @@ GET /api/v1/scenarios/desktop-status     # NEW: All scenarios and desktop status
 
 #### Desktop Operations
 ```http
-POST /api/v1/desktop/generate      # Generate desktop app (manual config)
-POST /api/v1/desktop/generate/quick # 🆕 Quick generate with auto-detection
-GET  /api/v1/desktop/status/{id}   # Build status
-POST /api/v1/desktop/build         # Build project
-POST /api/v1/desktop/test          # Test functionality
-POST /api/v1/desktop/package       # Package for distribution
+POST /api/v1/desktop/generate                      # Generate desktop app (manual config)
+POST /api/v1/desktop/generate/quick                # 🆕 Quick generate with auto-detection
+GET  /api/v1/desktop/status/{id}                   # Build/generation status
+POST /api/v1/desktop/build/{scenario_name}         # 🆕 Build desktop packages
+GET  /api/v1/desktop/download/{scenario}/{platform} # 🆕 Download built package
+POST /api/v1/desktop/build                         # Build project (legacy)
+POST /api/v1/desktop/test                          # Test functionality
+POST /api/v1/desktop/package                       # Package for distribution
 ```
 
 #### Quick Generate (NEW!)
@@ -323,6 +387,69 @@ Response:
 - Detects if scenario has API
 - Sets sensible defaults for all config
 - Copies UI files automatically
+
+#### Build Desktop App (NEW!)
+Build executable packages for a scenario that has a desktop wrapper:
+
+```http
+POST /api/v1/desktop/build/{scenario_name}
+
+Request Body (optional):
+{
+  "platforms": ["win"],  // optional: win, mac, linux (defaults to all)
+  "clean": false         // optional: clean before building
+}
+
+Response:
+{
+  "build_id": "uuid",
+  "status": "building",
+  "scenario": "picker-wheel",
+  "desktop_path": ".../scenarios/picker-wheel/platforms/electron",
+  "platforms": ["win"],
+  "status_url": "/api/v1/desktop/status/{build_id}"
+}
+```
+
+**Build Process**:
+1. Runs `npm install` to install dependencies
+2. Runs `npm run build` to compile TypeScript
+3. Runs `npm run dist:win` (or dist:mac, dist:linux) to package
+4. Creates installers in `dist-electron/` directory
+5. Typical build time: 3-8 minutes depending on platforms
+
+**Note**: Building Windows executables on Linux requires wine, which is installed automatically by electron-builder.
+
+#### Download Built Package (NEW!)
+Download the built executable for a specific platform:
+
+```http
+GET /api/v1/desktop/download/{scenario_name}/{platform}
+
+Parameters:
+- scenario_name: Name of the scenario (e.g., "picker-wheel")
+- platform: One of: "win", "mac", "linux"
+
+Response:
+- Content-Type: application/x-msdownload (for .exe)
+- Content-Type: application/x-apple-diskimage (for .dmg)
+- Content-Type: application/x-executable (for .AppImage)
+- Content-Disposition: attachment; filename=<installer-file>
+
+File Downloads:
+- Windows: picker-wheel-Setup-1.0.0.exe
+- macOS: picker-wheel-1.0.0.dmg
+- Linux: picker-wheel-1.0.0.AppImage
+```
+
+**Example Usage**:
+```bash
+# Download Windows installer
+curl -O http://localhost:${API_PORT}/api/v1/desktop/download/picker-wheel/win
+
+# Or open in browser to trigger download
+open http://localhost:${API_PORT}/api/v1/desktop/download/picker-wheel/win
+```
 
 #### Scenario Discovery (NEW)
 ```http
