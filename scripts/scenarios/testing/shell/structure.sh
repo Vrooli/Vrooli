@@ -168,8 +168,11 @@ testing::structure::validate_all() {
     _validate_json_files "$scenario_dir"
   fi
 
+  # Validate playbook-requirement linkage
+  _validate_playbook_linkage "$scenario_dir"
+
   echo ""
-  local total_checks=$((${#dirs_to_check[@]} + ${#files_to_check[@]} + 2))
+  local total_checks=$((${#dirs_to_check[@]} + ${#files_to_check[@]} + 3))
   echo "✅ Structure validation completed ($total_checks checks)"
 
   testing::phase::auto_lifecycle_end "$summary"
@@ -253,6 +256,58 @@ _validate_json_files() {
   log::success "✅ All JSON files are valid (${#json_files[@]} checked)"
   testing::phase::add_test passed
   return 0
+}
+
+# Private helper: Validate playbook-requirement linkage
+_validate_playbook_linkage() {
+  local scenario_dir="$1"
+  local app_root="${TESTING_PHASE_APP_ROOT:-${APP_ROOT:-$(cd "$scenario_dir/../.." && pwd)}}"
+  local linkage_script="$app_root/scripts/scenarios/testing/shell/validate-playbook-linkage.sh"
+
+  # Skip if playbooks directory doesn't exist
+  if [ ! -d "$scenario_dir/test/playbooks" ]; then
+    log::success "✅ No playbooks directory (linkage validation skipped)"
+    testing::phase::add_test passed
+    return 0
+  fi
+
+  # Skip if requirements directory doesn't exist
+  if [ ! -d "$scenario_dir/requirements" ]; then
+    testing::phase::add_warning "Requirements directory not found, but playbooks exist"
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  # Skip if validation script doesn't exist
+  if [ ! -f "$linkage_script" ]; then
+    testing::phase::add_warning "Playbook linkage validation script not found at $linkage_script"
+    testing::phase::add_test passed
+    return 0
+  fi
+
+  echo ""
+  echo "🔗 Validating playbook-requirement linkage..."
+
+  # Run the validation script (suppress output, we'll show summary)
+  local validation_output
+  local validation_exit_code=0
+
+  if validation_output=$(bash "$linkage_script" "$scenario_dir" 2>&1); then
+    # Extract summary from output
+    local playbook_count=$(echo "$validation_output" | grep -oP 'Total playbooks: \K\d+' || echo "unknown")
+    local requirement_count=$(echo "$validation_output" | grep -oP 'Total requirements: \K\d+' || echo "unknown")
+    log::success "✅ All playbooks properly linked ($playbook_count playbooks, $requirement_count requirements)"
+    testing::phase::add_test passed
+    return 0
+  else
+    validation_exit_code=$?
+    # Show the full validation output on failure
+    echo "$validation_output"
+    echo ""
+    testing::phase::add_error "Playbook-requirement linkage validation failed (exit code: $validation_exit_code)"
+    testing::phase::add_test failed
+    return 1
+  fi
 }
 
 # Export functions
