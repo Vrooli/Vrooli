@@ -110,7 +110,7 @@
       },
       "data": {
         "label": "Wait for workflow builder",
-        "durationMs": 2500,
+        "durationMs": 4000,
         "waitType": "duration"
       }
     },
@@ -136,10 +136,9 @@
       },
       "data": {
         "label": "Open version history",
-        "selector": "button[title*='version'], button[aria-label*='version'], button[data-testid*='version']",
+        "selector": "[data-testid=\"header-version-history-button\"]",
         "timeoutMs": 5000,
-        "waitForMs": 1500,
-        "continueOnError": true
+        "waitForMs": 1500
       }
     },
     {

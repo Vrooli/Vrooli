@@ -1,0 +1,158 @@
+{
+  "metadata": {
+    "description": "Validates duplicating selected nodes using toolbar duplicate button",
+    "requirement": "BAS-TOOLBAR-DUPLICATE",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {"x": 0, "y": 0},
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-dashboard",
+      "type": "wait",
+      "position": {"x": 200, "y": 0},
+      "data": {
+        "label": "Wait for dashboard",
+        "selector": "[data-testid=\"projects-grid\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {"x": 400, "y": 0},
+      "data": {
+        "label": "Open project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-project",
+      "type": "wait",
+      "position": {"x": 600, "y": 0},
+      "data": {"label": "Wait for project", "durationMs": 2000, "waitType": "duration"}
+    },
+    {
+      "id": "click-workflow",
+      "type": "click",
+      "position": {"x": 800, "y": 0},
+      "data": {
+        "label": "Open workflow",
+        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-builder",
+      "type": "wait",
+      "position": {"x": 1000, "y": 0},
+      "data": {
+        "label": "Wait for builder",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "count-initial",
+      "type": "evaluate",
+      "position": {"x": 1200, "y": -100},
+      "data": {
+        "label": "Count initial nodes",
+        "expression": "document.querySelectorAll('.react-flow__node').length",
+        "storeAs": "initialCount"
+      }
+    },
+    {
+      "id": "click-node",
+      "type": "click",
+      "position": {"x": 1400, "y": 0},
+      "data": {
+        "label": "Select node",
+        "selector": ".react-flow__node:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "capture-before",
+      "type": "screenshot",
+      "position": {"x": 1600, "y": 0},
+      "data": {"label": "Capture before duplicate", "fullPage": true, "waitForMs": 500}
+    },
+    {
+      "id": "click-duplicate",
+      "type": "click",
+      "position": {"x": 1800, "y": 0},
+      "data": {
+        "label": "Click duplicate button",
+        "selector": "[data-testid=\"toolbar-duplicate-button\"], button[title*=\"duplicate\" i], button[aria-label*=\"duplicate\" i]",
+        "timeoutMs": 5000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "count-final",
+      "type": "evaluate",
+      "position": {"x": 2000, "y": -100},
+      "data": {
+        "label": "Count nodes after duplicate",
+        "expression": "document.querySelectorAll('.react-flow__node').length",
+        "storeAs": "finalCount"
+      }
+    },
+    {
+      "id": "verify-increased",
+      "type": "evaluate",
+      "position": {"x": 2200, "y": -100},
+      "data": {
+        "label": "Verify node count increased",
+        "expression": "(() => { const initial = parseInt(localStorage.getItem('initialCount') || '0'); const final = parseInt(localStorage.getItem('finalCount') || '0'); return final > initial; })()",
+        "storeAs": "nodeDuplicated"
+      }
+    },
+    {
+      "id": "capture-after",
+      "type": "screenshot",
+      "position": {"x": 2400, "y": 0},
+      "data": {"label": "Capture after duplicate", "fullPage": true, "waitForMs": 500}
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-dashboard", "target": "wait-dashboard", "type": "smoothstep"},
+    {"id": "e2", "source": "wait-dashboard", "target": "click-project", "type": "smoothstep"},
+    {"id": "e3", "source": "click-project", "target": "wait-project", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-project", "target": "click-workflow", "type": "smoothstep"},
+    {"id": "e5", "source": "click-workflow", "target": "wait-builder", "type": "smoothstep"},
+    {"id": "e6", "source": "wait-builder", "target": "count-initial", "type": "smoothstep"},
+    {"id": "e7", "source": "count-initial", "target": "click-node", "type": "smoothstep"},
+    {"id": "e8", "source": "click-node", "target": "capture-before", "type": "smoothstep"},
+    {"id": "e9", "source": "capture-before", "target": "click-duplicate", "type": "smoothstep"},
+    {"id": "e10", "source": "click-duplicate", "target": "count-final", "type": "smoothstep"},
+    {"id": "e11", "source": "count-final", "target": "verify-increased", "type": "smoothstep"},
+    {"id": "e12", "source": "verify-increased", "target": "capture-after", "type": "smoothstep"}
+  ]
+}

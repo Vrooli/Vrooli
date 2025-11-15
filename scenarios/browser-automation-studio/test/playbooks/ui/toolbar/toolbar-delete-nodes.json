@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "description": "Validates deleting a node using keyboard (Delete/Backspace) after selection",
-    "requirement": "BAS-BUILDER-DELETE-NODE",
+    "description": "Validates deleting selected nodes using toolbar delete button",
+    "requirement": "BAS-TOOLBAR-DELETE",
     "version": 1
   },
   "settings": {
@@ -38,8 +38,10 @@
       },
       "data": {
         "label": "Wait for dashboard",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "selector": "[data-testid=\"projects-grid\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
       }
     },
     {
@@ -50,14 +52,14 @@
         "y": 0
       },
       "data": {
-        "label": "Open Demo project",
+        "label": "Open project",
         "selector": "[data-testid=\"project-card\"]:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
     },
     {
-      "id": "wait-for-project-detail",
+      "id": "wait-project",
       "type": "wait",
       "position": {
         "x": 600,
@@ -70,29 +72,28 @@
       }
     },
     {
-      "id": "click-first-workflow",
+      "id": "click-workflow",
       "type": "click",
       "position": {
         "x": 800,
         "y": 0
       },
       "data": {
-        "label": "Open demo workflow with nodes",
-        "selector": "[data-testid=\"workflow-card\"][data-workflow-name*=\"Demo\"], [data-testid=\"workflow-card\"]:first-of-type",
+        "label": "Open workflow",
+        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
         "timeoutMs": 10000,
-        "waitForMs": 2000,
-        "continueOnError": false
+        "waitForMs": 2000
       }
     },
     {
-      "id": "wait-for-builder",
+      "id": "wait-builder",
       "type": "wait",
       "position": {
         "x": 1000,
         "y": 0
       },
       "data": {
-        "label": "Wait for builder to load",
+        "label": "Wait for builder",
         "durationMs": 3000,
         "waitType": "duration"
       }
@@ -105,11 +106,11 @@
         "y": 0
       },
       "data": {
-        "label": "Workflow has nodes to delete",
+        "label": "Workflow has nodes",
         "selector": ".react-flow__node",
         "assertMode": "exists",
         "timeoutMs": 5000,
-        "failureMessage": "Workflow should have at least one node"
+        "failureMessage": "Workflow should have nodes to delete"
       }
     },
     {
@@ -126,83 +127,55 @@
       }
     },
     {
-      "id": "capture-before-delete",
-      "type": "screenshot",
+      "id": "click-first-node",
+      "type": "click",
       "position": {
         "x": 1600,
         "y": 0
       },
       "data": {
-        "label": "Capture canvas before delete",
-        "fullPage": true,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "click-first-node",
-      "type": "click",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
-      "data": {
-        "label": "Click first node to select it",
+        "label": "Select first node",
         "selector": ".react-flow__node:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
     },
     {
-      "id": "verify-node-selected",
-      "type": "assert",
+      "id": "capture-before-delete",
+      "type": "screenshot",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture before delete",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-delete-button",
+      "type": "click",
       "position": {
         "x": 2000,
         "y": 0
       },
       "data": {
-        "label": "Node is selected (has selected class)",
-        "selector": ".react-flow__node.selected, .react-flow__node[data-selected=\"true\"]",
-        "assertMode": "exists",
-        "timeoutMs": 3000,
-        "failureMessage": "Node should be selected after clicking"
-      }
-    },
-    {
-      "id": "press-delete-key",
-      "type": "keyboard",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
-      "data": {
-        "label": "Press Delete key",
-        "key": "Delete",
-        "timeoutMs": 3000,
+        "label": "Click toolbar delete button",
+        "selector": "[data-testid=\"toolbar-delete-button\"], button[title*=\"delete\" i], button[aria-label*=\"delete\" i]",
+        "timeoutMs": 5000,
         "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-delete",
-      "type": "wait",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for node removal",
-        "durationMs": 1500,
-        "waitType": "duration"
       }
     },
     {
       "id": "count-final-nodes",
       "type": "evaluate",
       "position": {
-        "x": 2600,
+        "x": 2200,
         "y": -100
       },
       "data": {
-        "label": "Count remaining nodes",
+        "label": "Count nodes after delete",
         "expression": "document.querySelectorAll('.react-flow__node').length",
         "storeAs": "finalNodeCount"
       }
@@ -211,7 +184,7 @@
       "id": "verify-node-deleted",
       "type": "evaluate",
       "position": {
-        "x": 2800,
+        "x": 2400,
         "y": -100
       },
       "data": {
@@ -224,11 +197,11 @@
       "id": "capture-after-delete",
       "type": "screenshot",
       "position": {
-        "x": 3000,
+        "x": 2600,
         "y": 0
       },
       "data": {
-        "label": "Capture canvas after delete",
+        "label": "Capture after delete",
         "fullPage": true,
         "waitForMs": 500
       }
@@ -237,18 +210,16 @@
   "edges": [
     {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
     {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-for-project-detail", "target": "click-first-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "click-first-workflow", "target": "wait-for-builder", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-for-builder", "target": "assert-nodes-exist", "type": "smoothstep"},
+    {"id": "e3", "source": "click-project", "target": "wait-project", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-project", "target": "click-workflow", "type": "smoothstep"},
+    {"id": "e5", "source": "click-workflow", "target": "wait-builder", "type": "smoothstep"},
+    {"id": "e6", "source": "wait-builder", "target": "assert-nodes-exist", "type": "smoothstep"},
     {"id": "e7", "source": "assert-nodes-exist", "target": "count-initial-nodes", "type": "smoothstep"},
-    {"id": "e8", "source": "count-initial-nodes", "target": "capture-before-delete", "type": "smoothstep"},
-    {"id": "e9", "source": "capture-before-delete", "target": "click-first-node", "type": "smoothstep"},
-    {"id": "e10", "source": "click-first-node", "target": "verify-node-selected", "type": "smoothstep"},
-    {"id": "e11", "source": "verify-node-selected", "target": "press-delete-key", "type": "smoothstep"},
-    {"id": "e12", "source": "press-delete-key", "target": "wait-for-delete", "type": "smoothstep"},
-    {"id": "e13", "source": "wait-for-delete", "target": "count-final-nodes", "type": "smoothstep"},
-    {"id": "e14", "source": "count-final-nodes", "target": "verify-node-deleted", "type": "smoothstep"},
-    {"id": "e15", "source": "verify-node-deleted", "target": "capture-after-delete", "type": "smoothstep"}
+    {"id": "e8", "source": "count-initial-nodes", "target": "click-first-node", "type": "smoothstep"},
+    {"id": "e9", "source": "click-first-node", "target": "capture-before-delete", "type": "smoothstep"},
+    {"id": "e10", "source": "capture-before-delete", "target": "click-delete-button", "type": "smoothstep"},
+    {"id": "e11", "source": "click-delete-button", "target": "count-final-nodes", "type": "smoothstep"},
+    {"id": "e12", "source": "count-final-nodes", "target": "verify-node-deleted", "type": "smoothstep"},
+    {"id": "e13", "source": "verify-node-deleted", "target": "capture-after-delete", "type": "smoothstep"}
   ]
 }

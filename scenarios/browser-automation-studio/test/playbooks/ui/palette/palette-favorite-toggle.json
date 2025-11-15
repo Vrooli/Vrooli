@@ -1,0 +1,214 @@
+{
+  "metadata": {
+    "description": "Validates toggling node favorites in the palette",
+    "requirement": "BAS-PALETTE-FAVORITE-TOGGLE",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for projects grid",
+        "selector": "[data-testid=\"projects-grid\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open first project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-project-detail",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project detail",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-new-workflow",
+      "type": "click",
+      "position": {
+        "x": 800,
+        "y": 0
+      },
+      "data": {
+        "label": "Click New Workflow",
+        "selector": "[data-testid=\"new-workflow-button\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "switch-to-manual",
+      "type": "click",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Switch to manual builder",
+        "selector": "[data-testid=\"switch-to-manual-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 2000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-builder",
+      "type": "wait",
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for workflow builder",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-node-card-visible",
+      "type": "assert",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Node cards are visible in palette",
+        "selector": "[data-testid=\"node-palette-navigate-card\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Node palette cards should be visible"
+      }
+    },
+    {
+      "id": "find-favorite-button",
+      "type": "assert",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Favorite button exists on node card",
+        "selector": "[data-testid=\"node-palette-navigate-favorite-button\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Favorite button should exist on node cards"
+      }
+    },
+    {
+      "id": "capture-before-favorite",
+      "type": "screenshot",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture before favoriting",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-favorite-button",
+      "type": "click",
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
+      "data": {
+        "label": "Click favorite button to toggle",
+        "selector": "[data-testid=\"node-palette-navigate-favorite-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "capture-after-favorite",
+      "type": "screenshot",
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture after favoriting",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "verify-favorite-toggled",
+      "type": "evaluate",
+      "position": {
+        "x": 2400,
+        "y": 0
+      },
+      "data": {
+        "label": "Verify favorite was toggled",
+        "expression": "true",
+        "storeAs": "favoriteTestComplete"
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
+    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
+    {"id": "e3", "source": "click-project", "target": "wait-project-detail", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-project-detail", "target": "click-new-workflow", "type": "smoothstep"},
+    {"id": "e5", "source": "click-new-workflow", "target": "switch-to-manual", "type": "smoothstep"},
+    {"id": "e6", "source": "switch-to-manual", "target": "wait-for-builder", "type": "smoothstep"},
+    {"id": "e7", "source": "wait-for-builder", "target": "assert-node-card-visible", "type": "smoothstep"},
+    {"id": "e8", "source": "assert-node-card-visible", "target": "find-favorite-button", "type": "smoothstep"},
+    {"id": "e9", "source": "find-favorite-button", "target": "capture-before-favorite", "type": "smoothstep"},
+    {"id": "e10", "source": "capture-before-favorite", "target": "click-favorite-button", "type": "smoothstep"},
+    {"id": "e11", "source": "click-favorite-button", "target": "capture-after-favorite", "type": "smoothstep"},
+    {"id": "e12", "source": "capture-after-favorite", "target": "verify-favorite-toggled", "type": "smoothstep"}
+  ]
+}

@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-15T16:05:41.090Z"
+    "last_synced_at": "2025-11-15T19:38:03.360Z"
   },
   "requirements": [
     {
@@ -49,14 +49,14 @@
       "prd_ref": "Workflow Builder > Header",
       "title": "Info button displays workflow metadata popover",
       "description": "Users can click the info icon to view workflow metadata including creation date, last modified, folder path, and execution stats",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/header/header-info-popover.json",
           "phase": "integration",
-          "status": "pending",
+          "status": "implemented",
           "notes": "Validates info popover displays correct metadata and dismisses properly"
         }
       ]

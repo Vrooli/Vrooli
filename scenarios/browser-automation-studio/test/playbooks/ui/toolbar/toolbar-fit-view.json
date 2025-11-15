@@ -66,8 +66,8 @@
         "y": 0
       },
       "data": {
-        "label": "Open workflow with multiple nodes",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "label": "Open demo workflow with multiple nodes",
+        "selector": "[data-testid=\"workflow-card\"][data-workflow-name*=\"Demo\"], [data-testid=\"workflow-card\"]:first-of-type",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }

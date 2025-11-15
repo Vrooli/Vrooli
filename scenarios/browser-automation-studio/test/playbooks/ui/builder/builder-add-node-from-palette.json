@@ -120,8 +120,10 @@
       },
       "data": {
         "label": "Wait for workflow builder to load",
-        "durationMs": 3000,
-        "waitType": "duration"
+        "selector": "[data-testid=\"workflow-builder-canvas\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 2000,
+        "waitType": "element"
       }
     },
     {
@@ -133,7 +135,7 @@
       },
       "data": {
         "label": "Canvas is visible",
-        "selector": ".react-flow, [data-testid=\"workflow-builder-canvas\"]",
+        "selector": "[data-testid=\"workflow-builder-canvas\"] .react-flow",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Workflow builder canvas should be visible"
@@ -216,7 +218,7 @@
       "data": {
         "label": "Drag navigate node from palette to canvas",
         "sourceSelector": "[data-testid=\"node-palette-navigate-card\"]",
-        "targetSelector": ".react-flow, [data-testid=\"workflow-builder-canvas\"]",
+        "targetSelector": "[data-testid=\"workflow-builder-canvas\"] .react-flow__pane",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }

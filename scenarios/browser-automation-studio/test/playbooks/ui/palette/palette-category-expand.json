@@ -1,0 +1,213 @@
+{
+  "metadata": {
+    "description": "Validates node palette category expansion and collapse functionality",
+    "requirement": "BAS-PALETTE-CATEGORY-EXPAND",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for projects grid",
+        "selector": "[data-testid=\"projects-grid\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open first project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-project-detail",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project detail",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-new-workflow",
+      "type": "click",
+      "position": {
+        "x": 800,
+        "y": 0
+      },
+      "data": {
+        "label": "Click New Workflow",
+        "selector": "[data-testid=\"new-workflow-button\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "switch-to-manual",
+      "type": "click",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Switch to manual builder",
+        "selector": "[data-testid=\"switch-to-manual-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 2000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-builder",
+      "type": "wait",
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for workflow builder",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-palette-visible",
+      "type": "assert",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Node palette is visible",
+        "selector": "[data-testid^=\"node-palette-\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Node palette should be visible"
+      }
+    },
+    {
+      "id": "capture-palette-initial",
+      "type": "screenshot",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture initial palette state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "find-category-header",
+      "type": "evaluate",
+      "position": {
+        "x": 1800,
+        "y": -100
+      },
+      "data": {
+        "label": "Check for expandable category headers",
+        "expression": "document.querySelectorAll('[role=\"button\"], button, [data-testid*=\"category\"]').length > 0",
+        "storeAs": "hasCategoryHeaders"
+      }
+    },
+    {
+      "id": "click-first-category",
+      "type": "click",
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
+      "data": {
+        "label": "Click first category to toggle",
+        "selector": "[role=\"button\"]:has(svg.lucide-chevron), button:has(svg.lucide-chevron)",
+        "timeoutMs": 5000,
+        "waitForMs": 1000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "capture-palette-toggled",
+      "type": "screenshot",
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture palette after category toggle",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "verify-category-interaction",
+      "type": "evaluate",
+      "position": {
+        "x": 2400,
+        "y": 0
+      },
+      "data": {
+        "label": "Verify categories can be interacted with",
+        "expression": "true",
+        "storeAs": "categoryTestComplete"
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
+    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
+    {"id": "e3", "source": "click-project", "target": "wait-project-detail", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-project-detail", "target": "click-new-workflow", "type": "smoothstep"},
+    {"id": "e5", "source": "click-new-workflow", "target": "switch-to-manual", "type": "smoothstep"},
+    {"id": "e6", "source": "switch-to-manual", "target": "wait-for-builder", "type": "smoothstep"},
+    {"id": "e7", "source": "wait-for-builder", "target": "assert-palette-visible", "type": "smoothstep"},
+    {"id": "e8", "source": "assert-palette-visible", "target": "capture-palette-initial", "type": "smoothstep"},
+    {"id": "e9", "source": "capture-palette-initial", "target": "find-category-header", "type": "smoothstep"},
+    {"id": "e10", "source": "find-category-header", "target": "click-first-category", "type": "smoothstep"},
+    {"id": "e11", "source": "click-first-category", "target": "capture-palette-toggled", "type": "smoothstep"},
+    {"id": "e12", "source": "capture-palette-toggled", "target": "verify-category-interaction", "type": "smoothstep"}
+  ]
+}

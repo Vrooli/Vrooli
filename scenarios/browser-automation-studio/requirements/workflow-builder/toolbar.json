@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-15T16:05:41.090Z"
+    "last_synced_at": "2025-11-15T19:38:03.361Z"
   },
   "requirements": [
     {
@@ -103,14 +103,14 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Lock/unlock canvas prevents/allows node interaction",
       "description": "Users can toggle canvas lock to prevent accidental node movements and edits during review",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/toolbar/toolbar-lock-toggle.json",
           "phase": "integration",
-          "status": "pending",
+          "status": "implemented",
           "notes": "Validates lock prevents node dragging and unlock re-enables interaction"
         }
       ]
@@ -128,7 +128,7 @@
           "type": "automation",
           "ref": "test/playbooks/ui/toolbar/toolbar-duplicate-nodes.json",
           "phase": "integration",
-          "status": "pending",
+          "status": "failing",
           "notes": "Validates node duplication with proper positioning"
         }
       ]
@@ -146,7 +146,7 @@
           "type": "automation",
           "ref": "test/playbooks/ui/toolbar/toolbar-delete-nodes.json",
           "phase": "integration",
-          "status": "pending",
+          "status": "failing",
           "notes": "Validates toolbar delete button removes selected nodes"
         }
       ]
