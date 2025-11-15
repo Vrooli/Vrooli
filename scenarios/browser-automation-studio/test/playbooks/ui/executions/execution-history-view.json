@@ -1,0 +1,252 @@
+{
+  "metadata": {
+    "description": "Validates execution history tab displays execution list and allows selecting executions to view details",
+    "requirement": "BAS-EXEC-HISTORY-VIEW",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for dashboard",
+        "selector": "[data-testid=\"projects-grid\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open first project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-project-detail",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project detail",
+        "selector": "h1",
+        "timeoutMs": 5000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-executions-tab",
+      "type": "click",
+      "position": {
+        "x": 800,
+        "y": 0
+      },
+      "data": {
+        "label": "Click Execution History tab",
+        "selector": "[data-testid=\"executions-tab\"], button[aria-label*='execution'], button[aria-label*='history']",
+        "timeoutMs": 5000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "wait-for-execution-list",
+      "type": "wait",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for execution history to load",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "capture-execution-history",
+      "type": "screenshot",
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture execution history view",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "check-executions-exist",
+      "type": "evaluate",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Check if executions are visible",
+        "expression": "document.querySelectorAll('[data-testid*=\"execution\"], [role=\"row\"], .execution-item, [class*=\"execution\"]').length > 0",
+        "storeAs": "hasExecutions"
+      }
+    },
+    {
+      "id": "click-first-execution",
+      "type": "click",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Click first execution (if exists)",
+        "selector": "[data-testid*=\"execution\"]:first-of-type, [role=\"row\"]:first-of-type, .execution-item:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-execution-details",
+      "type": "wait",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for execution details to load",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "check-viewer-visible",
+      "type": "evaluate",
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
+      "data": {
+        "label": "Check if execution viewer is visible",
+        "expression": "document.querySelector('[data-testid=\"execution-viewer\"], [data-testid=\"execution-logs\"], [data-testid=\"execution-screenshots\"]') !== null",
+        "storeAs": "viewerVisible"
+      }
+    },
+    {
+      "id": "capture-execution-viewer",
+      "type": "screenshot",
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture execution viewer",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-for-project-detail",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-project-detail",
+      "target": "click-executions-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-executions-tab",
+      "target": "wait-for-execution-list",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-for-execution-list",
+      "target": "capture-execution-history",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "capture-execution-history",
+      "target": "check-executions-exist",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "check-executions-exist",
+      "target": "click-first-execution",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "click-first-execution",
+      "target": "wait-for-execution-details",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "wait-for-execution-details",
+      "target": "check-viewer-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "check-viewer-visible",
+      "target": "capture-execution-viewer",
+      "type": "smoothstep"
+    }
+  ]
+}

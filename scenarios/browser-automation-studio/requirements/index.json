@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-14T22:01:10.549Z"
+    "last_synced_at": "2025-11-15T04:59:17.119Z"
   },
   "meta": {
     "scenario": "browser-automation-studio",
@@ -19,6 +19,7 @@
   },
   "imports": [
     "projects/dialog.json",
+    "ui/user-flows.json",
     "workflow-builder/core.json",
     "execution/telemetry.json",
     "replay/core.json",
@@ -91,7 +92,7 @@
       "prd_ref": "Autosave & Version History",
       "title": "Conflict-aware autosave with auditable version history",
       "description": "Captures autosave behaviour, version history presentation, and restore flows across UI and API.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "children": [
         "BAS-VERSION-AUTOSAVE",

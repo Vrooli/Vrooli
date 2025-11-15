@@ -3,7 +3,8 @@
     "description": "Autosave and version history requirements",
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-15T04:53:50.894Z"
   },
   "requirements": [
     {
@@ -44,7 +45,7 @@
       "prd_ref": "Autosave & Version History",
       "title": "Version history exposes restore flows across API, UI, and CLI",
       "description": "Ensures version listing, diffing, and restore endpoints are available and parity exists between CLI and UI flows.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
@@ -69,10 +70,17 @@
           "notes": "TestWorkflowVersionOperations validates version CRUD operations at repository layer."
         },
         {
+          "type": "automation",
+          "ref": "test/playbooks/ui/workflows/workflow-version-restore.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "UI workflow validates version history modal, version listing, and restore functionality"
+        },
+        {
           "type": "manual",
           "ref": "cli/browser-automation-studio",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI restore commands documented and verified during operator workflows."
         }
       ]

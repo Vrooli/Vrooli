@@ -817,6 +817,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
 
                   {/* Edit Button */}
                   <button
+                    data-testid="project-edit-button"
                     onClick={() => setShowEditProjectModal(true)}
                     className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
                     title="Edit project details"
@@ -886,6 +887,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                     )}
                   </div>
                   <button
+                    data-testid="new-workflow-button"
                     onClick={onCreateWorkflow}
                     className="hidden md:flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors md:ml-auto"
                   >
@@ -950,6 +952,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
         <div>
           <div className="flex items-center gap-3 border-b border-gray-700 pb-2">
             <button
+              data-testid="workflows-tab"
               onClick={() => setActiveTab('workflows')}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'workflows'
@@ -963,6 +966,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
               </div>
             </button>
             <button
+              data-testid="executions-tab"
               onClick={() => setActiveTab('executions')}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'executions'
@@ -984,6 +988,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type="text"
+                  data-testid="workflow-search-input"
                   placeholder="Search workflows..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -992,6 +997,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                 {searchTerm && (
                   <button
                     type="button"
+                    data-testid="workflow-search-clear"
                     onClick={() => setSearchTerm('')}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                     aria-label="Clear workflow search"
@@ -1128,6 +1134,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
               </p>
               {!error && (
                 <button
+                  data-testid="new-workflow-button"
                   onClick={onCreateWorkflow}
                   className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >
@@ -1312,6 +1319,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
 
       {/* Floating Action Button (FAB) - Mobile only */}
       <button
+        data-testid="new-workflow-button"
         onClick={onCreateWorkflow}
         className="md:hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-flow-accent text-white rounded-full shadow-lg hover:bg-blue-600 transition-all hover:shadow-xl flex items-center justify-center"
         aria-label="New Workflow"

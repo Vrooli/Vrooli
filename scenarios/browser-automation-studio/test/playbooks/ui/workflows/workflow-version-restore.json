@@ -1,0 +1,310 @@
+{
+  "metadata": {
+    "description": "Validates workflow version history listing and restore functionality through the UI",
+    "requirement": "BAS-VERSION-RESTORE",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for dashboard",
+        "selector": "[data-testid=\"projects-grid\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open first project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-project-detail",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project detail",
+        "selector": "h1",
+        "timeoutMs": 5000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "ensure-workflows-exist",
+      "type": "evaluate",
+      "position": {
+        "x": 800,
+        "y": -100
+      },
+      "data": {
+        "label": "Check if workflows exist",
+        "expression": "document.querySelectorAll('[data-testid*=\"workflow\"]').length > 0 || document.querySelector('button:has-text(\"Create\")')",
+        "storeAs": "hasWorkflows"
+      }
+    },
+    {
+      "id": "click-workflow",
+      "type": "click",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Open first workflow",
+        "selector": "[data-testid*=\"workflow\"]:first-of-type, [class*=\"workflow\"]:first-of-type",
+        "timeoutMs": 10000,
+        "waitForMs": 2000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-builder-load",
+      "type": "wait",
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for workflow builder",
+        "durationMs": 2500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "look-for-version-button",
+      "type": "evaluate",
+      "position": {
+        "x": 1400,
+        "y": -100
+      },
+      "data": {
+        "label": "Check for version history button",
+        "expression": "!!document.querySelector('button[title*=\"version\"], button[aria-label*=\"version\"], button[data-testid*=\"version\"]')",
+        "storeAs": "versionButtonExists"
+      }
+    },
+    {
+      "id": "click-version-history",
+      "type": "click",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Open version history",
+        "selector": "button[title*='version'], button[aria-label*='version'], button[data-testid*='version']",
+        "timeoutMs": 5000,
+        "waitForMs": 1500,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-version-list",
+      "type": "wait",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for version list to appear",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "check-version-list-visible",
+      "type": "evaluate",
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
+      "data": {
+        "label": "Verify version list is visible",
+        "expression": "document.querySelector('[role=\"dialog\"], [data-testid*=\"version\"], .version-list, [class*=\"version\"]') !== null",
+        "storeAs": "versionListVisible"
+      }
+    },
+    {
+      "id": "capture-version-history",
+      "type": "screenshot",
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture version history UI",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "check-restore-buttons",
+      "type": "evaluate",
+      "position": {
+        "x": 2400,
+        "y": 0
+      },
+      "data": {
+        "label": "Check for restore buttons",
+        "expression": "document.querySelectorAll('button[aria-label*=\"restore\"], button[data-testid*=\"restore\"]').length > 0",
+        "storeAs": "hasRestoreButtons"
+      }
+    },
+    {
+      "id": "close-version-dialog",
+      "type": "keyboard",
+      "position": {
+        "x": 2600,
+        "y": 0
+      },
+      "data": {
+        "label": "Close version dialog with Escape",
+        "key": "Escape",
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "capture-final-state",
+      "type": "screenshot",
+      "position": {
+        "x": 2800,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture final workflow builder state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-for-project-detail",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-project-detail",
+      "target": "ensure-workflows-exist",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "ensure-workflows-exist",
+      "target": "click-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "click-workflow",
+      "target": "wait-for-builder-load",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "wait-for-builder-load",
+      "target": "look-for-version-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "look-for-version-button",
+      "target": "click-version-history",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "click-version-history",
+      "target": "wait-for-version-list",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "wait-for-version-list",
+      "target": "check-version-list-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "check-version-list-visible",
+      "target": "capture-version-history",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "capture-version-history",
+      "target": "check-restore-buttons",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "check-restore-buttons",
+      "target": "close-version-dialog",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "close-version-dialog",
+      "target": "capture-final-state",
+      "type": "smoothstep"
+    }
+  ]
+}

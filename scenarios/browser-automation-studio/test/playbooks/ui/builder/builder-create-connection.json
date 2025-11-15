@@ -1,0 +1,280 @@
+{
+  "metadata": {
+    "description": "Validates creating a connection between two nodes by dragging from output handle to input handle",
+    "requirement": "BAS-BUILDER-CREATE-CONNECTION",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for dashboard",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open Demo project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-project-detail",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project detail",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-workflow",
+      "type": "click",
+      "position": {
+        "x": 800,
+        "y": 0
+      },
+      "data": {
+        "label": "Open workflow with multiple nodes",
+        "selector": "[data-testid=\"workflow-item\"]:first-of-type, .workflow-card:first-of-type",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-builder",
+      "type": "wait",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for builder to load",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-multiple-nodes",
+      "type": "evaluate",
+      "position": {
+        "x": 1200,
+        "y": -100
+      },
+      "data": {
+        "label": "Check we have at least 2 nodes",
+        "expression": "document.querySelectorAll('.react-flow__node').length >= 2",
+        "storeAs": "hasMultipleNodes"
+      }
+    },
+    {
+      "id": "count-initial-edges",
+      "type": "evaluate",
+      "position": {
+        "x": 1400,
+        "y": -100
+      },
+      "data": {
+        "label": "Count initial connections",
+        "expression": "document.querySelectorAll('.react-flow__edge').length",
+        "storeAs": "initialEdgeCount"
+      }
+    },
+    {
+      "id": "capture-before-connect",
+      "type": "screenshot",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture canvas before connection",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "get-first-node-handle",
+      "type": "evaluate",
+      "position": {
+        "x": 1800,
+        "y": -150
+      },
+      "data": {
+        "label": "Get first node output handle",
+        "expression": "(() => { const firstNode = document.querySelector('.react-flow__node:first-of-type'); if (!firstNode) return null; const handle = firstNode.querySelector('.react-flow__handle-bottom, .react-flow__handle-right, .react-flow__handle[data-handlepos=\"bottom\"], .react-flow__handle[data-handlepos=\"right\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+        "storeAs": "firstNodeHandle"
+      }
+    },
+    {
+      "id": "get-second-node-handle",
+      "type": "evaluate",
+      "position": {
+        "x": 2000,
+        "y": -150
+      },
+      "data": {
+        "label": "Get second node input handle",
+        "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node'); if (nodes.length < 2) return null; const secondNode = nodes[1]; const handle = secondNode.querySelector('.react-flow__handle-top, .react-flow__handle-left, .react-flow__handle[data-handlepos=\"top\"], .react-flow__handle[data-handlepos=\"left\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+        "storeAs": "secondNodeHandle"
+      }
+    },
+    {
+      "id": "hover-first-node",
+      "type": "hover",
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Hover first node to reveal handles",
+        "selector": ".react-flow__node:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "drag-connection",
+      "type": "dragDrop",
+      "position": {
+        "x": 2400,
+        "y": 0
+      },
+      "data": {
+        "label": "Drag from first node output to second node input",
+        "sourceSelector": ".react-flow__node:first-of-type .react-flow__handle-bottom, .react-flow__node:first-of-type .react-flow__handle-right",
+        "targetSelector": ".react-flow__node:nth-of-type(2) .react-flow__handle-top, .react-flow__node:nth-of-type(2) .react-flow__handle-left",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-connection",
+      "type": "wait",
+      "position": {
+        "x": 2600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for connection to be created",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "count-final-edges",
+      "type": "evaluate",
+      "position": {
+        "x": 2800,
+        "y": -100
+      },
+      "data": {
+        "label": "Count final connections",
+        "expression": "document.querySelectorAll('.react-flow__edge').length",
+        "storeAs": "finalEdgeCount"
+      }
+    },
+    {
+      "id": "verify-edge-added",
+      "type": "evaluate",
+      "position": {
+        "x": 3000,
+        "y": -100
+      },
+      "data": {
+        "label": "Verify connection was added",
+        "expression": "(() => { const initial = parseInt(localStorage.getItem('initialEdgeCount') || '0'); const final = parseInt(localStorage.getItem('finalEdgeCount') || '0'); return final > initial; })()",
+        "storeAs": "connectionWasAdded"
+      }
+    },
+    {
+      "id": "assert-edge-visible",
+      "type": "assert",
+      "position": {
+        "x": 3200,
+        "y": 0
+      },
+      "data": {
+        "label": "Connection path is visible",
+        "selector": ".react-flow__edge path, .react-flow__edge-path",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Connection path should be visible after creating connection"
+      }
+    },
+    {
+      "id": "capture-after-connect",
+      "type": "screenshot",
+      "position": {
+        "x": 3400,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture canvas with new connection",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
+    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
+    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-for-project-detail", "target": "click-workflow", "type": "smoothstep"},
+    {"id": "e5", "source": "click-workflow", "target": "wait-for-builder", "type": "smoothstep"},
+    {"id": "e6", "source": "wait-for-builder", "target": "assert-multiple-nodes", "type": "smoothstep"},
+    {"id": "e7", "source": "assert-multiple-nodes", "target": "count-initial-edges", "type": "smoothstep"},
+    {"id": "e8", "source": "count-initial-edges", "target": "capture-before-connect", "type": "smoothstep"},
+    {"id": "e9", "source": "capture-before-connect", "target": "get-first-node-handle", "type": "smoothstep"},
+    {"id": "e10", "source": "get-first-node-handle", "target": "get-second-node-handle", "type": "smoothstep"},
+    {"id": "e11", "source": "get-second-node-handle", "target": "hover-first-node", "type": "smoothstep"},
+    {"id": "e12", "source": "hover-first-node", "target": "drag-connection", "type": "smoothstep"},
+    {"id": "e13", "source": "drag-connection", "target": "wait-for-connection", "type": "smoothstep"},
+    {"id": "e14", "source": "wait-for-connection", "target": "count-final-edges", "type": "smoothstep"},
+    {"id": "e15", "source": "count-final-edges", "target": "verify-edge-added", "type": "smoothstep"},
+    {"id": "e16", "source": "verify-edge-added", "target": "assert-edge-visible", "type": "smoothstep"},
+    {"id": "e17", "source": "assert-edge-visible", "target": "capture-after-connect", "type": "smoothstep"}
+  ]
+}

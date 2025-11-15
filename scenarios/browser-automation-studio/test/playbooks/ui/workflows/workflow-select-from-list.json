@@ -1,0 +1,269 @@
+{
+  "metadata": {
+    "description": "Validates that workflows can be selected from project detail list and loaded into the builder",
+    "requirement": "BAS-WORKFLOW-SELECT",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for dashboard",
+        "selector": "[data-testid=\"projects-grid\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open first project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-project-detail",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project detail to load",
+        "selector": "h1",
+        "timeoutMs": 5000,
+        "waitForMs": 1500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "ensure-on-workflows-tab",
+      "type": "evaluate",
+      "position": {
+        "x": 800,
+        "y": -100
+      },
+      "data": {
+        "label": "Check if on workflows tab",
+        "expression": "document.querySelector('[data-testid*=\"workflow\"], [aria-label*=\"workflow\"]') !== null",
+        "storeAs": "onWorkflowsTab"
+      }
+    },
+    {
+      "id": "wait-for-workflows-load",
+      "type": "wait",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for workflow list to load",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "check-workflows-exist",
+      "type": "evaluate",
+      "position": {
+        "x": 1200,
+        "y": -100
+      },
+      "data": {
+        "label": "Verify workflows are listed",
+        "expression": "document.querySelectorAll('[data-testid*=\"workflow\"], [class*=\"workflow-card\"], [class*=\"workflow-item\"]').length > 0",
+        "storeAs": "hasWorkflows"
+      }
+    },
+    {
+      "id": "capture-workflow-list",
+      "type": "screenshot",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture workflow list",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-first-workflow",
+      "type": "click",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Click first workflow in list",
+        "selector": "[data-testid*=\"workflow\"]:first-of-type, [class*=\"workflow-card\"]:first-of-type, [class*=\"workflow-item\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2500
+      }
+    },
+    {
+      "id": "wait-for-builder",
+      "type": "wait",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for workflow builder to load",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "verify-url-changed",
+      "type": "evaluate",
+      "position": {
+        "x": 2000,
+        "y": -100
+      },
+      "data": {
+        "label": "Verify URL contains /workflows/",
+        "expression": "window.location.pathname.includes('/workflows/')",
+        "storeAs": "urlChanged"
+      }
+    },
+    {
+      "id": "verify-builder-loaded",
+      "type": "evaluate",
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Verify builder elements exist",
+        "expression": "document.querySelector('.react-flow, [class*=\"flow\"], canvas') !== null",
+        "storeAs": "builderLoaded"
+      }
+    },
+    {
+      "id": "capture-builder",
+      "type": "screenshot",
+      "position": {
+        "x": 2400,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture loaded workflow builder",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-for-project-detail",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-project-detail",
+      "target": "ensure-on-workflows-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "ensure-on-workflows-tab",
+      "target": "wait-for-workflows-load",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-for-workflows-load",
+      "target": "check-workflows-exist",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "check-workflows-exist",
+      "target": "capture-workflow-list",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "capture-workflow-list",
+      "target": "click-first-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "click-first-workflow",
+      "target": "wait-for-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "wait-for-builder",
+      "target": "verify-url-changed",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "verify-url-changed",
+      "target": "verify-builder-loaded",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "verify-builder-loaded",
+      "target": "capture-builder",
+      "type": "smoothstep"
+    }
+  ]
+}

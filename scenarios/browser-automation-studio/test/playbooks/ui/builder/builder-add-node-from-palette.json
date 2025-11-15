@@ -1,0 +1,313 @@
+{
+  "metadata": {
+    "description": "Validates adding a node from the palette to the canvas via drag-and-drop",
+    "requirement": "BAS-BUILDER-ADD-NODE",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for projects grid",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open first project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-project-detail",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project detail",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-new-workflow",
+      "type": "click",
+      "position": {
+        "x": 800,
+        "y": 0
+      },
+      "data": {
+        "label": "Click New Workflow button",
+        "selector": "button:has-text('New Workflow'), button:has-text('Create Workflow')",
+        "timeoutMs": 10000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "wait-for-ai-modal",
+      "type": "wait",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for AI modal or builder",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "switch-to-manual",
+      "type": "click",
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "data": {
+        "label": "Switch to manual builder (if AI modal appears)",
+        "selector": "button:has-text('Manual'), button:has-text('Builder'), button:has-text('Skip')",
+        "timeoutMs": 5000,
+        "waitForMs": 2000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-builder",
+      "type": "wait",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for workflow builder to load",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-canvas-visible",
+      "type": "assert",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Canvas is visible",
+        "selector": ".react-flow, [data-testid=\"workflow-builder-canvas\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Workflow builder canvas should be visible"
+      }
+    },
+    {
+      "id": "count-initial-nodes",
+      "type": "evaluate",
+      "position": {
+        "x": 1800,
+        "y": -100
+      },
+      "data": {
+        "label": "Count initial nodes on canvas",
+        "expression": "document.querySelectorAll('.react-flow__node').length",
+        "storeAs": "initialNodeCount"
+      }
+    },
+    {
+      "id": "assert-palette-visible",
+      "type": "assert",
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
+      "data": {
+        "label": "Node palette is visible",
+        "selector": "[data-testid^=\"node-palette-\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Node palette should be visible in sidebar"
+      }
+    },
+    {
+      "id": "capture-before-drag",
+      "type": "screenshot",
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture canvas before adding node",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "get-navigate-node-position",
+      "type": "evaluate",
+      "position": {
+        "x": 2400,
+        "y": -100
+      },
+      "data": {
+        "label": "Get navigate node card position",
+        "expression": "(() => { const card = document.querySelector('[data-testid=\"node-palette-navigate-card\"]'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+        "storeAs": "nodePalettePosition"
+      }
+    },
+    {
+      "id": "get-canvas-drop-position",
+      "type": "evaluate",
+      "position": {
+        "x": 2600,
+        "y": -100
+      },
+      "data": {
+        "label": "Calculate canvas drop position",
+        "expression": "(() => { const canvas = document.querySelector('.react-flow, [data-testid=\"workflow-builder-canvas\"]'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
+        "storeAs": "canvasDropPosition"
+      }
+    },
+    {
+      "id": "drag-navigate-node",
+      "type": "dragDrop",
+      "position": {
+        "x": 2800,
+        "y": 0
+      },
+      "data": {
+        "label": "Drag navigate node from palette to canvas",
+        "sourceSelector": "[data-testid=\"node-palette-navigate-card\"]",
+        "targetSelector": ".react-flow, [data-testid=\"workflow-builder-canvas\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-node-added",
+      "type": "wait",
+      "position": {
+        "x": 3000,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for node to be added",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "count-final-nodes",
+      "type": "evaluate",
+      "position": {
+        "x": 3200,
+        "y": -100
+      },
+      "data": {
+        "label": "Count nodes after drag",
+        "expression": "document.querySelectorAll('.react-flow__node').length",
+        "storeAs": "finalNodeCount"
+      }
+    },
+    {
+      "id": "verify-node-count-increased",
+      "type": "evaluate",
+      "position": {
+        "x": 3400,
+        "y": -100
+      },
+      "data": {
+        "label": "Verify node count increased",
+        "expression": "(() => { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final > initial; })()",
+        "storeAs": "nodeWasAdded"
+      }
+    },
+    {
+      "id": "check-navigate-node-exists",
+      "type": "assert",
+      "position": {
+        "x": 3600,
+        "y": 0
+      },
+      "data": {
+        "label": "Navigate node exists on canvas",
+        "selector": ".react-flow__node[data-type=\"navigate\"], .react-flow__node:has-text('navigate'), .react-flow__node:has-text('Navigate')",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Navigate node should be visible on canvas after drag-and-drop"
+      }
+    },
+    {
+      "id": "capture-after-drag",
+      "type": "screenshot",
+      "position": {
+        "x": 3800,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture canvas with new node",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
+    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
+    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-for-project-detail", "target": "click-new-workflow", "type": "smoothstep"},
+    {"id": "e5", "source": "click-new-workflow", "target": "wait-for-ai-modal", "type": "smoothstep"},
+    {"id": "e6", "source": "wait-for-ai-modal", "target": "switch-to-manual", "type": "smoothstep"},
+    {"id": "e7", "source": "switch-to-manual", "target": "wait-for-builder", "type": "smoothstep"},
+    {"id": "e8", "source": "wait-for-builder", "target": "assert-canvas-visible", "type": "smoothstep"},
+    {"id": "e9", "source": "assert-canvas-visible", "target": "count-initial-nodes", "type": "smoothstep"},
+    {"id": "e10", "source": "count-initial-nodes", "target": "assert-palette-visible", "type": "smoothstep"},
+    {"id": "e11", "source": "assert-palette-visible", "target": "capture-before-drag", "type": "smoothstep"},
+    {"id": "e12", "source": "capture-before-drag", "target": "get-navigate-node-position", "type": "smoothstep"},
+    {"id": "e13", "source": "get-navigate-node-position", "target": "get-canvas-drop-position", "type": "smoothstep"},
+    {"id": "e14", "source": "get-canvas-drop-position", "target": "drag-navigate-node", "type": "smoothstep"},
+    {"id": "e15", "source": "drag-navigate-node", "target": "wait-for-node-added", "type": "smoothstep"},
+    {"id": "e16", "source": "wait-for-node-added", "target": "count-final-nodes", "type": "smoothstep"},
+    {"id": "e17", "source": "count-final-nodes", "target": "verify-node-count-increased", "type": "smoothstep"},
+    {"id": "e18", "source": "verify-node-count-increased", "target": "check-navigate-node-exists", "type": "smoothstep"},
+    {"id": "e19", "source": "check-navigate-node-exists", "target": "capture-after-drag", "type": "smoothstep"}
+  ]
+}

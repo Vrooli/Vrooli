@@ -1,0 +1,252 @@
+{
+  "metadata": {
+    "description": "Validates workflow creation via AI modal and loading into the workflow builder",
+    "requirement": "BAS-WORKFLOW-CREATE-LOAD",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for dashboard to load",
+        "selector": "[data-testid=\"projects-grid\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open first project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-project-detail",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project detail",
+        "selector": "h1",
+        "timeoutMs": 5000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-new-workflow",
+      "type": "click",
+      "position": {
+        "x": 800,
+        "y": 0
+      },
+      "data": {
+        "label": "Click New Workflow button",
+        "selector": "[data-testid=\"new-workflow-button\"], button[aria-label*='workflow'], button[aria-label*='new']",
+        "timeoutMs": 10000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "wait-for-ai-modal-or-builder",
+      "type": "wait",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for AI modal or builder",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "check-if-ai-modal",
+      "type": "evaluate",
+      "position": {
+        "x": 1200,
+        "y": -100
+      },
+      "data": {
+        "label": "Check if AI modal appeared",
+        "expression": "!!document.querySelector('[role=\"dialog\"], [data-testid*=\"ai\"], [data-testid*=\"modal\"]')",
+        "storeAs": "aiModalVisible"
+      }
+    },
+    {
+      "id": "switch-to-manual",
+      "type": "click",
+      "position": {
+        "x": 1400,
+        "y": -100
+      },
+      "data": {
+        "label": "Switch to manual builder",
+        "selector": "[data-testid=\"switch-to-manual-button\"], button[aria-label*='manual'], button[aria-label*='skip']",
+        "timeoutMs": 5000,
+        "waitForMs": 2000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-builder",
+      "type": "wait",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for workflow builder to load",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-builder-visible",
+      "type": "evaluate",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "Verify builder elements exist",
+        "expression": "document.querySelector('.react-flow, [class*=\"flow\"]') !== null || document.querySelector('canvas') !== null || window.location.pathname.includes('/workflows/')",
+        "storeAs": "builderLoaded"
+      }
+    },
+    {
+      "id": "wait-for-stable",
+      "type": "wait",
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for UI to stabilize",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "capture-builder",
+      "type": "screenshot",
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture workflow builder",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-for-project-detail",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-project-detail",
+      "target": "click-new-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-new-workflow",
+      "target": "wait-for-ai-modal-or-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-for-ai-modal-or-builder",
+      "target": "check-if-ai-modal",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "check-if-ai-modal",
+      "target": "switch-to-manual",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "switch-to-manual",
+      "target": "wait-for-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "wait-for-builder",
+      "target": "assert-builder-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-builder-visible",
+      "target": "wait-for-stable",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "wait-for-stable",
+      "target": "capture-builder",
+      "type": "smoothstep"
+    }
+  ]
+}

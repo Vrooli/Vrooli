@@ -1,0 +1,270 @@
+{
+  "metadata": {
+    "description": "Validates switching between Workflows and Executions tabs in Project Detail view",
+    "requirement": "BAS-PROJECT-TAB-SWITCH",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for dashboard",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open first project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-project-detail",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project detail to load",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-workflows-tab-active",
+      "type": "assert",
+      "position": {
+        "x": 800,
+        "y": 0
+      },
+      "data": {
+        "label": "Workflows tab is active by default",
+        "selector": "[data-testid=\"workflows-tab\"][class*=\"active\"], [data-testid=\"workflows-tab\"][aria-selected=\"true\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Workflows tab should be active by default"
+      }
+    },
+    {
+      "id": "capture-workflows-tab",
+      "type": "screenshot",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture workflows tab view",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "verify-workflow-content-visible",
+      "type": "evaluate",
+      "position": {
+        "x": 1200,
+        "y": -100
+      },
+      "data": {
+        "label": "Verify workflow list/grid is visible",
+        "expression": "(() => { const workflows = document.querySelectorAll('[data-testid*=\"workflow\"], .workflow-card, [class*=\"workflow-item\"]'); return workflows.length > 0 || document.querySelector('[data-testid=\"workflow-search-input\"]') !== null; })()",
+        "storeAs": "workflowContentVisible"
+      }
+    },
+    {
+      "id": "click-executions-tab",
+      "type": "click",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Click Executions tab",
+        "selector": "[data-testid=\"executions-tab\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "wait-for-executions-load",
+      "type": "wait",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for executions to load",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-executions-tab-active",
+      "type": "assert",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "Executions tab is now active",
+        "selector": "[data-testid=\"executions-tab\"][class*=\"active\"], [data-testid=\"executions-tab\"][aria-selected=\"true\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Executions tab should become active after clicking"
+      }
+    },
+    {
+      "id": "assert-workflows-tab-inactive",
+      "type": "assert",
+      "position": {
+        "x": 2000,
+        "y": -100
+      },
+      "data": {
+        "label": "Workflows tab is now inactive",
+        "selector": "[data-testid=\"workflows-tab\"][aria-selected=\"true\"]",
+        "assertMode": "not_exists",
+        "timeoutMs": 3000,
+        "failureMessage": "Workflows tab should be inactive when executions tab is active"
+      }
+    },
+    {
+      "id": "capture-executions-tab",
+      "type": "screenshot",
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture executions tab view",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "verify-execution-content-visible",
+      "type": "evaluate",
+      "position": {
+        "x": 2400,
+        "y": -100
+      },
+      "data": {
+        "label": "Verify execution history content is visible",
+        "expression": "(() => { return document.querySelector('[data-testid=\"execution-history\"], [data-testid=\"execution-filter-all\"], [data-testid=\"execution-history-refresh\"]') !== null; })()",
+        "storeAs": "executionContentVisible"
+      }
+    },
+    {
+      "id": "click-workflows-tab-again",
+      "type": "click",
+      "position": {
+        "x": 2600,
+        "y": 0
+      },
+      "data": {
+        "label": "Switch back to Workflows tab",
+        "selector": "[data-testid=\"workflows-tab\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "wait-for-workflows-reload",
+      "type": "wait",
+      "position": {
+        "x": 2800,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for workflows to reload",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-workflows-tab-active-again",
+      "type": "assert",
+      "position": {
+        "x": 3000,
+        "y": 0
+      },
+      "data": {
+        "label": "Workflows tab is active again",
+        "selector": "[data-testid=\"workflows-tab\"][class*=\"active\"], [data-testid=\"workflows-tab\"][aria-selected=\"true\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Workflows tab should be active again after switching back"
+      }
+    },
+    {
+      "id": "capture-workflows-tab-again",
+      "type": "screenshot",
+      "position": {
+        "x": 3200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture workflows tab after switching back",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
+    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
+    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-for-project-detail", "target": "assert-workflows-tab-active", "type": "smoothstep"},
+    {"id": "e5", "source": "assert-workflows-tab-active", "target": "capture-workflows-tab", "type": "smoothstep"},
+    {"id": "e6", "source": "capture-workflows-tab", "target": "verify-workflow-content-visible", "type": "smoothstep"},
+    {"id": "e7", "source": "verify-workflow-content-visible", "target": "click-executions-tab", "type": "smoothstep"},
+    {"id": "e8", "source": "click-executions-tab", "target": "wait-for-executions-load", "type": "smoothstep"},
+    {"id": "e9", "source": "wait-for-executions-load", "target": "assert-executions-tab-active", "type": "smoothstep"},
+    {"id": "e10", "source": "assert-executions-tab-active", "target": "assert-workflows-tab-inactive", "type": "smoothstep"},
+    {"id": "e11", "source": "assert-workflows-tab-inactive", "target": "capture-executions-tab", "type": "smoothstep"},
+    {"id": "e12", "source": "capture-executions-tab", "target": "verify-execution-content-visible", "type": "smoothstep"},
+    {"id": "e13", "source": "verify-execution-content-visible", "target": "click-workflows-tab-again", "type": "smoothstep"},
+    {"id": "e14", "source": "click-workflows-tab-again", "target": "wait-for-workflows-reload", "type": "smoothstep"},
+    {"id": "e15", "source": "wait-for-workflows-reload", "target": "assert-workflows-tab-active-again", "type": "smoothstep"},
+    {"id": "e16", "source": "assert-workflows-tab-active-again", "target": "capture-workflows-tab-again", "type": "smoothstep"}
+  ]
+}

@@ -241,7 +241,7 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" data-testid="execution-history">
       {/* Header with filters */}
       <div className="p-4 border-b border-gray-800 space-y-2">
         {/* Desktop filters */}
@@ -250,6 +250,7 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
           {STATUS_FILTERS.map((filter) => (
             <button
               key={filter}
+              data-testid={`execution-filter-${filter}`}
               onClick={() => setStatusFilter(filter)}
               className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                 statusFilter === filter
@@ -261,6 +262,7 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
             </button>
           ))}
           <button
+            data-testid="execution-history-refresh"
             onClick={handleRefresh}
             disabled={isRefreshing}
             className="ml-auto p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -330,7 +332,7 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
       </div>
 
       {/* Execution list */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto" data-testid="execution-history-list">
         {filteredExecutions.length === 0 ? (
           <div className="flex items-center justify-center h-full p-8">
             <div className="text-center">
@@ -350,6 +352,9 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
             {filteredExecutions.map((execution) => (
               <div
                 key={execution.id}
+                data-testid="execution-item"
+                data-execution-id={execution.id}
+                data-execution-status={execution.status}
                 onClick={() => onSelectExecution?.(execution)}
                 className={`p-4 cursor-pointer transition-all hover:bg-flow-node ${
                   onSelectExecution ? 'hover:border-l-4 hover:border-flow-accent' : ''
@@ -408,6 +413,7 @@ function ExecutionHistory({ workflowId, onSelectExecution }: ExecutionHistoryPro
                   {/* View button */}
                   {onSelectExecution && (
                     <button
+                      data-testid="execution-view-button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectExecution(execution);

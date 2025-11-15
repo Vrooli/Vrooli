@@ -1,0 +1,218 @@
+{
+  "metadata": {
+    "description": "Validates project search and filtering functionality on the dashboard",
+    "requirement": "BAS-PROJECT-SEARCH",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-projects",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for projects grid",
+        "selector": "[data-testid=\"projects-grid\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "count-initial-projects",
+      "type": "evaluate",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Count initial project cards",
+        "expression": "document.querySelectorAll('[data-testid=\"project-card\"]').length",
+        "storeAs": "initialCount"
+      }
+    },
+    {
+      "id": "find-search-input",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for search input",
+        "selector": "input[type=\"text\"][placeholder*=\"Search\"], input[id=\"project-search\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "type-nonexistent-search",
+      "type": "type",
+      "position": {
+        "x": 800,
+        "y": 0
+      },
+      "data": {
+        "label": "Search for nonexistent project",
+        "selector": "input[type=\"text\"][placeholder*=\"Search\"], input[id=\"project-search\"]",
+        "text": "xyznonexistentproject12345",
+        "clearFirst": true,
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "assert-no-results",
+      "type": "evaluate",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Verify no projects shown",
+        "expression": "document.querySelectorAll('[data-testid=\"project-card\"]').length === 0",
+        "storeAs": "noResults"
+      }
+    },
+    {
+      "id": "wait-after-no-results",
+      "type": "wait",
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait to verify stable state",
+        "durationMs": 800,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "clear-search",
+      "type": "type",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Clear search input",
+        "selector": "input[type=\"text\"][placeholder*=\"Search\"], input[id=\"project-search\"]",
+        "text": "",
+        "clearFirst": true,
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "assert-projects-restored",
+      "type": "assert",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Projects reappear after clearing",
+        "selector": "[data-testid=\"project-card\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Projects should reappear when search is cleared"
+      }
+    },
+    {
+      "id": "capture-final-state",
+      "type": "screenshot",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture final dashboard state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-projects",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-projects",
+      "target": "count-initial-projects",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "count-initial-projects",
+      "target": "find-search-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "find-search-input",
+      "target": "type-nonexistent-search",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "type-nonexistent-search",
+      "target": "assert-no-results",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "assert-no-results",
+      "target": "wait-after-no-results",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "wait-after-no-results",
+      "target": "clear-search",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "clear-search",
+      "target": "assert-projects-restored",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "assert-projects-restored",
+      "target": "capture-final-state",
+      "type": "smoothstep"
+    }
+  ]
+}

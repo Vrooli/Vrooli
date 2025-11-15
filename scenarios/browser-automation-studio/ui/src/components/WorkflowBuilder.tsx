@@ -593,11 +593,12 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
         />
       )}
 
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2" data-testid="workflow-builder-view-mode-toggle">
         <button
           onClick={() => handleViewModeChange('visual')}
           className={`toolbar-button ${viewMode === 'visual' ? 'active' : ''}`}
           title="Visual Builder"
+          data-testid="workflow-builder-visual-mode-button"
         >
           <Eye size={18} />
         </button>
@@ -605,6 +606,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           onClick={() => handleViewModeChange('code')}
           className={`toolbar-button ${viewMode === 'code' ? 'active' : ''}`}
           title="JSON Editor"
+          data-testid="workflow-builder-code-mode-button"
         >
           <Code size={18} />
         </button>
@@ -634,6 +636,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           nodesConnectable={!locked}
           elementsSelectable={!locked}
           edgesUpdatable={!locked}
+          data-testid="workflow-builder-canvas"
         >
           <MiniMap
             nodeStrokeColor={(node) => {
@@ -667,14 +670,15 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#1a1d29" />
         </ReactFlow>
       ) : (
-        <div className="absolute inset-0 flex flex-col bg-[#1e1e1e] border border-gray-800 rounded-lg overflow-hidden">
-          <div className="flex-1 overflow-hidden">
+        <div className="absolute inset-0 flex flex-col bg-[#1e1e1e] border border-gray-800 rounded-lg overflow-hidden" data-testid="workflow-builder-code-view">
+          <div className="flex-1 overflow-hidden" data-testid="workflow-builder-code-editor-container">
             <Editor
               height="100%"
               defaultLanguage="json"
               value={codeValue}
               onChange={handleCodeChange}
               theme="vs-dark"
+              data-testid="workflow-builder-code-editor"
               options={{
                 minimap: { enabled: false },
                 fontSize: 13,
@@ -694,15 +698,15 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
               }}
             />
           </div>
-          <div className="flex items-center justify-between border-t border-gray-800 bg-[#252526] px-4 py-3">
+          <div className="flex items-center justify-between border-t border-gray-800 bg-[#252526] px-4 py-3" data-testid="workflow-builder-code-toolbar">
             <div className="flex items-center gap-3">
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-gray-400" data-testid="workflow-builder-code-line-count">
                 {codeValue.split('\n').length} lines
               </div>
               {codeError && (
                 <>
                   <div className="w-px h-4 bg-gray-700" />
-                  <div className="text-xs text-red-400">
+                  <div className="text-xs text-red-400" data-testid="workflow-builder-code-error">
                     {codeError}
                   </div>
                 </>
@@ -713,6 +717,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                 onClick={handleResetCode}
                 className="px-3 py-1.5 rounded-md text-xs bg-gray-700 text-gray-200 hover:bg-gray-600 transition-all disabled:opacity-50"
                 disabled={!codeDirty}
+                data-testid="workflow-builder-code-reset-button"
               >
                 Reset
               </button>
@@ -720,6 +725,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                 onClick={() => applyCodeChanges()}
                 className="px-3 py-1.5 rounded-md text-xs bg-purple-600 text-white hover:bg-purple-500 transition-all disabled:opacity-50"
                 disabled={!codeDirty}
+                data-testid="workflow-builder-code-apply-button"
               >
                 Apply Changes
               </button>
@@ -824,9 +830,10 @@ function ViewportDialog({ isOpen, onDismiss, onSave, initialValue }: ViewportDia
       onDismiss={onDismiss}
       ariaLabel="Configure execution dimensions"
       className="bg-flow-node border border-gray-800 rounded-lg shadow-2xl w-[360px] max-w-[90vw]"
+      data-testid="workflow-builder-viewport-dialog"
     >
       <div className="px-6 py-4 border-b border-gray-800">
-        <h2 className="text-lg font-semibold text-white">Execution dimensions</h2>
+        <h2 className="text-lg font-semibold text-white" data-testid="viewport-dialog-title">Execution dimensions</h2>
         <p className="mt-1 text-sm text-gray-400">Apply these dimensions to workflow runs and preview screenshots.</p>
       </div>
 
@@ -846,6 +853,7 @@ function ViewportDialog({ isOpen, onDismiss, onSave, initialValue }: ViewportDia
                       ? 'border-flow-accent bg-flow-accent/20 text-white'
                       : 'border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white'
                   }`}
+                  data-testid={`viewport-dialog-preset-${id}-button`}
                 >
                   <span className="font-semibold text-sm">{label}</span>
                   <span className="mt-0.5 text-[11px] text-gray-400">
@@ -867,6 +875,7 @@ function ViewportDialog({ isOpen, onDismiss, onSave, initialValue }: ViewportDia
               value={widthValue}
               onChange={(event) => handleWidthChange(event.target.value)}
               className="mt-1 w-full rounded-md border border-gray-700 bg-flow-bg px-3 py-2 text-sm text-gray-200 focus:border-flow-accent focus:outline-none"
+              data-testid="viewport-dialog-width-input"
             />
           </label>
           <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -878,6 +887,7 @@ function ViewportDialog({ isOpen, onDismiss, onSave, initialValue }: ViewportDia
               value={heightValue}
               onChange={(event) => handleHeightChange(event.target.value)}
               className="mt-1 w-full rounded-md border border-gray-700 bg-flow-bg px-3 py-2 text-sm text-gray-200 focus:border-flow-accent focus:outline-none"
+              data-testid="viewport-dialog-height-input"
             />
           </label>
         </div>
@@ -887,7 +897,7 @@ function ViewportDialog({ isOpen, onDismiss, onSave, initialValue }: ViewportDia
         </p>
 
         {error && (
-          <div className="rounded-md border border-red-500/60 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          <div className="rounded-md border border-red-500/60 bg-red-500/10 px-3 py-2 text-xs text-red-300" data-testid="viewport-dialog-error">
             {error}
           </div>
         )}
@@ -898,6 +908,7 @@ function ViewportDialog({ isOpen, onDismiss, onSave, initialValue }: ViewportDia
           type="button"
           className="rounded-md border border-gray-700 bg-flow-bg px-4 py-2 text-sm font-semibold text-gray-300 hover:border-gray-500 hover:text-white"
           onClick={onDismiss}
+          data-testid="viewport-dialog-cancel-button"
         >
           Cancel
         </button>
@@ -905,6 +916,7 @@ function ViewportDialog({ isOpen, onDismiss, onSave, initialValue }: ViewportDia
           type="button"
           className="rounded-md bg-flow-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
           onClick={handleSave}
+          data-testid="viewport-dialog-save-button"
         >
           Save
         </button>

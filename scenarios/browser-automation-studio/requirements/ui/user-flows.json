@@ -1,0 +1,137 @@
+{
+  "_metadata": {
+    "description": "Phase 1 UI user flow requirements for comprehensive integration testing",
+    "last_validated_at": "2025-11-14T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-15T04:53:50.895Z"
+  },
+  "requirements": [
+    {
+      "id": "BAS-PROJECT-LIST-SELECT",
+      "category": "ui",
+      "prd_ref": "Project Management",
+      "title": "Project list displays and allows navigation to project detail",
+      "description": "Users can view projects on the dashboard and click a project card to navigate to its detail view",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/projects/project-list-and-select.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates project grid rendering and navigation to project detail view"
+        }
+      ]
+    },
+    {
+      "id": "BAS-PROJECT-SEARCH",
+      "category": "ui",
+      "prd_ref": "Project Management",
+      "title": "Project search filters the project list",
+      "description": "Users can search for projects by name or description, with results updating in real-time",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/projects/project-search-filter.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Tests search filtering and clearing search to restore full list"
+        }
+      ]
+    },
+    {
+      "id": "BAS-PROJECT-EDIT",
+      "category": "ui",
+      "prd_ref": "Project Management",
+      "title": "Project editing updates name and description",
+      "description": "Users can edit project details through a modal dialog, with changes reflected immediately",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/projects/project-edit.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates opening edit modal, updating fields, and persisting changes"
+        }
+      ]
+    },
+    {
+      "id": "BAS-WORKFLOW-CREATE-LOAD",
+      "category": "ui",
+      "prd_ref": "Workflow Builder",
+      "title": "Workflow creation and builder loading",
+      "description": "Users can create new workflows and have the workflow builder load successfully",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/workflows/workflow-create-and-load.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Tests workflow creation flow including AI modal bypass and builder loading"
+        }
+      ]
+    },
+    {
+      "id": "BAS-WORKFLOW-SELECT",
+      "category": "ui",
+      "prd_ref": "Workflow Builder",
+      "title": "Workflow selection from project detail",
+      "description": "Users can select workflows from the project detail list and load them into the builder",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/workflows/workflow-select-from-list.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates workflow list display and navigation to builder with selected workflow"
+        }
+      ]
+    },
+    {
+      "id": "BAS-EXEC-HISTORY-VIEW",
+      "category": "ui",
+      "prd_ref": "Execution History",
+      "title": "Execution history tab displays and allows viewing execution details",
+      "description": "Users can switch to execution history tab and select executions to view detailed information",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/executions/execution-history-view.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests tab navigation, execution list rendering, and execution viewer opening"
+        }
+      ]
+    },
+    {
+      "id": "BAS-EXEC-FROM-PROJECT",
+      "category": "ui",
+      "prd_ref": "Workflow Execution",
+      "title": "Workflow execution from project detail",
+      "description": "Users can trigger workflow execution from the project detail view and see execution indicators",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/executions/execution-from-project-detail.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Validates execute button functionality and execution status feedback"
+        }
+      ]
+    }
+  ]
+}

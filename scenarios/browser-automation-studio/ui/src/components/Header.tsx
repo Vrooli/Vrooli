@@ -269,6 +269,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
             }}
             disabled={historyButtonDisabled}
             className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            data-testid="header-version-conflict-details-button"
           >
             Details
           </button>
@@ -290,6 +291,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
             className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/20 text-rose-50 transition-colors hover:bg-rose-500/30 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:ring-offset-2 focus:ring-offset-gray-900"
             title="View autosave error details"
             aria-label="View autosave error details"
+            data-testid="header-save-error-details-button"
           >
             <Info size={14} />
           </button>
@@ -301,6 +303,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
             }}
             disabled={isSaving}
             className="rounded border border-rose-400/40 bg-rose-500/20 px-2 py-1 text-xs font-medium text-rose-50 transition-colors hover:bg-rose-500/30 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
+            data-testid="header-save-retry-button"
           >
             Retry
           </button>
@@ -313,6 +316,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
             className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/20 text-rose-50 transition-colors hover:bg-rose-500/30 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:ring-offset-2 focus:ring-offset-gray-900"
             title="Dismiss autosave error"
             aria-label="Dismiss autosave error"
+            data-testid="header-save-error-dismiss-button"
           >
             <X size={14} />
           </button>
@@ -395,6 +399,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
       onClick={handleAutosaveIndicatorClick}
       onKeyDown={handleAutosaveIndicatorKeyDown}
       className="inline-flex rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 cursor-pointer"
+      data-testid="header-save-status-indicator"
     >
       {saveStatusNode}
     </div>
@@ -502,7 +507,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
 
   return (
     <>
-      <header className="bg-flow-node border-b border-gray-800 px-4 py-3">
+      <header className="bg-flow-node border-b border-gray-800 px-4 py-3" data-testid="header">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -511,6 +516,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
                   onClick={onBackToDashboard}
                   className="toolbar-button flex items-center gap-2"
                   title={showBackToProject ? "Back to Project" : "Back to Dashboard"}
+                  data-testid={showBackToProject ? "header-back-to-project-button" : "header-back-to-dashboard-button"}
                 >
                   <ArrowLeft size={16} />
                 </button>
@@ -530,11 +536,13 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
                           onBlur={handleSaveTitle}
                           className="bg-gray-800 text-white px-2 py-1 rounded border border-gray-600 focus:border-flow-accent focus:outline-none"
                           placeholder="Workflow name..."
+                          data-testid="header-title-input"
                         />
                         <button
                           onClick={handleSaveTitle}
                           className="text-green-400 hover:text-green-300 p-1"
                           title="Save title"
+                          data-testid="header-title-save-button"
                         >
                           <Check size={14} />
                         </button>
@@ -542,19 +550,21 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
                           onClick={handleCancelEditTitle}
                           className="text-red-400 hover:text-red-300 p-1"
                           title="Cancel editing"
+                          data-testid="header-title-cancel-button"
                         >
                           <X size={14} />
                         </button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 group">
-                        <span className="cursor-pointer" onClick={handleStartEditTitle}>
+                        <span className="cursor-pointer" onClick={handleStartEditTitle} data-testid="header-workflow-title">
                           {displayWorkflow.name}
                         </span>
                         <button
                           onClick={handleStartEditTitle}
                           className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white transition-opacity p-1"
                           title="Edit workflow name"
+                          data-testid="header-title-edit-button"
                         >
                           <Edit2 size={14} />
                         </button>
@@ -573,6 +583,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
                     title="Workflow details"
                     aria-label="Workflow details"
                     aria-expanded={showWorkflowInfo}
+                    data-testid="header-info-button"
                   >
                     <Info size={16} />
                   </button>
@@ -581,6 +592,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
                       ref={infoPopoverRef}
                       style={workflowInfoStyles}
                       className="z-30 w-80 max-h-96 overflow-y-auto rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
+                      data-testid="header-info-popover"
                     >
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-semibold text-white">Workflow Details</h3>
@@ -589,6 +601,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
                           onClick={() => setShowWorkflowInfo(false)}
                           className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
                           aria-label="Close workflow details"
+                          data-testid="header-info-close-button"
                         >
                           <X size={14} />
                         </button>
@@ -673,6 +686,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
               className="toolbar-button flex items-center gap-0 sm:gap-2"
               title="Edit with AI"
               aria-label="Edit with AI"
+              data-testid="header-debug-button"
             >
               <Bug size={16} />
               <span className="hidden text-sm sm:inline">Debug</span>
@@ -683,6 +697,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
               className="bg-flow-accent hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-0 sm:gap-2 transition-colors"
               title="Execute Workflow"
               aria-label="Execute Workflow"
+              data-testid="header-execute-button"
             >
               <Play size={16} />
               <span className="hidden text-sm font-medium sm:inline">Execute</span>
@@ -701,6 +716,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
         isOpen={showSaveErrorDetails && Boolean(lastSaveError)}
         onDismiss={() => setShowSaveErrorDetails(false)}
         ariaLabel="Autosave error details"
+        data-testid="header-save-error-dialog"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">Autosave error</h2>
@@ -708,6 +724,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
             type="button"
             onClick={() => setShowSaveErrorDetails(false)}
             className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+            data-testid="header-save-error-dialog-close-button"
           >
             <X size={16} />
           </button>
@@ -728,6 +745,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
         onDismiss={() => setShowVersionHistory(false)}
         ariaLabel="Workflow Versions"
         size="wide"
+        data-testid="header-version-history-dialog"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">Workflow Versions</h2>
@@ -735,6 +753,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
             type="button"
             onClick={() => setShowVersionHistory(false)}
             className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+            data-testid="header-version-history-close-button"
           >
             <X size={16} />
           </button>
@@ -779,6 +798,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
                 type="button"
                 onClick={() => void handleRefreshConflict()}
                 className="rounded border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 transition-colors hover:bg-amber-500/20"
+                data-testid="header-version-conflict-refresh-button"
               >
                 Refresh snapshot
               </button>
@@ -786,6 +806,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
                 type="button"
                 onClick={() => void handleReloadWorkflow()}
                 className="rounded border border-amber-400/60 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 transition-colors hover:bg-amber-500/25"
+                data-testid="header-version-conflict-reload-button"
               >
                 Reload remote
               </button>
@@ -794,6 +815,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
                 onClick={() => void handleForceSave()}
                 disabled={isSaving}
                 className="rounded bg-amber-500/20 px-3 py-1.5 text-xs text-amber-50 transition-colors hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                data-testid="header-version-conflict-force-save-button"
               >
                 Force save local
               </button>
