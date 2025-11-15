@@ -1,0 +1,23 @@
+# PRD Control Tower - Git Tracking Configuration
+#
+# This scenario requires git-backed storage for backlog and draft files
+# to ensure data safety and prevent loss. Override root .gitignore patterns.
+
+# Allow backlog entries (git-backed idea storage)
+!data/backlog/*.md
+!data/backlog/README.md
+!data/backlog/.gitkeep
+
+# Allow draft PRD files (git-backed draft storage)
+!data/prd-drafts/**/*.md
+!data/prd-drafts/**/*.json
+!data/prd-drafts/scenario/.gitkeep
+!data/prd-drafts/resource/.gitkeep
+
+# Still ignore build artifacts and temporary files
+*.log
+*.tmp
+*.swp
+node_modules/
+coverage/
+.DS_Store
