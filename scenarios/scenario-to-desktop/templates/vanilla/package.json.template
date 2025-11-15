@@ -30,8 +30,8 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "concurrently": "^8.0.0",
-    "electron": "^28.0.0",
-    "electron-builder": "^24.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^26.0.12",
     "rimraf": "^5.0.0",
     "typescript": "^5.0.0",
     "wait-on": "^7.0.0"
@@ -92,10 +92,11 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": ["x64"]
         }
       ],
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.png",
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
@@ -118,10 +119,12 @@
       "icon": "assets/icon.png",
       "maintainer": "{{AUTHOR}} <{{AUTHOR_EMAIL}}>",
       "desktop": {
-        "Name": "{{APP_DISPLAY_NAME}}",
-        "Comment": "{{APP_DESCRIPTION}}",
-        "Categories": "Utility;",
-        "StartupNotify": "true"
+        "entry": {
+          "Name": "{{APP_DISPLAY_NAME}}",
+          "Comment": "{{APP_DESCRIPTION}}",
+          "Categories": "Utility;",
+          "StartupNotify": "true"
+        }
       }
     },
     "publish": {{PUBLISH_CONFIG}}
