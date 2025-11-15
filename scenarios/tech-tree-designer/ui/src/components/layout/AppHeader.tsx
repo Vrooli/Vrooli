@@ -61,10 +61,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         Civilizational technology intelligence that maps sector momentum to strategic milestones.
       </p>
     </div>
-    <div className="app-meta" role="status" aria-label="Scenario status">
-      <span className="status-pill status-pill--active">Live Scenario</span>
-      <span className="status-pill status-pill--ghost">Scenario • tech-tree-designer</span>
-    </div>
     <TreeSelector
       techTrees={techTrees}
       selectedTreeId={selectedTreeId}

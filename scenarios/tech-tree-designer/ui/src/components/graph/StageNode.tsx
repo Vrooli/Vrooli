@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react'
 import { Handle, Position, type NodeProps } from 'react-flow-renderer'
+import { ChevronRight, ChevronDown, Loader2, Link } from 'lucide-react'
 import type { StageNodeData } from '../../types/graph'
 
 export interface ExtendedStageNodeData extends StageNodeData {
@@ -8,6 +9,7 @@ export interface ExtendedStageNodeData extends StageNodeData {
   childrenLoaded?: boolean
   isExpanded?: boolean
   isLoading?: boolean
+  scenarioCount?: number
   onToggleExpand?: (stageId: string, hasChildren: boolean, childrenLoaded: boolean) => void
 }
 
@@ -19,6 +21,7 @@ export interface ExtendedStageNodeData extends StageNodeData {
  * - Expand/collapse button for nodes with children
  * - Loading spinner while fetching children
  * - Stage type badge
+ * - Scenario count indicator
  * - Connection handles for dependencies
  */
 const StageNode: React.FC<NodeProps<ExtendedStageNodeData>> = ({ data, selected }) => {
@@ -32,6 +35,7 @@ const StageNode: React.FC<NodeProps<ExtendedStageNodeData>> = ({ data, selected 
     childrenLoaded,
     isExpanded,
     isLoading,
+    scenarioCount,
     onToggleExpand
   } = data
 
@@ -82,7 +86,7 @@ const StageNode: React.FC<NodeProps<ExtendedStageNodeData>> = ({ data, selected 
         style={{ background: sectorColor || '#3B82F6', width: 8, height: 8 }}
       />
 
-      {/* Header with expand button and stage type */}
+      {/* Header with expand button, stage type, and scenario indicator */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         {/* Expand/Collapse Button */}
         {hasChildren && (
@@ -99,7 +103,10 @@ const StageNode: React.FC<NodeProps<ExtendedStageNodeData>> = ({ data, selected 
               fontSize: '10px',
               fontWeight: 600,
               transition: 'all 0.2s',
-              opacity: isLoading ? 0.5 : 1
+              opacity: isLoading ? 0.5 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
             aria-label={isExpanded ? 'Collapse children' : 'Expand children'}
             title={
@@ -110,7 +117,13 @@ const StageNode: React.FC<NodeProps<ExtendedStageNodeData>> = ({ data, selected 
                   : 'Expand children'
             }
           >
-            {isLoading ? '⟳' : isExpanded ? '−' : '+'}
+            {isLoading ? (
+              <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />
+            ) : isExpanded ? (
+              <ChevronDown size={12} />
+            ) : (
+              <ChevronRight size={12} />
+            )}
           </button>
         )}
 
@@ -129,6 +142,26 @@ const StageNode: React.FC<NodeProps<ExtendedStageNodeData>> = ({ data, selected 
         >
           {type.replace('_', ' ')}
         </span>
+
+        {/* Scenario Count Indicator */}
+        {scenarioCount !== undefined && scenarioCount > 0 && (
+          <span
+            style={{
+              background: '#10b981',
+              color: '#fff',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontSize: '9px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px'
+            }}
+            title={`${scenarioCount} linked scenario${scenarioCount > 1 ? 's' : ''}`}
+          >
+            <Link size={10} /> {scenarioCount}
+          </span>
+        )}
       </div>
 
       {/* Stage Name */}

@@ -184,7 +184,7 @@ const TechTreeCanvas: React.FC<TechTreeCanvasProps> = ({
         <GraphView
           graphNotice={graphNotice}
           techTreeCanvasRef={techTreeCanvasRef}
-          onOpenStageDialog={onEditStage || handleOpenStageDialog}
+          onOpenStageDialog={handleOpenStageDialog}
           onOpenScenarioDialog={handleOpenScenarioDialog}
         />
 

@@ -14,6 +14,7 @@ export interface StageNodeData {
   isExpanded?: boolean
   isLoading?: boolean
   parentStageId?: string | null
+  scenarioCount?: number // Number of linked scenarios
   onToggleExpand?: (stageId: string, hasChildren: boolean, childrenLoaded: boolean) => void
 }
 

@@ -56,7 +56,8 @@ export const useGraphModel = (sectors: Sector[], dependencies: StageDependency[]
             childrenLoaded: stage.children_loaded || false,
             parentStageId: stage.parent_stage_id || null,
             isExpanded: false,
-            isLoading: false
+            isLoading: false,
+            scenarioCount: stage.scenario_mappings?.length || 0
           },
           type: 'stageNode'
         })

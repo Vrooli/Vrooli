@@ -121,7 +121,8 @@ const GraphView: React.FC<GraphViewProps> = ({
             childrenLoaded: false,
             parentStageId: parentStageId,
             isExpanded: false,
-            isLoading: false
+            isLoading: false,
+            scenarioCount: child.scenario_mappings?.length || 0
           },
           type: 'stageNode'
         }
@@ -204,11 +205,22 @@ const GraphView: React.FC<GraphViewProps> = ({
       }
     }))
 
+    // Filter out children whose parents are collapsed
+    const visibleNodes = enrichedStageNodes.filter((node) => {
+      const parentId = node.data.parentStageId
+      if (!parentId) {
+        // Root-level nodes are always visible
+        return true
+      }
+      // Child nodes are only visible if their parent is expanded
+      return expandedNodes.has(parentId)
+    })
+
     if (scenarioOnlyMode) {
       return scenarioOnlyNodes
     }
     return [
-      ...(enrichedStageNodes as unknown as DesignerNode[]),
+      ...(visibleNodes as unknown as DesignerNode[]),
       ...sectorGroupNodes,
       ...overlayNodes
     ]
@@ -227,8 +239,17 @@ const GraphView: React.FC<GraphViewProps> = ({
     if (scenarioOnlyMode) {
       return scenarioOnlyEdges
     }
-    return [...designerEdges, ...overlayEdges]
-  }, [designerEdges, overlayEdges, scenarioOnlyEdges, scenarioOnlyMode])
+
+    // Get set of visible node IDs for edge filtering
+    const visibleNodeIds = new Set(graphNodes.map((n) => n.id))
+
+    // Filter edges to only show connections between visible nodes
+    const visibleEdges = [...designerEdges, ...overlayEdges].filter(
+      (edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)
+    )
+
+    return visibleEdges
+  }, [designerEdges, overlayEdges, scenarioOnlyEdges, scenarioOnlyMode, graphNodes])
 
   // Edit mode management
   const {
