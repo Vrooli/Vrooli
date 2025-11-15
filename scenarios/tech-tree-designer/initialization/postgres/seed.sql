@@ -1,11 +1,18 @@
 -- Tech Tree Designer Seed Data
 -- Populates the complete civilization technology roadmap
 
--- Insert the main civilization tech tree
-INSERT INTO tech_trees (id, name, description, version) VALUES
-('550e8400-e29b-41d4-a716-446655440000', 'Civilization Digital Twin Roadmap', 
+-- Insert the main civilization tech tree and a draft sandbox
+INSERT INTO tech_trees (id, slug, name, description, version, tree_type, status, is_active)
+VALUES
+('550e8400-e29b-41d4-a716-446655440000', 'civilization-official', 'Civilization Digital Twin Roadmap', 
  'Complete technology development pathway from individual productivity tools to civilization-scale digital twins and meta-simulations', 
- '1.0.0');
+ '1.0.0', 'official', 'active', true),
+('660e8400-e29b-41d4-a716-446655440000', 'civilization-draft-alpha', 'Civilization Draft Alpha',
+ 'Sandbox tree cloned from the official roadmap for experimentation',
+ '1.0.0', 'draft', 'active', false);
+
+UPDATE tech_trees SET parent_tree_id = '550e8400-e29b-41d4-a716-446655440000'
+WHERE id = '660e8400-e29b-41d4-a716-446655440000';
 
 -- Insert core technology sectors
 INSERT INTO sectors (id, tree_id, name, category, description, position_x, position_y, color) VALUES

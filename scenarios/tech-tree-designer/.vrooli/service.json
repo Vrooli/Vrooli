@@ -231,6 +231,10 @@
           {
             "file": "initialization/postgres/seed.sql",
             "type": "seed"
+          },
+          {
+            "directory": "initialization/postgres/migrations",
+            "type": "migration"
           }
         ]
       },
@@ -244,6 +248,12 @@
           "mistral",
           "nomic-embed-text"
         ]
+      },
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": false,
+        "purpose": "Advanced AI models for stage idea generation, tree expansion recommendations, and strategic planning"
       }
     }
   }

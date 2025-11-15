@@ -4,13 +4,19 @@
 -- Main tech tree container
 CREATE TABLE IF NOT EXISTS tech_trees (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug VARCHAR(128) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     version VARCHAR(50) NOT NULL DEFAULT '1.0.0',
+    tree_type VARCHAR(50) NOT NULL DEFAULT 'official', -- official, experimental, draft
+    status VARCHAR(50) NOT NULL DEFAULT 'active', -- active, archived, proposed
     is_active BOOLEAN DEFAULT true,
+    parent_tree_id UUID REFERENCES tech_trees(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_tech_trees_type_status ON tech_trees(tree_type, status);
 
 -- Technology sectors (manufacturing, healthcare, finance, etc.)
 CREATE TABLE IF NOT EXISTS sectors (
@@ -29,9 +35,11 @@ CREATE TABLE IF NOT EXISTS sectors (
 );
 
 -- Progression stages within each sector (foundation → operations → analytics → integration → digital_twin)
+-- Supports hierarchical relationships: stages can have child stages for arbitrary depth trees
 CREATE TABLE IF NOT EXISTS progression_stages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     sector_id UUID NOT NULL REFERENCES sectors(id) ON DELETE CASCADE,
+    parent_stage_id UUID REFERENCES progression_stages(id) ON DELETE CASCADE, -- Hierarchical parent (NULL = root-level)
     stage_type VARCHAR(50) NOT NULL, -- foundation, operational, analytics, integration, digital_twin
     stage_order INTEGER NOT NULL, -- 1-5 for the standard progression
     name VARCHAR(255) NOT NULL,
@@ -40,10 +48,25 @@ CREATE TABLE IF NOT EXISTS progression_stages (
     examples JSONB DEFAULT '[]'::jsonb, -- Array of example systems/tools for this stage
     position_x FLOAT DEFAULT 0.0,
     position_y FLOAT DEFAULT 0.0,
+    has_children BOOLEAN DEFAULT false, -- Denormalized flag for UI performance
+    children_loaded BOOLEAN DEFAULT false, -- Client-side lazy loading tracking
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(sector_id, stage_type)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_name = 'progression_stages_sector_id_stage_type_key'
+          AND table_name = 'progression_stages'
+    ) THEN
+        ALTER TABLE progression_stages
+        DROP CONSTRAINT progression_stages_sector_id_stage_type_key;
+    END IF;
+END;
+$$;
 
 -- Dependencies between stages (within and across sectors)
 CREATE TABLE IF NOT EXISTS stage_dependencies (
@@ -137,6 +160,7 @@ CREATE TABLE IF NOT EXISTS progress_events (
 CREATE INDEX IF NOT EXISTS idx_sectors_tree_id ON sectors(tree_id);
 CREATE INDEX IF NOT EXISTS idx_sectors_category ON sectors(category);
 CREATE INDEX IF NOT EXISTS idx_progression_stages_sector_id ON progression_stages(sector_id);
+CREATE INDEX IF NOT EXISTS idx_progression_stages_parent_id ON progression_stages(parent_stage_id);
 CREATE INDEX IF NOT EXISTS idx_progression_stages_stage_type ON progression_stages(stage_type);
 CREATE INDEX IF NOT EXISTS idx_scenario_mappings_scenario_name ON scenario_mappings(scenario_name);
 CREATE INDEX IF NOT EXISTS idx_scenario_mappings_stage_id ON scenario_mappings(stage_id);
@@ -223,3 +247,78 @@ CREATE TRIGGER trigger_log_progress_event
     AFTER INSERT OR UPDATE OR DELETE ON scenario_mappings
     FOR EACH ROW
     EXECUTE FUNCTION log_progress_event();
+
+-- Hierarchical stage support: has_children flag maintenance
+CREATE OR REPLACE FUNCTION update_parent_has_children()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' AND NEW.parent_stage_id IS NOT NULL THEN
+        UPDATE progression_stages
+        SET has_children = true
+        WHERE id = NEW.parent_stage_id;
+    ELSIF TG_OP = 'DELETE' AND OLD.parent_stage_id IS NOT NULL THEN
+        UPDATE progression_stages
+        SET has_children = EXISTS(
+            SELECT 1 FROM progression_stages
+            WHERE parent_stage_id = OLD.parent_stage_id AND id != OLD.id
+        )
+        WHERE id = OLD.parent_stage_id;
+    ELSIF TG_OP = 'UPDATE' AND OLD.parent_stage_id IS DISTINCT FROM NEW.parent_stage_id THEN
+        IF OLD.parent_stage_id IS NOT NULL THEN
+            UPDATE progression_stages
+            SET has_children = EXISTS(
+                SELECT 1 FROM progression_stages
+                WHERE parent_stage_id = OLD.parent_stage_id AND id != NEW.id
+            )
+            WHERE id = OLD.parent_stage_id;
+        END IF;
+        IF NEW.parent_stage_id IS NOT NULL THEN
+            UPDATE progression_stages
+            SET has_children = true
+            WHERE id = NEW.parent_stage_id;
+        END IF;
+    END IF;
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_parent_has_children
+    AFTER INSERT OR UPDATE OR DELETE ON progression_stages
+    FOR EACH ROW
+    EXECUTE FUNCTION update_parent_has_children();
+
+-- Prevent circular dependencies in stage hierarchy
+CREATE OR REPLACE FUNCTION check_stage_hierarchy_cycle()
+RETURNS TRIGGER AS $$
+DECLARE
+    current_id UUID;
+    depth INTEGER := 0;
+    max_depth INTEGER := 100;
+BEGIN
+    IF NEW.parent_stage_id IS NULL THEN
+        RETURN NEW;
+    END IF;
+    IF NEW.id = NEW.parent_stage_id THEN
+        RAISE EXCEPTION 'A stage cannot be its own parent';
+    END IF;
+    current_id := NEW.parent_stage_id;
+    WHILE current_id IS NOT NULL AND depth < max_depth LOOP
+        IF current_id = NEW.id THEN
+            RAISE EXCEPTION 'Circular dependency detected in stage hierarchy';
+        END IF;
+        SELECT parent_stage_id INTO current_id
+        FROM progression_stages
+        WHERE id = current_id;
+        depth := depth + 1;
+    END LOOP;
+    IF depth >= max_depth THEN
+        RAISE EXCEPTION 'Stage hierarchy depth exceeds maximum of %', max_depth;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_check_stage_hierarchy_cycle
+    BEFORE INSERT OR UPDATE ON progression_stages
+    FOR EACH ROW
+    EXECUTE FUNCTION check_stage_hierarchy_cycle();

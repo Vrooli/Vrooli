@@ -121,6 +121,76 @@ func TestAPIEndpointCoverage(t *testing.T) {
 		t.Fatalf("update scenario status failed: %d %s", w.Code, w.Body.String())
 	}
 
+	// CRUD for sectors
+	sectorCreate := map[string]interface{}{
+		"name":        "Experimental Energy",
+		"category":    "science",
+		"description": "Edge experiments",
+		"color":       "#f472b6",
+		"position_x":  1280,
+		"position_y":  540,
+	}
+	sectorResp := makeHTTPRequest(t, router, "POST", "/api/v1/tech-tree/sectors", sectorCreate)
+	if sectorResp.Code != http.StatusCreated {
+		t.Fatalf("create sector failed: %d %s", sectorResp.Code, sectorResp.Body.String())
+	}
+	sectorPayload := assertJSONResponse(t, sectorResp, http.StatusCreated)
+	createdSector := sectorPayload["sector"].(map[string]interface{})
+	newSectorID := createdSector["id"].(string)
+
+	sectorUpdate := map[string]interface{}{
+		"description": "Edge experiments – updated",
+		"position_x":  1300,
+	}
+	if w := makeHTTPRequest(t, router, "PATCH", "/api/v1/tech-tree/sectors/"+newSectorID, sectorUpdate); w.Code != http.StatusOK {
+		t.Fatalf("update sector failed: %d %s", w.Code, w.Body.String())
+	}
+
+	// Stage creation tied to new sector
+	stageCreate := map[string]interface{}{
+		"sector_id":   newSectorID,
+		"stage_type":  "integration",
+		"stage_order": 1,
+		"name":        "Energy Coordination Mesh",
+		"description": "Coordinates experimental energy nodes",
+		"examples":    []string{"fusion-control", "grid-orchestrator"},
+	}
+	stageResp := makeHTTPRequest(t, router, "POST", "/api/v1/tech-tree/stages", stageCreate)
+	if stageResp.Code != http.StatusCreated {
+		t.Fatalf("create stage failed: %d %s", stageResp.Code, stageResp.Body.String())
+	}
+	stagePayload := assertJSONResponse(t, stageResp, http.StatusCreated)
+	createdStage := stagePayload["stage"].(map[string]interface{})
+	newStageID := createdStage["id"].(string)
+
+	stageUpdate := map[string]interface{}{
+		"progress_percentage": 45.0,
+		"stage_type":          "digital_twin",
+	}
+	if w := makeHTTPRequest(t, router, "PATCH", "/api/v1/tech-tree/stages/"+newStageID, stageUpdate); w.Code != http.StatusOK {
+		t.Fatalf("update stage failed: %d %s", w.Code, w.Body.String())
+	}
+
+	if w := makeHTTPRequest(t, router, "DELETE", "/api/v1/tech-tree/stages/"+newStageID, nil); w.Code != http.StatusNoContent {
+		t.Fatalf("delete stage failed: %d %s", w.Code, w.Body.String())
+	}
+	if w := makeHTTPRequest(t, router, "DELETE", "/api/v1/tech-tree/sectors/"+newSectorID, nil); w.Code != http.StatusNoContent {
+		t.Fatalf("delete sector failed: %d %s", w.Code, w.Body.String())
+	}
+
+	// AI ideas + DOT export
+	ideasBody := map[string]interface{}{
+		"sector_id": sectorID,
+		"count":     2,
+		"prompt":    "Focus on interoperability",
+	}
+	if w := makeHTTPRequest(t, router, "POST", "/api/v1/tech-tree/ai/stage-ideas", ideasBody); w.Code != http.StatusOK {
+		t.Fatalf("ai stage ideas failed: %d %s", w.Code, w.Body.String())
+	}
+	if w := makeHTTPRequest(t, router, "GET", "/api/v1/tech-tree/graph/dot", nil); w.Code != http.StatusOK {
+		t.Fatalf("graph export failed: %d %s", w.Code, w.Body.String())
+	}
+
 	// Strategic analysis endpoints
 	analyzeBody := map[string]interface{}{
 		"current_resources": 6,
@@ -188,13 +258,18 @@ func TestAPIEndpointCoverage(t *testing.T) {
 		t.Fatalf("direct getCrossSectorConnections failed: %d %s", w.Code, w.Body.String())
 	}
 
-	if sectorsList, err := fetchSectorsWithStages(context.Background()); err != nil {
+	defaultTree, errTree := fetchDefaultTechTree(context.Background())
+	if errTree != nil {
+		t.Fatalf("unable to resolve default tech tree: %v", errTree)
+	}
+
+	if sectorsList, err := fetchSectorsWithStages(context.Background(), defaultTree.ID); err != nil {
 		t.Fatalf("fetchSectorsWithStages error: %v", err)
 	} else if len(sectorsList) == 0 {
 		t.Fatal("expected seeded sectors from fetchSectorsWithStages")
 	}
 
-	if depsList, err := fetchDependencies(context.Background()); err != nil {
+	if depsList, err := fetchDependencies(context.Background(), defaultTree.ID); err != nil {
 		t.Fatalf("fetchDependencies error: %v", err)
 	} else if len(depsList) == 0 {
 		t.Fatal("expected seeded dependencies from fetchDependencies")

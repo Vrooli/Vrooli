@@ -3,31 +3,34 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Strategic visualization interface for complete civilization technology roadmap",
-  "main": "src/index.js",
+  "main": "src/main.tsx",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.js",
-    "test": "echo 'Tests coming soon' && exit 0"
+    "test": "echo 'Tests coming soon' && exit 0",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@vrooli/api-base": "file:../../../packages/api-base",
+    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "axios": "^1.6.2",
+    "d3": "^7.8.5",
+    "express": "^4.21.2",
+    "framer-motion": "^10.16.16",
+    "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-flow-renderer": "^10.3.17",
-    "d3": "^7.8.5",
-    "axios": "^1.6.2",
-    "express": "^4.21.2",
-    "lucide-react": "^0.294.0",
-    "recharts": "^2.8.0",
-    "framer-motion": "^10.16.16",
-    "@vrooli/api-base": "file:../../../packages/api-base",
-    "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
+    "recharts": "^2.8.0"
   },
   "devDependencies": {
+    "@types/node": "^22.7.4",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.9.3",
     "vite": "^5.0.8"
   },
   "keywords": [

@@ -140,6 +140,82 @@ body.tech-tree-immersive-active {
   gap: var(--spacing-sm);
 }
 
+.tree-selector {
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  color: var(--color-text-muted);
+}
+
+.tree-selector label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-accent);
+}
+
+.tree-selector__control {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.tree-selector__select {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.65);
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+}
+
+.tree-selector__select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tree-selector__meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.tree-badge {
+  padding: 0.35rem 0.8rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.tree-badge--official {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.12);
+  color: rgba(125, 211, 252, 0.95);
+}
+
+.tree-badge--draft {
+  border-color: rgba(234, 179, 8, 0.4);
+  background: rgba(250, 204, 21, 0.12);
+  color: rgba(250, 204, 21, 0.95);
+}
+
+.tree-badge--experimental {
+  border-color: rgba(147, 197, 253, 0.35);
+  background: rgba(147, 197, 253, 0.18);
+  color: rgba(191, 219, 254, 0.95);
+}
+
+.tree-badge--idle {
+  border-color: rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--color-text-muted);
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -1298,6 +1374,8 @@ code {
   gap: var(--spacing-lg);
   width: 100%;
   min-height: 32rem;
+  /* Fix: Ensure grid has explicit height for child flex containers */
+  height: calc(100vh - 320px);
 }
 
 .tech-tree-canvas {
@@ -1311,6 +1389,10 @@ code {
   background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 55%),
     linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.92));
   box-shadow: var(--shadow-elevated);
+  /* Fix: React Flow needs explicit height to render canvas */
+  min-height: 600px;
+  height: calc(100vh - 280px);
+  max-height: 1200px;
 }
 
 .tech-tree-canvas__header {
@@ -1427,9 +1509,13 @@ code {
   width: 100vw;
   height: 100vh;
   max-width: none;
+  max-height: none; /* Remove max-height constraint */
   margin: 0;
   padding: clamp(var(--spacing-md), 4vw, var(--spacing-2xl));
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.92));
+  /* Ensure flexbox works properly in fullscreen */
+  display: flex;
+  flex-direction: column;
 }
 
 .tech-tree-canvas--immersive {
@@ -1438,6 +1524,7 @@ code {
   width: 100vw;
   height: 100vh;
   max-width: none;
+  max-height: none; /* Remove max-height constraint */
   border: none;
   border-radius: 0;
   margin: 0;
@@ -1445,17 +1532,22 @@ code {
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.92));
   z-index: 2200;
   overflow: auto;
+  /* Ensure flexbox works properly in immersive mode */
+  display: flex;
+  flex-direction: column;
 }
 
 .tech-tree-canvas:fullscreen .tech-tree-flow,
 .tech-tree-canvas:-webkit-full-screen .tech-tree-flow {
   min-height: 0;
-  height: 100%;
+  height: auto; /* Let flex: 1 handle the height */
+  flex: 1; /* Fill remaining space after header */
 }
 
 .tech-tree-canvas--immersive .tech-tree-flow {
   min-height: 0;
-  height: 100%;
+  height: auto; /* Let flex: 1 handle the height */
+  flex: 1; /* Fill remaining space after header */
 }
 
 .tech-tree-canvas:fullscreen .tech-tree-canvas__header,
@@ -1505,6 +1597,8 @@ code {
 .tech-tree-flow {
   flex: 1;
   min-height: 26rem;
+  /* Explicit height ensures React Flow always has a defined viewport */
+  height: 100%;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.15);
@@ -1694,6 +1788,255 @@ code {
 .stage-placeholder__hint {
   color: var(--color-text-muted);
   font-size: 0.8rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.55rem 1.25rem;
+  border-radius: 0.65rem;
+  border: none;
+  background: linear-gradient(90deg, #38bdf8, #6366f1);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.button--ghost {
+  background: rgba(148, 163, 184, 0.15);
+  color: #e2e8f0;
+}
+
+.button--danger {
+  background: linear-gradient(135deg, var(--color-error), #dc2626);
+  color: #fff;
+}
+
+.button--danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.tree-selector__actions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.scenario-controls {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(30, 41, 59, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.scenario-toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.scenario-toggle-group .toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.scenario-toggle-group .toggle input {
+  accent-color: var(--color-primary);
+}
+
+.scenario-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-end;
+}
+
+.scenario-sync__meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.hidden-scenarios-banner {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.hidden-scenarios-banner p {
+  margin: 0 0 0.35rem 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.hidden-scenarios-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.scenario-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.scenario-tag-list li {
+  list-style: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(14, 165, 233, 0.4);
+  background: rgba(14, 165, 233, 0.15);
+  font-size: 0.75rem;
+}
+
+.stage-detail__mapping-description {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.spin {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.stage-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.stage-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 4, 18, 0.78);
+  z-index: 40;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  width: min(520px, 100%);
+  box-shadow: 0 30px 60px rgba(2, 6, 23, 0.65);
+}
+
+.modal--compact {
+  width: min(420px, 100%);
+  padding: 1.25rem;
+}
+
+.confirm-dialog__message {
+  margin: 1rem 0 1.5rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.modal h3 {
+  margin-bottom: 0.35rem;
+  font-size: 1.3rem;
+}
+
+.modal-subtitle {
+  margin-bottom: 1rem;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.modal-field input,
+.modal-field select,
+.modal-field textarea {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+.modal-field textarea {
+  resize: vertical;
+}
+
+.modal-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.modal-actions--spread {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.form-error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
 }
 
 @media (max-width: 1120px) {

@@ -42,6 +42,12 @@ When **all sectors** complete this progression, they integrate into a **Civiliza
 - **Dependency Mapping**: Shows which capabilities unlock others
 - **Cross-Sector Analysis**: Identifies opportunities for compound acceleration
 
+### Live Scenario Catalog Overlay
+- **Automated Discovery**: Every scenario with a `.vrooli/service.json` definition is scanned at startup and nightly, keeping the catalog synchronized with the repo without manual bookkeeping.
+- **Graph Toggles**: Strategists can overlay live scenarios on top of theoretical stages or switch to a scenario-only dependency map derived from declared `dependencies.scenarios` relationships.
+- **Visibility Controls**: Sensitive scenarios can be hidden (and later unhidden) from the UI without editing source files, and the UI surfaces a quick list of hidden entries for auditability.
+- **Manual Sync**: A one-click sync command triggers the scanner on demand, ensuring the planner sees the latest repository state before making prioritization decisions.
+
 ### AI Strategic Intelligence
 - **Path Optimization**: Recommends optimal development sequences
 - **Bottleneck Identification**: Highlights critical dependencies

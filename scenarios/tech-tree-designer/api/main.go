@@ -3,169 +3,212 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
 	"math/rand"
 	"net/http"
 	"os"
-	"strconv"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
-type TechTree struct {
-	ID          string    `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Description string    `json:"description" db:"description"`
-	Version     string    `json:"version" db:"version"`
-	IsActive    bool      `json:"is_active" db:"is_active"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+const (
+	treeIDQueryParam   = "tree_id"
+	treeSlugQueryParam = "tree_slug"
+	treeIDHeader       = "X-Tech-Tree-Id"
+	treeSlugHeader     = "X-Tech-Tree-Slug"
+)
+
+var slugCleaner = regexp.MustCompile(`[^a-z0-9-]+`)
+
+func scanTechTree(row *sql.Row) (*TechTree, error) {
+	var tree TechTree
+	var parentID sql.NullString
+	err := row.Scan(
+		&tree.ID,
+		&tree.Slug,
+		&tree.Name,
+		&tree.Description,
+		&tree.Version,
+		&tree.TreeType,
+		&tree.Status,
+		&tree.IsActive,
+		&parentID,
+		&tree.CreatedAt,
+		&tree.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if parentID.Valid {
+		tree.ParentTree = &parentID.String
+	} else {
+		tree.ParentTree = nil
+	}
+	return &tree, nil
 }
 
-type Sector struct {
-	ID                 string             `json:"id" db:"id"`
-	TreeID             string             `json:"tree_id" db:"tree_id"`
-	Name               string             `json:"name" db:"name"`
-	Category           string             `json:"category" db:"category"`
-	Description        string             `json:"description" db:"description"`
-	ProgressPercentage float64            `json:"progress_percentage" db:"progress_percentage"`
-	PositionX          float64            `json:"position_x" db:"position_x"`
-	PositionY          float64            `json:"position_y" db:"position_y"`
-	Color              string             `json:"color" db:"color"`
-	CreatedAt          time.Time          `json:"created_at" db:"created_at"`
-	UpdatedAt          time.Time          `json:"updated_at" db:"updated_at"`
-	Stages             []ProgressionStage `json:"stages,omitempty"`
+func fetchTechTreeByID(ctx context.Context, id string) (*TechTree, error) {
+	if db == nil {
+		return nil, errors.New("database connection is not initialized")
+	}
+	return scanTechTree(db.QueryRowContext(ctx, `
+		SELECT id, slug, name, description, version, tree_type, status, is_active, parent_tree_id, created_at, updated_at
+		FROM tech_trees
+		WHERE id = $1
+	`, id))
 }
 
-type ProgressionStage struct {
-	ID                 string            `json:"id" db:"id"`
-	SectorID           string            `json:"sector_id" db:"sector_id"`
-	StageType          string            `json:"stage_type" db:"stage_type"`
-	StageOrder         int               `json:"stage_order" db:"stage_order"`
-	Name               string            `json:"name" db:"name"`
-	Description        string            `json:"description" db:"description"`
-	ProgressPercentage float64           `json:"progress_percentage" db:"progress_percentage"`
-	Examples           json.RawMessage   `json:"examples" db:"examples"`
-	PositionX          float64           `json:"position_x" db:"position_x"`
-	PositionY          float64           `json:"position_y" db:"position_y"`
-	CreatedAt          time.Time         `json:"created_at" db:"created_at"`
-	UpdatedAt          time.Time         `json:"updated_at" db:"updated_at"`
-	ScenarioMappings   []ScenarioMapping `json:"scenario_mappings,omitempty"`
-	Dependencies       []StageDependency `json:"dependencies,omitempty"`
+func fetchTechTreeBySlug(ctx context.Context, slug string) (*TechTree, error) {
+	if db == nil {
+		return nil, errors.New("database connection is not initialized")
+	}
+	return scanTechTree(db.QueryRowContext(ctx, `
+		SELECT id, slug, name, description, version, tree_type, status, is_active, parent_tree_id, created_at, updated_at
+		FROM tech_trees
+		WHERE slug = $1
+	`, slug))
 }
 
-type ScenarioMapping struct {
-	ID                 string    `json:"id" db:"id"`
-	ScenarioName       string    `json:"scenario_name" db:"scenario_name"`
-	StageID            string    `json:"stage_id" db:"stage_id"`
-	ContributionWeight float64   `json:"contribution_weight" db:"contribution_weight"`
-	CompletionStatus   string    `json:"completion_status" db:"completion_status"`
-	Priority           int       `json:"priority" db:"priority"`
-	EstimatedImpact    float64   `json:"estimated_impact" db:"estimated_impact"`
-	LastStatusCheck    time.Time `json:"last_status_check" db:"last_status_check"`
-	Notes              string    `json:"notes" db:"notes"`
-	CreatedAt          time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at" db:"updated_at"`
+func fetchDefaultTechTree(ctx context.Context) (*TechTree, error) {
+	if db == nil {
+		return nil, errors.New("database connection is not initialized")
+	}
+	return scanTechTree(db.QueryRowContext(ctx, `
+		SELECT id, slug, name, description, version, tree_type, status, is_active, parent_tree_id, created_at, updated_at
+		FROM tech_trees
+		WHERE tree_type = 'official' AND status = 'active'
+		ORDER BY updated_at DESC
+		LIMIT 1
+	`))
 }
 
-type StageDependency struct {
-	ID                  string    `json:"id" db:"id"`
-	DependentStageID    string    `json:"dependent_stage_id" db:"dependent_stage_id"`
-	PrerequisiteStageID string    `json:"prerequisite_stage_id" db:"prerequisite_stage_id"`
-	DependencyType      string    `json:"dependency_type" db:"dependency_type"`
-	DependencyStrength  float64   `json:"dependency_strength" db:"dependency_strength"`
-	Description         string    `json:"description" db:"description"`
-	CreatedAt           time.Time `json:"created_at" db:"created_at"`
+func resolveTreeContext(c *gin.Context) (*TechTree, error) {
+	ctx := c.Request.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if treeID := strings.TrimSpace(c.Query(treeIDQueryParam)); treeID != "" {
+		return fetchTechTreeByID(ctx, treeID)
+	}
+
+	if treeSlug := strings.TrimSpace(c.Query(treeSlugQueryParam)); treeSlug != "" {
+		return fetchTechTreeBySlug(ctx, treeSlug)
+	}
+
+	if headerID := strings.TrimSpace(c.GetHeader(treeIDHeader)); headerID != "" {
+		return fetchTechTreeByID(ctx, headerID)
+	}
+
+	if headerSlug := strings.TrimSpace(c.GetHeader(treeSlugHeader)); headerSlug != "" {
+		return fetchTechTreeBySlug(ctx, headerSlug)
+	}
+
+	return fetchDefaultTechTree(ctx)
 }
 
-type StagePositionUpdate struct {
-	ID        string  `json:"id"`
-	PositionX float64 `json:"position_x"`
-	PositionY float64 `json:"position_y"`
+func normalizeSlug(value string) string {
+	slug := strings.ToLower(strings.TrimSpace(value))
+	slug = strings.ReplaceAll(slug, " ", "-")
+	slug = slugCleaner.ReplaceAllString(slug, "-")
+	slug = strings.Trim(slug, "-")
+	if slug == "" {
+		slug = fmt.Sprintf("tree-%d", time.Now().Unix())
+	}
+	return slug
 }
 
-type GraphDependencyInput struct {
-	ID                  string  `json:"id"`
-	DependentStageID    string  `json:"dependent_stage_id"`
-	PrerequisiteStageID string  `json:"prerequisite_stage_id"`
-	DependencyType      string  `json:"dependency_type"`
-	DependencyStrength  float64 `json:"dependency_strength"`
-	Description         string  `json:"description"`
+func resolveRepoRoot() (string, error) {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	current := workingDir
+	for depth := 0; depth < 8; depth++ {
+		gitPath := filepath.Join(current, ".git")
+		if _, err := os.Stat(gitPath); err == nil {
+			return current, nil
+		}
+		scenariosPath := filepath.Join(current, "scenarios")
+		if info, err := os.Stat(scenariosPath); err == nil && info.IsDir() {
+			return current, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+
+	return "", fmt.Errorf("unable to resolve repository root from %s", workingDir)
 }
 
-type GraphUpdateRequest struct {
-	StagePositions []StagePositionUpdate  `json:"stages"`
-	Dependencies   []GraphDependencyInput `json:"dependencies"`
+func computeNextStageOrder(ctx context.Context, sectorID string) (int, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	var nextOrder int
+	err := db.QueryRowContext(ctx, `
+		SELECT COALESCE(MAX(stage_order), 0) + 1
+		FROM progression_stages
+		WHERE sector_id = $1
+	`, sectorID).Scan(&nextOrder)
+	if err != nil {
+		return 0, err
+	}
+	if nextOrder <= 0 {
+		nextOrder = 1
+	}
+	return nextOrder, nil
 }
 
-type DependencyPayload struct {
-	Dependency       StageDependency `json:"dependency"`
-	DependentName    string          `json:"dependent_name"`
-	PrerequisiteName string          `json:"prerequisite_name"`
+func fetchTreeStats(ctx context.Context, treeID string) (int, int, int, error) {
+	var sectorCount, stageCount, mappingCount int
+	err := db.QueryRowContext(ctx, `
+		SELECT
+			(SELECT COUNT(1) FROM sectors WHERE tree_id = $1) AS sector_count,
+			(SELECT COUNT(1)
+			 FROM progression_stages ps
+			 JOIN sectors s ON ps.sector_id = s.id
+			 WHERE s.tree_id = $1) AS stage_count,
+			(SELECT COUNT(1)
+			 FROM scenario_mappings sm
+			 JOIN progression_stages ps ON sm.stage_id = ps.id
+			 JOIN sectors s ON ps.sector_id = s.id
+			 WHERE s.tree_id = $1) AS mapping_count
+	`, treeID).Scan(&sectorCount, &stageCount, &mappingCount)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return sectorCount, stageCount, mappingCount, nil
 }
 
-type StrategicMilestone struct {
-	ID                      string          `json:"id" db:"id"`
-	TreeID                  string          `json:"tree_id" db:"tree_id"`
-	Name                    string          `json:"name" db:"name"`
-	Description             string          `json:"description" db:"description"`
-	MilestoneType           string          `json:"milestone_type" db:"milestone_type"`
-	RequiredSectors         json.RawMessage `json:"required_sectors" db:"required_sectors"`
-	RequiredStages          json.RawMessage `json:"required_stages" db:"required_stages"`
-	CompletionPercentage    float64         `json:"completion_percentage" db:"completion_percentage"`
-	EstimatedCompletionDate *time.Time      `json:"estimated_completion_date" db:"estimated_completion_date"`
-	ConfidenceLevel         float64         `json:"confidence_level" db:"confidence_level"`
-	BusinessValueEstimate   int64           `json:"business_value_estimate" db:"business_value_estimate"`
-	CreatedAt               time.Time       `json:"created_at" db:"created_at"`
-	UpdatedAt               time.Time       `json:"updated_at" db:"updated_at"`
+func writeTreeResponse(c *gin.Context, tree *TechTree, statusCode int) {
+	ctx := c.Request.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	sectorCount, stageCount, mappingCount, err := fetchTreeStats(ctx, tree.ID)
+	response := gin.H{"tree": tree}
+	if err == nil {
+		response["stats"] = gin.H{
+			"sectors":           sectorCount,
+			"stages":            stageCount,
+			"scenario_mappings": mappingCount,
+		}
+	}
+	c.JSON(statusCode, response)
 }
-
-type StrategicRecommendation struct {
-	Scenario         string  `json:"scenario"`
-	PriorityScore    float64 `json:"priority_score"`
-	ImpactMultiplier float64 `json:"impact_multiplier"`
-	Reasoning        string  `json:"reasoning"`
-}
-
-type AnalysisRequest struct {
-	CurrentResources int      `json:"current_resources"`
-	TimeHorizon      int      `json:"time_horizon"`
-	PrioritySectors  []string `json:"priority_sectors"`
-}
-
-type AnalysisResponse struct {
-	Recommendations    []StrategicRecommendation `json:"recommendations"`
-	ProjectedTimeline  ProjectedTimeline         `json:"projected_timeline"`
-	BottleneckAnalysis []string                  `json:"bottleneck_analysis"`
-	CrossSectorImpacts []CrossSectorImpact       `json:"cross_sector_impacts"`
-}
-
-type ProjectedTimeline struct {
-	Milestones []MilestoneProjection `json:"milestones"`
-}
-
-type MilestoneProjection struct {
-	Name                string    `json:"name"`
-	EstimatedCompletion time.Time `json:"estimated_completion"`
-	Confidence          float64   `json:"confidence"`
-}
-
-type CrossSectorImpact struct {
-	SourceSector string  `json:"source_sector"`
-	TargetSector string  `json:"target_sector"`
-	ImpactScore  float64 `json:"impact_score"`
-	Description  string  `json:"description"`
-}
-
-var db *sql.DB
 
 func getAppVersion() string {
 	version := os.Getenv("APP_VERSION")
@@ -313,6 +356,25 @@ func main() {
 	}
 	defer db.Close()
 
+	// Initialize service layer
+	treeService = NewTreeService(db)
+	sectorService = NewSectorService(db)
+	graphService = NewGraphService(db)
+
+	repoRoot, rootErr := resolveRepoRoot()
+	if rootErr != nil {
+		log.Printf("warning: scenario catalog disabled (repo root unresolved): %v", rootErr)
+	} else {
+		visibilityPath := filepath.Join(repoRoot, "scenarios", "tech-tree-designer", "data", "scenario_visibility.json")
+		manager, catalogErr := NewScenarioCatalogManager(repoRoot, visibilityPath)
+		if catalogErr != nil {
+			log.Printf("warning: scenario catalog unavailable: %v", catalogErr)
+		} else {
+			catalogManager = manager
+			catalogManager.StartBackgroundRefresh(24 * time.Hour)
+		}
+	}
+
 	// Initialize Gin router
 	r := gin.Default()
 
@@ -358,13 +420,30 @@ func main() {
 		// Tech tree routes
 		api.GET("/tech-tree", getTechTree)
 		api.GET("/tech-tree/sectors", getSectors)
+		api.POST("/tech-tree/sectors", createSectorHandler)
+		api.PATCH("/tech-tree/sectors/:id", updateSectorHandler)
+		api.DELETE("/tech-tree/sectors/:id", deleteSectorHandler)
 		api.GET("/tech-tree/sectors/:id", getSector)
 		api.GET("/tech-tree/stages/:id", getStage)
+		api.GET("/tech-tree/stages/:id/children", getStageChildren)
+		api.POST("/tech-tree/stages", createStageHandler)
+		api.PATCH("/tech-tree/stages/:id", updateStageHandler)
+		api.DELETE("/tech-tree/stages/:id", deleteStageHandler)
 		api.PUT("/tech-tree/graph", updateGraph)
+		api.GET("/tech-tree/graph/dot", exportGraphAsDOT)
+		api.GET("/tech-trees", listTechTrees)
+		api.POST("/tech-trees", createTechTreeHandler)
+		api.PATCH("/tech-trees/:id", updateTechTreeHandler)
+		api.POST("/tech-trees/:id/clone", cloneTechTreeHandler)
+		api.POST("/tech-tree/ai/stage-ideas", aiStageIdeasHandler)
+		api.GET("/tech-tree/scenario-catalog", getScenarioCatalogHandler)
+		api.POST("/tech-tree/scenario-catalog/refresh", refreshScenarioCatalogHandler)
+		api.POST("/tech-tree/scenario-catalog/visibility", updateScenarioVisibilityHandler)
 
 		// Progress tracking routes
 		api.GET("/progress/scenarios", getScenarioMappings)
 		api.POST("/progress/scenarios", updateScenarioMapping)
+		api.DELETE("/progress/scenarios/:id", deleteScenarioMapping)
 		api.PUT("/progress/scenarios/:scenario", updateScenarioStatus)
 
 		// Strategic analysis routes
@@ -390,786 +469,3 @@ func main() {
 }
 
 // Get the main tech tree
-func getTechTree(c *gin.Context) {
-	var tree TechTree
-	err := db.QueryRow(`
-		SELECT id, name, description, version, is_active, created_at, updated_at 
-		FROM tech_trees WHERE is_active = true ORDER BY created_at DESC LIMIT 1
-	`).Scan(&tree.ID, &tree.Name, &tree.Description, &tree.Version, &tree.IsActive,
-		&tree.CreatedAt, &tree.UpdatedAt)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch tech tree"})
-		return
-	}
-
-	c.JSON(http.StatusOK, tree)
-}
-
-// Get all sectors with their progress
-func fetchSectorsWithStages(ctx context.Context) ([]Sector, error) {
-	rows, err := db.QueryContext(ctx, `
-		SELECT id, tree_id, name, category, description, progress_percentage,
-			   position_x, position_y, color, created_at, updated_at
-		FROM sectors 
-		ORDER BY category, name
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var sectors []Sector
-	for rows.Next() {
-		var sector Sector
-		err := rows.Scan(&sector.ID, &sector.TreeID, &sector.Name, &sector.Category,
-			&sector.Description, &sector.ProgressPercentage, &sector.PositionX,
-			&sector.PositionY, &sector.Color, &sector.CreatedAt, &sector.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		stages, stageErr := getStagesForSector(sector.ID)
-		if stageErr == nil {
-			sector.Stages = stages
-		}
-
-		sectors = append(sectors, sector)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return sectors, nil
-}
-
-func getSectors(c *gin.Context) {
-	sectors, err := fetchSectorsWithStages(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch sectors"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"sectors": sectors})
-}
-
-// Get specific sector with detailed stages
-func getSector(c *gin.Context) {
-	sectorID := c.Param("id")
-
-	var sector Sector
-	err := db.QueryRow(`
-		SELECT id, tree_id, name, category, description, progress_percentage,
-			   position_x, position_y, color, created_at, updated_at
-		FROM sectors WHERE id = $1
-	`, sectorID).Scan(&sector.ID, &sector.TreeID, &sector.Name, &sector.Category,
-		&sector.Description, &sector.ProgressPercentage, &sector.PositionX,
-		&sector.PositionY, &sector.Color, &sector.CreatedAt, &sector.UpdatedAt)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Sector not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch sector"})
-		}
-		return
-	}
-
-	// Load stages with scenario mappings
-	stages, err := getStagesForSector(sectorID)
-	if err == nil {
-		sector.Stages = stages
-	}
-
-	c.JSON(http.StatusOK, sector)
-}
-
-// Get specific stage with detailed info
-func getStage(c *gin.Context) {
-	stageID := c.Param("id")
-
-	var stage ProgressionStage
-	err := db.QueryRow(`
-		SELECT id, sector_id, stage_type, stage_order, name, description,
-			   progress_percentage, examples, position_x, position_y, created_at, updated_at
-		FROM progression_stages WHERE id = $1
-	`, stageID).Scan(&stage.ID, &stage.SectorID, &stage.StageType, &stage.StageOrder,
-		&stage.Name, &stage.Description, &stage.ProgressPercentage, &stage.Examples,
-		&stage.PositionX, &stage.PositionY, &stage.CreatedAt, &stage.UpdatedAt)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Stage not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch stage"})
-		}
-		return
-	}
-
-	// Load scenario mappings and dependencies
-	mappings, err := getScenarioMappingsForStage(stageID)
-	if err == nil {
-		stage.ScenarioMappings = mappings
-	}
-
-	c.JSON(http.StatusOK, stage)
-}
-
-// Helper function to get stages for a sector
-func getStagesForSector(sectorID string) ([]ProgressionStage, error) {
-	rows, err := db.Query(`
-		SELECT id, sector_id, stage_type, stage_order, name, description,
-			   progress_percentage, examples, position_x, position_y, created_at, updated_at
-		FROM progression_stages 
-		WHERE sector_id = $1
-		ORDER BY stage_order
-	`, sectorID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var stages []ProgressionStage
-	for rows.Next() {
-		var stage ProgressionStage
-		err := rows.Scan(&stage.ID, &stage.SectorID, &stage.StageType, &stage.StageOrder,
-			&stage.Name, &stage.Description, &stage.ProgressPercentage, &stage.Examples,
-			&stage.PositionX, &stage.PositionY, &stage.CreatedAt, &stage.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-
-		// Load scenario mappings for each stage
-		mappings, err := getScenarioMappingsForStage(stage.ID)
-		if err == nil {
-			stage.ScenarioMappings = mappings
-		}
-
-		stages = append(stages, stage)
-	}
-
-	return stages, nil
-}
-
-// Helper function to get scenario mappings for a stage
-func getScenarioMappingsForStage(stageID string) ([]ScenarioMapping, error) {
-	rows, err := db.Query(`
-		SELECT id, scenario_name, stage_id, contribution_weight, completion_status,
-			   priority, estimated_impact, last_status_check, notes, created_at, updated_at
-		FROM scenario_mappings
-		WHERE stage_id = $1
-		ORDER BY priority, estimated_impact DESC
-	`, stageID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var mappings []ScenarioMapping
-	for rows.Next() {
-		var mapping ScenarioMapping
-		err := rows.Scan(&mapping.ID, &mapping.ScenarioName, &mapping.StageID,
-			&mapping.ContributionWeight, &mapping.CompletionStatus, &mapping.Priority,
-			&mapping.EstimatedImpact, &mapping.LastStatusCheck, &mapping.Notes,
-			&mapping.CreatedAt, &mapping.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-		mappings = append(mappings, mapping)
-	}
-
-	return mappings, nil
-}
-
-// Get all scenario mappings
-func getScenarioMappings(c *gin.Context) {
-	rows, err := db.Query(`
-		SELECT sm.id, sm.scenario_name, sm.stage_id, sm.contribution_weight,
-			   sm.completion_status, sm.priority, sm.estimated_impact,
-			   sm.last_status_check, sm.notes, sm.created_at, sm.updated_at,
-			   ps.name as stage_name, s.name as sector_name
-		FROM scenario_mappings sm
-		JOIN progression_stages ps ON sm.stage_id = ps.id
-		JOIN sectors s ON ps.sector_id = s.id
-		ORDER BY sm.priority, sm.estimated_impact DESC
-	`)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch scenario mappings"})
-		return
-	}
-	defer rows.Close()
-
-	var mappings []gin.H
-	for rows.Next() {
-		var mapping ScenarioMapping
-		var stageName, sectorName string
-		err := rows.Scan(&mapping.ID, &mapping.ScenarioName, &mapping.StageID,
-			&mapping.ContributionWeight, &mapping.CompletionStatus, &mapping.Priority,
-			&mapping.EstimatedImpact, &mapping.LastStatusCheck, &mapping.Notes,
-			&mapping.CreatedAt, &mapping.UpdatedAt, &stageName, &sectorName)
-		if err != nil {
-			continue
-		}
-
-		mappings = append(mappings, gin.H{
-			"mapping":     mapping,
-			"stage_name":  stageName,
-			"sector_name": sectorName,
-		})
-	}
-
-	c.JSON(http.StatusOK, gin.H{"scenario_mappings": mappings})
-}
-
-// Update scenario status
-func updateScenarioStatus(c *gin.Context) {
-	scenarioName := c.Param("scenario")
-
-	var request struct {
-		CompletionStatus string  `json:"completion_status"`
-		Notes            string  `json:"notes"`
-		EstimatedImpact  float64 `json:"estimated_impact,omitempty"`
-	}
-
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Update scenario mapping
-	result, err := db.Exec(`
-		UPDATE scenario_mappings 
-		SET completion_status = $1, notes = $2, last_status_check = CURRENT_TIMESTAMP,
-		    updated_at = CURRENT_TIMESTAMP,
-		    estimated_impact = CASE WHEN $3 > 0 THEN $3 ELSE estimated_impact END
-		WHERE scenario_name = $4
-	`, request.CompletionStatus, request.Notes, request.EstimatedImpact, scenarioName)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update scenario status"})
-		return
-	}
-
-	if rowsAffected, rowsErr := result.RowsAffected(); rowsErr == nil && rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Scenario mapping not found"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":  "Scenario status updated successfully",
-		"scenario": scenarioName,
-		"status":   request.CompletionStatus,
-	})
-}
-
-// Strategic analysis endpoint
-func analyzeStrategicPath(c *gin.Context) {
-	var request AnalysisRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Generate strategic recommendations based on current state
-	recommendations := generateStrategicRecommendations(request)
-
-	// Calculate projected timeline
-	timeline := calculateProjectedTimeline(request)
-
-	// Identify bottlenecks
-	bottlenecks := identifyBottlenecks()
-
-	// Analyze cross-sector impacts
-	impacts := analyzeCrossSectorImpacts()
-
-	response := AnalysisResponse{
-		Recommendations:    recommendations,
-		ProjectedTimeline:  timeline,
-		BottleneckAnalysis: bottlenecks,
-		CrossSectorImpacts: impacts,
-	}
-
-	c.JSON(http.StatusOK, response)
-}
-
-// Generate strategic recommendations
-func generateStrategicRecommendations(request AnalysisRequest) []StrategicRecommendation {
-	// Simple heuristic-based recommendations (in production, this would use AI)
-	recommendations := []StrategicRecommendation{
-		{
-			Scenario:         "graph-studio",
-			PriorityScore:    9.5,
-			ImpactMultiplier: 3.2,
-			Reasoning:        "Graph visualization capabilities are fundamental for all tech tree analysis and strategic planning interfaces",
-		},
-		{
-			Scenario:         "research-assistant",
-			PriorityScore:    9.0,
-			ImpactMultiplier: 2.8,
-			Reasoning:        "Research capabilities accelerate discovery of new technology pathways and sector connections",
-		},
-		{
-			Scenario:         "data-structurer",
-			PriorityScore:    8.5,
-			ImpactMultiplier: 2.5,
-			Reasoning:        "Data organization capabilities are required for all sector foundation stages",
-		},
-	}
-
-	return recommendations
-}
-
-// Calculate projected timeline for milestones
-func calculateProjectedTimeline(request AnalysisRequest) ProjectedTimeline {
-	milestones := []MilestoneProjection{
-		{
-			Name:                "Personal Productivity Mastery",
-			EstimatedCompletion: time.Now().AddDate(0, 6, 0),
-			Confidence:          0.8,
-		},
-		{
-			Name:                "Core Sector Digital Twins",
-			EstimatedCompletion: time.Now().AddDate(2, 0, 0),
-			Confidence:          0.6,
-		},
-		{
-			Name:                "Civilization Digital Twin",
-			EstimatedCompletion: time.Now().AddDate(5, 0, 0),
-			Confidence:          0.4,
-		},
-	}
-
-	return ProjectedTimeline{Milestones: milestones}
-}
-
-// Identify bottlenecks in the tech tree
-func identifyBottlenecks() []string {
-	return []string{
-		"Software engineering foundation stages need more scenario coverage",
-		"Cross-sector integration patterns are underdeveloped",
-		"AI analysis capabilities require more sophisticated models",
-		"Real-time progress tracking needs automated scenario status detection",
-	}
-}
-
-// Analyze cross-sector impacts
-func analyzeCrossSectorImpacts() []CrossSectorImpact {
-	return []CrossSectorImpact{
-		{
-			SourceSector: "Software Engineering",
-			TargetSector: "Manufacturing",
-			ImpactScore:  0.9,
-			Description:  "Software development capabilities directly enable all manufacturing system development",
-		},
-		{
-			SourceSector: "Healthcare",
-			TargetSector: "Manufacturing",
-			ImpactScore:  0.6,
-			Description:  "Healthcare insights drive medical device and biotech manufacturing requirements",
-		},
-	}
-}
-
-// Get strategic milestones
-func getStrategicMilestones(c *gin.Context) {
-	rows, err := db.Query(`
-		SELECT id, tree_id, name, description, milestone_type, required_sectors,
-			   required_stages, completion_percentage, estimated_completion_date,
-			   confidence_level, business_value_estimate, created_at, updated_at
-		FROM strategic_milestones
-		ORDER BY business_value_estimate DESC
-	`)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch milestones"})
-		return
-	}
-	defer rows.Close()
-
-	var milestones []StrategicMilestone
-	for rows.Next() {
-		var milestone StrategicMilestone
-		err := rows.Scan(&milestone.ID, &milestone.TreeID, &milestone.Name,
-			&milestone.Description, &milestone.MilestoneType, &milestone.RequiredSectors,
-			&milestone.RequiredStages, &milestone.CompletionPercentage,
-			&milestone.EstimatedCompletionDate, &milestone.ConfidenceLevel,
-			&milestone.BusinessValueEstimate, &milestone.CreatedAt, &milestone.UpdatedAt)
-		if err != nil {
-			continue
-		}
-		milestones = append(milestones, milestone)
-	}
-
-	c.JSON(http.StatusOK, gin.H{"milestones": milestones})
-}
-
-// Get recommendations (simplified version)
-func getRecommendations(c *gin.Context) {
-	resources := 5 // Default resource level
-	if r := c.Query("resources"); r != "" {
-		if parsed, err := strconv.Atoi(r); err == nil {
-			resources = parsed
-		}
-	}
-
-	request := AnalysisRequest{
-		CurrentResources: resources,
-		TimeHorizon:      12, // 12 months
-		PrioritySectors:  []string{"software", "manufacturing", "healthcare"},
-	}
-
-	recommendations := generateStrategicRecommendations(request)
-	c.JSON(http.StatusOK, gin.H{"recommendations": recommendations})
-}
-
-func fetchDependencies(ctx context.Context) ([]DependencyPayload, error) {
-	rows, err := db.QueryContext(ctx, `
-		SELECT sd.id, sd.dependent_stage_id, sd.prerequisite_stage_id,
-			   sd.dependency_type, sd.dependency_strength, sd.description,
-			   ps1.name AS dependent_stage_name, ps2.name AS prerequisite_stage_name
-		FROM stage_dependencies sd
-		JOIN progression_stages ps1 ON sd.dependent_stage_id = ps1.id
-		JOIN progression_stages ps2 ON sd.prerequisite_stage_id = ps2.id
-		ORDER BY sd.dependency_strength DESC
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var dependencies []DependencyPayload
-	for rows.Next() {
-		var dep StageDependency
-		var dependentName, prerequisiteName string
-		err := rows.Scan(&dep.ID, &dep.DependentStageID, &dep.PrerequisiteStageID,
-			&dep.DependencyType, &dep.DependencyStrength, &dep.Description,
-			&dependentName, &prerequisiteName)
-		if err != nil {
-			return nil, err
-		}
-
-		dependencies = append(dependencies, DependencyPayload{
-			Dependency:       dep,
-			DependentName:    dependentName,
-			PrerequisiteName: prerequisiteName,
-		})
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return dependencies, nil
-}
-
-// Get dependencies
-func getDependencies(c *gin.Context) {
-	dependencies, err := fetchDependencies(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch dependencies"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"dependencies": dependencies})
-}
-
-func updateGraph(c *gin.Context) {
-	var request GraphUpdateRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
-		return
-	}
-
-	ctx := c.Request.Context()
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin graph update"})
-		return
-	}
-
-	if len(request.StagePositions) > 0 {
-		stmt, prepErr := tx.PrepareContext(ctx, `
-			UPDATE progression_stages
-			SET position_x = $1,
-			    position_y = $2,
-			    updated_at = CURRENT_TIMESTAMP
-			WHERE id = $3
-		`)
-		if prepErr != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to prepare stage updates"})
-			return
-		}
-
-		for _, stage := range request.StagePositions {
-			if strings.TrimSpace(stage.ID) == "" {
-				continue
-			}
-
-			if _, execErr := stmt.ExecContext(ctx, stage.PositionX, stage.PositionY, stage.ID); execErr != nil {
-				stmt.Close()
-				tx.Rollback()
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update stage position"})
-				return
-			}
-		}
-
-		stmt.Close()
-	}
-
-	if request.Dependencies != nil {
-		existingRows, queryErr := tx.QueryContext(ctx, `
-			SELECT id, dependent_stage_id, prerequisite_stage_id
-			FROM stage_dependencies
-		`)
-		if queryErr != nil {
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load current dependencies"})
-			return
-		}
-
-		existingByID := make(map[string]StageDependency)
-		existingByPair := make(map[string]StageDependency)
-		for existingRows.Next() {
-			var dep StageDependency
-			if scanErr := existingRows.Scan(&dep.ID, &dep.DependentStageID, &dep.PrerequisiteStageID); scanErr != nil {
-				existingRows.Close()
-				tx.Rollback()
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read existing dependency"})
-				return
-			}
-
-			existingByID[dep.ID] = dep
-			existingByPair[dep.DependentStageID+"|"+dep.PrerequisiteStageID] = dep
-		}
-
-		if err := existingRows.Err(); err != nil {
-			existingRows.Close()
-			tx.Rollback()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to inspect existing dependencies"})
-			return
-		}
-		existingRows.Close()
-
-		keepIDs := make(map[string]struct{})
-		seenPairs := make(map[string]struct{})
-
-		for _, dep := range request.Dependencies {
-			dependentID := strings.TrimSpace(dep.DependentStageID)
-			prerequisiteID := strings.TrimSpace(dep.PrerequisiteStageID)
-			if dependentID == "" || prerequisiteID == "" || dependentID == prerequisiteID {
-				continue
-			}
-
-			pairKey := dependentID + "|" + prerequisiteID
-			if _, duplicate := seenPairs[pairKey]; duplicate {
-				continue
-			}
-			seenPairs[pairKey] = struct{}{}
-
-			depType := strings.TrimSpace(dep.DependencyType)
-			if depType == "" {
-				depType = "required"
-			}
-
-			strength := dep.DependencyStrength
-			if strength < 0 {
-				strength = 0
-			}
-			if strength > 1 {
-				strength = 1
-			}
-			if strength == 0 {
-				strength = 1
-			}
-
-			desc := strings.TrimSpace(dep.Description)
-			description := sql.NullString{String: desc, Valid: desc != ""}
-
-			if id := strings.TrimSpace(dep.ID); id != "" {
-				if _, execErr := tx.ExecContext(
-					ctx,
-					`UPDATE stage_dependencies
-					 SET dependent_stage_id = $1,
-					     prerequisite_stage_id = $2,
-					     dependency_type = $3,
-					     dependency_strength = $4,
-					     description = $5
-					 WHERE id = $6`,
-					dependentID,
-					prerequisiteID,
-					depType,
-					strength,
-					description,
-					id,
-				); execErr != nil {
-					tx.Rollback()
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update dependency"})
-					return
-				}
-
-				keepIDs[id] = struct{}{}
-				continue
-			}
-
-			if existing, ok := existingByPair[pairKey]; ok {
-				if _, execErr := tx.ExecContext(
-					ctx,
-					`UPDATE stage_dependencies
-					 SET dependency_type = $1,
-					     dependency_strength = $2,
-					     description = $3
-					 WHERE id = $4`,
-					depType,
-					strength,
-					description,
-					existing.ID,
-				); execErr != nil {
-					tx.Rollback()
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh dependency"})
-					return
-				}
-
-				keepIDs[existing.ID] = struct{}{}
-				continue
-			}
-
-			var newID string
-			insertErr := tx.QueryRowContext(
-				ctx,
-				`INSERT INTO stage_dependencies (dependent_stage_id, prerequisite_stage_id, dependency_type, dependency_strength, description)
-				 VALUES ($1, $2, $3, $4, $5)
-				 RETURNING id`,
-				dependentID,
-				prerequisiteID,
-				depType,
-				strength,
-				description,
-			).Scan(&newID)
-			if insertErr != nil {
-				tx.Rollback()
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create dependency"})
-				return
-			}
-
-			keepIDs[newID] = struct{}{}
-		}
-
-		for id := range existingByID {
-			if _, ok := keepIDs[id]; !ok {
-				if _, execErr := tx.ExecContext(ctx, `DELETE FROM stage_dependencies WHERE id = $1`, id); execErr != nil {
-					tx.Rollback()
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove dependency"})
-					return
-				}
-			}
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to persist graph changes"})
-		return
-	}
-
-	sectors, sectorErr := fetchSectorsWithStages(ctx)
-	if sectorErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Graph saved but sectors could not be refreshed"})
-		return
-	}
-
-	dependencies, depErr := fetchDependencies(ctx)
-	if depErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Graph saved but dependencies could not be refreshed"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":      "Graph updated successfully",
-		"sectors":      sectors,
-		"dependencies": dependencies,
-	})
-}
-
-// Get cross-sector connections
-func getCrossSectorConnections(c *gin.Context) {
-	rows, err := db.Query(`
-		SELECT sc.id, sc.source_sector_id, sc.target_sector_id,
-			   sc.connection_type, sc.strength, sc.description, sc.examples,
-			   s1.name as source_name, s2.name as target_name
-		FROM sector_connections sc
-		JOIN sectors s1 ON sc.source_sector_id = s1.id
-		JOIN sectors s2 ON sc.target_sector_id = s2.id
-		ORDER BY sc.strength DESC
-	`)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch connections"})
-		return
-	}
-	defer rows.Close()
-
-	var connections []gin.H
-	for rows.Next() {
-		var conn struct {
-			ID             string          `json:"id"`
-			SourceSectorID string          `json:"source_sector_id"`
-			TargetSectorID string          `json:"target_sector_id"`
-			ConnectionType string          `json:"connection_type"`
-			Strength       float64         `json:"strength"`
-			Description    string          `json:"description"`
-			Examples       json.RawMessage `json:"examples"`
-		}
-		var sourceName, targetName string
-
-		err := rows.Scan(&conn.ID, &conn.SourceSectorID, &conn.TargetSectorID,
-			&conn.ConnectionType, &conn.Strength, &conn.Description, &conn.Examples,
-			&sourceName, &targetName)
-		if err != nil {
-			continue
-		}
-
-		connections = append(connections, gin.H{
-			"connection":  conn,
-			"source_name": sourceName,
-			"target_name": targetName,
-		})
-	}
-
-	c.JSON(http.StatusOK, gin.H{"connections": connections})
-}
-
-// Add new scenario mapping
-func updateScenarioMapping(c *gin.Context) {
-	var mapping ScenarioMapping
-	if err := c.ShouldBindJSON(&mapping); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Set ID and timestamps
-	mapping.ID = uuid.New().String()
-	mapping.CreatedAt = time.Now()
-	mapping.UpdatedAt = time.Now()
-	mapping.LastStatusCheck = time.Now()
-
-	_, err := db.Exec(`
-		INSERT INTO scenario_mappings (id, scenario_name, stage_id, contribution_weight,
-			completion_status, priority, estimated_impact, last_status_check, notes, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		ON CONFLICT (scenario_name, stage_id) DO UPDATE SET
-			contribution_weight = $4, completion_status = $5, priority = $6,
-			estimated_impact = $7, last_status_check = $8, notes = $9, updated_at = $11
-	`, mapping.ID, mapping.ScenarioName, mapping.StageID, mapping.ContributionWeight,
-		mapping.CompletionStatus, mapping.Priority, mapping.EstimatedImpact,
-		mapping.LastStatusCheck, mapping.Notes, mapping.CreatedAt, mapping.UpdatedAt)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update scenario mapping"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Scenario mapping updated successfully",
-		"mapping": mapping,
-	})
-}
-// Test change
