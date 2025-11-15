@@ -10,6 +10,8 @@ interface PublishPreviewDialogProps {
   open: boolean
   onClose: () => void
   onPublishSuccess: () => void
+  orphanedP0Count?: number
+  orphanedP1Count?: number
 }
 
 /**
@@ -21,6 +23,8 @@ export function PublishPreviewDialog({
   open,
   onClose,
   onPublishSuccess,
+  orphanedP0Count = 0,
+  orphanedP1Count = 0,
 }: PublishPreviewDialogProps) {
   const [publishedContent, setPublishedContent] = useState<string | null>(null)
   const [loadingPublished, setLoadingPublished] = useState(false)
@@ -101,6 +105,8 @@ export function PublishPreviewDialog({
 
   const isNewPRD = publishedContent === ''
   const hasChanges = publishedContent !== null && publishedContent !== draft.content
+  const hasUnlinkedTargets = orphanedP0Count > 0 || orphanedP1Count > 0
+  const hasUnlinkedP0 = orphanedP0Count > 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -122,6 +128,38 @@ export function PublishPreviewDialog({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Unlinked Targets Warning */}
+          {hasUnlinkedTargets && (
+            <div className={`mb-4 rounded-lg border p-4 ${hasUnlinkedP0 ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}>
+              <div className="flex items-start gap-3">
+                <AlertTriangle className={`h-5 w-5 mt-0.5 ${hasUnlinkedP0 ? 'text-red-600' : 'text-amber-600'}`} />
+                <div className="flex-1">
+                  <p className={`font-medium ${hasUnlinkedP0 ? 'text-red-900' : 'text-amber-900'}`}>
+                    {hasUnlinkedP0 ? '⚠️ Critical Issue: Unlinked P0 Targets' : '⚠️ Warning: Unlinked P1 Targets'}
+                  </p>
+                  <p className={`mt-1 text-sm ${hasUnlinkedP0 ? 'text-red-700' : 'text-amber-700'}`}>
+                    {orphanedP0Count > 0 && (
+                      <span className="block">
+                        <strong>{orphanedP0Count}</strong> P0 (critical) operational target{orphanedP0Count > 1 ? 's' : ''} lack{orphanedP0Count === 1 ? 's' : ''} requirement linkage
+                      </span>
+                    )}
+                    {orphanedP1Count > 0 && (
+                      <span className="block">
+                        <strong>{orphanedP1Count}</strong> P1 operational target{orphanedP1Count > 1 ? 's' : ''} lack{orphanedP1Count === 1 ? 's' : ''} requirement linkage
+                      </span>
+                    )}
+                  </p>
+                  <p className={`mt-2 text-sm ${hasUnlinkedP0 ? 'text-red-700' : 'text-amber-700'}`}>
+                    {hasUnlinkedP0
+                      ? 'Publishing with unlinked P0 targets is strongly discouraged. Consider adding requirements or linking existing ones before publishing.'
+                      : 'Consider linking these targets to requirements in the requirements/ folder before publishing.'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {loadingPublished ? (
             <div className="flex h-64 items-center justify-center">
               <div className="text-center">

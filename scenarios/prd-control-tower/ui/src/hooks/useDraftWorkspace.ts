@@ -9,7 +9,9 @@ import { useDrafts } from './useDrafts'
 import { useDraftEditor } from './useDraftEditor'
 import { useDraftTargets } from './useDraftTargets'
 import { useDraftRequirements } from './useDraftRequirements'
+import { useAutoValidation } from './useAutoValidation'
 import type { DraftMetrics } from '../utils/formatters'
+import type { Violation, PRDTemplateValidationResult } from '../types'
 
 type ConfirmHandler = (options: {
   title?: string
@@ -67,6 +69,22 @@ interface DraftWorkspaceState {
   requirementsData: RequirementGroup[] | null
   requirementsLoading: boolean
   requirementsError: string | null
+
+  // Auto-validation
+  validationResult: {
+    violations: Violation[]
+    template_compliance?: PRDTemplateValidationResult
+    summary?: {
+      total_violations: number
+      errors: number
+      warnings: number
+      info: number
+    }
+  } | null
+  validating: boolean
+  validationError: string | null
+  lastValidatedAt: Date | null
+  triggerValidation: () => Promise<void>
 }
 
 export function useDraftWorkspace({
@@ -112,6 +130,20 @@ export function useDraftWorkspace({
 
   // Requirements
   const { requirementsData, requirementsLoading, requirementsError } = useDraftRequirements({ selectedDraft })
+
+  // Auto-validation (debounced, triggers 3s after user stops typing)
+  const {
+    validationResult,
+    validating,
+    error: validationError,
+    lastValidatedAt,
+    triggerValidation,
+  } = useAutoValidation({
+    draftId: selectedDraft?.id ?? null,
+    content: editorContent,
+    enabled: true,
+    debounceMs: 3000,
+  })
 
   // Metadata dialog state
   const [metaDialogOpen, setMetaDialogOpen] = useState(false)
@@ -228,5 +260,12 @@ export function useDraftWorkspace({
     requirementsData,
     requirementsLoading,
     requirementsError,
+
+    // Auto-validation
+    validationResult,
+    validating,
+    validationError,
+    lastValidatedAt,
+    triggerValidation,
   }
 }

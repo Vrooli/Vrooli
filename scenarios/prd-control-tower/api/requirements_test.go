@@ -27,7 +27,7 @@ func TestParseOperationalTargets(t *testing.T) {
 	}
 }
 
-func TestLinkTargetsAndRequirements(t *testing.T) {
+func TestLinkTargetsAndRequirementsIntegration(t *testing.T) {
 	targets := []OperationalTarget{
 		{ID: "t1", Title: "Visual workflow builder", Category: "Must Have"},
 		{ID: "t2", Title: "Calendar scheduling", Category: "Should Have"},

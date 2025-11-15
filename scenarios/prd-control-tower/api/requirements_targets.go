@@ -92,7 +92,8 @@ func parseCategoryLabel(input string) (string, string) {
 }
 
 func splitTargetLine(line string) (string, string) {
-	withoutCheckbox := strings.TrimSpace(line[4:])
+	// Skip "- [x] " or "- [ ] " (6 characters)
+	withoutCheckbox := strings.TrimSpace(line[6:])
 	parts := strings.SplitN(withoutCheckbox, "_(", 2)
 	title := strings.TrimSpace(parts[0])
 	if len(parts) == 2 {

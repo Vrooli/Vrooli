@@ -2,12 +2,20 @@ package main
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
 
 func handleListBacklog(w http.ResponseWriter, r *http.Request) {
+	// Sync filesystem backlog with database
+	if db != nil {
+		if err := syncBacklogFilesystemWithDatabase(db); err != nil {
+			slog.Warn("Failed to sync filesystem backlog", "error", err)
+		}
+	}
+
 	entries, err := fetchAllBacklogEntries()
 	if err != nil {
 		respondInternalError(w, "Failed to list backlog entries", err)
@@ -81,6 +89,11 @@ func handleDeleteBacklogEntry(w http.ResponseWriter, r *http.Request) {
 	if affected == 0 {
 		respondNotFound(w, "Backlog entry")
 		return
+	}
+
+	// Delete from filesystem (git-backed persistence)
+	if err := deleteBacklogFile(entryID); err != nil {
+		slog.Warn("Failed to delete backlog file (database deleted successfully)", "id", entryID, "error", err)
 	}
 
 	respondJSON(w, http.StatusOK, map[string]string{"status": "deleted"})

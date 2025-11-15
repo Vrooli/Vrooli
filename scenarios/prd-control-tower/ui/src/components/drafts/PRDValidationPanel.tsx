@@ -13,6 +13,13 @@ interface PRDValidationPanelProps {
   orphanedTargetsCount?: number
   /** Requirements without operational target linkage */
   unmatchedRequirementsCount?: number
+  /** Auto-validation state from useAutoValidation hook */
+  validationResult?: ValidationResult | null
+  validating?: boolean
+  error?: string | null
+  lastValidatedAt?: Date | null
+  /** Manual validation trigger */
+  onManualValidate?: () => Promise<void>
   className?: string
 }
 
@@ -32,21 +39,43 @@ interface ValidationResult {
  *
  * Displays real-time validation results from scenario-auditor integration.
  * Shows structure compliance, missing sections, and linking issues.
+ *
+ * Can work in two modes:
+ * 1. Standalone (manages own validation state)
+ * 2. Connected to useAutoValidation hook (receives validation state as props)
  */
 export function PRDValidationPanel({
   draftId,
   orphanedTargetsCount = 0,
   unmatchedRequirementsCount = 0,
+  validationResult: externalValidationResult,
+  validating: externalValidating,
+  error: externalError,
+  lastValidatedAt: externalLastValidatedAt,
+  onManualValidate,
   className,
 }: PRDValidationPanelProps) {
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
-  const [validating, setValidating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [lastValidatedAt, setLastValidatedAt] = useState<Date | null>(null)
+  const [internalValidationResult, setInternalValidationResult] = useState<ValidationResult | null>(null)
+  const [internalValidating, setInternalValidating] = useState(false)
+  const [internalError, setInternalError] = useState<string | null>(null)
+  const [internalLastValidatedAt, setInternalLastValidatedAt] = useState<Date | null>(null)
+
+  // Use external state if provided, otherwise use internal state
+  const validationResult = externalValidationResult !== undefined ? externalValidationResult : internalValidationResult
+  const validating = externalValidating !== undefined ? externalValidating : internalValidating
+  const error = externalError !== undefined ? externalError : internalError
+  const lastValidatedAt = externalLastValidatedAt !== undefined ? externalLastValidatedAt : internalLastValidatedAt
 
   const handleValidate = useCallback(async () => {
-    setValidating(true)
-    setError(null)
+    // If external validation is provided, use that
+    if (onManualValidate) {
+      await onManualValidate()
+      return
+    }
+
+    // Otherwise, do internal validation
+    setInternalValidating(true)
+    setInternalError(null)
 
     try {
       const response = await fetch(buildApiUrl(`/drafts/${draftId}/validate`), {
@@ -60,14 +89,14 @@ export function PRDValidationPanel({
       }
 
       const data = await response.json()
-      setValidationResult(data)
-      setLastValidatedAt(new Date())
+      setInternalValidationResult(data)
+      setInternalLastValidatedAt(new Date())
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Validation error')
+      setInternalError(err instanceof Error ? err.message : 'Validation error')
     } finally {
-      setValidating(false)
+      setInternalValidating(false)
     }
-  }, [draftId])
+  }, [draftId, onManualValidate])
 
   const templateCompliance = validationResult?.template_compliance
   const completionPercent = templateCompliance ? Math.round(templateCompliance.compliance_percent) : 0

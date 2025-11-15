@@ -78,7 +78,7 @@ func insertBacklogEntries(entries []BacklogCreateEntry) ([]BacklogEntry, error) 
 			return nil, err
 		}
 
-		created = append(created, BacklogEntry{
+		backlogEntry := BacklogEntry{
 			ID:            id,
 			IdeaText:      idea,
 			EntityType:    entityType,
@@ -86,7 +86,14 @@ func insertBacklogEntries(entries []BacklogCreateEntry) ([]BacklogEntry, error) 
 			Status:        status,
 			CreatedAt:     createdAt,
 			UpdatedAt:     updatedAt,
-		})
+		}
+
+		// Save to filesystem (git-backed persistence)
+		if err := saveBacklogEntryToFile(backlogEntry); err != nil {
+			return nil, fmt.Errorf("failed to save backlog entry to file: %w", err)
+		}
+
+		created = append(created, backlogEntry)
 	}
 
 	return created, nil
@@ -189,6 +196,11 @@ func markBacklogEntryConverted(id string, draftID string, entityName string) (Ba
 
 	if converted.Valid {
 		entry.ConvertedDraftID = &converted.String
+	}
+
+	// Save to filesystem (git-backed persistence)
+	if err := saveBacklogEntryToFile(entry); err != nil {
+		return BacklogEntry{}, fmt.Errorf("failed to save backlog entry to file: %w", err)
 	}
 
 	return entry, nil

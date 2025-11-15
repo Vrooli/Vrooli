@@ -138,8 +138,8 @@
         },
         {
           "name": "create-draft-directories",
-          "run": "mkdir -p data/prd-drafts/scenario data/prd-drafts/resource",
-          "description": "Create draft storage directories"
+          "run": "mkdir -p data/prd-drafts/scenario data/prd-drafts/resource data/backlog",
+          "description": "Create draft and backlog storage directories (git-backed)"
         },
         {
           "name": "initialize-database",

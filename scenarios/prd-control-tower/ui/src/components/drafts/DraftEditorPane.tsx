@@ -24,6 +24,17 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/card'
 import { Separator } from '../ui/separator'
 import { cn } from '../../lib/utils'
 
+interface ValidationResult {
+  violations: any[]
+  template_compliance?: any
+  summary?: {
+    total_violations: number
+    errors: number
+    warnings: number
+    info: number
+  }
+}
+
 interface DraftEditorPaneProps {
   draft: Draft
   editorContent: string
@@ -40,6 +51,13 @@ interface DraftEditorPaneProps {
   requirementsData: RequirementGroup[] | null
   requirementsLoading: boolean
   requirementsError: string | null
+  // Auto-validation props
+  validationResult?: ValidationResult | null
+  validating?: boolean
+  validationError?: string | null
+  lastValidatedAt?: Date | null
+  onManualValidate?: () => Promise<void>
+  // Event handlers
   onContentChange: (value: string) => void
   onSave: () => void
   onDiscard: () => void
@@ -70,6 +88,11 @@ export function DraftEditorPane({
   requirementsData,
   requirementsLoading,
   requirementsError,
+  validationResult,
+  validating,
+  validationError,
+  lastValidatedAt,
+  onManualValidate,
   onContentChange,
   onSave,
   onDiscard,
@@ -271,6 +294,11 @@ export function DraftEditorPane({
             targets?.filter(t => (t.criticality === 'P0' || t.criticality === 'P1') && (!t.linked_requirement_ids || t.linked_requirement_ids.length === 0)).length ?? 0
           }
           unmatchedRequirementsCount={unmatchedRequirements?.length ?? 0}
+          validationResult={validationResult}
+          validating={validating}
+          error={validationError}
+          lastValidatedAt={lastValidatedAt}
+          onManualValidate={onManualValidate}
         />
 
         {/* Structure & Coverage Card */}
@@ -320,6 +348,8 @@ export function DraftEditorPane({
             onPublishSuccess()
           }
         }}
+        orphanedP0Count={orphanedP0Targets.length}
+        orphanedP1Count={orphanedP1Targets.length}
       />
     </section>
   )
