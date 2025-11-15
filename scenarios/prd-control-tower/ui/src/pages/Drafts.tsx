@@ -53,6 +53,11 @@ export default function Drafts() {
     requirementsLoading,
     requirementsError,
     draftMetrics,
+    validationResult,
+    validating,
+    validationError,
+    lastValidatedAt,
+    triggerValidation,
   } = useDraftWorkspace({
     routeEntityType,
     routeEntityName,
@@ -142,6 +147,11 @@ export default function Drafts() {
       requirementsData={requirementsData}
       requirementsLoading={requirementsLoading}
       requirementsError={requirementsError}
+      validationResult={validationResult}
+      validating={validating}
+      validationError={validationError}
+      lastValidatedAt={lastValidatedAt}
+      onManualValidate={triggerValidation}
       onContentChange={handleEditorChange}
       onSave={handleSaveDraft}
       onDiscard={handleDiscardChanges}
