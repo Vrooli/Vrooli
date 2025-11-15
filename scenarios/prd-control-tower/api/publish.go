@@ -47,6 +47,16 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate operational targets linkage before publishing
+	if err := validateOperationalTargetsLinkage(draft.EntityType, draft.EntityName, draft.Content); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"success": false,
+			"message": err.Error(),
+			"error":   "ORPHANED_CRITICAL_TARGETS",
+		})
+		return
+	}
+
 	// Construct target PRD path
 	vrooliRoot, err := getVrooliRoot()
 	if err != nil {
@@ -109,6 +119,52 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, response)
+}
+
+// validateOperationalTargetsLinkage checks if P0/P1 operational targets have linkages to requirements
+func validateOperationalTargetsLinkage(entityType, entityName, content string) error {
+	// Get operational targets from draft content
+	targets := parseOperationalTargetsV2(content, entityType, entityName)
+	if len(targets) == 0 {
+		// No targets to validate
+		return nil
+	}
+
+	// Load requirements to check linkages
+	vrooliRoot, err := getVrooliRoot()
+	if err != nil {
+		slog.Warn("Failed to get Vrooli root for validation", "error", err)
+		return nil
+	}
+
+	reqsPath := filepath.Join(vrooliRoot, entityType+"s", entityName, "requirements", "index.json")
+	if _, err := os.Stat(reqsPath); os.IsNotExist(err) {
+		// No requirements file - skip validation
+		return nil
+	}
+
+	// Find orphaned critical targets (P0/P1 without linked requirements)
+	orphanedCritical := []OperationalTarget{}
+	for _, target := range targets {
+		if (target.Criticality == "P0" || target.Criticality == "P1") && len(target.LinkedRequirements) == 0 {
+			orphanedCritical = append(orphanedCritical, target)
+		}
+	}
+
+	if len(orphanedCritical) > 0 {
+		msg := fmt.Sprintf("Cannot publish: %d critical operational target(s) (P0/P1) are not linked to requirements. "+
+			"P0 and P1 targets MUST have linked requirements before publishing. "+
+			"Orphaned targets: ", len(orphanedCritical))
+		for i, target := range orphanedCritical {
+			if i > 0 {
+				msg += ", "
+			}
+			msg += fmt.Sprintf("%s (%s)", target.Title, target.Criticality)
+		}
+		return fmt.Errorf("%s", msg)
+	}
+
+	return nil
 }
 
 // Helper function to copy a file

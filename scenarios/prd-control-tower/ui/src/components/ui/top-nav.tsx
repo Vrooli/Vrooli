@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { ClipboardList, Layers, StickyNote, Home } from 'lucide-react'
+import { ClipboardList, Layers, StickyNote, Home, ListTree } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 interface NavItem {
@@ -12,6 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Catalog', icon: Home },
   { to: '/backlog', label: 'Backlog', icon: StickyNote },
   { to: '/drafts', label: 'Drafts', icon: Layers },
+  { to: '/requirements-registry', label: 'Requirements', icon: ListTree },
 ]
 
 export function TopNav() {

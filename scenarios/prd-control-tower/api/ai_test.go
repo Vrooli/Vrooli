@@ -59,7 +59,7 @@ func TestBuildPrompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildPrompt(tt.draft, tt.section, tt.context)
+			result := buildPrompt(tt.draft, tt.section, tt.context, "")
 
 			if len(result) < tt.wantLen {
 				t.Errorf("buildPrompt() length = %d, want at least %d", len(result), tt.wantLen)
@@ -153,7 +153,7 @@ func TestGenerateAIContentCLI(t *testing.T) {
 
 	// This test will fail if resource-openrouter is not installed,
 	// which is expected behavior
-	_, _, err := generateAIContentCLI(draft, "Executive Summary", "Test context")
+	_, _, err := generateAIContentCLI(draft, "Executive Summary", "Test context", "")
 
 	// We expect an error because resource-openrouter is likely not available in test environment
 	if err == nil {
@@ -211,7 +211,7 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 		Content:    "# Test PRD",
 	}
 
-	content, model, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "Test context")
+	content, model, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "Test context", "")
 
 	if err != nil {
 		t.Errorf("generateAIContentHTTP() unexpected error: %v", err)
@@ -273,7 +273,7 @@ func TestGenerateAIContentHTTPError(t *testing.T) {
 				Content:    "# Test",
 			}
 
-			_, _, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "")
+			_, _, err := generateAIContentHTTP(mockServer.URL, draft, "Executive Summary", "", "")
 
 			if err == nil {
 				t.Error("generateAIContentHTTP() expected error, got nil")
@@ -297,7 +297,7 @@ func TestGenerateAIContent(t *testing.T) {
 	// Test with no RESOURCE_OPENROUTER_URL set (should fallback to CLI)
 	t.Setenv("RESOURCE_OPENROUTER_URL", "")
 
-	_, _, err := generateAIContent(draft, "Executive Summary", "")
+	_, _, err := generateAIContent(draft, "Executive Summary", "", "")
 
 	// Should attempt CLI and fail (unless resource-openrouter is installed)
 	if err == nil {

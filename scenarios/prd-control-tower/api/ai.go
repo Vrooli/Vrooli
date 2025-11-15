@@ -17,6 +17,7 @@ import (
 type AIGenerateRequest struct {
 	Section string `json:"section"` // Section to generate (e.g., "Executive Summary", "Technical Architecture")
 	Context string `json:"context"` // Additional context for generation
+	Action  string `json:"action"`  // Quick action type (improve, expand, simplify, grammar)
 }
 
 // AIGenerateResponse represents the AI generation result
@@ -52,7 +53,7 @@ func handleAIGenerateSection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate AI content
-	generatedText, model, err := generateAIContent(draft, req.Section, req.Context)
+	generatedText, model, err := generateAIContent(draft, req.Section, req.Context, req.Action)
 	if err != nil {
 		response := AIGenerateResponse{
 			DraftID: draftID,
@@ -75,21 +76,21 @@ func handleAIGenerateSection(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, response)
 }
 
-func generateAIContent(draft Draft, section string, context string) (string, string, error) {
+func generateAIContent(draft Draft, section string, context string, action string) (string, string, error) {
 	// Check if resource-openrouter HTTP API is configured
 	openrouterURL := os.Getenv("RESOURCE_OPENROUTER_URL")
 	if openrouterURL != "" {
 		// HTTP API is configured - use it
-		return generateAIContentHTTP(openrouterURL, draft, section, context)
+		return generateAIContentHTTP(openrouterURL, draft, section, context, action)
 	}
 
 	// Fallback to CLI if HTTP API not configured
-	return generateAIContentCLI(draft, section, context)
+	return generateAIContentCLI(draft, section, context, action)
 }
 
-func generateAIContentHTTP(baseURL string, draft Draft, section string, context string) (string, string, error) {
+func generateAIContentHTTP(baseURL string, draft Draft, section string, context string, action string) (string, string, error) {
 	// Construct prompt
-	prompt := buildPrompt(draft, section, context)
+	prompt := buildPrompt(draft, section, context, action)
 
 	// Call OpenRouter API
 	payload := map[string]any{
@@ -164,7 +165,7 @@ func generateAIContentHTTP(baseURL string, draft Draft, section string, context 
 	return content, model, nil
 }
 
-func generateAIContentCLI(draft Draft, section string, context string) (string, string, error) {
+func generateAIContentCLI(draft Draft, section string, context string, action string) (string, string, error) {
 	// Check if resource-openrouter CLI is available
 	_, err := exec.LookPath("resource-openrouter")
 	if err != nil {
@@ -172,7 +173,7 @@ func generateAIContentCLI(draft Draft, section string, context string) (string, 
 	}
 
 	// Construct prompt
-	prompt := buildPrompt(draft, section, context)
+	prompt := buildPrompt(draft, section, context, action)
 
 	// Run resource-openrouter
 	cmd := exec.Command("resource-openrouter", "chat", "--model", "anthropic/claude-3.5-sonnet", "--message", prompt)
@@ -189,7 +190,13 @@ func generateAIContentCLI(draft Draft, section string, context string) (string, 
 	return stdout.String(), "anthropic/claude-3.5-sonnet", nil
 }
 
-func buildPrompt(draft Draft, section string, context string) string {
+func buildPrompt(draft Draft, section string, context string, action string) string {
+	// If action is specified, use action-based prompt
+	if action != "" {
+		return buildActionPrompt(action, context)
+	}
+
+	// Otherwise, use section-based prompt
 	prompt := fmt.Sprintf(`You are an expert technical writer helping to create a Product Requirements Document (PRD).
 
 Entity Type: %s
@@ -219,4 +226,78 @@ Task: Generate the "%s" section for this PRD.
 Generate only the content for the "%s" section. Do not include the section header itself.`, section)
 
 	return prompt
+}
+
+func buildActionPrompt(action string, selectedText string) string {
+	actionPrompts := map[string]string{
+		"improve": `Improve the following text to be more professional, clear, and actionable:
+
+%s
+
+Requirements:
+- Maintain the original meaning and key points
+- Use stronger, more precise language
+- Add clarity and remove ambiguity
+- Keep markdown formatting
+- Return only the improved text without explanations`,
+		"expand": `Expand the following text with more detail, examples, and context:
+
+%s
+
+Requirements:
+- Add relevant details and examples
+- Explain technical concepts more thoroughly
+- Include practical implications
+- Maintain markdown formatting
+- Return only the expanded text without explanations`,
+		"simplify": `Simplify the following text to be more concise and easier to understand:
+
+%s
+
+Requirements:
+- Remove unnecessary jargon and complexity
+- Use simpler language where possible
+- Keep only essential information
+- Maintain markdown formatting
+- Return only the simplified text without explanations`,
+		"grammar": `Fix grammar, spelling, and formatting issues in the following text:
+
+%s
+
+Requirements:
+- Correct all grammatical errors
+- Fix spelling mistakes
+- Improve sentence structure
+- Ensure consistent markdown formatting
+- Return only the corrected text without explanations`,
+		"technical": `Make the following text more technical and precise:
+
+%s
+
+Requirements:
+- Add technical accuracy and specificity
+- Include relevant technical terms
+- Remove vague language
+- Add measurable criteria where applicable
+- Maintain markdown formatting
+- Return only the enhanced text without explanations`,
+		"clarify": `Clarify and restructure the following text to be more understandable:
+
+%s
+
+Requirements:
+- Break down complex ideas into clear points
+- Add structure with headings or lists if helpful
+- Explain ambiguous terms
+- Improve logical flow
+- Maintain markdown formatting
+- Return only the clarified text without explanations`,
+	}
+
+	template, exists := actionPrompts[action]
+	if !exists {
+		template = actionPrompts["improve"] // Default to improve
+	}
+
+	return fmt.Sprintf(template, selectedText)
 }

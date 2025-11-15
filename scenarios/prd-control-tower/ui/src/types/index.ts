@@ -93,6 +93,29 @@ export interface Violation {
 }
 
 /**
+ * PRD Template validation violation
+ */
+export interface PRDTemplateViolation {
+  section: string
+  level: number
+  message: string
+  severity: 'error' | 'warning'
+  suggestion?: string
+  line_number?: number
+}
+
+/**
+ * PRD Template validation result
+ */
+export interface PRDTemplateValidationResult {
+  compliant_sections: string[]
+  missing_sections: string[]
+  violations: PRDTemplateViolation[]
+  compliance_percent: number
+  is_compliant: boolean
+}
+
+/**
  * Error response when auditor is unavailable or encounters issues.
  */
 export interface ValidationError {

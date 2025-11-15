@@ -32,8 +32,12 @@ export function OperationalTargetsPanel({ targets, unmatchedRequirements, loadin
   // Calculate coverage metrics
   const targetsWithRequirements = targets.filter(t => t.linked_requirement_ids && t.linked_requirement_ids.length > 0)
   const orphanedTargets = targets.filter(t => !t.linked_requirement_ids || t.linked_requirement_ids.length === 0)
+  const orphanedP0 = orphanedTargets.filter(t => t.criticality === 'P0')
+  const orphanedP1 = orphanedTargets.filter(t => t.criticality === 'P1')
+  const orphanedP2 = orphanedTargets.filter(t => t.criticality === 'P2' || !t.criticality)
   const coveragePercent = targets.length > 0 ? Math.round((targetsWithRequirements.length / targets.length) * 100) : 0
   const hasGaps = orphanedTargets.length > 0 || (unmatchedRequirements && unmatchedRequirements.length > 0)
+  const hasCriticalGaps = orphanedP0.length > 0 || orphanedP1.length > 0
 
   return (
     <div className="space-y-4">
@@ -73,29 +77,77 @@ export function OperationalTargetsPanel({ targets, unmatchedRequirements, loadin
         )}
       </div>
 
-      {/* Orphaned Targets Warning */}
-      {orphanedTargets.length > 0 && (
-        <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
-          <p className="flex items-center gap-2 text-sm font-medium text-amber-900 mb-3">
-            <AlertTriangle size={16} />
-            {orphanedTargets.length} Operational Target{orphanedTargets.length === 1 ? '' : 's'} Without Requirements
+      {/* Critical Orphaned Targets Warning (P0/P1) */}
+      {hasCriticalGaps && (
+        <div className="rounded-2xl border-2 border-red-400 bg-red-50 p-4">
+          <p className="flex items-center gap-2 text-sm font-bold text-red-900 mb-2">
+            <AlertTriangle size={18} className="shrink-0" />
+            ⚠️ BLOCKING: Critical Targets Without Requirements
           </p>
-          <p className="text-xs text-amber-800 mb-3">
-            These operational targets are defined in your PRD but have no corresponding requirements in the <code className="bg-amber-100 px-1 rounded">requirements/</code> folder.
-            Consider creating requirements to track implementation progress.
+          <p className="text-xs text-red-800 mb-3">
+            {orphanedP0.length > 0 && <strong>P0 targets MUST have linked requirements before publishing.</strong>}
+            {orphanedP0.length > 0 && orphanedP1.length > 0 && ' '}
+            {orphanedP1.length > 0 && <strong>P1 targets SHOULD have linked requirements.</strong>}
           </p>
           <div className="space-y-2">
-            {orphanedTargets.map(target => (
+            {orphanedP0.map(target => (
               <div
                 key={target.id}
-                className="rounded-lg border border-amber-200 bg-white p-2 text-sm"
+                className="rounded-lg border-2 border-red-300 bg-white p-2.5 text-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="font-semibold text-red-900">{target.title}</p>
+                    <p className="text-xs text-red-700">{target.path}</p>
+                  </div>
+                  <Badge variant="destructive" className="font-bold">
+                    P0
+                  </Badge>
+                </div>
+              </div>
+            ))}
+            {orphanedP1.map(target => (
+              <div
+                key={target.id}
+                className="rounded-lg border border-amber-300 bg-white p-2 text-sm"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <p className="font-medium text-amber-900">{target.title}</p>
                     <p className="text-xs text-amber-700">{target.path}</p>
                   </div>
-                  <Badge variant="outline" className="border-amber-400 text-amber-700">
+                  <Badge variant="warning" className="font-semibold">
+                    P1
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Other Orphaned Targets (P2/Unknown) */}
+      {orphanedP2.length > 0 && (
+        <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
+          <p className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-3">
+            <AlertTriangle size={16} />
+            {orphanedP2.length} Lower-Priority Target{orphanedP2.length === 1 ? '' : 's'} Without Requirements
+          </p>
+          <p className="text-xs text-slate-600 mb-3">
+            These P2 or unspecified targets don't have linked requirements yet. Consider adding them for full traceability.
+          </p>
+          <div className="space-y-2">
+            {orphanedP2.map(target => (
+              <div
+                key={target.id}
+                className="rounded-lg border border-slate-200 bg-white p-2 text-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="font-medium text-slate-800">{target.title}</p>
+                    <p className="text-xs text-slate-600">{target.path}</p>
+                  </div>
+                  <Badge variant="outline">
                     {target.criticality ?? 'Unknown'}
                   </Badge>
                 </div>

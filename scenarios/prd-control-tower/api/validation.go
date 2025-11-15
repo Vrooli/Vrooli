@@ -23,15 +23,25 @@ type ValidatePRDRequest struct {
 	EntityName string `json:"entity_name"`
 }
 
+// TargetLinkageIssue represents a critical operational target without requirements
+type TargetLinkageIssue struct {
+	Title       string `json:"title"`
+	Criticality string `json:"criticality"`
+	Message     string `json:"message"`
+}
+
 // ValidationResponse represents the result of validation
 type ValidationResponse struct {
-	DraftID     string     `json:"draft_id"`
-	EntityType  string     `json:"entity_type"`
-	EntityName  string     `json:"entity_name"`
-	Violations  any        `json:"violations"`
-	CachedAt    *time.Time `json:"cached_at,omitempty"`
-	ValidatedAt time.Time  `json:"validated_at"`
-	CacheUsed   bool       `json:"cache_used"`
+	DraftID              string                        `json:"draft_id"`
+	EntityType           string                        `json:"entity_type"`
+	EntityName           string                        `json:"entity_name"`
+	Violations           any                           `json:"violations"`
+	TemplateCompliance   *PRDTemplateValidationResult  `json:"template_compliance,omitempty"`   // Legacy validator
+	TemplateComplianceV2 *PRDValidationResultV2        `json:"template_compliance_v2,omitempty"` // Enhanced validator
+	TargetLinkageIssues  []TargetLinkageIssue          `json:"target_linkage_issues,omitempty"`
+	CachedAt             *time.Time                    `json:"cached_at,omitempty"`
+	ValidatedAt          time.Time                     `json:"validated_at"`
+	CacheUsed            bool                          `json:"cache_used"`
 }
 
 func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
@@ -88,12 +98,19 @@ func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Run validation
+	// Run scenario-auditor validation
 	violations, err := runScenarioAuditor(draft.EntityType, draft.EntityName)
 	if err != nil {
 		respondInternalError(w, "Validation failed", err)
 		return
 	}
+
+	// Run PRD template validation on draft content (both versions)
+	templateValidation := ValidatePRDTemplate(draft.Content)
+	templateValidationV2 := ValidatePRDTemplateV2(draft.Content)
+
+	// Validate operational target linkage (P0/P1 targets must have requirements)
+	targetLinkageIssues := validateTargetLinkage(draft.EntityType, draft.EntityName)
 
 	// Cache validation results
 	now := time.Now()
@@ -116,15 +133,43 @@ func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := ValidationResponse{
-		DraftID:     draftID,
-		EntityType:  draft.EntityType,
-		EntityName:  draft.EntityName,
-		Violations:  violations,
-		ValidatedAt: now,
-		CacheUsed:   false,
+		DraftID:              draftID,
+		EntityType:           draft.EntityType,
+		EntityName:           draft.EntityName,
+		Violations:           violations,
+		TemplateCompliance:   &templateValidation,
+		TemplateComplianceV2: &templateValidationV2,
+		TargetLinkageIssues:  targetLinkageIssues,
+		ValidatedAt:          now,
+		CacheUsed:            false,
 	}
 
 	respondJSON(w, http.StatusOK, response)
+}
+
+// validateTargetLinkage checks if P0/P1 operational targets have linked requirements
+func validateTargetLinkage(entityType string, entityName string) []TargetLinkageIssue {
+	var issues []TargetLinkageIssue
+
+	// Load operational targets
+	targets, err := extractOperationalTargets(entityType, entityName)
+	if err != nil {
+		// If we can't load targets, return empty (non-fatal)
+		return issues
+	}
+
+	// Check each P0/P1 target for requirements linkage
+	for _, target := range targets {
+		if (target.Criticality == "P0" || target.Criticality == "P1") && len(target.LinkedRequirements) == 0 {
+			issues = append(issues, TargetLinkageIssue{
+				Title:       target.Title,
+				Criticality: target.Criticality,
+				Message:     fmt.Sprintf("%s target '%s' must be linked to at least one requirement before publishing", target.Criticality, target.Title),
+			})
+		}
+	}
+
+	return issues
 }
 
 func runScenarioAuditor(entityType string, entityName string) (any, error) {

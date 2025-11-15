@@ -1,18 +1,22 @@
-import { FileText, AlertCircle, CheckCircle2, Link2, TestTube, ExternalLink, AlertTriangle, Code } from 'lucide-react'
+import { useState } from 'react'
+import { FileText, AlertCircle, CheckCircle2, Link2, TestTube, ExternalLink, AlertTriangle, Code, Edit } from 'lucide-react'
 import { Link as RouterLink } from 'react-router-dom'
 import type { RequirementRecord } from '../../types'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
+import { RequirementEditPanel } from './RequirementEditPanel'
 
 interface RequirementDetailPanelProps {
   requirement: RequirementRecord | null
   entityType?: string
   entityName?: string
+  onRequirementUpdate?: (updated: RequirementRecord) => void
 }
 
-export function RequirementDetailPanel({ requirement, entityType, entityName }: RequirementDetailPanelProps) {
+export function RequirementDetailPanel({ requirement, entityType, entityName, onRequirementUpdate }: RequirementDetailPanelProps) {
+  const [isEditing, setIsEditing] = useState(false)
   if (!requirement) {
     return (
       <Card className="border-dashed">
@@ -21,6 +25,28 @@ export function RequirementDetailPanel({ requirement, entityType, entityName }: 
           <p className="text-muted-foreground">Select a requirement from the tree to view details</p>
         </CardContent>
       </Card>
+    )
+  }
+
+  const handleSave = (updated: RequirementRecord) => {
+    setIsEditing(false)
+    onRequirementUpdate?.(updated)
+  }
+
+  const handleCancel = () => {
+    setIsEditing(false)
+  }
+
+  // Show edit panel if editing
+  if (isEditing && entityType && entityName) {
+    return (
+      <RequirementEditPanel
+        requirement={requirement}
+        entityType={entityType}
+        entityName={entityName}
+        onSave={handleSave}
+        onCancel={handleCancel}
+      />
     )
   }
 
@@ -54,6 +80,12 @@ export function RequirementDetailPanel({ requirement, entityType, entityName }: 
               {requirement.status || 'pending'}
             </Badge>
             {requirement.criticality && <Badge variant={criticalityColor}>{requirement.criticality}</Badge>}
+            {entityType && entityName && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-1">
+                <Edit size={14} />
+                Edit
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -172,24 +204,67 @@ export function RequirementDetailPanel({ requirement, entityType, entityName }: 
             <div>
               <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                 <TestTube size={16} />
-                Validation Registry ({requirement.validation.length})
+                Test Coverage & Validation ({requirement.validation.length})
               </h3>
               <div className="space-y-3">
-                {requirement.validation.map((val, idx) => (
-                  <div key={idx} className="rounded-lg border bg-slate-50 p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant={val.type === 'test' ? 'secondary' : 'outline'} className="text-xs">
-                        {val.type}
-                      </Badge>
-                      <Badge variant={val.status === 'implemented' ? 'success' : 'warning'} className="text-xs">
-                        {val.status || 'pending'}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{val.phase}</span>
+                {requirement.validation.map((val, idx) => {
+                  const isTestValidation = val.type === 'test'
+                  const isImplemented = val.status === 'implemented'
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`rounded-lg border p-3 ${
+                        isTestValidation
+                          ? isImplemented
+                            ? 'border-green-200 bg-green-50'
+                            : 'border-amber-200 bg-amber-50'
+                          : 'border-slate-200 bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        {isTestValidation && <TestTube size={14} className="text-green-600" />}
+                        <Badge
+                          variant={isTestValidation ? 'secondary' : 'outline'}
+                          className="text-xs"
+                        >
+                          {val.type}
+                        </Badge>
+                        <Badge
+                          variant={isImplemented ? 'success' : 'warning'}
+                          className="text-xs"
+                        >
+                          {val.status || 'pending'}
+                        </Badge>
+                        {val.phase && (
+                          <Badge variant="outline" className="text-xs">
+                            {val.phase} phase
+                          </Badge>
+                        )}
+                      </div>
+                      {val.ref && (
+                        <div className="mb-2">
+                          <p className="text-xs font-semibold text-slate-600 mb-1">
+                            {isTestValidation ? 'Test File:' : 'Reference:'}
+                          </p>
+                          <p className="text-sm font-mono text-blue-600 break-all">{val.ref}</p>
+                        </div>
+                      )}
+                      {val.notes && (
+                        <div>
+                          <p className="text-xs font-semibold text-slate-600 mb-1">Notes:</p>
+                          <p className="text-xs text-slate-700 leading-relaxed">{val.notes}</p>
+                        </div>
+                      )}
                     </div>
-                    {val.ref && <p className="text-sm font-mono text-blue-600 mb-1">{val.ref}</p>}
-                    {val.notes && <p className="text-xs text-slate-600">{val.notes}</p>}
-                  </div>
-                ))}
+                  )
+                })}
+              </div>
+              <div className="mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                <p className="text-xs text-blue-800">
+                  <strong>💡 Tip:</strong> Test files marked as "implemented" provide automated validation for this requirement.
+                  Pending tests indicate coverage gaps that should be addressed.
+                </p>
               </div>
             </div>
           </>

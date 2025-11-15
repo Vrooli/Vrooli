@@ -46,6 +46,37 @@ export function slugifyIdea(input: string): string {
   return slug
 }
 
+/**
+ * Auto-detect entity type from idea text using keyword matching
+ */
+function autoDetectEntityType(text: string): EntityType | null {
+  const lower = text.toLowerCase()
+
+  // Resource keywords
+  const resourceKeywords = [
+    'resource', 'integration', 'api wrapper', 'client library', 'sdk',
+    'connector', 'adapter', 'driver', 'plugin', 'extension'
+  ]
+
+  // Scenario keywords
+  const scenarioKeywords = [
+    'scenario', 'app', 'application', 'tool', 'service', 'platform',
+    'dashboard', 'manager', 'builder', 'generator', 'analyzer', 'monitor',
+    'automation', 'workflow', 'system', 'studio', 'hub', 'assistant'
+  ]
+
+  // Check for explicit prefixes first
+  if (resourceKeywords.some(keyword => lower.includes(keyword))) {
+    return 'resource'
+  }
+
+  if (scenarioKeywords.some(keyword => lower.includes(keyword))) {
+    return 'scenario'
+  }
+
+  return null
+}
+
 export function parseBacklogInput(raw: string, defaultType: EntityType = 'scenario'): PendingIdea[] {
   if (!raw.trim()) {
     return []
@@ -66,12 +97,20 @@ export function parseBacklogInput(raw: string, defaultType: EntityType = 'scenar
 
     let entityType: EntityType = fallback
     const lower = text.toLowerCase()
+
+    // Explicit type markers
     if (lower.startsWith('[scenario]')) {
       entityType = 'scenario'
       text = text.slice(10).trim()
     } else if (lower.startsWith('[resource]')) {
       entityType = 'resource'
       text = text.slice(10).trim()
+    } else {
+      // Auto-detect from content
+      const detected = autoDetectEntityType(text)
+      if (detected) {
+        entityType = detected
+      }
     }
 
     if (!text) {

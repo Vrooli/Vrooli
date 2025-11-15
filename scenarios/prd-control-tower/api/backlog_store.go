@@ -309,21 +309,149 @@ func draftExists(entityType, entityName string) (bool, error) {
 }
 
 func buildBacklogDraftContent(ideaText, entityName string) string {
+	// Use the standard PRD template structure with placeholders pre-filled where possible
 	return fmt.Sprintf(`# Product Requirements Document (PRD)
 
-## Overview
-- **Working name:** %s
-- **Idea capture:** %s
+> **Initial Idea:** %s
 
-## Problem Statement
-Describe the problem this scenario/resource solves.
+## 🎯 Capability Definition
 
-## Proposed Solution
-Outline how %s should operate and the core capabilities it needs to deliver.
+### Core Capability
+**What permanent capability does this scenario add to Vrooli?**
+[Define the fundamental capability this scenario provides that will persist forever in the system. Initial idea: %s]
 
-## Next Steps
-1. Flesh out user journeys
-2. Validate technical/resource dependencies
-3. Convert this backlog item into a complete draft PRD
-`, entityName, ideaText, entityName)
+### Intelligence Amplification
+**How does this capability make future agents smarter?**
+[Describe how this capability compounds with existing capabilities to enable more complex problem-solving.]
+
+### Recursive Value
+**What new scenarios become possible after this exists?**
+- [Example future scenario 1]
+- [Example future scenario 2]
+- [Example future scenario 3]
+
+## 📊 Success Metrics
+
+### Functional Requirements
+- **Must Have (P0)**
+  - [ ] [Core requirement that defines minimum viable capability]
+  - [ ] [Essential integration with shared resources]
+  - [ ] [Critical data persistence requirement]
+
+- **Should Have (P1)**
+  - [ ] [Enhancement that significantly improves capability]
+  - [ ] [Additional resource integration]
+  - [ ] [Performance optimization]
+
+- **Nice to Have (P2)**
+  - [ ] [Future enhancement]
+  - [ ] [Advanced feature]
+
+### Performance Criteria
+| Metric | Target | Measurement Method |
+|--------|--------|-------------------|
+| Response Time | < [X]ms for 95%% of requests | API monitoring |
+| Throughput | [Y] operations/second | Load testing |
+| Accuracy | > [Z]%% for [specific task] | Validation suite |
+| Resource Usage | < [N]GB memory, < [M]%% CPU | System monitoring |
+
+### Quality Gates
+- [ ] All P0 requirements implemented and tested
+- [ ] Integration tests pass with all required resources
+- [ ] Performance targets met under load
+- [ ] Documentation complete (README, API docs, CLI help)
+- [ ] Scenario can be invoked by other agents via API/CLI
+
+## 🏗️ Technical Architecture
+
+### Resource Dependencies
+**Required:**
+- resource_name: [e.g., postgres]
+  purpose: [Why this resource is essential]
+  access_method: [How it's accessed - CLI, API, or shared workflow]
+
+**Optional:**
+- resource_name: [e.g., redis]
+  purpose: [Enhancement this enables]
+  fallback: [What happens if unavailable]
+  access_method: [How this resource is accessed]
+
+### Data Models
+Core data structures that define the capability:
+- [Entity name]: [Description of primary entity]
+  - Storage: [postgres/qdrant/minio]
+  - Key fields: [List main fields]
+
+### API Contract
+Primary endpoints this capability exposes:
+- **POST /api/v1/[capability]/[action]**
+  - Purpose: [What this enables other systems to do]
+  - Input: [Required fields]
+  - Output: [What calling systems can expect]
+
+## 🖥️ CLI Interface Contract
+
+### Command Structure
+Primary CLI executable: **%s**
+
+Core commands:
+- **status**: Show operational status and resource health
+- **help**: Display command help and usage
+- **version**: Show CLI and API version information
+
+Custom commands:
+- **[action]**: [What this command does]
+
+## 💰 Value Proposition
+
+### Business Value
+- **Primary Value**: [Core business problem solved]
+- **Revenue Potential**: $[X]K - $[Y]K per deployment
+- **Cost Savings**: [Time/resource savings quantified]
+- **Market Differentiator**: [What makes this unique]
+
+### Technical Value
+- **Reusability Score**: [How many other scenarios can leverage this]
+- **Complexity Reduction**: [What complex tasks become simple]
+- **Innovation Enablement**: [New possibilities this creates]
+
+## 🧬 Evolution Path
+
+### Version 1.0 (Current)
+- Core capability implementation
+- Basic resource integration
+- Essential API/CLI interface
+
+### Future Enhancements
+- [Enhanced capability based on learnings]
+- [Additional resource integrations]
+- [Performance optimizations]
+
+## ✅ Validation Criteria
+
+### Capability Validated When:
+- [ ] Solves the defined problem completely
+- [ ] Integrates with upstream dependencies
+- [ ] Enables downstream capabilities
+- [ ] Maintains data consistency
+- [ ] All P0 requirements complete and tested
+
+## 📝 Implementation Notes
+
+### Next Steps (Converted from Backlog)
+1. Expand capability definition based on initial idea
+2. Define specific functional requirements (P0/P1/P2)
+3. Identify required resources and dependencies
+4. Design data models and API contracts
+5. Implement core functionality
+6. Add comprehensive testing
+7. Create CLI interface
+8. Document usage and examples
+
+---
+
+**Status**: Draft (Converted from Backlog)
+**Owner**: [AI Agent or Human maintainer]
+**Created**: %s
+`, ideaText, ideaText, entityName, "Backlog conversion")
 }

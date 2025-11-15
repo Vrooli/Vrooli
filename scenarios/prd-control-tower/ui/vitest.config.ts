@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/test-utils/setup.ts'],
+    setupFiles: ['./src/test-utils/setupTests.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -16,10 +16,7 @@ export default defineConfig({
         'src/test-utils/',
         '**/*.d.ts',
         '**/*.config.*',
-        '**/mockData/',
         'dist/',
-        '**/*.test.{ts,tsx}',
-        '**/*.spec.{ts,tsx}',
       ],
     },
   },

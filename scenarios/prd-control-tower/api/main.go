@@ -92,6 +92,7 @@ func main() {
 	apiV1.HandleFunc("/catalog/{type}/{name}", handleGetPublishedPRD).Methods("GET")
 	apiV1.HandleFunc("/catalog/{type}/{name}/draft", handleEnsureDraftFromPublishedPRD).Methods("POST")
 	apiV1.HandleFunc("/catalog/{type}/{name}/requirements", handleGetRequirements).Methods("GET")
+	apiV1.HandleFunc("/catalog/{type}/{name}/requirements/{requirement_id}", handleUpdateRequirement).Methods("PUT")
 	apiV1.HandleFunc("/catalog/{type}/{name}/targets", handleGetOperationalTargets).Methods("GET")
 
 	// Draft endpoints
@@ -100,6 +101,8 @@ func main() {
 	apiV1.HandleFunc("/drafts/{id}", handleGetDraft).Methods("GET")
 	apiV1.HandleFunc("/drafts/{id}", handleUpdateDraft).Methods("PUT")
 	apiV1.HandleFunc("/drafts/{id}", handleDeleteDraft).Methods("DELETE")
+	apiV1.HandleFunc("/drafts/{id}/targets", handleGetDraftTargets).Methods("GET")
+	apiV1.HandleFunc("/drafts/{id}/targets", handleUpdateDraftTargets).Methods("PUT")
 
 	// Backlog endpoints
 	apiV1.HandleFunc("/backlog", handleListBacklog).Methods("GET")
