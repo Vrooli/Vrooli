@@ -82,7 +82,7 @@
       },
       "data": {
         "label": "Check if workflows exist",
-        "expression": "document.querySelectorAll('[data-testid*=\"workflow\"]').length > 0 || document.querySelector('button:has-text(\"Create\")')",
+        "expression": "document.querySelectorAll('[data-testid*=\"workflow\"]').length > 0",
         "storeAs": "hasWorkflows"
       }
     },

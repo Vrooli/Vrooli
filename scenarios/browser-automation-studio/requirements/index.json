@@ -20,7 +20,11 @@
   "imports": [
     "projects/dialog.json",
     "ui/user-flows.json",
+    "ui/header.json",
     "workflow-builder/core.json",
+    "workflow-builder/interactions.json",
+    "workflow-builder/toolbar.json",
+    "workflow-builder/palette.json",
     "execution/telemetry.json",
     "replay/core.json",
     "ai/generation.json",

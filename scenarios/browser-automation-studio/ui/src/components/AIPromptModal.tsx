@@ -117,6 +117,7 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess
                 </div>
               </div>
               <button
+                data-testid="switch-to-manual-button"
                 onClick={onSwitchToManual}
                 className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
               >
@@ -161,6 +162,7 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess
               {examplePrompts.map((example, index) => (
                 <button
                   key={index}
+                  data-testid={`ai-example-prompt-${index}`}
                   onClick={() => handleExampleClick(example)}
                   className="w-full text-left p-3 bg-flow-bg rounded-lg border border-gray-700 hover:border-purple-500/50 transition-colors group"
                 >
@@ -200,6 +202,7 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess
               Cancel
             </button>
             <button
+              data-testid="ai-generate-button"
               onClick={handleGenerate}
               disabled={isGenerating}
               className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"

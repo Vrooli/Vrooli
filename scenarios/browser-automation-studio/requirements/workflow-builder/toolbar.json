@@ -1,0 +1,155 @@
+{
+  "_metadata": {
+    "description": "Workflow builder toolbar operation requirements",
+    "last_validated_at": "2025-11-15T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-15T16:05:41.090Z"
+  },
+  "requirements": [
+    {
+      "id": "BAS-TOOLBAR-ZOOM-IN",
+      "category": "workflow.builder.toolbar",
+      "prd_ref": "Workflow Builder > Canvas Controls",
+      "title": "Zoom in button increases canvas zoom level",
+      "description": "Users can click the zoom in button to incrementally increase the canvas zoom level for detailed node editing",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/toolbar/toolbar-zoom-in.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates zoom in button functionality and canvas zoom level increase"
+        }
+      ]
+    },
+    {
+      "id": "BAS-TOOLBAR-ZOOM-OUT",
+      "category": "workflow.builder.toolbar",
+      "prd_ref": "Workflow Builder > Canvas Controls",
+      "title": "Zoom out button decreases canvas zoom level",
+      "description": "Users can click the zoom out button to incrementally decrease the canvas zoom level for workflow overview",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/toolbar/toolbar-zoom-out.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates zoom out button functionality and canvas zoom level decrease"
+        }
+      ]
+    },
+    {
+      "id": "BAS-TOOLBAR-FIT-VIEW",
+      "category": "workflow.builder.toolbar",
+      "prd_ref": "Workflow Builder > Canvas Controls",
+      "title": "Fit view centers and sizes canvas to show all nodes",
+      "description": "Users can click fit view to automatically center and zoom the canvas to display all workflow nodes",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/toolbar/toolbar-fit-view.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Validates fit view centers canvas with all nodes visible"
+        }
+      ]
+    },
+    {
+      "id": "BAS-TOOLBAR-UNDO",
+      "category": "workflow.builder.toolbar",
+      "prd_ref": "Workflow Builder > History Navigation",
+      "title": "Undo button reverts the last canvas change",
+      "description": "Users can click undo to revert the most recent canvas modification (node add/delete/move, connection changes)",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/toolbar/toolbar-undo.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates undo reverts node addition, deletion, and position changes"
+        }
+      ]
+    },
+    {
+      "id": "BAS-TOOLBAR-REDO",
+      "category": "workflow.builder.toolbar",
+      "prd_ref": "Workflow Builder > History Navigation",
+      "title": "Redo button re-applies undone changes",
+      "description": "Users can click redo to re-apply the most recently undone change",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/toolbar/toolbar-redo.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates redo re-applies undone changes"
+        }
+      ]
+    },
+    {
+      "id": "BAS-TOOLBAR-LOCK-CANVAS",
+      "category": "workflow.builder.toolbar",
+      "prd_ref": "Workflow Builder > Canvas Controls",
+      "title": "Lock/unlock canvas prevents/allows node interaction",
+      "description": "Users can toggle canvas lock to prevent accidental node movements and edits during review",
+      "status": "in_progress",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/toolbar/toolbar-lock-toggle.json",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Validates lock prevents node dragging and unlock re-enables interaction"
+        }
+      ]
+    },
+    {
+      "id": "BAS-TOOLBAR-DUPLICATE",
+      "category": "workflow.builder.toolbar",
+      "prd_ref": "Workflow Builder > Node Operations",
+      "title": "Duplicate button copies selected nodes",
+      "description": "Users can select nodes and click duplicate to create copies with offset positions",
+      "status": "in_progress",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/toolbar/toolbar-duplicate-nodes.json",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Validates node duplication with proper positioning"
+        }
+      ]
+    },
+    {
+      "id": "BAS-TOOLBAR-DELETE",
+      "category": "workflow.builder.toolbar",
+      "prd_ref": "Workflow Builder > Node Operations",
+      "title": "Delete button removes selected nodes",
+      "description": "Users can select nodes and click the delete button to remove them (alternative to keyboard shortcut)",
+      "status": "in_progress",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/toolbar/toolbar-delete-nodes.json",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Validates toolbar delete button removes selected nodes"
+        }
+      ]
+    }
+  ]
+}

@@ -725,7 +725,8 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 			return Instruction{}, fmt.Errorf("wait node %s has invalid data: %w", step.NodeID, err)
 		}
 		waitType := strings.ToLower(strings.TrimSpace(firstNonEmpty(cfg.Type, cfg.WaitType)))
-		if waitType == "" || waitType == "time" {
+		// "duration" is an alias for "time" - accept both
+		if waitType == "" || waitType == "time" || waitType == "duration" {
 			base.Params.WaitType = "time"
 			if cfg.Duration > 0 {
 				base.Params.DurationMs = cfg.Duration
@@ -745,7 +746,7 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 				base.Params.TimeoutMs = cfg.TimeoutMs
 			}
 		} else {
-			return Instruction{}, fmt.Errorf("wait node %s has unsupported type %q", step.NodeID, cfg.Type)
+			return Instruction{}, fmt.Errorf("wait node %s has unsupported type %q", step.NodeID, waitType)
 		}
 	case compiler.StepScreenshot:
 		var cfg screenshotConfig

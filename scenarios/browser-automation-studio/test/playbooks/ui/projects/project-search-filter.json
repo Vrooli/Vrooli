@@ -116,18 +116,29 @@
     },
     {
       "id": "clear-search",
-      "type": "type",
+      "type": "click",
       "position": {
         "x": 1400,
         "y": 0
       },
       "data": {
-        "label": "Clear search input",
-        "selector": "input[type=\"text\"][placeholder*=\"Search\"], input[id=\"project-search\"]",
-        "text": "",
-        "clearFirst": true,
+        "label": "Click clear search button",
+        "selector": "button[aria-label*='Clear']",
         "timeoutMs": 5000,
-        "waitForMs": 2000
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "wait-for-restore",
+      "type": "wait",
+      "position": {
+        "x": 1500,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for projects to restore",
+        "durationMs": 1000,
+        "waitType": "duration"
       }
     },
     {
@@ -205,6 +216,12 @@
     {
       "id": "e8",
       "source": "clear-search",
+      "target": "wait-for-restore",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8b",
+      "source": "wait-for-restore",
       "target": "assert-projects-restored",
       "type": "smoothstep"
     },

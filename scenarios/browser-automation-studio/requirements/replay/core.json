@@ -29,6 +29,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Unit phase captures timeline service coverage thresholds."
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/replay/render-check.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E validation that replay artifacts are persisted and accessible for rendering"
         }
       ]
     },

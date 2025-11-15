@@ -1,0 +1,232 @@
+{
+  "metadata": {
+    "description": "Validates zoom out button decreases canvas zoom level",
+    "requirement": "BAS-TOOLBAR-ZOOM-OUT",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Open project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-workflows",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": -100
+      },
+      "data": {
+        "label": "Wait for workflows to load",
+        "selector": "[data-testid=\"workflow-card\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-workflow",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open workflow",
+        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-builder",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for builder",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-zoom-in-twice",
+      "type": "click",
+      "position": {
+        "x": 800,
+        "y": 0
+      },
+      "data": {
+        "label": "Zoom in twice first",
+        "selector": "[data-testid=\"toolbar-zoom-in-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-zoom-in-again",
+      "type": "click",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Zoom in again",
+        "selector": "[data-testid=\"toolbar-zoom-in-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "get-zoomed-in-level",
+      "type": "evaluate",
+      "position": {
+        "x": 1200,
+        "y": -100
+      },
+      "data": {
+        "label": "Get zoomed in level",
+        "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
+        "storeAs": "zoomedInLevel"
+      }
+    },
+    {
+      "id": "click-zoom-out",
+      "type": "click",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Click zoom out button",
+        "selector": "[data-testid=\"toolbar-zoom-out-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "get-zoomed-out-level",
+      "type": "evaluate",
+      "position": {
+        "x": 1600,
+        "y": -100
+      },
+      "data": {
+        "label": "Get zoom out level",
+        "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
+        "storeAs": "zoomedOutLevel"
+      }
+    },
+    {
+      "id": "capture-after-zoom-out",
+      "type": "screenshot",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture after zoom out",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "click-project",
+      "target": "wait-workflows",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-workflow",
+      "target": "wait-for-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-builder",
+      "target": "click-zoom-in-twice",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-zoom-in-twice",
+      "target": "click-zoom-in-again",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "click-zoom-in-again",
+      "target": "get-zoomed-in-level",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "get-zoomed-in-level",
+      "target": "click-zoom-out",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-zoom-out",
+      "target": "get-zoomed-out-level",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "get-zoomed-out-level",
+      "target": "capture-after-zoom-out",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e-wait-click-workflow",
+      "source": "wait-workflows",
+      "target": "click-workflow",
+      "type": "smoothstep"
+    }
+  ]
+}

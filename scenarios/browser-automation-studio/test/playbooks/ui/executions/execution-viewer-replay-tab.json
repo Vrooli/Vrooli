@@ -175,7 +175,7 @@
       },
       "data": {
         "label": "Check if Replay tab exists",
-        "expression": "(() => { const replayTab = document.querySelector('button:has-text(\"Replay\"), [role=\"tab\"]:has-text(\"Replay\"), [data-testid*=\"replay-tab\"]'); return replayTab !== null; })()",
+        "expression": "(() => { const replayTab = document.querySelector('[data-testid=\"execution-tab-replay\"]'); return replayTab !== null; })()",
         "storeAs": "hasReplayTab"
       }
     },
@@ -188,7 +188,7 @@
       },
       "data": {
         "label": "Click Replay tab",
-        "selector": "button:has-text('Replay'), [role=\"tab\"]:has-text('Replay'), [data-testid*=\"replay-tab\"]",
+        "selector": "[data-testid=\"execution-tab-replay\"]",
         "timeoutMs": 5000,
         "waitForMs": 1500,
         "continueOnError": true

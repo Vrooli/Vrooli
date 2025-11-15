@@ -1,0 +1,270 @@
+{
+  "metadata": {
+    "description": "Validates undo button reverts the last canvas change",
+    "requirement": "BAS-TOOLBAR-UNDO",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "nav",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "proj",
+      "type": "click",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Open project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-workflows",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": -100
+      },
+      "data": {
+        "label": "Wait for workflows to load",
+        "selector": "[data-testid=\"workflow-card\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "work",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open workflow",
+        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait1",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for builder",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "count1",
+      "type": "evaluate",
+      "position": {
+        "x": 800,
+        "y": -100
+      },
+      "data": {
+        "label": "Count initial nodes",
+        "expression": "document.querySelectorAll('.react-flow__node').length",
+        "storeAs": "initialCount"
+      }
+    },
+    {
+      "id": "click-palette",
+      "type": "click",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Click navigate node",
+        "selector": "[data-testid=\"node-palette-navigate-card\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-canvas",
+      "type": "click",
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "data": {
+        "label": "Click canvas to add",
+        "selector": ".react-flow__pane",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait2",
+      "type": "wait",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for node added",
+        "durationMs": 1000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "count2",
+      "type": "evaluate",
+      "position": {
+        "x": 1400,
+        "y": -100
+      },
+      "data": {
+        "label": "Count after add",
+        "expression": "document.querySelectorAll('.react-flow__node').length",
+        "storeAs": "afterAddCount"
+      }
+    },
+    {
+      "id": "undo",
+      "type": "click",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Click undo",
+        "selector": "[data-testid=\"toolbar-undo-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "count3",
+      "type": "evaluate",
+      "position": {
+        "x": 1800,
+        "y": -100
+      },
+      "data": {
+        "label": "Count after undo",
+        "expression": "document.querySelectorAll('.react-flow__node').length",
+        "storeAs": "afterUndoCount"
+      }
+    },
+    {
+      "id": "cap",
+      "type": "screenshot",
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture after undo",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "nav",
+      "target": "proj",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "proj",
+      "target": "wait-workflows",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "work",
+      "target": "wait1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait1",
+      "target": "count1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "count1",
+      "target": "click-palette",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "click-palette",
+      "target": "click-canvas",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "click-canvas",
+      "target": "wait2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "wait2",
+      "target": "count2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "count2",
+      "target": "undo",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "undo",
+      "target": "count3",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "count3",
+      "target": "cap",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e-wait-work",
+      "source": "wait-workflows",
+      "target": "work",
+      "type": "smoothstep"
+    }
+  ]
+}

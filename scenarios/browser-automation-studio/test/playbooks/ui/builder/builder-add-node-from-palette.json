@@ -78,7 +78,7 @@
       },
       "data": {
         "label": "Click New Workflow button",
-        "selector": "button:has-text('New Workflow'), button:has-text('Create Workflow')",
+        "selector": "[data-testid=\"new-workflow-button\"]",
         "timeoutMs": 10000,
         "waitForMs": 1500
       }
@@ -105,7 +105,7 @@
       },
       "data": {
         "label": "Switch to manual builder (if AI modal appears)",
-        "selector": "button:has-text('Manual'), button:has-text('Builder'), button:has-text('Skip')",
+        "selector": "[data-testid=\"switch-to-manual-button\"]",
         "timeoutMs": 5000,
         "waitForMs": 2000,
         "continueOnError": true

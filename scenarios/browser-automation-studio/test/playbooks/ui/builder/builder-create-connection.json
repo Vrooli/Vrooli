@@ -78,7 +78,7 @@
       },
       "data": {
         "label": "Open workflow with multiple nodes",
-        "selector": "[data-testid=\"workflow-item\"]:first-of-type, .workflow-card:first-of-type",
+        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }

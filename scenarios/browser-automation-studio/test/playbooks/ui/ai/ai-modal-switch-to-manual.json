@@ -78,7 +78,7 @@
       },
       "data": {
         "label": "Click New Workflow button",
-        "selector": "button:has-text('New Workflow'), button:has-text('Create Workflow')",
+        "selector": "[data-testid=\"new-workflow-button\"]",
         "timeoutMs": 10000,
         "waitForMs": 1500
       }
@@ -105,7 +105,7 @@
       },
       "data": {
         "label": "AI modal is visible",
-        "selector": "[role=\"dialog\"], h2:has-text('AI Workflow Generator')",
+        "selector": "[role=\"dialog\"]",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "AI modal should appear"
@@ -133,7 +133,7 @@
       },
       "data": {
         "label": "Manual builder button is visible",
-        "selector": "button:has-text('Manual'), button:has-text('Builder'), button:has-text('Skip')",
+        "selector": "[data-testid=\"switch-to-manual-button\"]",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Switch to Manual Builder button should be visible"
@@ -148,7 +148,7 @@
       },
       "data": {
         "label": "Click Switch to Manual Builder",
-        "selector": "button:has-text('Manual'), button:has-text('Builder'), button:has-text('Skip')",
+        "selector": "[data-testid=\"switch-to-manual-button\"]",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -175,7 +175,7 @@
       },
       "data": {
         "label": "AI modal is closed",
-        "selector": "h2:has-text('AI Workflow Generator')",
+        "selector": "[role=\"dialog\"] h2",
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "AI modal should close after clicking manual builder button"

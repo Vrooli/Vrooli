@@ -1,10 +1,10 @@
 {
   "_metadata": {
     "description": "Phase 1 UI user flow requirements for comprehensive integration testing",
-    "last_validated_at": "2025-11-14T00:00:00.000Z",
+    "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-15T04:53:50.895Z"
+    "last_synced_at": "2025-11-15T16:05:41.090Z"
   },
   "requirements": [
     {
@@ -31,14 +31,14 @@
       "prd_ref": "Project Management",
       "title": "Project search filters the project list",
       "description": "Users can search for projects by name or description, with results updating in real-time",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/project-search-filter.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Tests search filtering and clearing search to restore full list"
         }
       ]
@@ -49,14 +49,14 @@
       "prd_ref": "Project Management",
       "title": "Project editing updates name and description",
       "description": "Users can edit project details through a modal dialog, with changes reflected immediately",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/project-edit.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates opening edit modal, updating fields, and persisting changes"
         }
       ]
@@ -67,14 +67,14 @@
       "prd_ref": "Workflow Builder",
       "title": "Workflow creation and builder loading",
       "description": "Users can create new workflows and have the workflow builder load successfully",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/workflows/workflow-create-and-load.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Tests workflow creation flow including AI modal bypass and builder loading"
         }
       ]
@@ -121,15 +121,51 @@
       "prd_ref": "Workflow Execution",
       "title": "Workflow execution from project detail",
       "description": "Users can trigger workflow execution from the project detail view and see execution indicators",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/executions/execution-from-project-detail.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates execute button functionality and execution status feedback"
+        }
+      ]
+    },
+    {
+      "id": "BAS-PROJECT-TAB-SWITCH",
+      "category": "ui",
+      "prd_ref": "Project Management",
+      "title": "Switch between Workflows and Executions tabs in Project Detail",
+      "description": "Users can navigate between Workflows and Executions tabs in the project detail view to see different content sections",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/projects/project-detail-tab-switching.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates tab switching between workflows and executions in project detail view"
+        }
+      ]
+    },
+    {
+      "id": "BAS-EXEC-REPLAY-TAB",
+      "category": "ui",
+      "prd_ref": "Execution History > Replay",
+      "title": "Execution viewer displays Replay tab with timeline and screenshots",
+      "description": "The execution viewer Replay tab shows the execution timeline, screenshots, and replay controls for viewing past workflow runs",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/executions/execution-viewer-replay-tab.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates replay tab display with timeline, screenshots, and controls"
         }
       ]
     }

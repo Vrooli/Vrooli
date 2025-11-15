@@ -78,7 +78,7 @@
       },
       "data": {
         "label": "Click New Workflow button",
-        "selector": "button:has-text('New Workflow'), button:has-text('Create Workflow')",
+        "selector": "[data-testid=\"new-workflow-button\"]",
         "timeoutMs": 10000,
         "waitForMs": 1500
       }
@@ -105,7 +105,7 @@
       },
       "data": {
         "label": "AI Workflow Generator modal is visible",
-        "selector": "[role=\"dialog\"], [data-testid*=\"ai\"], h2:has-text('AI Workflow Generator')",
+        "selector": "[role=\"dialog\"]",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "AI modal should appear after clicking New Workflow"
@@ -133,7 +133,7 @@
       },
       "data": {
         "label": "Example prompts section is visible",
-        "selector": "button:has-text('Navigate to example.com'), button:has-text('news website'), button[class*=\"example\"]",
+        "selector": "[data-testid=\"ai-example-prompt-0\"]",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Example prompts should be displayed in AI modal"
@@ -148,7 +148,7 @@
       },
       "data": {
         "label": "Click first example prompt",
-        "selector": "button:has-text('Navigate to example.com'):first-of-type, button:has-text('example.com'):first-of-type",
+        "selector": "[data-testid=\"ai-example-prompt-0\"]",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
@@ -214,7 +214,7 @@
       },
       "data": {
         "label": "Generate button should be enabled",
-        "expression": "(() => { const button = document.querySelector('button:has-text(\"Generate\"), button:has-text(\"Create\")'); if (!button) return false; return !button.disabled && !button.hasAttribute('disabled'); })()",
+        "expression": "(() => { const button = document.querySelector('[data-testid=\"ai-generate-button\"]'); if (!button) return false; return !button.disabled && !button.hasAttribute('disabled'); })()",
         "storeAs": "generateButtonEnabled"
       }
     }

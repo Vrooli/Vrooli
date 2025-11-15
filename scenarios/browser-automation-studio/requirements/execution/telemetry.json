@@ -50,6 +50,13 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/executions/telemetry-smoke.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "E2E validation of telemetry stream with screenshots, console, and network events"
         }
       ]
     },

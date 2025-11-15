@@ -356,6 +356,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
         <span>Saved {lastSavedLabel}</span>
         <button
           type="button"
+          data-testid="header-version-history-button"
           onClick={(event) => {
             event.stopPropagation();
             void handleHistoryButtonClick();
@@ -376,6 +377,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
         <span>Not saved yet</span>
         <button
           type="button"
+          data-testid="header-version-history-button"
           onClick={(event) => {
             event.stopPropagation();
             void handleHistoryButtonClick();
@@ -840,6 +842,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
               return (
                 <div
                   key={version.version}
+                  data-testid={`version-history-item-${version.version}`}
                   className={`rounded-lg border p-4 bg-gray-900/70 ${
                     isCurrent ? 'border-blue-500/60 shadow-inner shadow-blue-500/20' : 'border-gray-800'
                   }`}
@@ -869,6 +872,7 @@ function Header({ onNewWorkflow: _onNewWorkflow, onBackToDashboard, currentProje
                   <div className="mt-3 flex items-center justify-end gap-2">
                     <button
                       type="button"
+                      data-testid={`version-restore-button-${version.version}`}
                       onClick={() => handleRestoreVersion(version.version)}
                       disabled={isCurrent || restoringVersion === version.version}
                       className="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"

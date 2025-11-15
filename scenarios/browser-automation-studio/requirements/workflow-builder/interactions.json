@@ -1,0 +1,65 @@
+{
+  "_metadata": {
+    "description": "Workflow builder canvas interaction requirements",
+    "last_validated_at": "2025-11-15T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-15T14:13:35.403Z"
+  },
+  "requirements": [
+    {
+      "id": "BAS-BUILDER-ADD-NODE",
+      "category": "workflow.builder",
+      "prd_ref": "Workflow Builder > Canvas Interactions",
+      "title": "Add node from palette to canvas via drag-and-drop",
+      "description": "Users can drag node types from the palette and drop them onto the workflow canvas to add new workflow steps",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/builder/builder-add-node-from-palette.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Validates drag-and-drop from node palette to canvas with proper positioning"
+        }
+      ]
+    },
+    {
+      "id": "BAS-BUILDER-CREATE-CONNECTION",
+      "category": "workflow.builder",
+      "prd_ref": "Workflow Builder > Canvas Interactions",
+      "title": "Create connections between workflow nodes",
+      "description": "Users can connect workflow nodes by dragging from one node's output handle to another node's input handle, establishing execution order",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/builder/builder-create-connection.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Validates edge creation between nodes using React Flow connection handles"
+        }
+      ]
+    },
+    {
+      "id": "BAS-BUILDER-DELETE-NODE",
+      "category": "workflow.builder",
+      "prd_ref": "Workflow Builder > Canvas Interactions",
+      "title": "Delete nodes using keyboard shortcuts",
+      "description": "Users can select workflow nodes and delete them using keyboard shortcuts (Delete/Backspace), with connected edges automatically removed",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/builder/builder-delete-node-keyboard.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Validates node deletion via keyboard with cleanup of connected edges"
+        }
+      ]
+    }
+  ]
+}

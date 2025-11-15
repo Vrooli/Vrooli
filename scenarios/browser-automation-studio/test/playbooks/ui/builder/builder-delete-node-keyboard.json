@@ -78,7 +78,7 @@
       },
       "data": {
         "label": "Open existing workflow with nodes",
-        "selector": "[data-testid=\"workflow-item\"]:first-of-type, .workflow-card:first-of-type, [class*=\"workflow\"]:has-text('Demo')",
+        "selector": "[data-testid=\"workflow-card\"]",
         "timeoutMs": 10000,
         "waitForMs": 2000,
         "continueOnError": false

@@ -1,0 +1,253 @@
+{
+  "metadata": {
+    "description": "Validates fit view centers and sizes canvas to show all nodes",
+    "requirement": "BAS-TOOLBAR-FIT-VIEW",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Open project",
+        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-workflows",
+      "type": "wait",
+      "position": {
+        "x": 200,
+        "y": -100
+      },
+      "data": {
+        "label": "Wait for workflows to load",
+        "selector": "[data-testid=\"workflow-card\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-workflow",
+      "type": "click",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Open workflow with multiple nodes",
+        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-builder",
+      "type": "wait",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for builder",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "zoom-out-far",
+      "type": "click",
+      "position": {
+        "x": 800,
+        "y": 0
+      },
+      "data": {
+        "label": "Zoom out far to offset view",
+        "selector": "[data-testid=\"toolbar-zoom-out-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 300
+      }
+    },
+    {
+      "id": "zoom-out-more",
+      "type": "click",
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Zoom out more",
+        "selector": "[data-testid=\"toolbar-zoom-out-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 300
+      }
+    },
+    {
+      "id": "capture-before-fit",
+      "type": "screenshot",
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture before fit view",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-fit-view",
+      "type": "click",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Click fit view button",
+        "selector": "[data-testid=\"toolbar-fit-view-button\"], [data-testid=\"toolbar-fit-view-menu-item\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "wait-for-fit-animation",
+      "type": "wait",
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for fit view animation",
+        "durationMs": 1000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-nodes-visible",
+      "type": "assert",
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "All nodes should be visible",
+        "selector": ".react-flow__node",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "Nodes should be visible after fit view"
+      }
+    },
+    {
+      "id": "capture-after-fit",
+      "type": "screenshot",
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture after fit view",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "click-project",
+      "target": "wait-workflows",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-workflow",
+      "target": "wait-for-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-builder",
+      "target": "zoom-out-far",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "zoom-out-far",
+      "target": "zoom-out-more",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "zoom-out-more",
+      "target": "capture-before-fit",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "capture-before-fit",
+      "target": "click-fit-view",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-fit-view",
+      "target": "wait-for-fit-animation",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "wait-for-fit-animation",
+      "target": "assert-nodes-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-nodes-visible",
+      "target": "capture-after-fit",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e-wait-click-workflow",
+      "source": "wait-workflows",
+      "target": "click-workflow",
+      "type": "smoothstep"
+    }
+  ]
+}

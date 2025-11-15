@@ -100,33 +100,32 @@
       }
     },
     {
-      "id": "find-execute-button",
-      "type": "wait",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execute button to be visible",
-        "selector": "[data-testid=\"workflow-execute-button\"]",
-        "timeoutMs": 5000,
-        "waitForMs": 500,
-        "waitType": "element",
-        "continueOnError": true
-      }
-    },
-    {
       "id": "hover-workflow-card",
       "type": "hover",
       "position": {
-        "x": 1400,
+        "x": 1200,
         "y": -100
       },
       "data": {
         "label": "Hover over workflow card to reveal actions",
         "selector": "[data-testid*=\"workflow\"]:first-of-type, [class*=\"workflow-card\"]:first-of-type",
         "timeoutMs": 3000,
-        "waitForMs": 500
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "find-execute-button",
+      "type": "wait",
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for execute button to appear after hover",
+        "selector": "[data-testid=\"workflow-execute-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 500,
+        "waitType": "element"
       }
     },
     {
@@ -243,18 +242,18 @@
     {
       "id": "e6",
       "source": "capture-before-execution",
-      "target": "find-execute-button",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "find-execute-button",
       "target": "hover-workflow-card",
       "type": "smoothstep"
     },
     {
-      "id": "e8",
+      "id": "e7",
       "source": "hover-workflow-card",
+      "target": "find-execute-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "find-execute-button",
       "target": "click-execute",
       "type": "smoothstep"
     },

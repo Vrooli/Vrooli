@@ -633,6 +633,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
           return (
             <div
               key={workflow.id}
+              data-testid="workflow-card"
               onClick={handleRowClick}
               className={`flex items-center gap-1.5 px-2 py-1.5 rounded cursor-pointer transition-colors group ${
                 selectionMode
@@ -954,6 +955,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
             <button
               data-testid="workflows-tab"
               onClick={() => setActiveTab('workflows')}
+              role="tab"
+              aria-selected={activeTab === 'workflows'}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'workflows'
                   ? 'border-flow-accent text-white'
@@ -968,6 +971,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
             <button
               data-testid="executions-tab"
               onClick={() => setActiveTab('executions')}
+              role="tab"
+              aria-selected={activeTab === 'executions'}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'executions'
                   ? 'border-flow-accent text-white'
@@ -1192,6 +1197,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
               return (
                 <div
                   key={workflow.id}
+                  data-testid="workflow-card"
                   onClick={handleCardClick}
                   className={`bg-flow-node border rounded-lg p-6 cursor-pointer transition-all ${
                     selectionMode
