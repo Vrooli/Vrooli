@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { generateDesktop, type DesktopConfig } from "../lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
@@ -7,7 +8,11 @@ import { Label } from "./ui/label";
 import { Select } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
-import { Rocket } from "lucide-react";
+import { Rocket, Search } from "lucide-react";
+import type { ScenariosResponse } from "./scenario-inventory/types";
+
+const API_BASE = resolveApiBase({ appendSuffix: true });
+const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
 
 interface GeneratorFormProps {
   selectedTemplate: string;
@@ -17,6 +22,7 @@ interface GeneratorFormProps {
 
 export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart }: GeneratorFormProps) {
   const [scenarioName, setScenarioName] = useState("");
+  const [useDropdown, setUseDropdown] = useState(true);
   const [framework, setFramework] = useState("electron");
   const [platforms, setPlatforms] = useState({
     win: true,
@@ -24,6 +30,16 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
     linux: true
   });
   const [outputPath, setOutputPath] = useState("./desktop-app");
+
+  // Fetch available scenarios
+  const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({
+    queryKey: ['scenarios-desktop-status'],
+    queryFn: async () => {
+      const res = await fetch(buildUrl('/scenarios/desktop-status'));
+      if (!res.ok) throw new Error('Failed to fetch scenarios');
+      return res.json();
+    },
+  });
 
   const generateMutation = useMutation({
     mutationFn: generateDesktop,
@@ -90,15 +106,53 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="scenarioName">Scenario Name</Label>
-            <Input
-              id="scenarioName"
-              value={scenarioName}
-              onChange={(e) => setScenarioName(e.target.value)}
-              placeholder="e.g., picker-wheel"
-              required
-              className="mt-1.5"
-            />
+            <div className="flex items-center justify-between mb-1.5">
+              <Label htmlFor="scenarioName">Scenario Name</Label>
+              <button
+                type="button"
+                onClick={() => setUseDropdown(!useDropdown)}
+                className="text-xs text-blue-400 hover:text-blue-300"
+              >
+                {useDropdown ? "Enter manually" : "Select from list"}
+              </button>
+            </div>
+
+            {useDropdown ? (
+              <Select
+                id="scenarioName"
+                value={scenarioName}
+                onChange={(e) => setScenarioName(e.target.value)}
+                required
+                className="mt-1.5"
+                disabled={loadingScenarios}
+              >
+                <option value="">
+                  {loadingScenarios ? "Loading scenarios..." : "Select a scenario..."}
+                </option>
+                {scenariosData?.scenarios
+                  .filter(s => !s.has_desktop) // Only show scenarios without desktop
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(scenario => (
+                    <option key={scenario.name} value={scenario.name}>
+                      {scenario.name} {scenario.display_name ? `(${scenario.display_name})` : ""}
+                    </option>
+                  ))}
+              </Select>
+            ) : (
+              <Input
+                id="scenarioName"
+                value={scenarioName}
+                onChange={(e) => setScenarioName(e.target.value)}
+                placeholder="e.g., picker-wheel"
+                required
+                className="mt-1.5"
+              />
+            )}
+            <p className="mt-1.5 text-xs text-slate-400">
+              {useDropdown
+                ? "Select from available scenarios that don't have desktop versions yet"
+                : "Enter scenario name manually (must exist in scenarios directory)"}
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

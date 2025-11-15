@@ -4,7 +4,7 @@ import { fetchBuildStatus, type BuildStatus as BuildStatusType } from "../lib/ap
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
-import { Terminal } from "lucide-react";
+import { Terminal, CheckCircle, Loader2, XCircle } from "lucide-react";
 
 interface BuildStatusProps {
   buildId: string | null;
@@ -33,13 +33,31 @@ export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
     return null;
   }
 
-  const progress = data
-    ? data.status === "ready"
-      ? 100
-      : data.status === "failed"
-        ? 0
-        : 50
-    : 0;
+  // Calculate progress based on build log
+  const calculateProgress = (status: BuildStatusType | undefined): number => {
+    if (!status) return 0;
+    if (status.status === "ready") return 100;
+    if (status.status === "failed") return 0;
+
+    // Estimate progress based on log entries
+    const logs = status.build_log || [];
+    if (logs.length === 0) return 10; // Just started
+
+    const hasTemplateGeneration = logs.some(log => log.includes("Generating") || log.includes("Creating"));
+    const hasDependencyInstall = logs.some(log => log.includes("npm install") || log.includes("Installing"));
+    const hasCompilation = logs.some(log => log.includes("compiling") || log.includes("building"));
+    const hasPackaging = logs.some(log => log.includes("packaging") || log.includes("electron-builder"));
+
+    let progress = 10; // Starting
+    if (hasTemplateGeneration) progress = 25;
+    if (hasDependencyInstall) progress = 50;
+    if (hasCompilation) progress = 75;
+    if (hasPackaging) progress = 90;
+
+    return progress;
+  };
+
+  const progress = calculateProgress(data);
 
   return (
     <Card>
@@ -88,6 +106,39 @@ export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
               </>
             )}
           </div>
+
+          {/* Build Stages */}
+          {data && data.status === "building" && (
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-slate-300 mb-3">Build Stages</div>
+              {[
+                { name: "Template Generation", key: ["Generating", "Creating"], progress: 25 },
+                { name: "Installing Dependencies", key: ["npm install", "Installing"], progress: 50 },
+                { name: "Compiling TypeScript", key: ["compiling", "building"], progress: 75 },
+                { name: "Packaging Application", key: ["packaging", "electron-builder"], progress: 90 },
+              ].map((stage, i) => {
+                const completed = stage.key.some(k =>
+                  data.build_log?.some(log => log.includes(k))
+                );
+                const isActive = progress >= stage.progress - 25 && progress < stage.progress;
+
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    {completed ? (
+                      <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
+                    ) : isActive ? (
+                      <Loader2 className="h-4 w-4 text-blue-400 animate-spin flex-shrink-0" />
+                    ) : (
+                      <div className="h-4 w-4 rounded-full border-2 border-slate-600 flex-shrink-0" />
+                    )}
+                    <span className={`text-sm ${completed ? "text-slate-300" : isActive ? "text-blue-300" : "text-slate-500"}`}>
+                      {stage.name}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div>
             <div className="mb-2 flex justify-between text-sm">

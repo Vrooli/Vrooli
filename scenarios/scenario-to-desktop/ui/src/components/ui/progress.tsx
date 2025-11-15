@@ -17,7 +17,7 @@ export function Progress({ className, value = 0, max = 100, ...props }: Progress
       {...props}
     >
       <div
-        className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300"
+        className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300"
         style={{ width: `${percentage}%` }}
       />
     </div>

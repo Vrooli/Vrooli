@@ -1,0 +1,277 @@
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
+import { Button } from "../ui/button";
+import { Loader2, Hammer, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { PlatformChip } from "./PlatformChip";
+import { WineInstallDialog } from "../wine";
+
+const API_BASE = resolveApiBase({ appendSuffix: true });
+const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
+
+interface BuildDesktopButtonProps {
+  scenarioName: string;
+}
+
+interface WineCheckResponse {
+  installed: boolean;
+  version?: string;
+  platform: string;
+  required_for: string[];
+}
+
+export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
+  const queryClient = useQueryClient();
+  const [buildId, setBuildId] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [showWineDialog, setShowWineDialog] = useState(false);
+  const [pendingPlatforms, setPendingPlatforms] = useState<string[]>([]);
+
+  // Check Wine status when building for Windows
+  const { data: wineCheck } = useQuery<WineCheckResponse>({
+    queryKey: ['wine-check'],
+    queryFn: async () => {
+      const res = await fetch(buildUrl('/system/wine/check'));
+      if (!res.ok) throw new Error('Failed to check Wine status');
+      return res.json();
+    },
+    staleTime: 60000, // Cache for 1 minute
+  });
+
+  const buildMutation = useMutation({
+    mutationFn: async (platforms: string[]) => {
+      const res = await fetch(buildUrl(`/desktop/build/${scenarioName}`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platforms // Use provided platforms
+        })
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(error.message || 'Failed to start build');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setBuildId(data.build_id);
+      setMutationError(null);
+    },
+    onError: (error: Error) => {
+      setMutationError(error.message);
+    }
+  });
+
+  // Handle build initiation with Wine check
+  const handleBuild = (platforms: string[] = ['win', 'mac', 'linux']) => {
+    // Check if Wine is needed and not installed
+    const needsWine = platforms.includes('win') && wineCheck?.platform === 'linux';
+
+    if (needsWine && !wineCheck?.installed) {
+      // Save platforms for after Wine installation
+      setPendingPlatforms(platforms);
+      setShowWineDialog(true);
+      return;
+    }
+
+    // Wine not needed or already installed - proceed with build
+    buildMutation.mutate(platforms);
+  };
+
+  // Handle Wine installation complete
+  const handleWineInstallComplete = () => {
+    setShowWineDialog(false);
+    // Invalidate Wine check to get fresh status
+    queryClient.invalidateQueries({ queryKey: ['wine-check'] });
+    // Proceed with pending build
+    if (pendingPlatforms.length > 0) {
+      buildMutation.mutate(pendingPlatforms);
+      setPendingPlatforms([]);
+    }
+  };
+
+  // Poll build status if we have a buildId
+  const { data: buildStatus } = useQuery({
+    queryKey: ['build-status', buildId],
+    queryFn: async () => {
+      if (!buildId) return null;
+      const res = await fetch(buildUrl(`/desktop/status/${buildId}`));
+      if (!res.ok) throw new Error('Failed to fetch build status');
+      return res.json();
+    },
+    enabled: !!buildId,
+    refetchInterval: (data) => {
+      // Stop polling if build is complete
+      if (data?.status === 'ready' || data?.status === 'partial' || data?.status === 'failed') {
+        return false;
+      }
+      return 3000; // Poll every 3 seconds during build
+    },
+  });
+
+  // Refresh scenarios list when build completes
+  if ((buildStatus?.status === 'ready' || buildStatus?.status === 'partial') && buildId) {
+    queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
+  }
+
+  const isBuilding = buildMutation.isPending || (buildStatus && buildStatus.status === 'building');
+
+  // Show platform chips when build has results
+  if (buildStatus?.platform_results) {
+    // Use requested_platforms if available (shows all attempted platforms)
+    // Fall back to hardcoded list for backwards compatibility
+    const platforms = buildStatus.requested_platforms || ['win', 'mac', 'linux'];
+
+    return (
+      <div className="flex flex-col gap-3 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {platforms.map(platform => (
+            <PlatformChip
+              key={platform}
+              platform={platform}
+              result={buildStatus.platform_results?.[platform]}
+              scenarioName={scenarioName}
+            />
+          ))}
+        </div>
+
+        {/* Show overall status */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {buildStatus.status === 'ready' && (
+              <div className="flex items-center gap-1 text-green-400">
+                <CheckCircle className="h-4 w-4" />
+                <span className="text-sm">All platforms built successfully</span>
+              </div>
+            )}
+            {buildStatus.status === 'partial' && (
+              <div className="flex items-center gap-1 text-yellow-400">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm">Some platforms built successfully</span>
+              </div>
+            )}
+            {buildStatus.status === 'failed' && (
+              <div className="flex items-center gap-1 text-red-400">
+                <XCircle className="h-4 w-4" />
+                <span className="text-sm">Build failed</span>
+              </div>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setBuildId(null);
+              setMutationError(null);
+              handleBuild();
+            }}
+          >
+            Rebuild All
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show mutation error
+  if (mutationError) {
+    const copyError = () => {
+      navigator.clipboard.writeText(mutationError);
+    };
+
+    return (
+      <div className="flex flex-col gap-2 w-full">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-red-400">
+            <XCircle className="h-4 w-4" />
+            <span className="text-sm">Failed to start build</span>
+          </div>
+        </div>
+        <div className="bg-red-950/20 border border-red-900 rounded p-3">
+          <p className="text-xs text-red-300 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
+            {mutationError}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={copyError}
+            className="gap-1"
+          >
+            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            Copy Error
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setMutationError(null);
+              handleBuild();
+            }}
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isBuilding) {
+    // Show platform chips with building status
+    if (buildStatus?.platform_results) {
+      // Use requested_platforms if available
+      const platforms = buildStatus.requested_platforms || ['win', 'mac', 'linux'];
+      return (
+        <div className="flex flex-col gap-3 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {platforms.map(platform => (
+              <PlatformChip
+                key={platform}
+                platform={platform}
+                result={buildStatus.platform_results?.[platform]}
+                scenarioName={scenarioName}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2 text-blue-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Building platforms...</span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-2 text-blue-400">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-sm">Starting build...</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {showWineDialog && (
+        <WineInstallDialog
+          onClose={() => {
+            setShowWineDialog(false);
+            setPendingPlatforms([]);
+          }}
+          onInstallComplete={handleWineInstallComplete}
+        />
+      )}
+      <Button
+        variant="default"
+        size="sm"
+        className="gap-2"
+        onClick={() => handleBuild()}
+      >
+        <Hammer className="h-4 w-4" />
+        Build Desktop App
+      </Button>
+    </>
+  );
+}

@@ -68,7 +68,8 @@ export interface BuildStatus {
   status: "building" | "ready" | "partial" | "failed";
   framework: string;
   template_type: string;
-  platforms: string[];
+  platforms: string[]; // Legacy: platforms that were built
+  requested_platforms?: string[]; // NEW: platforms that were requested to build
   platform_results?: Record<string, PlatformBuildResult>;
   output_path: string;
   created_at: string;

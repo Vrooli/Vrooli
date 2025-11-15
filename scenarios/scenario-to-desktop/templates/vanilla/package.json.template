@@ -3,7 +3,8 @@
   "version": "{{VERSION}}",
   "description": "{{APP_DESCRIPTION}}",
   "main": "dist/main.js",
-  "author": "{{AUTHOR}}",
+  "author": "{{AUTHOR}} <{{AUTHOR_EMAIL}}>",
+  "homepage": "{{HOMEPAGE}}",
   "license": "{{LICENSE}}",
   "private": true,
   "scripts": {
@@ -15,11 +16,12 @@
     "clean": "rimraf dist",
     "pack": "electron-builder --dir",
     "dist": "npm run build && electron-builder",
-    "dist:win": "npm run build && electron-builder --win",
-    "dist:mac": "npm run build && electron-builder --mac", 
+    "dist:win": "node scripts/setup-wine.js && npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
-    "dist:all": "npm run build && electron-builder -mwl",
-    "postinstall": "electron-builder install-app-deps"
+    "dist:all": "node scripts/setup-wine.js && npm run build && electron-builder -mwl",
+    "setup:wine": "node scripts/setup-wine.js",
+    "postinstall": "electron-builder install-app-deps && node scripts/setup-dmg-license.js"
   },
   "dependencies": {
     "electron-updater": "^6.1.0",
@@ -33,6 +35,9 @@
     "rimraf": "^5.0.0",
     "typescript": "^5.0.0",
     "wait-on": "^7.0.0"
+  },
+  "optionalDependencies": {
+    "dmg-license": "^1.0.11"
   },
   "build": {
     "appId": "{{APP_ID}}",
@@ -59,18 +64,17 @@
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "assets/icon.png",
-      "hardenedRuntime": true,
+      "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "entitlements": "assets/entitlements.mac.plist",
-      "entitlementsInherit": "assets/entitlements.mac.plist",
       "target": [
         {
-          "target": "dmg",
+          "target": "zip",
           "arch": ["x64", "arm64"]
         }
       ]
     },
     "dmg": {
+      "sign": false,
       "contents": [
         {
           "x": 130,
@@ -91,8 +95,7 @@
           "arch": ["x64", "ia32"]
         }
       ],
-      "icon": "assets/icon.png",
-      "publisherName": "{{PUBLISHER_NAME}}"
+      "icon": "assets/icon.png"
     },
     "nsis": {
       "oneClick": false,
@@ -113,6 +116,7 @@
       ],
       "category": "Utility",
       "icon": "assets/icon.png",
+      "maintainer": "{{AUTHOR}} <{{AUTHOR_EMAIL}}>",
       "desktop": {
         "Name": "{{APP_DISPLAY_NAME}}",
         "Comment": "{{APP_DESCRIPTION}}",
@@ -120,8 +124,7 @@
         "StartupNotify": "true"
       }
     },
-    "publish": {{PUBLISH_CONFIG}},
-    "afterSign": "scripts/notarize.js"
+    "publish": {{PUBLISH_CONFIG}}
   },
   "engines": {
     "node": ">=18.0.0"

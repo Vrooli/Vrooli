@@ -135,38 +135,220 @@ npm run dist:win    # Build Windows executable
    - macOS: `<name>-<version>.dmg`
    - Linux: `<name>-<version>.AppImage`, `<name>-<version>.deb`
 
-### 5. Download and Test on Windows
+### 5. Install Wine (For Windows Builds on Linux)
 
-**🪟 Testing from Your Windows Laptop**
+**🍷 Wine Installation - No Sudo Required!**
+
+Building Windows `.exe` installers on Linux requires Wine. You can install it **without sudo** using Flatpak:
 
 ```bash
-# Step 1: Access scenario-to-desktop through app-monitor proxy
-1. Connect to your secure tunnel
-2. Navigate to scenario-to-desktop UI
-3. Go to Scenario Inventory
+# Add Flathub repository (user-space, no sudo)
+flatpak --user remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
-# Step 2: Download the Windows executable
-1. Find scenario with "Built" badge
-2. See 🪟 Windows download button
-3. Click to download .exe file
-4. Save to your Windows machine
+# Install Wine (user-space, no sudo)
+flatpak --user install flathub org.winehq.Wine
 
-# Step 3: Install and test
-1. Run the downloaded Setup.exe
-2. Windows SmartScreen: Click "More info" → "Run anyway"
-3. Follow installation wizard
-4. Launch the installed desktop app
-5. Verify all functionality works
+# Verify installation
+flatpak run org.winehq.Wine --version
 ```
+
+**Making Wine Available to electron-builder**:
+
+Create a wrapper script so electron-builder can find Wine:
+
+```bash
+# Create wrapper script
+mkdir -p ~/.local/bin
+cat > ~/.local/bin/wine << 'EOF'
+#!/bin/bash
+exec flatpak run org.winehq.Wine "$@"
+EOF
+
+# Make executable
+chmod +x ~/.local/bin/wine
+
+# Add to PATH (add to ~/.bashrc or ~/.zshrc for persistence)
+export PATH="$HOME/.local/bin:$PATH"
+
+# Test it works
+wine --version
+```
+
+Now electron-builder will automatically use Wine for Windows builds!
+
+**Note**: If Flatpak is not available on your system, see [`docs/WINE_INSTALLATION.md`](docs/WINE_INSTALLATION.md) for alternative installation methods.
+
+### 6. Download and Test on Windows
+
+**🪟 Complete Windows Testing Workflow**
+
+scenario-to-desktop is designed to be built on your Linux server and tested on your Windows laptop. Here's the complete workflow:
+
+#### Method 1: Access Through app-monitor Tunnel (Recommended)
+
+```bash
+# On Linux Server:
+# 1. Start app-monitor (if not running)
+vrooli scenario start app-monitor
+
+# 2. Find app-monitor UI port
+vrooli scenario status app-monitor
+# Example output: UI running on port 37842
+
+# 3. Set up SSH tunnel from Windows laptop
+# Run this on your Windows laptop (in PowerShell/WSL/Git Bash):
+ssh -L 8080:localhost:37842 user@your-server-ip
+
+# 4. Access app-monitor from Windows browser
+# Open: http://localhost:8080
+
+# 5. Navigate to scenario-to-desktop
+# In app-monitor, click on "scenario-to-desktop" service
+# This will proxy to the actual scenario-to-desktop UI
+```
+
+#### Method 2: Direct Access (If Firewall Allows)
+
+```bash
+# On Linux Server:
+# 1. Find scenario-to-desktop UI port
+vrooli scenario status scenario-to-desktop
+# Example output: UI running on port 38123
+
+# 2. Access directly from Windows browser
+# Open: http://your-server-ip:38123
+```
+
+#### Download Process
+
+```bash
+# Step 1: Navigate to Scenario Inventory
+1. In scenario-to-desktop UI, click "Scenario Inventory" tab
+2. Find the scenario you want to test (e.g., "picker-wheel")
+3. Verify it has "Built" badge and shows 🪟 Windows platform
+
+# Step 2: Download Windows installer
+1. Click the "🪟 Windows" download button
+2. Browser will download the .exe file (e.g., picker-wheel-Setup-1.0.0.exe)
+3. Save to your Windows Downloads folder
+
+# Step 3: Install on Windows
+1. Navigate to Downloads folder
+2. Double-click the Setup.exe file
+3. Windows SmartScreen warning will appear:
+   - Click "More info"
+   - Click "Run anyway"
+   (This is normal for unsigned apps)
+4. Follow the installation wizard:
+   - Choose install location
+   - Create desktop shortcut (optional)
+   - Click "Install"
+
+# Step 4: Test the Desktop App
+1. Launch the installed application from Start Menu or Desktop
+2. Verify the app starts successfully
+3. Test all functionality:
+   - UI renders correctly
+   - API calls work (if applicable)
+   - Desktop-specific features work (file save, etc.)
+4. Check for any errors in the app
+```
+
+#### Troubleshooting Windows Installation
+
+**Issue: Windows SmartScreen blocks installation**
+```
+Solution: This is expected for unsigned apps.
+- Click "More info" on the SmartScreen warning
+- Click "Run anyway"
+- App will install normally
+
+For production apps, you should sign the executable with a code signing certificate.
+```
+
+**Issue: "App can't run on your PC"**
+```
+Solution: Architecture mismatch
+- Check if you downloaded the correct architecture
+- electron-builder defaults to x64 (64-bit)
+- If you need ia32 (32-bit), rebuild with --ia32 flag
+```
+
+**Issue: App crashes on startup**
+```
+Solution: Missing dependencies
+- Install Microsoft Visual C++ Redistributable
+- Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe
+- This is automatically included in most Windows 10/11 installations
+```
+
+**Issue: Download fails or times out**
+```
+Solution: Large file size
+- Desktop packages can be 50-150 MB
+- Ensure stable network connection
+- If using SSH tunnel, connection must remain active during download
+- Try Method 2 (Direct Access) if tunnel is unstable
+```
+
+#### Download API Reference
 
 **Download URL Pattern**:
 ```
 http://localhost:<API_PORT>/api/v1/desktop/download/<scenario-name>/<platform>
 
 Examples:
-- Windows: /api/v1/desktop/download/picker-wheel/win
-- macOS:   /api/v1/desktop/download/picker-wheel/mac
-- Linux:   /api/v1/desktop/download/picker-wheel/linux
+- Windows: GET /api/v1/desktop/download/picker-wheel/win
+- macOS:   GET /api/v1/desktop/download/picker-wheel/mac
+- Linux:   GET /api/v1/desktop/download/picker-wheel/linux
+
+Response: Binary file (application/x-msdownload for .exe)
+Filename: <scenario-name>-Setup-<version>.exe
+```
+
+**Direct Download from Command Line** (if you know the port):
+```bash
+# From Windows PowerShell
+Invoke-WebRequest -Uri "http://your-server:38123/api/v1/desktop/download/picker-wheel/win" -OutFile "picker-wheel-Setup.exe"
+
+# From WSL/Git Bash
+curl -O "http://your-server:38123/api/v1/desktop/download/picker-wheel/win"
+```
+
+#### Security Considerations
+
+When testing desktop apps from a remote server:
+
+1. **SSH Tunnel is Recommended**: Encrypts traffic between Windows and Linux server
+2. **Verify Downloads**: Check file size matches expected (shown in UI)
+3. **Unsigned Binaries**: Dev/test builds are unsigned - this is normal
+4. **Firewall Rules**: Only open ports if you trust your network
+5. **Production**: For production, use proper code signing and HTTPS
+
+#### Building Signed Windows Apps
+
+For production distribution, you need to sign the executable:
+
+```bash
+# Step 1: Obtain a code signing certificate
+# - Purchase from: DigiCert, Sectigo, GlobalSign, etc.
+# - Cost: ~$200-400/year
+
+# Step 2: Export certificate with private key as .pfx file
+
+# Step 3: Configure electron-builder in package.json
+{
+  "build": {
+    "win": {
+      "certificateFile": "./cert.pfx",
+      "certificatePassword": "YOUR_PASSWORD",
+      "signDlls": true
+    }
+  }
+}
+
+# Step 4: Build will automatically sign
+npm run dist:win
 ```
 
 ### 6. Development and Testing
@@ -187,7 +369,7 @@ npm run dist:all         # All platforms
 ## 💼 Use Cases & Examples
 
 ### Simple Utilities
-**Template: Basic** | **Framework: Electron**
+**Template: Universal (Default)** | **Framework: Electron**
 - `picker-wheel` → Random selection tool
 - `qr-code-generator` → QR code creator
 - `palette-gen` → Color palette generator
@@ -216,18 +398,32 @@ npm run dist:all         # All platforms
 
 ## 🎨 Templates Deep Dive
 
-### Basic Template
-Perfect for simple utilities and tools:
+### Template Selection Guide
+
+**🎯 Which template should I use?**
+
+- **Universal (Default)**: Use for 95% of scenarios - works for any web app
+- **Advanced**: Only if you need system tray or global shortcuts
+- **Multi-Window**: Only if you need multiple separate windows (IDEs, dashboards)
+- **Kiosk**: Only for dedicated hardware/public displays
+
+**When in doubt, use Universal!** The system auto-detects your scenario configuration and applies the universal template, which works perfectly for most use cases.
+
+### Universal Template (Default)
+The universal wrapper that works for any scenario:
 - ✅ Native menus and keyboard shortcuts
 - ✅ Auto-updater integration
 - ✅ File operations (save/open dialogs)
 - ✅ System notifications
+- ✅ Professional splash screen
 - ✅ Single window interface
-- 🎯 **Use for**: Utilities, calculators, simple productivity tools
+- ✅ Clean, minimal design
+- 🎯 **Use for**: ANY scenario that needs desktop deployment
+- 📊 **Examples**: picker-wheel, qr-code-generator, palette-gen, nutrition-tracker
 
-### Advanced Template  
+### Advanced Template
 Full-featured professional applications:
-- ✅ Everything from Basic template
+- ✅ Everything from Universal template
 - ✅ System tray integration
 - ✅ Global keyboard shortcuts
 - ✅ Rich context menus
@@ -317,12 +513,25 @@ scenarios/<scenario-name>/
         └── dist-electron/ # Built packages
 ```
 
-**Why this structure?**
-- ✅ Predictable location for all desktop versions
+**Why `platforms/` folder?**
+- ✅ Predictable location for all deployment types
 - ✅ Easy to check "does this scenario have desktop?"
-- ✅ Won't clutter scenario root when adding iOS/Android later
+- ✅ Won't clutter scenario root when adding more platforms
 - ✅ Separates deployment concerns from source code
-- ✅ CI/CD can easily find and build desktop versions
+- ✅ CI/CD can easily find and build platform versions
+- ✅ Future-proof for iOS, Android, browser extensions, etc.
+
+**Future Platform Organization** (when implemented):
+```
+scenarios/<scenario-name>/
+└── platforms/
+    ├── electron/     # Desktop (Windows, macOS, Linux)
+    ├── ios/          # iOS mobile app (future)
+    ├── android/      # Android mobile app (future)
+    └── chrome-ext/   # Browser extensions (future)
+```
+
+All platform-specific wrappers live under `platforms/` to keep the scenario root clean and organized.
 
 ## 🌐 API Reference
 
@@ -755,6 +964,7 @@ cd ui && npm install && npm start
 ## 📚 Related Documentation
 
 - [PRD.md](./PRD.md) - Comprehensive product requirements
+- **[Desktop Wrapper Guide](./templates/DESKTOP_WRAPPER_GUIDE.md) - Universal wrapper principles and patterns** ⭐ **NEW**
 - [Templates README](./templates/README.md) - Template system details
 - [API Documentation](./api/README.md) - REST API reference
 - [CLI Reference](./cli/README.md) - Command-line usage

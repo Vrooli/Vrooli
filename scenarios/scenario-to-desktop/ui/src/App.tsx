@@ -4,7 +4,7 @@ import { StatsPanel } from "./components/StatsPanel";
 import { GeneratorForm } from "./components/GeneratorForm";
 import { TemplateGrid } from "./components/TemplateGrid";
 import { BuildStatus } from "./components/BuildStatus";
-import { ScenarioInventory } from "./components/ScenarioInventory";
+import { ScenarioInventory } from "./components/scenario-inventory";
 import { Card, CardHeader, CardTitle, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Monitor, Zap, List } from "lucide-react";
@@ -26,12 +26,12 @@ function AppContent() {
   const [viewMode, setViewMode] = useState<ViewMode>("inventory");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 text-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-slate-50">
       <div className="mx-auto max-w-7xl p-6">
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="mb-3 flex items-center justify-center gap-3">
-            <Monitor className="h-10 w-10 text-purple-400" />
+            <Monitor className="h-10 w-10 text-blue-400" />
             <h1 className="text-4xl font-bold">Scenario to Desktop</h1>
           </div>
           <p className="text-lg text-slate-300">
@@ -113,7 +113,7 @@ function AppContent() {
               href="https://vrooli.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-purple-400 hover:underline"
+              className="text-blue-400 hover:underline"
             >
               Vrooli Platform
             </a>
@@ -122,7 +122,7 @@ function AppContent() {
               href="https://github.com/vrooli/vrooli"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-purple-400 hover:underline"
+              className="text-blue-400 hover:underline"
             >
               View on GitHub
             </a>

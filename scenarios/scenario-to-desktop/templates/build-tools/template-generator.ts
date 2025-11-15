@@ -18,6 +18,8 @@ interface DesktopConfig {
     app_description: string;
     version: string;
     author: string;
+    author_email?: string;
+    homepage?: string;
     license: string;
     app_id: string;
     app_url?: string;
@@ -31,7 +33,7 @@ interface DesktopConfig {
 
     // Template configuration
     framework: 'electron' | 'tauri' | 'neutralino';
-    template_type: 'basic' | 'advanced' | 'kiosk' | 'multi_window';
+    template_type: 'basic' | 'universal' | 'advanced' | 'kiosk' | 'multi_window';
 
     // Features
     features: {
@@ -157,7 +159,8 @@ class DesktopTemplateGenerator {
     private async loadTemplateConfig(): Promise<any> {
         // Map template types to actual filenames
         const templateFiles: Record<string, string> = {
-            'basic': 'basic-app.json',
+            'basic': 'universal-app.json',        // 'basic' is an alias for 'universal'
+            'universal': 'universal-app.json',    // Default universal template
             'advanced': 'advanced-app.json',
             'multi_window': 'multi-window.json',
             'kiosk': 'kiosk-mode.json'
@@ -275,6 +278,8 @@ class DesktopTemplateGenerator {
             APP_DESCRIPTION: this.config.app_description,
             VERSION: this.config.version,
             AUTHOR: this.config.author,
+            AUTHOR_EMAIL: this.config.author_email || 'noreply@vrooli.com',
+            HOMEPAGE: this.config.homepage || this.config.app_url || 'https://vrooli.com',
             LICENSE: this.config.license,
             APP_ID: this.config.app_id,
             APP_URL: this.config.app_url || '',

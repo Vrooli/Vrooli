@@ -48,7 +48,7 @@ function TemplateCard({ template, selected, onSelect }: TemplateCardProps) {
       onClick={onSelect}
       className={`rounded-lg border p-4 text-left transition-all hover:scale-[1.02] ${
         selected
-          ? "border-purple-500 bg-purple-900/20"
+          ? "border-blue-500 bg-blue-900/20"
           : "border-white/10 bg-white/5 hover:border-white/30"
       }`}
     >
