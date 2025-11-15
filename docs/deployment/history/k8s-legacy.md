@@ -1,4 +1,6 @@
-# Kubernetes Deployment Readiness - Implementation Summary
+# Legacy: Kubernetes Deployment Readiness Summary
+
+> **Status:** Historical reference for the unfinished Kubernetes pipeline. Treat this as background reading only; the actual deployment roadmap lives in the [Deployment Hub](../README.md).
 
 ## ✅ Phase 1 Complete: Critical Fixes Implemented
 
@@ -37,7 +39,7 @@ CMD ["serve", "-s", "packages/ui/dist", "-l", "3000"]
 - **Issue**: No automated Vault configuration for production
 - **Solution**: Created comprehensive documentation and automation scripts
 - **Files**:
-  - Documentation: `docs/deployment/vault-production-setup.md`
+  - Documentation: `docs/deployment/history/vault-legacy.md`
   - Automation: `scripts/helpers/setup/vault-production.sh`
 - **Result**: Complete Vault setup automation with security best practices
 
@@ -185,7 +187,7 @@ Internet → Ingress → UI/Server Pods → Redis/PostgreSQL (via Operators)
 
 ## 📞 Support Resources
 
-- **Vault Setup**: `docs/deployment/vault-production-setup.md`
+- **Vault Setup**: `docs/deployment/history/vault-legacy.md`
 - **K8s Architecture**: `docs/devops/kubernetes.md` 
 - **Troubleshooting**: See troubleshooting sections in documentation
 - **Scripts**: All automation in `scripts/helpers/setup/` and `scripts/helpers/deploy/`

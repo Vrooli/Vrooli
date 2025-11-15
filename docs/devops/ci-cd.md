@@ -1,5 +1,7 @@
 # CI/CD for Vrooli Scenarios
 
+> **Scope:** Tier 1 only. These patterns assume scenarios run on a full Vrooli stack (local or dev server) and are accessed via app-monitor/Cloudflare tunnels. For desktop, mobile, SaaS, or enterprise deployment planning, pivot to the [Deployment Hub](../deployment/README.md) and coordinate through deployment-manager once available.
+
 This guide covers CI/CD patterns for testing and deploying Vrooli scenarios using direct execution. Scenarios run directly from their source locations without conversion to standalone applications.
 
 > **Prerequisites**: See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation.
@@ -107,12 +109,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Package Scenario Deployment
+      - name: Package Scenario Deployment (legacy)
         run: |
-          ./scripts/deployment/package-scenario-deployment.sh \
-            "production-release-$(date +%Y%m%d)" \
-            ./dist \
-            $(echo '${{ needs.validate-scenarios.outputs.scenarios }}' | jq -r '.[]')
+          echo "Legacy pipeline retained for reference. Consult docs/deployment/history/packaging-script.md"
             
       - name: Deploy to Production Cluster
         run: |
@@ -210,21 +209,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Package Production Deployment
+      - name: Deployment Blocked
         run: |
-          ./scripts/deployment/package-scenario-deployment.sh \
-            "prod-$(date +%Y%m%d)" \
-            ./production-package \
-            research-assistant invoice-generator customer-portal
-            
-      - name: Deploy to Kubernetes
-        run: |
-          kubectl apply -f ./production-package/k8s/
-          kubectl rollout status deployment/vrooli-scenarios -n production
-        env:
-          KUBECONFIG: ${{ secrets.KUBECONFIG_PROD }}
+          echo "Scenario packaging is now governed by the tiered deployment roadmap."
+          echo "See docs/deployment/README.md before attempting any production deploys."
 ```
 
 ## Scenario Configuration Integration
@@ -395,40 +383,15 @@ vrooli scenario test research-assistant
 
 ### Production Cloud Deployment
 
-**Target Environment:** Kubernetes clusters, cloud platforms
-**Deployment Method:** Packaged scenario deployment
+Use the tier documentation instead of ad-hoc scripts:
 
-**Typical Pipeline:**
-1. Validate all scenarios pass integration tests
-2. Package required scenarios with Vrooli framework
-3. Deploy resource infrastructure (databases, AI services)
-4. Deploy scenario suite to production cluster
-5. Run post-deployment health checks
-
-```bash
-# Production deployment
-./scripts/deployment/package-scenario-deployment.sh \
-  "production-suite" ~/deployments/prod \
-  research-assistant invoice-generator customer-portal
-```
+- Confirm Tier 4 readiness via the [Deployment Hub](../deployment/README.md).
+- Follow provider notes (`docs/deployment/providers/`) if a manual prototype is unavoidable.
+- Archive any Kubernetes/Vault experiments under `docs/deployment/history/` so future automation can learn from them.
 
 ### Customer-Specific Deployment
 
-**Target Environment:** Customer infrastructure, dedicated instances
-**Deployment Method:** Customized scenario configuration
-
-**Typical Pipeline:**
-1. Customize scenario configuration for customer needs
-2. Validate customer-specific resource requirements
-3. Deploy to customer's infrastructure
-4. Perform customer acceptance testing
-5. Hand over operational control
-
-```bash
-# Customer deployment
-vrooli scenario customize research-assistant --customer "enterprise-corp"
-vrooli scenario deploy research-assistant --target customer-k8s
-```
+Until deployment-manager exists, customer installs should ride on Tier 1 infrastructure (app-monitor + Cloudflare tunnels) or receive bespoke instructions captured in the deployment hub. Do **not** rely on `vrooli scenario deploy` or other legacy commands.
 
 ## Secret Management for Scenarios
 

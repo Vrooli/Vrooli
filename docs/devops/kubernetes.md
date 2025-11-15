@@ -1,6 +1,8 @@
-# Kubernetes Infrastructure Setup
+# Kubernetes Infrastructure Setup (Legacy Reference)
 
-This guide covers setting up Kubernetes infrastructure for Vrooli scenarios and their resource dependencies. The focus is on providing the foundation that scenarios can leverage when running directly in production environments.
+> ⚠️ **Status:** Research notes only. The tiered deployment plan (see [Deployment Hub](../deployment/README.md)) retired the old "push scenarios straight to Kubernetes" workflow. Keep this document for understanding infrastructure primitives while scenario-to-cloud + deployment-manager are being built. For the now-archived instructions, cross-check [deployment/history/k8s-legacy.md](../deployment/history/k8s-legacy.md).
+
+This file captures the tooling/cluster setup experiments that pre-date the tiered roadmap. Use it to understand what future Tier 4/SaaS automation must reproduce—not as a step-by-step deployment guide.
 
 ## What is Kubernetes?
 
@@ -44,17 +46,14 @@ The following components provide a foundation that Vrooli scenarios can use when
 - Manages application secrets securely
 - Required for production deployments with sensitive data
 
-#### Infrastructure Setup Commands
+#### Infrastructure Setup Commands (Historical)
 
 ```bash
-# Setup development Kubernetes environment
+# Deprecated experiment: setting up a dev Kubernetes environment directly from Vrooli
+# (command kept for archaeology only)
 vrooli develop --target k8s-cluster
 
-# This automatically:
-# - Sets up Minikube (if not present)
-# - Installs required operators
-# - Configures basic networking
-# - Sets up development databases
+# This automation is unmaintained; modern deployments must flow through deployment-manager.
 ```
 
 #### Manual Operator Installation
@@ -117,20 +116,20 @@ scenarios/my-scenario/
 
 #### Scenario Deployment
 
+> ⚠️ **Legacy workflow**: Historical docs referenced `./scripts/deployment/package-scenario-deployment.sh` to package scenarios for Kubernetes. That pipeline is retired; see the [Deployment Hub](../deployment/README.md) for the current tiered roadmap. Use the commands below only for Tier 1 experimentation or when explicitly reviving the legacy flow for research.
+
 ```bash
-# Deploy a scenario to Kubernetes production
+# Deploy a scenario to Kubernetes production (legacy target)
 vrooli scenario run research-assistant --target k8s-cluster
 
-# Test scenario integration in Kubernetes
+# Test scenario integration in Kubernetes (legacy target)
 vrooli scenario test research-assistant --target k8s-cluster
 
-# Package multiple scenarios for customer deployment
-./scripts/deployment/package-scenario-deployment.sh \
-    "customer-suite" ~/deployments/customer \
-    research-assistant invoice-generator
-
-# Deploy packaged scenarios to production cluster
-kubectl apply -f ~/deployments/customer/k8s/
+# For historical context only:
+# ./scripts/deployment/package-scenario-deployment.sh \
+#     "customer-suite" ~/deployments/customer \
+#     research-assistant invoice-generator
+# kubectl apply -f ~/deployments/customer/k8s/
 ```
 
 #### Resource Management in Kubernetes

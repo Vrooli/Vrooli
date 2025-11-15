@@ -1,4 +1,6 @@
-# Production Vault Setup for Kubernetes Deployment
+# Legacy: Production Vault Setup for Kubernetes Deployment
+
+> **Status:** Historical reference from the previous Kubernetes workflow. Use for inspiration when implementing Tier 4/5 secret automation, but follow the new [Secrets Guide](../guides/secrets-management.md) going forward.
 
 This guide covers setting up HashiCorp Vault for production Kubernetes deployments with the Vault Secrets Operator (VSO).
 

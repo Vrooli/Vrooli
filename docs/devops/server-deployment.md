@@ -1,5 +1,7 @@
 # Server Deployment Guide
 
+> ⚠️ **Status:** Reference only. The "package-and-ship" server deployments described here pre-date the new [Deployment Hub](../deployment/README.md). Use this guide for infrastructure research (hardware sizing, provider considerations, hardening checklists) while the deployment-manager tiered workflow is being implemented. Do **not** rely on the legacy automation scripts unless the Deployment Hub explicitly calls for them.
+
 This comprehensive guide covers setting up staging and production servers for Vrooli, including VPS configuration, security hardening, performance optimization, and deployment using both Docker and Kubernetes methods.
 
 > **Prerequisites**: See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation.
@@ -415,36 +417,19 @@ SITE_EMAIL_HOST=smtp.domain.com
 SITE_EMAIL_PORT=587
 ```
 
-## Deployment Methods
+## Legacy Deployment Methods (Reference Only)
 
-### Docker Deployment
+Until `deployment-manager` exists, Tier 1 (full-stack Vrooli instances + Cloudflare tunnels) remains the only supported deployment style. The commands below describe historical experiments and should only be used when explicitly reviving the legacy flow. See the [Deployment Hub](../deployment/README.md) for current guidance and [history/packaging-script.md](../deployment/history/packaging-script.md) for the full background on the retired automation.
 
-#### Manual Deployment
+### Docker Deployment (Legacy)
 
-```bash
-# Connect to server
-ssh deploy@server-ip
-cd ~/Vrooli
+#### Manual Deployment (Retired)
 
-# Deploy scenarios directly (no build step needed)
-vrooli scenario deploy <scenario-name> --environment production
-# Or for multiple scenarios
-./scripts/deployment/package-scenario-deployment.sh "production-suite" ~/deployments/prod scenario1 scenario2
-```
+The old workflow attempted to push scenarios to remote Docker hosts via `vrooli scenario deploy` and `package-scenario-deployment.sh`. Both commands are **retired**. Use Tier 1 remote access instead, or capture requirements in deployment-manager once it exists.
 
-#### CI/CD Deployment
+#### CI/CD Deployment (Retired)
 
-> **Complete CI/CD Guide**: For automated deployment setup, see [CI/CD Pipeline Guide](./ci-cd.md).
-
-The GitHub Actions workflow automatically deploys when you push to the appropriate branch:
-
-```bash
-# For staging (dev branch)
-git push origin dev
-
-# For production (master branch) 
-git push origin master
-```
+Historical GitHub Actions pipelines mirrored the manual flow above (build → package script → remote apply). Keep them only as research material when designing the SaaS tier CI/CD story.
 
 #### Docker Compose Configuration
 
@@ -507,9 +492,9 @@ volumes:
   redis_data:
 ```
 
-### Kubernetes Deployment
+### Kubernetes Deployment (Legacy)
 
-> **Complete Kubernetes Guide**: For detailed Kubernetes setup, see [Kubernetes Deployment](./kubernetes.md).
+> Modern Tier 4/SaaS deployments will rely on deployment-manager + scenario-to-cloud. The instructions below are preserved only for research; authoritative Kubernetes guidance now lives in [deployment/history/k8s-legacy.md](../deployment/history/k8s-legacy.md).
 
 #### Prerequisites
 
@@ -535,7 +520,8 @@ sudo chown deploy:deploy ~/.kube/config
 
 ```bash
 # Deploy scenarios directly to Kubernetes (no build required)
-./scripts/deployment/package-scenario-deployment.sh \
+# Legacy reference kept for history only:
+# ./scripts/deployment/package-scenario-deployment.sh \
   "production-suite" ~/deployments/prod \
   research-assistant invoice-generator customer-portal
 

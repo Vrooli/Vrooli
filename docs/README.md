@@ -150,7 +150,7 @@ resource-ollama logs                   # View resource logs
 2. Configure required resources in `.vrooli/service.json`
 3. Implement business logic by orchestrating resources
 4. Test with `vrooli scenario test <name>`
-5. Deploy directly with `vrooli scenario deploy <name>`
+5. Plan deployments via the [Deployment Hub](deployment/README.md) — Tier 1 (full Vrooli stack) is supported today; other tiers require the roadmap steps outlined there.
 
 **Adding New Capabilities:**
 - Need AI? Enable Ollama or OpenRouter resources
@@ -366,9 +366,9 @@ See [ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md) for comprehensive archi
 - `defect-reporting.md` - Bug reporting process
 
 ### 🚀 **Deployment Documentation** (`/docs/deployment/`)
-- **[Deployment Guide](deployment/README.md)** - Choose the right deployment approach
-- **[Direct Scenario Deployment](scenarios/DEPLOYMENT.md)** - Run scenarios directly (recommended)
-- **[Production Deployment](deployment/production-deployment-guide.md)** - Cloud production setup
+- **[Deployment Hub](deployment/README.md)** - Tiered deployment vision + roadmap
+- **[Tier 1 Direct Scenario Deployment](scenarios/DEPLOYMENT.md)** - Run scenarios on the full Vrooli stack
+- **[Legacy References](deployment/history/)** - Archived Kubernetes/Vault packaging docs
 
 ### 🛠️ **DevOps Documentation** (`/docs/devops/`)
 - `ci-cd.md` - CI/CD pipeline details

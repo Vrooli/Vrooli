@@ -11,7 +11,7 @@
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing strategies
 
 ### Deployment & Operations  
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Running scenarios directly in production
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Tier 1 (full-stack local/dev) deployment details. For desktop/mobile/cloud targets, pivot to the [Deployment Hub](../deployment/README.md).
 
 ### Advanced Topics
 - **[ai-generation-guide.md](ai-generation-guide.md)** - AI-powered scenario generation patterns

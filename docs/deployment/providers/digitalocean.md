@@ -1,4 +1,16 @@
-# Manual DigitalOcean Kubernetes Setup Guide
+# Provider Notes · DigitalOcean
+
+> **Status:** Reference material only. Use this guide when planning Tier 4 (SaaS/Cloud) deployments or when deployment-manager needs provider-specific inputs. It does **not** represent a supported end-to-end deployment pipeline yet.
+
+This document is the original DigitalOcean walkthrough (pricing, `doctl`, cluster creation). Keep it handy for infrastructure planning, but pair it with the [Tier 4](../tiers/tier-4-saas.md) plan and the future `scenario-to-cloud` automation.
+
+## Cloudflare Tunnel Quick Reference
+
+Tier 1 often runs on a DigitalOcean VPS that also hosts app-monitor. Instead of duplicating instructions here, follow the dedicated [Cloudflare tunnel guide](cloudflare-tunnel.md). It walks through installation, DNS routing, and service setup so your DigitalOcean box remains reachable without exposing ports.
+
+---
+
+## Manual DigitalOcean Kubernetes Setup Guide
 
 This guide walks through setting up a production Kubernetes cluster on DigitalOcean step-by-step, with cost transparency and decision points.
 

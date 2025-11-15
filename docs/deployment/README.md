@@ -1,89 +1,79 @@
-# Vrooli Deployment Guide
+# Deployment Hub
 
-## 🚀 Choose Your Deployment Path
+Vrooli deployment is no longer a single script that pushes containers. Every scenario has to be evaluated for *where* it will live, *which* resources must travel with it, and *how* secrets are provisioned. This hub replaces the legacy "package-and-ship" docs with a tiered model that matches reality today and the system we are building next.
 
-Vrooli scenarios run **directly** from source without conversion. Choose your deployment approach based on your specific needs:
+## Why a Tiered Model?
 
-## Quick Decision Tree
+We validated during `scenario-to-desktop` that "build an Electron app" is useless unless the UI, API, resources, and CLI dependencies all come along for the ride. That failure exposed three immovable facts:
 
-```
-What are you trying to do?
+1. **The current local stack *is* a deployment tier.** Cloudflare tunnels + app-monitor already let us access every running scenario from anywhere.
+2. **Portability demands intelligence.** We have to understand dependency graphs, fitness for each platform, and offer swap suggestions before packaging.
+3. **Secrets behave differently per tier.** Infrastructure credentials cannot leave the mothership, whereas per-install service secrets must be generated anew.
 
-🚀 RUN SCENARIOS (95% of use cases)
-├─ Local testing/development → vrooli scenario run <name>
-├─ Customer delivery → Package multiple scenarios for production
-└─ Production deployment → Deploy to Kubernetes cluster
+The hub orchestrates these ideas so future automation (deployment-manager) has a clear target.
 
-⚙️ DEVELOP VROOLI CORE (Contributors only)
-└─ Core platform development → vrooli develop
-```
+## Deployment Tiers
 
-## 🎯 Main Deployment Paths
+| Tier | Description | Current Viability | Doc |
+|------|-------------|-------------------|-----|
+| 1 | Full Vrooli stack running locally or on a dev server, proxied through app-monitor + Cloudflare tunnel | ✅ Production ready for us today | [Local / Developer Stack](tiers/tier-1-local-dev.md) |
+| 2 | Portable desktop bundles (Windows/macOS/Linux) where UI + API + dependencies ship together | ⚠️ Thin client only today | [Desktop](tiers/tier-2-desktop.md) |
+| 3 | Mobile packages (iOS/Android) | 🚧 Not started | [Mobile](tiers/tier-3-mobile.md) |
+| 4 | SaaS / Cloud installs (DigitalOcean, AWS, bare metal) | ⚠️ Requires dependency fitness + secret prep | [SaaS / Cloud](tiers/tier-4-saas.md) |
+| 5 | Enterprise / Hardware appliance deployments | 🧭 Vision stage | [Enterprise / Appliance](tiers/tier-5-enterprise.md) |
 
-### 1. Run Scenarios Locally (95% of users)
-```bash
-# Start required resources
-vrooli resource start-all
+Each tier page captures **current state → gaps → roadmap** so we can coordinate scenario updates.
 
-# Run any scenario directly  
-vrooli scenario run research-assistant
-vrooli scenario run invoice-generator
+## Scenario Orchestration Loop
 
-# Test scenario integration
-vrooli scenario test research-assistant
-```
-**Perfect for:** Development, testing, local business applications, customer demos  
-**Time to deploy:** 30 seconds  
-**Documentation:** [Direct Scenario Execution](../scenarios/DEPLOYMENT.md)
+Deployment is a scenario in its own right:
 
-### 2. Deploy to Production (Customer delivery)
-```bash
-# Package scenarios for customer deployment
-./scripts/deployment/package-scenario-deployment.sh \
-  "customer-suite" ~/deployments/customer \
-  research-assistant invoice-generator customer-portal
+1. `deployment-manager` (future) drives the workflow.
+2. It queries `scenario-dependency-analyzer` to pull the full dependency DAG (resources *and* other scenarios) plus their metadata.
+3. It scores fitness for the requested tier, highlighting blockers and suggesting swaps.
+4. It coordinates with `secrets-manager` to classify/create secrets per tier.
+5. It triggers the appropriate `scenario-to-*` packager (desktop/mobile/cloud) to generate installers or remote bundles.
+6. When manual work is required (e.g., swapping Postgres → SQLite), it files `app-issue-tracker` tasks.
 
-# Deploy to production cluster
-kubectl apply -f ~/deployments/customer/k8s/
-```
-**Perfect for:** Customer deliveries, production business applications  
-**Time to deploy:** 10-15 minutes  
-**Documentation:** [Production Deployment](production-deployment-guide.md)
+That loop is spelled out in the [Scenario Docs](./scenarios) section.
 
-## 📋 Deployment Comparison
+## Guides
 
-| Approach | Complexity | Time | Best For | Resources Needed |
-|----------|------------|------|----------|------------------|
-| **Local Scenarios** | ⭐ Simple | 30s | Development, testing, demos | Local Docker |
-| **Production Suite** | ⭐⭐⭐ Complex | 15min | Customer delivery | Kubernetes cluster |
+- [Dependency Swapping](guides/dependency-swapping.md) — use deployment metadata to swap in fitter alternatives.
+- [Fitness Scoring](guides/fitness-scoring.md) — scoring rubric and metadata schema extension for `service.json`.
+- [Secrets Management](guides/secrets-management.md) — infrastructure vs service vs user secrets lineage.
+- [Deployment Checklist](guides/deployment-checklist.md) — per-tier readiness check.
+- [Packaging Matrix](guides/packaging-matrix.md) — what `scenario-to-*` can actually produce today.
 
-## 🛠️ Infrastructure Requirements
+## Providers & Infrastructure Notes
 
-### Local Scenario Execution
-- **Hardware:** 4GB RAM, 2 CPU cores
-- **Software:** Docker, Vrooli CLI
-- **Network:** Internet for initial setup
-- **Time:** 5 minutes setup
+Legacy platform-specific instructions were preserved for reference:
 
-### Production Business Deployment  
-- **Hardware:** 8GB RAM, 4 CPU cores minimum
-- **Software:** Kubernetes cluster, kubectl, helm
-- **Network:** External access, SSL certificates
-- **Time:** 2-4 hours initial setup
+- [DigitalOcean](providers/digitalocean.md) — VPS/Kubernetes setup details (costing, `doctl`, etc.).
+- [Cloudflare Tunnel](providers/cloudflare-tunnel.md) — Secure Tier 1 remote access via app-monitor.
+- [Hardware Appliance](providers/hardware-appliance.md) — Planning notes for Tier 5 devices.
 
-## 🚨 Quick Troubleshooting
+These provider notes feed into the SaaS/Enterprise tiers once the deployment-manager can emit infrastructure manifests.
 
-| Issue | Solution |
-|-------|----------|
-| Scenario won't start | Check `vrooli resource status` |
-| Port conflicts | Check `~/.vrooli/port-registry.json` |
-| Resource unavailable | Run `resource-<name> start` |
-| Performance slow | See resource requirements above |
+## Examples
 
-## 📚 Detailed Guides
+We document the true experience per tier using real scenarios:
 
-- **[Direct Scenario Deployment](../scenarios/DEPLOYMENT.md)** - Run scenarios directly (recommended)
-- **[Production Deployment](production-deployment-guide.md)** - Cloud Kubernetes deployment
-- **[Development Environment](../devops/development-environment.md)** - Core contributor setup
-- **[CI/CD Integration](../devops/ci-cd.md)** - Automated testing and deployment
-- **[Troubleshooting](../devops/troubleshooting.md)** - Common issues and solutions
+- [Picker Wheel Desktop](examples/picker-wheel-desktop.md) — thin client reality + bundling gaps.
+- [Picker Wheel Cloud](examples/picker-wheel-cloud.md) — what running the scenario on a VPS entails today.
+- [System Monitor Desktop](examples/system-monitor-desktop.md) — another case study for dependency swapping.
+
+## Historical Docs
+
+Everything that described the old "package-scenario-deployment.sh" era now lives in [history](history). The content is still useful when we eventually support Kubernetes/SaaS installs, but the guidance is clearly marked as legacy so it doesn't mislead agents.
+
+## Roadmap Snapshot
+
+1. Document current truth (this hub + spokes). ✅
+2. Extend `service.json` with `deployment.platforms` metadata (fitness, requirements, alternatives). 🔄
+3. Upgrade `scenario-dependency-analyzer` to compute resource tallies and cascade fitness scores. 🔄
+4. Build the `deployment-manager` scenario UI (dependency visualization, swap tool, secret prep). 🔜
+5. Teach `scenario-to-desktop/mobile/cloud` to read deployment bundles produced by deployment-manager. 🔜
+6. Close the loop with app-issue-tracker automation for required swaps/migrations. 🔜
+
+Until the automation exists, the docs act as the contract for how deployment *should* work, preventing another scenario-to-desktop surprise.

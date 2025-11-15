@@ -52,9 +52,9 @@ resource-<name> start                   # Start specific resource
 ```
 
 ### Production Deployment
-**Definition**: Deploy scenario suites to Kubernetes for customers.
-**Usage**: Package multiple scenarios for production use
-**Command**: `./scripts/deployment/package-scenario-deployment.sh`
+**Definition**: Preparing scenarios for tiers beyond local development (desktop, SaaS, enterprise).
+**Usage**: Follow the [Deployment Hub](../../deployment/README.md) guidance (dependency fitness, secrets strategy, deployment-manager roadmap).
+**Legacy Reference**: Historical script lives in `docs/deployment/history/packaging-script.md`.
 
 ## Script Invocation Standards
 

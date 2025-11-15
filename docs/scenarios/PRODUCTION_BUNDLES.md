@@ -4,7 +4,7 @@
 
 Web-based scenarios **must serve production-built UI bundles** in their develop phase, not development servers (like `vite dev`, `npm run dev`, etc.). This is a critical architectural requirement for the Vrooli ecosystem.
 
-> **Note:** Converting `develop` to use production bundles does *not* eliminate the need for a dedicated production lifecycle phase. The production phase remains where we orchestrate packaging, kube config selection, manifest application, DNS/SSL, and other customer-delivery tasks outlined in `docs/scenarios/DEPLOYMENT.md`. Treat the develop phase as "production-parity local runtime" and the production phase as "shipping the scenario." Keeping both phases prevents `vrooli scenario status` from flagging missing production automation and ensures deployments stay auditable.
+> **Note:** Converting `develop` to use production bundles does *not* eliminate the need for a dedicated deployment plan. The production phase remains where we package scenarios for other tiers (desktop, SaaS, etc.) per the [Deployment Hub](../deployment/README.md) and tier docs such as [Tier 2 Desktop](../deployment/tiers/tier-2-desktop.md). Treat the develop phase as "production-parity local runtime" and the production phase as "shipping the scenario." Keeping both phases prevents `vrooli scenario status` from flagging missing deployment automation and ensures deployments stay auditable.
 
 ## Why Production Bundles Are Required
 

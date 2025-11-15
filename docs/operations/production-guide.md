@@ -1,5 +1,7 @@
 # Production Operations & Deployment Guide
 
+> ⚠️ **Status:** Operational reference only. The deployment procedures described here pre-date the tiered deployment plan. Pair this document with the [Deployment Hub](../deployment/README.md) to understand which pieces remain relevant (monitoring, incident response) versus which are legacy (multi-server topology, packaging scripts).
+
 This guide covers everything needed to successfully deploy, monitor, and maintain Vrooli in production environments.
 
 ## 📋 Table of Contents
@@ -14,9 +16,9 @@ This guide covers everything needed to successfully deploy, monitor, and maintai
 - [Troubleshooting](#troubleshooting)
 - [Incident Response](#incident-response)
 
-## 🏗️ Production Architecture
+## 🏗️ Production Architecture (Legacy Topology)
 
-### **Recommended Production Topology**
+### **Historical Topology**
 
 ```mermaid
 graph TB
@@ -89,7 +91,7 @@ graph TB
     class MONITORING,LOGS,BACKUP external
 ```
 
-### **Minimum Production Requirements**
+### **Minimum Production Requirements (Legacy)**
 
 #### **Compute Resources**
 - **Application Servers**: 3x instances (4 CPU, 16GB RAM, 100GB SSD)

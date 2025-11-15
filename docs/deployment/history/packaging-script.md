@@ -1,4 +1,6 @@
-# Scenario-Based Production Deployment Guide
+# Legacy: Scenario-Based Production Deployment Guide
+
+> **Why archived?** This document describes the retired `package-scenario-deployment.sh` workflow. Keep it for historical context only. Future deployments must follow the [Deployment Hub](../README.md) plan and use deployment-manager once implemented.
 
 ## Overview
 This guide walks through deploying Vrooli scenarios to production environments for customer delivery. Instead of deploying the entire Vrooli platform, you deploy only the minimal set of resources and scenarios needed for specific customer use cases.
