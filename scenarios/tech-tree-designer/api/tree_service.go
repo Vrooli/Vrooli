@@ -108,17 +108,30 @@ func (s *TreeService) CreateTree(ctx context.Context, params CreateTreeParams) (
 
 	// Insert new tree
 	newID := uuid.New().String()
+	log.Printf("DEBUG: Creating tree with ID=%s, slug=%s, name=%s, type=%s, status=%s, active=%v, parentID=%s",
+		newID, slug, name, treeType, status, isActive, parentID)
+
+	// Handle parent_tree_id - must be NULL if empty, not empty string
+	var parentTreeID interface{}
+	if parentID != "" {
+		parentTreeID = parentID
+	} else {
+		parentTreeID = nil
+	}
+
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO tech_trees (id, slug, name, description, version, tree_type, status, is_active, parent_tree_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, ''))
-	`, newID, slug, name, description, version, treeType, status, isActive, parentID)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, newID, slug, name, description, version, treeType, status, isActive, parentTreeID)
 	if err != nil {
+		log.Printf("ERROR: Failed to insert tech tree: %v", err)
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate key value") {
 			return nil, fmt.Errorf("slug '%s' already exists", slug)
 		}
 		return nil, fmt.Errorf("failed to insert tech tree: %w", err)
 	}
 
+	log.Printf("DEBUG: Tree created successfully, fetching details for ID=%s", newID)
 	return fetchTechTreeByID(ctx, newID)
 }
 
@@ -276,10 +289,12 @@ func (s *TreeService) CloneTree(ctx context.Context, sourceTreeID string, params
 	}
 
 	// Clone tech tree
+	log.Printf("DEBUG: Cloning tree sourceID=%s to newID=%s, slug=%s, name=%s", sourceTreeID, newTreeID, slug, name)
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO tech_trees (id, slug, name, description, version, tree_type, status, is_active, parent_tree_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`, newTreeID, slug, name, description, sourceTree.Version, treeType, status, isActive, sourceTree.ID); err != nil {
+		log.Printf("ERROR: Failed to clone tech tree: %v", err)
 		return nil, rollback(fmt.Errorf("failed to create cloned tech tree: %w", err))
 	}
 
@@ -309,6 +324,19 @@ func (s *TreeService) CloneTree(ctx context.Context, sourceTreeID string, params
 
 func (s *TreeService) cloneSectors(ctx context.Context, tx *sql.Tx, sourceTreeID, newTreeID string) (map[string]string, error) {
 	sectorMap := make(map[string]string)
+
+	// First, read all sectors into memory
+	type SectorData struct {
+		ID          string
+		Name        string
+		Category    string
+		Description string
+		Progress    float64
+		PositionX   float64
+		PositionY   float64
+		Color       string
+	}
+
 	sectorRows, err := tx.QueryContext(ctx, `
 		SELECT id, name, category, description, progress_percentage, position_x, position_y, color
 		FROM sectors
@@ -317,28 +345,30 @@ func (s *TreeService) cloneSectors(ctx context.Context, tx *sql.Tx, sourceTreeID
 	if err != nil {
 		return nil, fmt.Errorf("failed to load sectors for cloning: %w", err)
 	}
-	defer sectorRows.Close()
 
+	var sectors []SectorData
 	for sectorRows.Next() {
-		var (
-			id          string
-			name        string
-			category    string
-			description string
-			progress    float64
-			positionX   float64
-			positionY   float64
-			color       string
-		)
-		if err := sectorRows.Scan(&id, &name, &category, &description, &progress, &positionX, &positionY, &color); err != nil {
+		var s SectorData
+		if err := sectorRows.Scan(&s.ID, &s.Name, &s.Category, &s.Description, &s.Progress, &s.PositionX, &s.PositionY, &s.Color); err != nil {
+			sectorRows.Close()
 			return nil, fmt.Errorf("failed to scan sector: %w", err)
 		}
+		sectors = append(sectors, s)
+	}
+	sectorRows.Close()
+
+	if err := sectorRows.Err(); err != nil {
+		return nil, fmt.Errorf("error reading sector rows: %w", err)
+	}
+
+	// Now insert the sectors
+	for _, s := range sectors {
 		newID := uuid.New().String()
-		sectorMap[id] = newID
+		sectorMap[s.ID] = newID
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO sectors (id, tree_id, name, category, description, progress_percentage, position_x, position_y, color, created_at, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		`, newID, newTreeID, name, category, description, progress, positionX, positionY, color); err != nil {
+		`, newID, newTreeID, s.Name, s.Category, s.Description, s.Progress, s.PositionX, s.PositionY, s.Color); err != nil {
 			return nil, fmt.Errorf("failed to clone sector: %w", err)
 		}
 	}
@@ -348,6 +378,21 @@ func (s *TreeService) cloneSectors(ctx context.Context, tx *sql.Tx, sourceTreeID
 
 func (s *TreeService) cloneStages(ctx context.Context, tx *sql.Tx, sourceTreeID string, sectorMap map[string]string) (map[string]string, error) {
 	stageMap := make(map[string]string)
+
+	// First, read all stages into memory
+	type StageData struct {
+		ID         string
+		SectorID   string
+		StageType  string
+		StageOrder int
+		Name       string
+		Desc       string
+		Progress   float64
+		Examples   json.RawMessage
+		PositionX  float64
+		PositionY  float64
+	}
+
 	stageRows, err := tx.QueryContext(ctx, `
 		SELECT ps.id, ps.sector_id, ps.stage_type, ps.stage_order, ps.name, ps.description,
 		       ps.progress_percentage, ps.examples, ps.position_x, ps.position_y
@@ -358,37 +403,36 @@ func (s *TreeService) cloneStages(ctx context.Context, tx *sql.Tx, sourceTreeID 
 	if err != nil {
 		return nil, fmt.Errorf("failed to load stages for cloning: %w", err)
 	}
-	defer stageRows.Close()
 
+	var stages []StageData
 	for stageRows.Next() {
-		var (
-			stageID    string
-			sectorID   string
-			stageType  string
-			stageOrder int
-			stageName  string
-			stageDesc  string
-			progress   float64
-			examples   json.RawMessage
-			positionX  float64
-			positionY  float64
-		)
-		if err := stageRows.Scan(&stageID, &sectorID, &stageType, &stageOrder, &stageName, &stageDesc, &progress, &examples, &positionX, &positionY); err != nil {
+		var s StageData
+		if err := stageRows.Scan(&s.ID, &s.SectorID, &s.StageType, &s.StageOrder, &s.Name, &s.Desc, &s.Progress, &s.Examples, &s.PositionX, &s.PositionY); err != nil {
+			stageRows.Close()
 			return nil, fmt.Errorf("failed to scan stage: %w", err)
 		}
+		stages = append(stages, s)
+	}
+	stageRows.Close()
 
-		newSectorID, ok := sectorMap[sectorID]
+	if err := stageRows.Err(); err != nil {
+		return nil, fmt.Errorf("error reading stage rows: %w", err)
+	}
+
+	// Now insert the stages
+	for _, s := range stages {
+		newSectorID, ok := sectorMap[s.SectorID]
 		if !ok {
-			log.Printf("warning: stage %s references unknown sector %s", stageID, sectorID)
+			log.Printf("warning: stage %s references unknown sector %s", s.ID, s.SectorID)
 			continue
 		}
 
 		newStageID := uuid.New().String()
-		stageMap[stageID] = newStageID
+		stageMap[s.ID] = newStageID
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO progression_stages (id, sector_id, stage_type, stage_order, name, description, progress_percentage, examples, position_x, position_y, created_at, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		`, newStageID, newSectorID, stageType, stageOrder, stageName, stageDesc, progress, examples, positionX, positionY); err != nil {
+		`, newStageID, newSectorID, s.StageType, s.StageOrder, s.Name, s.Desc, s.Progress, s.Examples, s.PositionX, s.PositionY); err != nil {
 			return nil, fmt.Errorf("failed to clone stage: %w", err)
 		}
 	}
@@ -397,6 +441,15 @@ func (s *TreeService) cloneStages(ctx context.Context, tx *sql.Tx, sourceTreeID 
 }
 
 func (s *TreeService) cloneDependencies(ctx context.Context, tx *sql.Tx, sourceTreeID string, stageMap map[string]string) error {
+	// First, read all dependencies into memory
+	type DependencyData struct {
+		DependentID    string
+		PrerequisiteID string
+		DepType        string
+		Strength       float64
+		Description    string
+	}
+
 	depRows, err := tx.QueryContext(ctx, `
 		SELECT sd.dependent_stage_id, sd.prerequisite_stage_id, sd.dependency_type, sd.dependency_strength, sd.description
 		FROM stage_dependencies sd
@@ -407,31 +460,35 @@ func (s *TreeService) cloneDependencies(ctx context.Context, tx *sql.Tx, sourceT
 	if err != nil {
 		return fmt.Errorf("failed to load dependencies for cloning: %w", err)
 	}
-	defer depRows.Close()
 
+	var dependencies []DependencyData
 	for depRows.Next() {
-		var (
-			dependentID    string
-			prerequisiteID string
-			depType        string
-			strength       float64
-			description    string
-		)
-		if err := depRows.Scan(&dependentID, &prerequisiteID, &depType, &strength, &description); err != nil {
+		var d DependencyData
+		if err := depRows.Scan(&d.DependentID, &d.PrerequisiteID, &d.DepType, &d.Strength, &d.Description); err != nil {
+			depRows.Close()
 			return fmt.Errorf("failed to scan dependency: %w", err)
 		}
+		dependencies = append(dependencies, d)
+	}
+	depRows.Close()
 
-		newDependentID, ok1 := stageMap[dependentID]
-		newPrerequisiteID, ok2 := stageMap[prerequisiteID]
+	if err := depRows.Err(); err != nil {
+		return fmt.Errorf("error reading dependency rows: %w", err)
+	}
+
+	// Now insert the dependencies
+	for _, d := range dependencies {
+		newDependentID, ok1 := stageMap[d.DependentID]
+		newPrerequisiteID, ok2 := stageMap[d.PrerequisiteID]
 		if !ok1 || !ok2 {
-			log.Printf("warning: skipping dependency %s->%s (missing mapped stage)", prerequisiteID, dependentID)
+			log.Printf("warning: skipping dependency %s->%s (missing mapped stage)", d.PrerequisiteID, d.DependentID)
 			continue
 		}
 
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO stage_dependencies (dependent_stage_id, prerequisite_stage_id, dependency_type, dependency_strength, description)
 			VALUES ($1, $2, $3, $4, $5)
-		`, newDependentID, newPrerequisiteID, depType, strength, description); err != nil {
+		`, newDependentID, newPrerequisiteID, d.DepType, d.Strength, d.Description); err != nil {
 			return fmt.Errorf("failed to clone dependency: %w", err)
 		}
 	}

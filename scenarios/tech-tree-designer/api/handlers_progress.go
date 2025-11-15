@@ -279,3 +279,157 @@ func deleteScenarioMapping(c *gin.Context) {
 		"tree":    tree,
 	})
 }
+
+// Update stage maturity
+func updateStageMaturity(c *gin.Context) {
+	stageID := c.Param("id")
+
+	var request struct {
+		Maturity  string `json:"maturity" binding:"required"`
+		ChangedBy string `json:"changed_by,omitempty"`
+		Notes     string `json:"notes,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate maturity value
+	validMaturityLevels := map[string]bool{
+		"planned":  true,
+		"building": true,
+		"live":     true,
+		"scaled":   true,
+	}
+	if !validMaturityLevels[request.Maturity] {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":          "Invalid maturity level",
+			"valid_levels":   []string{"planned", "building", "live", "scaled"},
+			"provided_value": request.Maturity,
+		})
+		return
+	}
+
+	// Get current maturity for audit trail
+	var oldMaturity string
+	err := db.QueryRowContext(c.Request.Context(), `
+		SELECT maturity FROM progression_stages WHERE id = $1
+	`, stageID).Scan(&oldMaturity)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Stage not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch stage"})
+		}
+		return
+	}
+
+	// If maturity hasn't changed, return early
+	if oldMaturity == request.Maturity {
+		c.JSON(http.StatusOK, gin.H{
+			"message":      "Maturity unchanged",
+			"stage_id":     stageID,
+			"maturity":     request.Maturity,
+			"no_change":    true,
+		})
+		return
+	}
+
+	// Begin transaction for atomic update + audit
+	tx, err := db.BeginTx(c.Request.Context(), nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin transaction"})
+		return
+	}
+	defer tx.Rollback()
+
+	// Update stage maturity
+	_, err = tx.ExecContext(c.Request.Context(), `
+		UPDATE progression_stages
+		SET maturity = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`, request.Maturity, stageID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update maturity"})
+		return
+	}
+
+	// Insert audit event
+	changedBy := request.ChangedBy
+	if changedBy == "" {
+		changedBy = "system"
+	}
+
+	eventID := uuid.New().String()
+	_, err = tx.ExecContext(c.Request.Context(), `
+		INSERT INTO maturity_events (id, stage_id, old_maturity, new_maturity, changed_by, notes)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, eventID, stageID, oldMaturity, request.Maturity, changedBy, request.Notes)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record maturity event"})
+		return
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit maturity update"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":      "Stage maturity updated successfully",
+		"stage_id":     stageID,
+		"old_maturity": oldMaturity,
+		"new_maturity": request.Maturity,
+		"event_id":     eventID,
+	})
+}
+
+// Get maturity events for a stage
+func getStageMaturityEvents(c *gin.Context) {
+	stageID := c.Param("id")
+
+	rows, err := db.QueryContext(c.Request.Context(), `
+		SELECT id, old_maturity, new_maturity, changed_at, changed_by, notes
+		FROM maturity_events
+		WHERE stage_id = $1
+		ORDER BY changed_at DESC
+		LIMIT 50
+	`, stageID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch maturity events"})
+		return
+	}
+	defer rows.Close()
+
+	type MaturityEvent struct {
+		ID          string    `json:"id"`
+		OldMaturity *string   `json:"old_maturity"`
+		NewMaturity string    `json:"new_maturity"`
+		ChangedAt   time.Time `json:"changed_at"`
+		ChangedBy   string    `json:"changed_by"`
+		Notes       string    `json:"notes"`
+	}
+
+	var events []MaturityEvent
+	for rows.Next() {
+		var event MaturityEvent
+		err := rows.Scan(&event.ID, &event.OldMaturity, &event.NewMaturity,
+			&event.ChangedAt, &event.ChangedBy, &event.Notes)
+		if err != nil {
+			continue
+		}
+		events = append(events, event)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"stage_id": stageID,
+		"events":   events,
+		"count":    len(events),
+	})
+}

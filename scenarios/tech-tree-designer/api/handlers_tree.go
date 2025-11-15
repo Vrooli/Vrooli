@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 var (
 	treeService   *TreeService
 	sectorService *SectorService
+	stageService  *StageService
 	graphService  *GraphService
 )
 
@@ -96,6 +98,7 @@ func createTechTreeHandler(c *gin.Context) {
 
 	tree, err := treeService.CreateTree(ctx, params)
 	if err != nil {
+		log.Printf("ERROR: createTechTreeHandler failed: %v", err)
 		if strings.Contains(err.Error(), "already exists") {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
@@ -104,7 +107,7 @@ func createTechTreeHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create tech tree"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create tech tree: %v", err)})
 		return
 	}
 
@@ -210,6 +213,7 @@ func cloneTechTreeHandler(c *gin.Context) {
 
 	tree, err := treeService.CloneTree(ctx, sourceTreeID, params)
 	if err != nil {
+		log.Printf("ERROR: cloneTechTreeHandler failed: %v", err)
 		if errors.Is(err, sql.ErrNoRows) || strings.Contains(err.Error(), "source tree") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Source tech tree not found"})
 			return
@@ -218,7 +222,7 @@ func cloneTechTreeHandler(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Slug already exists"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to clone tech tree"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to clone tech tree: %v", err)})
 		return
 	}
 

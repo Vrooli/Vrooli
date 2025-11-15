@@ -49,6 +49,11 @@ const useScenarioCatalog = () => {
     try {
       await refreshScenarioCatalog()
       await loadScenarioCatalog()
+      setCatalogNotice('Scenario catalog synced successfully!')
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setCatalogNotice(null)
+      }, 3000)
     } catch (error) {
       console.error('Scenario catalog refresh failed', error)
       setCatalogNotice('Scenario catalog refresh failed. Using cached data.')

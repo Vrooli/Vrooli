@@ -165,8 +165,11 @@ func (m *ScenarioCatalogManager) Refresh() error {
 
 func (m *ScenarioCatalogManager) scanScenarios() (map[string]ScenarioCatalogEntry, []ScenarioDependencyEdge, error) {
 	scenariosDir := filepath.Join(m.repoRoot, "scenarios")
+	log.Printf("DEBUG: scanScenarios - repoRoot=%s, scenariosDir=%s", m.repoRoot, scenariosDir)
+
 	stat, err := os.Stat(scenariosDir)
 	if err != nil {
+		log.Printf("ERROR: scanScenarios - failed to stat scenarios dir: %v", err)
 		return nil, nil, err
 	}
 	if !stat.IsDir() {
@@ -176,8 +179,11 @@ func (m *ScenarioCatalogManager) scanScenarios() (map[string]ScenarioCatalogEntr
 	entries := make(map[string]ScenarioCatalogEntry)
 	edges := make([]ScenarioDependencyEdge, 0)
 
+	log.Printf("DEBUG: scanScenarios - starting WalkDir on %s", scenariosDir)
+
 	err = filepath.WalkDir(scenariosDir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
+			log.Printf("DEBUG: scanScenarios - walkErr for path=%s: %v", path, walkErr)
 			return walkErr
 		}
 
@@ -187,8 +193,14 @@ func (m *ScenarioCatalogManager) scanScenarios() (map[string]ScenarioCatalogEntr
 
 		servicePath := filepath.Join(path, ".vrooli", "service.json")
 		if _, statErr := os.Stat(servicePath); errors.Is(statErr, os.ErrNotExist) {
+			// Only log for immediate subdirectories of scenarios (depth 1)
+			if filepath.Dir(path) == scenariosDir {
+				log.Printf("DEBUG: scanScenarios - no service.json at %s", servicePath)
+			}
 			return nil
 		}
+
+		log.Printf("DEBUG: scanScenarios - found service.json at %s", servicePath)
 
 		fileBytes, readErr := os.ReadFile(servicePath)
 		if readErr != nil {
@@ -246,6 +258,8 @@ func (m *ScenarioCatalogManager) scanScenarios() (map[string]ScenarioCatalogEntr
 		}
 
 		entries[strings.ToLower(name)] = entry
+		log.Printf("DEBUG: scanScenarios - added scenario: name=%s, displayName=%s, deps=%d, resources=%d",
+			name, display, len(deps), len(resources))
 
 		for _, dep := range deps {
 			edges = append(edges, ScenarioDependencyEdge{
@@ -259,9 +273,11 @@ func (m *ScenarioCatalogManager) scanScenarios() (map[string]ScenarioCatalogEntr
 	})
 
 	if err != nil {
+		log.Printf("ERROR: scanScenarios - WalkDir returned error: %v", err)
 		return nil, nil, err
 	}
 
+	log.Printf("DEBUG: scanScenarios - complete: found %d scenarios, %d edges", len(entries), len(edges))
 	return entries, edges, nil
 }
 

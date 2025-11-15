@@ -116,6 +116,7 @@ export const useStageModal = ({
       try {
         const payload = {
           sector_id: targetSectorId,
+          parent_stage_id: formState.parentStageId || undefined,
           stage_type: formState.stageType,
           stage_order: formState.stageOrder ? Number(formState.stageOrder) : undefined,
           name: formState.name.trim(),

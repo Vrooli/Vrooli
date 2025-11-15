@@ -39,7 +39,7 @@ export interface GraphContextValue {
   // Callbacks - Node operations
   onLinkScenario?: (stage: ProgressionStage) => void
   onCreateSector?: () => void
-  onCreateStage?: (sectorId?: string, stageType?: string) => void
+  onCreateStage?: (sectorId?: string, stageType?: string, parentStageId?: string) => void
   onGenerateAIStageIdeas?: (sectorId: string) => void
   onEditStage?: (stage: ProgressionStage) => void
   onEditSector?: (sector: Sector) => void

@@ -133,16 +133,42 @@ func resolveRepoRoot() (string, error) {
 		return "", err
 	}
 
+	log.Printf("DEBUG: resolveRepoRoot - starting from working dir: %s", workingDir)
+
 	current := workingDir
 	for depth := 0; depth < 8; depth++ {
+		log.Printf("DEBUG: resolveRepoRoot - checking depth %d: %s", depth, current)
+
+		// Always prefer .git as the definitive marker of repo root
 		gitPath := filepath.Join(current, ".git")
 		if _, err := os.Stat(gitPath); err == nil {
+			log.Printf("DEBUG: resolveRepoRoot - found .git at: %s", current)
 			return current, nil
 		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			log.Printf("DEBUG: resolveRepoRoot - reached filesystem root")
+			break
+		}
+		current = parent
+	}
+
+	// Fallback: if we didn't find .git, look for scenarios/ directory
+	// (this handles non-git installations)
+	current = workingDir
+	for depth := 0; depth < 8; depth++ {
 		scenariosPath := filepath.Join(current, "scenarios")
 		if info, err := os.Stat(scenariosPath); err == nil && info.IsDir() {
-			return current, nil
+			// Verify this looks like the root scenarios dir, not a subdirectory
+			// by checking if it contains multiple scenario directories
+			entries, readErr := os.ReadDir(scenariosPath)
+			if readErr == nil && len(entries) > 5 {
+				log.Printf("DEBUG: resolveRepoRoot - found scenarios/ with %d entries at: %s", len(entries), current)
+				return current, nil
+			}
 		}
+
 		parent := filepath.Dir(current)
 		if parent == current {
 			break
@@ -150,6 +176,7 @@ func resolveRepoRoot() (string, error) {
 		current = parent
 	}
 
+	log.Printf("DEBUG: resolveRepoRoot - failed to find repo root after 8 levels")
 	return "", fmt.Errorf("unable to resolve repository root from %s", workingDir)
 }
 
@@ -359,18 +386,22 @@ func main() {
 	// Initialize service layer
 	treeService = NewTreeService(db)
 	sectorService = NewSectorService(db)
+	stageService = NewStageService(db)
 	graphService = NewGraphService(db)
 
 	repoRoot, rootErr := resolveRepoRoot()
 	if rootErr != nil {
-		log.Printf("warning: scenario catalog disabled (repo root unresolved): %v", rootErr)
+		log.Printf("WARNING: scenario catalog disabled (repo root unresolved): %v", rootErr)
 	} else {
+		log.Printf("INFO: Resolved repo root: %s", repoRoot)
 		visibilityPath := filepath.Join(repoRoot, "scenarios", "tech-tree-designer", "data", "scenario_visibility.json")
+		log.Printf("INFO: Visibility path: %s", visibilityPath)
 		manager, catalogErr := NewScenarioCatalogManager(repoRoot, visibilityPath)
 		if catalogErr != nil {
-			log.Printf("warning: scenario catalog unavailable: %v", catalogErr)
+			log.Printf("WARNING: scenario catalog unavailable: %v", catalogErr)
 		} else {
 			catalogManager = manager
+			log.Printf("INFO: Scenario catalog manager initialized successfully")
 			catalogManager.StartBackgroundRefresh(24 * time.Hour)
 		}
 	}
@@ -445,6 +476,10 @@ func main() {
 		api.POST("/progress/scenarios", updateScenarioMapping)
 		api.DELETE("/progress/scenarios/:id", deleteScenarioMapping)
 		api.PUT("/progress/scenarios/:scenario", updateScenarioStatus)
+
+		// Maturity tracking routes
+		api.PUT("/stages/:id/maturity", updateStageMaturity)
+		api.GET("/stages/:id/maturity/events", getStageMaturityEvents)
 
 		// Strategic analysis routes
 		api.POST("/tech-tree/analyze", analyzeStrategicPath)

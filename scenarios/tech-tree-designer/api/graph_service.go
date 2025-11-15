@@ -105,8 +105,9 @@ func (s *GraphService) UpdateGraph(ctx context.Context, treeID string, request G
 	}
 
 	// Fetch updated data
-	sectorService := NewSectorService(s.db)
-	sectors, sectorErr := sectorService.FetchSectorsWithStages(ctx, treeID)
+	sectorSvc := NewSectorService(s.db)
+	stageSvc := NewStageService(s.db)
+	sectors, sectorErr := sectorSvc.FetchSectorsWithStages(ctx, treeID, stageSvc)
 	if sectorErr != nil {
 		return nil, nil, fmt.Errorf("graph saved but sectors could not be refreshed: %w", sectorErr)
 	}

@@ -50,6 +50,7 @@ type ProgressionStage struct {
 	Name               string            `json:"name" db:"name"`
 	Description        string            `json:"description" db:"description"`
 	ProgressPercentage float64           `json:"progress_percentage" db:"progress_percentage"`
+	Maturity           string            `json:"maturity" db:"maturity"` // planned, building, live, scaled
 	Examples           json.RawMessage   `json:"examples" db:"examples"`
 	PositionX          float64           `json:"position_x" db:"position_x"`
 	PositionY          float64           `json:"position_y" db:"position_y"`

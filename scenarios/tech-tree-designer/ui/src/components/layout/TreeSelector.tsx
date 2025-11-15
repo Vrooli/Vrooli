@@ -31,6 +31,15 @@ const TreeSelector: React.FC<TreeSelectorProps> = ({
     onChange(value.length ? value : null)
   }
 
+  const getTreeTypeIcon = (treeType: string) => {
+    switch (treeType) {
+      case 'official': return '🔵'
+      case 'draft': return '🟡'
+      case 'experimental': return '🟣'
+      default: return '⚪'
+    }
+  }
+
   return (
     <div className="tree-selector" aria-live="polite">
       <label htmlFor="tech-tree-select">Active Tech Tree</label>
@@ -47,7 +56,7 @@ const TreeSelector: React.FC<TreeSelectorProps> = ({
           ) : (
             techTrees.map((entry) => (
               <option key={entry.tree.id} value={entry.tree.id}>
-                {entry.tree.name}
+                {getTreeTypeIcon(entry.tree.tree_type)} {entry.tree.name}
                 {entry.tree.tree_type === 'official'
                   ? ' • Official'
                   : entry.tree.tree_type === 'draft'
@@ -57,7 +66,12 @@ const TreeSelector: React.FC<TreeSelectorProps> = ({
             ))
           )}
         </select>
-        <span className={`tree-badge ${badgeClassName}`}>{badgeLabel}</span>
+        <span className={`tree-badge ${badgeClassName}`}>
+          {badgeClassName.includes('official') && '🔵 '}
+          {badgeClassName.includes('draft') && '🟡 '}
+          {badgeClassName.includes('experimental') && '🟣 '}
+          {badgeLabel}
+        </span>
       </div>
       <p className="tree-selector__meta">{statsSummary || 'Define a tree to begin mapping the capability graph.'}</p>
       <div className="tree-selector__actions">
@@ -68,7 +82,7 @@ const TreeSelector: React.FC<TreeSelectorProps> = ({
             onClick={onCreateTree}
             title="Create a new tech tree"
           >
-            + New Tree
+            ✨ New Tree
           </button>
         )}
         {onCloneTree && selectedTreeId && (
@@ -76,13 +90,13 @@ const TreeSelector: React.FC<TreeSelectorProps> = ({
             type="button"
             className="button button--ghost"
             onClick={onCloneTree}
-            title="Clone the current tech tree"
+            title="Clone the current tech tree for experimentation"
           >
-            Clone Tree
+            📋 Clone Tree
           </button>
         )}
         <button type="button" className="button button--ghost" onClick={onCreateSector}>
-          New Sector
+          ➕ New Sector
         </button>
       </div>
     </div>
