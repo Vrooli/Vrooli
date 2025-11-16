@@ -30,6 +30,11 @@ import (
 	pq "github.com/lib/pq"
 )
 
+const (
+	deploymentReportVersion = 1
+	tierBlockerThreshold    = 0.75
+)
+
 // Domain models
 type ServiceConfig struct {
 	Schema  string `json:"$schema"`
@@ -47,6 +52,7 @@ type ServiceConfig struct {
 		Resources map[string]Resource               `json:"resources"`
 		Scenarios map[string]ScenarioDependencySpec `json:"scenarios"`
 	} `json:"dependencies"`
+	Deployment *ServiceDeployment `json:"deployment"`
 }
 
 type Resource struct {
@@ -63,6 +69,103 @@ type ScenarioDependencySpec struct {
 	Version      string `json:"version"`
 	VersionRange string `json:"versionRange"`
 	Description  string `json:"description"`
+}
+
+type ServiceDeployment struct {
+	MetadataVersion       int                         `json:"metadata_version"`
+	LastAnalyzedAt        string                      `json:"last_analyzed_at"`
+	Analyzer              *DeploymentAnalyzerInfo     `json:"analyzer"`
+	AggregateRequirements *DeploymentRequirements     `json:"aggregate_requirements"`
+	Tiers                 map[string]DeploymentTier   `json:"tiers"`
+	Dependencies          DeploymentDependencyCatalog `json:"dependencies"`
+	Overrides             []DeploymentOverride        `json:"overrides"`
+}
+
+type DeploymentAnalyzerInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+type DeploymentDependencyCatalog struct {
+	Resources map[string]DeploymentDependency `json:"resources"`
+	Scenarios map[string]DeploymentDependency `json:"scenarios"`
+}
+
+type DeploymentDependency struct {
+	ResourceType    string                           `json:"resource_type"`
+	Footprint       *DeploymentRequirements          `json:"footprint"`
+	PlatformSupport map[string]DependencyTierSupport `json:"platform_support"`
+	SwappableWith   []DependencySwap                 `json:"swappable_with"`
+	PackagingHints  []string                         `json:"packaging_hints"`
+}
+
+type DeploymentRequirements struct {
+	RAMMB            *float64 `json:"ram_mb,omitempty"`
+	DiskMB           *float64 `json:"disk_mb,omitempty"`
+	CPUCores         *float64 `json:"cpu_cores,omitempty"`
+	GPU              *bool    `json:"gpu,omitempty"`
+	Network          string   `json:"network,omitempty"`
+	StorageMBPerUser *float64 `json:"storage_mb_per_user,omitempty"`
+	StartupTimeMS    *float64 `json:"startup_time_ms,omitempty"`
+	Bucket           string   `json:"bucket,omitempty"`
+	Source           string   `json:"source,omitempty"`
+	Confidence       string   `json:"confidence,omitempty"`
+}
+
+type DependencyTierSupport struct {
+	Supported    *bool                   `json:"supported,omitempty"`
+	FitnessScore *float64                `json:"fitness_score,omitempty"`
+	Reason       string                  `json:"reason,omitempty"`
+	Requirements *DeploymentRequirements `json:"requirements,omitempty"`
+	Alternatives []string                `json:"alternatives,omitempty"`
+	Notes        string                  `json:"notes,omitempty"`
+}
+
+type DependencySwap struct {
+	ID           string `json:"id"`
+	Relationship string `json:"relationship"`
+	Notes        string `json:"notes"`
+}
+
+type DeploymentTier struct {
+	Status       string                  `json:"status"`
+	FitnessScore *float64                `json:"fitness_score,omitempty"`
+	Constraints  []string                `json:"constraints,omitempty"`
+	Requirements *DeploymentRequirements `json:"requirements,omitempty"`
+	Adaptations  []DeploymentAdaptation  `json:"adaptations,omitempty"`
+	Secrets      []DeploymentTierSecret  `json:"secrets,omitempty"`
+	Artifacts    []DeploymentArtifact    `json:"artifacts,omitempty"`
+	Notes        string                  `json:"notes,omitempty"`
+}
+
+type DeploymentAdaptation struct {
+	Dependency string  `json:"dependency"`
+	Swap       string  `json:"swap"`
+	Impact     string  `json:"impact"`
+	EffortDays float64 `json:"effort_days"`
+	Notes      string  `json:"notes"`
+}
+
+type DeploymentTierSecret struct {
+	SecretID       string `json:"secret_id"`
+	Classification string `json:"classification"`
+	StrategyRef    string `json:"strategy_ref"`
+	Notes          string `json:"notes"`
+}
+
+type DeploymentArtifact struct {
+	Type     string `json:"type"`
+	Producer string `json:"producer"`
+	Status   string `json:"status"`
+	Notes    string `json:"notes"`
+}
+
+type DeploymentOverride struct {
+	Tier      string      `json:"tier"`
+	Field     string      `json:"field"`
+	Value     interface{} `json:"value"`
+	Reason    string      `json:"reason"`
+	ExpiresAt string      `json:"expires_at"`
 }
 
 type ScenarioDependency struct {
@@ -126,6 +229,7 @@ type DependencyAnalysisResponse struct {
 	TransitiveDepth       int                               `json:"transitive_depth"`
 	ResourceDiff          DependencyDiff                    `json:"resource_diff"`
 	ScenarioDiff          DependencyDiff                    `json:"scenario_diff"`
+	DeploymentReport      *DeploymentAnalysisReport         `json:"deployment_report,omitempty"`
 }
 
 type DependencyDiff struct {
@@ -138,6 +242,111 @@ type DependencyDrift struct {
 	Details map[string]interface{} `json:"details,omitempty"`
 }
 
+type DeploymentAnalysisReport struct {
+	Scenario       string                             `json:"scenario"`
+	ReportVersion  int                                `json:"report_version"`
+	GeneratedAt    time.Time                          `json:"generated_at"`
+	Dependencies   []DeploymentDependencyNode         `json:"dependencies"`
+	Aggregates     map[string]DeploymentTierAggregate `json:"aggregates"`
+	BundleManifest BundleManifest                     `json:"bundle_manifest"`
+}
+
+type DeploymentDependencyNode struct {
+	Name         string                        `json:"name"`
+	Type         string                        `json:"type"`
+	ResourceType string                        `json:"resource_type,omitempty"`
+	Path         string                        `json:"path,omitempty"`
+	Requirements *DeploymentRequirements       `json:"requirements,omitempty"`
+	TierSupport  map[string]TierSupportSummary `json:"tier_support,omitempty"`
+	Alternatives []string                      `json:"alternatives,omitempty"`
+	Notes        string                        `json:"notes,omitempty"`
+	Source       string                        `json:"source,omitempty"`
+	Children     []DeploymentDependencyNode    `json:"children,omitempty"`
+	Metadata     map[string]interface{}        `json:"metadata,omitempty"`
+}
+
+type TierSupportSummary struct {
+	Supported    *bool                   `json:"supported,omitempty"`
+	FitnessScore *float64                `json:"fitness_score,omitempty"`
+	Reason       string                  `json:"reason,omitempty"`
+	Notes        string                  `json:"notes,omitempty"`
+	Requirements *DeploymentRequirements `json:"requirements,omitempty"`
+	Alternatives []string                `json:"alternatives,omitempty"`
+}
+
+type DeploymentTierAggregate struct {
+	FitnessScore          float64                `json:"fitness_score"`
+	DependencyCount       int                    `json:"dependency_count"`
+	BlockingDependencies  []string               `json:"blocking_dependencies,omitempty"`
+	EstimatedRequirements AggregatedRequirements `json:"estimated_requirements"`
+}
+
+type AggregatedRequirements struct {
+	RAMMB    float64 `json:"ram_mb"`
+	DiskMB   float64 `json:"disk_mb"`
+	CPUCores float64 `json:"cpu_cores"`
+}
+
+type BundleManifest struct {
+	Scenario     string                  `json:"scenario"`
+	GeneratedAt  time.Time               `json:"generated_at"`
+	Files        []BundleFileEntry       `json:"files"`
+	Dependencies []BundleDependencyEntry `json:"dependencies"`
+}
+
+type BundleFileEntry struct {
+	Path   string `json:"path"`
+	Type   string `json:"type"`
+	Exists bool   `json:"exists"`
+	Notes  string `json:"notes,omitempty"`
+}
+
+type BundleDependencyEntry struct {
+	Name         string                        `json:"name"`
+	Type         string                        `json:"type"`
+	ResourceType string                        `json:"resource_type,omitempty"`
+	TierSupport  map[string]TierSupportSummary `json:"tier_support,omitempty"`
+	Alternatives []string                      `json:"alternatives,omitempty"`
+}
+
+type OptimizationRequest struct {
+	Scenario string `json:"scenario"`
+	Type     string `json:"type"`
+	Apply    bool   `json:"apply"`
+}
+
+type OptimizationResult struct {
+	Scenario          string                       `json:"scenario"`
+	Recommendations   []OptimizationRecommendation `json:"recommendations"`
+	Summary           OptimizationSummary          `json:"summary"`
+	Applied           bool                         `json:"applied"`
+	ApplySummary      map[string]interface{}       `json:"apply_summary,omitempty"`
+	AnalysisTimestamp time.Time                    `json:"analysis_timestamp"`
+	Error             string                       `json:"error,omitempty"`
+}
+
+type OptimizationSummary struct {
+	RecommendationCount int            `json:"recommendation_count"`
+	ByType              map[string]int `json:"by_type"`
+	HighPriority        int            `json:"high_priority"`
+	PotentialImpact     map[string]int `json:"potential_impact"`
+}
+
+type OptimizationRecommendation struct {
+	ID                 string                 `json:"id"`
+	ScenarioName       string                 `json:"scenario_name"`
+	RecommendationType string                 `json:"recommendation_type"`
+	Title              string                 `json:"title"`
+	Description        string                 `json:"description"`
+	CurrentState       map[string]interface{} `json:"current_state"`
+	RecommendedState   map[string]interface{} `json:"recommended_state"`
+	EstimatedImpact    map[string]interface{} `json:"estimated_impact"`
+	ConfidenceScore    float64                `json:"confidence_score"`
+	Priority           string                 `json:"priority"`
+	Status             string                 `json:"status"`
+	CreatedAt          time.Time              `json:"created_at"`
+}
+
 type ScenarioSummary struct {
 	Name        string     `json:"name"`
 	DisplayName string     `json:"display_name"`
@@ -147,15 +356,16 @@ type ScenarioSummary struct {
 }
 
 type ScenarioDetailResponse struct {
-	Scenario           string                            `json:"scenario"`
-	DisplayName        string                            `json:"display_name"`
-	Description        string                            `json:"description"`
-	LastScanned        *time.Time                        `json:"last_scanned,omitempty"`
-	DeclaredResources  map[string]Resource               `json:"declared_resources"`
-	DeclaredScenarios  map[string]ScenarioDependencySpec `json:"declared_scenarios"`
-	StoredDependencies map[string][]ScenarioDependency   `json:"stored_dependencies"`
-	ResourceDiff       DependencyDiff                    `json:"resource_diff"`
-	ScenarioDiff       DependencyDiff                    `json:"scenario_diff"`
+	Scenario                    string                            `json:"scenario"`
+	DisplayName                 string                            `json:"display_name"`
+	Description                 string                            `json:"description"`
+	LastScanned                 *time.Time                        `json:"last_scanned,omitempty"`
+	DeclaredResources           map[string]Resource               `json:"declared_resources"`
+	DeclaredScenarios           map[string]ScenarioDependencySpec `json:"declared_scenarios"`
+	StoredDependencies          map[string][]ScenarioDependency   `json:"stored_dependencies"`
+	ResourceDiff                DependencyDiff                    `json:"resource_diff"`
+	ScenarioDiff                DependencyDiff                    `json:"scenario_diff"`
+	OptimizationRecommendations []OptimizationRecommendation      `json:"optimization_recommendations"`
 }
 
 type ScanRequest struct {
@@ -597,7 +807,8 @@ func initDatabase(dbURL string) error {
 
 // Core analysis functions
 func analyzeScenario(scenarioName string) (*DependencyAnalysisResponse, error) {
-	scenarioPath := filepath.Join(loadConfig().ScenariosDir, scenarioName)
+	config := loadConfig()
+	scenarioPath := filepath.Join(config.ScenariosDir, scenarioName)
 	serviceConfig, err := loadServiceConfigFromFile(scenarioPath)
 	if err != nil {
 		return nil, err
@@ -652,7 +863,745 @@ func analyzeScenario(scenarioName string) (*DependencyAnalysisResponse, error) {
 		log.Printf("Warning: failed to update scenario metadata: %v", err)
 	}
 
+	if deploymentReport := buildDeploymentReport(scenarioName, scenarioPath, config.ScenariosDir, serviceConfig); deploymentReport != nil {
+		response.DeploymentReport = deploymentReport
+		if err := persistDeploymentReport(scenarioPath, deploymentReport); err != nil {
+			log.Printf("Warning: failed to persist deployment report: %v", err)
+		}
+	}
+
 	return response, nil
+}
+
+func runScenarioOptimization(scenarioName string, req OptimizationRequest) (*OptimizationResult, error) {
+	analysis, err := analyzeScenario(scenarioName)
+	if err != nil {
+		return nil, err
+	}
+	scenarioPath := filepath.Join(loadConfig().ScenariosDir, scenarioName)
+	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	if err != nil {
+		cfg = nil
+	}
+	recommendations := generateOptimizationRecommendations(scenarioName, analysis, cfg)
+	if err := persistOptimizationRecommendations(scenarioName, recommendations); err != nil {
+		return nil, err
+	}
+	var applySummary map[string]interface{}
+	applied := false
+	if req.Apply && len(recommendations) > 0 {
+		applySummary, err = applyOptimizationRecommendations(scenarioName, recommendations)
+		if err != nil {
+			return nil, err
+		}
+		if changed, ok := applySummary["changed"].(bool); ok && changed {
+			applied = true
+			analysis, err = analyzeScenario(scenarioName)
+			if err != nil {
+				return nil, err
+			}
+			recommendations = generateOptimizationRecommendations(scenarioName, analysis, cfg)
+			if err := persistOptimizationRecommendations(scenarioName, recommendations); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return &OptimizationResult{
+		Scenario:          scenarioName,
+		Recommendations:   recommendations,
+		Summary:           buildOptimizationSummary(recommendations),
+		Applied:           applied,
+		ApplySummary:      applySummary,
+		AnalysisTimestamp: time.Now().UTC(),
+	}, nil
+}
+
+func buildDeploymentReport(scenarioName, scenarioPath, scenariosDir string, cfg *ServiceConfig) *DeploymentAnalysisReport {
+	if cfg == nil {
+		return nil
+	}
+
+	generatedAt := time.Now().UTC()
+	visited := map[string]struct{}{}
+	visited[normalizeName(scenarioName)] = struct{}{}
+	nodes := buildDependencyNodeList(scenariosDir, scenarioName, cfg, visited)
+	aggregates := computeTierAggregates(nodes)
+	manifest := buildBundleManifest(scenarioName, scenarioPath, generatedAt, nodes)
+
+	return &DeploymentAnalysisReport{
+		Scenario:       scenarioName,
+		ReportVersion:  deploymentReportVersion,
+		GeneratedAt:    generatedAt,
+		Dependencies:   nodes,
+		Aggregates:     aggregates,
+		BundleManifest: manifest,
+	}
+}
+
+func buildDependencyNodeList(scenariosDir, scenarioName string, cfg *ServiceConfig, visited map[string]struct{}) []DeploymentDependencyNode {
+	nodes := []DeploymentDependencyNode{}
+	if cfg == nil {
+		return nodes
+	}
+
+	var dependencyCatalog DeploymentDependencyCatalog
+	if cfg.Deployment != nil {
+		dependencyCatalog = cfg.Deployment.Dependencies
+	}
+
+	resources := resolvedResourceMap(cfg)
+	resourceNames := make([]string, 0, len(resources))
+	for name := range resources {
+		resourceNames = append(resourceNames, name)
+	}
+	sort.Strings(resourceNames)
+	for _, name := range resourceNames {
+		var meta *DeploymentDependency
+		if dependencyCatalog.Resources != nil {
+			if resourceMeta, ok := dependencyCatalog.Resources[name]; ok {
+				copyMeta := resourceMeta
+				meta = &copyMeta
+			}
+		}
+		node := buildResourceDependencyNode(name, meta)
+		node.Source = "declared"
+		nodes = append(nodes, node)
+	}
+
+	if cfg.Dependencies.Scenarios != nil {
+		scenarioNames := make([]string, 0, len(cfg.Dependencies.Scenarios))
+		for name := range cfg.Dependencies.Scenarios {
+			scenarioNames = append(scenarioNames, name)
+		}
+		sort.Strings(scenarioNames)
+		for _, depName := range scenarioNames {
+			var meta *DeploymentDependency
+			if dependencyCatalog.Scenarios != nil {
+				if scenarioMeta, ok := dependencyCatalog.Scenarios[depName]; ok {
+					copyMeta := scenarioMeta
+					meta = &copyMeta
+				}
+			}
+			node := buildScenarioDependencyNode(scenariosDir, depName, meta, visited)
+			node.Source = "declared"
+			nodes = append(nodes, node)
+		}
+	}
+
+	sort.SliceStable(nodes, func(i, j int) bool {
+		if nodes[i].Type == nodes[j].Type {
+			return nodes[i].Name < nodes[j].Name
+		}
+		return nodes[i].Type < nodes[j].Type
+	})
+
+	return nodes
+}
+
+func buildResourceDependencyNode(name string, meta *DeploymentDependency) DeploymentDependencyNode {
+	node := DeploymentDependencyNode{
+		Name: name,
+		Type: "resource",
+	}
+	if meta == nil {
+		return node
+	}
+	node.ResourceType = meta.ResourceType
+	node.Requirements = meta.Footprint
+	node.TierSupport = convertTierSupportMap(meta.PlatformSupport)
+	node.Alternatives = collectDependencyAlternatives(meta)
+	return node
+}
+
+func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *DeploymentDependency, visited map[string]struct{}) DeploymentDependencyNode {
+	node := DeploymentDependencyNode{
+		Name: scenarioName,
+		Type: "scenario",
+	}
+
+	normalized := normalizeName(scenarioName)
+	if _, exists := visited[normalized]; exists {
+		node.Notes = "cycle detected"
+		if parentMeta != nil {
+			node.TierSupport = convertTierSupportMap(parentMeta.PlatformSupport)
+			node.Requirements = parentMeta.Footprint
+			node.Alternatives = collectDependencyAlternatives(parentMeta)
+		}
+		return node
+	}
+
+	if visited == nil {
+		visited = map[string]struct{}{}
+	}
+	visited[normalized] = struct{}{}
+	defer delete(visited, normalized)
+
+	scenarioPath := filepath.Join(scenariosDir, scenarioName)
+	node.Path = scenarioPath
+	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	if err != nil {
+		node.Notes = fmt.Sprintf("unable to load scenario: %v", err)
+		if parentMeta != nil {
+			node.TierSupport = convertTierSupportMap(parentMeta.PlatformSupport)
+			node.Requirements = parentMeta.Footprint
+			node.Alternatives = collectDependencyAlternatives(parentMeta)
+		}
+		return node
+	}
+
+	var scenarioTierSupport map[string]TierSupportSummary
+	if cfg.Deployment != nil {
+		node.Requirements = cfg.Deployment.AggregateRequirements
+		scenarioTierSupport = convertTierTierMap(cfg.Deployment.Tiers)
+		node.Alternatives = append(node.Alternatives, collectAdaptationAlternatives(cfg.Deployment.Tiers)...)
+	}
+
+	if node.Requirements == nil && parentMeta != nil {
+		node.Requirements = parentMeta.Footprint
+	}
+	fallbackSupport := convertTierSupportMap(nil)
+	if parentMeta != nil {
+		fallbackSupport = convertTierSupportMap(parentMeta.PlatformSupport)
+		node.Alternatives = append(node.Alternatives, collectDependencyAlternatives(parentMeta)...)
+	}
+	node.TierSupport = mergeTierSupportMaps(scenarioTierSupport, fallbackSupport)
+	node.Alternatives = dedupeStrings(node.Alternatives)
+	node.Children = buildDependencyNodeList(scenariosDir, scenarioName, cfg, visited)
+	return node
+}
+
+func convertTierSupportMap(support map[string]DependencyTierSupport) map[string]TierSupportSummary {
+	if len(support) == 0 {
+		return nil
+	}
+	result := make(map[string]TierSupportSummary, len(support))
+	for tier, value := range support {
+		result[tier] = TierSupportSummary{
+			Supported:    value.Supported,
+			FitnessScore: value.FitnessScore,
+			Reason:       value.Reason,
+			Notes:        value.Notes,
+			Requirements: value.Requirements,
+			Alternatives: append([]string(nil), value.Alternatives...),
+		}
+	}
+	return result
+}
+
+func convertTierTierMap(tiers map[string]DeploymentTier) map[string]TierSupportSummary {
+	if len(tiers) == 0 {
+		return nil
+	}
+	result := make(map[string]TierSupportSummary, len(tiers))
+	for tier, value := range tiers {
+		var supported *bool
+		switch strings.ToLower(value.Status) {
+		case "ready", "supported":
+			flag := true
+			supported = &flag
+		case "limited", "blocked":
+			flag := false
+			supported = &flag
+		}
+		result[tier] = TierSupportSummary{
+			Supported:    supported,
+			FitnessScore: value.FitnessScore,
+			Notes:        value.Notes,
+			Requirements: value.Requirements,
+		}
+	}
+	return result
+}
+
+func mergeTierSupportMaps(preferred, fallback map[string]TierSupportSummary) map[string]TierSupportSummary {
+	if len(preferred) == 0 && len(fallback) == 0 {
+		return nil
+	}
+	merged := make(map[string]TierSupportSummary)
+	for tier, value := range fallback {
+		merged[tier] = value
+	}
+	for tier, value := range preferred {
+		merged[tier] = value
+	}
+	return merged
+}
+
+func collectDependencyAlternatives(meta *DeploymentDependency) []string {
+	if meta == nil {
+		return nil
+	}
+	set := map[string]struct{}{}
+	for _, swap := range meta.SwappableWith {
+		if swap.ID == "" {
+			continue
+		}
+		set[swap.ID] = struct{}{}
+	}
+	for _, support := range meta.PlatformSupport {
+		for _, alt := range support.Alternatives {
+			if alt == "" {
+				continue
+			}
+			set[alt] = struct{}{}
+		}
+	}
+	return mapKeys(set)
+}
+
+func collectAdaptationAlternatives(tiers map[string]DeploymentTier) []string {
+	set := map[string]struct{}{}
+	for _, tier := range tiers {
+		for _, adaptation := range tier.Adaptations {
+			if adaptation.Swap == "" {
+				continue
+			}
+			set[adaptation.Swap] = struct{}{}
+		}
+	}
+	return mapKeys(set)
+}
+
+func computeTierAggregates(nodes []DeploymentDependencyNode) map[string]DeploymentTierAggregate {
+	accum := map[string]*tierAccumulator{}
+	var walk func(DeploymentDependencyNode)
+	walk = func(node DeploymentDependencyNode) {
+		for tier, support := range node.TierSupport {
+			acc := accum[tier]
+			if acc == nil {
+				acc = &tierAccumulator{Blockers: map[string]struct{}{}}
+				accum[tier] = acc
+			}
+			acc.Count++
+			req := selectRequirements(node.Requirements, support.Requirements)
+			acc.RAM += req.RAMMB
+			acc.Disk += req.DiskMB
+			acc.CPU += req.CPUCores
+			if support.FitnessScore != nil {
+				acc.FitnessSum += *support.FitnessScore
+			}
+			if (support.Supported != nil && !*support.Supported) || (support.FitnessScore != nil && *support.FitnessScore < tierBlockerThreshold) {
+				acc.Blockers[node.Name] = struct{}{}
+			}
+		}
+		for _, child := range node.Children {
+			walk(child)
+		}
+	}
+	for _, node := range nodes {
+		walk(node)
+	}
+
+	result := make(map[string]DeploymentTierAggregate, len(accum))
+	for tier, acc := range accum {
+		if acc == nil || acc.Count == 0 {
+			continue
+		}
+		aggregate := DeploymentTierAggregate{
+			DependencyCount: acc.Count,
+			EstimatedRequirements: AggregatedRequirements{
+				RAMMB:    acc.RAM,
+				DiskMB:   acc.Disk,
+				CPUCores: acc.CPU,
+			},
+		}
+		aggregate.FitnessScore = acc.FitnessSum / float64(acc.Count)
+		aggregate.BlockingDependencies = mapKeys(acc.Blockers)
+		sort.Strings(aggregate.BlockingDependencies)
+		result[tier] = aggregate
+	}
+	return result
+}
+
+func selectRequirements(base, override *DeploymentRequirements) requirementNumbers {
+	if override != nil {
+		if numbers := requirementsToNumbers(override); numbers.hasValues() {
+			return numbers
+		}
+	}
+	return requirementsToNumbers(base)
+}
+
+func requirementsToNumbers(req *DeploymentRequirements) requirementNumbers {
+	var numbers requirementNumbers
+	if req == nil {
+		return numbers
+	}
+	if req.RAMMB != nil {
+		numbers.RAMMB = *req.RAMMB
+	}
+	if req.DiskMB != nil {
+		numbers.DiskMB = *req.DiskMB
+	}
+	if req.CPUCores != nil {
+		numbers.CPUCores = *req.CPUCores
+	}
+	return numbers
+}
+
+type requirementNumbers struct {
+	RAMMB    float64
+	DiskMB   float64
+	CPUCores float64
+}
+
+func (r requirementNumbers) hasValues() bool {
+	return r.RAMMB != 0 || r.DiskMB != 0 || r.CPUCores != 0
+}
+
+type tierAccumulator struct {
+	RAM        float64
+	Disk       float64
+	CPU        float64
+	FitnessSum float64
+	Count      int
+	Blockers   map[string]struct{}
+}
+
+func persistDeploymentReport(scenarioPath string, report *DeploymentAnalysisReport) error {
+	if report == nil {
+		return nil
+	}
+	reportDir := filepath.Join(scenarioPath, ".vrooli", "deployment")
+	if err := os.MkdirAll(reportDir, 0755); err != nil {
+		return err
+	}
+	reportPath := filepath.Join(reportDir, fmt.Sprintf("%s.json", normalizeName(report.Scenario)))
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmpPath := reportPath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, reportPath)
+}
+
+func buildBundleManifest(scenarioName, scenarioPath string, generatedAt time.Time, nodes []DeploymentDependencyNode) BundleManifest {
+	return BundleManifest{
+		Scenario:     scenarioName,
+		GeneratedAt:  generatedAt,
+		Files:        discoverBundleFiles(scenarioName, scenarioPath),
+		Dependencies: flattenBundleDependencies(nodes),
+	}
+}
+
+func discoverBundleFiles(scenarioName, scenarioPath string) []BundleFileEntry {
+	candidates := []struct {
+		Path  string
+		Type  string
+		Notes string
+	}{
+		{Path: filepath.Join(".vrooli", "service.json"), Type: "service-config"},
+		{Path: "api", Type: "api-source"},
+		{Path: filepath.Join("api", fmt.Sprintf("%s-api", scenarioName)), Type: "api-binary"},
+		{Path: filepath.Join("ui", "dist"), Type: "ui-bundle"},
+		{Path: filepath.Join("ui", "dist", "index.html"), Type: "ui-entry"},
+		{Path: filepath.Join("cli", scenarioName), Type: "cli-binary"},
+	}
+	entries := make([]BundleFileEntry, 0, len(candidates))
+	for _, candidate := range candidates {
+		absolute := filepath.Join(scenarioPath, candidate.Path)
+		_, err := os.Stat(absolute)
+		entries = append(entries, BundleFileEntry{
+			Path:   filepath.ToSlash(candidate.Path),
+			Type:   candidate.Type,
+			Exists: err == nil,
+			Notes:  candidate.Notes,
+		})
+	}
+	return entries
+}
+
+func flattenBundleDependencies(nodes []DeploymentDependencyNode) []BundleDependencyEntry {
+	seen := map[string]BundleDependencyEntry{}
+	var walk func(DeploymentDependencyNode)
+	walk = func(node DeploymentDependencyNode) {
+		key := fmt.Sprintf("%s:%s", node.Type, node.Name)
+		if _, exists := seen[key]; !exists {
+			seen[key] = BundleDependencyEntry{
+				Name:         node.Name,
+				Type:         node.Type,
+				ResourceType: node.ResourceType,
+				TierSupport:  node.TierSupport,
+				Alternatives: dedupeStrings(node.Alternatives),
+			}
+		}
+		for _, child := range node.Children {
+			walk(child)
+		}
+	}
+	for _, node := range nodes {
+		walk(node)
+	}
+	entries := make([]BundleDependencyEntry, 0, len(seen))
+	for _, entry := range seen {
+		entries = append(entries, entry)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Type == entries[j].Type {
+			return entries[i].Name < entries[j].Name
+		}
+		return entries[i].Type < entries[j].Type
+	})
+	return entries
+}
+
+func buildDependencyNodeIndex(nodes []DeploymentDependencyNode) map[string]DeploymentDependencyNode {
+	index := map[string]DeploymentDependencyNode{}
+	var walk func(DeploymentDependencyNode)
+	walk = func(node DeploymentDependencyNode) {
+		key := strings.ToLower(node.Name)
+		if key != "" {
+			if _, exists := index[key]; !exists {
+				index[key] = node
+			}
+		}
+		for _, child := range node.Children {
+			walk(child)
+		}
+	}
+	for _, node := range nodes {
+		walk(node)
+	}
+	return index
+}
+
+func dedupeStrings(values []string) []string {
+	set := map[string]struct{}{}
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		set[value] = struct{}{}
+	}
+	return mapKeys(set)
+}
+
+func generateOptimizationRecommendations(scenarioName string, analysis *DependencyAnalysisResponse, cfg *ServiceConfig) []OptimizationRecommendation {
+	if analysis == nil {
+		return nil
+	}
+	timestamp := time.Now().UTC()
+	recommendations := []OptimizationRecommendation{}
+	recommendations = append(recommendations, buildUnusedResourceRecommendations(scenarioName, analysis, timestamp)...)
+	recommendations = append(recommendations, buildUnusedScenarioRecommendations(scenarioName, analysis, timestamp)...)
+	recommendations = append(recommendations, buildTierBlockerRecommendations(scenarioName, analysis, timestamp)...)
+	recommendations = append(recommendations, buildSecretStrategyRecommendations(scenarioName, cfg, timestamp)...)
+	sort.SliceStable(recommendations, func(i, j int) bool {
+		if recommendations[i].Priority == recommendations[j].Priority {
+			return recommendations[i].Title < recommendations[j].Title
+		}
+		priorityOrder := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3}
+		return priorityOrder[strings.ToLower(recommendations[i].Priority)] < priorityOrder[strings.ToLower(recommendations[j].Priority)]
+	})
+	return recommendations
+}
+
+func buildUnusedResourceRecommendations(scenarioName string, analysis *DependencyAnalysisResponse, timestamp time.Time) []OptimizationRecommendation {
+	if analysis == nil || len(analysis.ResourceDiff.Extra) == 0 {
+		return nil
+	}
+	recommendations := make([]OptimizationRecommendation, 0, len(analysis.ResourceDiff.Extra))
+	for _, drift := range analysis.ResourceDiff.Extra {
+		name := strings.TrimSpace(drift.Name)
+		if name == "" {
+			continue
+		}
+		recommendations = append(recommendations, OptimizationRecommendation{
+			ID:                 uuid.New().String(),
+			ScenarioName:       scenarioName,
+			RecommendationType: "dependency_reduction",
+			Title:              fmt.Sprintf("Remove unused resource '%s'", name),
+			Description:        fmt.Sprintf("Resource '%s' is declared but not detected in the scenario codebase.", name),
+			CurrentState: map[string]interface{}{
+				"declared": true,
+				"detected": false,
+				"details":  drift.Details,
+			},
+			RecommendedState: map[string]interface{}{
+				"action":        "remove_resource",
+				"resource_name": name,
+			},
+			EstimatedImpact: map[string]interface{}{
+				"complexity_score": -1,
+				"description":      "Removes unused infrastructure dependency",
+			},
+			ConfidenceScore: 0.85,
+			Priority:        "medium",
+			Status:          "pending",
+			CreatedAt:       timestamp,
+		})
+	}
+	return recommendations
+}
+
+func buildUnusedScenarioRecommendations(scenarioName string, analysis *DependencyAnalysisResponse, timestamp time.Time) []OptimizationRecommendation {
+	if analysis == nil || len(analysis.ScenarioDiff.Extra) == 0 {
+		return nil
+	}
+	recommendations := make([]OptimizationRecommendation, 0, len(analysis.ScenarioDiff.Extra))
+	for _, drift := range analysis.ScenarioDiff.Extra {
+		name := strings.TrimSpace(drift.Name)
+		if name == "" {
+			continue
+		}
+		recommendations = append(recommendations, OptimizationRecommendation{
+			ID:                 uuid.New().String(),
+			ScenarioName:       scenarioName,
+			RecommendationType: "dependency_reduction",
+			Title:              fmt.Sprintf("Remove unused scenario '%s'", name),
+			Description:        fmt.Sprintf("Scenario dependency '%s' is declared but not referenced in the codebase.", name),
+			CurrentState: map[string]interface{}{
+				"declared": true,
+				"detected": false,
+			},
+			RecommendedState: map[string]interface{}{
+				"action":          "remove_scenario_dependency",
+				"scenario_name":   name,
+				"dependency_type": "scenario",
+			},
+			EstimatedImpact: map[string]interface{}{
+				"complexity_score": -1,
+				"description":      "Removes unused scenario coupling",
+			},
+			ConfidenceScore: 0.8,
+			Priority:        "medium",
+			Status:          "pending",
+			CreatedAt:       timestamp,
+		})
+	}
+	return recommendations
+}
+
+func buildTierBlockerRecommendations(scenarioName string, analysis *DependencyAnalysisResponse, timestamp time.Time) []OptimizationRecommendation {
+	report := analysis.DeploymentReport
+	if report == nil || len(report.Dependencies) == 0 {
+		return nil
+	}
+	nodeIndex := buildDependencyNodeIndex(report.Dependencies)
+	recommendations := []OptimizationRecommendation{}
+	blockingByTier := map[string][]string{}
+	for tier, aggregate := range report.Aggregates {
+		for _, blocker := range aggregate.BlockingDependencies {
+			key := strings.ToLower(blocker)
+			blockingByTier[key] = append(blockingByTier[key], tier)
+		}
+	}
+	for blockerKey, tiers := range blockingByTier {
+		node, ok := nodeIndex[blockerKey]
+		if !ok {
+			continue
+		}
+		for _, tier := range tiers {
+			recommendations = append(recommendations, buildBlockerRecommendation(scenarioName, node, tier, timestamp))
+		}
+	}
+	return recommendations
+}
+
+func buildSecretStrategyRecommendations(scenarioName string, cfg *ServiceConfig, timestamp time.Time) []OptimizationRecommendation {
+	if cfg == nil || cfg.Deployment == nil || len(cfg.Deployment.Tiers) == 0 {
+		return nil
+	}
+	recommendations := []OptimizationRecommendation{}
+	for tierName, tier := range cfg.Deployment.Tiers {
+		for _, secret := range tier.Secrets {
+			if strings.TrimSpace(secret.StrategyRef) != "" {
+				continue
+			}
+			recommendations = append(recommendations, OptimizationRecommendation{
+				ID:                 uuid.New().String(),
+				ScenarioName:       scenarioName,
+				RecommendationType: "performance_improvement",
+				Title:              fmt.Sprintf("Annotate secret '%s' on %s", secret.SecretID, tierName),
+				Description:        fmt.Sprintf("Secret '%s' on tier '%s' lacks a strategy reference. Link it to a secrets-manager playbook to unblock deployment readiness.", secret.SecretID, tierName),
+				CurrentState: map[string]interface{}{
+					"tier":           tierName,
+					"secret_id":      secret.SecretID,
+					"classification": secret.Classification,
+				},
+				RecommendedState: map[string]interface{}{
+					"action":    "annotate_secret_strategy",
+					"tier":      tierName,
+					"secret_id": secret.SecretID,
+					"guidance":  "Use secrets-manager playbooks to define strategy_ref",
+				},
+				EstimatedImpact: map[string]interface{}{
+					"risk":        "secrets_gap",
+					"description": "Missing secret strategies block deployment",
+				},
+				ConfidenceScore: 0.75,
+				Priority:        "high",
+				Status:          "pending",
+				CreatedAt:       timestamp,
+			})
+		}
+	}
+	return recommendations
+}
+
+func buildBlockerRecommendation(scenarioName string, node DeploymentDependencyNode, tier string, timestamp time.Time) OptimizationRecommendation {
+	alt := ""
+	if len(node.Alternatives) > 0 {
+		alt = node.Alternatives[0]
+	}
+	tierSupport := map[string]interface{}{}
+	if node.TierSupport != nil {
+		if support, ok := node.TierSupport[tier]; ok {
+			tierSupport = map[string]interface{}{
+				"supported":     support.Supported,
+				"fitness_score": support.FitnessScore,
+				"notes":         support.Notes,
+				"alternatives":  support.Alternatives,
+			}
+		}
+	}
+	priority := "high"
+	if node.Type != "resource" {
+		priority = "medium"
+	}
+	estImpact := map[string]interface{}{
+		"tier":       tier,
+		"risk":       "deployment_blocker",
+		"dependency": node.Name,
+	}
+	return OptimizationRecommendation{
+		ID:                 uuid.New().String(),
+		ScenarioName:       scenarioName,
+		RecommendationType: "resource_swap",
+		Title:              fmt.Sprintf("Resolve %s blocker on %s", node.Name, tier),
+		Description:        fmt.Sprintf("Dependency '%s' blocks tier '%s'. Consider annotated alternatives or lighter swaps to restore fitness.", node.Name, tier),
+		CurrentState: map[string]interface{}{
+			"dependency":   node.Name,
+			"tier":         tier,
+			"tier_support": tierSupport,
+		},
+		RecommendedState: map[string]interface{}{
+			"action":                "swap_dependency",
+			"dependency":            node.Name,
+			"tier":                  tier,
+			"suggested_alternative": alt,
+		},
+		EstimatedImpact: estImpact,
+		ConfidenceScore: 0.7,
+		Priority:        priority,
+		Status:          "pending",
+		CreatedAt:       timestamp,
+	}
+}
+
+func mapKeys(set map[string]struct{}) []string {
+	if len(set) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(set))
+	for key := range set {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]ScenarioDependency, error) {
@@ -1451,6 +2400,27 @@ func analyzeAllScenarios() (map[string]*DependencyAnalysisResponse, error) {
 	return results, nil
 }
 
+func listScenarioNames() ([]string, error) {
+	scenariosDir := loadConfig().ScenariosDir
+	entries, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		return nil, err
+	}
+	names := []string{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		serviceConfigPath := filepath.Join(scenariosDir, entry.Name(), ".vrooli", "service.json")
+		if _, err := os.Stat(serviceConfigPath); os.IsNotExist(err) {
+			continue
+		}
+		names = append(names, entry.Name())
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
 func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 	nodes := []GraphNode{}
 	edges := []GraphEdge{}
@@ -1785,6 +2755,55 @@ func analyzeProposedHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+func optimizeHandler(c *gin.Context) {
+	var req OptimizationRequest
+	if c.Request.Body != nil {
+		if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+	scenario := strings.TrimSpace(req.Scenario)
+	if scenario == "" {
+		scenario = "all"
+	}
+	var targets []string
+	if scenario == "all" {
+		names, err := listScenarioNames()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		targets = names
+	} else {
+		if !isKnownScenario(scenario) {
+			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("scenario %s not found", scenario)})
+			return
+		}
+		targets = []string{scenario}
+	}
+	results := make(map[string]*OptimizationResult, len(targets))
+	for _, target := range targets {
+		result, err := runScenarioOptimization(target, req)
+		if err != nil {
+			results[target] = &OptimizationResult{
+				Scenario:          target,
+				Recommendations:   nil,
+				Summary:           OptimizationSummary{},
+				Applied:           false,
+				AnalysisTimestamp: time.Now().UTC(),
+				Error:             err.Error(),
+			}
+			continue
+		}
+		results[target] = result
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"results":      results,
+		"generated_at": time.Now().UTC(),
+	})
+}
+
 func loadScenarioMetadataMap() (map[string]ScenarioSummary, error) {
 	results := map[string]ScenarioSummary{}
 	if db == nil {
@@ -1850,6 +2869,34 @@ func loadStoredDependencies(scenarioName string) (map[string][]ScenarioDependenc
 	}
 
 	return result, nil
+}
+
+func loadOptimizationRecommendations(scenarioName string) ([]OptimizationRecommendation, error) {
+	if db == nil {
+		return nil, nil
+	}
+	rows, err := db.Query(`
+		SELECT id, scenario_name, recommendation_type, title, description, current_state, recommended_state, estimated_impact, confidence_score, priority, status, created_at
+		FROM optimization_recommendations
+		WHERE scenario_name = $1
+		ORDER BY created_at DESC`, scenarioName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	recommendations := []OptimizationRecommendation{}
+	for rows.Next() {
+		var rec OptimizationRecommendation
+		var currentJSON, recommendedJSON, estimatedJSON []byte
+		if err := rows.Scan(&rec.ID, &rec.ScenarioName, &rec.RecommendationType, &rec.Title, &rec.Description, &currentJSON, &recommendedJSON, &estimatedJSON, &rec.ConfidenceScore, &rec.Priority, &rec.Status, &rec.CreatedAt); err != nil {
+			continue
+		}
+		_ = json.Unmarshal(currentJSON, &rec.CurrentState)
+		_ = json.Unmarshal(recommendedJSON, &rec.RecommendedState)
+		_ = json.Unmarshal(estimatedJSON, &rec.EstimatedImpact)
+		recommendations = append(recommendations, rec)
+	}
+	return recommendations, nil
 }
 
 func filterDetectedDependencies(deps []ScenarioDependency) []ScenarioDependency {
@@ -2028,6 +3075,153 @@ func writeRawServiceConfigMap(scenarioPath string, cfg *orderedmap.OrderedMap) e
 	return os.WriteFile(serviceConfigPath, payload, 0644)
 }
 
+func persistOptimizationRecommendations(scenarioName string, recs []OptimizationRecommendation) error {
+	if db == nil {
+		return nil
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec("DELETE FROM optimization_recommendations WHERE scenario_name = $1", scenarioName); err != nil {
+		return err
+	}
+	insertStmt := `
+		INSERT INTO optimization_recommendations
+		(id, scenario_name, recommendation_type, title, description, current_state, recommended_state, estimated_impact, confidence_score, priority, status, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+	`
+	for _, rec := range recs {
+		currentJSON, _ := json.Marshal(rec.CurrentState)
+		recommendedJSON, _ := json.Marshal(rec.RecommendedState)
+		estimatedJSON, _ := json.Marshal(rec.EstimatedImpact)
+		if _, err := tx.Exec(insertStmt,
+			rec.ID,
+			rec.ScenarioName,
+			rec.RecommendationType,
+			rec.Title,
+			rec.Description,
+			currentJSON,
+			recommendedJSON,
+			estimatedJSON,
+			rec.ConfidenceScore,
+			rec.Priority,
+			rec.Status,
+			rec.CreatedAt,
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func buildOptimizationSummary(recs []OptimizationRecommendation) OptimizationSummary {
+	summary := OptimizationSummary{
+		RecommendationCount: len(recs),
+		ByType:              map[string]int{},
+		PotentialImpact:     map[string]int{},
+	}
+	for _, rec := range recs {
+		summary.ByType[rec.RecommendationType]++
+		if strings.EqualFold(rec.Priority, "high") || strings.EqualFold(rec.Priority, "critical") {
+			summary.HighPriority++
+		}
+		if action, ok := rec.RecommendedState["action"].(string); ok {
+			summary.PotentialImpact[action]++
+		}
+	}
+	return summary
+}
+
+func applyOptimizationRecommendations(scenarioName string, recs []OptimizationRecommendation) (map[string]interface{}, error) {
+	if len(recs) == 0 {
+		return map[string]interface{}{"changed": false}, nil
+	}
+	config := loadConfig()
+	scenarioPath := filepath.Join(config.ScenariosDir, scenarioName)
+	removedResources := []string{}
+	scenariosRemoved := []string{}
+	for _, rec := range recs {
+		action, _ := rec.RecommendedState["action"].(string)
+		switch action {
+		case "remove_resource":
+			resourceName, _ := rec.RecommendedState["resource_name"].(string)
+			if resourceName == "" {
+				continue
+			}
+			removed, err := removeResourceFromServiceConfig(scenarioPath, resourceName)
+			if err != nil {
+				return nil, err
+			}
+			if removed {
+				removedResources = append(removedResources, resourceName)
+			}
+		case "remove_scenario_dependency":
+			depName, _ := rec.RecommendedState["scenario_name"].(string)
+			if depName == "" {
+				continue
+			}
+			removed, err := removeScenarioDependencyFromServiceConfig(scenarioPath, depName)
+			if err != nil {
+				return nil, err
+			}
+			if removed {
+				scenariosRemoved = append(scenariosRemoved, depName)
+			}
+		}
+	}
+	changed := len(removedResources) > 0 || len(scenariosRemoved) > 0
+	if changed {
+		cfg, err := loadServiceConfigFromFile(scenarioPath)
+		if err == nil {
+			_ = updateScenarioMetadata(scenarioName, cfg, scenarioPath)
+		}
+		refreshDependencyCatalogs()
+	}
+	return map[string]interface{}{
+		"changed":           changed,
+		"resources_removed": removedResources,
+		"scenarios_removed": scenariosRemoved,
+	}, nil
+}
+
+func removeResourceFromServiceConfig(scenarioPath, resourceName string) (bool, error) {
+	raw, err := loadRawServiceConfigMap(scenarioPath)
+	if err != nil {
+		return false, err
+	}
+	deps := ensureOrderedMap(raw, "dependencies")
+	resources := ensureOrderedMap(deps, "resources")
+	if _, ok := resources.Get(resourceName); !ok {
+		return false, nil
+	}
+	resources.Delete(resourceName)
+	reordered := reorderTopLevelKeys(raw)
+	if err := writeRawServiceConfigMap(scenarioPath, reordered); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func removeScenarioDependencyFromServiceConfig(scenarioPath, scenarioName string) (bool, error) {
+	raw, err := loadRawServiceConfigMap(scenarioPath)
+	if err != nil {
+		return false, err
+	}
+	deps := ensureOrderedMap(raw, "dependencies")
+	scenarios := ensureOrderedMap(deps, "scenarios")
+	if _, ok := scenarios.Get(scenarioName); !ok {
+		return false, nil
+	}
+	scenarios.Delete(scenarioName)
+	reordered := reorderTopLevelKeys(raw)
+	if err := writeRawServiceConfigMap(scenarioPath, reordered); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func ensureOrderedMap(parent *orderedmap.OrderedMap, key string) *orderedmap.OrderedMap {
 	if parent == nil {
 		return orderedmap.New()
@@ -2164,6 +3358,11 @@ func getScenarioDetailHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	optRecs, err := loadOptimizationRecommendations(scenarioName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	declaredResources := resolvedResourceMap(cfg)
 
@@ -2185,15 +3384,16 @@ func getScenarioDetailHandler(c *gin.Context) {
 	}
 
 	detail := ScenarioDetailResponse{
-		Scenario:           scenarioName,
-		DisplayName:        cfg.Service.DisplayName,
-		Description:        cfg.Service.Description,
-		LastScanned:        lastScanned,
-		DeclaredResources:  declaredResources,
-		DeclaredScenarios:  declaredScenarios,
-		StoredDependencies: stored,
-		ResourceDiff:       resourceDiff,
-		ScenarioDiff:       scenarioDiff,
+		Scenario:                    scenarioName,
+		DisplayName:                 cfg.Service.DisplayName,
+		Description:                 cfg.Service.Description,
+		LastScanned:                 lastScanned,
+		DeclaredResources:           declaredResources,
+		DeclaredScenarios:           declaredScenarios,
+		StoredDependencies:          stored,
+		ResourceDiff:                resourceDiff,
+		ScenarioDiff:                scenarioDiff,
+		OptimizationRecommendations: optRecs,
 	}
 
 	c.JSON(http.StatusOK, detail)
@@ -2588,6 +3788,7 @@ func main() {
 		api.POST("/scenarios/:scenario/scan", scanScenarioHandler)
 		api.GET("/graph/:type", getGraphHandler)
 		api.POST("/analyze/proposed", analyzeProposedHandler)
+		api.POST("/optimize", optimizeHandler)
 	}
 
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", config.Port)

@@ -143,6 +143,9 @@ scenario-dependency-analyzer analyze your-scenario --output json
 
 # Generate optimization recommendations
 scenario-dependency-analyzer optimize your-scenario
+
+# Apply safe dependency reductions automatically
+scenario-dependency-analyzer optimize your-scenario --apply --type resource
 ```
 
 ### For Capability Planning

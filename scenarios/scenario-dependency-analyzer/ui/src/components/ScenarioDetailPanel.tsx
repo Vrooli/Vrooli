@@ -4,6 +4,7 @@ import type {
   DependencyDiffEntry,
   ScenarioDependencyRecord,
 } from "../types";
+import { OptimizationPanel } from "./OptimizationPanel";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -13,6 +14,8 @@ interface ScenarioDetailPanelProps {
   loading: boolean;
   scanning: boolean;
   onScan: (options?: { apply?: boolean }) => void;
+  optimizing: boolean;
+  onOptimize: (options?: { apply?: boolean }) => void;
 }
 
 function DiffList({ title, entries, tone }: { title: string; entries: DependencyDiffEntry[]; tone: "warning" | "info" }) {
@@ -86,7 +89,7 @@ function DependencySection({
   );
 }
 
-export function ScenarioDetailPanel({ detail, loading, scanning, onScan }: ScenarioDetailPanelProps) {
+export function ScenarioDetailPanel({ detail, loading, scanning, optimizing, onScan, onOptimize }: ScenarioDetailPanelProps) {
   if (loading) {
     return (
       <Card className="border border-border/40">
@@ -132,6 +135,14 @@ export function ScenarioDetailPanel({ detail, loading, scanning, onScan }: Scena
             {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             Scan & apply
           </Button>
+          <Button variant="outline" disabled={optimizing} onClick={() => onOptimize()} className="gap-2">
+            {optimizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Optimize
+          </Button>
+          <Button variant="outline" disabled={optimizing} onClick={() => onOptimize({ apply: true })} className="gap-2">
+            {optimizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Optimize & apply
+          </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -167,6 +178,8 @@ export function ScenarioDetailPanel({ detail, loading, scanning, onScan }: Scena
             emptyLabel="No scenario interactions detected yet."
           />
         </div>
+
+        <OptimizationPanel recommendations={detail.optimization_recommendations ?? []} />
       </CardContent>
     </Card>
   );

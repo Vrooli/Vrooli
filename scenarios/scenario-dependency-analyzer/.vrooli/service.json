@@ -234,7 +234,7 @@
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
+            "type": "seed"
           }
         ]
       },

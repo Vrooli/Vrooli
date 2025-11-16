@@ -17,6 +17,7 @@ export function useScenarioCatalog() {
   const [detail, setDetail] = useState<ScenarioDetailResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
+  const [optimizeLoading, setOptimizeLoading] = useState(false);
 
   const fetchSummaries = useCallback(async () => {
     try {
@@ -86,6 +87,36 @@ export function useScenarioCatalog() {
     [apiBase, fetchDetail, fetchSummaries]
   );
 
+  const optimizeScenario = useCallback(
+    async (name: string, options?: { apply?: boolean }) => {
+      try {
+        setOptimizeLoading(true);
+        const response = await fetch(buildApiUrl("/optimize", { baseUrl: apiBase }), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            scenario: name,
+            type: "all",
+            apply: options?.apply ?? false
+          })
+        });
+        if (!response.ok) {
+          throw new Error("Optimization failed");
+        }
+        await response.json();
+        await fetchDetail(name);
+        await fetchSummaries();
+      } catch (error) {
+        console.error("Failed to optimize scenario", error);
+      } finally {
+        setOptimizeLoading(false);
+      }
+    },
+    [apiBase, fetchDetail, fetchSummaries]
+  );
+
   useEffect(() => {
     fetchSummaries().catch((error) => console.error(error));
   }, [fetchSummaries]);
@@ -97,8 +128,10 @@ export function useScenarioCatalog() {
     detail,
     detailLoading,
     scanLoading,
+     optimizeLoading,
     selectScenario,
     refreshSummaries: fetchSummaries,
-    scanScenario
+    scanScenario,
+    optimizeScenario
   };
 }

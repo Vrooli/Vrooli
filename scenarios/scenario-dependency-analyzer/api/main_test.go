@@ -1,10 +1,10 @@
-
 package main
 
 import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -272,6 +272,343 @@ func TestGetDependenciesHandler(t *testing.T) {
 			t.Errorf("Expected empty resources for non-existent scenario")
 		}
 	})
+}
+
+func TestGenerateOptimizationRecommendations(t *testing.T) {
+	analysis := &DependencyAnalysisResponse{
+		ResourceDiff: DependencyDiff{
+			Extra: []DependencyDrift{{Name: "redis"}},
+		},
+	}
+	recommendations := generateOptimizationRecommendations("sample", analysis, nil)
+	if len(recommendations) == 0 {
+		t.Fatalf("expected recommendation for unused resource")
+	}
+	found := false
+	for _, rec := range recommendations {
+		if rec.RecommendationType == "dependency_reduction" && rec.RecommendedState["resource_name"] == "redis" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected dependency reduction recommendation: %+v", recommendations)
+	}
+}
+
+func TestBuildTierBlockerRecommendations(t *testing.T) {
+	fitness := 0.3
+	report := &DeploymentAnalysisReport{
+		Aggregates: map[string]DeploymentTierAggregate{
+			"tier-2": {BlockingDependencies: []string{"postgres"}},
+		},
+		Dependencies: []DeploymentDependencyNode{
+			{
+				Name: "postgres",
+				Type: "resource",
+				TierSupport: map[string]TierSupportSummary{
+					"tier-2": {
+						Supported:    boolPtr(false),
+						FitnessScore: &fitness,
+					},
+				},
+				Alternatives: []string{"sqlite"},
+			},
+		},
+	}
+	analysis := &DependencyAnalysisResponse{DeploymentReport: report}
+	recommendations := generateOptimizationRecommendations("sample", analysis, nil)
+	if len(recommendations) == 0 {
+		t.Fatalf("expected recommendation for blocker")
+	}
+	foundSwap := false
+	for _, rec := range recommendations {
+		if rec.RecommendationType == "resource_swap" && rec.RecommendedState["suggested_alternative"] == "sqlite" {
+			foundSwap = true
+		}
+	}
+	if !foundSwap {
+		t.Fatalf("expected swap recommendation: %+v", recommendations)
+	}
+}
+
+func TestBuildUnusedScenarioRecommendations(t *testing.T) {
+	analysis := &DependencyAnalysisResponse{
+		ScenarioDiff: DependencyDiff{
+			Extra: []DependencyDrift{{Name: "legacy-tool"}},
+		},
+	}
+	recs := buildUnusedScenarioRecommendations("sample", analysis, time.Now())
+	if len(recs) != 1 {
+		t.Fatalf("expected unused scenario recommendation")
+	}
+	if recs[0].RecommendedState["scenario_name"] != "legacy-tool" {
+		t.Fatalf("unexpected recommended scenario: %+v", recs[0])
+	}
+}
+
+func TestBuildSecretStrategyRecommendations(t *testing.T) {
+	cfg := &ServiceConfig{Deployment: &ServiceDeployment{Tiers: map[string]DeploymentTier{
+		"tier-2": {
+			Secrets: []DeploymentTierSecret{{SecretID: "api-key", StrategyRef: ""}},
+		},
+	}}}
+	recs := buildSecretStrategyRecommendations("sample", cfg, time.Now())
+	if len(recs) != 1 {
+		t.Fatalf("expected secret strategy recommendation")
+	}
+	if recs[0].RecommendedState["action"] != "annotate_secret_strategy" {
+		t.Fatalf("unexpected action: %+v", recs[0])
+	}
+}
+
+func TestRemoveScenarioDependencyFromServiceConfig(t *testing.T) {
+	env := setupTempScenarios(t)
+	cfg := newTestServiceConfig("removal-app")
+	cfg.Dependencies.Scenarios["helper-app"] = ScenarioDependencySpec{Required: true, Description: "helper"}
+	scenarioPath := writeTestServiceConfig(t, env.ScenariosDir, "removal-app", cfg)
+	removed, err := removeScenarioDependencyFromServiceConfig(scenarioPath, "helper-app")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !removed {
+		t.Fatalf("expected scenario dependency removal")
+	}
+}
+
+func TestBuildDeploymentReportAggregates(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	if err := os.Setenv("VROOLI_SCENARIOS_DIR", env.ScenariosDir); err != nil {
+		t.Fatalf("failed to set scenarios dir: %v", err)
+	}
+
+	childCfg := newTestServiceConfig("child-app")
+	childCfg.Dependencies.Resources = map[string]Resource{
+		"redis": {
+			Type:     "cache",
+			Required: true,
+		},
+	}
+	childCfg.Deployment = &ServiceDeployment{
+		AggregateRequirements: &DeploymentRequirements{
+			RAMMB:    floatPtr(256),
+			DiskMB:   floatPtr(256),
+			CPUCores: floatPtr(0.5),
+		},
+		Tiers: map[string]DeploymentTier{
+			"tier-2-desktop": {
+				Status:       "limited",
+				FitnessScore: floatPtr(0.4),
+			},
+		},
+		Dependencies: DeploymentDependencyCatalog{
+			Resources: map[string]DeploymentDependency{
+				"redis": {
+					Footprint: &DeploymentRequirements{
+						RAMMB:    floatPtr(256),
+						DiskMB:   floatPtr(128),
+						CPUCores: floatPtr(0.5),
+					},
+				},
+			},
+		},
+	}
+	childPath := writeTestServiceConfig(t, env.ScenariosDir, "child-app", childCfg)
+
+	rootCfg := newTestServiceConfig("root-app")
+	rootCfg.Dependencies.Resources = map[string]Resource{
+		"postgres": {
+			Type:     "database",
+			Required: true,
+		},
+	}
+	rootCfg.Dependencies.Scenarios = map[string]ScenarioDependencySpec{
+		"child-app": {
+			Required: true,
+		},
+	}
+	rootCfg.Deployment = &ServiceDeployment{
+		AggregateRequirements: &DeploymentRequirements{
+			RAMMB:    floatPtr(1024),
+			DiskMB:   floatPtr(2048),
+			CPUCores: floatPtr(1),
+		},
+		Tiers: map[string]DeploymentTier{
+			"tier-1-local": {
+				Status:       "ready",
+				FitnessScore: floatPtr(0.95),
+			},
+			"tier-2-desktop": {
+				Status:       "limited",
+				FitnessScore: floatPtr(0.6),
+				Adaptations: []DeploymentAdaptation{
+					{Swap: "sqlite"},
+				},
+			},
+		},
+		Dependencies: DeploymentDependencyCatalog{
+			Resources: map[string]DeploymentDependency{
+				"postgres": {
+					ResourceType: "database",
+					Footprint: &DeploymentRequirements{
+						RAMMB:    floatPtr(512),
+						DiskMB:   floatPtr(1024),
+						CPUCores: floatPtr(1),
+					},
+					PlatformSupport: map[string]DependencyTierSupport{
+						"tier-1-local": {
+							Supported:    boolPtr(true),
+							FitnessScore: floatPtr(0.95),
+						},
+						"tier-2-desktop": {
+							Supported:    boolPtr(false),
+							FitnessScore: floatPtr(0.3),
+							Alternatives: []string{"sqlite"},
+						},
+					},
+					SwappableWith: []DependencySwap{{ID: "sqlite"}},
+				},
+			},
+			Scenarios: map[string]DeploymentDependency{
+				"child-app": {
+					PlatformSupport: map[string]DependencyTierSupport{
+						"tier-2-desktop": {
+							Supported:    boolPtr(false),
+							FitnessScore: floatPtr(0.5),
+							Alternatives: []string{"lite-mode"},
+						},
+					},
+				},
+			},
+		},
+	}
+	rootPath := writeTestServiceConfig(t, env.ScenariosDir, "root-app", rootCfg)
+
+	rootConfig, err := loadServiceConfigFromFile(rootPath)
+	if err != nil {
+		t.Fatalf("failed to load root service config: %v", err)
+	}
+
+	report := buildDeploymentReport("root-app", rootPath, env.ScenariosDir, rootConfig)
+	if report == nil {
+		t.Fatalf("expected deployment report")
+	}
+	if err := persistDeploymentReport(rootPath, report); err != nil {
+		t.Fatalf("failed to persist deployment report: %v", err)
+	}
+
+	if len(report.Dependencies) == 0 {
+		t.Fatalf("expected dependencies to be reported")
+	}
+
+	desktopAggregate, ok := report.Aggregates["tier-2-desktop"]
+	if !ok {
+		t.Fatalf("expected tier-2-desktop aggregate")
+	}
+	if desktopAggregate.DependencyCount == 0 {
+		t.Fatalf("expected dependency count in aggregate")
+	}
+	if !containsString(desktopAggregate.BlockingDependencies, "postgres") {
+		t.Fatalf("expected postgres to be marked as blocking: %+v", desktopAggregate.BlockingDependencies)
+	}
+
+	if !bundleHasFile(report.BundleManifest.Files, ".vrooli/service.json") {
+		t.Fatalf("expected bundle manifest to include service.json")
+	}
+	if !dependencyHasAlternative(report.BundleManifest.Dependencies, "postgres", "sqlite") {
+		t.Fatalf("expected postgres to surface sqlite alternative")
+	}
+
+	if _, err := os.Stat(filepath.Join(rootPath, ".vrooli", "deployment", "root-app.json")); err != nil {
+		t.Fatalf("expected deployment report file to exist: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(childPath, ".vrooli", "service.json")); err != nil {
+		t.Fatalf("child scenario missing service.json: %v", err)
+	}
+}
+
+func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *ServiceConfig) string {
+	t.Helper()
+	scenarioPath := filepath.Join(scenariosDir, name)
+	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0755); err != nil {
+		t.Fatalf("failed to create scenario dirs: %v", err)
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal service config: %v", err)
+	}
+	servicePath := filepath.Join(scenarioPath, ".vrooli", "service.json")
+	if err := os.WriteFile(servicePath, data, 0644); err != nil {
+		t.Fatalf("failed to write service config: %v", err)
+	}
+	return scenarioPath
+}
+
+func newTestServiceConfig(name string) *ServiceConfig {
+	cfg := &ServiceConfig{Schema: "https://example.com/test.schema.json", Version: "1.0.0"}
+	cfg.Service.Name = name
+	cfg.Service.DisplayName = name
+	cfg.Service.Description = "test"
+	cfg.Service.Version = "1.0.0"
+	cfg.Service.Tags = []string{"test"}
+	cfg.Dependencies.Resources = map[string]Resource{}
+	cfg.Dependencies.Scenarios = map[string]ScenarioDependencySpec{}
+	return cfg
+}
+
+func boolPtr(v bool) *bool { return &v }
+
+func floatPtr(v float64) *float64 { return &v }
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func bundleHasFile(entries []BundleFileEntry, target string) bool {
+	for _, entry := range entries {
+		if entry.Path == target && entry.Exists {
+			return true
+		}
+	}
+	return false
+}
+
+func dependencyHasAlternative(entries []BundleDependencyEntry, name, alternative string) bool {
+	for _, entry := range entries {
+		if entry.Name != name {
+			continue
+		}
+		for _, alt := range entry.Alternatives {
+			if alt == alternative {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+type tempScenarioEnv struct {
+	ScenariosDir string
+}
+
+func setupTempScenarios(t *testing.T) tempScenarioEnv {
+	t.Helper()
+	root := t.TempDir()
+	scenariosDir := filepath.Join(root, "scenarios")
+	if err := os.MkdirAll(scenariosDir, 0755); err != nil {
+		t.Fatalf("failed to create temp scenarios dir: %v", err)
+	}
+	return tempScenarioEnv{ScenariosDir: scenariosDir}
 }
 
 // TestLoadConfig tests configuration loading

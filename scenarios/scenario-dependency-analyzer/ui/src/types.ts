@@ -66,6 +66,19 @@ export interface ScenarioDependencyRecord {
   last_verified?: string;
 }
 
+export interface OptimizationRecommendation {
+  id: string;
+  scenario_name: string;
+  recommendation_type: string;
+  title: string;
+  description?: string;
+  priority?: string;
+  confidence_score?: number;
+  recommended_state?: Record<string, unknown>;
+  current_state?: Record<string, unknown>;
+  estimated_impact?: Record<string, unknown>;
+}
+
 export interface ScenarioDetailResponse {
   scenario: string;
   display_name: string;
@@ -80,6 +93,7 @@ export interface ScenarioDetailResponse {
   };
   resource_diff: DependencyDiffSummary;
   scenario_diff: DependencyDiffSummary;
+  optimization_recommendations?: OptimizationRecommendation[];
 }
 
 export interface HealthResponse {

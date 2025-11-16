@@ -764,36 +764,51 @@ cmd_optimize() {
     fi
     
     echo -e "${BLUE}🔧 Getting optimization recommendations for: $scenario${NC}"
-    
-    # For now, return helpful message about optimization
-    # In full implementation, this would call an optimization endpoint
+
+    local apply_flag
+    apply_flag=$(bool_to_json "$apply_safe")
+    local payload
+    payload=$(cat <<EOF
+{
+  "scenario": "${scenario}",
+  "type": "${opt_type}",
+  "apply": ${apply_flag}
+}
+EOF
+)
+
+    local response
+    response=$(api_request "POST" "/api/v1/optimize" "$payload")
+
     if [[ $json_output == true ]]; then
-        echo '{
-            "scenario": "'$scenario'",
-            "recommendations": [
-                {
-                    "type": "resource_swap",
-                    "title": "Use Redis for caching",
-                    "description": "Replace in-memory caching with Redis for better performance",
-                    "confidence": 0.8,
-                    "impact": "20% memory reduction"
-                }
-            ],
-            "message": "Optimization analysis in development"
-        }' | format_json
+        echo "$response" | format_json
+        return
+    fi
+
+    if command -v jq >/dev/null 2>&1; then
+        echo "$response" | jq -r '
+            .results | to_entries[] |
+            "Scenario: \(.key)",
+            (if (.value.error // "") != "" then
+                "  Error: \(.value.error)"
+             else
+                "  Recommendations: \(.value.summary.recommendation_count)",
+                "  High priority: \(.value.summary.high_priority // 0)",
+                (if (.value.recommendations | length) == 0 then
+                    "  No recommendations generated"
+                else
+                    (.value.recommendations[] | 
+                        "    - [\(.recommendation_type)] \(.title)",
+                        ("      Description: " + (.description // "n/a")),
+                        ("      Confidence: " + ((.confidence_score // 0) | tostring)),
+                        ("      Suggested action: " + (.recommended_state.action // "review"))
+                    )
+                end)
+             end),
+            ""
+        '
     else
-        echo -e "${YELLOW}⚠️  Optimization analysis is being enhanced${NC}"
-        echo ""
-        echo "Current capabilities:"
-        echo "  • Resource dependency analysis ✓"
-        echo "  • Scenario relationship mapping ✓"
-        echo "  • Dependency graph generation ✓"
-        echo ""
-        echo "Coming soon:"
-        echo "  • Automated optimization recommendations"
-        echo "  • Resource swap suggestions"
-        echo "  • Deployment size optimization"
-        echo "  • Cost reduction analysis"
+        echo "$response" | format_json
     fi
 }
 

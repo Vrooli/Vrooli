@@ -40,9 +40,11 @@ export default function App() {
     detail,
     detailLoading,
     scanLoading,
+    optimizeLoading,
     selectScenario,
     refreshSummaries,
-    scanScenario
+    scanScenario,
+    optimizeScenario
   } = useScenarioCatalog();
 
   const handleScenarioScan = useCallback(
@@ -51,6 +53,14 @@ export default function App() {
       void scanScenario(selectedScenario, options);
     },
     [scanScenario, selectedScenario]
+  );
+
+  const handleOptimize = useCallback(
+    (options?: { apply?: boolean }) => {
+      if (!selectedScenario) return;
+      void optimizeScenario(selectedScenario, options);
+    },
+    [optimizeScenario, selectedScenario]
   );
 
   const influentialNodes = useMemo(() => {
@@ -225,7 +235,9 @@ export default function App() {
             detail={detail}
             loading={detailLoading}
             scanning={scanLoading}
+            optimizing={optimizeLoading}
             onScan={handleScenarioScan}
+            onOptimize={handleOptimize}
           />
         </section>
       </main>
