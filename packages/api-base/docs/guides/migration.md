@@ -497,8 +497,8 @@ Use this checklist to ensure complete migration:
 ## Need Help?
 
 - Check the [Quick Start Guide](./quick-start.md) for basic setup
-- See [Client Usage](./client-usage.md) for detailed client patterns
-- See [Server Usage](./server-usage.md) for advanced server configuration
+- See [Client Usage](../api/client.md) for detailed client patterns
+- See [Server Usage](../api/server.md) for advanced server configuration
 - Review [Examples](../examples/) for complete working code
 
 ## Summary

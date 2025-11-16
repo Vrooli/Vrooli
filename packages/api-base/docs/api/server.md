@@ -873,6 +873,6 @@ process.on('SIGTERM', () => {
 
 - [Quick Start Guide](../guides/quick-start.md)
 - [Client API Reference](./client.md)
-- [Server Setup Guide](../guides/server-usage.md)
-- [Proxy Setup Guide](../guides/proxy-setup.md)
+- [Server Setup Guide](../examples/basic-scenario.md)
+- [Proxy Setup Guide](../guides/host-scenario-pattern.md)
 - [Runtime Configuration](../concepts/runtime-config.md)

@@ -9,10 +9,10 @@ This documentation follows a **hub-and-spokes** model, organized by purpose:
 ### 🚀 [Guides](./guides/) - Learn By Doing
 Step-by-step instructions for common tasks:
 - **[Quick Start](./guides/quick-start.md)** - Get running in 5 minutes
-- **[Client Usage](./guides/client-usage.md)** - Using the client-side API in your UI
-- **[Server Usage](./guides/server-usage.md)** - Setting up your scenario server
-- **[Proxy Setup](./guides/proxy-setup.md)** - Hosting embedded scenarios
-- **[Testing Guide](./guides/testing-guide.md)** - Testing scenarios in all contexts
+- **[Client Usage](./api/client.md)** - Using the client-side API in your UI
+- **[Server Usage](./api/server.md)** - Setting up your scenario server
+- **[Proxy Setup](./guides/host-scenario-pattern.md)** - Hosting embedded scenarios
+- **[Testing Guide](../TESTING.md)** - Testing scenarios in all contexts
 - **[Migration Guide](./guides/migration.md)** - Migrating from existing patterns
 
 ### 💡 [Concepts](./concepts/) - Understanding How It Works
@@ -47,16 +47,16 @@ Complete, working examples:
 → [Deployment Contexts](./concepts/deployment-contexts.md)
 
 **Set up my scenario's UI**
-→ [Client Usage Guide](./guides/client-usage.md)
+→ [Client Usage Guide](./api/client.md)
 
 **Set up my scenario's server**
-→ [Server Usage Guide](./guides/server-usage.md)
+→ [Server Usage Guide](./api/server.md)
 
 **Migrate from old patterns**
 → [Migration Guide](./guides/migration.md)
 
 **Host another scenario in an iframe**
-→ [Proxy Setup Guide](./guides/proxy-setup.md)
+→ [Proxy Setup Guide](./guides/host-scenario-pattern.md)
 
 **Look up a specific function**
 → [Client API Reference](./api/client.md) or [Server API Reference](./api/server.md)
@@ -65,7 +65,7 @@ Complete, working examples:
 → [Examples Directory](./examples/)
 
 **Test my scenario in all contexts**
-→ [Testing Guide](./guides/testing-guide.md)
+→ [Testing Guide](../TESTING.md)
 
 ## 🔑 Key Concepts
 

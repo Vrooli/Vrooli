@@ -477,10 +477,10 @@ import type { ResolveOptions } from '@vrooli/api-base/types'
 
 ## Next Steps
 
-- **[Client Usage Guide](./client-usage.md)** - Complete client-side patterns
-- **[Server Usage Guide](./server-usage.md)** - Advanced server configuration
+- **[Client Usage Guide](../api/client.md)** - Complete client-side patterns
+- **[Server Usage Guide](../api/server.md)** - Advanced server configuration
 - **[Deployment Contexts](../concepts/deployment-contexts.md)** - Understanding how resolution works
-- **[Testing Guide](./testing-guide.md)** - Testing in all contexts
+- **[Testing Guide](../../TESTING.md)** - Testing in all contexts
 
 ## Summary
 

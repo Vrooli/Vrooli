@@ -344,7 +344,7 @@ resolveApiBase()
 
 ## Testing Across Contexts
 
-See the [Testing Guide](../guides/testing-guide.md) for strategies to validate your scenario in all three contexts.
+See the [Testing Guide](../../TESTING.md) for strategies to validate your scenario in all three contexts.
 
 ## Summary
 
