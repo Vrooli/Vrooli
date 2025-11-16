@@ -1,9 +1,20 @@
-import React from 'react'
-import { BarChart3, Brain, Database, GitBranch, Network, Settings, Target, Zap } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowUpDown,
+  BarChart3,
+  Brain,
+  Check,
+  Database,
+  GitBranch,
+  Network,
+  Settings,
+  Target,
+  Zap
+} from 'lucide-react'
 import { getSectorIcon } from '../utils/icons'
 import { formatCurrency } from '../utils/formatters'
 import { formatStageTypeLabel } from '../utils/constants'
-import type { Sector, StrategicMilestone } from '../types/techTree'
+import type { Sector, SectorSortOption, StrategicMilestone } from '../types/techTree'
 
 interface InsightMetrics {
   averageSectorProgress: number
@@ -18,6 +29,8 @@ interface OverviewDashboardProps {
   milestones: StrategicMilestone[]
   insightMetrics: InsightMetrics
   onRequestNewStage: (options?: { sectorId?: string; stageType?: string }) => void
+  sectorSort: SectorSortOption
+  onSectorSortChange: (value: SectorSortOption) => void
 }
 
 const stageIcons = {
@@ -34,8 +47,43 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   onSelectSector,
   milestones,
   insightMetrics,
-  onRequestNewStage
+  onRequestNewStage,
+  sectorSort,
+  onSectorSortChange
 }) => {
+  const [sortOpen, setSortOpen] = useState(false)
+  const sortMenuRef = useRef<HTMLDivElement | null>(null)
+
+  const sortOptions: { value: SectorSortOption; label: string }[] = useMemo(
+    () => [
+      { value: 'most-progress', label: 'Most progress' },
+      { value: 'least-progress', label: 'Least progress' },
+      { value: 'most-strategic', label: 'Most strategic value' },
+      { value: 'least-strategic', label: 'Least strategic value' },
+      { value: 'alpha-asc', label: 'Name A-Z' },
+      { value: 'alpha-desc', label: 'Name Z-A' }
+    ],
+    []
+  )
+
+  const activeSortLabel = useMemo(() => {
+    const active = sortOptions.find((option) => option.value === sectorSort)
+    return active?.label || sortOptions[0].label
+  }, [sectorSort, sortOptions])
+
+  useEffect(() => {
+    if (!sortOpen) {
+      return
+    }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
+        setSortOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [sortOpen])
+
   return (
     <>
       <section className="insight-grid" aria-label="Strategic indicators">
@@ -66,15 +114,47 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 <p className="panel-subtitle">Track momentum and emerging strengths.</p>
               </div>
             </div>
-            <button
-              type="button"
-              className="panel-reset"
-              onClick={() => onSelectSector(sectors[0] || null)}
-              disabled={!sectors.length}
-            >
-              Reset focus
-            </button>
+            <div className="panel-header-actions" ref={sortMenuRef}>
+              <button
+                type="button"
+                className="panel-icon-button"
+                aria-haspopup="menu"
+                aria-expanded={sortOpen}
+                aria-label="Sort technology sectors"
+                onClick={() => setSortOpen((open) => !open)}
+                title={`Sorted by ${activeSortLabel}`}
+                disabled={!sectors.length}
+              >
+                <ArrowUpDown aria-hidden="true" />
+                <span className="sr-only">Sort technology sectors</span>
+              </button>
+              {sortOpen && (
+                <div className="panel-sort-menu" role="menu">
+                  {sortOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={sectorSort === option.value}
+                      className={`panel-sort-option ${
+                        sectorSort === option.value ? 'is-active' : ''
+                      }`}
+                      onClick={() => {
+                        onSectorSortChange(option.value)
+                        setSortOpen(false)
+                      }}
+                    >
+                      <span>{option.label}</span>
+                      {sectorSort === option.value && <Check aria-hidden="true" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+          <p className="panel-sort-label" aria-live="polite">
+            Sorted by <strong>{activeSortLabel}</strong>
+          </p>
 
           <div className="scrollable sector-list" role="list">
             {sectors.length === 0 ? (

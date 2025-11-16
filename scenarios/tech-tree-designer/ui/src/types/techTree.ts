@@ -156,3 +156,11 @@ export type ScenarioVisibilityPayload = {
 export type TreeViewMode = 'overview' | 'designer'
 
 export type GraphViewMode = 'tech-tree' | 'hybrid' | 'scenarios'
+
+export type SectorSortOption =
+  | 'most-progress'
+  | 'least-progress'
+  | 'most-strategic'
+  | 'least-strategic'
+  | 'alpha-asc'
+  | 'alpha-desc'

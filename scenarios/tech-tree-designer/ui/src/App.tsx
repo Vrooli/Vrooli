@@ -27,8 +27,52 @@ import type {
   StrategicMilestone,
   TechTreeSummary,
   TreeViewMode,
-  GraphViewMode
+  GraphViewMode,
+  SectorSortOption
 } from './types/techTree'
+
+const VIEW_MODE_STORAGE_KEY = 'techTreeDesigner:viewMode'
+const SECTOR_SORT_STORAGE_KEY = 'techTreeDesigner:sectorSort'
+
+const isSectorSortOption = (value: string | null): value is SectorSortOption =>
+  value === 'most-progress' ||
+  value === 'least-progress' ||
+  value === 'most-strategic' ||
+  value === 'least-strategic' ||
+  value === 'alpha-asc' ||
+  value === 'alpha-desc'
+
+const getStrategicValueScore = (sector: Sector) => {
+  const stageProgressTotal = sector.stages?.reduce(
+    (sum, stage) => sum + (stage.progress_percentage || 0),
+    0
+  )
+  const scenarioLinks = sector.stages?.reduce(
+    (sum, stage) => sum + (stage.scenario_mappings?.length || 0),
+    0
+  )
+  return (sector.progress_percentage || 0) * 2 + stageProgressTotal + scenarioLinks * 15
+}
+
+const sortSectorsByPreference = (items: Sector[], sort: SectorSortOption) => {
+  const sectors = [...items]
+  switch (sort) {
+    case 'most-progress':
+      return sectors.sort((a, b) => (b.progress_percentage || 0) - (a.progress_percentage || 0))
+    case 'least-progress':
+      return sectors.sort((a, b) => (a.progress_percentage || 0) - (b.progress_percentage || 0))
+    case 'most-strategic':
+      return sectors.sort((a, b) => getStrategicValueScore(b) - getStrategicValueScore(a))
+    case 'least-strategic':
+      return sectors.sort((a, b) => getStrategicValueScore(a) - getStrategicValueScore(b))
+    case 'alpha-asc':
+      return sectors.sort((a, b) => a.name.localeCompare(b.name))
+    case 'alpha-desc':
+      return sectors.sort((a, b) => b.name.localeCompare(a.name))
+    default:
+      return sectors
+  }
+}
 
 const App: React.FC = () => {
   const {
@@ -52,7 +96,20 @@ const App: React.FC = () => {
   } = useTechTreeData()
 
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null)
-  const [viewMode, setViewMode] = useState<TreeViewMode>('overview')
+  const [viewMode, setViewMode] = useState<TreeViewMode>(() => {
+    if (typeof window === 'undefined') {
+      return 'overview'
+    }
+    const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) as TreeViewMode | null
+    return stored === 'designer' ? 'designer' : 'overview'
+  })
+  const [sectorSort, setSectorSort] = useState<SectorSortOption>(() => {
+    if (typeof window === 'undefined') {
+      return 'most-progress'
+    }
+    const stored = window.localStorage.getItem(SECTOR_SORT_STORAGE_KEY)
+    return isSectorSortOption(stored) ? stored : 'most-progress'
+  })
 
   // New simplified graph view mode system
   const [graphViewMode, setGraphViewMode] = useState<GraphViewMode>('tech-tree')
@@ -113,11 +170,35 @@ const App: React.FC = () => {
     }
   }, [sectors, aiIdeasModal])
 
+  const sortedSectors = useMemo(() => sortSectorsByPreference(sectors, sectorSort), [
+    sectors,
+    sectorSort
+  ])
+
   useEffect(() => {
-    if (!loading && !treeLoading && sectors.length > 0 && !selectedSector) {
-      setSelectedSector(sectors[0])
+    if (!sortedSectors.length) {
+      setSelectedSector(null)
+      return
     }
-  }, [loading, treeLoading, sectors, selectedSector])
+    if (!loading && !treeLoading) {
+      const hasSelection = sortedSectors.some((sector) => sector.id === selectedSector?.id)
+      if (!hasSelection) {
+        setSelectedSector(sortedSectors[0])
+      }
+    }
+  }, [loading, treeLoading, sortedSectors, selectedSector])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode)
+    }
+  }, [viewMode])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(SECTOR_SORT_STORAGE_KEY, sectorSort)
+    }
+  }, [sectorSort])
 
   const scenarioEntryMap = useMemo(() => {
     const map = new Map<string, ScenarioCatalogEntry>()
@@ -280,7 +361,10 @@ const App: React.FC = () => {
 
   return (
     <main className="app-shell">
+      <ViewToggle viewMode={viewMode} onChange={setViewMode} />
+
       <AppHeader
+        viewMode={viewMode}
         techTrees={techTrees as TechTreeSummary[]}
         selectedTreeId={selectedTreeId}
         treeBadgeClass={treeBadgeClass}
@@ -305,16 +389,16 @@ const App: React.FC = () => {
         onToggleScenarioVisibility={handleScenarioVisibility}
       />
 
-      <ViewToggle viewMode={viewMode} onChange={setViewMode} />
-
       {viewMode === 'overview' ? (
         <OverviewDashboard
-          sectors={sectors}
+          sectors={sortedSectors}
           selectedSector={selectedSector}
           onSelectSector={setSelectedSector}
           milestones={milestones as StrategicMilestone[]}
           insightMetrics={insightMetrics}
           onRequestNewStage={stageModal.open}
+          sectorSort={sectorSort}
+          onSectorSortChange={setSectorSort}
         />
       ) : (
         <TechTreeCanvas

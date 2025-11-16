@@ -55,28 +55,39 @@ const GraphControls: React.FC<GraphControlsProps> = ({
     }
   }
 
+  const editModeTitle = isPersisting
+    ? 'Saving graph changes...'
+    : isEditMode
+      ? hasGraphChanges
+        ? 'Save and exit edit mode'
+        : 'Exit edit mode'
+      : 'Enter edit mode'
+
   return (
     <div className="tech-tree-actions">
       <button
         type="button"
-        className={`canvas-fullscreen-button${isFullscreen ? ' is-active' : ''}`}
+        className={`canvas-icon-button${isFullscreen ? ' is-active' : ''}`}
         onClick={onToggleFullscreen}
         aria-pressed={isFullscreen}
         aria-label={
           isFullscreen ? 'Exit full screen for tech tree graph' : 'Enter full screen for tech tree graph'
         }
+        title={
+          isFullscreen ? 'Exit full screen for tech tree graph' : 'Enter full screen for tech tree graph'
+        }
         disabled={!canFullscreen}
       >
         {isFullscreen ? (
-          <Minimize2 className="canvas-fullscreen-button__icon" aria-hidden="true" />
+          <Minimize2 className="canvas-icon-button__icon" aria-hidden="true" />
         ) : (
-          <Maximize2 className="canvas-fullscreen-button__icon" aria-hidden="true" />
+          <Maximize2 className="canvas-icon-button__icon" aria-hidden="true" />
         )}
-        <span>{isFullscreen ? 'Exit full screen' : 'Full screen'}</span>
+        <span className="sr-only">Toggle full screen</span>
       </button>
       <button
         type="button"
-        className={`graph-edit-toggle${autoLayoutEnabled ? ' is-active' : ''}`}
+        className={`canvas-icon-button${autoLayoutEnabled ? ' is-active' : ''}`}
         onClick={onToggleAutoLayout}
         aria-pressed={autoLayoutEnabled}
         aria-label={autoLayoutEnabled ? 'Disable automatic graph layout' : 'Enable automatic graph layout'}
@@ -87,28 +98,22 @@ const GraphControls: React.FC<GraphControlsProps> = ({
         }
         disabled={isEditMode}
       >
-        <Network className="graph-edit-toggle__icon" aria-hidden="true" />
-        <span>{autoLayoutEnabled ? 'Auto-Layout: ON' : 'Auto-Layout: OFF'}</span>
+        <Network className="canvas-icon-button__icon" aria-hidden="true" />
+        <span className="sr-only">Toggle automatic layout</span>
       </button>
       <button
         type="button"
-        className={`graph-edit-toggle${isEditMode ? ' is-active' : ''}`}
+        className={`canvas-icon-button${isEditMode ? ' is-active' : ''}${
+          isEditMode && hasGraphChanges ? ' has-pending' : ''
+        }`}
         onClick={onToggleEditMode}
         aria-pressed={isEditMode}
-        aria-label={isEditMode ? 'Save changes and exit edit mode' : 'Enter graph edit mode'}
-        title="Edit mode lets you drag stages or connect them. Exit edit mode to save."
+        aria-label={editModeTitle}
+        title={editModeTitle}
         disabled={isPersisting}
       >
-        <PenSquare className="graph-edit-toggle__icon" aria-hidden="true" />
-        <span>
-          {isPersisting
-            ? 'Saving graph...'
-            : isEditMode
-              ? hasGraphChanges
-                ? 'Save & exit edit mode'
-                : 'Exit edit mode'
-              : 'Enter edit mode'}
-        </span>
+        <PenSquare className="canvas-icon-button__icon" aria-hidden="true" />
+        <span className="sr-only">{editModeTitle}</span>
       </button>
       <div style={{ position: 'relative', display: 'inline-block' }}>
         <button

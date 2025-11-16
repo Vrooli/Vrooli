@@ -14,6 +14,7 @@ import { useAutoLayout, useAutoLayoutPreference } from '../../hooks/useAutoLayou
 import GraphCanvas from './GraphCanvas'
 import GraphControls from './GraphControls'
 import GraphNotifications from './GraphNotifications'
+import { Compass } from 'lucide-react'
 import type { ProgressionStage } from '../../types/techTree'
 import type {
   DesignerEdge,
@@ -447,6 +448,8 @@ const GraphView: React.FC<GraphViewProps> = ({
     }
   }, [selectedStageId, selectedScenarioName, stageLookup, onOpenStageDialog, onOpenScenarioDialog])
 
+  const showGraphEmptyState = graphNodes.length === 0
+
   return (
     <div
       ref={techTreeCanvasRef}
@@ -492,6 +495,15 @@ const GraphView: React.FC<GraphViewProps> = ({
       />
 
       <div className="tech-tree-graph-wrapper" onContextMenu={handleContextMenu}>
+        {showGraphEmptyState && (
+          <div className="graph-empty-state" aria-live="polite">
+            <Compass className="graph-empty-state__icon" aria-hidden="true" />
+            <h3>Initialize your tech tree</h3>
+            <p>
+              Select or create a tree, then add sectors to start visualizing the progression map.
+            </p>
+          </div>
+        )}
         <GraphCanvas
           nodes={graphNodes}
           edges={graphEdges}
