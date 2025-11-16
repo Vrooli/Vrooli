@@ -126,7 +126,8 @@ export const getDemoMilestones = (): StrategicMilestone[] => [
     description: 'Complete personal productivity and self-optimization capabilities',
     completion_percentage: 75,
     business_value_estimate: 10_000_000,
-    milestone_type: 'sector_complete'
+    milestone_type: 'sector_complete',
+    target_sector_ids: ['sector-1']
   },
   {
     id: 'milestone-2',
@@ -135,7 +136,8 @@ export const getDemoMilestones = (): StrategicMilestone[] => [
     description: 'Manufacturing, Healthcare, Finance digital twins operational',
     completion_percentage: 25,
     business_value_estimate: 1_000_000_000,
-    milestone_type: 'cross_sector_integration'
+    milestone_type: 'cross_sector_integration',
+    target_sector_ids: ['sector-2', 'sector-3', 'sector-4']
   },
   {
     id: 'milestone-3',
@@ -144,6 +146,7 @@ export const getDemoMilestones = (): StrategicMilestone[] => [
     description: 'Complete society-scale simulation integrating all sectors',
     completion_percentage: 5,
     business_value_estimate: 100_000_000_000,
-    milestone_type: 'civilization_twin'
+    milestone_type: 'civilization_twin',
+    target_sector_ids: ['sector-1', 'sector-2', 'sector-3', 'sector-4']
   }
 ]

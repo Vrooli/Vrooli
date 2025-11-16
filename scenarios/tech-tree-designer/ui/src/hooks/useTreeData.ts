@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getDemoMilestones, getDemoSectors } from '../utils/demoData'
-import type { Sector, StageDependency, StrategicMilestone } from '../types/techTree'
+import type {
+  ApiStrategicMilestone,
+  Sector,
+  StageDependency,
+  StrategicMilestone
+} from '../types/techTree'
 import { fetchDependencies, fetchMilestones, fetchSectors } from '../services/techTree'
 
 const attachStageMetadata = (sectorList: Sector[]): Sector[] => {
@@ -71,6 +76,36 @@ interface UseTreeDataParams {
  * Hook for fetching and managing tech tree data (sectors, dependencies, milestones)
  * for the currently selected tree.
  */
+const parseTargetIds = (raw: unknown): string[] => {
+  if (Array.isArray(raw)) {
+    return raw.map((value) => `${value}`).filter(Boolean)
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        return parsed.map((value) => `${value}`).filter(Boolean)
+      }
+    } catch (error) {
+      // Ignore JSON parsing errors and fall through to fallback.
+    }
+    return raw ? raw.split(',').map((value) => value.trim()).filter(Boolean) : []
+  }
+  return []
+}
+
+const normalizeMilestones = (payload: ApiStrategicMilestone[]): StrategicMilestone[] =>
+  payload.map((milestone) => {
+    const { required_sectors, required_stages, target_sector_ids, target_stage_ids, ...rest } = milestone
+    return {
+      ...rest,
+      target_sector_ids: target_sector_ids?.length
+        ? target_sector_ids
+        : parseTargetIds(required_sectors),
+      target_stage_ids: target_stage_ids?.length ? target_stage_ids : parseTargetIds(required_stages)
+    }
+  })
+
 const useTreeData = ({ selectedTreeId, treeLoading }: UseTreeDataParams) => {
   const [sectors, setSectors] = useState<Sector[]>([])
   const [milestones, setMilestones] = useState<StrategicMilestone[]>([])
@@ -98,8 +133,12 @@ const useTreeData = ({ selectedTreeId, treeLoading }: UseTreeDataParams) => {
         const sectorPayload = normalizedSectors.length ? normalizedSectors : fallbackSectors
         setSectors(sectorPayload)
 
-        const milestonePayload = (milestoneData.milestones || []) as StrategicMilestone[]
-        setMilestones(milestonePayload.length ? milestonePayload : (getDemoMilestones() as StrategicMilestone[]))
+        const milestonePayload = normalizeMilestones(
+          (milestoneData.milestones || []) as ApiStrategicMilestone[]
+        )
+        setMilestones(
+          milestonePayload.length ? milestonePayload : (getDemoMilestones() as StrategicMilestone[])
+        )
 
         const dependencyPayload = (dependencyData.dependencies || []) as StageDependency[]
         if (dependencyPayload.length) {

@@ -81,6 +81,70 @@ export interface StrategicMilestone {
   milestone_type: string
   business_value_estimate?: number
   completion_percentage?: number
+  target_sector_ids?: string[]
+  target_stage_ids?: string[]
+  confidence_level?: number
+}
+
+export interface ApiStrategicMilestone extends Omit<StrategicMilestone, 'target_sector_ids' | 'target_stage_ids'> {
+  target_sector_ids?: string[]
+  target_stage_ids?: string[]
+  required_sectors?: string[] | string | null
+  required_stages?: string[] | string | null
+}
+
+export interface StrategicValueSettings {
+  completionWeight: number
+  readinessWeight: number
+  influenceWeight: number
+  dependencyPenalty: number
+}
+
+export interface StrategicValueContribution {
+  id: string
+  name: string
+  baseValue: number
+  adjustedValue: number
+  completionScore: number
+  readinessScore: number
+  influenceScore: number
+  linkedSectors: string[]
+  linkedStages: StrategicStageReference[]
+}
+
+export interface SectorValueSummary {
+  sectorId: string
+  name: string
+  color?: string
+  readinessScore: number
+  influenceScore: number
+  progressPercentage: number
+  scenarioLinks: number
+  stageAverage: number
+  milestoneCount: number
+}
+
+export interface StrategicValueBreakdown {
+  fullPotentialValue: number
+  adjustedValue: number
+  lockedValue: number
+  contributions: StrategicValueContribution[]
+  sectorSummaries: SectorValueSummary[]
+}
+
+export interface StrategicStageReference {
+  stageId: string
+  stageName?: string
+  sectorId?: string
+  sectorName?: string
+}
+
+export interface StrategicValuePreset {
+  id: string
+  name: string
+  description?: string
+  settings: StrategicValueSettings
+  builtIn?: boolean
 }
 
 export interface ScenarioCatalogEntry {

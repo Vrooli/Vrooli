@@ -6,15 +6,30 @@ import {
   Check,
   Database,
   GitBranch,
+  Info,
   Network,
   Settings,
+  SlidersHorizontal,
   Target,
+  Trash2,
+  X,
   Zap
 } from 'lucide-react'
 import { getSectorIcon } from '../utils/icons'
 import { formatCurrency } from '../utils/formatters'
 import { formatStageTypeLabel } from '../utils/constants'
-import type { Sector, SectorSortOption, StrategicMilestone } from '../types/techTree'
+import type {
+  Sector,
+  SectorSortOption,
+  StrategicMilestone,
+  StrategicValuePreset,
+  StrategicValueBreakdown,
+  StrategicValueSettings
+} from '../types/techTree'
+import {
+  DEFAULT_STRATEGIC_VALUE_SETTINGS,
+  DEFAULT_STRATEGIC_VALUE_PRESET_ID
+} from '../utils/strategicValue'
 
 interface InsightMetrics {
   averageSectorProgress: number
@@ -31,6 +46,17 @@ interface OverviewDashboardProps {
   onRequestNewStage: (options?: { sectorId?: string; stageType?: string }) => void
   sectorSort: SectorSortOption
   onSectorSortChange: (value: SectorSortOption) => void
+  strategicValueBreakdown: StrategicValueBreakdown
+  strategicValueSettings: StrategicValueSettings
+  onStrategicValueSettingsChange: (settings: StrategicValueSettings) => void
+  isStrategicValuePanelOpen: boolean
+  onStrategicValuePanelToggle: (open?: boolean) => void
+  valuePresets: StrategicValuePreset[]
+  customValuePresets: StrategicValuePreset[]
+  activeValuePresetId: string | null
+  onApplyValuePreset: (presetId: string) => void
+  onCreateValuePreset: (payload: { name: string; description?: string }) => void
+  onDeleteValuePreset: (presetId: string) => void
 }
 
 const stageIcons = {
@@ -49,10 +75,24 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   insightMetrics,
   onRequestNewStage,
   sectorSort,
-  onSectorSortChange
+  onSectorSortChange,
+  strategicValueBreakdown,
+  strategicValueSettings,
+  onStrategicValueSettingsChange,
+  isStrategicValuePanelOpen,
+  onStrategicValuePanelToggle,
+  valuePresets,
+  customValuePresets,
+  activeValuePresetId,
+  onApplyValuePreset,
+  onCreateValuePreset,
+  onDeleteValuePreset
 }) => {
   const [sortOpen, setSortOpen] = useState(false)
   const sortMenuRef = useRef<HTMLDivElement | null>(null)
+  const [presetFormOpen, setPresetFormOpen] = useState(false)
+  const [presetName, setPresetName] = useState('')
+  const [presetDescription, setPresetDescription] = useState('')
 
   const sortOptions: { value: SectorSortOption; label: string }[] = useMemo(
     () => [
@@ -65,6 +105,90 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
     ],
     []
   )
+
+  const weightControls: Array<{
+    key: 'completionWeight' | 'readinessWeight' | 'influenceWeight'
+    label: string
+    description: string
+  }> = useMemo(
+    () => [
+      {
+        key: 'completionWeight',
+        label: 'Completion influence',
+        description: 'How much milestone completion drives the projection'
+      },
+      {
+        key: 'readinessWeight',
+        label: 'Readiness influence',
+        description: 'Accounts for sector maturity and stage progress'
+      },
+      {
+        key: 'influenceWeight',
+        label: 'Connectivity influence',
+        description: 'Rewards milestones that unlock cross-sector leverage'
+      }
+    ],
+    []
+  )
+
+  const topValueContributions = useMemo(() => {
+    return [...strategicValueBreakdown.contributions]
+      .sort((a, b) => b.adjustedValue - a.adjustedValue)
+      .slice(0, 4)
+  }, [strategicValueBreakdown.contributions])
+
+  const sectorHighlights = useMemo(() => {
+    return [...strategicValueBreakdown.sectorSummaries]
+      .sort(
+        (a, b) =>
+          b.readinessScore + b.influenceScore + b.milestoneCount * 0.1 -
+          (a.readinessScore + a.influenceScore + a.milestoneCount * 0.1)
+      )
+      .slice(0, 3)
+  }, [strategicValueBreakdown.sectorSummaries])
+
+  const penaltyPercent = Math.round((strategicValueSettings.dependencyPenalty || 0) * 100)
+
+  const handlePresetFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const trimmed = presetName.trim()
+    if (!trimmed) {
+      return
+    }
+    onCreateValuePreset({ name: trimmed, description: presetDescription.trim() })
+    setPresetFormOpen(false)
+    setPresetName('')
+    setPresetDescription('')
+  }
+
+  const handleWeightInputChange = (key: keyof StrategicValueSettings, rawValue: string) => {
+    const numericValue = Number(rawValue)
+    if (Number.isNaN(numericValue)) {
+      return
+    }
+    onStrategicValueSettingsChange({
+      ...strategicValueSettings,
+      [key]: numericValue
+    })
+  }
+
+  const handlePenaltyInputChange = (rawValue: string) => {
+    const numericValue = Number(rawValue)
+    if (Number.isNaN(numericValue)) {
+      return
+    }
+    onStrategicValueSettingsChange({
+      ...strategicValueSettings,
+      dependencyPenalty: Math.max(0, Math.min(1, numericValue / 100))
+    })
+  }
+
+  const handleResetValueModel = () => {
+    onApplyValuePreset(DEFAULT_STRATEGIC_VALUE_PRESET_ID)
+    setPresetFormOpen(false)
+    setPresetName('')
+    setPresetDescription('')
+  }
 
   const activeSortLabel = useMemo(() => {
     const active = sortOptions.find((option) => option.value === sectorSort)
@@ -97,12 +221,327 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           <div className="insight-value">{insightMetrics.activeMilestones}</div>
           <div className="insight-subtext">50%+ completion momentum</div>
         </div>
-        <div className="insight-card">
-          <div className="insight-label">Potential Strategic Value</div>
-          <div className="insight-value">{formatCurrency(insightMetrics.totalPotentialValue)}</div>
-          <div className="insight-subtext">Cumulative milestone value</div>
+        <div
+          className={`insight-card insight-card--interactive ${
+            isStrategicValuePanelOpen ? 'is-active' : ''
+          }`}
+        >
+          <button
+            type="button"
+            className="insight-card-button"
+            onClick={() => onStrategicValuePanelToggle()}
+            aria-pressed={isStrategicValuePanelOpen}
+            title="Inspect the strategic value model"
+          >
+            <div className="insight-label">Potential Strategic Value</div>
+            <div className="insight-value">{formatCurrency(insightMetrics.totalPotentialValue)}</div>
+            <div className="insight-subtext">
+              <span>Adjusted: {formatCurrency(strategicValueBreakdown.adjustedValue)}</span>
+              <span className="insight-link">{isStrategicValuePanelOpen ? 'Hide breakdown' : 'View breakdown'}</span>
+            </div>
+          </button>
         </div>
       </section>
+
+      {isStrategicValuePanelOpen && (
+        <section className="strategic-panel strategic-panel--value" aria-label="Strategic value breakdown">
+          <div className="panel-header">
+            <div className="panel-header-heading">
+              <BarChart3 className="panel-icon" aria-hidden="true" />
+              <div>
+                <h2 className="panel-title">Potential Strategic Value</h2>
+                <p className="panel-subtitle">Total upside if the current tree reaches 100% completion.</p>
+              </div>
+            </div>
+            <div className="panel-header-actions">
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={handleResetValueModel}
+              >
+                Reset model
+              </button>
+              <button
+                type="button"
+                className="panel-icon-button"
+                aria-label="Close strategic value breakdown"
+                onClick={() => onStrategicValuePanelToggle(false)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+
+          <section className="value-presets" aria-label="Valuation presets">
+            <div className="value-presets-head">
+              <div>
+                <h3>Valuation presets</h3>
+                <p>Snap between saved strategies instead of rebalancing sliders.</p>
+              </div>
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => setPresetFormOpen((open) => !open)}
+              >
+                {presetFormOpen ? 'Cancel' : 'Save current preset'}
+              </button>
+            </div>
+            <div className="value-preset-chip-group">
+              {valuePresets.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={`value-preset-chip ${
+                    activeValuePresetId === preset.id ? 'is-active' : ''
+                  }`}
+                  onClick={() => onApplyValuePreset(preset.id)}
+                  title={preset.description}
+                >
+                  <span>{preset.name}</span>
+                  {preset.builtIn && <span className="value-preset-chip-label">Default</span>}
+                </button>
+              ))}
+            </div>
+
+            {presetFormOpen && (
+              <form className="value-preset-form" onSubmit={handlePresetFormSubmit}>
+                <label>
+                  <span>Preset name</span>
+                  <input
+                    type="text"
+                    value={presetName}
+                    onChange={(event) => setPresetName(event.target.value)}
+                    placeholder="e.g. Efficiency push"
+                    required
+                  />
+                </label>
+                <label>
+                  <span>Description (optional)</span>
+                  <textarea
+                    value={presetDescription}
+                    onChange={(event) => setPresetDescription(event.target.value)}
+                    placeholder="What strategy does this reflect?"
+                    rows={2}
+                  />
+                </label>
+                <div className="value-preset-form-actions">
+                  <button type="submit" className="button" disabled={!presetName.trim()}>
+                    Save preset
+                  </button>
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={() => {
+                      setPresetFormOpen(false)
+                      setPresetName('')
+                      setPresetDescription('')
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {customValuePresets.length > 0 && (
+              <ul className="value-preset-list">
+                {customValuePresets.map((preset) => (
+                  <li key={preset.id}>
+                    <div>
+                      <strong>{preset.name}</strong>
+                      {preset.description && <p>{preset.description}</p>}
+                    </div>
+                    <button
+                      type="button"
+                      className="panel-icon-button"
+                      aria-label={`Delete ${preset.name} preset`}
+                      onClick={() => onDeleteValuePreset(preset.id)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <div className="value-summary-grid" role="presentation">
+            <article className="value-summary-card">
+              <div className="value-summary-label">Full potential</div>
+              <div className="value-summary-value">
+                {formatCurrency(strategicValueBreakdown.fullPotentialValue)}
+              </div>
+              <p className="value-summary-copy">Model assumes milestones hit 100% completion.</p>
+            </article>
+            <article className="value-summary-card">
+              <div className="value-summary-label">Counted today</div>
+              <div className="value-summary-value">
+                {formatCurrency(strategicValueBreakdown.adjustedValue)}
+              </div>
+              <p className="value-summary-copy">Applies completion, readiness, and influence weights.</p>
+            </article>
+            <article className="value-summary-card">
+              <div className="value-summary-label">Value locked</div>
+              <div className="value-summary-value">
+                {formatCurrency(strategicValueBreakdown.lockedValue)}
+              </div>
+              <p className="value-summary-copy">Gap between total potential and discounted view.</p>
+            </article>
+          </div>
+
+          <div className="value-breakdown-grid">
+            <section className="value-controls" aria-label="Strategic value weighting controls">
+              <header className="value-controls-head">
+                <SlidersHorizontal aria-hidden="true" />
+                <div>
+                  <h3>Model Weights</h3>
+                  <p>Adjust how each factor influences the active valuation.</p>
+                </div>
+              </header>
+              {weightControls.map((control) => (
+                <label key={control.key} className="value-control">
+                  <div className="value-control-heading">
+                    <span>{control.label}</span>
+                    <span>{strategicValueSettings[control.key]}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={strategicValueSettings[control.key]}
+                    onChange={(event) => handleWeightInputChange(control.key, event.target.value)}
+                    aria-label={control.label}
+                  />
+                  <p className="value-control-description">{control.description}</p>
+                </label>
+              ))}
+
+              <label className="value-control">
+                <div className="value-control-heading">
+                  <span>Dependency penalties</span>
+                  <span>{penaltyPercent}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={60}
+                  value={penaltyPercent}
+                  step={5}
+                  onChange={(event) => handlePenaltyInputChange(event.target.value)}
+                  aria-label="Dependency penalty"
+                />
+                <p className="value-control-description">
+                  Reduces credit for milestones with low completion despite critical dependencies.
+                </p>
+              </label>
+            </section>
+
+            <section className="value-contributions" aria-label="Top strategic value contributors">
+              <header className="value-contributions-head">
+                <Info aria-hidden="true" />
+                <div>
+                  <h3>Top Drivers</h3>
+                  <p>Highest contributors after applying the current model.</p>
+                </div>
+              </header>
+              {topValueContributions.length === 0 ? (
+                <div className="empty-state compact">
+                  <Zap className="empty-icon" aria-hidden="true" />
+                  <p>No milestones have valuation data yet.</p>
+                </div>
+              ) : (
+                topValueContributions.map((contribution) => (
+                  <article key={contribution.id} className="value-contribution-card">
+                    <header>
+                      <h4>{contribution.name}</h4>
+                      <span>{Math.round(contribution.completionScore * 100)}% complete</span>
+                    </header>
+                    <div className="value-contribution-amounts">
+                      <div>
+                        <span className="value-contribution-label">Potential</span>
+                        <strong>{formatCurrency(contribution.baseValue)}</strong>
+                      </div>
+                      <div>
+                        <span className="value-contribution-label">Counted</span>
+                        <strong>{formatCurrency(contribution.adjustedValue)}</strong>
+                      </div>
+                    </div>
+                    {contribution.linkedStages.length > 0 && (
+                      <div className="value-contribution-stages">
+                        {contribution.linkedStages.slice(0, 3).map((stage) => (
+                          <span key={stage.stageId}>
+                            {stage.stageName}
+                            {stage.sectorName ? ` (${stage.sectorName})` : ''}
+                          </span>
+                        ))}
+                        {contribution.linkedStages.length > 3 && (
+                          <span className="value-contribution-stage-more">
+                            +{contribution.linkedStages.length - 3} more nodes
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <footer>
+                      <span>Readiness {Math.round(contribution.readinessScore * 100)}%</span>
+                      <span>Influence {Math.round(contribution.influenceScore * 100)}%</span>
+                      {contribution.linkedSectors.length > 0 && (
+                        <span className="value-contribution-sectors">
+                          Targets {contribution.linkedSectors.length} sector
+                          {contribution.linkedSectors.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </footer>
+                  </article>
+                ))
+              )}
+            </section>
+          </div>
+
+          <section className="value-sector-highlights" aria-label="Sector readiness signals">
+            <header>
+              <Brain aria-hidden="true" />
+              <div>
+                <h3>Sector Signals</h3>
+                <p>Readiness and connectivity scores feeding the model.</p>
+              </div>
+            </header>
+            <div className="sector-highlight-grid">
+              {sectorHighlights.map((summary) => (
+                <article key={summary.sectorId} className="sector-highlight-card">
+                  <div className="sector-highlight-head">
+                    <span className="sector-highlight-dot" style={{ backgroundColor: summary.color }} />
+                    <div>
+                      <h4>{summary.name}</h4>
+                      <p>{summary.milestoneCount} milestone{summary.milestoneCount === 1 ? '' : 's'} linked</p>
+                    </div>
+                    <span className="sector-highlight-progress">{summary.progressPercentage}%</span>
+                  </div>
+                  <div className="sector-highlight-metrics">
+                    <div>
+                      <span className="value-contribution-label">Readiness</span>
+                      <strong>{Math.round(summary.readinessScore * 100)}%</strong>
+                    </div>
+                    <div>
+                      <span className="value-contribution-label">Influence</span>
+                      <strong>{Math.round(summary.influenceScore * 100)}%</strong>
+                    </div>
+                    <div>
+                      <span className="value-contribution-label">Scenario links</span>
+                      <strong>{summary.scenarioLinks}</strong>
+                    </div>
+                  </div>
+                </article>
+              ))}
+              {!sectorHighlights.length && (
+                <div className="empty-state compact">
+                  <Network className="empty-icon" aria-hidden="true" />
+                  <p>No sector readiness signals available.</p>
+                </div>
+              )}
+            </div>
+          </section>
+        </section>
+      )}
 
       <div className="strategic-grid three-col w-full" aria-label="Strategic intelligence layout">
         <section className="strategic-panel strategic-panel--sectors">

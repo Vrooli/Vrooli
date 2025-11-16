@@ -1,5 +1,6 @@
 import { apiUrl } from '../utils/api'
 import type {
+  ApiStrategicMilestone,
   ProgressionStage,
   ScenarioCatalogSnapshot,
   ScenarioFormPayload,
@@ -9,14 +10,13 @@ import type {
   StageDependency,
   StageFormPayload,
   StageIdea,
-  StrategicMilestone,
   TechTreeSummary
 } from '../types/techTree'
 
 type ApiResponse<T> = T & { message?: string }
 
 type SectorResponse = { sectors: Sector[] }
-type MilestoneResponse = { milestones: StrategicMilestone[] }
+type MilestoneResponse = { milestones: ApiStrategicMilestone[] }
 type DependencyResponse = { dependencies: StageDependency[] }
 
 const appendTreeId = (path: string, treeId?: string) => {

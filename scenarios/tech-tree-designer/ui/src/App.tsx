@@ -25,14 +25,26 @@ import type {
   Sector,
   StageDependency,
   StrategicMilestone,
+  StrategicValueBreakdown,
+  StrategicValuePreset,
+  StrategicValueSettings,
   TechTreeSummary,
   TreeViewMode,
   GraphViewMode,
   SectorSortOption
 } from './types/techTree'
+import {
+  calculateStrategicValueBreakdown,
+  DEFAULT_STRATEGIC_VALUE_SETTINGS,
+  BUILT_IN_STRATEGIC_VALUE_PRESETS,
+  DEFAULT_STRATEGIC_VALUE_PRESET_ID
+} from './utils/strategicValue'
 
 const VIEW_MODE_STORAGE_KEY = 'techTreeDesigner:viewMode'
 const SECTOR_SORT_STORAGE_KEY = 'techTreeDesigner:sectorSort'
+const STRATEGIC_VALUE_SETTINGS_KEY = 'techTreeDesigner:valueSettings'
+const STRATEGIC_VALUE_PRESETS_KEY = 'techTreeDesigner:customValuePresets'
+const STRATEGIC_VALUE_ACTIVE_PRESET_KEY = 'techTreeDesigner:activeValuePreset'
 
 const isSectorSortOption = (value: string | null): value is SectorSortOption =>
   value === 'most-progress' ||
@@ -109,6 +121,49 @@ const App: React.FC = () => {
     }
     const stored = window.localStorage.getItem(SECTOR_SORT_STORAGE_KEY)
     return isSectorSortOption(stored) ? stored : 'most-progress'
+  })
+  const [strategicValueSettings, setStrategicValueSettings] = useState<StrategicValueSettings>(() => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_STRATEGIC_VALUE_SETTINGS
+    }
+    try {
+      const stored = window.localStorage.getItem(STRATEGIC_VALUE_SETTINGS_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        return {
+          ...DEFAULT_STRATEGIC_VALUE_SETTINGS,
+          ...parsed
+        }
+      }
+    } catch (error) {
+      console.warn('Unable to parse strategic value settings from storage', error)
+    }
+    return DEFAULT_STRATEGIC_VALUE_SETTINGS
+  })
+  const [isStrategicPanelOpen, setIsStrategicPanelOpen] = useState(false)
+  const [customValuePresets, setCustomValuePresets] = useState<StrategicValuePreset[]>(() => {
+    if (typeof window === 'undefined') {
+      return []
+    }
+    try {
+      const stored = window.localStorage.getItem(STRATEGIC_VALUE_PRESETS_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed)) {
+          return parsed
+        }
+      }
+    } catch (error) {
+      console.warn('Unable to parse saved value presets', error)
+    }
+    return []
+  })
+  const [activeValuePresetId, setActiveValuePresetId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_STRATEGIC_VALUE_PRESET_ID
+    }
+    const stored = window.localStorage.getItem(STRATEGIC_VALUE_ACTIVE_PRESET_KEY)
+    return stored || DEFAULT_STRATEGIC_VALUE_PRESET_ID
   })
 
   // New simplified graph view mode system
@@ -200,6 +255,34 @@ const App: React.FC = () => {
     }
   }, [sectorSort])
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        STRATEGIC_VALUE_SETTINGS_KEY,
+        JSON.stringify(strategicValueSettings)
+      )
+    }
+  }, [strategicValueSettings])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        STRATEGIC_VALUE_PRESETS_KEY,
+        JSON.stringify(customValuePresets)
+      )
+    }
+  }, [customValuePresets])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (activeValuePresetId) {
+        window.localStorage.setItem(STRATEGIC_VALUE_ACTIVE_PRESET_KEY, activeValuePresetId)
+      } else {
+        window.localStorage.removeItem(STRATEGIC_VALUE_ACTIVE_PRESET_KEY)
+      }
+    }
+  }, [activeValuePresetId])
+
   const scenarioEntryMap = useMemo(() => {
     const map = new Map<string, ScenarioCatalogEntry>()
     if (scenarioCatalog.scenarios) {
@@ -212,6 +295,16 @@ const App: React.FC = () => {
     }
     return map
   }, [scenarioCatalog.scenarios])
+
+  const strategicValueBreakdown: StrategicValueBreakdown = useMemo(
+    () =>
+      calculateStrategicValueBreakdown({
+        milestones: milestones as StrategicMilestone[],
+        sectors,
+        settings: strategicValueSettings
+      }),
+    [milestones, sectors, strategicValueSettings]
+  )
 
   const insightMetrics = useMemo(() => {
     if (!sectors.length && !milestones.length) {
@@ -233,13 +326,10 @@ const App: React.FC = () => {
       (milestone) => (milestone.completion_percentage || 0) >= 50
     ).length
 
-    const totalPotentialValue = milestones.reduce(
-      (sum, milestone) => sum + (milestone.business_value_estimate || 0),
-      0
-    )
+    const totalPotentialValue = strategicValueBreakdown.fullPotentialValue
 
     return { averageSectorProgress, activeMilestones, totalPotentialValue }
-  }, [milestones, sectors])
+  }, [milestones, sectors, strategicValueBreakdown.fullPotentialValue])
 
   const treeBadgeClass = useMemo(() => {
     if (!selectedTree) {
@@ -345,6 +435,65 @@ const App: React.FC = () => {
     })
   }, [showConfirm, selectedTreeId, refreshTreeData, setGraphNotice])
 
+  const handleStrategicValueSettingsChange = useCallback(
+    (settings: StrategicValueSettings, options?: { preservePreset?: boolean }) => {
+      setStrategicValueSettings(settings)
+      if (!options?.preservePreset) {
+        setActiveValuePresetId(null)
+      }
+    },
+    []
+  )
+
+  const handleStrategicPanelToggle = useCallback((open?: boolean) => {
+    setIsStrategicPanelOpen((current) => (typeof open === 'boolean' ? open : !current))
+  }, [])
+
+  const valuePresets = useMemo(
+    () => [...BUILT_IN_STRATEGIC_VALUE_PRESETS, ...customValuePresets],
+    [customValuePresets]
+  )
+
+  const handleApplyValuePreset = useCallback(
+    (presetId: string) => {
+      const preset = valuePresets.find((item) => item.id === presetId)
+      if (!preset) {
+        return
+      }
+      setActiveValuePresetId(presetId)
+      handleStrategicValueSettingsChange({ ...preset.settings }, { preservePreset: true })
+    },
+    [valuePresets, handleStrategicValueSettingsChange]
+  )
+
+  const handleCreateValuePreset = useCallback(
+    ({ name, description }: { name: string; description?: string }) => {
+      const trimmedName = name.trim()
+      if (!trimmedName) {
+        return
+      }
+      const preset: StrategicValuePreset = {
+        id: `custom-${Date.now()}`,
+        name: trimmedName,
+        description: description?.trim() || undefined,
+        settings: { ...strategicValueSettings }
+      }
+      setCustomValuePresets((current) => [...current, preset])
+      setActiveValuePresetId(preset.id)
+    },
+    [strategicValueSettings]
+  )
+
+  const handleDeleteValuePreset = useCallback(
+    (presetId: string) => {
+      setCustomValuePresets((current) => current.filter((preset) => preset.id !== presetId))
+      if (activeValuePresetId === presetId) {
+        setActiveValuePresetId(null)
+      }
+    },
+    [activeValuePresetId]
+  )
+
   if (insightLoader) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -399,6 +548,17 @@ const App: React.FC = () => {
           onRequestNewStage={stageModal.open}
           sectorSort={sectorSort}
           onSectorSortChange={setSectorSort}
+          strategicValueBreakdown={strategicValueBreakdown}
+          strategicValueSettings={strategicValueSettings}
+          onStrategicValueSettingsChange={handleStrategicValueSettingsChange}
+          isStrategicValuePanelOpen={isStrategicPanelOpen}
+          onStrategicValuePanelToggle={handleStrategicPanelToggle}
+          valuePresets={valuePresets}
+          customValuePresets={customValuePresets}
+          activeValuePresetId={activeValuePresetId}
+          onApplyValuePreset={handleApplyValuePreset}
+          onCreateValuePreset={handleCreateValuePreset}
+          onDeleteValuePreset={handleDeleteValuePreset}
         />
       ) : (
         <TechTreeCanvas
