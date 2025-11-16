@@ -61,6 +61,7 @@ usage() {
     echo -e "  ${GREEN}propose${NC}    Analyze dependencies for a proposed scenario"
     echo -e "  ${GREEN}optimize${NC}   Get optimization recommendations"
     echo -e "  ${GREEN}list${NC}       List dependencies for a scenario"
+    echo -e "  ${GREEN}deployment${NC} Show deployment readiness + tier data"
     echo -e "  ${GREEN}health${NC}     Check service health and analysis capabilities"
     echo -e "  ${GREEN}status${NC}     Show analysis system status"
     echo ""
@@ -78,6 +79,113 @@ usage() {
     echo "  --verbose        Show detailed output"
     echo ""
     echo "For more information: scenario-dependency-analyzer <command> --help"
+}
+
+# Deployment readiness command
+cmd_deployment() {
+    local scenario=""
+    local json_output=false
+
+    if [[ $# -eq 0 ]]; then
+        echo "Usage: scenario-dependency-analyzer deployment <scenario> [--json]" >&2
+        return 1
+    fi
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: scenario-dependency-analyzer deployment <scenario> [--json]"
+                echo ""
+                echo "Show deployment readiness, tier fitness, and bundle metadata for a scenario"
+                echo ""
+                echo "Options:"
+                echo "  --json   Raw JSON output"
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}❌ Scenario name required${NC}" >&2
+        return 1
+    fi
+
+    echo -e "${BLUE}🛰️  Loading deployment report for: $scenario${NC}"
+    local response
+    response=$(api_request "GET" "/api/v1/scenarios/${scenario}/deployment")
+
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+        return 0
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "$response"
+        return 0
+    fi
+
+    local title
+    title=$(echo "$response" | jq -r '"Scenario: \(.scenario // "unknown" )"')
+    local generated
+    generated=$(echo "$response" | jq -r 'if .generated_at then "Generated: " + .generated_at else "Generated: unknown" end')
+
+    echo -e "${CYAN}${title}${NC}"
+    echo "$generated"
+
+    echo ""
+    echo -e "${CYAN}Tier readiness:${NC}"
+    local tiers
+    tiers=$(echo "$response" | jq -r '
+        if (.aggregates // {}) == {} then "  (no tier metadata)"
+        else
+            (.aggregates | to_entries[] |
+                "  - " + .key + ": fitness " +
+                (if (.value.fitness_score // null) then ((.value.fitness_score * 100) | round | tostring) + "%" else "n/a" end) +
+                ", dependencies: " + ((.value.dependency_count // 0) | tostring) +
+                (if (.value.blocking_dependencies and (.value.blocking_dependencies | length > 0)) then
+                    ", blockers: " + (.value.blocking_dependencies | join(", "))
+                 else ", blockers: none" end)
+            )
+        end')
+    echo "$tiers"
+
+    echo ""
+    echo -e "${CYAN}Bundle dependencies:${NC}"
+    local bundle
+    bundle=$(echo "$response" | jq -r '
+        if (.bundle_manifest.dependencies // []) == [] then "  (none)"
+        else
+            (.bundle_manifest.dependencies | .[:6] | map("  - " + (.type // "unknown") + " :: " + (.name // "") +
+                (if (.tier_support // {} | length) > 0 then
+                    " (tiers: " + ((.tier_support | keys | join(", "))) + ")"
+                else "" end)) | .[])
+        end')
+    echo "$bundle"
+
+    echo ""
+    echo -e "${CYAN}Bundle files:${NC}"
+    local files
+    files=$(echo "$response" | jq -r '
+        if (.bundle_manifest.files // []) == [] then "  (none)"
+        else
+            (.bundle_manifest.files | .[:5] | map("  - " + (.type // "file") + ": " + (.path // "") +
+                (if .exists then " (present)" else " (missing)" end)) | .[])
+        end')
+    echo "$files"
 }
 
 # Format JSON output if jq is available
@@ -843,6 +951,9 @@ main() {
             ;;
         list)
             cmd_list "$@"
+            ;;
+        deployment)
+            cmd_deployment "$@"
             ;;
         health)
             cmd_health "$@"

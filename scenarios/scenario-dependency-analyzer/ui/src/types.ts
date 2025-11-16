@@ -94,6 +94,7 @@ export interface ScenarioDetailResponse {
   resource_diff: DependencyDiffSummary;
   scenario_diff: DependencyDiffSummary;
   optimization_recommendations?: OptimizationRecommendation[];
+  deployment_report?: DeploymentAnalysisReport;
 }
 
 export interface HealthResponse {
@@ -111,4 +112,84 @@ export interface HealthResponse {
       retryable: boolean;
     } | null;
   };
+}
+
+export interface DeploymentAnalysisReport {
+  scenario: string;
+  report_version: number;
+  generated_at: string;
+  dependencies: DeploymentDependencyNode[];
+  aggregates?: Record<string, DeploymentTierAggregate>;
+  bundle_manifest?: BundleManifest;
+}
+
+export interface DeploymentDependencyNode {
+  name: string;
+  type: string;
+  resource_type?: string;
+  path?: string;
+  requirements?: DeploymentRequirements;
+  tier_support?: Record<string, TierSupportSummary>;
+  alternatives?: string[];
+  notes?: string;
+  source?: string;
+  children?: DeploymentDependencyNode[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface DeploymentRequirements {
+  ram_mb?: number;
+  disk_mb?: number;
+  cpu_cores?: number;
+  gpu?: boolean;
+  network?: string;
+  storage_mb_per_user?: number;
+  startup_time_ms?: number;
+  bucket?: string;
+  source?: string;
+  confidence?: string;
+}
+
+export interface TierSupportSummary {
+  supported?: boolean;
+  fitness_score?: number;
+  reason?: string;
+  notes?: string;
+  requirements?: DeploymentRequirements;
+  alternatives?: string[];
+}
+
+export interface DeploymentTierAggregate {
+  fitness_score: number;
+  dependency_count: number;
+  blocking_dependencies?: string[];
+  estimated_requirements: AggregatedRequirements;
+}
+
+export interface AggregatedRequirements {
+  ram_mb: number;
+  disk_mb: number;
+  cpu_cores: number;
+}
+
+export interface BundleManifest {
+  scenario: string;
+  generated_at: string;
+  files: BundleFileEntry[];
+  dependencies: BundleDependencyEntry[];
+}
+
+export interface BundleFileEntry {
+  path: string;
+  type: string;
+  exists: boolean;
+  notes?: string;
+}
+
+export interface BundleDependencyEntry {
+  name: string;
+  type: string;
+  resource_type?: string;
+  tier_support?: Record<string, TierSupportSummary>;
+  alternatives?: string[];
 }

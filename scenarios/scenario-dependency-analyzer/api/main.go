@@ -366,6 +366,7 @@ type ScenarioDetailResponse struct {
 	ResourceDiff                DependencyDiff                    `json:"resource_diff"`
 	ScenarioDiff                DependencyDiff                    `json:"scenario_diff"`
 	OptimizationRecommendations []OptimizationRecommendation      `json:"optimization_recommendations"`
+	DeploymentReport            *DeploymentAnalysisReport         `json:"deployment_report,omitempty"`
 }
 
 type ScanRequest struct {
@@ -1266,7 +1267,7 @@ func persistDeploymentReport(scenarioPath string, report *DeploymentAnalysisRepo
 	if err := os.MkdirAll(reportDir, 0755); err != nil {
 		return err
 	}
-	reportPath := filepath.Join(reportDir, fmt.Sprintf("%s.json", normalizeName(report.Scenario)))
+	reportPath := filepath.Join(reportDir, "deployment-report.json")
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		return err
@@ -1276,6 +1277,19 @@ func persistDeploymentReport(scenarioPath string, report *DeploymentAnalysisRepo
 		return err
 	}
 	return os.Rename(tmpPath, reportPath)
+}
+
+func loadPersistedDeploymentReport(scenarioPath string) (*DeploymentAnalysisReport, error) {
+	reportPath := filepath.Join(scenarioPath, ".vrooli", "deployment", "deployment-report.json")
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		return nil, err
+	}
+	var report DeploymentAnalysisReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		return nil, err
+	}
+	return &report, nil
 }
 
 func buildBundleManifest(scenarioName, scenarioPath string, generatedAt time.Time, nodes []DeploymentDependencyNode) BundleManifest {
@@ -2363,7 +2377,52 @@ func storeDependencies(analysis *DependencyAnalysisResponse, extras []ScenarioDe
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	cleanupInvalidScenarioDependencies()
+	return nil
+}
+
+func cleanupInvalidScenarioDependencies() {
+	if db == nil {
+		return
+	}
+	ensureDependencyCatalogs()
+	dependencyCatalogMu.RLock()
+	defer dependencyCatalogMu.RUnlock()
+	if len(knownScenarioNames) == 0 {
+		return
+	}
+	rows, err := db.Query(`
+		SELECT DISTINCT dependency_name
+		FROM scenario_dependencies
+		WHERE dependency_type = 'scenario'`)
+	if err != nil {
+		log.Printf("Warning: unable to query scenario dependencies for cleanup: %v", err)
+		return
+	}
+	defer rows.Close()
+
+	toDelete := make([]string, 0)
+	for rows.Next() {
+		var depName string
+		if err := rows.Scan(&depName); err != nil {
+			continue
+		}
+		if _, ok := knownScenarioNames[normalizeName(depName)]; !ok {
+			toDelete = append(toDelete, depName)
+		}
+	}
+
+	for _, depName := range toDelete {
+		if _, err := db.Exec(`
+			DELETE FROM scenario_dependencies
+			WHERE dependency_type = 'scenario' AND dependency_name = $1`, depName); err != nil {
+			log.Printf("Warning: failed to delete orphaned dependency %s: %v", depName, err)
+		}
+	}
 }
 
 func analyzeAllScenarios() (map[string]*DependencyAnalysisResponse, error) {
@@ -2460,6 +2519,9 @@ func generateDependencyGraph(graphType string) (*DependencyGraph, error) {
 			continue
 		}
 		if graphType == "scenario" && depType == "resource" {
+			continue
+		}
+		if depType == "scenario" && !isKnownScenario(depName) {
 			continue
 		}
 
@@ -3396,7 +3458,39 @@ func getScenarioDetailHandler(c *gin.Context) {
 		OptimizationRecommendations: optRecs,
 	}
 
+	if report := buildDeploymentReport(scenarioName, scenarioPath, loadConfig().ScenariosDir, cfg); report != nil {
+		detail.DeploymentReport = report
+	}
+
 	c.JSON(http.StatusOK, detail)
+}
+
+func getDeploymentReportHandler(c *gin.Context) {
+	scenarioName := c.Param("scenario")
+	config := loadConfig()
+	scenarioPath := filepath.Join(config.ScenariosDir, scenarioName)
+	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	report, err := loadPersistedDeploymentReport(scenarioPath)
+	if err != nil {
+		report = buildDeploymentReport(scenarioName, scenarioPath, config.ScenariosDir, cfg)
+		if report != nil {
+			if persistErr := persistDeploymentReport(scenarioPath, report); persistErr != nil {
+				log.Printf("Warning: failed to persist deployment report for %s: %v", scenarioName, persistErr)
+			}
+		}
+	}
+
+	if report == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to build deployment report"})
+		return
+	}
+
+	c.JSON(http.StatusOK, report)
 }
 
 func scanScenarioHandler(c *gin.Context) {
@@ -3735,6 +3829,7 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.Close()
+	cleanupInvalidScenarioDependencies()
 
 	// Initialize Gin router
 	router := gin.Default()
@@ -3783,6 +3878,7 @@ func main() {
 	{
 		api.GET("/scenarios", listScenariosHandler)
 		api.GET("/scenarios/:scenario", getScenarioDetailHandler)
+		api.GET("/scenarios/:scenario/deployment", getDeploymentReportHandler)
 		api.GET("/analyze/:scenario", analyzeScenarioHandler)
 		api.GET("/scenarios/:scenario/dependencies", getDependenciesHandler)
 		api.POST("/scenarios/:scenario/scan", scanScenarioHandler)

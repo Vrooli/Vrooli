@@ -523,7 +523,7 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 		t.Fatalf("expected postgres to surface sqlite alternative")
 	}
 
-	if _, err := os.Stat(filepath.Join(rootPath, ".vrooli", "deployment", "root-app.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(rootPath, ".vrooli", "deployment", "deployment-report.json")); err != nil {
 		t.Fatalf("expected deployment report file to exist: %v", err)
 	}
 

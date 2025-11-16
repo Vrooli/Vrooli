@@ -5,6 +5,7 @@ import type {
   ScenarioDependencyRecord,
 } from "../types";
 import { OptimizationPanel } from "./OptimizationPanel";
+import { DeploymentInsightsPanel } from "./DeploymentInsightsPanel";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -165,6 +166,21 @@ export function ScenarioDetailPanel({ detail, loading, scanning, optimizing, onS
             </CardContent>
           </Card>
         </div>
+
+        {detail.deployment_report ? (
+          <DeploymentInsightsPanel report={detail.deployment_report} />
+        ) : (
+          <Card className="border border-border/40 bg-background/40">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Deployment readiness</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">
+                Run a scan to generate deployment metadata for this scenario.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2">
           <DependencySection

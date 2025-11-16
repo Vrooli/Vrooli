@@ -38,6 +38,9 @@ scenario-dependency-analyzer status
 # Analyze a specific scenario
 scenario-dependency-analyzer analyze chart-generator
 
+# Show deployment readiness for a scenario
+scenario-dependency-analyzer deployment chart-generator
+
 # Scan and optionally apply inferred dependencies
 scenario-dependency-analyzer scan chart-generator --apply
 
@@ -63,6 +66,7 @@ Features:
 - Interactive node selection and filtering
 - Scenario catalog panel with last-scan status
 - Detail view showing declared vs detected dependencies with drift badges
+- Deployment readiness panel with tier fitness, blockers, and bundle manifest insight
 - One-click scan and scan+apply actions per scenario
 - System statistics and health monitoring
 - Export functionality for graphs
