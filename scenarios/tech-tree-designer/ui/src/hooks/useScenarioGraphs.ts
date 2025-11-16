@@ -14,6 +14,7 @@ interface ScenarioGraphParams {
   scenarioCatalog: ScenarioCatalogSnapshot
   scenarioEntryMap: ScenarioEntryMap
   showHiddenScenarios: boolean
+  showIsolatedScenarios: boolean // Show scenarios with no dependencies
   nodes: StageNode[]
   sectors: Sector[]
 }
@@ -53,6 +54,7 @@ export const useScenarioGraphs = ({
   scenarioCatalog,
   scenarioEntryMap,
   showHiddenScenarios,
+  showIsolatedScenarios,
   nodes,
   sectors
 }: ScenarioGraphParams): ScenarioGraphs => {
@@ -172,9 +174,26 @@ export const useScenarioGraphs = ({
       return { scenarioOnlyNodes: [], scenarioOnlyEdges: [] }
     }
 
-    const visibleEntries = scenarioCatalog.scenarios.filter(
-      (entry) => showHiddenScenarios || !entry.hidden
-    )
+    // Build set of scenarios that have at least one dependency
+    const connectedScenarios = new Set<string>()
+    if (!showIsolatedScenarios) {
+      ;(scenarioCatalog.edges || []).forEach((edge) => {
+        connectedScenarios.add(edge.from)
+        connectedScenarios.add(edge.to)
+      })
+    }
+
+    const visibleEntries = scenarioCatalog.scenarios.filter((entry) => {
+      // Filter by hidden status
+      if (!showHiddenScenarios && entry.hidden) {
+        return false
+      }
+      // Filter by connectivity if showIsolatedScenarios is false
+      if (!showIsolatedScenarios && !connectedScenarios.has(entry.name)) {
+        return false
+      }
+      return true
+    })
     const columns = Math.max(1, Math.ceil(Math.sqrt(Math.max(visibleEntries.length, 1))))
     const spacingX = 260
     const spacingY = 170
@@ -216,7 +235,7 @@ export const useScenarioGraphs = ({
     )
 
     return { scenarioOnlyNodes, scenarioOnlyEdges }
-  }, [scenarioCatalog.edges, scenarioCatalog.scenarios, scenarioOnlyMode, showHiddenScenarios])
+  }, [scenarioCatalog.edges, scenarioCatalog.scenarios, scenarioOnlyMode, showHiddenScenarios, showIsolatedScenarios])
 
   return {
     overlayNodes: overlayGraphs.overlayNodes,

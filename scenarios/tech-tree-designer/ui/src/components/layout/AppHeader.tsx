@@ -19,9 +19,11 @@ interface AppHeaderProps {
   showLiveScenarios: boolean
   scenarioOnlyMode: boolean
   showHiddenScenarios: boolean
+  showIsolatedScenarios: boolean
   onToggleLiveScenarios: (value: boolean) => void
   onToggleScenarioOnly: (value: boolean) => void
   onToggleHiddenScenarios: (value: boolean) => void
+  onToggleIsolatedScenarios: (value: boolean) => void
   onSyncScenarios: () => void
   isSyncingScenarios: boolean
   lastSyncedLabel: string
@@ -44,9 +46,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   showLiveScenarios,
   scenarioOnlyMode,
   showHiddenScenarios,
+  showIsolatedScenarios,
   onToggleLiveScenarios,
   onToggleScenarioOnly,
   onToggleHiddenScenarios,
+  onToggleIsolatedScenarios,
   onSyncScenarios,
   isSyncingScenarios,
   lastSyncedLabel,
@@ -77,9 +81,11 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       showLiveScenarios={showLiveScenarios}
       scenarioOnlyMode={scenarioOnlyMode}
       showHiddenScenarios={showHiddenScenarios}
+      showIsolatedScenarios={showIsolatedScenarios}
       onToggleLive={onToggleLiveScenarios}
       onToggleScenarioOnly={onToggleScenarioOnly}
       onToggleHidden={onToggleHiddenScenarios}
+      onToggleIsolated={onToggleIsolatedScenarios}
       onSync={onSyncScenarios}
       isSyncing={isSyncingScenarios}
       lastSyncedLabel={lastSyncedLabel}

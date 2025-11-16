@@ -1,5 +1,5 @@
 import React from 'react'
-import { Maximize2, Minimize2, PenSquare } from 'lucide-react'
+import { Maximize2, Minimize2, PenSquare, Network } from 'lucide-react'
 
 interface GraphControlsProps {
   isFullscreen: boolean
@@ -7,8 +7,10 @@ interface GraphControlsProps {
   isEditMode: boolean
   isPersisting: boolean
   hasGraphChanges: boolean
+  autoLayoutEnabled: boolean
   onToggleFullscreen: () => void
   onToggleEditMode: () => void
+  onToggleAutoLayout: () => void
 }
 
 /**
@@ -21,8 +23,10 @@ const GraphControls: React.FC<GraphControlsProps> = ({
   isEditMode,
   isPersisting,
   hasGraphChanges,
+  autoLayoutEnabled,
   onToggleFullscreen,
-  onToggleEditMode
+  onToggleEditMode,
+  onToggleAutoLayout
 }) => {
   return (
     <div className="tech-tree-actions">
@@ -42,6 +46,22 @@ const GraphControls: React.FC<GraphControlsProps> = ({
           <Maximize2 className="canvas-fullscreen-button__icon" aria-hidden="true" />
         )}
         <span>{isFullscreen ? 'Exit full screen' : 'Full screen'}</span>
+      </button>
+      <button
+        type="button"
+        className={`graph-edit-toggle${autoLayoutEnabled ? ' is-active' : ''}`}
+        onClick={onToggleAutoLayout}
+        aria-pressed={autoLayoutEnabled}
+        aria-label={autoLayoutEnabled ? 'Disable automatic graph layout' : 'Enable automatic graph layout'}
+        title={
+          autoLayoutEnabled
+            ? 'Auto-layout is ON. Click to use manual positions from database.'
+            : 'Auto-layout is OFF. Click to automatically arrange nodes based on dependencies.'
+        }
+        disabled={isEditMode}
+      >
+        <Network className="graph-edit-toggle__icon" aria-hidden="true" />
+        <span>{autoLayoutEnabled ? 'Auto-Layout: ON' : 'Auto-Layout: OFF'}</span>
       </button>
       <button
         type="button"

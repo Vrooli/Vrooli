@@ -5,9 +5,11 @@ interface ScenarioControlsProps {
   showLiveScenarios: boolean
   scenarioOnlyMode: boolean
   showHiddenScenarios: boolean
+  showIsolatedScenarios: boolean
   onToggleLive: (value: boolean) => void
   onToggleScenarioOnly: (value: boolean) => void
   onToggleHidden: (value: boolean) => void
+  onToggleIsolated: (value: boolean) => void
   onSync: () => void
   isSyncing: boolean
   lastSyncedLabel: string
@@ -17,9 +19,11 @@ const ScenarioControls: React.FC<ScenarioControlsProps> = ({
   showLiveScenarios,
   scenarioOnlyMode,
   showHiddenScenarios,
+  showIsolatedScenarios,
   onToggleLive,
   onToggleScenarioOnly,
   onToggleHidden,
+  onToggleIsolated,
   onSync,
   isSyncing,
   lastSyncedLabel
@@ -50,6 +54,15 @@ const ScenarioControls: React.FC<ScenarioControlsProps> = ({
           onChange={(event) => onToggleHidden(event.target.checked)}
         />
         <span>Show hidden</span>
+      </label>
+      <label className="toggle" title="Show scenarios with no dependencies (isolated nodes)">
+        <input
+          type="checkbox"
+          checked={showIsolatedScenarios}
+          onChange={(event) => onToggleIsolated(event.target.checked)}
+          disabled={!scenarioOnlyMode}
+        />
+        <span>Show isolated</span>
       </label>
     </div>
     <div className="scenario-sync">

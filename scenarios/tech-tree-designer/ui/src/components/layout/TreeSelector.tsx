@@ -1,4 +1,5 @@
 import React from 'react'
+import { Sparkles, Copy, Plus, Circle } from 'lucide-react'
 import type { TechTreeSummary } from '../../types/techTree'
 
 interface TreeSelectorProps {
@@ -32,11 +33,12 @@ const TreeSelector: React.FC<TreeSelectorProps> = ({
   }
 
   const getTreeTypeIcon = (treeType: string) => {
+    const iconProps = { size: 12, style: { display: 'inline', verticalAlign: 'middle', marginRight: '4px' } }
     switch (treeType) {
-      case 'official': return '🔵'
-      case 'draft': return '🟡'
-      case 'experimental': return '🟣'
-      default: return '⚪'
+      case 'official': return <Circle {...iconProps} fill="#3b82f6" stroke="#3b82f6" />
+      case 'draft': return <Circle {...iconProps} fill="#eab308" stroke="#eab308" />
+      case 'experimental': return <Circle {...iconProps} fill="#a855f7" stroke="#a855f7" />
+      default: return <Circle {...iconProps} fill="#94a3b8" stroke="#94a3b8" />
     }
   }
 
@@ -67,9 +69,9 @@ const TreeSelector: React.FC<TreeSelectorProps> = ({
           )}
         </select>
         <span className={`tree-badge ${badgeClassName}`}>
-          {badgeClassName.includes('official') && '🔵 '}
-          {badgeClassName.includes('draft') && '🟡 '}
-          {badgeClassName.includes('experimental') && '🟣 '}
+          {badgeClassName.includes('official') && <Circle size={10} fill="#3b82f6" stroke="#3b82f6" style={{ display: 'inline', marginRight: '4px' }} />}
+          {badgeClassName.includes('draft') && <Circle size={10} fill="#eab308" stroke="#eab308" style={{ display: 'inline', marginRight: '4px' }} />}
+          {badgeClassName.includes('experimental') && <Circle size={10} fill="#a855f7" stroke="#a855f7" style={{ display: 'inline', marginRight: '4px' }} />}
           {badgeLabel}
         </span>
       </div>
@@ -82,7 +84,8 @@ const TreeSelector: React.FC<TreeSelectorProps> = ({
             onClick={onCreateTree}
             title="Create a new tech tree"
           >
-            ✨ New Tree
+            <Sparkles size={14} style={{ display: 'inline', marginRight: '6px' }} />
+            New Tree
           </button>
         )}
         {onCloneTree && selectedTreeId && (
@@ -92,11 +95,13 @@ const TreeSelector: React.FC<TreeSelectorProps> = ({
             onClick={onCloneTree}
             title="Clone the current tech tree for experimentation"
           >
-            📋 Clone Tree
+            <Copy size={14} style={{ display: 'inline', marginRight: '6px' }} />
+            Clone Tree
           </button>
         )}
         <button type="button" className="button button--ghost" onClick={onCreateSector}>
-          ➕ New Sector
+          <Plus size={14} style={{ display: 'inline', marginRight: '6px' }} />
+          New Sector
         </button>
       </div>
     </div>

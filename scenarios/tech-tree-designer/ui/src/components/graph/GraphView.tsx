@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useEdgesState, useNodesState, type Node } from 'react-flow-renderer'
 import { useGraphContext } from '../../contexts/GraphContext'
 import { useGraphModel } from '../../hooks/useGraphModel'
@@ -10,6 +10,7 @@ import { useResponsiveLayout } from '../../hooks/useResponsiveLayout'
 import { useHierarchicalGraph } from '../../hooks/useHierarchicalGraph'
 import { useContextMenu } from '../../hooks/useContextMenu'
 import { useNodeExpansion } from '../../hooks/useNodeExpansion'
+import { useAutoLayout, useAutoLayoutPreference } from '../../hooks/useAutoLayout'
 import GraphCanvas from './GraphCanvas'
 import GraphControls from './GraphControls'
 import GraphNotifications from './GraphNotifications'
@@ -51,6 +52,7 @@ const GraphView: React.FC<GraphViewProps> = ({
     showLiveScenarios,
     scenarioOnlyMode,
     showHiddenScenarios,
+    showIsolatedScenarios,
     isFullscreen,
     isLayoutFullscreen,
     canFullscreen,
@@ -67,6 +69,19 @@ const GraphView: React.FC<GraphViewProps> = ({
     onUnlinkScenario,
     handleScenarioVisibility
   } = useGraphContext()
+
+  // Auto-layout state management
+  const { getPreference, setPreference } = useAutoLayoutPreference()
+  const [autoLayoutEnabled, setAutoLayoutEnabled] = useState(getPreference)
+
+  const handleToggleAutoLayout = useCallback(() => {
+    setAutoLayoutEnabled(prev => {
+      const newValue = !prev
+      setPreference(newValue)
+      return newValue
+    })
+  }, [setPreference])
+
   // Build initial graph model from sectors and dependencies
   const { initialNodes, initialEdges, stageLookup } = useGraphModel(sectors, dependencies)
 
@@ -188,12 +203,13 @@ const GraphView: React.FC<GraphViewProps> = ({
     scenarioCatalog,
     scenarioEntryMap,
     showHiddenScenarios,
+    showIsolatedScenarios,
     nodes: stageNodes,
     sectors
   })
 
   // Merge stage nodes with scenario nodes and inject expansion state
-  const graphNodes: DesignerNode[] = useMemo(() => {
+  const graphNodesBeforeLayout: DesignerNode[] = useMemo(() => {
     // Inject expansion state and toggle handler into stage nodes
     const enrichedStageNodes = filteredStageNodes.map((node) => ({
       ...node,
@@ -241,7 +257,7 @@ const GraphView: React.FC<GraphViewProps> = ({
     }
 
     // Get set of visible node IDs for edge filtering
-    const visibleNodeIds = new Set(graphNodes.map((n) => n.id))
+    const visibleNodeIds = new Set(graphNodesBeforeLayout.map((n) => n.id))
 
     // Filter edges to only show connections between visible nodes
     const visibleEdges = [...designerEdges, ...overlayEdges].filter(
@@ -249,9 +265,9 @@ const GraphView: React.FC<GraphViewProps> = ({
     )
 
     return visibleEdges
-  }, [designerEdges, overlayEdges, scenarioOnlyEdges, scenarioOnlyMode, graphNodes])
+  }, [designerEdges, overlayEdges, scenarioOnlyEdges, scenarioOnlyMode, graphNodesBeforeLayout])
 
-  // Edit mode management
+  // Edit mode management (must be before auto-layout since we check isEditMode)
   const {
     isEditMode,
     hasGraphChanges,
@@ -269,6 +285,19 @@ const GraphView: React.FC<GraphViewProps> = ({
     onGraphPersist,
     setGraphNotice
   })
+
+  // Apply auto-layout if enabled and not in edit mode
+  const shouldApplyLayout = autoLayoutEnabled && !isEditMode
+  const { layoutedNodes } = useAutoLayout(graphNodesBeforeLayout, graphEdges, {
+    enabled: shouldApplyLayout,
+    direction: 'LR', // Left-to-right for tech tree progression
+    nodeWidth: scenarioOnlyMode ? 200 : 220,
+    nodeHeight: scenarioOnlyMode ? 100 : 120,
+    rankSep: 200,
+    nodeSep: 100
+  })
+
+  const graphNodes = shouldApplyLayout ? layoutedNodes : graphNodesBeforeLayout
 
   // Responsive layout detection
   const { isCompactLayout } = useResponsiveLayout(1120)
@@ -445,8 +474,10 @@ const GraphView: React.FC<GraphViewProps> = ({
           isEditMode={isEditMode}
           isPersisting={isPersisting}
           hasGraphChanges={hasGraphChanges}
+          autoLayoutEnabled={autoLayoutEnabled}
           onToggleFullscreen={toggleFullscreen}
           onToggleEditMode={handleToggleEditMode}
+          onToggleAutoLayout={handleToggleAutoLayout}
         />
       </div>
 

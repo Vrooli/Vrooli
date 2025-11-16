@@ -30,6 +30,7 @@ interface TechTreeCanvasProps {
   showLiveScenarios: boolean
   scenarioOnlyMode: boolean
   showHiddenScenarios: boolean
+  showIsolatedScenarios: boolean
   handleScenarioVisibility: (scenarioName: string, hidden: boolean) => void
   setGraphNotice: (notice: string) => void
   buildTreeAwarePath: (path: string) => string
@@ -71,6 +72,7 @@ const TechTreeCanvas: React.FC<TechTreeCanvasProps> = ({
   showLiveScenarios,
   scenarioOnlyMode,
   showHiddenScenarios,
+  showIsolatedScenarios,
   handleScenarioVisibility,
   setGraphNotice,
   buildTreeAwarePath,
@@ -161,6 +163,7 @@ const TechTreeCanvas: React.FC<TechTreeCanvasProps> = ({
       showLiveScenarios={showLiveScenarios}
       scenarioOnlyMode={scenarioOnlyMode}
       showHiddenScenarios={showHiddenScenarios}
+      showIsolatedScenarios={showIsolatedScenarios}
       isFullscreen={isFullscreen}
       isLayoutFullscreen={isLayoutFullscreen}
       canFullscreen={canFullscreen}

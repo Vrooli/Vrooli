@@ -23,6 +23,7 @@ export interface GraphContextValue {
   showLiveScenarios: boolean
   scenarioOnlyMode: boolean
   showHiddenScenarios: boolean
+  showIsolatedScenarios: boolean
 
   // Fullscreen state
   isFullscreen: boolean

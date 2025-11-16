@@ -55,6 +55,7 @@ const App: React.FC = () => {
   const [showLiveScenarios, setShowLiveScenarios] = useState(true)
   const [scenarioOnlyMode, setScenarioOnlyMode] = useState(false)
   const [showHiddenScenarios, setShowHiddenScenarios] = useState(false)
+  const [showIsolatedScenarios, setShowIsolatedScenarios] = useState(false) // Default to false = hide isolated scenarios
   const techTreeCanvasRef = useRef<HTMLDivElement | null>(null)
 
   const { canFullscreen, isFullscreen, isLayoutFullscreen, toggleFullscreen } = useFullscreenManager(
@@ -290,6 +291,7 @@ const App: React.FC = () => {
         showLiveScenarios={showLiveScenarios}
         scenarioOnlyMode={scenarioOnlyMode}
         showHiddenScenarios={showHiddenScenarios}
+        showIsolatedScenarios={showIsolatedScenarios}
         onToggleLiveScenarios={setShowLiveScenarios}
         onToggleScenarioOnly={(checked) => {
           setScenarioOnlyMode(checked)
@@ -298,6 +300,7 @@ const App: React.FC = () => {
           }
         }}
         onToggleHiddenScenarios={setShowHiddenScenarios}
+        onToggleIsolatedScenarios={setShowIsolatedScenarios}
         onSyncScenarios={handleScenarioCatalogRefresh}
         isSyncingScenarios={isSyncingCatalog}
         lastSyncedLabel={lastSyncedLabel}
@@ -334,6 +337,7 @@ const App: React.FC = () => {
           showLiveScenarios={showLiveScenarios}
           scenarioOnlyMode={scenarioOnlyMode}
           showHiddenScenarios={showHiddenScenarios}
+          showIsolatedScenarios={showIsolatedScenarios}
           handleScenarioVisibility={handleScenarioVisibility}
           setGraphNotice={setGraphNotice}
           buildTreeAwarePath={buildTreeAwarePath}

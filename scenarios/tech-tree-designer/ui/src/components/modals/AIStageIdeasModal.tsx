@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react'
+import { Bot, Rocket, Lightbulb } from 'lucide-react'
 import type { StageIdea, Sector } from '../../types/techTree'
 
 interface AIStageIdeasModalProps {
@@ -162,10 +163,24 @@ const AIStageIdeasModal: React.FC<AIStageIdeasModalProps> = ({
                 color: '#fff',
                 fontWeight: 600,
                 cursor: isGenerating ? 'wait' : 'pointer',
-                width: '100%'
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
               }}
             >
-              {isGenerating ? '🤖 Generating Ideas...' : '🚀 Generate AI Suggestions'}
+              {isGenerating ? (
+                <>
+                  <Bot size={16} />
+                  Generating Ideas...
+                </>
+              ) : (
+                <>
+                  <Rocket size={16} />
+                  Generate AI Suggestions
+                </>
+              )}
             </button>
           </div>
 
@@ -251,9 +266,13 @@ const AIStageIdeasModal: React.FC<AIStageIdeasModalProps> = ({
                             fontSize: '11px',
                             color: '#64748b',
                             marginTop: '6px',
-                            fontStyle: 'italic'
+                            fontStyle: 'italic',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '4px'
                           }}>
-                            💡 {idea.strategic_rationale}
+                            <Lightbulb size={12} style={{ marginTop: '2px', flexShrink: 0 }} />
+                            <span>{idea.strategic_rationale}</span>
                           </div>
                         )}
                       </div>

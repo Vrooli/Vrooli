@@ -13,10 +13,12 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@types/dagre": "^0.7.53",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "axios": "^1.6.2",
     "d3": "^7.8.5",
+    "dagre": "^0.8.5",
     "express": "^4.21.2",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.294.0",
