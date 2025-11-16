@@ -5,7 +5,7 @@ import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { Separator } from '../ui/separator'
 import { buildApiUrl } from '../../utils/apiClient'
-import type { Violation, PRDTemplateValidationResult } from '../../types'
+import type { Violation, DraftValidationResult } from '../../types'
 
 interface PRDValidationPanelProps {
   draftId: string
@@ -14,24 +14,13 @@ interface PRDValidationPanelProps {
   /** Requirements without operational target linkage */
   unmatchedRequirementsCount?: number
   /** Auto-validation state from useAutoValidation hook */
-  validationResult?: ValidationResult | null
+  validationResult?: DraftValidationResult | null
   validating?: boolean
   error?: string | null
   lastValidatedAt?: Date | null
   /** Manual validation trigger */
   onManualValidate?: () => Promise<void>
   className?: string
-}
-
-interface ValidationResult {
-  violations: Violation[]
-  template_compliance?: PRDTemplateValidationResult
-  summary?: {
-    total_violations: number
-    errors: number
-    warnings: number
-    info: number
-  }
 }
 
 /**
@@ -55,7 +44,7 @@ export function PRDValidationPanel({
   onManualValidate,
   className,
 }: PRDValidationPanelProps) {
-  const [internalValidationResult, setInternalValidationResult] = useState<ValidationResult | null>(null)
+  const [internalValidationResult, setInternalValidationResult] = useState<DraftValidationResult | null>(null)
   const [internalValidating, setInternalValidating] = useState(false)
   const [internalError, setInternalError] = useState<string | null>(null)
   const [internalLastValidatedAt, setInternalLastValidatedAt] = useState<Date | null>(null)
@@ -102,21 +91,25 @@ export function PRDValidationPanel({
   const completionPercent = templateCompliance ? Math.round(templateCompliance.compliance_percent) : 0
   const isFullyComplete = templateCompliance?.is_compliant ?? false
   const hasLinkageIssues = orphanedTargetsCount > 0 || unmatchedRequirementsCount > 0
-  const hasViolations = validationResult && validationResult.violations && validationResult.violations.length > 0
+  // Ensure violations is an array (API may return object on errors)
+  const violations = Array.isArray(validationResult?.violations)
+    ? validationResult.violations
+    : []
+  const hasViolations = violations.length > 0
 
   const totalSections = templateCompliance
     ? templateCompliance.compliant_sections.length + templateCompliance.missing_sections.length
     : 0
   const completedSections = templateCompliance?.compliant_sections.length ?? 0
 
-  const violationsByLine = validationResult?.violations.reduce((acc, violation) => {
+  const violationsByLine = violations.reduce((acc, violation) => {
     const line = violation.line ?? 0
     if (!acc[line]) {
       acc[line] = []
     }
     acc[line].push(violation)
     return acc
-  }, {} as Record<number, Violation[]>) ?? {}
+  }, {} as Record<number, Violation[]>)
 
   return (
     <Card className={className}>
@@ -255,7 +248,7 @@ export function PRDValidationPanel({
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Structure Violations</span>
               <Badge variant="destructive">
-                {validationResult?.summary?.errors ?? validationResult?.violations.length ?? 0}
+                {validationResult?.summary?.errors ?? violations.length}
               </Badge>
             </div>
             <Separator />

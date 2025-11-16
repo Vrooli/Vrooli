@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -77,15 +78,14 @@ func handleAIGenerateSection(w http.ResponseWriter, r *http.Request) {
 }
 
 func generateAIContent(draft Draft, section string, context string, action string) (string, string, error) {
-	// Check if resource-openrouter HTTP API is configured
+	// Use OpenRouter API directly (resource-openrouter is just a thin wrapper)
 	openrouterURL := os.Getenv("RESOURCE_OPENROUTER_URL")
-	if openrouterURL != "" {
-		// HTTP API is configured - use it
-		return generateAIContentHTTP(openrouterURL, draft, section, context, action)
+	if openrouterURL == "" {
+		// Default to OpenRouter's public API endpoint
+		openrouterURL = "https://openrouter.ai/api/v1"
 	}
 
-	// Fallback to CLI if HTTP API not configured
-	return generateAIContentCLI(draft, section, context, action)
+	return generateAIContentHTTP(openrouterURL, draft, section, context, action)
 }
 
 func generateAIContentHTTP(baseURL string, draft Draft, section string, context string, action string) (string, string, error) {
@@ -109,12 +109,29 @@ func generateAIContentHTTP(baseURL string, draft Draft, section string, context 
 		return "", "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", baseURL+"/api/v1/chat/completions", bytes.NewBuffer(jsonData))
+	// Construct API endpoint URL
+	apiURL := baseURL
+	if !strings.HasSuffix(apiURL, "/chat/completions") {
+		if strings.HasSuffix(apiURL, "/api/v1") {
+			apiURL += "/chat/completions"
+		} else {
+			apiURL += "/api/v1/chat/completions"
+		}
+	}
+
+	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Get API key from environment
+	apiKey := os.Getenv("OPENROUTER_API_KEY")
+	if apiKey == "" {
+		return "", "", fmt.Errorf("OPENROUTER_API_KEY environment variable not set")
+	}
+
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	// Set timeout for AI generation requests (60 seconds)
 	client := &http.Client{

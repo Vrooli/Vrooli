@@ -61,7 +61,7 @@ export function useDraftRequirements({
 
     loadRequirements()
     return () => controller.abort()
-  }, [selectedDraft?.id]) // Only re-run when draft ID changes
+  }, [selectedDraft])
 
   return {
     requirementsData,

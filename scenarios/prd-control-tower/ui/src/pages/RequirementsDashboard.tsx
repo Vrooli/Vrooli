@@ -1,5 +1,5 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom'
-import { ListTree, Target, AlertTriangle, Loader2 } from 'lucide-react'
+import { ListTree, Target, AlertTriangle, Loader2, FileEdit, FileText } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Card, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button'
@@ -92,7 +92,7 @@ export default function RequirementsDashboard() {
   const unlinkedP1Targets = p1Targets.filter((t) => !t.linked_requirement_ids || t.linked_requirement_ids.length === 0)
 
   const breadcrumbItems = [
-    { label: 'Catalog', to: '/' },
+    { label: 'Catalog', to: '/catalog' },
     { label: `${entityType}/${entityName}`, to: `/prd/${entityType}/${entityName}` },
     { label: 'Requirements & Targets' },
   ]
@@ -103,7 +103,7 @@ export default function RequirementsDashboard() {
 
   if (loading && totalRequirements === 0 && totalTargets === 0) {
     return (
-      <div className="app-container">
+      <div className="app-container" data-layout="dual">
         <TopNav />
         <Card className="border-dashed bg-white/80">
           <CardContent className="flex items-center gap-3 py-8 text-muted-foreground">
@@ -116,7 +116,7 @@ export default function RequirementsDashboard() {
 
   if (error) {
     return (
-      <div className="app-container">
+      <div className="app-container" data-layout="dual">
         <TopNav />
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="flex items-center gap-3 py-8 text-amber-900">
@@ -143,26 +143,42 @@ export default function RequirementsDashboard() {
   }
 
   return (
-    <div className="app-container space-y-6">
+    <div className="app-container space-y-6" data-layout="dual">
       <TopNav />
       <Breadcrumbs items={breadcrumbItems} />
 
       {/* Header */}
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
-        <div className="space-y-2">
-          <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Command Center</span>
-          <div className="flex items-center gap-3 text-3xl font-semibold text-slate-900">
-            <span className="rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 p-3 text-purple-600">
-              <ListTree size={28} strokeWidth={2.5} />
-            </span>
-            Requirements & Targets
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2 flex-1">
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Command Center</span>
+            <div className="flex items-center gap-3 text-3xl font-semibold text-slate-900">
+              <span className="rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 p-3 text-purple-600">
+                <ListTree size={28} strokeWidth={2.5} />
+              </span>
+              Requirements & Targets
+            </div>
+            <p className="max-w-3xl text-base text-muted-foreground">
+              Comprehensive view of requirements, operational targets, and their linkage for{' '}
+              <span className="font-medium text-slate-700">
+                {entityType}/{entityName}
+              </span>
+            </p>
           </div>
-          <p className="max-w-3xl text-base text-muted-foreground">
-            Comprehensive view of requirements, operational targets, and their linkage for{' '}
-            <span className="font-medium text-slate-700">
-              {entityType}/{entityName}
-            </span>
-          </p>
+          <div className="flex flex-col gap-2 pt-6">
+            <Link to={`/draft/${entityType}/${entityName}`}>
+              <Button variant="outline" size="sm" className="gap-2 w-full">
+                <FileEdit size={14} />
+                Edit Draft
+              </Button>
+            </Link>
+            <Link to={`/prd/${entityType}/${entityName}`}>
+              <Button variant="ghost" size="sm" className="gap-2 w-full">
+                <FileText size={14} />
+                View PRD
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 

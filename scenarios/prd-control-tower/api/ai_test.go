@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -167,6 +168,17 @@ func TestGenerateAIContentCLI(t *testing.T) {
 }
 
 func TestGenerateAIContentHTTP(t *testing.T) {
+	// Set test API key
+	oldKey := os.Getenv("OPENROUTER_API_KEY")
+	os.Setenv("OPENROUTER_API_KEY", "test-key")
+	defer func() {
+		if oldKey != "" {
+			os.Setenv("OPENROUTER_API_KEY", oldKey)
+		} else {
+			os.Unsetenv("OPENROUTER_API_KEY")
+		}
+	}()
+
 	// Create a mock OpenRouter server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/chat/completions" {
@@ -184,6 +196,12 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 		// Verify Content-Type header
 		if r.Header.Get("Content-Type") != "application/json" {
 			t.Errorf("Missing or incorrect Content-Type header")
+		}
+
+		// Verify Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader != "Bearer test-key" {
+			t.Errorf("Expected Authorization header 'Bearer test-key', got '%s'", authHeader)
 		}
 
 		// Return mock response
@@ -227,6 +245,17 @@ func TestGenerateAIContentHTTP(t *testing.T) {
 }
 
 func TestGenerateAIContentHTTPError(t *testing.T) {
+	// Set test API key
+	oldKey := os.Getenv("OPENROUTER_API_KEY")
+	os.Setenv("OPENROUTER_API_KEY", "test-key")
+	defer func() {
+		if oldKey != "" {
+			os.Setenv("OPENROUTER_API_KEY", oldKey)
+		} else {
+			os.Unsetenv("OPENROUTER_API_KEY")
+		}
+	}()
+
 	tests := []struct {
 		name           string
 		serverHandler  http.HandlerFunc

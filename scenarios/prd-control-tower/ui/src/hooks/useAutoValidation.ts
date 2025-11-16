@@ -1,17 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { buildApiUrl } from '../utils/apiClient'
-import type { Violation, PRDTemplateValidationResult } from '../types'
-
-interface ValidationResult {
-  violations: Violation[]
-  template_compliance?: PRDTemplateValidationResult
-  summary?: {
-    total_violations: number
-    errors: number
-    warnings: number
-    info: number
-  }
-}
+import type { DraftValidationResult } from '../types'
 
 interface UseAutoValidationOptions {
   draftId: string | null
@@ -21,7 +10,7 @@ interface UseAutoValidationOptions {
 }
 
 interface UseAutoValidationReturn {
-  validationResult: ValidationResult | null
+  validationResult: DraftValidationResult | null
   validating: boolean
   error: string | null
   lastValidatedAt: Date | null
@@ -44,7 +33,7 @@ export function useAutoValidation({
   enabled = true,
   debounceMs = 3000,
 }: UseAutoValidationOptions): UseAutoValidationReturn {
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
+  const [validationResult, setValidationResult] = useState<DraftValidationResult | null>(null)
   const [validating, setValidating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastValidatedAt, setLastValidatedAt] = useState<Date | null>(null)

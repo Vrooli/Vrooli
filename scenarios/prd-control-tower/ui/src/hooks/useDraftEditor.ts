@@ -61,7 +61,7 @@ export function useDraftEditor({
     setHasUnsavedChanges(false)
     setSaveStatus(null)
     setViewMode(ViewModes.SPLIT)
-  }, [selectedDraft?.id]) // Only re-run when draft ID changes
+  }, [selectedDraft])
 
   // Update editor if draft content changes externally (but preserve unsaved changes)
   useEffect(() => {
@@ -73,7 +73,7 @@ export function useDraftEditor({
       setEditorContent(selectedDraft.content)
       setLastLoadedContent(selectedDraft.content)
     }
-  }, [selectedDraft?.content, lastLoadedContent, hasUnsavedChanges])
+  }, [selectedDraft, lastLoadedContent, hasUnsavedChanges])
 
   // Auto-clear save status after delay
   useEffect(() => {

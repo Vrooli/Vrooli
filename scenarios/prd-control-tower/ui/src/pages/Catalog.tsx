@@ -18,7 +18,7 @@ import { TopNav } from '../components/ui/top-nav'
 import { buildApiUrl } from '../utils/apiClient'
 import { usePrepareDraft } from '../utils/useDraft'
 import type { CatalogEntry, CatalogResponse } from '../types'
-import { CatalogCard } from '../components/catalog'
+import { CatalogCard, QuickAddIdeaDialog } from '../components/catalog'
 
 type CatalogFilter = 'all' | 'scenario' | 'resource'
 
@@ -28,6 +28,7 @@ export default function Catalog() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<CatalogFilter>('all')
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
   const navigate = useNavigate()
 
   const { prepareDraft, preparingId } = usePrepareDraft({
@@ -160,6 +161,18 @@ export default function Catalog() {
   return (
     <div className="app-container">
       <TopNav />
+
+      {/* Floating Action Button - Quick Add Idea */}
+      <button
+        onClick={() => setQuickAddOpen(true)}
+        className="fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2"
+        title="Quick add idea"
+      >
+        <Sparkles size={24} strokeWidth={2.5} />
+      </button>
+
+      <QuickAddIdeaDialog open={quickAddOpen} onOpenChange={setQuickAddOpen} />
+
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="space-y-3">

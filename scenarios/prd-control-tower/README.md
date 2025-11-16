@@ -206,9 +206,12 @@ PRD_CONTROL_TOWER_DB_NAME=vrooli
 PRD_CONTROL_TOWER_UI_PORT=36300
 PRD_CONTROL_TOWER_API_URL=http://localhost:18600
 
+# AI Integration (Required for AI features)
+OPENROUTER_API_KEY=sk-or-v1-...  # Get from https://openrouter.ai
+RESOURCE_OPENROUTER_URL=https://openrouter.ai/api/v1  # Optional, defaults to OpenRouter public API
+
 # Integration URLs
 SCENARIO_AUDITOR_URL=http://localhost:18507
-RESOURCE_OPENROUTER_URL=http://localhost:18100
 ECOSYSTEM_MANAGER_URL=http://localhost:18200
 ```
 

@@ -64,7 +64,7 @@ export function useDraftTargets({ selectedDraft }: UseDraftTargetsOptions): UseD
 
     loadTargets()
     return () => controller.abort()
-  }, [selectedDraft?.id]) // Only re-run when draft ID changes
+  }, [selectedDraft])
 
   return {
     targetsData,

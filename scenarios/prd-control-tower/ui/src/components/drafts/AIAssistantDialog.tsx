@@ -68,11 +68,10 @@ export function AIAssistantDialog({
 }: AIAssistantDialogProps) {
   const [showDiff, setShowDiff] = useState(false)
 
-  if (!open) {
-    return null
-  }
-
-  const sectionSuggestions = useMemo(() => DEFAULT_SECTIONS.filter(item => item.toLowerCase().includes(section.toLowerCase())).slice(0, 5), [section])
+  const sectionSuggestions = useMemo(
+    () => DEFAULT_SECTIONS.filter(item => item.toLowerCase().includes(section.toLowerCase())).slice(0, 5),
+    [section],
+  )
 
   // Compute preview of what content will look like after AI insertion
   const previewContent = useMemo(() => {
@@ -86,6 +85,10 @@ export function AIAssistantDialog({
   const selectedText = useMemo(() => {
     return originalContent.slice(selectionStart, selectionEnd)
   }, [originalContent, selectionStart, selectionEnd])
+
+  if (!open) {
+    return null
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 px-4" role="dialog" aria-modal>

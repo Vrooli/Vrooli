@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, ListTree } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { buildApiUrl } from '../utils/apiClient'
 import { usePrepareDraft } from '../utils/useDraft'
@@ -115,7 +115,7 @@ export default function PRDViewer() {
   if (error) {
     return (
       <div className="container">
-        <Link to="/" className="back-link">
+        <Link to="/catalog" className="back-link">
           <ArrowLeft size={20} />
           Back to Catalog
         </Link>
@@ -130,7 +130,7 @@ export default function PRDViewer() {
   if (!prd) {
     return (
       <div className="container">
-        <Link to="/" className="back-link">
+        <Link to="/catalog" className="back-link">
           <ArrowLeft size={20} />
           Back to Catalog
         </Link>
@@ -144,7 +144,7 @@ export default function PRDViewer() {
 
   return (
     <div className="container">
-      <Link to="/" className="back-link">
+      <Link to="/catalog" className="back-link">
         <ArrowLeft size={20} />
         Back to Catalog
       </Link>
@@ -161,6 +161,14 @@ export default function PRDViewer() {
             <span className={`type-badge ${prd.type}`}>
               {prd.type}
             </span>
+            <Link
+              to={`/requirements/${prd.type}/${prd.name}`}
+              className="btn-link"
+              style={{ marginRight: '8px' }}
+            >
+              <ListTree size={16} style={{ marginRight: '4px', display: 'inline' }} />
+              Requirements
+            </Link>
             <button
               type="button"
               className="btn-link"
@@ -197,7 +205,7 @@ export default function PRDViewer() {
           <Link to={`/targets/${type}/${name}`} className="text-primary hover:underline">
             → View Operational Targets
           </Link>
-          <Link to="/" className="text-primary hover:underline">
+          <Link to="/catalog" className="text-primary hover:underline">
             ← Back to Catalog
           </Link>
         </div>

@@ -68,7 +68,7 @@ export default function Drafts() {
 
   if (loading && !refreshing) {
     return (
-      <div className="app-container">
+      <div className="app-container" data-layout="dual">
         <Card className="border-dashed bg-white/80">
           <CardContent className="flex items-center gap-3 text-muted-foreground">
             <Loader2 size={20} className="animate-spin" /> Loading drafts...
@@ -80,7 +80,7 @@ export default function Drafts() {
 
   if (error) {
     return (
-      <div className="app-container">
+      <div className="app-container" data-layout="dual">
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="flex items-center gap-3 text-amber-900">
             <AlertTriangle size={20} />
@@ -161,20 +161,20 @@ export default function Drafts() {
       onCloseMeta={closeMetaDialog}
       onPublishSuccess={() => {
         // Navigate to catalog after successful publish
-        navigate('/')
+        navigate('/catalog')
       }}
     />
   ) : null
 
   if (isDetailRoute) {
     const breadcrumbItems = [
-      { label: 'Catalog', to: '/' },
+      { label: 'Catalog', to: '/catalog' },
       { label: 'Drafts', to: '/drafts' },
       { label: selectedDraft?.entity_name || 'Draft' },
     ]
 
     return (
-      <div className="app-container space-y-6">
+      <div className="app-container space-y-6" data-layout="dual">
         <TopNav />
         <Breadcrumbs items={breadcrumbItems} />
         {detailContent}
@@ -183,7 +183,7 @@ export default function Drafts() {
   }
 
   return (
-    <div className="app-container space-y-8">
+    <div className="app-container space-y-8" data-layout="dual">
       <TopNav />
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
         <div className="space-y-2">
@@ -249,7 +249,7 @@ export default function Drafts() {
         <Link to="/backlog" className="text-primary hover:underline">
           ← Go to Backlog
         </Link>
-        <Link to="/" className="text-primary hover:underline">
+        <Link to="/catalog" className="text-primary hover:underline">
           ← Back to Catalog
         </Link>
       </div>

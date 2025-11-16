@@ -32,7 +32,7 @@ export default function OperationalTargetsExplorer() {
 
   if (loading && targets.length === 0) {
     return (
-      <div className="app-container">
+      <div className="app-container" data-layout="dual">
         <Card className="border-dashed bg-white/80">
           <CardContent className="flex items-center gap-3 py-8 text-muted-foreground">
             <Loader2 size={20} className="animate-spin" /> Loading operational targets...
@@ -44,7 +44,7 @@ export default function OperationalTargetsExplorer() {
 
   if (error) {
     return (
-      <div className="app-container">
+      <div className="app-container" data-layout="dual">
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="flex items-center gap-3 py-8 text-amber-900">
             <AlertTriangle size={20} />
@@ -74,13 +74,13 @@ export default function OperationalTargetsExplorer() {
   const categories = ['all', ...Object.keys(targetsByCategory).sort()]
 
   const breadcrumbItems = [
-    { label: 'Catalog', to: '/' },
+    { label: 'Catalog', to: '/catalog' },
     { label: `${entityType}/${entityName}`, to: `/prd/${entityType}/${entityName}` },
     { label: 'Operational Targets' },
   ]
 
   return (
-    <div className="app-container space-y-6">
+    <div className="app-container space-y-6" data-layout="dual">
       <TopNav />
       <Breadcrumbs items={breadcrumbItems} />
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
@@ -223,7 +223,7 @@ export default function OperationalTargetsExplorer() {
         <Link to={`/requirements/${entityType}/${entityName}`} className="text-primary hover:underline">
           → View Requirements
         </Link>
-        <Link to="/" className="text-primary hover:underline">
+        <Link to="/catalog" className="text-primary hover:underline">
           ← Back to Catalog
         </Link>
       </div>

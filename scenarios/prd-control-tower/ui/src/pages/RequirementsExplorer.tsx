@@ -15,7 +15,7 @@ export default function RequirementsExplorer() {
 
   if (loading && groups.length === 0) {
     return (
-      <div className="app-container">
+      <div className="app-container" data-layout="dual">
         <Card className="border-dashed bg-white/80">
           <CardContent className="flex items-center gap-3 py-8 text-muted-foreground">
             <Loader2 size={20} className="animate-spin" /> Loading requirements...
@@ -61,7 +61,7 @@ export default function RequirementsExplorer() {
   }, 0)
 
   return (
-    <div className="app-container space-y-6">
+    <div className="app-container space-y-6" data-layout="dual">
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
         <div className="space-y-2">
           <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Requirements Registry</span>
@@ -142,7 +142,7 @@ export default function RequirementsExplorer() {
         <Link to={`/targets/${entityType}/${entityName}`} className="text-primary hover:underline">
           → View Operational Targets
         </Link>
-        <Link to="/" className="text-primary hover:underline">
+        <Link to="/catalog" className="text-primary hover:underline">
           ← Back to Catalog
         </Link>
       </div>

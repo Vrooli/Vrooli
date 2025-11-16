@@ -8,6 +8,7 @@ import './styles/global.css'
 import './styles/legacy.css'
 
 // Lazy load pages for code splitting (reduces initial bundle size)
+const Orientation = lazy(() => import('./pages/Orientation'))
 const Catalog = lazy(() => import('./pages/Catalog'))
 const PRDViewer = lazy(() => import('./pages/PRDViewer'))
 const Drafts = lazy(() => import('./pages/Drafts'))
@@ -59,7 +60,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <HashRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route path="/" element={<Catalog />} />
+            <Route path="/" element={<Orientation />} />
+            <Route path="/catalog" element={<Catalog />} />
             <Route path="/prd/:type/:name" element={<PRDViewer />} />
             <Route path="/drafts" element={<Drafts />} />
             <Route path="/draft/:entityType/:entityName" element={<Drafts />} />

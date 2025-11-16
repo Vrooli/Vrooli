@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { DiffEditor } from '@monaco-editor/react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { cn } from '../../lib/utils'
@@ -44,15 +43,6 @@ export function DiffViewer({
   height = 600,
   language = 'markdown',
 }: DiffViewerProps) {
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    // Reset loading state when content changes
-    setIsLoading(true)
-    const timeout = setTimeout(() => setIsLoading(false), 100)
-    return () => clearTimeout(timeout)
-  }, [original, modified])
-
   return (
     <Card className={cn('w-full', className)}>
       <CardHeader>
@@ -63,39 +53,30 @@ export function DiffViewer({
         </p>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div
-            className="flex items-center justify-center rounded-md border bg-muted"
-            style={{ height: typeof height === 'number' ? `${height}px` : height }}
-          >
-            <p className="text-sm text-muted-foreground">Loading diff editor...</p>
-          </div>
-        ) : (
-          <div className="rounded-md border overflow-hidden">
-            <DiffEditor
-              height={height}
-              language={language}
-              original={original}
-              modified={modified}
-              theme="vs-light"
-              options={{
-                readOnly: true,
-                renderSideBySide: true,
-                scrollBeyondLastLine: false,
-                minimap: { enabled: false },
-                fontSize: 13,
-                lineNumbers: 'on',
-                wordWrap: 'on',
-                folding: true,
-                renderWhitespace: 'selection',
-                scrollbar: {
-                  vertical: 'auto',
-                  horizontal: 'auto',
-                },
-              }}
-            />
-          </div>
-        )}
+        <div className="rounded-md border overflow-hidden">
+          <DiffEditor
+            height={height}
+            language={language}
+            original={original}
+            modified={modified}
+            theme="vs-light"
+            options={{
+              readOnly: true,
+              renderSideBySide: true,
+              scrollBeyondLastLine: false,
+              minimap: { enabled: false },
+              fontSize: 13,
+              lineNumbers: 'on',
+              wordWrap: 'on',
+              folding: true,
+              renderWhitespace: 'selection',
+              scrollbar: {
+                vertical: 'auto',
+                horizontal: 'auto',
+              },
+            }}
+          />
+        </div>
       </CardContent>
     </Card>
   )

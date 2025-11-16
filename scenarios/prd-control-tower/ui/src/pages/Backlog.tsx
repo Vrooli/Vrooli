@@ -178,7 +178,7 @@ export default function Backlog() {
   )
 
   return (
-    <div className="app-container space-y-8">
+    <div className="app-container space-y-8" data-layout="dual">
       <TopNav />
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -196,7 +196,7 @@ export default function Backlog() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="secondary" size="lg">
-              <Link to="/" className="flex items-center gap-2">
+              <Link to="/catalog" className="flex items-center gap-2">
                 <ClipboardList size={18} /> Catalog
               </Link>
             </Button>
@@ -258,7 +258,7 @@ export default function Backlog() {
       />
 
       <div className="flex flex-wrap gap-4 text-sm">
-        <Link to="/" className="text-primary hover:underline">
+        <Link to="/catalog" className="text-primary hover:underline">
           ← Back to Catalog
         </Link>
         <Link to="/drafts" className="text-primary hover:underline">

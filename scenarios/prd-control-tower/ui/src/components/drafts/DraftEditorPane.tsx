@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Link } from 'react-router-dom'
-import { AlertTriangle } from 'lucide-react'
-import type { Draft, DraftSaveStatus, ViewMode, OperationalTargetsResponse, RequirementGroup } from '../../types'
+import { AlertTriangle, ListTree } from 'lucide-react'
+import type {
+  Draft,
+  DraftSaveStatus,
+  ViewMode,
+  OperationalTargetsResponse,
+  RequirementGroup,
+  DraftValidationResult,
+} from '../../types'
 import { ViewModes } from '../../types'
 import type { DraftMetrics } from '../../utils/formatters'
 import { analyzeDraftStructure } from '../../utils/prdStructure'
@@ -21,19 +28,9 @@ import { SaveStatusNotification } from './SaveStatusNotification'
 import { MonacoMarkdownEditor } from './MonacoMarkdownEditor'
 import { PRDValidationPanel } from './PRDValidationPanel'
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card'
+import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
 import { cn } from '../../lib/utils'
-
-interface ValidationResult {
-  violations: any[]
-  template_compliance?: any
-  summary?: {
-    total_violations: number
-    errors: number
-    warnings: number
-    info: number
-  }
-}
 
 interface DraftEditorPaneProps {
   draft: Draft
@@ -52,7 +49,7 @@ interface DraftEditorPaneProps {
   requirementsLoading: boolean
   requirementsError: string | null
   // Auto-validation props
-  validationResult?: ValidationResult | null
+  validationResult?: DraftValidationResult | null
   validating?: boolean
   validationError?: string | null
   lastValidatedAt?: Date | null
@@ -104,6 +101,19 @@ export function DraftEditorPane({
 }: DraftEditorPaneProps) {
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
 
+  // Scroll to targets editor for quick fixing
+  const scrollToTargetsEditor = () => {
+    const targetsCard = document.getElementById('operational-targets-editor')
+    if (targetsCard) {
+      targetsCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      // Flash highlight effect
+      targetsCard.classList.add('ring-2', 'ring-amber-500', 'ring-offset-2')
+      setTimeout(() => {
+        targetsCard.classList.remove('ring-2', 'ring-amber-500', 'ring-offset-2')
+      }, 2000)
+    }
+  }
+
   const showEditor = viewMode === ViewModes.EDIT || viewMode === ViewModes.SPLIT
   const showPreview = viewMode === ViewModes.PREVIEW || viewMode === ViewModes.SPLIT
   const structureSummary = useMemo(() => analyzeDraftStructure(editorContent), [editorContent])
@@ -143,11 +153,19 @@ export function DraftEditorPane({
   return (
     <section className="space-y-4" aria-labelledby="draft-editor-heading">
       {/* Breadcrumb Navigation */}
-      <div className="text-sm text-muted-foreground">
-        <Link to="/drafts" className="text-primary hover:underlink">
-          Drafts
-        </Link>{' '}
-        / <span className="capitalize">{draft.entity_type}</span> / <span className="font-medium text-foreground">{draft.entity_name}</span>
+      <div className="flex items-center justify-between gap-4">
+        <div className="text-sm text-muted-foreground">
+          <Link to="/drafts" className="text-primary hover:underlink">
+            Drafts
+          </Link>{' '}
+          / <span className="capitalize">{draft.entity_type}</span> / <span className="font-medium text-foreground">{draft.entity_name}</span>
+        </div>
+        <Link to={`/requirements/${draft.entity_type}/${draft.entity_name}`}>
+          <Button variant="outline" size="sm" className="gap-2">
+            <ListTree size={14} />
+            View Requirements
+          </Button>
+        </Link>
       </div>
 
       {/* CRITICAL: Unlinked Targets Alert Banner */}
@@ -191,9 +209,19 @@ export function DraftEditorPane({
                   )}
                 </div>
               </div>
-              <p className="text-xs text-red-700 flex items-center gap-2">
-                <strong>Action Required:</strong> Scroll down to the "✏️ Edit Operational Targets & Requirements Linkages" section to link these targets to requirements.
-              </p>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <p className="text-xs text-red-700 flex items-center gap-2">
+                  <strong>Action Required:</strong> Link these targets to requirements in the Targets Editor below.
+                </p>
+                <Button
+                  onClick={scrollToTargetsEditor}
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700 text-white shadow-md"
+                >
+                  <AlertTriangle size={14} className="mr-2" />
+                  Fix Now - Jump to Editor
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -273,7 +301,7 @@ export function DraftEditorPane({
       </Card>
 
       {/* Operational Targets Editor */}
-      <Card>
+      <Card id="operational-targets-editor" className="scroll-mt-6 transition-all duration-300">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg">✏️ Edit Operational Targets & Requirements Linkages</CardTitle>
         </CardHeader>

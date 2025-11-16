@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Link2, AlertTriangle, CheckCircle2, X, Save, RefreshCw, ChevronRight, Code, FileText } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -89,12 +89,7 @@ export function OperationalTargetsEditor({
     return map
   }, [requirements])
 
-  // Load targets from draft
-  useEffect(() => {
-    fetchTargets()
-  }, [draftId])
-
-  const fetchTargets = async () => {
+  const fetchTargets = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch(buildApiUrl(`/drafts/${draftId}/targets`))
@@ -108,7 +103,12 @@ export function OperationalTargetsEditor({
     } finally {
       setLoading(false)
     }
-  }
+  }, [draftId])
+
+  // Load targets from draft
+  useEffect(() => {
+    fetchTargets()
+  }, [fetchTargets])
 
   const handleSaveTargets = async () => {
     setSaving(true)

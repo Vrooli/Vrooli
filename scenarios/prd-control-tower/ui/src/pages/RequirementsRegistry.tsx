@@ -7,7 +7,7 @@ import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { TopNav } from '../components/ui/top-nav'
 import { buildApiUrl } from '../utils/apiClient'
-import type { CatalogEntry, CatalogResponse } from '../types'
+import type { CatalogEntry, CatalogResponse, RequirementGroup, RequirementsResponse } from '../types'
 
 interface RequirementsSummary {
   entityType: string
@@ -61,7 +61,7 @@ export default function RequirementsRegistry() {
         const response = await fetch(buildApiUrl(`/catalog/${entry.type}/${entry.name}/requirements`))
         if (!response.ok) continue
 
-        const data = await response.json()
+        const data: RequirementsResponse = await response.json()
 
         // Calculate statistics from requirements groups
         let total = 0
@@ -72,7 +72,7 @@ export default function RequirementsRegistry() {
         let p1Count = 0
         let p2Count = 0
 
-        const countRequirements = (groups: any[]) => {
+        const countRequirements = (groups: RequirementGroup[]) => {
           for (const group of groups) {
             for (const req of group.requirements || []) {
               total++
@@ -152,7 +152,7 @@ export default function RequirementsRegistry() {
 
   if (loading) {
     return (
-      <div className="app-container">
+      <div className="app-container" data-layout="dual">
         <TopNav />
         <Card className="border-dashed bg-white/80">
           <CardContent className="flex items-center gap-3 py-8 text-muted-foreground">
@@ -165,7 +165,7 @@ export default function RequirementsRegistry() {
 
   if (error) {
     return (
-      <div className="app-container">
+      <div className="app-container" data-layout="dual">
         <TopNav />
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="flex items-center gap-3 py-8 text-amber-900">
@@ -184,7 +184,7 @@ export default function RequirementsRegistry() {
   }
 
   return (
-    <div className="app-container space-y-6">
+    <div className="app-container space-y-6" data-layout="dual">
       <TopNav />
 
       <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">

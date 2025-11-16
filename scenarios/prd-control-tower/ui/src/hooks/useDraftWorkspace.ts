@@ -3,7 +3,14 @@ import toast from 'react-hot-toast'
 import type { NavigateFunction } from 'react-router-dom'
 
 import { buildApiUrl } from '../utils/apiClient'
-import type { Draft, DraftSaveStatus, OperationalTargetsResponse, RequirementGroup, ViewMode } from '../types'
+import type {
+  Draft,
+  DraftSaveStatus,
+  OperationalTargetsResponse,
+  RequirementGroup,
+  ViewMode,
+  DraftValidationResult,
+} from '../types'
 
 import { useDrafts } from './useDrafts'
 import { useDraftEditor } from './useDraftEditor'
@@ -11,7 +18,6 @@ import { useDraftTargets } from './useDraftTargets'
 import { useDraftRequirements } from './useDraftRequirements'
 import { useAutoValidation } from './useAutoValidation'
 import type { DraftMetrics } from '../utils/formatters'
-import type { Violation, PRDTemplateValidationResult } from '../types'
 
 type ConfirmHandler = (options: {
   title?: string
@@ -71,16 +77,7 @@ interface DraftWorkspaceState {
   requirementsError: string | null
 
   // Auto-validation
-  validationResult: {
-    violations: Violation[]
-    template_compliance?: PRDTemplateValidationResult
-    summary?: {
-      total_violations: number
-      errors: number
-      warnings: number
-      info: number
-    }
-  } | null
+  validationResult: DraftValidationResult | null
   validating: boolean
   validationError: string | null
   lastValidatedAt: Date | null

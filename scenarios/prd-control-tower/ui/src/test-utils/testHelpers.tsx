@@ -46,14 +46,18 @@ export function createMockTarget(overrides?: Partial<OperationalTarget>): Operat
   }
 }
 
-export function mockFetch(data: any, ok = true) {
-  globalThis.fetch = vi.fn().mockResolvedValue({
+export function mockFetch<T>(data: T, ok = true): void {
+  const mockResponse: Partial<Response> = {
     ok,
-    json: async () => data,
+    status: ok ? 200 : 500,
     statusText: ok ? 'OK' : 'Error',
-  }) as any
+    json: async () => data,
+    text: async () => JSON.stringify(data),
+  }
+
+  globalThis.fetch = vi.fn().mockResolvedValue(mockResponse as Response) as typeof fetch
 }
 
-export function mockFetchError(message: string) {
-  globalThis.fetch = vi.fn().mockRejectedValue(new Error(message)) as any
+export function mockFetchError(message: string): void {
+  globalThis.fetch = vi.fn().mockRejectedValue(new Error(message)) as typeof fetch
 }

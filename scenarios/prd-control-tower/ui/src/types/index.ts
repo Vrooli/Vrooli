@@ -92,6 +92,19 @@ export interface Violation {
   description?: string
 }
 
+export interface ValidationSummary {
+  total_violations: number
+  errors: number
+  warnings: number
+  info: number
+}
+
+export interface DraftValidationResult {
+  violations: Violation[]
+  template_compliance?: PRDTemplateValidationResult
+  summary?: ValidationSummary
+}
+
 /**
  * PRD Template validation violation
  */
