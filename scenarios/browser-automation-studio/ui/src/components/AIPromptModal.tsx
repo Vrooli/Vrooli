@@ -83,6 +83,7 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess
       ariaLabelledBy={titleId}
       size="wide"
       className="bg-flow-node border border-gray-700 shadow-2xl"
+      data-testid="ai-prompt-modal"
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-700">
         <div className="flex items-center gap-3">
@@ -137,6 +138,7 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess
               className="w-full px-3 py-2 bg-flow-bg rounded-lg text-sm border border-gray-700 focus:border-flow-accent focus:outline-none"
               value={workflowName}
               onChange={(e) => setWorkflowName(e.target.value)}
+              data-testid="ai-workflow-name-input"
             />
           </div>
           
@@ -150,6 +152,7 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess
               rows={6}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
+              data-testid="ai-prompt-input"
             />
           </div>
           

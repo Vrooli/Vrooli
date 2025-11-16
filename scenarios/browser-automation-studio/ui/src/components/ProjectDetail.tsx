@@ -634,6 +634,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
             <div
               key={workflow.id}
               data-testid="workflow-card"
+              data-workflow-id={workflow.id}
+              data-workflow-name={workflow.name}
               onClick={handleRowClick}
               className={`flex items-center gap-1.5 px-2 py-1.5 rounded cursor-pointer transition-colors group ${
                 selectionMode
@@ -1198,6 +1200,8 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
                 <div
                   key={workflow.id}
                   data-testid="workflow-card"
+                  data-workflow-id={workflow.id}
+                  data-workflow-name={workflow.name}
                   onClick={handleCardClick}
                   className={`bg-flow-node border rounded-lg p-6 cursor-pointer transition-all ${
                     selectionMode
@@ -1325,7 +1329,7 @@ function ProjectDetail({ project, onBack, onWorkflowSelect, onCreateWorkflow }: 
 
       {/* Floating Action Button (FAB) - Mobile only */}
       <button
-        data-testid="new-workflow-button"
+        data-testid="new-workflow-button-fab"
         onClick={onCreateWorkflow}
         className="md:hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-flow-accent text-white rounded-full shadow-lg hover:bg-blue-600 transition-all hover:shadow-xl flex items-center justify-center"
         aria-label="New Workflow"

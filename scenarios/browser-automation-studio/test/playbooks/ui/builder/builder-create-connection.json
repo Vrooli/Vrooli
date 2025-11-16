@@ -50,8 +50,8 @@
         "y": 0
       },
       "data": {
-        "label": "Open Demo project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "label": "Open Demo Browser Automations project",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -70,6 +70,20 @@
       }
     },
     {
+      "id": "wait-for-demo-workflow",
+      "type": "wait",
+      "position": {
+        "x": 700,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for demo workflow card",
+        "selector": "[data-testid=\"workflow-card\"][data-workflow-name=\"Demo: Capture Example.com Hero\"]",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
       "id": "click-workflow",
       "type": "click",
       "position": {
@@ -77,8 +91,8 @@
         "y": 0
       },
       "data": {
-        "label": "Open workflow with multiple nodes",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "label": "Open seeded demo workflow",
+        "selector": "[data-testid=\"workflow-card\"][data-workflow-name=\"Demo: Capture Example.com Hero\"]",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -92,8 +106,24 @@
       },
       "data": {
         "label": "Wait for builder to load",
-        "durationMs": 3000,
-        "waitType": "duration"
+        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-builder-ready",
+      "type": "assert",
+      "position": {
+        "x": 1100,
+        "y": 0
+      },
+      "data": {
+        "label": "Workflow nodes rendered",
+        "selector": ".react-flow__node",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Workflow should have nodes before connecting"
       }
     },
     {
@@ -225,7 +255,7 @@
       },
       "data": {
         "label": "Verify connection was added",
-        "expression": "(() => { const initial = parseInt(localStorage.getItem('initialEdgeCount') || '0'); const final = parseInt(localStorage.getItem('finalEdgeCount') || '0'); return final > initial; })()",
+        "expression": "(() => { const initial = Number({{initialEdgeCount}} || 0); const final = Number({{finalEdgeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
         "storeAs": "connectionWasAdded"
       }
     },
@@ -262,9 +292,11 @@
     {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
     {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
     {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-for-project-detail", "target": "click-workflow", "type": "smoothstep"},
+    {"id": "e3a", "source": "wait-for-project-detail", "target": "wait-for-demo-workflow", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-for-demo-workflow", "target": "click-workflow", "type": "smoothstep"},
     {"id": "e5", "source": "click-workflow", "target": "wait-for-builder", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-for-builder", "target": "assert-multiple-nodes", "type": "smoothstep"},
+    {"id": "e5a", "source": "wait-for-builder", "target": "assert-builder-ready", "type": "smoothstep"},
+    {"id": "e6", "source": "assert-builder-ready", "target": "assert-multiple-nodes", "type": "smoothstep"},
     {"id": "e7", "source": "assert-multiple-nodes", "target": "count-initial-edges", "type": "smoothstep"},
     {"id": "e8", "source": "count-initial-edges", "target": "capture-before-connect", "type": "smoothstep"},
     {"id": "e9", "source": "capture-before-connect", "target": "get-first-node-handle", "type": "smoothstep"},

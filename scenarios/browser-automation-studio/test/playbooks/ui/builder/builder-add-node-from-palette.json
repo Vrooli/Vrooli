@@ -50,8 +50,8 @@
         "y": 0
       },
       "data": {
-        "label": "Open first project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "label": "Open Demo Browser Automations project",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -92,8 +92,10 @@
       },
       "data": {
         "label": "Wait for AI modal or builder",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "selector": "[data-testid=\"ai-prompt-modal\"]",
+        "timeoutMs": 8000,
+        "waitType": "element",
+        "continueOnError": true
       }
     },
     {
@@ -107,8 +109,21 @@
         "label": "Switch to manual builder (if AI modal appears)",
         "selector": "[data-testid=\"switch-to-manual-button\"]",
         "timeoutMs": 5000,
-        "waitForMs": 2000,
+        "waitForMs": 1500,
         "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-builder-load",
+      "type": "wait",
+      "position": {
+        "x": 1300,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for builder to load after modal close",
+        "durationMs": 3000,
+        "waitType": "duration"
       }
     },
     {
@@ -119,9 +134,9 @@
         "y": 0
       },
       "data": {
-        "label": "Wait for workflow builder to load",
-        "selector": "[data-testid=\"workflow-builder-canvas\"]",
-        "timeoutMs": 10000,
+        "label": "Wait for workflow builder canvas element",
+        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "timeoutMs": 15000,
         "waitForMs": 2000,
         "waitType": "element"
       }
@@ -135,7 +150,7 @@
       },
       "data": {
         "label": "Canvas is visible",
-        "selector": "[data-testid=\"workflow-builder-canvas\"] .react-flow",
+        "selector": ".react-flow, .react-flow__renderer",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Workflow builder canvas should be visible"
@@ -218,7 +233,7 @@
       "data": {
         "label": "Drag navigate node from palette to canvas",
         "sourceSelector": "[data-testid=\"node-palette-navigate-card\"]",
-        "targetSelector": "[data-testid=\"workflow-builder-canvas\"] .react-flow__pane",
+        "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -258,7 +273,7 @@
       },
       "data": {
         "label": "Verify node count increased",
-        "expression": "(() => { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final > initial; })()",
+        "expression": "(() => { const initial = Number({{initialNodeCount}} || 0); const final = Number({{finalNodeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
         "storeAs": "nodeWasAdded"
       }
     },
@@ -271,7 +286,7 @@
       },
       "data": {
         "label": "Navigate node exists on canvas",
-        "selector": ".react-flow__node[data-type=\"navigate\"], .react-flow__node:has-text('navigate'), .react-flow__node:has-text('Navigate')",
+        "selector": ".react-flow__node[data-type=\"navigate\"]",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Navigate node should be visible on canvas after drag-and-drop"
@@ -298,7 +313,8 @@
     {"id": "e4", "source": "wait-for-project-detail", "target": "click-new-workflow", "type": "smoothstep"},
     {"id": "e5", "source": "click-new-workflow", "target": "wait-for-ai-modal", "type": "smoothstep"},
     {"id": "e6", "source": "wait-for-ai-modal", "target": "switch-to-manual", "type": "smoothstep"},
-    {"id": "e7", "source": "switch-to-manual", "target": "wait-for-builder", "type": "smoothstep"},
+    {"id": "e7", "source": "switch-to-manual", "target": "wait-for-builder-load", "type": "smoothstep"},
+    {"id": "e7a", "source": "wait-for-builder-load", "target": "wait-for-builder", "type": "smoothstep"},
     {"id": "e8", "source": "wait-for-builder", "target": "assert-canvas-visible", "type": "smoothstep"},
     {"id": "e9", "source": "assert-canvas-visible", "target": "count-initial-nodes", "type": "smoothstep"},
     {"id": "e10", "source": "count-initial-nodes", "target": "assert-palette-visible", "type": "smoothstep"},

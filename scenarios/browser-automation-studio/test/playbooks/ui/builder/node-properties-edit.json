@@ -43,8 +43,8 @@
       "type": "click",
       "position": {"x": 400, "y": 0},
       "data": {
-        "label": "Open project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "label": "Open Demo Browser Automations project",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -56,12 +56,23 @@
       "data": {"label": "Wait for project", "durationMs": 2000, "waitType": "duration"}
     },
     {
+      "id": "wait-for-demo-workflow",
+      "type": "wait",
+      "position": {"x": 700, "y": 0},
+      "data": {
+        "label": "Wait for demo workflow card",
+        "selector": "[data-testid=\"workflow-card\"][data-workflow-name=\"Demo: Capture Example.com Hero\"]",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
       "id": "click-workflow",
       "type": "click",
       "position": {"x": 800, "y": 0},
       "data": {
-        "label": "Open workflow with nodes",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "label": "Open seeded demo workflow",
+        "selector": "[data-testid=\"workflow-card\"][data-workflow-name=\"Demo: Capture Example.com Hero\"]",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -72,8 +83,8 @@
       "position": {"x": 1000, "y": 0},
       "data": {
         "label": "Wait for builder",
-        "selector": "[data-testid=\"workflow-builder-canvas\"]",
-        "timeoutMs": 10000,
+        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "timeoutMs": 15000,
         "waitForMs": 2000,
         "waitType": "element"
       }
@@ -149,7 +160,8 @@
     {"id": "e1", "source": "navigate-dashboard", "target": "wait-dashboard", "type": "smoothstep"},
     {"id": "e2", "source": "wait-dashboard", "target": "click-project", "type": "smoothstep"},
     {"id": "e3", "source": "click-project", "target": "wait-project", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-project", "target": "click-workflow", "type": "smoothstep"},
+    {"id": "e3a", "source": "wait-project", "target": "wait-for-demo-workflow", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-for-demo-workflow", "target": "click-workflow", "type": "smoothstep"},
     {"id": "e5", "source": "click-workflow", "target": "wait-builder", "type": "smoothstep"},
     {"id": "e6", "source": "wait-builder", "target": "assert-nodes-exist", "type": "smoothstep"},
     {"id": "e7", "source": "assert-nodes-exist", "target": "capture-before-edit", "type": "smoothstep"},

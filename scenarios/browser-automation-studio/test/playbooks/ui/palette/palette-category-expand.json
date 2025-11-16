@@ -109,8 +109,9 @@
       },
       "data": {
         "label": "Wait for workflow builder",
-        "durationMs": 3000,
-        "waitType": "duration"
+        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "timeoutMs": 15000,
+        "waitType": "element"
       }
     },
     {
@@ -163,7 +164,7 @@
       },
       "data": {
         "label": "Click first category to toggle",
-        "selector": "[role=\"button\"]:has(svg.lucide-chevron), button:has(svg.lucide-chevron)",
+        "selector": "[data-testid=\"node-palette-category-navigation-toggle\"]",
         "timeoutMs": 5000,
         "waitForMs": 1000,
         "continueOnError": true

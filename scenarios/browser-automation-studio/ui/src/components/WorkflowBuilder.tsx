@@ -576,7 +576,11 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   }, []);
 
   return (
-    <div ref={graphContainerRef} className="flex-1 relative">
+    <div
+      ref={graphContainerRef}
+      className="flex-1 relative"
+      data-testid="workflow-builder-canvas"
+    >
       {viewMode === 'visual' && (
         <WorkflowToolbar 
           locked={locked}

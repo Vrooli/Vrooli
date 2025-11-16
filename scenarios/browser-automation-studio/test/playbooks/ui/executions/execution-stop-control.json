@@ -79,9 +79,20 @@
       }
     },
     {
+      "id": "wait-viewer",
+      "type": "wait",
+      "position": {"x": 1100, "y": 0},
+      "data": {
+        "label": "Wait for execution viewer",
+        "selector": "[data-testid=\"execution-stop-button\"]",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
       "id": "wait-execution-start",
       "type": "wait",
-      "position": {"x": 1200, "y": 0},
+      "position": {"x": 1250, "y": 0},
       "data": {
         "label": "Wait for execution to start",
         "durationMs": 3000,
@@ -106,21 +117,23 @@
     },
     {
       "id": "find-stop-button",
-      "type": "evaluate",
-      "position": {"x": 1800, "y": -100},
+      "type": "assert",
+      "position": {"x": 1850, "y": -100},
       "data": {
-        "label": "Check for stop/cancel button",
-        "expression": "!!document.querySelector('button[title*=\"stop\" i], button[aria-label*=\"stop\" i], button[title*=\"cancel\" i], button[aria-label*=\"cancel\" i]')",
-        "storeAs": "hasStopButton"
+        "label": "Stop button is available",
+        "selector": "[data-testid=\"execution-stop-button\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Stop button should appear while execution running"
       }
     },
     {
       "id": "click-stop",
       "type": "click",
-      "position": {"x": 2000, "y": 0},
+      "position": {"x": 2050, "y": 0},
       "data": {
         "label": "Click stop/cancel button",
-        "selector": "button[title*=\"stop\" i], button[aria-label*=\"stop\" i], button[title*=\"cancel\" i], button[aria-label*=\"cancel\" i]",
+        "selector": "[data-testid=\"execution-stop-button\"]",
         "timeoutMs": 5000,
         "waitForMs": 2000,
         "continueOnError": true
@@ -159,7 +172,8 @@
     {"id": "e3", "source": "click-project", "target": "wait-project", "type": "smoothstep"},
     {"id": "e4", "source": "wait-project", "target": "find-execute-button", "type": "smoothstep"},
     {"id": "e5", "source": "find-execute-button", "target": "click-execute", "type": "smoothstep"},
-    {"id": "e6", "source": "click-execute", "target": "wait-execution-start", "type": "smoothstep"},
+    {"id": "e5a", "source": "click-execute", "target": "wait-viewer", "type": "smoothstep"},
+    {"id": "e6", "source": "wait-viewer", "target": "wait-execution-start", "type": "smoothstep"},
     {"id": "e7", "source": "wait-execution-start", "target": "check-running", "type": "smoothstep"},
     {"id": "e8", "source": "check-running", "target": "capture-running", "type": "smoothstep"},
     {"id": "e9", "source": "capture-running", "target": "find-stop-button", "type": "smoothstep"},

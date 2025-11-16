@@ -1,0 +1,533 @@
+{
+  "metadata": {
+    "description": "Complete new user journey: Create project → Create workflow → Execute → View results. This validates the primary use case and marketing demo flow.",
+    "requirement": "BAS-COMPOSITE-HAPPY-PATH",
+    "version": 1,
+    "tags": ["composite", "e2e", "critical-path", "new-user-onboarding"]
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {"x": 0, "y": 0},
+      "data": {
+        "label": "Open BAS Dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "capture-dashboard",
+      "type": "screenshot",
+      "position": {"x": 200, "y": 0},
+      "data": {
+        "label": "Capture initial dashboard state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "position": {"x": 400, "y": 0},
+      "data": {
+        "label": "Wait for projects grid to load",
+        "selector": "[data-testid=\"projects-grid\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-new-project",
+      "type": "click",
+      "position": {"x": 600, "y": 0},
+      "data": {
+        "label": "Click New Project button",
+        "selector": "[data-testid=\"dashboard-new-project-button\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "wait-for-project-modal",
+      "type": "wait",
+      "position": {"x": 800, "y": 0},
+      "data": {
+        "label": "Wait for project creation modal",
+        "selector": "[data-testid=\"project-modal\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "generate-project-name",
+      "type": "evaluate",
+      "position": {"x": 1000, "y": -100},
+      "data": {
+        "label": "Generate unique project name",
+        "expression": "`E2E Test Project ${Date.now()}`",
+        "storeAs": "projectName"
+      }
+    },
+    {
+      "id": "fill-project-name",
+      "type": "type",
+      "position": {"x": 1200, "y": 0},
+      "data": {
+        "label": "Enter project name",
+        "selector": "[data-testid=\"project-modal-name-input\"]",
+        "text": "{{projectName}}",
+        "clearFirst": true,
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "fill-project-description",
+      "type": "type",
+      "position": {"x": 1400, "y": 0},
+      "data": {
+        "label": "Enter project description",
+        "selector": "[data-testid=\"project-modal-description-input\"]",
+        "text": "End-to-end test validating new user onboarding flow",
+        "clearFirst": true,
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "submit-project",
+      "type": "click",
+      "position": {"x": 1600, "y": 0},
+      "data": {
+        "label": "Submit project creation form",
+        "selector": "[data-testid=\"project-modal-submit\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-project-detail",
+      "type": "wait",
+      "position": {"x": 1800, "y": 0},
+      "data": {
+        "label": "Wait for project detail page to load",
+        "selector": "h1, [role=\"heading\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "capture-project-created",
+      "type": "screenshot",
+      "position": {"x": 2000, "y": 0},
+      "data": {
+        "label": "Capture project detail page",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-new-workflow",
+      "type": "click",
+      "position": {"x": 2200, "y": 0},
+      "data": {
+        "label": "Click New Workflow button",
+        "selector": "[data-testid=\"new-workflow-button\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "wait-for-workflow-modal",
+      "type": "wait",
+      "position": {"x": 2400, "y": 0},
+      "data": {
+        "label": "Wait for AI prompt modal to appear",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-manual-builder",
+      "type": "click",
+      "position": {"x": 2600, "y": 0},
+      "data": {
+        "label": "Switch to manual builder (skip AI for deterministic test)",
+        "selector": "[data-testid=\"switch-to-manual-button\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 2000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-canvas",
+      "type": "wait",
+      "position": {"x": 2800, "y": 0},
+      "data": {
+        "label": "Wait for workflow builder canvas",
+        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "timeoutMs": 15000,
+        "waitForMs": 2000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "capture-empty-canvas",
+      "type": "screenshot",
+      "position": {"x": 3000, "y": 0},
+      "data": {
+        "label": "Capture empty workflow canvas",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "drag-navigate-node",
+      "type": "dragDrop",
+      "position": {"x": 3200, "y": 0},
+      "data": {
+        "label": "Add Navigate node to canvas",
+        "sourceSelector": "[data-testid=\"node-palette-navigate-card\"]",
+        "targetSelector": ".react-flow__pane",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-after-drag",
+      "type": "wait",
+      "position": {"x": 3400, "y": 0},
+      "data": {
+        "label": "Wait for node to be added",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-navigate-node",
+      "type": "click",
+      "position": {"x": 3600, "y": 0},
+      "data": {
+        "label": "Select Navigate node for configuration",
+        "selector": ".react-flow__node[data-node-type=\"navigate\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 1000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-properties-panel",
+      "type": "wait",
+      "position": {"x": 3800, "y": 0},
+      "data": {
+        "label": "Wait for properties panel to open",
+        "durationMs": 1000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "fill-navigate-url",
+      "type": "type",
+      "position": {"x": 4000, "y": 0},
+      "data": {
+        "label": "Set navigate URL to example.com",
+        "selector": "[data-testid=\"node-property-url-input\"], input[placeholder*=\"URL\"]",
+        "text": "https://example.com",
+        "clearFirst": true,
+        "timeoutMs": 5000,
+        "waitForMs": 500,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "drag-screenshot-node",
+      "type": "dragDrop",
+      "position": {"x": 4200, "y": 0},
+      "data": {
+        "label": "Add Screenshot node to canvas",
+        "sourceSelector": "[data-testid=\"node-palette-screenshot-card\"]",
+        "targetSelector": ".react-flow__pane",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-after-screenshot-drag",
+      "type": "wait",
+      "position": {"x": 4400, "y": 0},
+      "data": {
+        "label": "Wait for screenshot node",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "capture-workflow-built",
+      "type": "screenshot",
+      "position": {"x": 4600, "y": 0},
+      "data": {
+        "label": "Capture completed workflow",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "save-workflow",
+      "type": "keyboard",
+      "position": {"x": 4800, "y": 0},
+      "data": {
+        "label": "Save workflow (Ctrl+S)",
+        "key": "Control+s",
+        "timeoutMs": 5000,
+        "waitForMs": 2000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-for-save",
+      "type": "wait",
+      "position": {"x": 5000, "y": 0},
+      "data": {
+        "label": "Wait for autosave to complete",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-execute-button",
+      "type": "click",
+      "position": {"x": 5200, "y": 0},
+      "data": {
+        "label": "Execute workflow from header",
+        "selector": "[data-testid=\"header-execute-button\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-execution-start",
+      "type": "wait",
+      "position": {"x": 5400, "y": 0},
+      "data": {
+        "label": "Wait for execution to start",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "capture-execution-in-progress",
+      "type": "screenshot",
+      "position": {"x": 5600, "y": 0},
+      "data": {
+        "label": "Capture execution in progress",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "wait-for-execution-complete",
+      "type": "wait",
+      "position": {"x": 5800, "y": 0},
+      "data": {
+        "label": "Wait for execution to complete (max 30s)",
+        "durationMs": 30000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "navigate-to-project",
+      "type": "click",
+      "position": {"x": 6000, "y": 0},
+      "data": {
+        "label": "Navigate back to project detail",
+        "selector": "[data-testid=\"breadcrumb-project\"], nav a[href*=\"projects\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 2000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "click-executions-tab",
+      "type": "click",
+      "position": {"x": 6200, "y": 0},
+      "data": {
+        "label": "Switch to Executions tab",
+        "selector": "[data-testid=\"project-tab-executions\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-executions-list",
+      "type": "wait",
+      "position": {"x": 6400, "y": 0},
+      "data": {
+        "label": "Wait for executions list to load",
+        "selector": "[data-testid=\"execution-card\"], [data-testid=\"execution-item\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-execution-exists",
+      "type": "assert",
+      "position": {"x": 6600, "y": 0},
+      "data": {
+        "label": "Verify execution appears in history",
+        "selector": "[data-testid=\"execution-card\"], [data-testid=\"execution-item\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Execution should appear in history after workflow run"
+      }
+    },
+    {
+      "id": "capture-execution-history",
+      "type": "screenshot",
+      "position": {"x": 6800, "y": 0},
+      "data": {
+        "label": "Capture execution history",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-first-execution",
+      "type": "click",
+      "position": {"x": 7000, "y": 0},
+      "data": {
+        "label": "Open first execution details",
+        "selector": "[data-testid=\"execution-card\"]:first-of-type, [data-testid=\"execution-item\"]:first-of-type",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-execution-viewer",
+      "type": "wait",
+      "position": {"x": 7200, "y": 0},
+      "data": {
+        "label": "Wait for execution viewer to load",
+        "selector": "[data-testid=\"execution-viewer\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-replay-tab-exists",
+      "type": "assert",
+      "position": {"x": 7400, "y": 0},
+      "data": {
+        "label": "Verify Replay tab is available",
+        "selector": "[data-testid=\"execution-tab-replay\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Replay tab should be visible in execution viewer"
+      }
+    },
+    {
+      "id": "click-replay-tab",
+      "type": "click",
+      "position": {"x": 7600, "y": 0},
+      "data": {
+        "label": "Open Replay tab",
+        "selector": "[data-testid=\"execution-tab-replay\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-replay-player",
+      "type": "wait",
+      "position": {"x": 7800, "y": 0},
+      "data": {
+        "label": "Wait for replay player to load",
+        "selector": "[data-testid=\"replay-player\"], [data-testid=\"replay-timeline\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-replay-screenshot-exists",
+      "type": "assert",
+      "position": {"x": 8000, "y": 0},
+      "data": {
+        "label": "Verify replay screenshots are displayed",
+        "selector": "img[src*=\"screenshot\"], [data-testid=\"replay-screenshot\"]",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Replay should display execution screenshots"
+      }
+    },
+    {
+      "id": "capture-final-replay",
+      "type": "screenshot",
+      "position": {"x": 8200, "y": 0},
+      "data": {
+        "label": "Capture final replay view - SUCCESS!",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-dashboard", "target": "capture-dashboard", "type": "smoothstep"},
+    {"id": "e2", "source": "capture-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
+    {"id": "e3", "source": "wait-for-dashboard", "target": "click-new-project", "type": "smoothstep"},
+    {"id": "e4", "source": "click-new-project", "target": "wait-for-project-modal", "type": "smoothstep"},
+    {"id": "e5", "source": "wait-for-project-modal", "target": "generate-project-name", "type": "smoothstep"},
+    {"id": "e6", "source": "generate-project-name", "target": "fill-project-name", "type": "smoothstep"},
+    {"id": "e7", "source": "fill-project-name", "target": "fill-project-description", "type": "smoothstep"},
+    {"id": "e8", "source": "fill-project-description", "target": "submit-project", "type": "smoothstep"},
+    {"id": "e9", "source": "submit-project", "target": "wait-for-project-detail", "type": "smoothstep"},
+    {"id": "e10", "source": "wait-for-project-detail", "target": "capture-project-created", "type": "smoothstep"},
+    {"id": "e11", "source": "capture-project-created", "target": "click-new-workflow", "type": "smoothstep"},
+    {"id": "e12", "source": "click-new-workflow", "target": "wait-for-workflow-modal", "type": "smoothstep"},
+    {"id": "e13", "source": "wait-for-workflow-modal", "target": "click-manual-builder", "type": "smoothstep"},
+    {"id": "e14", "source": "click-manual-builder", "target": "wait-for-canvas", "type": "smoothstep"},
+    {"id": "e15", "source": "wait-for-canvas", "target": "capture-empty-canvas", "type": "smoothstep"},
+    {"id": "e16", "source": "capture-empty-canvas", "target": "drag-navigate-node", "type": "smoothstep"},
+    {"id": "e17", "source": "drag-navigate-node", "target": "wait-after-drag", "type": "smoothstep"},
+    {"id": "e18", "source": "wait-after-drag", "target": "click-navigate-node", "type": "smoothstep"},
+    {"id": "e19", "source": "click-navigate-node", "target": "wait-for-properties-panel", "type": "smoothstep"},
+    {"id": "e20", "source": "wait-for-properties-panel", "target": "fill-navigate-url", "type": "smoothstep"},
+    {"id": "e21", "source": "fill-navigate-url", "target": "drag-screenshot-node", "type": "smoothstep"},
+    {"id": "e22", "source": "drag-screenshot-node", "target": "wait-after-screenshot-drag", "type": "smoothstep"},
+    {"id": "e23", "source": "wait-after-screenshot-drag", "target": "capture-workflow-built", "type": "smoothstep"},
+    {"id": "e24", "source": "capture-workflow-built", "target": "save-workflow", "type": "smoothstep"},
+    {"id": "e25", "source": "save-workflow", "target": "wait-for-save", "type": "smoothstep"},
+    {"id": "e26", "source": "wait-for-save", "target": "click-execute-button", "type": "smoothstep"},
+    {"id": "e27", "source": "click-execute-button", "target": "wait-for-execution-start", "type": "smoothstep"},
+    {"id": "e28", "source": "wait-for-execution-start", "target": "capture-execution-in-progress", "type": "smoothstep"},
+    {"id": "e29", "source": "capture-execution-in-progress", "target": "wait-for-execution-complete", "type": "smoothstep"},
+    {"id": "e30", "source": "wait-for-execution-complete", "target": "navigate-to-project", "type": "smoothstep"},
+    {"id": "e31", "source": "navigate-to-project", "target": "click-executions-tab", "type": "smoothstep"},
+    {"id": "e32", "source": "click-executions-tab", "target": "wait-for-executions-list", "type": "smoothstep"},
+    {"id": "e33", "source": "wait-for-executions-list", "target": "assert-execution-exists", "type": "smoothstep"},
+    {"id": "e34", "source": "assert-execution-exists", "target": "capture-execution-history", "type": "smoothstep"},
+    {"id": "e35", "source": "capture-execution-history", "target": "click-first-execution", "type": "smoothstep"},
+    {"id": "e36", "source": "click-first-execution", "target": "wait-for-execution-viewer", "type": "smoothstep"},
+    {"id": "e37", "source": "wait-for-execution-viewer", "target": "assert-replay-tab-exists", "type": "smoothstep"},
+    {"id": "e38", "source": "assert-replay-tab-exists", "target": "click-replay-tab", "type": "smoothstep"},
+    {"id": "e39", "source": "click-replay-tab", "target": "wait-for-replay-player", "type": "smoothstep"},
+    {"id": "e40", "source": "wait-for-replay-player", "target": "assert-replay-screenshot-exists", "type": "smoothstep"},
+    {"id": "e41", "source": "assert-replay-screenshot-exists", "target": "capture-final-replay", "type": "smoothstep"}
+  ]
+}

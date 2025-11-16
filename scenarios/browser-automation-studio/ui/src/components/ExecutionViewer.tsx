@@ -3168,6 +3168,7 @@ function ActiveExecutionViewer({
             title={isRunning ? "Stop execution" : "Execution not running"}
             onClick={handleStop}
             disabled={!isRunning || isStopping}
+            data-testid="execution-stop-button"
           >
             {isStopping ? (
               <Loader size={14} className="animate-spin" />

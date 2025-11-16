@@ -50,8 +50,8 @@
         "y": 0
       },
       "data": {
-        "label": "Open Demo project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "label": "Open Demo Browser Automations project",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -70,6 +70,20 @@
       }
     },
     {
+      "id": "wait-for-demo-workflow",
+      "type": "wait",
+      "position": {
+        "x": 700,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for demo workflow card",
+        "selector": "[data-testid=\"workflow-card\"][data-workflow-name=\"Demo: Capture Example.com Hero\"]",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
       "id": "click-first-workflow",
       "type": "click",
       "position": {
@@ -77,8 +91,8 @@
         "y": 0
       },
       "data": {
-        "label": "Open demo workflow with nodes",
-        "selector": "[data-testid=\"workflow-card\"][data-workflow-name*=\"Demo\"], [data-testid=\"workflow-card\"]:first-of-type",
+        "label": "Open seeded demo workflow",
+        "selector": "[data-testid=\"workflow-card\"][data-workflow-name=\"Demo: Capture Example.com Hero\"]",
         "timeoutMs": 10000,
         "waitForMs": 2000,
         "continueOnError": false
@@ -93,8 +107,9 @@
       },
       "data": {
         "label": "Wait for builder to load",
-        "durationMs": 3000,
-        "waitType": "duration"
+        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "timeoutMs": 15000,
+        "waitType": "element"
       }
     },
     {
@@ -216,7 +231,7 @@
       },
       "data": {
         "label": "Verify node count decreased",
-        "expression": "(() => { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final < initial; })()",
+        "expression": "(() => { const initial = Number({{initialNodeCount}} || 0); const final = Number({{finalNodeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final < initial; })()",
         "storeAs": "nodeWasDeleted"
       }
     },
@@ -238,7 +253,8 @@
     {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
     {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
     {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-for-project-detail", "target": "click-first-workflow", "type": "smoothstep"},
+    {"id": "e3a", "source": "wait-for-project-detail", "target": "wait-for-demo-workflow", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-for-demo-workflow", "target": "click-first-workflow", "type": "smoothstep"},
     {"id": "e5", "source": "click-first-workflow", "target": "wait-for-builder", "type": "smoothstep"},
     {"id": "e6", "source": "wait-for-builder", "target": "assert-nodes-exist", "type": "smoothstep"},
     {"id": "e7", "source": "assert-nodes-exist", "target": "count-initial-nodes", "type": "smoothstep"},

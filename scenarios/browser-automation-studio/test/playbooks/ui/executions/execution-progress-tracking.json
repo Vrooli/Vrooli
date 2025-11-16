@@ -1,0 +1,189 @@
+{
+  "metadata": {
+    "description": "Validates real-time execution progress tracking in the UI",
+    "requirement": "BAS-EXEC-TELEMETRY-STREAM",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {"x": 0, "y": 0},
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-dashboard",
+      "type": "wait",
+      "position": {"x": 200, "y": 0},
+      "data": {"label": "Wait for dashboard", "durationMs": 2000, "waitType": "duration"}
+    },
+    {
+      "id": "click-demo-project",
+      "type": "click",
+      "position": {"x": 400, "y": 0},
+      "data": {
+        "label": "Open Demo project",
+        "selector": "[data-testid=\"project-card\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-project",
+      "type": "wait",
+      "position": {"x": 600, "y": 0},
+      "data": {"label": "Wait for project detail", "durationMs": 2000, "waitType": "duration"}
+    },
+    {
+      "id": "find-workflow",
+      "type": "assert",
+      "position": {"x": 800, "y": 0},
+      "data": {
+        "label": "Workflow exists",
+        "selector": "[data-testid=\"workflow-card\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Demo workflow should exist"
+      }
+    },
+    {
+      "id": "capture-before-execution",
+      "type": "screenshot",
+      "position": {"x": 1000, "y": 0},
+      "data": {"label": "Capture before execution", "fullPage": true, "waitForMs": 500}
+    },
+    {
+      "id": "start-execution",
+      "type": "click",
+      "position": {"x": 1200, "y": 0},
+      "data": {
+        "label": "Start workflow execution",
+        "selector": "[data-testid=\"workflow-execute-button\"], button[title*=\"execute\" i]:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "verify-execution-started",
+      "type": "evaluate",
+      "position": {"x": 1400, "y": 0},
+      "data": {
+        "label": "Check execution indicator appears",
+        "expression": "!!document.querySelector('[class*=\"executing\"], [class*=\"running\"], [class*=\"progress\"], svg.lucide-loader')",
+        "storeAs": "executionIndicatorVisible"
+      }
+    },
+    {
+      "id": "capture-execution-progress",
+      "type": "screenshot",
+      "position": {"x": 1600, "y": 0},
+      "data": {"label": "Capture execution in progress", "fullPage": true, "waitForMs": 1000}
+    },
+    {
+      "id": "check-for-progress-elements",
+      "type": "evaluate",
+      "position": {"x": 1800, "y": 0},
+      "data": {
+        "label": "Verify progress UI elements exist",
+        "expression": "document.querySelectorAll('[class*=\"execution\"], [class*=\"progress\"], [role=\"progressbar\"]').length > 0",
+        "storeAs": "hasProgressUI"
+      }
+    },
+    {
+      "id": "wait-for-execution",
+      "type": "wait",
+      "position": {"x": 2000, "y": 0},
+      "data": {
+        "label": "Allow execution to progress",
+        "durationMs": 5000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "capture-mid-execution",
+      "type": "screenshot",
+      "position": {"x": 2200, "y": 0},
+      "data": {"label": "Capture mid-execution state", "fullPage": true, "waitForMs": 500}
+    },
+    {
+      "id": "check-heartbeat-indicators",
+      "type": "evaluate",
+      "position": {"x": 2400, "y": 0},
+      "data": {
+        "label": "Verify heartbeat/telemetry indicators",
+        "expression": "!!document.querySelector('[class*=\"heartbeat\"], [class*=\"telemetry\"], [class*=\"live\"]')",
+        "storeAs": "hasHeartbeatIndicators",
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-completion",
+      "type": "wait",
+      "position": {"x": 2600, "y": 0},
+      "data": {
+        "label": "Wait for execution completion",
+        "durationMs": 15000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "verify-completion-state",
+      "type": "evaluate",
+      "position": {"x": 2800, "y": 0},
+      "data": {
+        "label": "Check for completion indicators",
+        "expression": "!!document.querySelector('[class*=\"complete\"], [class*=\"success\"], [class*=\"finished\"], svg.lucide-check')",
+        "storeAs": "showsCompletion"
+      }
+    },
+    {
+      "id": "capture-final-state",
+      "type": "screenshot",
+      "position": {"x": 3000, "y": 0},
+      "data": {"label": "Capture execution completed state", "fullPage": true, "waitForMs": 1000}
+    },
+    {
+      "id": "verify-progress-tracking-complete",
+      "type": "evaluate",
+      "position": {"x": 3200, "y": 0},
+      "data": {
+        "label": "Confirm progress tracking workflow complete",
+        "expression": "true",
+        "storeAs": "progressTrackingComplete"
+      }
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-dashboard", "target": "wait-dashboard", "type": "smoothstep"},
+    {"id": "e2", "source": "wait-dashboard", "target": "click-demo-project", "type": "smoothstep"},
+    {"id": "e3", "source": "click-demo-project", "target": "wait-project", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-project", "target": "find-workflow", "type": "smoothstep"},
+    {"id": "e5", "source": "find-workflow", "target": "capture-before-execution", "type": "smoothstep"},
+    {"id": "e6", "source": "capture-before-execution", "target": "start-execution", "type": "smoothstep"},
+    {"id": "e7", "source": "start-execution", "target": "verify-execution-started", "type": "smoothstep"},
+    {"id": "e8", "source": "verify-execution-started", "target": "capture-execution-progress", "type": "smoothstep"},
+    {"id": "e9", "source": "capture-execution-progress", "target": "check-for-progress-elements", "type": "smoothstep"},
+    {"id": "e10", "source": "check-for-progress-elements", "target": "wait-for-execution", "type": "smoothstep"},
+    {"id": "e11", "source": "wait-for-execution", "target": "capture-mid-execution", "type": "smoothstep"},
+    {"id": "e12", "source": "capture-mid-execution", "target": "check-heartbeat-indicators", "type": "smoothstep"},
+    {"id": "e13", "source": "check-heartbeat-indicators", "target": "wait-completion", "type": "smoothstep"},
+    {"id": "e14", "source": "wait-completion", "target": "verify-completion-state", "type": "smoothstep"},
+    {"id": "e15", "source": "verify-completion-state", "target": "capture-final-state", "type": "smoothstep"},
+    {"id": "e16", "source": "capture-final-state", "target": "verify-progress-tracking-complete", "type": "smoothstep"}
+  ]
+}

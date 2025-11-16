@@ -726,16 +726,20 @@ func (p *planner) less(a, b string) bool {
 }
 
 func normalizeStepType(raw string) (StepType, error) {
-	normalized := StepType(strings.ToLower(strings.TrimSpace(raw)))
-	if normalized == "" {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
 		return "", fmt.Errorf("node type is required")
 	}
 
-	if _, ok := supportedStepTypes[normalized]; !ok {
-		return "", fmt.Errorf("unsupported node type: %s", raw)
+	// Case-insensitive lookup: check if the lowercased input matches any supported type
+	lowercased := strings.ToLower(trimmed)
+	for supportedType := range supportedStepTypes {
+		if strings.ToLower(string(supportedType)) == lowercased {
+			return supportedType, nil
+		}
 	}
 
-	return normalized, nil
+	return "", fmt.Errorf("unsupported node type: %s", raw)
 }
 
 func extractString(m map[string]any, keys ...string) string {

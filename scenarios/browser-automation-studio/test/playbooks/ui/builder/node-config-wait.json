@@ -1,0 +1,309 @@
+{
+  "metadata": {
+    "description": "Validates Wait node configuration with dynamic fields based on wait type selection",
+    "requirement": "BAS-BUILDER-NODE-CONFIG",
+    "version": 1
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "position": {"x": 0, "y": 0},
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-dashboard",
+      "type": "wait",
+      "position": {"x": 200, "y": 0},
+      "data": {"label": "Wait for dashboard", "durationMs": 2000, "waitType": "duration"}
+    },
+    {
+      "id": "click-demo-project",
+      "type": "click",
+      "position": {"x": 400, "y": 0},
+      "data": {
+        "label": "Open Demo Browser Automations project",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-project",
+      "type": "wait",
+      "position": {"x": 600, "y": 0},
+      "data": {"label": "Wait for project view", "durationMs": 2000, "waitType": "duration"}
+    },
+    {
+      "id": "create-workflow",
+      "type": "click",
+      "position": {"x": 800, "y": 0},
+      "data": {
+        "label": "Create new workflow",
+        "selector": "[data-testid=\"new-workflow-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "wait-for-ai-modal",
+      "type": "wait",
+      "position": {"x": 900, "y": 0},
+      "data": {
+        "label": "Wait for AI modal",
+        "selector": "[data-testid=\"ai-prompt-modal\"]",
+        "timeoutMs": 8000,
+        "waitType": "element",
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "switch-to-manual",
+      "type": "click",
+      "position": {"x": 950, "y": 0},
+      "data": {
+        "label": "Switch to manual builder",
+        "selector": "[data-testid=\"switch-to-manual-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 1000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-builder",
+      "type": "wait",
+      "position": {"x": 1000, "y": 0},
+      "data": {
+        "label": "Wait for builder",
+        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "timeoutMs": 15000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "drag-wait-node",
+      "type": "dragDrop",
+      "position": {"x": 1200, "y": 0},
+      "data": {
+        "label": "Drag Wait node onto canvas",
+        "sourceSelector": "[data-testid=\"node-palette-wait-card\"]",
+        "targetSelector": ".react-flow__pane",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-node-render",
+      "type": "wait",
+      "position": {"x": 1400, "y": 0},
+      "data": {"label": "Wait for node to render", "durationMs": 1500, "waitType": "duration"}
+    },
+    {
+      "id": "verify-wait-node",
+      "type": "assert",
+      "position": {"x": 1600, "y": 0},
+      "data": {
+        "label": "Verify Wait node exists",
+        "selector": ".react-flow__node",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Wait node should appear"
+      }
+    },
+    {
+      "id": "click-wait-node",
+      "type": "click",
+      "position": {"x": 1800, "y": 0},
+      "data": {
+        "label": "Select Wait node",
+        "selector": ".react-flow__node:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "capture-initial-state",
+      "type": "screenshot",
+      "position": {"x": 2000, "y": 0},
+      "data": {"label": "Capture Wait node initial state", "fullPage": true, "waitForMs": 500}
+    },
+    {
+      "id": "find-type-selector",
+      "type": "assert",
+      "position": {"x": 2200, "y": 0},
+      "data": {
+        "label": "Verify wait type selector exists",
+        "selector": ".react-flow__node.selected select",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Wait type dropdown should be visible"
+      }
+    },
+    {
+      "id": "switch-to-element-wait",
+      "type": "select",
+      "position": {"x": 2400, "y": 0},
+      "data": {
+        "label": "Change wait type to 'element'",
+        "selector": ".react-flow__node.selected select",
+        "value": "element",
+        "timeoutMs": 5000,
+        "waitForMs": 800
+      }
+    },
+    {
+      "id": "verify-selector-input-appears",
+      "type": "assert",
+      "position": {"x": 2600, "y": 0},
+      "data": {
+        "label": "Selector input should appear for element wait",
+        "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "Selector input should appear when wait type is 'element'"
+      }
+    },
+    {
+      "id": "capture-element-mode",
+      "type": "screenshot",
+      "position": {"x": 2800, "y": 0},
+      "data": {"label": "Capture element wait mode", "fullPage": true, "waitForMs": 500}
+    },
+    {
+      "id": "type-selector",
+      "type": "type",
+      "position": {"x": 3000, "y": 0},
+      "data": {
+        "label": "Type selector value",
+        "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
+        "text": "#test-element",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "blur-selector-input",
+      "type": "click",
+      "position": {"x": 3200, "y": 0},
+      "data": {
+        "label": "Click canvas to save",
+        "selector": ".react-flow__pane",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "switch-to-time-wait",
+      "type": "click",
+      "position": {"x": 3400, "y": 0},
+      "data": {
+        "label": "Re-select node",
+        "selector": ".react-flow__node:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "change-to-time-mode",
+      "type": "select",
+      "position": {"x": 3600, "y": 0},
+      "data": {
+        "label": "Switch back to time mode",
+        "selector": ".react-flow__node.selected select",
+        "value": "time",
+        "timeoutMs": 5000,
+        "waitForMs": 800
+      }
+    },
+    {
+      "id": "verify-duration-input-appears",
+      "type": "assert",
+      "position": {"x": 3800, "y": 0},
+      "data": {
+        "label": "Duration input should appear for time wait",
+        "selector": ".react-flow__node.selected input[type=\"number\"]",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "Duration input should appear when wait type is 'time'"
+      }
+    },
+    {
+      "id": "capture-time-mode",
+      "type": "screenshot",
+      "position": {"x": 4000, "y": 0},
+      "data": {"label": "Capture time wait mode", "fullPage": true, "waitForMs": 500}
+    },
+    {
+      "id": "enter-duration",
+      "type": "type",
+      "position": {"x": 4200, "y": 0},
+      "data": {
+        "label": "Enter duration value",
+        "selector": ".react-flow__node.selected input[type=\"number\"]",
+        "text": "3000",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "save-duration",
+      "type": "click",
+      "position": {"x": 4400, "y": 0},
+      "data": {
+        "label": "Click canvas to save duration",
+        "selector": ".react-flow__pane",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "verify-config-complete",
+      "type": "screenshot",
+      "position": {"x": 4600, "y": 0},
+      "data": {"label": "Capture final Wait node configuration", "fullPage": true, "waitForMs": 500}
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-dashboard", "target": "wait-dashboard", "type": "smoothstep"},
+    {"id": "e2", "source": "wait-dashboard", "target": "click-demo-project", "type": "smoothstep"},
+    {"id": "e3", "source": "click-demo-project", "target": "wait-project", "type": "smoothstep"},
+    {"id": "e4", "source": "wait-project", "target": "create-workflow", "type": "smoothstep"},
+    {"id": "e5", "source": "create-workflow", "target": "wait-for-ai-modal", "type": "smoothstep"},
+    {"id": "e5a", "source": "wait-for-ai-modal", "target": "switch-to-manual", "type": "smoothstep"},
+    {"id": "e5b", "source": "switch-to-manual", "target": "wait-builder", "type": "smoothstep"},
+    {"id": "e6", "source": "wait-builder", "target": "drag-wait-node", "type": "smoothstep"},
+    {"id": "e7", "source": "drag-wait-node", "target": "wait-node-render", "type": "smoothstep"},
+    {"id": "e8", "source": "wait-node-render", "target": "verify-wait-node", "type": "smoothstep"},
+    {"id": "e9", "source": "verify-wait-node", "target": "click-wait-node", "type": "smoothstep"},
+    {"id": "e10", "source": "click-wait-node", "target": "capture-initial-state", "type": "smoothstep"},
+    {"id": "e11", "source": "capture-initial-state", "target": "find-type-selector", "type": "smoothstep"},
+    {"id": "e12", "source": "find-type-selector", "target": "switch-to-element-wait", "type": "smoothstep"},
+    {"id": "e13", "source": "switch-to-element-wait", "target": "verify-selector-input-appears", "type": "smoothstep"},
+    {"id": "e14", "source": "verify-selector-input-appears", "target": "capture-element-mode", "type": "smoothstep"},
+    {"id": "e15", "source": "capture-element-mode", "target": "type-selector", "type": "smoothstep"},
+    {"id": "e16", "source": "type-selector", "target": "blur-selector-input", "type": "smoothstep"},
+    {"id": "e17", "source": "blur-selector-input", "target": "switch-to-time-wait", "type": "smoothstep"},
+    {"id": "e18", "source": "switch-to-time-wait", "target": "change-to-time-mode", "type": "smoothstep"},
+    {"id": "e19", "source": "change-to-time-mode", "target": "verify-duration-input-appears", "type": "smoothstep"},
+    {"id": "e20", "source": "verify-duration-input-appears", "target": "capture-time-mode", "type": "smoothstep"},
+    {"id": "e21", "source": "capture-time-mode", "target": "enter-duration", "type": "smoothstep"},
+    {"id": "e22", "source": "enter-duration", "target": "save-duration", "type": "smoothstep"},
+    {"id": "e23", "source": "save-duration", "target": "verify-config-complete", "type": "smoothstep"}
+  ]
+}

@@ -669,6 +669,15 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 	if factor, ok := getFloatParam(step.Params, "retryBackoffFactor", "retry_backoff_factor", "retryBackoff"); ok && factor > 0 {
 		base.Params.RetryBackoffFactor = factor
 	}
+	if allowFailure, ok := getBoolParam(
+		step.Params,
+		"continueOnError",
+		"continue_on_error",
+		"continueOnFailure",
+		"continue_on_failure",
+	); ok {
+		base.Params.ContinueOnFailure = boolPtr(allowFailure)
+	}
 
 	switch step.Type {
 	case compiler.StepNavigate:
@@ -2874,6 +2883,11 @@ func getBoolParam(params map[string]any, keys ...string) (bool, bool) {
 		}
 	}
 	return false, false
+}
+
+func boolPtr(v bool) *bool {
+	b := v
+	return &b
 }
 
 func decodeParams(src map[string]any, target any) error {

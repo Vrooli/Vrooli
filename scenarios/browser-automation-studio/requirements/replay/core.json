@@ -75,6 +75,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "End-to-end validation of replay export and rendering workflow."
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/executions/execution-result-export.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates execution result export functionality and replay artifact availability in the UI"
         }
       ]
     }

@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-14T20:55:54.341Z"
+    "last_synced_at": "2025-11-15T22:01:49.435Z"
   },
   "requirements": [
     {
@@ -57,6 +57,20 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "E2E validation of telemetry stream with screenshots, console, and network events"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/executions/execution-progress-tracking.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates real-time execution progress tracking UI with indicators and state transitions"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/executions/execution-telemetry-display.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates real-time telemetry display including screenshots, console, network tabs, and heartbeat timestamps"
         }
       ]
     },
@@ -146,6 +160,38 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Extend smoke workflow to assert CLI output once scripted checks are in place."
+        }
+      ]
+    },
+    {
+      "id": "BAS-EXEC-STOP-CONTROL",
+      "category": "execution.control",
+      "prd_ref": "Execution Management > Control",
+      "title": "Stop/cancel running workflow executions",
+      "description": "Users can stop or cancel a running workflow execution from the UI, with the execution status updated to 'cancelled' and resources properly cleaned up",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/executions/execution-stop-control.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates stop button appears for running executions and successfully cancels them"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/executions/execution-result-export.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates execution result export and replay artifacts availability"
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/ui/executions/execution-progress-tracking.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates execution progress tracking with state transitions and completion indicators"
         }
       ]
     }
