@@ -485,6 +485,9 @@ func main() {
 		// Strategic analysis routes
 		api.POST("/tech-tree/analyze", analyzeStrategicPath)
 		api.GET("/milestones", getStrategicMilestones)
+		api.POST("/milestones", createStrategicMilestone)
+		api.PATCH("/milestones/:id", updateStrategicMilestone)
+		api.DELETE("/milestones/:id", deleteStrategicMilestone)
 		api.GET("/recommendations", getRecommendations)
 
 		// Dependencies and connections

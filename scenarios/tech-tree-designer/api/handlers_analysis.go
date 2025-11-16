@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"log"
+	"math"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -18,11 +21,16 @@ func analyzeStrategicPath(c *gin.Context) {
 		return
 	}
 
+	tree, err := resolveTreeContext(c)
+	if err != nil {
+		log.Printf("analysis proceeding without tree context: %v", err)
+	}
+
 	// Generate strategic recommendations based on current state
 	recommendations := generateStrategicRecommendations(request)
 
-	// Calculate projected timeline
-	timeline := calculateProjectedTimeline(request)
+	// Calculate projected timeline using persisted milestones when available
+	timeline := calculateProjectedTimeline(tree, request)
 
 	// Identify bottlenecks
 	bottlenecks := identifyBottlenecks()
@@ -35,11 +43,6 @@ func analyzeStrategicPath(c *gin.Context) {
 		ProjectedTimeline:  timeline,
 		BottleneckAnalysis: bottlenecks,
 		CrossSectorImpacts: impacts,
-	}
-
-	tree, err := resolveTreeContext(c)
-	if err != nil {
-		log.Printf("analysis proceeding without tree context: %v", err)
 	}
 
 	body := gin.H{
@@ -83,21 +86,118 @@ func generateStrategicRecommendations(request AnalysisRequest) []StrategicRecomm
 }
 
 // Calculate projected timeline for milestones
-func calculateProjectedTimeline(request AnalysisRequest) ProjectedTimeline {
+func calculateProjectedTimeline(tree *TechTree, request AnalysisRequest) ProjectedTimeline {
+	ctx := context.Background()
+	if tree == nil {
+		if fallbackTree, err := fetchDefaultTechTree(ctx); err == nil {
+			tree = fallbackTree
+		}
+	}
+
+	if db == nil || tree == nil {
+		return defaultProjectedTimeline()
+	}
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT name, estimated_completion_date, completion_percentage, confidence_level,
+		       business_value_estimate
+		FROM strategic_milestones
+		WHERE tree_id = $1
+	`, tree.ID)
+	if err != nil {
+		log.Printf("calculateProjectedTimeline fallback due to query error: %v", err)
+		return defaultProjectedTimeline()
+	}
+	defer rows.Close()
+
+	now := time.Now()
+	var projections []MilestoneProjection
+	for rows.Next() {
+		var (
+			name                 string
+			estimatedDate        sql.NullTime
+			completionPercentage sql.NullFloat64
+			confidenceLevel      sql.NullFloat64
+		)
+
+		if err := rows.Scan(&name, &estimatedDate, &completionPercentage, &confidenceLevel); err != nil {
+			continue
+		}
+
+		estimated := estimatedDate.Time
+		if !estimatedDate.Valid {
+			estimated = inferCompletionDate(now, request.TimeHorizon, completionPercentage.Float64, len(projections))
+		}
+		if estimated.Before(now) {
+			estimated = now.Add(24 * time.Hour)
+		}
+
+		confidence := confidenceLevel.Float64
+		if !confidenceLevel.Valid {
+			confidence = 0.75 - float64(len(projections))*0.1
+		}
+		confidence = math.Max(0.05, math.Min(0.95, confidence))
+
+		estimated = estimated.Add(time.Duration(len(projections)) * 6 * time.Hour)
+
+		projections = append(projections, MilestoneProjection{
+			Name:                name,
+			EstimatedCompletion: estimated,
+			Confidence:          confidence,
+		})
+	}
+
+	if len(projections) == 0 {
+		return defaultProjectedTimeline()
+	}
+
+	sort.SliceStable(projections, func(i, j int) bool {
+		return projections[i].EstimatedCompletion.Before(projections[j].EstimatedCompletion)
+	})
+
+	return ProjectedTimeline{Milestones: projections}
+}
+
+func inferCompletionDate(now time.Time, horizonMonths int, completionPercentage float64, index int) time.Time {
+	months := horizonMonths
+	if months <= 0 {
+		months = 12
+	}
+	completion := completionPercentage
+	if completion < 0 {
+		completion = 0
+	}
+	if completion > 100 {
+		completion = 100
+	}
+	remainingFraction := 1 - (completion / 100)
+	if remainingFraction < 0.05 {
+		remainingFraction = 0.05
+	}
+	projectedMonths := float64(months) * remainingFraction
+	if projectedMonths < 1 {
+		projectedMonths = 1
+	}
+	projectedMonths += float64(index) * 0.5
+	return now.AddDate(0, int(math.Ceil(projectedMonths)), 0)
+}
+
+func defaultProjectedTimeline() ProjectedTimeline {
+	now := time.Now()
 	milestones := []MilestoneProjection{
 		{
 			Name:                "Personal Productivity Mastery",
-			EstimatedCompletion: time.Now().AddDate(0, 6, 0),
+			EstimatedCompletion: now.AddDate(0, 6, 0),
 			Confidence:          0.8,
 		},
 		{
 			Name:                "Core Sector Digital Twins",
-			EstimatedCompletion: time.Now().AddDate(2, 0, 0),
+			EstimatedCompletion: now.AddDate(2, 0, 0),
 			Confidence:          0.6,
 		},
 		{
 			Name:                "Civilization Digital Twin",
-			EstimatedCompletion: time.Now().AddDate(5, 0, 0),
+			EstimatedCompletion: now.AddDate(5, 0, 0),
 			Confidence:          0.4,
 		},
 	}
@@ -151,7 +251,9 @@ func getStrategicMilestones(c *gin.Context) {
 			   confidence_level, business_value_estimate, created_at, updated_at
 		FROM strategic_milestones
 		WHERE tree_id = $1
-		ORDER BY business_value_estimate DESC
+		ORDER BY estimated_completion_date NULLS LAST,
+		         business_value_estimate DESC,
+		         created_at ASC
 	`, tree.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch milestones"})

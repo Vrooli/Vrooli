@@ -29,3 +29,15 @@ export interface ScenarioFormState {
   estimatedImpact: string
   notes: string
 }
+
+export interface MilestoneFormState {
+  name: string
+  description: string
+  milestoneType: string
+  completion: string
+  businessValue: string
+  confidence: string
+  estimatedDate: string
+  targetSectors: string[]
+  targetStages: string[]
+}

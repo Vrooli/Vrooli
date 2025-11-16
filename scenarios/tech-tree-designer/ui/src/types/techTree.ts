@@ -81,6 +81,7 @@ export interface StrategicMilestone {
   milestone_type: string
   business_value_estimate?: number
   completion_percentage?: number
+  estimated_completion_date?: string
   target_sector_ids?: string[]
   target_stage_ids?: string[]
   confidence_level?: number
@@ -210,6 +211,18 @@ export interface StageFormPayload {
   position_x?: number
   position_y?: number
   examples: string[]
+}
+
+export interface MilestoneFormPayload {
+  name: string
+  description: string
+  milestone_type: string
+  completion_percentage?: number
+  business_value_estimate?: number
+  confidence_level?: number
+  estimated_completion_date?: string
+  target_sector_ids?: string[]
+  target_stage_ids?: string[]
 }
 
 export type ScenarioVisibilityPayload = {

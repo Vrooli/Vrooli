@@ -214,7 +214,6 @@ data-tools/
 │   ├── install.sh           # CLI installer
 │   └── cli-tests.bats       # CLI test suite
 ├── initialization/
-│   ├── automation/windmill/ # Windmill workflows
 │   ├── configuration/       # App configuration
 │   └── storage/postgres/    # Database schema
 │       ├── schema.sql       # Table definitions

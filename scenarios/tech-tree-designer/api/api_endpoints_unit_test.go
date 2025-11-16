@@ -203,6 +203,43 @@ func TestAPIEndpointCoverage(t *testing.T) {
 	if w := makeHTTPRequest(t, router, "GET", "/api/v1/milestones", nil); w.Code != http.StatusOK {
 		t.Fatalf("get milestones failed: %d %s", w.Code, w.Body.String())
 	}
+
+	milestoneCreate := map[string]interface{}{
+		"name":                   "API Created Milestone",
+		"description":            "End-to-end milestone coverage",
+		"milestone_type":         "sector_complete",
+		"completion_percentage":  35.0,
+		"confidence_level":       0.7,
+		"business_value_estimate": 123456,
+		"estimated_completion_date": "2030-01-01",
+		"target_sector_ids":      []string{sectorID},
+		"target_stage_ids":       []string{stageID},
+	}
+	createMilestoneResp := makeHTTPRequest(t, router, "POST", "/api/v1/milestones?tree_id="+treeID, milestoneCreate)
+	if createMilestoneResp.Code != http.StatusCreated {
+		t.Fatalf("create milestone failed: %d %s", createMilestoneResp.Code, createMilestoneResp.Body.String())
+	}
+	createPayload := assertJSONResponse(t, createMilestoneResp, http.StatusCreated)
+	createdMilestone := createPayload["milestone"].(map[string]interface{})
+	newMilestoneID := createdMilestone["id"].(string)
+
+	milestoneUpdate := map[string]interface{}{
+		"name":                   "API Updated Milestone",
+		"description":            "Updated via API",
+		"milestone_type":         "cross_sector_integration",
+		"completion_percentage":  55.0,
+		"confidence_level":       0.65,
+		"business_value_estimate": 789000,
+		"estimated_completion_date": "2031-06-15",
+		"target_sector_ids":      []string{sectorID},
+		"target_stage_ids":       []string{stageID},
+	}
+	if w := makeHTTPRequest(t, router, "PATCH", "/api/v1/milestones/"+newMilestoneID+"?tree_id="+treeID, milestoneUpdate); w.Code != http.StatusOK {
+		t.Fatalf("update milestone failed: %d %s", w.Code, w.Body.String())
+	}
+	if w := makeHTTPRequest(t, router, "DELETE", "/api/v1/milestones/"+newMilestoneID+"?tree_id="+treeID, nil); w.Code != http.StatusNoContent {
+		t.Fatalf("delete milestone failed: %d %s", w.Code, w.Body.String())
+	}
 	if w := makeHTTPRequest(t, router, "GET", "/api/v1/recommendations", nil); w.Code != http.StatusOK {
 		t.Fatalf("get recommendations failed: %d %s", w.Code, w.Body.String())
 	}

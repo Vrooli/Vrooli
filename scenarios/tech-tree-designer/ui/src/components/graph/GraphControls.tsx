@@ -1,5 +1,16 @@
 import React, { useState } from 'react'
-import { Maximize2, Minimize2, PenSquare, Network, Download, Copy, Check } from 'lucide-react'
+import {
+  Maximize2,
+  Minimize2,
+  PenSquare,
+  Network,
+  Download,
+  Copy,
+  Check,
+  RotateCcw,
+  RotateCw,
+  XCircle
+} from 'lucide-react'
 import { useGraphExport, type ExportFormat } from '../../hooks/useGraphExport'
 import type { Sector, StageDependency } from '../../types/techTree'
 
@@ -9,6 +20,8 @@ interface GraphControlsProps {
   isEditMode: boolean
   isPersisting: boolean
   hasGraphChanges: boolean
+  canUndo: boolean
+  canRedo: boolean
   autoLayoutEnabled: boolean
   treeId?: string
   sectors?: Sector[]
@@ -16,6 +29,9 @@ interface GraphControlsProps {
   onToggleFullscreen: () => void
   onToggleEditMode: () => void
   onToggleAutoLayout: () => void
+  onUndo: () => void
+  onRedo: () => void
+  onCancelEditing: () => void
 }
 
 /**
@@ -27,13 +43,18 @@ const GraphControls: React.FC<GraphControlsProps> = ({
   isEditMode,
   isPersisting,
   hasGraphChanges,
+  canUndo,
+  canRedo,
   autoLayoutEnabled,
   treeId,
   sectors,
   dependencies,
   onToggleFullscreen,
   onToggleEditMode,
-  onToggleAutoLayout
+  onToggleAutoLayout,
+  onUndo,
+  onRedo,
+  onCancelEditing
 }) => {
   const { exportGraph, copyGraphAsText, isExporting } = useGraphExport()
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -101,6 +122,40 @@ const GraphControls: React.FC<GraphControlsProps> = ({
         <Network className="canvas-icon-button__icon" aria-hidden="true" />
         <span className="sr-only">Toggle automatic layout</span>
       </button>
+      {isEditMode && (
+        <>
+          <button
+            type="button"
+            className="canvas-icon-button"
+            onClick={onUndo}
+            aria-label="Undo graph change"
+            disabled={!canUndo || isPersisting}
+          >
+            <RotateCcw className="canvas-icon-button__icon" aria-hidden="true" />
+            <span className="sr-only">Undo</span>
+          </button>
+          <button
+            type="button"
+            className="canvas-icon-button"
+            onClick={onRedo}
+            aria-label="Redo graph change"
+            disabled={!canRedo || isPersisting}
+          >
+            <RotateCw className="canvas-icon-button__icon" aria-hidden="true" />
+            <span className="sr-only">Redo</span>
+          </button>
+          <button
+            type="button"
+            className="canvas-icon-button"
+            onClick={onCancelEditing}
+            aria-label="Cancel graph edits"
+            disabled={isPersisting}
+          >
+            <XCircle className="canvas-icon-button__icon" aria-hidden="true" />
+            <span className="sr-only">Cancel edits</span>
+          </button>
+        </>
+      )}
       <button
         type="button"
         className={`canvas-icon-button${isEditMode ? ' is-active' : ''}${

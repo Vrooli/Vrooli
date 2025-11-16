@@ -451,7 +451,7 @@ func TestTimelineCalculations(t *testing.T) {
 			PrioritySectors:  []string{"software"},
 		}
 
-		timeline := calculateProjectedTimeline(request)
+		timeline := calculateProjectedTimeline(nil, request)
 
 		for i, milestone := range timeline.Milestones {
 			// Using time.Now() might cause flakiness, but checking basic logic
@@ -468,7 +468,7 @@ func TestTimelineCalculations(t *testing.T) {
 			PrioritySectors:  []string{"software"},
 		}
 
-		timeline := calculateProjectedTimeline(request)
+		timeline := calculateProjectedTimeline(nil, request)
 
 		for i, milestone := range timeline.Milestones {
 			if milestone.Confidence < 0 || milestone.Confidence > 1 {

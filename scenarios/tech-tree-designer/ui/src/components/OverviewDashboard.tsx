@@ -5,6 +5,7 @@ import {
   Brain,
   Check,
   Database,
+  Edit3,
   GitBranch,
   Info,
   Network,
@@ -57,6 +58,9 @@ interface OverviewDashboardProps {
   onApplyValuePreset: (presetId: string) => void
   onCreateValuePreset: (payload: { name: string; description?: string }) => void
   onDeleteValuePreset: (presetId: string) => void
+  onCreateMilestone?: () => void
+  onEditMilestone?: (milestone: StrategicMilestone) => void
+  onDeleteMilestone?: (milestone: StrategicMilestone) => void
 }
 
 const stageIcons = {
@@ -86,8 +90,24 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   activeValuePresetId,
   onApplyValuePreset,
   onCreateValuePreset,
-  onDeleteValuePreset
+  onDeleteValuePreset,
+  onCreateMilestone,
+  onEditMilestone,
+  onDeleteMilestone
 }) => {
+  const formatMilestoneDate = (value?: string) => {
+    if (!value) {
+      return null
+    }
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) {
+      return value
+    }
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      year: 'numeric'
+    })
+  }
   const [sortOpen, setSortOpen] = useState(false)
   const sortMenuRef = useRef<HTMLDivElement | null>(null)
   const [presetFormOpen, setPresetFormOpen] = useState(false)
@@ -759,6 +779,13 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                 <p className="panel-subtitle">Value checkpoints across the portfolio.</p>
               </div>
             </div>
+            {onCreateMilestone && (
+              <div className="panel-header-actions">
+                <button type="button" className="button button--ghost" onClick={onCreateMilestone}>
+                  Add milestone
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="scrollable milestone-list" role="list">
@@ -770,6 +797,13 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
             ) : (
               milestones.map((milestone) => {
                 const completion = milestone.completion_percentage ?? 0
+                const etaLabel = formatMilestoneDate(milestone.estimated_completion_date)
+                const confidenceLabel =
+                  typeof milestone.confidence_level === 'number'
+                    ? Math.round(milestone.confidence_level * 100)
+                    : null
+                const milestoneTypeLabel = milestone.milestone_type.replace(/_/g, ' ')
+                const hasActions = Boolean(onEditMilestone || onDeleteMilestone)
                 return (
                   <article key={milestone.id} role="listitem" className="tech-node milestone-card">
                     <div className="milestone-head">
@@ -799,19 +833,49 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
                       <span className="milestone-value">{formatCurrency(milestone.business_value_estimate)}</span>
                     </div>
 
-                  <div
-                    className={`status-indicator milestone-tag ${
-                      milestone.milestone_type === 'sector_complete'
-                        ? 'status-info'
-                        : milestone.milestone_type === 'cross_sector_integration'
-                          ? 'status-warning'
-                          : milestone.milestone_type === 'civilization_twin'
-                            ? 'status-success'
-                            : 'status-info'
-                    }`}
-                  >
-                    {milestone.milestone_type.replace('_', ' ')}
-                  </div>
+                    <div className="milestone-metadata">
+                      {etaLabel && <span>ETA {etaLabel}</span>}
+                      {confidenceLabel !== null && <span>Confidence {confidenceLabel}%</span>}
+                    </div>
+
+                    <div
+                      className={`status-indicator milestone-tag ${
+                        milestone.milestone_type === 'sector_complete'
+                          ? 'status-info'
+                          : milestone.milestone_type === 'cross_sector_integration'
+                            ? 'status-warning'
+                            : milestone.milestone_type === 'civilization_twin'
+                              ? 'status-success'
+                              : 'status-info'
+                      }`}
+                    >
+                      {milestoneTypeLabel}
+                    </div>
+
+                    {hasActions && (
+                      <div className="milestone-actions">
+                        {onEditMilestone && (
+                          <button
+                            type="button"
+                            className="button button--ghost"
+                            onClick={() => onEditMilestone(milestone)}
+                            aria-label={`Edit milestone ${milestone.name}`}
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                        )}
+                        {onDeleteMilestone && (
+                          <button
+                            type="button"
+                            className="button button--ghost"
+                            onClick={() => onDeleteMilestone(milestone)}
+                            aria-label={`Delete milestone ${milestone.name}`}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </article>
                 )
               })

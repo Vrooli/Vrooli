@@ -127,7 +127,9 @@ export const getDemoMilestones = (): StrategicMilestone[] => [
     completion_percentage: 75,
     business_value_estimate: 10_000_000,
     milestone_type: 'sector_complete',
-    target_sector_ids: ['sector-1']
+    target_sector_ids: ['sector-1'],
+    confidence_level: 0.8,
+    estimated_completion_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 180).toISOString()
   },
   {
     id: 'milestone-2',
@@ -137,7 +139,9 @@ export const getDemoMilestones = (): StrategicMilestone[] => [
     completion_percentage: 25,
     business_value_estimate: 1_000_000_000,
     milestone_type: 'cross_sector_integration',
-    target_sector_ids: ['sector-2', 'sector-3', 'sector-4']
+    target_sector_ids: ['sector-2', 'sector-3', 'sector-4'],
+    confidence_level: 0.6,
+    estimated_completion_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 2).toISOString()
   },
   {
     id: 'milestone-3',
@@ -147,6 +151,8 @@ export const getDemoMilestones = (): StrategicMilestone[] => [
     completion_percentage: 5,
     business_value_estimate: 100_000_000_000,
     milestone_type: 'civilization_twin',
-    target_sector_ids: ['sector-1', 'sector-2', 'sector-3', 'sector-4']
+    target_sector_ids: ['sector-1', 'sector-2', 'sector-3', 'sector-4'],
+    confidence_level: 0.4,
+    estimated_completion_date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 5).toISOString()
   }
 ]

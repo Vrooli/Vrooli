@@ -17,8 +17,10 @@ import { useDesignerModals } from './hooks/useDesignerModals'
 import { useConfirmDialog } from './hooks/useConfirmDialog'
 import { useTreeModal } from './hooks/useTreeModal'
 import { useAIStageIdeas } from './hooks/useAIStageIdeas'
-import { deleteStage, deleteSector, deleteScenarioMapping } from './services/techTree'
+import { useMilestoneModal } from './hooks/useMilestoneModal'
+import { deleteStage, deleteSector, deleteScenarioMapping, deleteMilestone } from './services/techTree'
 import AIStageIdeasModal from './components/modals/AIStageIdeasModal'
+import StrategicMilestoneModal from './components/modals/StrategicMilestoneModal'
 import type {
   ScenarioCatalogEntry,
   ProgressionStage,
@@ -183,6 +185,11 @@ const App: React.FC = () => {
     selectedSector,
     sectors,
     refreshTreeData
+  })
+
+  const milestoneModal = useMilestoneModal({
+    selectedTreeId,
+    onSuccess: refreshTreeData
   })
 
   const { confirmState, isProcessing, showConfirm, handleConfirm, handleCancel } = useConfirmDialog()
@@ -435,6 +442,40 @@ const App: React.FC = () => {
     })
   }, [showConfirm, selectedTreeId, refreshTreeData, setGraphNotice])
 
+  const handleCreateMilestone = useCallback(() => {
+    if (!selectedTreeId) {
+      setGraphNotice('Select a tech tree before managing milestones.')
+      return
+    }
+    milestoneModal.open()
+  }, [milestoneModal, selectedTreeId, setGraphNotice])
+
+  const handleEditMilestone = useCallback((milestone: StrategicMilestone) => {
+    if (!selectedTreeId) {
+      setGraphNotice('Select a tech tree before managing milestones.')
+      return
+    }
+    milestoneModal.openForEdit(milestone)
+  }, [milestoneModal, selectedTreeId, setGraphNotice])
+
+  const handleDeleteMilestone = useCallback((milestone: StrategicMilestone) => {
+    if (!selectedTreeId) {
+      setGraphNotice('Select a tech tree before managing milestones.')
+      return
+    }
+    showConfirm({
+      title: 'Delete Milestone',
+      message: `Delete milestone "${milestone.name}"? This action cannot be undone.`,
+      confirmLabel: 'Delete Milestone',
+      isDangerous: true,
+      onConfirm: async () => {
+        await deleteMilestone(milestone.id, selectedTreeId)
+        setGraphNotice(`Milestone "${milestone.name}" deleted successfully`)
+        refreshTreeData()
+      }
+    })
+  }, [showConfirm, selectedTreeId, refreshTreeData, setGraphNotice])
+
   const handleStrategicValueSettingsChange = useCallback(
     (settings: StrategicValueSettings, options?: { preservePreset?: boolean }) => {
       setStrategicValueSettings(settings)
@@ -559,6 +600,9 @@ const App: React.FC = () => {
           onApplyValuePreset={handleApplyValuePreset}
           onCreateValuePreset={handleCreateValuePreset}
           onDeleteValuePreset={handleDeleteValuePreset}
+          onCreateMilestone={handleCreateMilestone}
+          onEditMilestone={handleEditMilestone}
+          onDeleteMilestone={handleDeleteMilestone}
         />
       ) : (
         <TechTreeCanvas
@@ -631,6 +675,18 @@ const App: React.FC = () => {
         onClose={scenarioModal.close}
         isSaving={scenarioModal.isSaving}
         errorMessage={scenarioModal.errorMessage}
+      />
+
+      <StrategicMilestoneModal
+        isOpen={milestoneModal.isOpen}
+        formState={milestoneModal.formState}
+        sectors={sectors}
+        isSaving={milestoneModal.isSaving}
+        errorMessage={milestoneModal.errorMessage}
+        editMode={milestoneModal.editMode}
+        onClose={milestoneModal.close}
+        onFieldChange={milestoneModal.onFieldChange}
+        onSubmit={milestoneModal.onSubmit}
       />
 
       <ConfirmDialog

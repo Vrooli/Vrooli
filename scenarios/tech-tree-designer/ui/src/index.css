@@ -1149,6 +1149,15 @@ code {
   color: var(--color-text-secondary);
 }
 
+.milestone-metadata {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
 .milestone-value {
   font-family: var(--font-family-mono);
   color: var(--color-success);
@@ -1156,6 +1165,13 @@ code {
 
 .milestone-tag {
   align-self: flex-start;
+}
+
+.milestone-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: 0.75rem;
 }
 
 .ultimate-goal {

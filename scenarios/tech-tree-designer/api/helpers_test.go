@@ -74,7 +74,7 @@ func TestCalculateProjectedTimeline(t *testing.T) {
 			PrioritySectors:  []string{"software"},
 		}
 
-		timeline := calculateProjectedTimeline(request)
+		timeline := calculateProjectedTimeline(nil, request)
 
 		if len(timeline.Milestones) == 0 {
 			t.Error("Expected at least one milestone")
@@ -101,7 +101,7 @@ func TestCalculateProjectedTimeline(t *testing.T) {
 			PrioritySectors:  []string{"software"},
 		}
 
-		timeline := calculateProjectedTimeline(request)
+		timeline := calculateProjectedTimeline(nil, request)
 		if len(timeline.Milestones) == 0 {
 			t.Error("Expected milestones even with short time horizon")
 		}
@@ -114,7 +114,7 @@ func TestCalculateProjectedTimeline(t *testing.T) {
 			PrioritySectors:  []string{"software", "manufacturing", "healthcare"},
 		}
 
-		timeline := calculateProjectedTimeline(request)
+		timeline := calculateProjectedTimeline(nil, request)
 		if len(timeline.Milestones) == 0 {
 			t.Error("Expected milestones with long time horizon")
 		}
@@ -191,7 +191,7 @@ func TestAnalysisRequestValidation(t *testing.T) {
 
 		// Should not panic or error
 		_ = generateStrategicRecommendations(request)
-		_ = calculateProjectedTimeline(request)
+		_ = calculateProjectedTimeline(nil, request)
 	})
 
 	t.Run("Negative resources", func(t *testing.T) {
@@ -216,7 +216,7 @@ func TestAnalysisRequestValidation(t *testing.T) {
 		}
 
 		// Should handle gracefully
-		timeline := calculateProjectedTimeline(request)
+		timeline := calculateProjectedTimeline(nil, request)
 		if len(timeline.Milestones) == 0 {
 			t.Error("Expected timeline even with negative time horizon")
 		}
@@ -417,7 +417,7 @@ func TestTimelineProjections(t *testing.T) {
 			PrioritySectors:  []string{"software"},
 		}
 
-		timeline := calculateProjectedTimeline(request)
+		timeline := calculateProjectedTimeline(nil, request)
 
 		// Verify milestones are in chronological order
 		for i := 1; i < len(timeline.Milestones); i++ {
@@ -434,7 +434,7 @@ func TestTimelineProjections(t *testing.T) {
 			PrioritySectors:  []string{"software"},
 		}
 
-		timeline := calculateProjectedTimeline(request)
+		timeline := calculateProjectedTimeline(nil, request)
 
 		// Later milestones should generally have lower confidence
 		if len(timeline.Milestones) >= 2 {

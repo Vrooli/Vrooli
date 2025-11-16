@@ -11,7 +11,6 @@ INSERT INTO configuration (key, value, category, description, is_active) VALUES
     ('features.authentication', '{"enabled": true, "provider": "internal"}', 'features', 'Authentication configuration', true),
     ('features.notifications', '{"enabled": true, "channels": ["email", "webhook"]}', 'features', 'Notification settings', true),
     ('resources.n8n', '{"enabled": true, "base_url": "http://localhost:5678"}', 'resources', 'n8n configuration', true),
-    ('resources.windmill', '{"enabled": true, "base_url": "http://localhost:5681"}', 'resources', 'Windmill configuration', true),
     ('resources.ollama', '{"enabled": false, "base_url": "http://localhost:11434"}', 'resources', 'Ollama configuration', true)
 ON CONFLICT (key) DO NOTHING;
 
@@ -21,7 +20,7 @@ INSERT INTO workflows (workflow_id, name, description, platform, definition, is_
      '{"nodes": [], "connections": {}, "settings": {}}', true),
     ('data-pipeline', 'Data Processing Pipeline', 'Handles data transformation and storage', 'n8n',
      '{"nodes": [], "connections": {}, "settings": {}}', true),
-    ('ui-dashboard', 'Dashboard Application', 'Main user interface dashboard', 'windmill',
+    ('ui-dashboard', 'Dashboard Application', 'Main user interface dashboard', 'n8n',
      '{"type": "app", "components": [], "layout": {}}', true)
 ON CONFLICT (workflow_id) DO NOTHING;
 

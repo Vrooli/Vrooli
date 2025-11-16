@@ -1,6 +1,7 @@
 import { apiUrl } from '../utils/api'
 import type {
   ApiStrategicMilestone,
+  MilestoneFormPayload,
   ProgressionStage,
   ScenarioCatalogSnapshot,
   ScenarioFormPayload,
@@ -126,6 +127,32 @@ export const deleteStage = (stageId: string, treeId?: string) =>
 
 export const deleteScenarioMapping = (mappingId: string, treeId?: string) =>
   apiRequest<ApiResponse<unknown>>(appendTreeId(`/progress/scenarios/${mappingId}`, treeId), {
+    method: 'DELETE'
+  })
+
+export const createMilestone = (payload: MilestoneFormPayload, treeId?: string) =>
+  apiRequest<ApiResponse<{ milestone: ApiStrategicMilestone }>>(appendTreeId('/milestones', treeId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+
+export const updateMilestone = (
+  milestoneId: string,
+  payload: MilestoneFormPayload,
+  treeId?: string
+) =>
+  apiRequest<ApiResponse<{ milestone: ApiStrategicMilestone }>>(
+    appendTreeId(`/milestones/${milestoneId}`, treeId),
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  )
+
+export const deleteMilestone = (milestoneId: string, treeId?: string) =>
+  apiRequest<ApiResponse<unknown>>(appendTreeId(`/milestones/${milestoneId}`, treeId), {
     method: 'DELETE'
   })
 

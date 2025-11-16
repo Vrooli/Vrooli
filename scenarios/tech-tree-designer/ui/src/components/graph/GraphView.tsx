@@ -276,12 +276,18 @@ const GraphView: React.FC<GraphViewProps> = ({
     editError,
     setHasGraphChanges,
     setEditError,
-    handleToggleEditMode
+    handleToggleEditMode,
+    canUndo,
+    canRedo,
+    handleUndo,
+    handleRedo,
+    handleCancelEdit
   } = useGraphEditor({
     stageNodes,
     designerEdges,
     scenarioOnlyMode,
     buildTreeAwarePath,
+    setNodes,
     setEdges,
     onGraphPersist,
     setGraphNotice
@@ -477,12 +483,17 @@ const GraphView: React.FC<GraphViewProps> = ({
           isEditMode={isEditMode}
           isPersisting={isPersisting}
           hasGraphChanges={hasGraphChanges}
+          canUndo={canUndo}
+          canRedo={canRedo}
           autoLayoutEnabled={autoLayoutEnabled}
           treeId={selectedTreeId ?? undefined}
           sectors={sectors}
           dependencies={dependencies}
           onToggleFullscreen={toggleFullscreen}
           onToggleEditMode={handleToggleEditMode}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onCancelEditing={handleCancelEdit}
           onToggleAutoLayout={handleToggleAutoLayout}
         />
       </div>
