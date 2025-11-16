@@ -180,4 +180,26 @@ export const updateTechTree = (
     body: JSON.stringify(payload)
   })
 
+// Export graph in various formats
+export const exportGraphDOT = async (treeId?: string): Promise<string> => {
+  const response = await fetch(apiUrl(appendTreeId('/tech-tree/graph/dot', treeId)))
+  if (!response.ok) {
+    throw new Error(`Export failed (${response.status})`)
+  }
+  return await response.text()
+}
+
+export const exportGraphJSON = async (treeId?: string) => {
+  const [sectors, dependencies] = await Promise.all([
+    fetchSectors(treeId),
+    fetchDependencies(treeId)
+  ])
+  return {
+    tree_id: treeId,
+    sectors: sectors.sectors,
+    dependencies: dependencies.dependencies,
+    exported_at: new Date().toISOString()
+  }
+}
+
 export { appendTreeId }

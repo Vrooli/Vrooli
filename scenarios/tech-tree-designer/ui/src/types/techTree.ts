@@ -154,3 +154,5 @@ export type ScenarioVisibilityPayload = {
 }
 
 export type TreeViewMode = 'overview' | 'designer'
+
+export type GraphViewMode = 'tech-tree' | 'hybrid' | 'scenarios'

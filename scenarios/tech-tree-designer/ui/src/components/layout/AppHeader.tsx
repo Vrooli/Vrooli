@@ -1,9 +1,10 @@
 import React from 'react'
-import type { ScenarioCatalogEntry, TechTreeSummary } from '../../types/techTree'
+import type { GraphViewMode, ScenarioCatalogEntry, TechTreeSummary } from '../../types/techTree'
 import type { ScenarioEntryMap } from '../../types/graph'
 import TreeSelector from './TreeSelector'
-import ScenarioControls from './ScenarioControls'
+import ViewModeSelector from './ViewModeSelector'
 import HiddenScenariosBanner from './HiddenScenariosBanner'
+import { RefreshCcw } from 'lucide-react'
 
 interface AppHeaderProps {
   techTrees: TechTreeSummary[]
@@ -16,12 +17,10 @@ interface AppHeaderProps {
   onCreateSector: () => void
   onCreateTree?: () => void
   onCloneTree?: () => void
-  showLiveScenarios: boolean
-  scenarioOnlyMode: boolean
+  graphViewMode: GraphViewMode
+  onGraphViewModeChange: (mode: GraphViewMode) => void
   showHiddenScenarios: boolean
   showIsolatedScenarios: boolean
-  onToggleLiveScenarios: (value: boolean) => void
-  onToggleScenarioOnly: (value: boolean) => void
   onToggleHiddenScenarios: (value: boolean) => void
   onToggleIsolatedScenarios: (value: boolean) => void
   onSyncScenarios: () => void
@@ -43,12 +42,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onCreateSector,
   onCreateTree,
   onCloneTree,
-  showLiveScenarios,
-  scenarioOnlyMode,
+  graphViewMode,
+  onGraphViewModeChange,
   showHiddenScenarios,
   showIsolatedScenarios,
-  onToggleLiveScenarios,
-  onToggleScenarioOnly,
   onToggleHiddenScenarios,
   onToggleIsolatedScenarios,
   onSyncScenarios,
@@ -77,19 +74,21 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       onCreateTree={onCreateTree}
       onCloneTree={onCloneTree}
     />
-    <ScenarioControls
-      showLiveScenarios={showLiveScenarios}
-      scenarioOnlyMode={scenarioOnlyMode}
+    <ViewModeSelector
+      viewMode={graphViewMode}
+      onChange={onGraphViewModeChange}
       showHiddenScenarios={showHiddenScenarios}
       showIsolatedScenarios={showIsolatedScenarios}
-      onToggleLive={onToggleLiveScenarios}
-      onToggleScenarioOnly={onToggleScenarioOnly}
       onToggleHidden={onToggleHiddenScenarios}
       onToggleIsolated={onToggleIsolatedScenarios}
-      onSync={onSyncScenarios}
-      isSyncing={isSyncingScenarios}
-      lastSyncedLabel={lastSyncedLabel}
     />
+    <div className="scenario-sync">
+      <button type="button" className="button" onClick={onSyncScenarios} disabled={isSyncingScenarios}>
+        <RefreshCcw className={isSyncingScenarios ? 'spin' : ''} aria-hidden="true" />
+        {isSyncingScenarios ? 'Syncing…' : 'Sync scenarios'}
+      </button>
+      <p className="scenario-sync__meta">Last sync: {lastSyncedLabel}</p>
+    </div>
     <HiddenScenariosBanner
       hidden={hiddenScenarios}
       scenarioEntryMap={scenarioEntryMap}

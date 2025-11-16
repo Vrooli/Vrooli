@@ -26,7 +26,8 @@ import type {
   StageDependency,
   StrategicMilestone,
   TechTreeSummary,
-  TreeViewMode
+  TreeViewMode,
+  GraphViewMode
 } from './types/techTree'
 
 const App: React.FC = () => {
@@ -52,10 +53,12 @@ const App: React.FC = () => {
 
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null)
   const [viewMode, setViewMode] = useState<TreeViewMode>('overview')
-  const [showLiveScenarios, setShowLiveScenarios] = useState(true)
-  const [scenarioOnlyMode, setScenarioOnlyMode] = useState(false)
+
+  // New simplified graph view mode system
+  const [graphViewMode, setGraphViewMode] = useState<GraphViewMode>('tech-tree')
   const [showHiddenScenarios, setShowHiddenScenarios] = useState(false)
-  const [showIsolatedScenarios, setShowIsolatedScenarios] = useState(false) // Default to false = hide isolated scenarios
+  const [showIsolatedScenarios, setShowIsolatedScenarios] = useState(false)
+
   const techTreeCanvasRef = useRef<HTMLDivElement | null>(null)
 
   const { canFullscreen, isFullscreen, isLayoutFullscreen, toggleFullscreen } = useFullscreenManager(
@@ -288,17 +291,10 @@ const App: React.FC = () => {
         onCreateSector={sectorModal.open}
         onCreateTree={handleCreateTree}
         onCloneTree={handleCloneTree}
-        showLiveScenarios={showLiveScenarios}
-        scenarioOnlyMode={scenarioOnlyMode}
+        graphViewMode={graphViewMode}
+        onGraphViewModeChange={setGraphViewMode}
         showHiddenScenarios={showHiddenScenarios}
         showIsolatedScenarios={showIsolatedScenarios}
-        onToggleLiveScenarios={setShowLiveScenarios}
-        onToggleScenarioOnly={(checked) => {
-          setScenarioOnlyMode(checked)
-          if (checked) {
-            setShowLiveScenarios(false)
-          }
-        }}
         onToggleHiddenScenarios={setShowHiddenScenarios}
         onToggleIsolatedScenarios={setShowIsolatedScenarios}
         onSyncScenarios={handleScenarioCatalogRefresh}
@@ -334,8 +330,8 @@ const App: React.FC = () => {
           onGraphPersist={handleGraphPersist}
           scenarioCatalog={scenarioCatalog}
           scenarioEntryMap={scenarioEntryMap}
-          showLiveScenarios={showLiveScenarios}
-          scenarioOnlyMode={scenarioOnlyMode}
+          showLiveScenarios={graphViewMode === 'hybrid'}
+          scenarioOnlyMode={graphViewMode === 'scenarios'}
           showHiddenScenarios={showHiddenScenarios}
           showIsolatedScenarios={showIsolatedScenarios}
           handleScenarioVisibility={handleScenarioVisibility}

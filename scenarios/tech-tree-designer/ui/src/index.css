@@ -1879,6 +1879,111 @@ code {
   color: var(--color-text-muted);
 }
 
+/* View Mode Selector - New simplified radio button system */
+.view-mode-selector {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(30, 41, 59, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.view-mode-options {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.view-mode-option {
+  flex: 1;
+  min-width: 180px;
+  position: relative;
+  cursor: pointer;
+}
+
+.view-mode-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.view-mode-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid rgba(148, 163, 184, 0.25);
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.4);
+  transition: all var(--transition-smooth);
+}
+
+.view-mode-option:hover .view-mode-label {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.view-mode-option input:checked + .view-mode-label {
+  border-color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.view-mode-option input:focus + .view-mode-label {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.view-mode-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+}
+
+.view-mode-desc {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.3;
+}
+
+.view-mode-option input:checked + .view-mode-label .view-mode-title {
+  color: var(--color-primary);
+}
+
+.view-mode-option input:checked + .view-mode-label .view-mode-desc {
+  color: var(--color-text-secondary);
+}
+
+.scenario-filters {
+  display: flex;
+  gap: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  flex-wrap: wrap;
+}
+
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.filter-toggle input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.filter-toggle:hover {
+  color: var(--color-text-primary);
+}
+
 .hidden-scenarios-banner {
   margin-top: 0.75rem;
   padding: 0.75rem 1rem;

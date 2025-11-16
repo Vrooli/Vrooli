@@ -3,8 +3,9 @@ package main
 import "database/sql"
 
 var (
-	db             *sql.DB
-	catalogManager *ScenarioCatalogManager
+	db                *sql.DB
+	catalogManager    *ScenarioCatalogManager
+	graphQueryService *GraphQueryService
 
 	stageTypeAliases = map[string]string{
 		"foundation":      "foundation",

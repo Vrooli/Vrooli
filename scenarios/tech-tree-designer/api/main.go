@@ -388,6 +388,7 @@ func main() {
 	sectorService = NewSectorService(db)
 	stageService = NewStageService(db)
 	graphService = NewGraphService(db)
+	graphQueryService = NewGraphQueryService(db)
 
 	repoRoot, rootErr := resolveRepoRoot()
 	if rootErr != nil {
@@ -489,6 +490,12 @@ func main() {
 		// Dependencies and connections
 		api.GET("/dependencies", getDependencies)
 		api.GET("/connections", getCrossSectorConnections)
+
+		// Graph query endpoints for agents
+		api.GET("/graph/neighborhood", getStageNeighborhood)
+		api.GET("/graph/path", getShortestPath)
+		api.GET("/graph/ancestors", getStageAncestors)
+		api.GET("/graph/export/view", exportGraphViewAsText)
 	}
 
 	// Get port from environment (required)
