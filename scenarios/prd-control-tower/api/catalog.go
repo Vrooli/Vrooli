@@ -28,6 +28,17 @@ type CatalogEntry struct {
 	HasDraft        bool   `json:"has_draft"`        // Whether a draft exists
 	HasRequirements bool   `json:"has_requirements"` // Whether requirements/index.json exists
 	Description     string `json:"description"`      // Brief description (if available)
+	Requirements    *CatalogRequirementSummary `json:"requirements_summary,omitempty"`
+}
+
+type CatalogRequirementSummary struct {
+	Total      int `json:"total"`
+	Completed  int `json:"completed"`
+	InProgress int `json:"in_progress"`
+	Pending    int `json:"pending"`
+	P0         int `json:"p0"`
+	P1         int `json:"p1"`
+	P2         int `json:"p2"`
 }
 
 // CatalogResponse represents the catalog API response
@@ -70,12 +81,81 @@ func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if shouldIncludeRequirementSummaries(r) {
+		for i := range entries {
+			if !entries[i].HasRequirements {
+				continue
+			}
+
+			groups, err := loadRequirementsForEntity(entries[i].Type, entries[i].Name)
+			if err != nil {
+				slog.Warn("failed to summarize requirements", "entity", fmt.Sprintf("%s/%s", entries[i].Type, entries[i].Name), "error", err)
+				continue
+			}
+			summary := summarizeRequirementGroupsForCatalog(groups)
+			entries[i].Requirements = &summary
+		}
+	}
+
 	response := CatalogResponse{
 		Entries: entries,
 		Total:   len(entries),
 	}
 
 	respondJSON(w, http.StatusOK, response)
+}
+
+func shouldIncludeRequirementSummaries(r *http.Request) bool {
+	flag := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("include_requirements")))
+	return flag == "1" || flag == "true" || flag == "yes"
+}
+
+func summarizeRequirementGroupsForCatalog(groups []RequirementGroup) CatalogRequirementSummary {
+	var summary CatalogRequirementSummary
+	visited := make(map[string]bool)
+	var walk func(group RequirementGroup)
+	walk = func(group RequirementGroup) {
+		if visited[group.ID] {
+			return
+		}
+		visited[group.ID] = true
+
+		for _, req := range group.Requirements {
+			summary.Total++
+			switch strings.ToLower(strings.TrimSpace(req.Status)) {
+			case "complete", "done":
+				summary.Completed++
+			case "in_progress", "in-progress":
+				summary.InProgress++
+			default:
+				summary.Pending++
+			}
+
+			switch strings.ToUpper(strings.TrimSpace(req.Criticality)) {
+			case "P0":
+				summary.P0++
+			case "P1":
+				summary.P1++
+			case "P2":
+				summary.P2++
+			}
+		}
+
+		for _, child := range group.Children {
+			walk(child)
+		}
+	}
+
+	for _, group := range groups {
+		walk(group)
+	}
+
+	// Ensure pending count never goes negative if statuses were unrecognized
+	if summary.Pending < 0 {
+		summary.Pending = 0
+	}
+
+	return summary
 }
 
 // listCatalogEntries loads scenarios and resources along with PRD/draft status for reuse across endpoints.

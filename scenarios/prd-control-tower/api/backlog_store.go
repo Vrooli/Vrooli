@@ -10,13 +10,15 @@ import (
 	"github.com/google/uuid"
 )
 
+var errBacklogEntryNotFound = errors.New("backlog entry not found")
+
 func fetchAllBacklogEntries() ([]BacklogEntry, error) {
 	if db == nil {
 		return nil, ErrDatabaseNotAvailable
 	}
 
 	rows, err := db.Query(`
-		SELECT id, idea_text, entity_type, suggested_name, status, converted_draft_id, created_at, updated_at
+		SELECT id, idea_text, entity_type, suggested_name, notes, status, converted_draft_id, created_at, updated_at
 		FROM backlog_entries
 		ORDER BY created_at DESC
 	`)
@@ -29,8 +31,12 @@ func fetchAllBacklogEntries() ([]BacklogEntry, error) {
 	for rows.Next() {
 		var entry BacklogEntry
 		var draftID sql.NullString
-		if err := rows.Scan(&entry.ID, &entry.IdeaText, &entry.EntityType, &entry.SuggestedName, &entry.Status, &draftID, &entry.CreatedAt, &entry.UpdatedAt); err != nil {
+		var notes sql.NullString
+		if err := rows.Scan(&entry.ID, &entry.IdeaText, &entry.EntityType, &entry.SuggestedName, &notes, &entry.Status, &draftID, &entry.CreatedAt, &entry.UpdatedAt); err != nil {
 			return nil, err
+		}
+		if notes.Valid {
+			entry.Notes = notes.String
 		}
 		if draftID.Valid {
 			entry.ConvertedDraftID = &draftID.String
@@ -39,6 +45,13 @@ func fetchAllBacklogEntries() ([]BacklogEntry, error) {
 	}
 
 	return entries, nil
+}
+
+func nullIfEmpty(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
 }
 
 func insertBacklogEntries(entries []BacklogCreateEntry) ([]BacklogEntry, error) {
@@ -66,14 +79,15 @@ func insertBacklogEntries(entries []BacklogCreateEntry) ([]BacklogEntry, error) 
 			suggestedName = generateSlug(idea)
 		}
 
+		notes := strings.TrimSpace(entry.Notes)
 		id := uuid.New().String()
 		var createdAt, updatedAt time.Time
 		var status string
 		err := db.QueryRow(`
-			INSERT INTO backlog_entries (id, idea_text, entity_type, suggested_name)
-			VALUES ($1, $2, $3, $4)
+			INSERT INTO backlog_entries (id, idea_text, entity_type, suggested_name, notes)
+			VALUES ($1, $2, $3, $4, $5)
 			RETURNING created_at, updated_at, status
-		`, id, idea, entityType, suggestedName).Scan(&createdAt, &updatedAt, &status)
+		`, id, idea, entityType, suggestedName, nullIfEmpty(notes)).Scan(&createdAt, &updatedAt, &status)
 		if err != nil {
 			return nil, err
 		}
@@ -83,6 +97,7 @@ func insertBacklogEntries(entries []BacklogCreateEntry) ([]BacklogEntry, error) 
 			IdeaText:      idea,
 			EntityType:    entityType,
 			SuggestedName: suggestedName,
+			Notes:         notes,
 			Status:        status,
 			CreatedAt:     createdAt,
 			UpdatedAt:     updatedAt,
@@ -159,16 +174,21 @@ func getBacklogEntryByID(id string) (BacklogEntry, error) {
 
 	var entry BacklogEntry
 	var draftID sql.NullString
+	var notes sql.NullString
 	err := db.QueryRow(`
-		SELECT id, idea_text, entity_type, suggested_name, status, converted_draft_id, created_at, updated_at
+		SELECT id, idea_text, entity_type, suggested_name, notes, status, converted_draft_id, created_at, updated_at
 		FROM backlog_entries
 		WHERE id = $1
-	`, id).Scan(&entry.ID, &entry.IdeaText, &entry.EntityType, &entry.SuggestedName, &entry.Status, &draftID, &entry.CreatedAt, &entry.UpdatedAt)
+	`, id).Scan(&entry.ID, &entry.IdeaText, &entry.EntityType, &entry.SuggestedName, &notes, &entry.Status, &draftID, &entry.CreatedAt, &entry.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return BacklogEntry{}, fmt.Errorf("backlog entry not found")
+			return BacklogEntry{}, errBacklogEntryNotFound
 		}
 		return BacklogEntry{}, err
+	}
+
+	if notes.Valid {
+		entry.Notes = notes.String
 	}
 
 	if draftID.Valid {
@@ -184,14 +204,19 @@ func markBacklogEntryConverted(id string, draftID string, entityName string) (Ba
 
 	var entry BacklogEntry
 	var converted sql.NullString
+	var notes sql.NullString
 	err := db.QueryRow(`
 		UPDATE backlog_entries
 		SET status = $2, converted_draft_id = $3, suggested_name = $4, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, idea_text, entity_type, suggested_name, status, converted_draft_id, created_at, updated_at
-	`, id, BacklogStatusConverted, draftID, entityName).Scan(&entry.ID, &entry.IdeaText, &entry.EntityType, &entry.SuggestedName, &entry.Status, &converted, &entry.CreatedAt, &entry.UpdatedAt)
+		RETURNING id, idea_text, entity_type, suggested_name, notes, status, converted_draft_id, created_at, updated_at
+	`, id, BacklogStatusConverted, draftID, entityName).Scan(&entry.ID, &entry.IdeaText, &entry.EntityType, &entry.SuggestedName, &notes, &entry.Status, &converted, &entry.CreatedAt, &entry.UpdatedAt)
 	if err != nil {
 		return BacklogEntry{}, err
+	}
+
+	if notes.Valid {
+		entry.Notes = notes.String
 	}
 
 	if converted.Valid {
@@ -201,6 +226,47 @@ func markBacklogEntryConverted(id string, draftID string, entityName string) (Ba
 	// Save to filesystem (git-backed persistence)
 	if err := saveBacklogEntryToFile(entry); err != nil {
 		return BacklogEntry{}, fmt.Errorf("failed to save backlog entry to file: %w", err)
+	}
+
+	return entry, nil
+}
+
+func updateBacklogEntry(id string, update BacklogUpdateRequest) (BacklogEntry, error) {
+	if db == nil {
+		return BacklogEntry{}, ErrDatabaseNotAvailable
+	}
+
+	applyNotes := update.Notes != nil
+	if !applyNotes {
+		return BacklogEntry{}, fmt.Errorf("no fields provided to update")
+	}
+
+	var entry BacklogEntry
+	var draftID sql.NullString
+	var notes sql.NullString
+	noteValue := strings.TrimSpace(*update.Notes)
+	err := db.QueryRow(`
+		UPDATE backlog_entries
+		SET notes = $2, updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, idea_text, entity_type, suggested_name, notes, status, converted_draft_id, created_at, updated_at
+	`, id, noteValue).Scan(&entry.ID, &entry.IdeaText, &entry.EntityType, &entry.SuggestedName, &notes, &entry.Status, &draftID, &entry.CreatedAt, &entry.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return BacklogEntry{}, errBacklogEntryNotFound
+		}
+		return BacklogEntry{}, err
+	}
+
+	if notes.Valid {
+		entry.Notes = notes.String
+	}
+	if draftID.Valid {
+		entry.ConvertedDraftID = &draftID.String
+	}
+
+	if err := saveBacklogEntryToFile(entry); err != nil {
+		return BacklogEntry{}, fmt.Errorf("failed to persist backlog entry: %w", err)
 	}
 
 	return entry, nil
@@ -321,149 +387,49 @@ func draftExists(entityType, entityName string) (bool, error) {
 }
 
 func buildBacklogDraftContent(ideaText, entityName string) string {
-	// Use the standard PRD template structure with placeholders pre-filled where possible
-	return fmt.Sprintf(`# Product Requirements Document (PRD)
+	displayName := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(entityName, "-", " "), "_", " "))
+	if displayName == "" {
+		displayName = entityName
+	}
 
-> **Initial Idea:** %s
+	return fmt.Sprintf(`# %s
 
-## 🎯 Capability Definition
+> Converted from backlog idea: %s
 
-### Core Capability
-**What permanent capability does this scenario add to Vrooli?**
-[Define the fundamental capability this scenario provides that will persist forever in the system. Initial idea: %s]
+## Capability Narrative
+Outline the permanent capability this scenario adds to Vrooli. Tie the story back to the backlog intent so future readers know why it matters.
 
-### Intelligence Amplification
-**How does this capability make future agents smarter?**
-[Describe how this capability compounds with existing capabilities to enable more complex problem-solving.]
+## Why Now
+- Urgency driver #1 (e.g. ecosystem dependency, missing automation, customer pull)
+- Urgency driver #2
+- Risk of waiting longer (cost, degraded experience, etc.)
 
-### Recursive Value
-**What new scenarios become possible after this exists?**
-- [Example future scenario 1]
-- [Example future scenario 2]
-- [Example future scenario 3]
+## Stakeholders
+- **Product Operations** — keeps the catalog honest and validates the PRD spine.
+- **Scenario Maintainers** — will build + operate this capability.
+- **Meta-scenarios & Agents** — depend on this scenario once it ships.
 
-## 📊 Success Metrics
+## User Journeys
+1. Describe the most important human or agent flow that this scenario must power.
+2. Keep them task oriented ("As product ops..." or "When the orchestrator...").
+3. Reference linked requirements or operational targets if helpful.
 
-### Functional Requirements
-- **Must Have (P0)**
-  - [ ] [Core requirement that defines minimum viable capability]
-  - [ ] [Essential integration with shared resources]
-  - [ ] [Critical data persistence requirement]
+## Requirements
+- [ ] PRD-001 | Define the essential behavior and link to /requirements/*.json.
+- [ ] PRD-002 | Capture integrations, resources, and automation surfaces.
+- [ ] PRD-003 | Lock the success criteria for launch + observability.
 
-- **Should Have (P1)**
-  - [ ] [Enhancement that significantly improves capability]
-  - [ ] [Additional resource integration]
-  - [ ] [Performance optimization]
+## Operational Targets
+- Target name (P0/P1) — Metric definition, measurement method, and which requirements back it.
+- Add at least one per P0 requirement and keep them machine-readable.
 
-- **Nice to Have (P2)**
-  - [ ] [Future enhancement]
-  - [ ] [Advanced feature]
+## Launch Plan
+1. Kickoff + scaffolding — Owner, due date, current status.
+2. Instrumentation + quality gates — Owner, due date, status.
+3. Ship + monitor with ecosystem-manager — Owner, due date, status.
 
-### Performance Criteria
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| Response Time | < [X]ms for 95%% of requests | API monitoring |
-| Throughput | [Y] operations/second | Load testing |
-| Accuracy | > [Z]%% for [specific task] | Validation suite |
-| Resource Usage | < [N]GB memory, < [M]%% CPU | System monitoring |
+## Status
+**Yellow** — Converted from backlog. Flesh out the sections above, validate with scenario-auditor, and publish once ready.
 
-### Quality Gates
-- [ ] All P0 requirements implemented and tested
-- [ ] Integration tests pass with all required resources
-- [ ] Performance targets met under load
-- [ ] Documentation complete (README, API docs, CLI help)
-- [ ] Scenario can be invoked by other agents via API/CLI
-
-## 🏗️ Technical Architecture
-
-### Resource Dependencies
-**Required:**
-- resource_name: [e.g., postgres]
-  purpose: [Why this resource is essential]
-  access_method: [How it's accessed - CLI, API, or shared workflow]
-
-**Optional:**
-- resource_name: [e.g., redis]
-  purpose: [Enhancement this enables]
-  fallback: [What happens if unavailable]
-  access_method: [How this resource is accessed]
-
-### Data Models
-Core data structures that define the capability:
-- [Entity name]: [Description of primary entity]
-  - Storage: [postgres/qdrant/minio]
-  - Key fields: [List main fields]
-
-### API Contract
-Primary endpoints this capability exposes:
-- **POST /api/v1/[capability]/[action]**
-  - Purpose: [What this enables other systems to do]
-  - Input: [Required fields]
-  - Output: [What calling systems can expect]
-
-## 🖥️ CLI Interface Contract
-
-### Command Structure
-Primary CLI executable: **%s**
-
-Core commands:
-- **status**: Show operational status and resource health
-- **help**: Display command help and usage
-- **version**: Show CLI and API version information
-
-Custom commands:
-- **[action]**: [What this command does]
-
-## 💰 Value Proposition
-
-### Business Value
-- **Primary Value**: [Core business problem solved]
-- **Revenue Potential**: $[X]K - $[Y]K per deployment
-- **Cost Savings**: [Time/resource savings quantified]
-- **Market Differentiator**: [What makes this unique]
-
-### Technical Value
-- **Reusability Score**: [How many other scenarios can leverage this]
-- **Complexity Reduction**: [What complex tasks become simple]
-- **Innovation Enablement**: [New possibilities this creates]
-
-## 🧬 Evolution Path
-
-### Version 1.0 (Current)
-- Core capability implementation
-- Basic resource integration
-- Essential API/CLI interface
-
-### Future Enhancements
-- [Enhanced capability based on learnings]
-- [Additional resource integrations]
-- [Performance optimizations]
-
-## ✅ Validation Criteria
-
-### Capability Validated When:
-- [ ] Solves the defined problem completely
-- [ ] Integrates with upstream dependencies
-- [ ] Enables downstream capabilities
-- [ ] Maintains data consistency
-- [ ] All P0 requirements complete and tested
-
-## 📝 Implementation Notes
-
-### Next Steps (Converted from Backlog)
-1. Expand capability definition based on initial idea
-2. Define specific functional requirements (P0/P1/P2)
-3. Identify required resources and dependencies
-4. Design data models and API contracts
-5. Implement core functionality
-6. Add comprehensive testing
-7. Create CLI interface
-8. Document usage and examples
-
----
-
-**Status**: Draft (Converted from Backlog)
-**Owner**: [AI Agent or Human maintainer]
-**Created**: %s
-`, ideaText, ideaText, entityName, "Backlog conversion")
+`, displayName, ideaText)
 }

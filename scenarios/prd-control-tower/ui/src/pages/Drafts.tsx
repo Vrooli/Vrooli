@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { FileEdit, AlertTriangle, Search, Loader2 } from 'lucide-react'
+import { FileEdit, AlertTriangle, Search } from 'lucide-react'
 
 import { useDraftWorkspace } from '../hooks/useDraftWorkspace'
 import { DraftCardGrid, DraftEditorPane } from '../components/drafts'
@@ -68,12 +68,9 @@ export default function Drafts() {
 
   if (loading && !refreshing) {
     return (
-      <div className="app-container" data-layout="dual">
-        <Card className="border-dashed bg-white/80">
-          <CardContent className="flex items-center gap-3 text-muted-foreground">
-            <Loader2 size={20} className="animate-spin" /> Loading drafts...
-          </CardContent>
-        </Card>
+      <div className="app-container space-y-6" data-layout="dual">
+        <TopNav />
+        <DraftWorkspaceSkeleton />
       </div>
     )
   }
@@ -256,6 +253,45 @@ export default function Drafts() {
         <Link to="/catalog" className="text-primary hover:underline">
           ← Back to Catalog
         </Link>
+      </div>
+    </div>
+  )
+}
+
+function DraftWorkspaceSkeleton() {
+  return (
+    <div className="space-y-6">
+      <section className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
+        <div className="space-y-4 animate-pulse">
+          <div className="h-4 w-32 rounded-full bg-slate-200" />
+          <div className="h-8 w-64 rounded-full bg-slate-200" />
+          <div className="h-4 w-full max-w-2xl rounded-full bg-slate-100" />
+        </div>
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr,420px]">
+        <Card className="border bg-white/90 shadow-soft-lg">
+          <CardContent className="space-y-4">
+            <div className="h-10 w-full rounded-xl bg-slate-100" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div key={`draft-card-${idx}`} className="h-32 rounded-2xl border border-slate-100 bg-slate-50" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border bg-white/90 shadow-soft-lg">
+          <CardContent className="space-y-4">
+            <div className="h-6 w-32 rounded-full bg-slate-100" />
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <div key={`meta-${idx}`} className="h-4 w-full rounded-full bg-slate-100" />
+              ))}
+            </div>
+            <div className="h-48 rounded-2xl border border-dashed border-slate-200 bg-slate-50" />
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

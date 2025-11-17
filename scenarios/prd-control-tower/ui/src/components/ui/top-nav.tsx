@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ClipboardList, Layers, StickyNote, Home, ListTree, Compass, ShieldAlert } from 'lucide-react'
+import { ClipboardList, Layers, StickyNote, Home, Compass, ShieldAlert } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { fetchQualitySummary } from '../../utils/quality'
 import type { QualitySummary } from '../../types'
@@ -16,7 +16,6 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/catalog', label: 'Catalog', icon: Home },
   { to: '/backlog', label: 'Backlog', icon: StickyNote },
   { to: '/drafts', label: 'Drafts', icon: Layers },
-  { to: '/requirements-registry', label: 'Requirements', icon: ListTree },
   { to: '/quality-scanner', label: 'Quality', icon: ShieldAlert },
 ]
 

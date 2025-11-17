@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom'
-import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, RefreshCw, Shield } from 'lucide-react'
+import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import type { ScenarioQualityReport } from '../../types'
 import { formatDate } from '../../utils/formatters'
 
-interface QualityInsightsPanelProps {
+interface IssuesPanelProps {
   report: ScenarioQualityReport | null
   loading: boolean
   error: string | null
@@ -29,7 +29,7 @@ const STATUS_LABELS: Record<ScenarioQualityReport['status'], string> = {
   error: 'Error',
 }
 
-export function QualityInsightsPanel({ report, loading, error, onRefresh }: QualityInsightsPanelProps) {
+export function IssuesPanel({ report, loading, error, onRefresh }: IssuesPanelProps) {
   const hasIssues = (report?.issue_counts.total ?? 0) > 0
 
   return (
@@ -37,7 +37,7 @@ export function QualityInsightsPanel({ report, loading, error, onRefresh }: Qual
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <div>
           <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
-            <Shield size={18} className="text-violet-600" /> Quality Insights
+            <ShieldAlert size={18} className="text-violet-600" /> Issues
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Snapshot of structural compliance, requirement coverage, and PRD references.
@@ -67,7 +67,7 @@ export function QualityInsightsPanel({ report, loading, error, onRefresh }: Qual
           <div className="flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
             <AlertCircle size={16} className="mt-0.5" />
             <div>
-              <p className="font-medium">Unable to load quality insights</p>
+              <p className="font-medium">Unable to load issues</p>
               <p>{error}</p>
             </div>
           </div>
@@ -76,7 +76,7 @@ export function QualityInsightsPanel({ report, loading, error, onRefresh }: Qual
         {loading && !report && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 size={16} className="animate-spin" />
-            Gathering diagnostics...
+            Gathering latest scan...
           </div>
         )}
 

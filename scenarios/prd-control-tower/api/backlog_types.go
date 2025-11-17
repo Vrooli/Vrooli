@@ -19,6 +19,7 @@ type BacklogEntry struct {
 	IdeaText         string    `json:"idea_text"`
 	EntityType       string    `json:"entity_type"`
 	SuggestedName    string    `json:"suggested_name"`
+	Notes            string    `json:"notes,omitempty"`
 	Status           string    `json:"status"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
@@ -34,12 +35,17 @@ type BacklogCreateEntry struct {
 	IdeaText      string `json:"idea_text"`
 	EntityType    string `json:"entity_type"`
 	SuggestedName string `json:"suggested_name"`
+	Notes         string `json:"notes"`
 }
 
 type BacklogCreateRequest struct {
 	RawInput   string               `json:"raw_input"`
 	EntityType string               `json:"entity_type"`
 	Entries    []BacklogCreateEntry `json:"entries"`
+}
+
+type BacklogUpdateRequest struct {
+	Notes *string `json:"notes"`
 }
 
 type BacklogCreateResponse struct {

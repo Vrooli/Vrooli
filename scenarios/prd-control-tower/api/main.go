@@ -111,6 +111,7 @@ func main() {
 	apiV1.HandleFunc("/backlog", handleCreateBacklogEntries).Methods("POST")
 	apiV1.HandleFunc("/backlog/convert", handleConvertBacklogEntries).Methods("POST")
 	apiV1.HandleFunc("/backlog/{id}/convert", handleConvertSingleBacklogEntry).Methods("POST")
+	apiV1.HandleFunc("/backlog/{id}", handleUpdateBacklogEntry).Methods("PUT")
 	apiV1.HandleFunc("/backlog/{id}", handleDeleteBacklogEntry).Methods("DELETE")
 
 	// Validation and AI endpoints

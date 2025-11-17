@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Loader2, CheckCircle2, Trash2, Inbox } from 'lucide-react'
 import { formatDate } from '../../utils/formatters'
@@ -22,6 +23,7 @@ interface BacklogEntriesTableProps {
   onConvert: (ids?: string[]) => void
   onDelete: (ids?: string[]) => void
   onRefresh: () => void
+  onUpdateNotes: (id: string, notes: string) => Promise<void>
 }
 
 export function BacklogEntriesTable({
@@ -38,8 +40,29 @@ export function BacklogEntriesTable({
   onConvert,
   onDelete,
   onRefresh,
+  onUpdateNotes,
 }: BacklogEntriesTableProps) {
   const selectedCount = selection.size
+  const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({})
+  const [savingNotesId, setSavingNotesId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const next: Record<string, string> = {}
+    entries.forEach((entry) => {
+      next[entry.id] = entry.notes ?? ''
+    })
+    setNotesDrafts(next)
+  }, [entries])
+
+  const handleNotesSave = async (id: string) => {
+    const nextNotes = notesDrafts[id] ?? ''
+    setSavingNotesId(id)
+    try {
+      await onUpdateNotes(id, nextNotes)
+    } finally {
+      setSavingNotesId((current) => (current === id ? null : current))
+    }
+  }
 
   return (
     <Card>
@@ -96,6 +119,7 @@ export function BacklogEntriesTable({
                   <th className="px-3 py-2">Idea</th>
                   <th className="px-3 py-2">Type</th>
                   <th className="px-3 py-2">Slug / Draft</th>
+                  <th className="px-3 py-2">Notes</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Created</th>
                   <th className="px-3 py-2">Updated</th>
@@ -108,6 +132,9 @@ export function BacklogEntriesTable({
                   const entryBusy = busy && busyId === entry.id
                   const encodedSlug = encodeURIComponent(entry.suggested_name)
                   const draftLink = entry.status === 'converted' ? `/draft/${entry.entity_type}/${encodedSlug}` : null
+                  const notesValue = notesDrafts[entry.id] ?? ''
+                  const initialNotes = entry.notes ?? ''
+                  const isDirty = notesValue !== initialNotes
 
                   return (
                     <tr key={entry.id} className={cn(isSelected && 'bg-violet-50/60')}>
@@ -135,6 +162,34 @@ export function BacklogEntriesTable({
                               Open draft
                             </Link>
                           )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="space-y-2">
+                          <textarea
+                            rows={3}
+                            className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            placeholder="Add context or next steps..."
+                            value={notesValue}
+                            onChange={(event) =>
+                              setNotesDrafts((prev) => ({
+                                ...prev,
+                                [entry.id]: event.target.value,
+                              }))
+                            }
+                          />
+                          <div className="flex justify-end">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={!isDirty || savingNotesId === entry.id}
+                              onClick={() => handleNotesSave(entry.id)}
+                            >
+                              {savingNotesId === entry.id && <Loader2 size={14} className="mr-2 animate-spin" />}
+                              Save notes
+                            </Button>
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-3">

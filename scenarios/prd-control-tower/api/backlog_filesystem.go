@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,6 +33,9 @@ func saveBacklogEntryToFile(entry BacklogEntry) error {
 	content.WriteString(fmt.Sprintf("id: %s\n", entry.ID))
 	content.WriteString(fmt.Sprintf("entity_type: %s\n", entry.EntityType))
 	content.WriteString(fmt.Sprintf("suggested_name: %s\n", entry.SuggestedName))
+	if entry.Notes != "" {
+		content.WriteString(fmt.Sprintf("notes: %s\n", strconv.Quote(entry.Notes)))
+	}
 	content.WriteString(fmt.Sprintf("status: %s\n", entry.Status))
 	content.WriteString(fmt.Sprintf("created_at: %s\n", entry.CreatedAt.Format(time.RFC3339)))
 	content.WriteString(fmt.Sprintf("updated_at: %s\n", entry.UpdatedAt.Format(time.RFC3339)))
@@ -96,6 +100,12 @@ func loadBacklogEntryFromFile(path string) (*BacklogEntry, error) {
 				entry.EntityType = value
 			case "suggested_name":
 				entry.SuggestedName = value
+			case "notes":
+				if decoded, err := strconv.Unquote(value); err == nil {
+					entry.Notes = decoded
+				} else {
+					entry.Notes = value
+				}
 			case "status":
 				entry.Status = value
 			case "created_at":
@@ -198,17 +208,18 @@ func syncBacklogFilesystemWithDatabase(exec dbExecutor) error {
 
 		// Upsert into database (filesystem is source of truth)
 		_, err = exec.Exec(`
-			INSERT INTO backlog_entries (id, idea_text, entity_type, suggested_name, status, converted_draft_id, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			INSERT INTO backlog_entries (id, idea_text, entity_type, suggested_name, notes, status, converted_draft_id, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT (id)
 			DO UPDATE SET
 				idea_text = EXCLUDED.idea_text,
 				entity_type = EXCLUDED.entity_type,
 				suggested_name = EXCLUDED.suggested_name,
+				notes = EXCLUDED.notes,
 				status = EXCLUDED.status,
 				converted_draft_id = EXCLUDED.converted_draft_id,
 				updated_at = EXCLUDED.updated_at
-		`, backlogEntry.ID, backlogEntry.IdeaText, backlogEntry.EntityType, backlogEntry.SuggestedName,
+		`, backlogEntry.ID, backlogEntry.IdeaText, backlogEntry.EntityType, backlogEntry.SuggestedName, nullIfEmpty(backlogEntry.Notes),
 			backlogEntry.Status, convertedDraftID, backlogEntry.CreatedAt, backlogEntry.UpdatedAt)
 
 		if err != nil {

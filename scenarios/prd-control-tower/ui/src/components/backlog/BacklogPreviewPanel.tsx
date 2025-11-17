@@ -16,6 +16,7 @@ interface BacklogPreviewPanelProps {
   onToggleSelection: (id: string) => void
   onChangeEntityType: (id: string, entityType: EntityType) => void
   onChangeSlug: (id: string, slug: string) => void
+  onChangeNotes: (id: string, notes: string) => void
   onRunAction: (mode: 'save' | 'convert', idea?: PendingIdea) => void
 }
 
@@ -30,6 +31,7 @@ export function BacklogPreviewPanel({
   onChangeEntityType,
   onChangeSlug,
   onRunAction,
+  onChangeNotes,
 }: BacklogPreviewPanelProps) {
   const selectedCount = selection.size
 
@@ -97,6 +99,15 @@ export function BacklogPreviewPanel({
                         onChange={(event) => onChangeSlug(idea.id, event.target.value)}
                         placeholder="slug"
                       />
+                    </div>
+                    <textarea
+                      rows={3}
+                      className="w-full rounded-xl border border-input bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      placeholder="Add optional context or notes..."
+                      value={idea.notes}
+                      onChange={(event) => onChangeNotes(idea.id, event.target.value)}
+                    />
+                    <div className="flex flex-wrap items-center gap-3">
                       <Button
                         type="button"
                         variant="outline"

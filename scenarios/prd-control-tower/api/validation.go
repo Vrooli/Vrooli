@@ -2,11 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -32,16 +37,92 @@ type TargetLinkageIssue struct {
 
 // ValidationResponse represents the result of validation
 type ValidationResponse struct {
-	DraftID              string                        `json:"draft_id"`
-	EntityType           string                        `json:"entity_type"`
-	EntityName           string                        `json:"entity_name"`
-	Violations           any                           `json:"violations"`
-	TemplateCompliance   *PRDTemplateValidationResult  `json:"template_compliance,omitempty"`   // Legacy validator
-	TemplateComplianceV2 *PRDValidationResultV2        `json:"template_compliance_v2,omitempty"` // Enhanced validator
-	TargetLinkageIssues  []TargetLinkageIssue          `json:"target_linkage_issues,omitempty"`
-	CachedAt             *time.Time                    `json:"cached_at,omitempty"`
-	ValidatedAt          time.Time                     `json:"validated_at"`
-	CacheUsed            bool                          `json:"cache_used"`
+	DraftID              string                       `json:"draft_id"`
+	EntityType           string                       `json:"entity_type"`
+	EntityName           string                       `json:"entity_name"`
+	Violations           any                          `json:"violations"`
+	TemplateCompliance   *PRDTemplateValidationResult `json:"template_compliance,omitempty"`    // Legacy validator
+	TemplateComplianceV2 *PRDValidationResultV2       `json:"template_compliance_v2,omitempty"` // Enhanced validator
+	TargetLinkageIssues  []TargetLinkageIssue         `json:"target_linkage_issues,omitempty"`
+	CachedAt             *time.Time                   `json:"cached_at,omitempty"`
+	ValidatedAt          time.Time                    `json:"validated_at"`
+	CacheUsed            bool                         `json:"cache_used"`
+}
+
+var scenarioAuditorHTTPClient = &http.Client{Timeout: 45 * time.Second}
+
+const (
+	scenarioAuditorPollInterval = 2 * time.Second
+	scenarioAuditorTimeout      = 2 * time.Minute
+)
+
+type scenarioAuditorStartResponse struct {
+	JobID   string              `json:"job_id"`
+	Status  standardsScanStatus `json:"status"`
+	Message string              `json:"message"`
+	Error   string              `json:"error"`
+}
+
+type standardsScanStatus struct {
+	ID         string                `json:"id"`
+	Scenario   string                `json:"scenario"`
+	ScanType   string                `json:"scan_type"`
+	Status     string                `json:"status"`
+	Message    string                `json:"message"`
+	Error      string                `json:"error"`
+	Result     *standardsCheckResult `json:"result"`
+	TotalFiles int                   `json:"total_files"`
+}
+
+type standardsCheckResult struct {
+	CheckID      string               `json:"check_id"`
+	Status       string               `json:"status"`
+	ScanType     string               `json:"scan_type"`
+	StartedAt    string               `json:"started_at"`
+	CompletedAt  string               `json:"completed_at"`
+	Duration     float64              `json:"duration_seconds"`
+	FilesScanned int                  `json:"files_scanned"`
+	Violations   []standardsViolation `json:"violations"`
+	Statistics   map[string]int       `json:"statistics"`
+	Message      string               `json:"message"`
+	ScenarioName string               `json:"scenario_name"`
+}
+
+type standardsViolation struct {
+	ID             string `json:"id"`
+	ScenarioName   string `json:"scenario_name"`
+	Type           string `json:"type"`
+	Severity       string `json:"severity"`
+	Title          string `json:"title"`
+	Description    string `json:"description"`
+	FilePath       string `json:"file_path"`
+	LineNumber     int    `json:"line_number"`
+	Recommendation string `json:"recommendation"`
+	Standard       string `json:"standard"`
+}
+
+type diagnosticsSection struct {
+	Status diagnosticsStatus `json:"status"`
+}
+
+type diagnosticsStatus struct {
+	State       string             `json:"state"`
+	Message     string             `json:"message,omitempty"`
+	StartedAt   string             `json:"started_at,omitempty"`
+	CompletedAt string             `json:"completed_at,omitempty"`
+	Result      *diagnosticsResult `json:"result,omitempty"`
+}
+
+type diagnosticsResult struct {
+	Statistics   map[string]int       `json:"statistics,omitempty"`
+	Violations   []standardsViolation `json:"violations,omitempty"`
+	FilesScanned int                  `json:"files_scanned,omitempty"`
+	Duration     float64              `json:"duration_seconds,omitempty"`
+	ScanType     string               `json:"scan_type,omitempty"`
+}
+
+type scenarioDiagnosticsPayload struct {
+	Standards *diagnosticsSection `json:"standards,omitempty"`
 }
 
 func handleValidateDraft(w http.ResponseWriter, r *http.Request) {
@@ -173,9 +254,17 @@ func validateTargetLinkage(entityType string, entityName string) []TargetLinkage
 }
 
 func runScenarioAuditor(entityType string, entityName string) (any, error) {
-	// Use CLI-based scenario auditor
-	// TODO: Add HTTP API support when scenario-auditor provides HTTP endpoint
-	// Note: When HTTP API is added, the draft content may be passed as a parameter
+	ctx, cancel := context.WithTimeout(context.Background(), scenarioAuditorTimeout)
+	defer cancel()
+
+	if result, err := runScenarioAuditorHTTP(ctx, entityName); err == nil {
+		return result, nil
+	} else {
+		slog.Warn("scenario-auditor HTTP diagnostics failed, falling back to CLI",
+			"entity", entityName,
+			"error", err)
+	}
+
 	return runScenarioAuditorCLI(entityName)
 }
 
@@ -222,6 +311,165 @@ func runScenarioAuditorCLI(entityName string) (any, error) {
 	return result, nil
 }
 
+func runScenarioAuditorHTTP(ctx context.Context, scenarioName string) (any, error) {
+	trimmed := strings.TrimSpace(scenarioName)
+	if trimmed == "" {
+		return nil, errors.New("scenario name is required for diagnostics")
+	}
+
+	port, err := resolveScenarioPortViaCLI(ctx, "scenario-auditor", "API_PORT")
+	if err != nil {
+		return nil, fmt.Errorf("scenario-auditor API unavailable: %w", err)
+	}
+	if port <= 0 {
+		return nil, errors.New("scenario-auditor API port not found")
+	}
+
+	startResp, err := startScenarioAuditorStandardsScan(ctx, port, trimmed)
+	if err != nil {
+		return nil, err
+	}
+
+	jobID := strings.TrimSpace(startResp.JobID)
+	if jobID == "" {
+		jobID = strings.TrimSpace(startResp.Status.ID)
+	}
+	if jobID == "" {
+		return nil, errors.New("scenario-auditor did not return a job id")
+	}
+
+	status, err := waitForScenarioAuditorScan(ctx, port, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	payload := scenarioDiagnosticsPayload{
+		Standards: buildStandardsDiagnostics(status),
+	}
+
+	return payload, nil
+}
+
+func startScenarioAuditorStandardsScan(ctx context.Context, port int, scenarioName string) (scenarioAuditorStartResponse, error) {
+	endpoint := scenarioAuditorURL(port, fmt.Sprintf("/api/v1/standards/check/%s", url.PathEscape(scenarioName)))
+	body, err := json.Marshal(map[string]any{
+		"type": "quick",
+	})
+	if err != nil {
+		return scenarioAuditorStartResponse{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return scenarioAuditorStartResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := scenarioAuditorHTTPClient.Do(req)
+	if err != nil {
+		return scenarioAuditorStartResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		payload, _ := io.ReadAll(resp.Body)
+		return scenarioAuditorStartResponse{}, fmt.Errorf("scenario-auditor rejected scan (%d): %s", resp.StatusCode, strings.TrimSpace(string(payload)))
+	}
+
+	var startResp scenarioAuditorStartResponse
+	if err := json.NewDecoder(resp.Body).Decode(&startResp); err != nil {
+		return scenarioAuditorStartResponse{}, fmt.Errorf("failed to decode scan start response: %w", err)
+	}
+
+	if errMsg := strings.TrimSpace(startResp.Error); errMsg != "" {
+		return scenarioAuditorStartResponse{}, errors.New(errMsg)
+	}
+
+	return startResp, nil
+}
+
+func waitForScenarioAuditorScan(ctx context.Context, port int, jobID string) (standardsScanStatus, error) {
+	ticker := time.NewTicker(scenarioAuditorPollInterval)
+	defer ticker.Stop()
+
+	for {
+		status, err := fetchScenarioAuditorStatus(ctx, port, jobID)
+		if err != nil {
+			return standardsScanStatus{}, err
+		}
+
+		state := normalizeStatus(status.Status)
+		switch state {
+		case "completed", "success":
+			return status, nil
+		case "failed", "error":
+			return status, fmt.Errorf("scenario-auditor scan failed: %s", firstNonEmpty(status.Error, status.Message, "unknown failure"))
+		}
+
+		select {
+		case <-ctx.Done():
+			return standardsScanStatus{}, fmt.Errorf("scenario-auditor scan timed out: %w", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func fetchScenarioAuditorStatus(ctx context.Context, port int, jobID string) (standardsScanStatus, error) {
+	endpoint := scenarioAuditorURL(port, fmt.Sprintf("/api/v1/standards/check/jobs/%s", url.PathEscape(jobID)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return standardsScanStatus{}, err
+	}
+
+	resp, err := scenarioAuditorHTTPClient.Do(req)
+	if err != nil {
+		return standardsScanStatus{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		payload, _ := io.ReadAll(resp.Body)
+		return standardsScanStatus{}, fmt.Errorf("scenario-auditor status request failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(payload)))
+	}
+
+	var status standardsScanStatus
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return standardsScanStatus{}, fmt.Errorf("failed to decode scenario-auditor status: %w", err)
+	}
+
+	return status, nil
+}
+
+func buildStandardsDiagnostics(status standardsScanStatus) *diagnosticsSection {
+	section := &diagnosticsSection{
+		Status: diagnosticsStatus{
+			State:   normalizeStatus(status.Status),
+			Message: firstNonEmpty(resultMessage(status.Result), status.Message, status.Error),
+		},
+	}
+
+	if status.Result != nil {
+		section.Status.StartedAt = status.Result.StartedAt
+		section.Status.CompletedAt = status.Result.CompletedAt
+		section.Status.Result = &diagnosticsResult{
+			Statistics:   status.Result.Statistics,
+			Violations:   status.Result.Violations,
+			FilesScanned: status.Result.FilesScanned,
+			Duration:     status.Result.Duration,
+			ScanType:     status.Result.ScanType,
+		}
+	}
+
+	return section
+}
+
+func resultMessage(result *standardsCheckResult) string {
+	if result == nil {
+		return ""
+	}
+	return result.Message
+}
+
 // handleValidatePRD validates a published PRD (not a draft)
 func handleValidatePRD(w http.ResponseWriter, r *http.Request) {
 	var req ValidatePRDRequest
@@ -255,4 +503,29 @@ func handleValidatePRD(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, response)
+}
+
+func scenarioAuditorURL(port int, path string) string {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return fmt.Sprintf("http://localhost:%d%s", port, path)
+}
+
+func normalizeStatus(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "unknown"
+	}
+	return strings.ToLower(trimmed)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }

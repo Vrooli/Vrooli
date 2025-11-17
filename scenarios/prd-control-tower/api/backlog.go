@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -144,4 +145,40 @@ func handleConvertBacklogEntries(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, BacklogConvertResponse{Results: results})
+}
+
+func handleUpdateBacklogEntry(w http.ResponseWriter, r *http.Request) {
+	if db == nil {
+		respondServiceUnavailable(w, "Database not available")
+		return
+	}
+
+	entryID := mux.Vars(r)["id"]
+	if entryID == "" {
+		respondBadRequest(w, "Backlog entry id required")
+		return
+	}
+
+	var req BacklogUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondInvalidJSON(w, err)
+		return
+	}
+
+	if req.Notes == nil {
+		respondBadRequest(w, "At least one field is required to update a backlog entry")
+		return
+	}
+
+	entry, err := updateBacklogEntry(entryID, req)
+	if err != nil {
+		if errors.Is(err, errBacklogEntryNotFound) {
+			respondNotFound(w, "Backlog entry")
+			return
+		}
+		respondInternalError(w, "Failed to update backlog entry", err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, entry)
 }

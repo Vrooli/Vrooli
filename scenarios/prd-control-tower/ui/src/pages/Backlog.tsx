@@ -23,7 +23,7 @@ const entityOptions: Array<{ value: EntityType; label: string }> = [
   { value: 'resource', label: 'Resource' },
 ]
 
-type PreviewOverride = Partial<Pick<PendingIdea, 'entityType' | 'suggestedName'>>
+type PreviewOverride = Partial<Pick<PendingIdea, 'entityType' | 'suggestedName' | 'notes'>>
 
 type PreviewActionMode = 'save' | 'convert'
 
@@ -49,6 +49,7 @@ export default function Backlog() {
     convertExistingEntries,
     deleteEntries,
     refreshBacklog,
+    updateBacklogEntryNotes,
   } = useBacklogData({ confirm })
 
   const parsedIdeas = useMemo(() => parseBacklogInput(rawInput, 'scenario'), [rawInput])
@@ -130,6 +131,18 @@ export default function Backlog() {
       updateOverride(id, { suggestedName: sanitizeSlugInput(slug) })
     },
     [updateOverride],
+  )
+
+  const handlePreviewNotesChange = useCallback(
+    (id: string, notes: string) => {
+      updateOverride(id, { notes })
+    },
+    [updateOverride],
+  )
+
+  const updateEntryNotes = useCallback(
+    (id: string, notes: string) => updateBacklogEntryNotes(id, notes),
+    [updateBacklogEntryNotes],
   )
 
   const handlePreviewAction = useCallback(
@@ -237,6 +250,7 @@ export default function Backlog() {
           onToggleSelection={handlePreviewSelection}
           onChangeEntityType={handlePreviewEntityTypeChange}
           onChangeSlug={handlePreviewSlugChange}
+          onChangeNotes={handlePreviewNotesChange}
           onRunAction={handlePreviewAction}
         />
       </section>
@@ -255,6 +269,7 @@ export default function Backlog() {
         onConvert={convertExistingEntries}
         onDelete={deleteEntries}
         onRefresh={refreshBacklog}
+        onUpdateNotes={updateEntryNotes}
       />
 
       <div className="flex flex-wrap gap-4 text-sm">

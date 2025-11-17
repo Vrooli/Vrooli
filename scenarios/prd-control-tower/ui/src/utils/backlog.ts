@@ -12,6 +12,7 @@ export interface PendingIdea {
   ideaText: string
   entityType: EntityType
   suggestedName: string
+  notes: string
 }
 
 const bulletPattern = /^[\s\-*•‣∙·]+/
@@ -123,6 +124,7 @@ export function parseBacklogInput(raw: string, defaultType: EntityType = 'scenar
       ideaText: text,
       entityType,
       suggestedName,
+      notes: '',
     })
   })
 
@@ -135,6 +137,7 @@ export async function createBacklogEntriesRequest(ideas: PendingIdea[]): Promise
       idea_text: idea.ideaText,
       entity_type: idea.entityType,
       suggested_name: idea.suggestedName,
+      notes: idea.notes,
     })),
   }
 
@@ -167,4 +170,19 @@ export async function convertBacklogEntriesRequest(ids: string[]): Promise<Backl
 
   const data: BacklogConvertResponse = await response.json()
   return data.results || []
+}
+
+export async function updateBacklogEntryRequest(id: string, payload: { notes: string }): Promise<BacklogEntry> {
+  const response = await fetch(buildApiUrl(`/backlog/${id}`), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(message || 'Failed to update backlog entry')
+  }
+
+  return (await response.json()) as BacklogEntry
 }

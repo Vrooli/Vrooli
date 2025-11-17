@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 
-import { convertBacklogEntriesRequest } from '../utils/backlog'
+import { convertBacklogEntriesRequest, updateBacklogEntryRequest } from '../utils/backlog'
 import type { BacklogEntry } from '../types'
 import { buildApiUrl } from '../utils/apiClient'
 
@@ -31,6 +31,7 @@ interface UseBacklogDataResult {
   convertExistingEntries: (ids?: string[]) => Promise<void>
   deleteEntries: (ids?: string[]) => Promise<void>
   refreshBacklog: () => Promise<void>
+  updateBacklogEntryNotes: (id: string, notes: string) => Promise<void>
 }
 
 export function useBacklogData({ confirm }: UseBacklogDataOptions): UseBacklogDataResult {
@@ -187,5 +188,15 @@ export function useBacklogData({ confirm }: UseBacklogDataOptions): UseBacklogDa
     convertExistingEntries,
     deleteEntries,
     refreshBacklog: fetchBacklog,
+    updateBacklogEntryNotes: async (id: string, notes: string) => {
+      try {
+        await updateBacklogEntryRequest(id, { notes })
+        toast.success('Notes updated')
+        await fetchBacklog()
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to update notes'
+        toast.error(message)
+      }
+    },
   }
 }

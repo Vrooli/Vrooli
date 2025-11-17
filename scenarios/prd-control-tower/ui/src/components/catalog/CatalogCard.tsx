@@ -31,6 +31,8 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
   const status: StatusKey = entry.has_prd ? 'published' : entry.has_draft ? 'draft' : 'missing'
   const statusMeta = statusMap[status]
   const StatusIcon = statusMeta.icon
+  const summary = entry.requirements_summary
+  const completionRate = summary && summary.total > 0 ? Math.round((summary.completed / summary.total) * 100) : null
 
   const onNavigate = () => {
     if (primaryPath) {
@@ -72,7 +74,46 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
           {statusMeta.label}
         </Badge>
       </CardHeader>
-      <CardContent className="flex flex-wrap items-center justify-between gap-3 border-t border-dashed pt-4 text-sm">
+      <CardContent className="space-y-4 border-t border-dashed pt-4 text-sm">
+        {summary ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-500">
+              <span>Requirements coverage</span>
+              <span className="font-semibold text-slate-900">{completionRate}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all"
+                style={{ width: `${completionRate}%` }}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs text-slate-600">
+              <span className="flex items-center gap-1">
+                <CheckCircle className="text-green-600" size={12} /> {summary.completed}
+              </span>
+              <span className="flex items-center gap-1">
+                <FileEdit className="text-blue-600" size={12} /> {summary.in_progress}
+              </span>
+              <span className="flex items-center gap-1">
+                <XCircle className="text-slate-400" size={12} /> {summary.pending}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {summary.p0 > 0 && (
+                <Badge variant="destructive" className="text-[11px]">P0: {summary.p0}</Badge>
+              )}
+              {summary.p1 > 0 && (
+                <Badge variant="default" className="text-[11px]">P1: {summary.p1}</Badge>
+              )}
+              {summary.p2 > 0 && (
+                <Badge variant="secondary" className="text-[11px]">P2: {summary.p2}</Badge>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No requirements registered yet.</p>
+        )}
+
         <div className="flex flex-wrap gap-2" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
           {entry.has_prd && (
             <Button variant="ghost" size="sm" asChild>

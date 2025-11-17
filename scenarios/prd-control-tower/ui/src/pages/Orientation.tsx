@@ -52,33 +52,44 @@ const PRD_EXAMPLES: Record<'skeleton' | 'full', string> = {
 ## Launch Plan
 ## Status
 `,
-  full: `# Scenario Name
+  full: `# PRD Control Tower
 
 ## Capability Narrative
-This scenario gives Vrooli the ability to ...
+The PRD Control Tower gives Vrooli a permanent capability to inventory every scenario and resource, understand whether each one has a compliant PRD, and spin up a draft workspace the moment a gap is detected. It blends catalog intelligence, draft orchestration, and AI-assisted editing so documentation never lags behind product changes. Every improvement compounds: as soon as one scenario tightens its PRD, the validation rules become stricter for everyone else.
 
 ## Why Now
-- Pressure: ...
-- Payoff: ...
+- **Volume pressure**: Dozens of new scenarios are added weekly, overwhelming manual PRD reviews and leaving requirements untracked.
+- **Quality drift**: Existing PRDs were authored before the requirements/ folder conventions, so structural debt is spreading.
+- **Operational dependency**: Meta-scenarios such as ecosystem-manager and app-monitor require trustworthy PRD references to make automated decisions.
 
 ## Stakeholders
-- Product ops
-- Founders
+- **Product Operations** — owns the catalog, enforces the template, and reports coverage to leadership.
+- **Scenario Maintainers** — keep their scenario’s PRD healthy and rely on diagnostics to know what to fix.
+- **Ecosystem Manager Crew** — needs machine-readable PRDs to seed new automation tasks.
 
 ## User Journeys
-1. Describe target user story
+1. Product ops opens the catalog, filters for "Missing PRD", and generates a draft shell for \`scenarios/prompt-manager\`.
+2. A maintainer receives a diagnostics alert from the Scenario Control Center, opens the draft editor, and fixes template violations inline.
+3. The maintainer publishes the draft which updates \`scenarios/prompt-manager/PRD.md\`, clears the draft, and refreshes operational target linkage reports.
 
 ## Requirements
-- [ ] PRD-001 | Requirement name — mapped to /requirements/core
+- [x] PRD-001 | Catalog coverage analytics — surfaces counts, filters, and quick actions for \`/requirements/catalog/coverage.md\`.
+- [x] PRD-002 | Draft workspace with AI assist — ties into \`/requirements/drafts/workspace.md\` with autosave + validation hooks.
+- [x] PRD-003 | Scenario Control Center — renders requirements + targets data from \`/requirements/requirements/command-center.md\`.
+- [ ] PRD-004 | Diff-aware publish review — block publish unless reviewer confirms the rendered diff.
 
 ## Operational Targets
-- Target 1 (P0) | Metric + success criteria | Linked requirements: PRD-001
+- 95% of tracked entities have a published PRD (P0) | Metric: \`with_prd / total\` | Linked requirements: PRD-001, PRD-003.
+- Draft validation completes in < 8s for 95th percentile (P1) | Metric: auditor duration histogram | Linked requirements: PRD-002.
+- Every P0/P1 operational target references at least one requirement before publish (P0) | Metric: linkage checker | Linked requirements: PRD-003, PRD-004.
 
 ## Launch Plan
-- Phase, owner, target date
+1. **Catalog health pulse** — Owner: Product Ops — Target: 2025-02-15 — Status: Done — shipped with live coverage stats.
+2. **Draft workspace GA** — Owner: Scenario Eng — Target: 2025-02-28 — Status: Done — autosave + AI shipped.
+3. **Diagnostics + publish guardrails** — Owner: Platform — Target: 2025-03-14 — Status: In progress — HTTP diagnostics live; diff review pending.
 
 ## Status
-- Status marker + next checkpoint
+**Green**, because catalog coverage is 82% and diagnostics now auto-link targets. Remaining work: finish diff-based publish approval and run the migration to normalize legacy PRDs so template validation stops flagging historical debt.
 `,
 }
 
@@ -319,7 +330,7 @@ export default function Orientation() {
               </div>
             ))}
             <div className="rounded-2xl border border-dashed bg-white p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-slate-800">Example view</p>
                 <div className="flex gap-2">
                   <Button
@@ -338,9 +349,14 @@ export default function Orientation() {
                   </Button>
                 </div>
               </div>
-              <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100">
+              <div
+                className="mt-3 max-h-[28rem] w-full overflow-auto rounded-xl border border-slate-200 bg-slate-900 p-4 text-sm shadow-inner"
+                tabIndex={0}
+              >
+                <pre className="min-w-full whitespace-pre text-xs leading-relaxed text-slate-100">
 {PRD_EXAMPLES[exampleMode]}
-              </pre>
+                </pre>
+              </div>
             </div>
           </CardContent>
         </Card>

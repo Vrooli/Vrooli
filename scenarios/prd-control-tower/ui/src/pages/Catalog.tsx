@@ -21,6 +21,7 @@ import type { CatalogEntry, CatalogResponse } from '../types'
 import { CatalogCard, QuickAddIdeaDialog } from '../components/catalog'
 
 type CatalogFilter = 'all' | 'scenario' | 'resource'
+type CatalogSort = 'status' | 'name_asc' | 'name_desc' | 'coverage'
 
 export default function Catalog() {
   const [entries, setEntries] = useState<CatalogEntry[]>([])
@@ -28,6 +29,7 @@ export default function Catalog() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<CatalogFilter>('all')
+  const [sortMode, setSortMode] = useState<CatalogSort>('status')
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const navigate = useNavigate()
 
@@ -47,7 +49,7 @@ export default function Catalog() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(buildApiUrl('/catalog'))
+      const response = await fetch(buildApiUrl('/catalog?include_requirements=1'))
       if (!response.ok) {
         throw new Error(`Failed to fetch catalog: ${response.statusText}`)
       }
@@ -82,9 +84,29 @@ export default function Catalog() {
   const coverage = catalogCounts.total ? Math.round((catalogCounts.withPrd / catalogCounts.total) * 100) : 0
   const missingPercentage = catalogCounts.total ? Math.round((catalogCounts.missing / catalogCounts.total) * 100) : 0
 
+  const requirementTotals = useMemo(() => {
+    return entries.reduce(
+      (acc, entry) => {
+        const summary = entry.requirements_summary
+        if (!summary) {
+          return acc
+        }
+        acc.total += summary.total
+        acc.completed += summary.completed
+        acc.inProgress += summary.in_progress
+        acc.pending += summary.pending
+        acc.p0 += summary.p0
+        acc.p1 += summary.p1
+        acc.p2 += summary.p2
+        return acc
+      },
+      { total: 0, completed: 0, inProgress: 0, pending: 0, p0: 0, p1: 0, p2: 0 },
+    )
+  }, [entries])
+
   const filteredEntries = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return entries.filter(entry => {
+    const filtered = entries.filter(entry => {
       const matchesSearch =
         query === '' ||
         entry.name.toLowerCase().includes(query) ||
@@ -92,7 +114,35 @@ export default function Catalog() {
       const matchesType = typeFilter === 'all' || entry.type === typeFilter
       return matchesSearch && matchesType
     })
-  }, [entries, search, typeFilter])
+
+    const getCoverageScore = (entry: CatalogEntry) => {
+      const summary = entry.requirements_summary
+      if (!summary || summary.total === 0) {
+        return 0
+      }
+      return summary.completed / summary.total
+    }
+
+    return [...filtered].sort((a, b) => {
+      switch (sortMode) {
+        case 'name_desc':
+          return b.name.localeCompare(a.name)
+        case 'coverage':
+          return getCoverageScore(b) - getCoverageScore(a)
+        case 'status': {
+          const score = (entry: CatalogEntry) => {
+            if (entry.has_prd) return 3
+            if (entry.has_draft) return 2
+            return 1
+          }
+          return score(b) - score(a) || a.name.localeCompare(b.name)
+        }
+        case 'name_asc':
+        default:
+          return a.name.localeCompare(b.name)
+      }
+    })
+  }, [entries, search, typeFilter, sortMode])
 
   const stats = useMemo(
     () => [
@@ -124,17 +174,45 @@ export default function Catalog() {
     [catalogCounts, coverage, missingPercentage],
   )
 
+  const requirementCompletion = requirementTotals.total
+    ? Math.round((requirementTotals.completed / requirementTotals.total) * 100)
+    : 0
+
+  const requirementCards = useMemo(
+    () => [
+      {
+        key: 'requirements-total',
+        label: 'Tracked requirements',
+        value: requirementTotals.total,
+        description: 'Across all catalog entries',
+      },
+      {
+        key: 'requirements-complete',
+        label: 'Completed',
+        value: requirementTotals.completed,
+        description: `${requirementCompletion}% of total`,
+      },
+      {
+        key: 'requirements-progress',
+        label: 'In progress',
+        value: requirementTotals.inProgress,
+        description: `${requirementTotals.pending} pending`,
+      },
+      {
+        key: 'requirements-criticality',
+        label: 'Criticality split',
+        value: requirementTotals.p0,
+        description: `P0 ${requirementTotals.p0} · P1 ${requirementTotals.p1} · P2 ${requirementTotals.p2}`,
+      },
+    ],
+    [requirementTotals, requirementCompletion],
+  )
+
   if (loading) {
     return (
-      <div className="app-container">
-        <Card className="border-dashed bg-white/70">
-          <CardContent className="flex items-center gap-3 text-muted-foreground">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-              <Layers size={18} />
-            </span>
-            Loading catalog...
-          </CardContent>
-        </Card>
+      <div className="app-container space-y-6">
+        <TopNav />
+        <CatalogSkeleton />
       </div>
     )
   }
@@ -228,6 +306,20 @@ export default function Catalog() {
         ))}
       </section>
 
+      {requirementTotals.total > 0 && (
+        <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {requirementCards.map((stat) => (
+            <Card key={stat.key} className="border border-violet-100 bg-gradient-to-br from-white to-violet-50/60">
+              <CardHeader className="pb-2">
+                <CardDescription>{stat.label}</CardDescription>
+                <CardTitle className="text-3xl font-bold">{stat.value.toLocaleString()}</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 text-sm text-muted-foreground">{stat.description}</CardContent>
+            </Card>
+          ))}
+        </section>
+      )}
+
       <section className="rounded-3xl border bg-white/90 p-5 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="relative w-full max-w-xl">
@@ -247,6 +339,22 @@ export default function Catalog() {
                 Clear
               </button>
             )}
+          </div>
+          <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+            <label htmlFor="catalog-sort" className="font-medium text-slate-700">
+              Sort by
+            </label>
+            <select
+              id="catalog-sort"
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as CatalogSort)}
+              className="rounded-xl border border-input bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="status">Status (PRD first)</option>
+              <option value="coverage">Requirements coverage</option>
+              <option value="name_asc">Name A → Z</option>
+              <option value="name_desc">Name Z → A</option>
+            </select>
           </div>
           <Tabs value={typeFilter} onValueChange={(value: string) => setTypeFilter(value as CatalogFilter)}>
             <TabsList>
@@ -281,6 +389,44 @@ export default function Catalog() {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function CatalogSkeleton() {
+  return (
+    <div className="space-y-6">
+      <section className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
+        <div className="space-y-4 animate-pulse">
+          <div className="h-4 w-40 rounded-full bg-slate-200" />
+          <div className="h-8 w-72 rounded-full bg-slate-200" />
+          <div className="h-4 w-full max-w-3xl rounded-full bg-slate-100" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={`catalog-stat-${idx}`} className="h-20 rounded-2xl border border-slate-100 bg-slate-50" />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
+        <div className="space-y-4 animate-pulse">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="h-10 flex-1 rounded-xl bg-slate-100" />
+            <div className="h-10 w-40 rounded-xl bg-slate-100" />
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={`catalog-filter-${idx}`} className="h-9 rounded-full bg-slate-100" />
+            ))}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={`catalog-card-${idx}`} className="h-40 rounded-2xl border border-slate-100 bg-slate-50" />
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

@@ -18,7 +18,7 @@ import { Input } from '../components/ui/input'
 import { Badge } from '../components/ui/badge'
 import { usePublishedPRD } from '../hooks/usePublishedPRD'
 import { EcosystemTaskPanel } from '../components/ecosystem/EcosystemTaskPanel'
-import { DiagnosticsPanel, QualityInsightsPanel } from '../components/prd-viewer'
+import { DiagnosticsPanel, IssuesPanel } from '../components/prd-viewer'
 import { fetchQualityReport } from '../utils/quality'
 import type { ScenarioQualityReport } from '../types'
 import { buildApiUrl } from '../utils/apiClient'
@@ -106,7 +106,7 @@ export default function ScenarioControlCenter() {
         const data = await fetchQualityReport(entityType, entityName, { useCache: !force })
         setQualityReport(data)
       } catch (err) {
-        setQualityError(err instanceof Error ? err.message : 'Failed to load quality insights')
+        setQualityError(err instanceof Error ? err.message : 'Failed to load issues')
         setQualityReport(null)
       } finally {
         setQualityLoading(false)
@@ -405,7 +405,7 @@ export default function ScenarioControlCenter() {
           </div>
 
           {entityType && entityName && (
-            <QualityInsightsPanel
+            <IssuesPanel
               report={qualityReport}
               loading={qualityLoading}
               error={qualityError}

@@ -62,11 +62,22 @@ export interface CatalogEntry {
   has_draft: boolean
   has_requirements: boolean
   description: string
+  requirements_summary?: CatalogRequirementSummary
 }
 
 export interface CatalogResponse {
   entries: CatalogEntry[]
   total: number
+}
+
+export interface CatalogRequirementSummary {
+  total: number
+  completed: number
+  in_progress: number
+  pending: number
+  p0: number
+  p1: number
+  p2: number
 }
 
 export interface PublishedPRDResponse {
@@ -361,6 +372,7 @@ export interface BacklogEntry {
   idea_text: string
   entity_type: EntityType
   suggested_name: string
+  notes?: string
   status: BacklogStatus
   created_at: string
   updated_at: string
@@ -376,6 +388,7 @@ export interface BacklogCreateItem {
   idea_text: string
   entity_type?: EntityType
   suggested_name?: string
+  notes?: string
 }
 
 export interface BacklogCreateRequest {

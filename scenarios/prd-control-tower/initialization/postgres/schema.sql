@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS backlog_entries (
     idea_text TEXT NOT NULL,
     entity_type VARCHAR(20) NOT NULL DEFAULT 'scenario' CHECK (entity_type IN ('scenario', 'resource')),
     suggested_name VARCHAR(255) NOT NULL,
+    notes TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'converted', 'archived')),
     converted_draft_id UUID REFERENCES drafts(id),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
