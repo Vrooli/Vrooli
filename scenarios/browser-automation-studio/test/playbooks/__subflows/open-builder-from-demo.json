@@ -1,0 +1,83 @@
+{
+  "metadata": {
+    "description": "Ensures the workflow builder is opened from the Demo project",
+    "fixture_id": "open-builder-from-demo"
+  },
+  "nodes": [
+    {
+      "id": "fixture-call-open-project",
+      "type": "workflowCall",
+      "position": {"x": 0, "y": 0},
+      "data": {
+        "label": "Open Demo project",
+        "workflowId": "@fixture/open-demo-project"
+      }
+    },
+    {
+      "id": "fixture-click-new-workflow",
+      "type": "click",
+      "position": {"x": 220, "y": 0},
+      "data": {
+        "label": "Click New Workflow",
+        "selector": "[data-testid=\"new-workflow-button\"]",
+        "timeoutMs": 15000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "fixture-wait-ai-modal",
+      "type": "wait",
+      "position": {"x": 440, "y": 0},
+      "data": {
+        "label": "Wait for AI modal",
+        "selector": "[data-testid=\"ai-prompt-modal\"]",
+        "timeoutMs": 8000,
+        "waitType": "element",
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "fixture-switch-to-manual",
+      "type": "click",
+      "position": {"x": 660, "y": 0},
+      "data": {
+        "label": "Switch to manual builder",
+        "selector": "[data-testid=\"switch-to-manual-button\"]",
+        "timeoutMs": 5000,
+        "waitForMs": 1500,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "fixture-wait-builder",
+      "type": "wait",
+      "position": {"x": 880, "y": 0},
+      "data": {
+        "label": "Wait for builder canvas",
+        "selector": "[data-testid=\"workflow-builder-code-mode-button\"], .react-flow",
+        "timeoutMs": 15000,
+        "waitForMs": 1500,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "fixture-assert-builder",
+      "type": "assert",
+      "position": {"x": 1100, "y": 0},
+      "data": {
+        "label": "Builder canvas visible",
+        "selector": ".react-flow__renderer, .react-flow",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Workflow builder should be visible after opening"
+      }
+    }
+  ],
+  "edges": [
+    {"id": "fixture-builder-edge-1", "source": "fixture-call-open-project", "target": "fixture-click-new-workflow", "type": "smoothstep"},
+    {"id": "fixture-builder-edge-2", "source": "fixture-click-new-workflow", "target": "fixture-wait-ai-modal", "type": "smoothstep"},
+    {"id": "fixture-builder-edge-3", "source": "fixture-wait-ai-modal", "target": "fixture-switch-to-manual", "type": "smoothstep"},
+    {"id": "fixture-builder-edge-4", "source": "fixture-switch-to-manual", "target": "fixture-wait-builder", "type": "smoothstep"},
+    {"id": "fixture-builder-edge-5", "source": "fixture-wait-builder", "target": "fixture-assert-builder", "type": "smoothstep"}
+  ]
+}

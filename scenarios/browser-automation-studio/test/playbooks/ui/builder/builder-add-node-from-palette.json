@@ -13,104 +13,15 @@
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
-      "type": "navigate",
+      "id": "call-open-builder",
+      "type": "workflowCall",
       "position": {
         "x": 0,
         "y": 0
       },
       "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-dashboard",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for projects grid",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "click-project",
-      "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
-      "data": {
-        "label": "Open Demo Browser Automations project",
-        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-project-detail",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project detail",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "click-new-workflow",
-      "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
-      "data": {
-        "label": "Click New Workflow button",
-        "selector": "[data-testid=\"new-workflow-button\"]",
-        "timeoutMs": 10000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-ai-modal",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for AI modal or builder",
-        "selector": "[data-testid=\"ai-prompt-modal\"]",
-        "timeoutMs": 8000,
-        "waitType": "element",
-        "continueOnError": true
-      }
-    },
-    {
-      "id": "switch-to-manual",
-      "type": "click",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
-      "data": {
-        "label": "Switch to manual builder (if AI modal appears)",
-        "selector": "[data-testid=\"switch-to-manual-button\"]",
-        "timeoutMs": 5000,
-        "waitForMs": 1500,
-        "continueOnError": true
+        "label": "Open builder via fixture",
+        "workflowId": "@fixture/open-builder-from-demo"
       }
     },
     {
@@ -124,21 +35,6 @@
         "label": "Wait for builder to load after modal close",
         "durationMs": 3000,
         "waitType": "duration"
-      }
-    },
-    {
-      "id": "wait-for-builder",
-      "type": "wait",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for workflow builder canvas element",
-        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
-        "timeoutMs": 15000,
-        "waitForMs": 2000,
-        "waitType": "element"
       }
     },
     {
@@ -307,25 +203,71 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-for-project-detail", "target": "click-new-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "click-new-workflow", "target": "wait-for-ai-modal", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-for-ai-modal", "target": "switch-to-manual", "type": "smoothstep"},
-    {"id": "e7", "source": "switch-to-manual", "target": "wait-for-builder-load", "type": "smoothstep"},
-    {"id": "e7a", "source": "wait-for-builder-load", "target": "wait-for-builder", "type": "smoothstep"},
-    {"id": "e8", "source": "wait-for-builder", "target": "assert-canvas-visible", "type": "smoothstep"},
-    {"id": "e9", "source": "assert-canvas-visible", "target": "count-initial-nodes", "type": "smoothstep"},
-    {"id": "e10", "source": "count-initial-nodes", "target": "assert-palette-visible", "type": "smoothstep"},
-    {"id": "e11", "source": "assert-palette-visible", "target": "capture-before-drag", "type": "smoothstep"},
-    {"id": "e12", "source": "capture-before-drag", "target": "get-navigate-node-position", "type": "smoothstep"},
-    {"id": "e13", "source": "get-navigate-node-position", "target": "get-canvas-drop-position", "type": "smoothstep"},
-    {"id": "e14", "source": "get-canvas-drop-position", "target": "drag-navigate-node", "type": "smoothstep"},
-    {"id": "e15", "source": "drag-navigate-node", "target": "wait-for-node-added", "type": "smoothstep"},
-    {"id": "e16", "source": "wait-for-node-added", "target": "count-final-nodes", "type": "smoothstep"},
-    {"id": "e17", "source": "count-final-nodes", "target": "verify-node-count-increased", "type": "smoothstep"},
-    {"id": "e18", "source": "verify-node-count-increased", "target": "check-navigate-node-exists", "type": "smoothstep"},
-    {"id": "e19", "source": "check-navigate-node-exists", "target": "capture-after-drag", "type": "smoothstep"}
+    {
+      "id": "e9",
+      "source": "call-open-builder",
+      "target": "assert-canvas-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "count-initial-nodes",
+      "target": "assert-palette-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "assert-palette-visible",
+      "target": "capture-before-drag",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "capture-before-drag",
+      "target": "get-navigate-node-position",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "get-navigate-node-position",
+      "target": "get-canvas-drop-position",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "get-canvas-drop-position",
+      "target": "drag-navigate-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "drag-navigate-node",
+      "target": "wait-for-node-added",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "wait-for-node-added",
+      "target": "count-final-nodes",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e17",
+      "source": "count-final-nodes",
+      "target": "verify-node-count-increased",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e18",
+      "source": "verify-node-count-increased",
+      "target": "check-navigate-node-exists",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e19",
+      "source": "check-navigate-node-exists",
+      "target": "capture-after-drag",
+      "type": "smoothstep"
+    }
   ]
 }

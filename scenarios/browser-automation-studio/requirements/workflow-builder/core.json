@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-17T03:00:19.348Z"
+    "last_synced_at": "2025-11-17T19:54:35.401Z"
   },
   "requirements": [
     {
@@ -73,14 +73,14 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Demo project and workflow seed remain available after boot",
       "description": "Guarantees the bundled demo project loads for first-time operators, providing an executable workflow that exercises the canvas and executor pipeline.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/projects/demo-sanity.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "BAS workflow ensuring demo seed parity via JSON playbook (pending export)."
         }
       ]

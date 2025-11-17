@@ -37,6 +37,31 @@ PY
     printf '%s\n' "$target"
 }
 
+testing::integration::resolve_workflow_definition() {
+    local workflow_path="$1"
+    local scenario_dir="$2"
+    if [ -z "$workflow_path" ] || [ ! -f "$workflow_path" ]; then
+        return 1
+    fi
+    local resolver_root
+    resolver_root="${APP_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)}"
+    local resolver_script="${resolver_root}/scripts/scenarios/testing/playbooks/resolve-workflow.py"
+    if [ -f "$resolver_script" ]; then
+        local python_cmd=""
+        if command -v python3 >/dev/null 2>&1; then
+            python_cmd="python3"
+        elif command -v python >/dev/null 2>&1; then
+            python_cmd="python"
+        fi
+        if [ -n "$python_cmd" ]; then
+            "$python_cmd" "$resolver_script" --workflow "$workflow_path" --scenario "$scenario_dir"
+            return $?
+        fi
+        echo "⚠️  python is not available; skipping workflow fixture resolution" >&2
+    fi
+    cat "$workflow_path"
+}
+
 # Check whether the running API exposes /workflows/validate so we can safely lint via HTTP.
 testing::integration::ensure_validate_endpoint() {
     local api_base="$1"
@@ -136,17 +161,32 @@ testing::integration::lint_workflows_via_api() {
         return $probe_rc
     fi
 
-    for file_path in "${lint_files[@]}"; do
-        local rel_path
-        rel_path="${file_path#$scenario_dir/}"
-        echo "🔍 Linting workflow ${rel_path}"
+        for file_path in "${lint_files[@]}"; do
+            local rel_path
+            rel_path="${file_path#$scenario_dir/}"
+            echo "🔍 Linting workflow ${rel_path}"
 
-        local payload
-        if ! payload=$(jq -c --argjson strict "$strict_flag" --arg selector "$selector_root" '{workflow: ., strict: $strict, selector_root: ($selector // "")}' "$file_path" 2>/dev/null); then
-            echo "❌ Failed to build lint payload for $rel_path"
-            lint_failed=1
-            continue
+        local lint_source_json
+        if declare -F _testing_playbooks__read_workflow_definition >/dev/null 2>&1; then
+            if ! lint_source_json=$(_testing_playbooks__read_workflow_definition "$file_path" "$scenario_dir"); then
+                echo "❌ Failed to resolve workflow ${rel_path}" >&2
+                lint_failed=1
+                continue
+            fi
+        else
+            if ! lint_source_json=$(testing::integration::resolve_workflow_definition "$file_path" "$scenario_dir"); then
+                echo "❌ Failed to read workflow ${rel_path}" >&2
+                lint_failed=1
+                continue
+            fi
         fi
+
+            local payload
+            if ! payload=$(printf '%s' "$lint_source_json" | jq -c --argjson strict "$strict_flag" --arg selector "$selector_root" '{workflow: ., strict: $strict, selector_root: ($selector // "")}' 2>/dev/null); then
+                echo "❌ Failed to build lint payload for $rel_path"
+                lint_failed=1
+                continue
+            fi
 
         local response_file
         response_file=$(mktemp)
@@ -205,6 +245,9 @@ testing::integration::validate_all() {
 
     # Set up signal handler to ensure completion logic runs on timeout
     _integration_cleanup() {
+        if declare -F _testing_playbooks__cleanup_seeds >/dev/null 2>&1; then
+            _testing_playbooks__cleanup_seeds || true
+        fi
         if [ "$force_end" = true ]; then
             return 0  # Already cleaned up
         fi

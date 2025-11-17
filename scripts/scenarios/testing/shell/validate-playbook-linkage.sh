@@ -15,6 +15,7 @@ EXIT_ORPHANED_PLAYBOOKS=1
 EXIT_MISSING_PLAYBOOK_FILES=2
 EXIT_INVALID_REQUIREMENT_REFS=3
 EXIT_NO_REQUIREMENTS=4
+EXIT_FIXTURE_ERRORS=5
 
 # Track issues
 declare -a ORPHANED_PLAYBOOKS=()
@@ -166,6 +167,33 @@ playbook_count=$(echo "$playbook_files" | grep -c . || echo 0)
 echo "   Found $playbook_count playbook file(s)"
 echo ""
 
+# Fixture tracking containers
+declare -A FIXTURE_FILES=()
+declare -A FIXTURE_USAGE=()
+declare -a FIXTURE_METADATA_ERRORS=()
+declare -a FIXTURE_DUPLICATE_ERRORS=()
+declare -a FIXTURE_UNKNOWN_REFERENCES=()
+declare -a FIXTURE_UNUSED=()
+
+# Load fixture workflow definitions
+fixtures_dir="$PLAYBOOKS_DIR/__subflows"
+if [ -d "$fixtures_dir" ]; then
+    while IFS= read -r fixture_file; do
+        [ -z "$fixture_file" ] && continue
+        rel_path="${fixture_file#$SCENARIO_DIR/}"
+        fixture_id=$(jq -r '.metadata.fixture_id // empty' "$fixture_file" 2>/dev/null)
+        if [ -z "$fixture_id" ] || [ "$fixture_id" = "null" ]; then
+            FIXTURE_METADATA_ERRORS+=("$rel_path")
+            continue
+        fi
+        if [ -n "${FIXTURE_FILES[$fixture_id]:-}" ]; then
+            FIXTURE_DUPLICATE_ERRORS+=("$fixture_id|$rel_path|${FIXTURE_FILES[$fixture_id]}")
+            continue
+        fi
+        FIXTURE_FILES[$fixture_id]="$rel_path"
+    done < <(find "$fixtures_dir" -type f -name '*.json' 2>/dev/null | sort)
+fi
+
 # Step 4: Check each playbook
 log_header "🔗 Step 4: Validating playbook metadata..."
 echo ""
@@ -218,7 +246,30 @@ while IFS= read -r playbook_file; do
         # Playbook declares a valid requirement, but that requirement doesn't reference it back
         echo "$rel_path|$declared_req" >> "$ORPHANED_LIST"
     fi
+
+    if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
+        placeholders=$(rg -o '@fixture/[A-Za-z0-9_.:-]+' -N "$playbook_file" 2>/dev/null | sort -u || true)
+        if [ -n "$placeholders" ]; then
+            while IFS= read -r placeholder; do
+                [ -z "$placeholder" ] && continue
+                slug="${placeholder#@fixture/}"
+                if [ -z "${FIXTURE_FILES[$slug]:-}" ]; then
+                    FIXTURE_UNKNOWN_REFERENCES+=("$rel_path|$slug")
+                    continue
+                fi
+                FIXTURE_USAGE["$slug"]="used"
+            done <<< "$placeholders"
+        fi
+    fi
 done <<< "$playbook_files"
+
+if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
+    for slug in "${!FIXTURE_FILES[@]}"; do
+        if [ -z "${FIXTURE_USAGE[$slug]:-}" ]; then
+            FIXTURE_UNUSED+=("$slug|${FIXTURE_FILES[$slug]}")
+        fi
+    done
+fi
 
 # Report Results
 echo ""
@@ -227,12 +278,59 @@ log_header "📊 Validation Results"
 echo "=============================================================="
 echo ""
 
+fixture_metadata_count=${#FIXTURE_METADATA_ERRORS[@]}
+fixture_duplicate_count=${#FIXTURE_DUPLICATE_ERRORS[@]}
+fixture_unknown_count=${#FIXTURE_UNKNOWN_REFERENCES[@]}
+fixture_unused_count=${#FIXTURE_UNUSED[@]}
+fixture_issue_total=$((fixture_metadata_count + fixture_duplicate_count + fixture_unknown_count + fixture_unused_count))
+
+if [ "$fixture_metadata_count" -gt 0 ]; then
+    log_error "Fixture workflows missing metadata.fixture_id"
+    echo ""
+    for entry in "${FIXTURE_METADATA_ERRORS[@]}"; do
+        echo -e "   ❌ Fixture: ${BLUE}${entry}${NC}"
+    done
+    echo ""
+fi
+
+if [ "$fixture_duplicate_count" -gt 0 ]; then
+    log_error "Duplicate fixture identifiers detected"
+    echo ""
+    for entry in "${FIXTURE_DUPLICATE_ERRORS[@]}"; do
+        IFS='|' read -r slug new_path existing_path <<< "$entry"
+        echo -e "   ❌ Fixture ID: ${BLUE}${slug}${NC}"
+        echo -e "      Files: ${RED}${new_path}${NC} and ${YELLOW}${existing_path}${NC}"
+        echo ""
+    done
+fi
+
+if [ "$fixture_unknown_count" -gt 0 ]; then
+    log_error "Playbooks reference unknown fixtures"
+    echo ""
+    for entry in "${FIXTURE_UNKNOWN_REFERENCES[@]}"; do
+        IFS='|' read -r playbook slug <<< "$entry"
+        echo -e "   ❌ Playbook: ${BLUE}${playbook}${NC}"
+        echo -e "      Unknown fixture: ${RED}${slug}${NC}"
+        echo ""
+    done
+fi
+
+if [ "$fixture_unused_count" -gt 0 ]; then
+    log_error "Fixture workflows are not referenced by any playbook"
+    echo ""
+    for entry in "${FIXTURE_UNUSED[@]}"; do
+        IFS='|' read -r slug file_path <<< "$entry"
+        echo -e "   ⚠️  Fixture: ${BLUE}${slug}${NC} (${file_path})"
+    done
+    echo ""
+fi
+
 missing_file_count=$(wc -l < "$MISSING_FILES_LIST" | tr -d ' ')
 missing_req_count=$(wc -l < "$MISSING_REQ_LIST" | tr -d ' ')
 no_metadata_count=$(wc -l < "$NO_METADATA_LIST" | tr -d ' ')
 orphaned_count=$(wc -l < "$ORPHANED_LIST" | tr -d ' ')
 
-total_issues=$((missing_file_count + missing_req_count + no_metadata_count + orphaned_count))
+total_issues=$((missing_file_count + missing_req_count + no_metadata_count + orphaned_count + fixture_issue_total))
 
 # Report Case 1: Requirements pointing to missing files
 if [ "$missing_file_count" -gt 0 ]; then
@@ -320,6 +418,9 @@ if [ "$total_issues" -eq 0 ]; then
     echo "      • Playbook references in requirements: $reference_count"
     echo "      • All have valid requirement metadata"
     echo "      • All requirements reference existing files"
+    if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
+        echo "      • Fixture workflows validated: ${#FIXTURE_FILES[@]}"
+    fi
     echo ""
     exit $EXIT_SUCCESS
 else
@@ -332,6 +433,12 @@ else
     echo "      • Invalid requirement refs: $missing_req_count"
     echo "      • Missing metadata: $no_metadata_count"
     echo "      • Orphaned (not referenced): $orphaned_count"
+    if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
+        echo "      • Fixture metadata issues: $fixture_metadata_count"
+        echo "      • Fixture duplicates: $fixture_duplicate_count"
+        echo "      • Unknown fixture references: $fixture_unknown_count"
+        echo "      • Unused fixtures: $fixture_unused_count"
+    fi
     echo ""
 
     # Exit with most severe error code
@@ -341,5 +448,7 @@ else
         exit $EXIT_INVALID_REQUIREMENT_REFS
     elif [ "$no_metadata_count" -gt 0 ] || [ "$orphaned_count" -gt 0 ]; then
         exit $EXIT_ORPHANED_PLAYBOOKS
+    elif [ $((fixture_metadata_count + fixture_duplicate_count + fixture_unknown_count + fixture_unused_count)) -gt 0 ]; then
+        exit $EXIT_FIXTURE_ERRORS
     fi
 fi

@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-15T19:38:03.361Z"
+    "last_synced_at": "2025-11-17T19:54:35.401Z"
   },
   "requirements": [
     {
@@ -13,14 +13,14 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Zoom in button increases canvas zoom level",
       "description": "Users can click the zoom in button to incrementally increase the canvas zoom level for detailed node editing",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/toolbar/toolbar-zoom-in.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates zoom in button functionality and canvas zoom level increase"
         }
       ]
@@ -31,14 +31,14 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Zoom out button decreases canvas zoom level",
       "description": "Users can click the zoom out button to incrementally decrease the canvas zoom level for workflow overview",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/toolbar/toolbar-zoom-out.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates zoom out button functionality and canvas zoom level decrease"
         }
       ]
@@ -67,14 +67,14 @@
       "prd_ref": "Workflow Builder > History Navigation",
       "title": "Undo button reverts the last canvas change",
       "description": "Users can click undo to revert the most recent canvas modification (node add/delete/move, connection changes)",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/toolbar/toolbar-undo.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates undo reverts node addition, deletion, and position changes"
         }
       ]
@@ -85,14 +85,14 @@
       "prd_ref": "Workflow Builder > History Navigation",
       "title": "Redo button re-applies undone changes",
       "description": "Users can click redo to re-apply the most recently undone change",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/toolbar/toolbar-redo.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates redo re-applies undone changes"
         }
       ]
@@ -103,14 +103,14 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Lock/unlock canvas prevents/allows node interaction",
       "description": "Users can toggle canvas lock to prevent accidental node movements and edits during review",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/toolbar/toolbar-lock-toggle.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates lock prevents node dragging and unlock re-enables interaction"
         }
       ]

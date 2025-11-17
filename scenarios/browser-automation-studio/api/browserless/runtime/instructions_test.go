@@ -937,7 +937,7 @@ func TestInstructionFromStepWorkflowCallRequiresID(t *testing.T) {
 		Params: map[string]any{},
 	}
 	if _, err := instructionFromStep(context.Background(), step); err == nil {
-		t.Fatalf("expected workflow call without workflowId to error")
+		t.Fatalf("expected workflow call without workflowId or definition to error")
 	}
 }
 
@@ -979,6 +979,43 @@ func TestInstructionFromStepWorkflowCallParsesConfig(t *testing.T) {
 	}
 	if inst.Params.WorkflowCallOutputs == nil || inst.Params.WorkflowCallOutputs["token"] != "authToken" {
 		t.Fatalf("expected output mapping to persist, got %+v", inst.Params.WorkflowCallOutputs)
+	}
+}
+
+func TestInstructionFromStepWorkflowCallInlineDefinition(t *testing.T) {
+	inlineDefinition := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":       "inline-nav",
+				"type":     "navigate",
+				"position": map[string]any{"x": 0, "y": 0},
+				"data": map[string]any{
+					"destinationType": "url",
+					"url":             "https://example.com",
+				},
+			},
+		},
+		"edges": []any{},
+	}
+	step := compiler.ExecutionStep{
+		Index:  22,
+		NodeID: "workflow-call-inline",
+		Type:   compiler.StepWorkflowCall,
+		Params: map[string]any{
+			"workflowName":       "Inline Flow",
+			"workflowDefinition": inlineDefinition,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("expected inline workflow call to compile: %v", err)
+	}
+	if inst.Params.WorkflowCallDefinition == nil {
+		t.Fatalf("expected inline definition to propagate")
+	}
+	if inst.Params.WorkflowCallID != "" {
+		t.Fatalf("expected workflow ID to be empty when using inline definition")
 	}
 }
 

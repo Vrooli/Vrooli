@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-15T16:05:41.090Z"
+    "last_synced_at": "2025-11-17T20:48:10.560Z"
   },
   "requirements": [
     {
@@ -67,14 +67,14 @@
       "prd_ref": "Workflow Builder",
       "title": "Workflow creation and builder loading",
       "description": "Users can create new workflows and have the workflow builder load successfully",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/workflows/workflow-create-and-load.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests workflow creation flow including AI modal bypass and builder loading"
         }
       ]
@@ -85,14 +85,14 @@
       "prd_ref": "Workflow Builder",
       "title": "Workflow selection from project detail",
       "description": "Users can select workflows from the project detail list and load them into the builder",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/workflows/workflow-select-from-list.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates workflow list display and navigation to builder with selected workflow"
         }
       ]
@@ -121,14 +121,14 @@
       "prd_ref": "Workflow Execution",
       "title": "Workflow execution from project detail",
       "description": "Users can trigger workflow execution from the project detail view and see execution indicators",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/executions/execution-from-project-detail.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates execute button functionality and execution status feedback"
         }
       ]

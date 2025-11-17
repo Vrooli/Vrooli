@@ -221,3 +221,83 @@ func TestValidatorScreenshotRequiresTarget(t *testing.T) {
 		t.Fatalf("expected WF_SCREENSHOT_TARGET_REQUIRED error, got %+v", res.Errors)
 	}
 }
+
+func TestValidatorWorkflowCallRequiresTarget(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":       "call",
+				"type":     "workflowCall",
+				"position": map[string]any{"x": 0, "y": 0},
+				"data":     map[string]any{},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected workflow call without target to fail")
+	}
+
+	found := false
+	for _, issue := range res.Errors {
+		if issue.Code == "WF_WORKFLOW_CALL_TARGET" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected WF_WORKFLOW_CALL_TARGET error, got %+v", res.Errors)
+	}
+}
+
+func TestValidatorWorkflowCallInlineDefinition(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":       "call",
+				"type":     "workflowCall",
+				"position": map[string]any{"x": 0, "y": 0},
+				"data": map[string]any{
+					"workflowDefinition": map[string]any{
+						"nodes": []any{
+							map[string]any{
+								"id":       "inline-nav",
+								"type":     "navigate",
+								"position": map[string]any{"x": 0, "y": 0},
+								"data": map[string]any{
+									"destinationType": "url",
+									"url":             "https://example.com",
+								},
+							},
+						},
+						"edges": []any{},
+					},
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if !res.Valid {
+		t.Fatalf("expected inline workflow definition to be valid, got %+v", res.Errors)
+	}
+}

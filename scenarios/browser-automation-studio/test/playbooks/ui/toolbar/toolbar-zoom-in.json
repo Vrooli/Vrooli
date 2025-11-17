@@ -13,63 +13,15 @@
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "click-project",
-      "type": "click",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Open Demo project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-workflows",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": -100
-      },
-      "data": {
-        "label": "Wait for workflows to load",
-        "selector": "[data-testid=\"workflow-card\"]",
-        "timeoutMs": 10000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "click-workflow",
-      "type": "click",
+      "id": "call-open-demo-workflow",
+      "type": "workflowCall",
       "position": {
         "x": 400,
         "y": 0
       },
       "data": {
-        "label": "Open existing workflow",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "label": "Open seeded workflow via fixture",
+        "workflowId": "@fixture/open-demo-workflow"
       }
     },
     {
@@ -184,20 +136,8 @@
   ],
   "edges": [
     {
-      "id": "e1",
-      "source": "navigate-dashboard",
-      "target": "click-project",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "click-project",
-      "target": "wait-workflows",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e3",
-      "source": "click-workflow",
+      "id": "call-open-demo-workflow-to-wait-for-builder",
+      "source": "call-open-demo-workflow",
       "target": "wait-for-builder",
       "type": "smoothstep"
     },
@@ -241,12 +181,6 @@
       "id": "e10",
       "source": "verify-zoom-increased",
       "target": "capture-after-zoom",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e-wait-click-workflow",
-      "source": "wait-workflows",
-      "target": "click-workflow",
       "type": "smoothstep"
     }
   ]

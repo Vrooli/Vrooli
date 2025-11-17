@@ -232,6 +232,9 @@ var nodeRules = map[string]nodeRule{
 	"screenshot": {
 		custom: lintScreenshotNode,
 	},
+	"workflowCall": {
+		custom: lintWorkflowCallNode,
+	},
 }
 
 func runLint(definition map[string]any, selectorRoot string) (Stats, []Issue, []Issue) {
@@ -638,6 +641,53 @@ func lintAssertNode(node map[string]any, data map[string]any, idx int) ([]Issue,
 			Pointer:  pointer + "/attributeName",
 		})
 	}
+	return errorsList, nil
+}
+
+func lintWorkflowCallNode(node map[string]any, data map[string]any, idx int) ([]Issue, []Issue) {
+	var errorsList []Issue
+	nodeID := getString(node["id"])
+	nodeType := getString(node["type"])
+	pointer := fmt.Sprintf("/nodes/%d/data", idx)
+
+	workflowID := strings.TrimSpace(getString(data["workflowId"]))
+	inlineDef, hasInline := toMap(data["workflowDefinition"])
+	if workflowID == "" && (!hasInline || len(inlineDef) == 0) {
+		errorsList = append(errorsList, Issue{
+			Severity: SeverityError,
+			Code:     "WF_WORKFLOW_CALL_TARGET",
+			Message:  "Workflow call must define workflowId or workflowDefinition",
+			NodeID:   nodeID,
+			NodeType: nodeType,
+			Pointer:  pointer,
+		})
+		return errorsList, nil
+	}
+
+	if hasInline && len(inlineDef) > 0 {
+		nodes := toSlice(inlineDef["nodes"])
+		if len(nodes) == 0 {
+			errorsList = append(errorsList, Issue{
+				Severity: SeverityError,
+				Code:     "WF_WORKFLOW_CALL_INLINE_NODES",
+				Message:  "workflowDefinition must include at least one node",
+				NodeID:   nodeID,
+				NodeType: nodeType,
+				Pointer:  pointer + "/workflowDefinition/nodes",
+			})
+		}
+		if _, ok := inlineDef["edges"]; !ok {
+			errorsList = append(errorsList, Issue{
+				Severity: SeverityError,
+				Code:     "WF_WORKFLOW_CALL_INLINE_EDGES",
+				Message:  "workflowDefinition must include edges even if empty",
+				NodeID:   nodeID,
+				NodeType: nodeType,
+				Pointer:  pointer + "/workflowDefinition/edges",
+			})
+		}
+	}
+
 	return errorsList, nil
 }
 

@@ -13,46 +13,24 @@
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "position": {"x": 0, "y": 0},
+      "id": "call-open-project",
+      "type": "workflowCall",
+      "position": {
+        "x": 600,
+        "y": 0
+      },
       "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
+        "label": "Open Demo project via fixture",
+        "workflowId": "@fixture/open-demo-project"
       }
-    },
-    {
-      "id": "wait-dashboard",
-      "type": "wait",
-      "position": {"x": 200, "y": 0},
-      "data": {"label": "Wait for dashboard", "durationMs": 2000, "waitType": "duration"}
-    },
-    {
-      "id": "click-demo-project",
-      "type": "click",
-      "position": {"x": 400, "y": 0},
-      "data": {
-        "label": "Open Demo project",
-        "selector": "[data-testid=\"project-card\"]",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-project",
-      "type": "wait",
-      "position": {"x": 600, "y": 0},
-      "data": {"label": "Wait for project", "durationMs": 2000, "waitType": "duration"}
     },
     {
       "id": "navigate-to-executions",
       "type": "click",
-      "position": {"x": 800, "y": 0},
+      "position": {
+        "x": 800,
+        "y": 0
+      },
       "data": {
         "label": "Navigate to Executions tab",
         "selector": "[data-testid=\"executions-tab\"]",
@@ -64,19 +42,36 @@
     {
       "id": "wait-executions-view",
       "type": "wait",
-      "position": {"x": 1000, "y": 0},
-      "data": {"label": "Wait for executions view", "durationMs": 2000, "waitType": "duration"}
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for executions view",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
     },
     {
       "id": "capture-executions-list",
       "type": "screenshot",
-      "position": {"x": 1200, "y": 0},
-      "data": {"label": "Capture executions list", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture executions list",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "find-execution-entry",
       "type": "assert",
-      "position": {"x": 1400, "y": 0},
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
       "data": {
         "label": "Verify execution entries exist",
         "selector": "[data-testid=\"execution-item\"]",
@@ -88,7 +83,10 @@
     {
       "id": "click-execution",
       "type": "click",
-      "position": {"x": 1600, "y": 0},
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
       "data": {
         "label": "Open execution details",
         "selector": "[data-testid=\"execution-view-button\"]",
@@ -99,7 +97,10 @@
     {
       "id": "wait-execution-viewer",
       "type": "wait",
-      "position": {"x": 1800, "y": 0},
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
       "data": {
         "label": "Wait for execution viewer",
         "selector": "[data-testid=\"execution-viewer\"]",
@@ -110,13 +111,23 @@
     {
       "id": "capture-execution-viewer",
       "type": "screenshot",
-      "position": {"x": 2000, "y": 0},
-      "data": {"label": "Capture execution viewer", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture execution viewer",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "find-export-button",
       "type": "evaluate",
-      "position": {"x": 2200, "y": 0},
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
       "data": {
         "label": "Check for export/download button",
         "expression": "!!document.querySelector('[data-testid=\"export-replay-button\"]')",
@@ -126,13 +137,23 @@
     {
       "id": "capture-export-controls",
       "type": "screenshot",
-      "position": {"x": 2400, "y": 0},
-      "data": {"label": "Capture export controls", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 2400,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture export controls",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "check-replay-artifacts",
       "type": "evaluate",
-      "position": {"x": 2600, "y": 0},
+      "position": {
+        "x": 2600,
+        "y": 0
+      },
       "data": {
         "label": "Verify replay artifacts available",
         "expression": "!!document.querySelector('[class*=\"replay\"], [class*=\"artifact\"], [class*=\"screenshot\"]')",
@@ -142,24 +163,83 @@
     {
       "id": "verify-export-flow",
       "type": "screenshot",
-      "position": {"x": 2800, "y": 0},
-      "data": {"label": "Final export flow verification", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 2800,
+        "y": 0
+      },
+      "data": {
+        "label": "Final export flow verification",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-dashboard", "target": "click-demo-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-demo-project", "target": "wait-project", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-project", "target": "navigate-to-executions", "type": "smoothstep"},
-    {"id": "e5", "source": "navigate-to-executions", "target": "wait-executions-view", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-executions-view", "target": "capture-executions-list", "type": "smoothstep"},
-    {"id": "e7", "source": "capture-executions-list", "target": "find-execution-entry", "type": "smoothstep"},
-    {"id": "e8", "source": "find-execution-entry", "target": "click-execution", "type": "smoothstep"},
-    {"id": "e9", "source": "click-execution", "target": "wait-execution-viewer", "type": "smoothstep"},
-    {"id": "e10", "source": "wait-execution-viewer", "target": "capture-execution-viewer", "type": "smoothstep"},
-    {"id": "e11", "source": "capture-execution-viewer", "target": "find-export-button", "type": "smoothstep"},
-    {"id": "e12", "source": "find-export-button", "target": "capture-export-controls", "type": "smoothstep"},
-    {"id": "e13", "source": "capture-export-controls", "target": "check-replay-artifacts", "type": "smoothstep"},
-    {"id": "e14", "source": "check-replay-artifacts", "target": "verify-export-flow", "type": "smoothstep"}
+    {
+      "id": "call-open-project-to-navigate-to-executions",
+      "source": "call-open-project",
+      "target": "navigate-to-executions",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "navigate-to-executions",
+      "target": "wait-executions-view",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-executions-view",
+      "target": "capture-executions-list",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "capture-executions-list",
+      "target": "find-execution-entry",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "find-execution-entry",
+      "target": "click-execution",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "click-execution",
+      "target": "wait-execution-viewer",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "wait-execution-viewer",
+      "target": "capture-execution-viewer",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "capture-execution-viewer",
+      "target": "find-export-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "find-export-button",
+      "target": "capture-export-controls",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "capture-export-controls",
+      "target": "check-replay-artifacts",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "check-replay-artifacts",
+      "target": "verify-export-flow",
+      "type": "smoothstep"
+    }
   ]
 }

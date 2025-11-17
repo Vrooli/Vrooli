@@ -4,6 +4,13 @@ set -euo pipefail
 # This runner allows any scenario to define BAS workflow JSONs and have them automatically executed
 # for UI/integration testing via the browser-automation-studio API.
 
+TESTING_PLAYBOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TESTING_PLAYBOOKS_APP_ROOT="$(cd "${TESTING_PLAYBOOKS_DIR}/../../../../" && pwd)"
+
+declare -g _TESTING_PLAYBOOKS_SEEDS_APPLIED=false
+declare -g _TESTING_PLAYBOOKS_SEEDS_DIR=""
+declare -g _TESTING_PLAYBOOKS_SEEDS_SCENARIO_DIR=""
+
 declare -g TESTING_PLAYBOOKS_LAST_WORKFLOW_ID=""
 declare -g TESTING_PLAYBOOKS_LAST_EXECUTION_ID=""
 declare -g TESTING_PLAYBOOKS_LAST_SCENARIO=""
@@ -20,6 +27,65 @@ _testing_playbooks__require_tools() {
         echo "❌ Missing required tools: ${missing[*]}. Install them to run workflows." >&2
         return 1
     fi
+}
+
+_testing_playbooks__read_workflow_definition() {
+    local workflow_path="$1"
+    local scenario_dir="$2"
+    if [ ! -f "$workflow_path" ]; then
+        echo "Workflow definition not found: $workflow_path" >&2
+        return 1
+    fi
+    local resolver_script="${TESTING_PLAYBOOKS_APP_ROOT}/scripts/scenarios/testing/playbooks/resolve-workflow.py"
+    if [ -f "$resolver_script" ]; then
+        local python_cmd=""
+        if command -v python3 >/dev/null 2>&1; then
+            python_cmd="python3"
+        elif command -v python >/dev/null 2>&1; then
+            python_cmd="python"
+        fi
+        if [ -n "$python_cmd" ]; then
+            "$python_cmd" "$resolver_script" --workflow "$workflow_path" --scenario "$scenario_dir"
+            return $?
+        fi
+        echo "⚠️  python is not available; skipping workflow fixture resolution" >&2
+    fi
+    cat "$workflow_path"
+}
+
+_testing_playbooks__apply_seeds_if_needed() {
+    local scenario_dir="$1"
+    local seeds_dir="$scenario_dir/test/playbooks/__seeds"
+    if [ ! -d "$seeds_dir" ]; then
+        return 0
+    fi
+    if [ "${_TESTING_PLAYBOOKS_SEEDS_APPLIED:-false}" = true ]; then
+        return 0
+    fi
+    local apply_script="$seeds_dir/apply.sh"
+    if [ -f "$apply_script" ]; then
+        echo "🌱 Applying BAS seed data from ${apply_script}"
+        (cd "$scenario_dir" && bash "$apply_script") || return 1
+    fi
+    _TESTING_PLAYBOOKS_SEEDS_APPLIED=true
+    _TESTING_PLAYBOOKS_SEEDS_DIR="$seeds_dir"
+    _TESTING_PLAYBOOKS_SEEDS_SCENARIO_DIR="$scenario_dir"
+    return 0
+}
+
+_testing_playbooks__cleanup_seeds() {
+    if [ "${_TESTING_PLAYBOOKS_SEEDS_APPLIED:-false}" != true ]; then
+        return 0
+    fi
+    local cleanup_script="${_TESTING_PLAYBOOKS_SEEDS_DIR}/cleanup.sh"
+    if [ -f "$cleanup_script" ]; then
+        echo "🧹 Cleaning BAS seed data via ${cleanup_script}"
+        (cd "${_TESTING_PLAYBOOKS_SEEDS_SCENARIO_DIR}" && bash "$cleanup_script") || \
+            echo "⚠️  Seed cleanup script failed" >&2
+    fi
+    _TESTING_PLAYBOOKS_SEEDS_APPLIED=false
+    _TESTING_PLAYBOOKS_SEEDS_DIR=""
+    _TESTING_PLAYBOOKS_SEEDS_SCENARIO_DIR=""
 }
 
 _testing_playbooks__resolve_api_port() {
@@ -109,11 +175,10 @@ _testing_playbooks__wait_for_execution() {
 
 _testing_playbooks__execute_adhoc_workflow() {
     local api_base="$1"
-    local workflow_path="$2"
+    local workflow_json="$2"
 
     # Read workflow JSON and extract metadata
-    local flow_def
-    flow_def=$(cat "$workflow_path")
+    local flow_def="$workflow_json"
 
     local name
     name=$(printf '%s' "$flow_def" | jq -r '.metadata.name // .metadata.description // empty')
@@ -207,14 +272,16 @@ testing::playbooks::run_workflow() {
     TESTING_PLAYBOOKS_LAST_EXECUTION_ID=""
     TESTING_PLAYBOOKS_LAST_SCENARIO=""
 
+    local scenario_dir="${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}"
+
     if [ -z "$workflow_path" ]; then
         echo "testing::playbooks::run_workflow requires --file" >&2
         return 1
     fi
 
     # Resolve workflow path relative to scenario directory when possible
-    if [ -n "$workflow_path" ] && [ ! -f "$workflow_path" ] && [ -n "${TESTING_PHASE_SCENARIO_DIR:-}" ]; then
-        local candidate="${TESTING_PHASE_SCENARIO_DIR}/${workflow_path#./}"
+    if [ -n "$workflow_path" ] && [ ! -f "$workflow_path" ] && [ -n "$scenario_dir" ]; then
+        local candidate="${scenario_dir}/${workflow_path#./}"
         if [ -f "$candidate" ]; then
             workflow_path="$candidate"
         fi
@@ -278,6 +345,11 @@ testing::playbooks::run_workflow() {
         fi
     fi
 
+    if ! _testing_playbooks__apply_seeds_if_needed "$scenario_dir"; then
+        echo "❌ Failed to apply BAS seed data" >&2
+        return 1
+    fi
+
     local api_port
     api_port=$(_testing_playbooks__resolve_api_port "$scenario_name") || {
         echo "❌ Unable to resolve API_PORT for $scenario_name" >&2
@@ -288,13 +360,19 @@ testing::playbooks::run_workflow() {
     local api_base
     api_base=$(_testing_playbooks__api_base "$api_port")
 
+    local workflow_json
+    if ! workflow_json=$(_testing_playbooks__read_workflow_definition "$workflow_path" "$scenario_dir"); then
+        echo "❌ Failed to load workflow definition $workflow_path" >&2
+        return 1
+    fi
+
     # Execute workflow via adhoc endpoint (no DB persistence)
     local workflow_name
     workflow_name=$(basename "$workflow_path" .json)
     echo "🚀 Starting workflow: ${workflow_name}" >&2
 
     local execution_id
-    if ! execution_id=$(_testing_playbooks__execute_adhoc_workflow "$api_base" "$workflow_path"); then
+    if ! execution_id=$(_testing_playbooks__execute_adhoc_workflow "$api_base" "$workflow_json"); then
         echo "❌ Failed to start adhoc workflow execution" >&2
         # Leave scenario running for debugging
         return 1

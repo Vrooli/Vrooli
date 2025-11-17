@@ -13,60 +13,15 @@
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-dashboard",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for dashboard",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "click-project",
-      "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
-      "data": {
-        "label": "Open Demo project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-project-detail",
-      "type": "wait",
+      "id": "call-open-project",
+      "type": "workflowCall",
       "position": {
         "x": 600,
         "y": 0
       },
       "data": {
-        "label": "Wait for project detail",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "label": "Open Demo project via fixture",
+        "workflowId": "@fixture/open-demo-project"
       }
     },
     {
@@ -261,22 +216,89 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-for-project-detail", "target": "click-executions-tab", "type": "smoothstep"},
-    {"id": "e5", "source": "click-executions-tab", "target": "wait-for-executions", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-for-executions", "target": "assert-executions-exist", "type": "smoothstep"},
-    {"id": "e7", "source": "assert-executions-exist", "target": "click-view-execution", "type": "smoothstep"},
-    {"id": "e8", "source": "click-view-execution", "target": "wait-for-execution-viewer", "type": "smoothstep"},
-    {"id": "e9", "source": "wait-for-execution-viewer", "target": "assert-execution-viewer-visible", "type": "smoothstep"},
-    {"id": "e10", "source": "assert-execution-viewer-visible", "target": "capture-execution-viewer", "type": "smoothstep"},
-    {"id": "e11", "source": "capture-execution-viewer", "target": "look-for-replay-tab", "type": "smoothstep"},
-    {"id": "e12", "source": "look-for-replay-tab", "target": "click-replay-tab", "type": "smoothstep"},
-    {"id": "e13", "source": "click-replay-tab", "target": "wait-for-replay-load", "type": "smoothstep"},
-    {"id": "e14", "source": "wait-for-replay-load", "target": "verify-replay-content", "type": "smoothstep"},
-    {"id": "e15", "source": "verify-replay-content", "target": "capture-replay-tab", "type": "smoothstep"},
-    {"id": "e16", "source": "capture-replay-tab", "target": "check-for-screenshot", "type": "smoothstep"},
-    {"id": "e17", "source": "check-for-screenshot", "target": "check-for-timeline", "type": "smoothstep"}
+    {
+      "id": "call-open-project-to-click-executions-tab",
+      "source": "call-open-project",
+      "target": "click-executions-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-executions-tab",
+      "target": "wait-for-executions",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-for-executions",
+      "target": "assert-executions-exist",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-executions-exist",
+      "target": "click-view-execution",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-view-execution",
+      "target": "wait-for-execution-viewer",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "wait-for-execution-viewer",
+      "target": "assert-execution-viewer-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-execution-viewer-visible",
+      "target": "capture-execution-viewer",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "capture-execution-viewer",
+      "target": "look-for-replay-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "look-for-replay-tab",
+      "target": "click-replay-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "click-replay-tab",
+      "target": "wait-for-replay-load",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "wait-for-replay-load",
+      "target": "verify-replay-content",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "verify-replay-content",
+      "target": "capture-replay-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "capture-replay-tab",
+      "target": "check-for-screenshot",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e17",
+      "source": "check-for-screenshot",
+      "target": "check-for-timeline",
+      "type": "smoothstep"
+    }
   ]
 }

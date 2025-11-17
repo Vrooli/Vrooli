@@ -1,7 +1,8 @@
 {
   "_metadata": {
     "description": "Helper/example workflows used for smoke/manual validation",
-    "schema_version": "1.0.0"
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-17T20:48:10.559Z"
   },
   "requirements": [
     {

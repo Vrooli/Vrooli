@@ -13,76 +13,15 @@
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-dashboard",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for dashboard",
-        "selector": "[data-testid=\"projects-grid\"]",
-        "timeoutMs": 10000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "click-project",
-      "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
-      "data": {
-        "label": "Open project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-project",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project detail",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "click-workflow",
-      "type": "click",
+      "id": "call-open-demo-workflow",
+      "type": "workflowCall",
       "position": {
         "x": 800,
         "y": 0
       },
       "data": {
-        "label": "Open workflow",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "label": "Open seeded workflow via fixture",
+        "workflowId": "@fixture/open-demo-workflow"
       }
     },
     {
@@ -208,18 +147,59 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-project", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-project", "target": "click-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "click-workflow", "target": "wait-builder", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-builder", "target": "assert-nodes-exist", "type": "smoothstep"},
-    {"id": "e7", "source": "assert-nodes-exist", "target": "count-initial-nodes", "type": "smoothstep"},
-    {"id": "e8", "source": "count-initial-nodes", "target": "click-first-node", "type": "smoothstep"},
-    {"id": "e9", "source": "click-first-node", "target": "capture-before-delete", "type": "smoothstep"},
-    {"id": "e10", "source": "capture-before-delete", "target": "click-delete-button", "type": "smoothstep"},
-    {"id": "e11", "source": "click-delete-button", "target": "count-final-nodes", "type": "smoothstep"},
-    {"id": "e12", "source": "count-final-nodes", "target": "verify-node-deleted", "type": "smoothstep"},
-    {"id": "e13", "source": "verify-node-deleted", "target": "capture-after-delete", "type": "smoothstep"}
+    {
+      "id": "call-open-demo-workflow-to-wait-builder",
+      "source": "call-open-demo-workflow",
+      "target": "wait-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-builder",
+      "target": "assert-nodes-exist",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-nodes-exist",
+      "target": "count-initial-nodes",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "count-initial-nodes",
+      "target": "click-first-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "click-first-node",
+      "target": "capture-before-delete",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "capture-before-delete",
+      "target": "click-delete-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "click-delete-button",
+      "target": "count-final-nodes",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "count-final-nodes",
+      "target": "verify-node-deleted",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "verify-node-deleted",
+      "target": "capture-after-delete",
+      "type": "smoothstep"
+    }
   ]
 }

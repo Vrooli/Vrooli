@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "description": "Loads the Demo Browser Automations project and opens the seeded workflow for builder interactions",
+    "fixture_id": "open-demo-workflow"
+  },
+  "nodes": [
+    {
+      "id": "fixture-call-open-project",
+      "type": "workflowCall",
+      "position": {"x": 0, "y": 0},
+      "data": {
+        "label": "Open Demo project",
+        "workflowId": "@fixture/open-demo-project"
+      }
+    },
+    {
+      "id": "fixture-wait-workflow-card",
+      "type": "wait",
+      "position": {"x": 220, "y": 0},
+      "data": {
+        "label": "Wait for seeded workflow card",
+        "selector": "[data-testid=\"workflow-card\"][data-workflow-name=\"Demo: Capture Example.com Hero\"]",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "fixture-click-demo-workflow",
+      "type": "click",
+      "position": {"x": 440, "y": 0},
+      "data": {
+        "label": "Open seeded workflow",
+        "selector": "[data-testid=\"workflow-card\"][data-workflow-name=\"Demo: Capture Example.com Hero\"]",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "fixture-wait-builder",
+      "type": "wait",
+      "position": {"x": 660, "y": 0},
+      "data": {
+        "label": "Wait for builder to load",
+        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "fixture-assert-nodes",
+      "type": "assert",
+      "position": {"x": 880, "y": 0},
+      "data": {
+        "label": "Seeded nodes are visible",
+        "selector": ".react-flow__node",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Seeded workflow should render nodes"
+      }
+    }
+  ],
+  "edges": [
+    {"id": "fixture-open-project", "source": "fixture-call-open-project", "target": "fixture-wait-workflow-card", "type": "smoothstep"},
+    {"id": "fixture-wait-card", "source": "fixture-wait-workflow-card", "target": "fixture-click-demo-workflow", "type": "smoothstep"},
+    {"id": "fixture-open-workflow", "source": "fixture-click-demo-workflow", "target": "fixture-wait-builder", "type": "smoothstep"},
+    {"id": "fixture-builder-ready", "source": "fixture-wait-builder", "target": "fixture-assert-nodes", "type": "smoothstep"}
+  ]
+}

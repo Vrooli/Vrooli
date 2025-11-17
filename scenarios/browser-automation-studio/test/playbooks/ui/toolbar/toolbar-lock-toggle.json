@@ -13,76 +13,15 @@
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-dashboard",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for dashboard",
-        "selector": "[data-testid=\"projects-grid\"]",
-        "timeoutMs": 10000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "click-project",
-      "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
-      "data": {
-        "label": "Open project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-project",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "click-workflow",
-      "type": "click",
+      "id": "call-open-demo-workflow",
+      "type": "workflowCall",
       "position": {
         "x": 800,
         "y": 0
       },
       "data": {
-        "label": "Open workflow",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "label": "Open seeded workflow via fixture",
+        "workflowId": "@fixture/open-demo-workflow"
       }
     },
     {
@@ -196,32 +135,8 @@
   ],
   "edges": [
     {
-      "id": "e1",
-      "source": "navigate-dashboard",
-      "target": "wait-dashboard",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-dashboard",
-      "target": "click-project",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e3",
-      "source": "click-project",
-      "target": "wait-project",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-project",
-      "target": "click-workflow",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e5",
-      "source": "click-workflow",
+      "id": "call-open-demo-workflow-to-wait-builder",
+      "source": "call-open-demo-workflow",
       "target": "wait-builder",
       "type": "smoothstep"
     },

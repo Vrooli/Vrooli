@@ -19,6 +19,11 @@ test/playbooks/
 │   └── executions/              # Execution viewing and triggering
 │       ├── execution-history-view.json
 │       └── execution-from-project-detail.json
+├── __subflows/                  # Reusable workflow fragments (setup/preludes)
+│   └── ...                      # Require metadata.fixture_id
+├── __seeds/                     # Seed data scripts supporting playbooks
+│   ├── apply.sh                 # Applies deterministic data fixtures (optional)
+│   └── cleanup.sh               # Cleans up data seeded by apply.sh
 ├── ai/                          # AI-assisted workflow generation
 │   └── generated-smoke.json
 ├── executions/                  # CLI execution and telemetry
@@ -51,6 +56,11 @@ test/playbooks/
   - `click-project-card`
   - `assert-modal-visible`
   - `navigate-to-workflow`
+
+### Fixture IDs
+- Store reusable workflow fragments in `__subflows/` and provide a `metadata.fixture_id`
+- Use descriptive kebab-case slugs: `open-builder-from-demo`, `open-demo-project`
+- Reference fixtures from playbooks with `"workflowId": "@fixture/<slug>"`
 
 ## Playbook Structure
 
@@ -103,6 +113,68 @@ Defines workflow execution order:
   ]
 }
 ```
+
+## Reusable Subflows (`__subflows/`)
+
+- Keep shared setup/prelude workflows under `test/playbooks/__subflows/`
+- Each file must include `metadata.fixture_id` with a unique slug
+- Reference a subflow from a playbook by setting `workflowId` to `@fixture/<slug>`
+- The test runner automatically inlines the referenced workflow definition before linting and execution
+- Structural tests fail when a fixture is missing metadata, duplicated, unused, or referenced by a playbook that doesn't exist
+
+### Provided Fixtures
+
+| Fixture ID | Description |
+| --- | --- |
+| `open-demo-project` | Navigates to the dashboard, selects **Demo Browser Automations**, and verifies the project detail page is ready for assertions. |
+| `open-builder-from-demo` | Calls `open-demo-project`, clicks **New Workflow**, bypasses the AI modal, and waits for the builder canvas to render. |
+| `open-demo-workflow` | Reuses `open-demo-project`, opens the seeded "Demo: Capture Example.com Hero" workflow, and waits until its nodes render inside the builder. |
+
+Use these fixtures whenever a workflow needs to begin from a known dashboard or builder state instead of repeating the navigation boilerplate.
+
+Example fixture:
+
+```json
+{
+  "metadata": {
+    "description": "Loads the builder and selects the Demo project",
+    "fixture_id": "open-builder-from-demo"
+  },
+  "nodes": [ ... ],
+  "edges": [ ... ]
+}
+```
+
+Example usage in a playbook node:
+
+```json
+{
+  "id": "call-builder-setup",
+  "type": "workflowCall",
+  "data": {
+    "label": "Reuse builder prelude",
+    "workflowId": "@fixture/open-builder-from-demo"
+  }
+}
+```
+
+## Seed Data (`__seeds/`)
+
+- Optional `test/playbooks/__seeds/apply.sh` can prepare deterministic data (projects, workflows, etc.) before integration tests run
+- Provide a matching `cleanup.sh` to remove any state created by the apply script; the integration harness runs cleanup even on failure
+- Scripts execute from the scenario root, so you can call the BAS CLI, Go utilities, or direct HTTP requests
+- The bundled `apply.sh` wipes all projects through the API, recreates the **Demo Browser Automations** project under `data/projects/demo`, and seeds a simple workflow so list/select flows always have at least one entry. `cleanup.sh` removes every project at phase end so the next run starts fresh.
+- Example `apply.sh`:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+browser-automation-studio workflow create "Seed Login" \
+  --folder /__seeds \
+  --from-file test/playbooks/__seeds/workflows/login.json
+```
+
+The apply/cleanup scripts ensure Browser Automation Studio returns to its original state after every phase, so fixtures never leak into normal usage.
 
 ## Node Types Reference
 

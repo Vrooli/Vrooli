@@ -13,63 +13,15 @@
   },
   "nodes": [
     {
-      "id": "nav",
-      "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "data": {
-        "label": "Open BAS",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "proj",
-      "type": "click",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Open project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-workflows",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": -100
-      },
-      "data": {
-        "label": "Wait for workflows to load",
-        "selector": "[data-testid=\"workflow-card\"]",
-        "timeoutMs": 10000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "work",
-      "type": "click",
+      "id": "call-open-demo-workflow",
+      "type": "workflowCall",
       "position": {
         "x": 400,
         "y": 0
       },
       "data": {
-        "label": "Open workflow",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
-        "timeoutMs": 10000,
-        "waitForMs": 2000
+        "label": "Open seeded workflow via fixture",
+        "workflowId": "@fixture/open-demo-workflow"
       }
     },
     {
@@ -195,20 +147,8 @@
   ],
   "edges": [
     {
-      "id": "e1",
-      "source": "nav",
-      "target": "proj",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "proj",
-      "target": "wait-workflows",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e3",
-      "source": "work",
+      "id": "call-open-demo-workflow-to-wait1",
+      "source": "call-open-demo-workflow",
       "target": "wait1",
       "type": "smoothstep"
     },
@@ -258,12 +198,6 @@
       "id": "e11",
       "source": "count3",
       "target": "cap",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e-wait-work",
-      "source": "wait-workflows",
-      "target": "work",
       "type": "smoothstep"
     }
   ]

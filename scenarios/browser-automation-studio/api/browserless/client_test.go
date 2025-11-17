@@ -627,6 +627,81 @@ func TestExecuteWorkflowWorkflowCallInline(t *testing.T) {
 	}
 }
 
+func TestExecuteWorkflowWorkflowCallInlineDefinition(t *testing.T) {
+	client, _ := newTestClient()
+	responses := []string{
+		`{"success":true,"steps":[{"index":0,"nodeId":"child-nav","type":"navigate","success":true,"durationMs":80}]}`,
+		`{"success":true,"steps":[{"index":1,"nodeId":"child-wait","type":"wait","success":true,"durationMs":40}]}`,
+		`{"success":true,"steps":[{"index":1,"nodeId":"parent-shot","type":"screenshot","success":true,"durationMs":60}]}`,
+	}
+	session := stubSessionFromPayloads(t, responses)
+	parentWorkflow := &database.Workflow{
+		ID: uuid.New(),
+		FlowDefinition: database.JSONMap{
+			"nodes": []any{
+				map[string]any{
+					"id":   "parent-call",
+					"type": "workflowCall",
+					"data": map[string]any{
+						"workflowName": "Inline Login",
+						"workflowDefinition": map[string]any{
+							"nodes": []any{
+								map[string]any{
+									"id":   "child-nav",
+									"type": "navigate",
+									"data": map[string]any{
+										"url": "https://example.com/login",
+									},
+								},
+								map[string]any{
+									"id":   "child-wait",
+									"type": "wait",
+									"data": map[string]any{
+										"waitType":   "duration",
+										"durationMs": 100,
+									},
+								},
+							},
+							"edges": []any{
+								map[string]any{
+									"id":     "ie-1",
+									"source": "child-nav",
+									"target": "child-wait",
+								},
+							},
+						},
+					},
+				},
+				map[string]any{
+					"id":   "parent-shot",
+					"type": "screenshot",
+					"data": map[string]any{},
+				},
+			},
+			"edges": []any{
+				map[string]any{
+					"id":     "pe-inline",
+					"source": "parent-call",
+					"target": "parent-shot",
+				},
+			},
+		},
+	}
+	execution := &database.Execution{
+		ID:          uuid.New(),
+		WorkflowID:  parentWorkflow.ID,
+		Status:      "pending",
+		TriggerType: "manual",
+		StartedAt:   time.Now(),
+	}
+	if err := client.ExecuteWorkflow(context.Background(), execution, parentWorkflow, nil); err != nil {
+		t.Fatalf("ExecuteWorkflow returned error: %v", err)
+	}
+	if session.callCount != len(responses) {
+		t.Fatalf("expected %d CDP calls, got %d", len(responses), session.callCount)
+	}
+}
+
 func TestExecuteWorkflowPersistsTelemetry(t *testing.T) {
 	t.Run("[REQ:BAS-EXEC-TELEMETRY-STREAM] persists console logs and telemetry", func(t *testing.T) {
 		client, repo := newTestClient()

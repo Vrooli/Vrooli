@@ -13,64 +13,15 @@
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-dashboard",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for dashboard",
-        "selector": "[data-testid=\"projects-grid\"]",
-        "timeoutMs": 10000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "click-project",
-      "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
-      "data": {
-        "label": "Open first project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-project-detail",
-      "type": "wait",
+      "id": "call-open-project",
+      "type": "workflowCall",
       "position": {
         "x": 600,
         "y": 0
       },
       "data": {
-        "label": "Wait for project detail",
-        "selector": "h1",
-        "timeoutMs": 5000,
-        "waitForMs": 1500,
-        "waitType": "element"
+        "label": "Open Demo project via fixture",
+        "workflowId": "@fixture/open-demo-project"
       }
     },
     {
@@ -210,26 +161,8 @@
   ],
   "edges": [
     {
-      "id": "e1",
-      "source": "navigate-dashboard",
-      "target": "wait-for-dashboard",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-for-dashboard",
-      "target": "click-project",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e3",
-      "source": "click-project",
-      "target": "wait-for-project-detail",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-project-detail",
+      "id": "call-open-project-to-wait-for-workflows",
+      "source": "call-open-project",
       "target": "wait-for-workflows",
       "type": "smoothstep"
     },

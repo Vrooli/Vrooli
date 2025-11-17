@@ -13,91 +13,15 @@
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
-      "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
-      "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-dashboard",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for projects grid",
-        "selector": "[data-testid=\"projects-grid\"]",
-        "timeoutMs": 10000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "click-project",
-      "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
-      "data": {
-        "label": "Open first project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-project-detail",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project detail",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "click-new-workflow",
-      "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
-      "data": {
-        "label": "Click New Workflow",
-        "selector": "[data-testid=\"new-workflow-button\"]",
-        "timeoutMs": 10000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "switch-to-manual",
-      "type": "click",
+      "id": "call-open-builder",
+      "type": "workflowCall",
       "position": {
         "x": 1000,
         "y": 0
       },
       "data": {
-        "label": "Switch to manual builder",
-        "selector": "[data-testid=\"switch-to-manual-button\"]",
-        "timeoutMs": 5000,
-        "waitForMs": 2000,
-        "continueOnError": true
+        "label": "Open builder via fixture",
+        "workflowId": "@fixture/open-builder-from-demo"
       }
     },
     {
@@ -199,38 +123,8 @@
   ],
   "edges": [
     {
-      "id": "e1",
-      "source": "navigate-dashboard",
-      "target": "wait-for-dashboard",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-for-dashboard",
-      "target": "click-project",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e3",
-      "source": "click-project",
-      "target": "wait-project-detail",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-project-detail",
-      "target": "click-new-workflow",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e5",
-      "source": "click-new-workflow",
-      "target": "switch-to-manual",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "switch-to-manual",
+      "id": "call-open-builder-to-wait-for-builder",
+      "source": "call-open-builder",
       "target": "wait-for-builder",
       "type": "smoothstep"
     },

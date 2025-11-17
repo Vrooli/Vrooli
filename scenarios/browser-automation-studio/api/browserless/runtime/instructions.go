@@ -202,6 +202,7 @@ type InstructionParam struct {
 	WorkflowCallWait        *bool             `json:"workflowCallWait,omitempty"`
 	WorkflowCallParams      map[string]any    `json:"workflowCallParams,omitempty"`
 	WorkflowCallOutputs     map[string]string `json:"workflowCallOutputs,omitempty"`
+	WorkflowCallDefinition  map[string]any    `json:"workflowCallDefinition,omitempty"`
 	CookieName              string            `json:"cookieName,omitempty"`
 	CookieValue             string            `json:"cookieValue,omitempty"`
 	CookieURL               string            `json:"cookieUrl,omitempty"`
@@ -547,6 +548,7 @@ type workflowCallConfig struct {
 	WaitForCompletion *bool             `json:"waitForCompletion"`
 	Parameters        map[string]any    `json:"parameters"`
 	OutputMapping     map[string]string `json:"outputMapping"`
+	InlineDefinition  map[string]any    `json:"workflowDefinition"`
 }
 
 type setCookieConfig struct {
@@ -1260,8 +1262,12 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 			return Instruction{}, fmt.Errorf("workflow call node %s has invalid data: %w", step.NodeID, err)
 		}
 		workflowID := strings.TrimSpace(cfg.WorkflowID)
-		if workflowID == "" {
-			return Instruction{}, fmt.Errorf("workflow call node %s requires workflowId", step.NodeID)
+		inlineDefinition := cfg.InlineDefinition
+		if len(inlineDefinition) == 0 {
+			inlineDefinition = nil
+		}
+		if workflowID == "" && inlineDefinition == nil {
+			return Instruction{}, fmt.Errorf("workflow call node %s requires workflowId or workflowDefinition", step.NodeID)
 		}
 		waitForCompletion := true
 		if cfg.WaitForCompletion != nil {
@@ -1270,7 +1276,9 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if !waitForCompletion {
 			return Instruction{}, fmt.Errorf("workflow call node %s must wait for completion (async execution not supported yet)", step.NodeID)
 		}
-		base.Params.WorkflowCallID = workflowID
+		if workflowID != "" {
+			base.Params.WorkflowCallID = workflowID
+		}
 		if trimmedName := strings.TrimSpace(cfg.WorkflowName); trimmedName != "" {
 			base.Params.WorkflowCallName = trimmedName
 		}
@@ -1280,6 +1288,9 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		}
 		if outputs := normalizeWorkflowCallOutputs(cfg.OutputMapping); len(outputs) > 0 {
 			base.Params.WorkflowCallOutputs = outputs
+		}
+		if inlineDefinition != nil {
+			base.Params.WorkflowCallDefinition = inlineDefinition
 		}
 	case compiler.StepRotate:
 		// [REQ:BAS-NODE-ROTATE-MOBILE]

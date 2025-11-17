@@ -2172,13 +2172,7 @@ func (c *Client) executeWorkflowCallStep(
 		Success: true,
 	}
 	retryHistory := []database.JSONMap{}
-	workflowID := strings.TrimSpace(instruction.Params.WorkflowCallID)
-	if workflowID == "" {
-		err := fmt.Errorf("workflow call node %s missing workflowId", instruction.NodeID)
-		stepResult.Success = false
-		stepResult.Error = err.Error()
-		return stepResult, retryHistory, 1, 0, err
-	}
+	inlineDefinition := instruction.Params.WorkflowCallDefinition
 	waitForCompletion := true
 	if instruction.Params.WorkflowCallWait != nil {
 		waitForCompletion = *instruction.Params.WorkflowCallWait
@@ -2189,26 +2183,65 @@ func (c *Client) executeWorkflowCallStep(
 		stepResult.Error = err.Error()
 		return stepResult, retryHistory, 1, 0, err
 	}
-	parsedID, err := uuid.Parse(workflowID)
-	if err != nil {
-		err = fmt.Errorf("workflow call node %s has invalid workflowId %q: %w", instruction.NodeID, workflowID, err)
-		stepResult.Success = false
-		stepResult.Error = err.Error()
-		return stepResult, retryHistory, 1, 0, err
-	}
-	workflow, err := c.repo.GetWorkflow(ctx, parsedID)
-	if err != nil {
-		err = fmt.Errorf("workflow call node %s failed to load workflow: %w", instruction.NodeID, err)
-		stepResult.Success = false
-		stepResult.Error = err.Error()
-		return stepResult, retryHistory, 1, 0, err
-	}
-	plan, instructions, err := c.compileWorkflow(ctx, workflow)
-	if err != nil {
-		err = fmt.Errorf("workflow call node %s failed to compile workflow: %w", instruction.NodeID, err)
-		stepResult.Success = false
-		stepResult.Error = err.Error()
-		return stepResult, retryHistory, 1, 0, err
+	var (
+		plan           *compiler.ExecutionPlan
+		instructions   []runtime.Instruction
+		err            error
+		workflowIDText string
+	)
+	workflowName := strings.TrimSpace(instruction.Params.WorkflowCallName)
+
+	if len(inlineDefinition) > 0 {
+		inlineWorkflow := &database.Workflow{
+			ID:             uuid.New(),
+			Name:           workflowName,
+			FlowDefinition: database.JSONMap(inlineDefinition),
+		}
+		if inlineWorkflow.Name == "" {
+			inlineWorkflow.Name = fmt.Sprintf("Inline workflow %s", instruction.NodeID)
+		}
+		plan, instructions, err = c.compileWorkflow(ctx, inlineWorkflow)
+		workflowName = inlineWorkflow.Name
+		workflowIDText = inlineWorkflow.ID.String()
+		if err != nil {
+			err = fmt.Errorf("workflow call node %s failed to compile inline workflow: %w", instruction.NodeID, err)
+			stepResult.Success = false
+			stepResult.Error = err.Error()
+			return stepResult, retryHistory, 1, 0, err
+		}
+	} else {
+		workflowID := strings.TrimSpace(instruction.Params.WorkflowCallID)
+		if workflowID == "" {
+			err := fmt.Errorf("workflow call node %s missing workflowId", instruction.NodeID)
+			stepResult.Success = false
+			stepResult.Error = err.Error()
+			return stepResult, retryHistory, 1, 0, err
+		}
+		parsedID, parseErr := uuid.Parse(workflowID)
+		if parseErr != nil {
+			err := fmt.Errorf("workflow call node %s has invalid workflowId %q: %w", instruction.NodeID, workflowID, parseErr)
+			stepResult.Success = false
+			stepResult.Error = err.Error()
+			return stepResult, retryHistory, 1, 0, err
+		}
+		workflow, repoErr := c.repo.GetWorkflow(ctx, parsedID)
+		if repoErr != nil {
+			err := fmt.Errorf("workflow call node %s failed to load workflow: %w", instruction.NodeID, repoErr)
+			stepResult.Success = false
+			stepResult.Error = err.Error()
+			return stepResult, retryHistory, 1, 0, err
+		}
+		plan, instructions, err = c.compileWorkflow(ctx, workflow)
+		if err != nil {
+			err = fmt.Errorf("workflow call node %s failed to compile workflow: %w", instruction.NodeID, err)
+			stepResult.Success = false
+			stepResult.Error = err.Error()
+			return stepResult, retryHistory, 1, 0, err
+		}
+		workflowIDText = workflow.ID.String()
+		if workflowName == "" {
+			workflowName = workflow.Name
+		}
 	}
 	cleanup := func() {}
 	if execCtx != nil && len(instruction.Params.WorkflowCallParams) > 0 {
@@ -2222,10 +2255,6 @@ func (c *Client) executeWorkflowCallStep(
 	if inlineErr != nil {
 		stepResult.Success = false
 		stepResult.Error = inlineErr.Error()
-	}
-	workflowName := strings.TrimSpace(instruction.Params.WorkflowCallName)
-	if workflowName == "" {
-		workflowName = workflow.Name
 	}
 	outputs := map[string]any{}
 	if execCtx != nil && len(instruction.Params.WorkflowCallOutputs) > 0 {
@@ -2245,8 +2274,9 @@ func (c *Client) executeWorkflowCallStep(
 			}
 		}
 	}
-	metadata := map[string]any{
-		"workflowId": workflow.ID.String(),
+	metadata := map[string]any{}
+	if workflowIDText != "" {
+		metadata["workflowId"] = workflowIDText
 	}
 	if workflowName != "" {
 		metadata["workflowName"] = workflowName
