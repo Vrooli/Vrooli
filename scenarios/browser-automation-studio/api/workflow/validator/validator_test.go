@@ -145,3 +145,79 @@ func TestValidatorDetectsSchemaErrors(t *testing.T) {
 		t.Fatalf("expected WF_NODE_EMPTY error, got %+v", res.Errors)
 	}
 }
+
+func TestValidatorEvaluateRequiresExpression(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":       "eval",
+				"type":     "evaluate",
+				"position": map[string]any{"x": 0, "y": 0},
+				"data":     map[string]any{},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected evaluate node without expression/script to fail")
+	}
+	found := false
+	for _, issue := range res.Errors {
+		if issue.Code == "WF_NODE_FIELD_ONE_OF" && issue.NodeID == "eval" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected WF_NODE_FIELD_ONE_OF error for evaluate node, got %+v", res.Errors)
+	}
+}
+
+func TestValidatorScreenshotRequiresTarget(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":       "shot",
+				"type":     "screenshot",
+				"position": map[string]any{"x": 0, "y": 0},
+				"data": map[string]any{
+					"fullPage": false,
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if res.Valid {
+		t.Fatalf("expected screenshot without selector/fullPage to fail")
+	}
+	found := false
+	for _, issue := range res.Errors {
+		if issue.Code == "WF_SCREENSHOT_TARGET_REQUIRED" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected WF_SCREENSHOT_TARGET_REQUIRED error, got %+v", res.Errors)
+	}
+}

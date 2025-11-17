@@ -127,7 +127,7 @@
       "id": "capture-export-controls",
       "type": "screenshot",
       "position": {"x": 2400, "y": 0},
-      "data": {"label": "Capture export controls", "fullPage": false, "waitForMs": 500}
+      "data": {"label": "Capture export controls", "fullPage": true, "waitForMs": 500}
     },
     {
       "id": "check-replay-artifacts",

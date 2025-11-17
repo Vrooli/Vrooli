@@ -129,6 +129,11 @@ _testing_suite_lint_workflows() {
     if [ -n "$selector_root" ]; then
         lint_cmd+=(--selector-root "$selector_root")
     fi
+    lint_cmd+=(--json)
+
+    local lint_artifact_dir="$scenario_dir/test/artifacts/lint"
+    mkdir -p "$lint_artifact_dir"
+    local lint_artifact="$lint_artifact_dir/workflow-lint.json"
 
     local -a abs_files=()
     local file
@@ -141,12 +146,44 @@ _testing_suite_lint_workflows() {
     if ! (
         cd "$bas_api_dir"
         "${lint_cmd[@]}" "${abs_files[@]}"
-    ); then
-        log::error "Workflow lint failed"
+    ) >"$lint_artifact"; then
+        log::error "Workflow lint failed (see ${lint_artifact#$scenario_dir/})"
+        _testing_suite_render_lint_summary "$lint_artifact"
         return 1
     fi
 
+    _testing_suite_render_lint_summary "$lint_artifact"
     return 0
+}
+
+_testing_suite_render_lint_summary() {
+    local artifact="$1"
+    if [ ! -s "$artifact" ]; then
+        return 0
+    fi
+    if ! command -v jq >/dev/null 2>&1; then
+        cat "$artifact"
+        return 0
+    fi
+    jq -r '
+        .results[] as $res |
+        if ($res.error // "") != "" then
+            "✗ \($res.file)" + "\n  \($res.error)"
+        else
+            (if $res.result.valid then "✓" else "✗" end)
+            + " \($res.file) (\($res.result.stats.node_count // 0) nodes, \($res.result.stats.edge_count // 0) edges)"
+            + (if ($res.result.errors | length) > 0 then
+                "\n" + ($res.result.errors[] |
+                    "      [" + (.code // "error") + "] " + (.message // "")
+                )
+            else "" end)
+            + (if ($res.result.warnings | length) > 0 then
+                "\n" + ($res.result.warnings[] |
+                    "      [warn:" + (.code // "warning") + "] " + (.message // "")
+                )
+            else "" end)
+        end
+    ' "$artifact"
 }
 
 _testing_suite_read_json_value() {

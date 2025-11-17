@@ -246,6 +246,7 @@ CREATE TABLE IF NOT EXISTS executions (
     parameters JSONB DEFAULT '{}',
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP,
+    last_heartbeat TIMESTAMP,
     error TEXT,
     result JSONB,
     progress INTEGER DEFAULT 0,
@@ -376,6 +377,7 @@ CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id);
 CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
 CREATE INDEX IF NOT EXISTS idx_executions_workflow_id ON executions(workflow_id);
 CREATE INDEX IF NOT EXISTS idx_executions_status ON executions(status);
+CREATE INDEX IF NOT EXISTS idx_executions_last_heartbeat ON executions(last_heartbeat);
 CREATE INDEX IF NOT EXISTS idx_execution_logs_execution_id ON execution_logs(execution_id);
 CREATE INDEX IF NOT EXISTS idx_screenshots_execution_id ON screenshots(execution_id);
 CREATE INDEX IF NOT EXISTS idx_execution_steps_execution ON execution_steps(execution_id);

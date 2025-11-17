@@ -52,6 +52,9 @@ func getSelectorRegistry(root string) map[string]struct{} {
 		})
 		return defaultSelectors
 	}
+	if abs, err := filepath.Abs(key); err == nil {
+		key = abs
+	}
 	if cached, ok := selectorCache.Load(key); ok {
 		if registry, okCast := cached.(map[string]struct{}); okCast {
 			return registry
@@ -108,27 +111,52 @@ func loadSelectorsFrom(root string) map[string]struct{} {
 }
 
 func detectDefaultSelectorRoot() string {
-	cwd, err := os.Getwd()
-	if err != nil {
+	if cwd, err := os.Getwd(); err == nil {
+		if root := discoverSelectorRootFrom(cwd); root != "" {
+			return root
+		}
+	}
+	if exe, err := os.Executable(); err == nil {
+		if root := discoverSelectorRootFrom(filepath.Dir(exe)); root != "" {
+			return root
+		}
+	}
+	// final fallback mirrors legacy behaviour (useful when running go test from api dir)
+	candidate := filepath.Join("..", "ui", "src")
+	if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+		return candidate
+	}
+	return ""
+}
+
+func discoverSelectorRootFrom(start string) string {
+	if start == "" {
 		return ""
 	}
-	abs, err := filepath.Abs(cwd)
+	abs, err := filepath.Abs(start)
 	if err != nil {
-		abs = cwd
+		abs = start
 	}
-	for dir := abs; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
-		parent := filepath.Dir(dir)
-		if filepath.Base(dir) == "browser-automation-studio" && filepath.Base(parent) == "scenarios" {
+	visited := map[string]struct{}{}
+	for dir := abs; ; dir = filepath.Dir(dir) {
+		if _, seen := visited[dir]; seen {
+			break
+		}
+		visited[dir] = struct{}{}
+		if filepath.Base(dir) == "browser-automation-studio" {
 			candidate := filepath.Join(dir, "ui", "src")
 			if info, statErr := os.Stat(candidate); statErr == nil && info.IsDir() {
 				return candidate
 			}
 		}
-	}
-	// fallback to relative path when running from api dir
-	candidate := filepath.Join("..", "ui", "src")
-	if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-		return candidate
+		scenarioCandidate := filepath.Join(dir, "scenarios", "browser-automation-studio", "ui", "src")
+		if info, statErr := os.Stat(scenarioCandidate); statErr == nil && info.IsDir() {
+			return scenarioCandidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
 	}
 	return ""
 }

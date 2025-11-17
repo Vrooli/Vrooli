@@ -226,6 +226,12 @@ var nodeRules = map[string]nodeRule{
 	"loop": {
 		requiredData: []string{"loopType"},
 	},
+	"evaluate": {
+		requireOneOf: [][]string{{"expression", "script", "code"}},
+	},
+	"screenshot": {
+		custom: lintScreenshotNode,
+	},
 }
 
 func runLint(definition map[string]any, selectorRoot string) (Stats, []Issue, []Issue) {
@@ -688,6 +694,25 @@ func lintNavigateNode(node map[string]any, data map[string]any, idx int) ([]Issu
 	return errorsList, warningsList
 }
 
+func lintScreenshotNode(node map[string]any, data map[string]any, idx int) ([]Issue, []Issue) {
+	var errorsList []Issue
+	nodeID := getString(node["id"])
+	nodeType := getString(node["type"])
+	hasSelector := strings.TrimSpace(getString(data["selector"])) != ""
+	fullPage := getBool(data["fullPage"])
+	if !hasSelector && !fullPage {
+		errorsList = append(errorsList, Issue{
+			Severity: SeverityError,
+			Code:     "WF_SCREENSHOT_TARGET_REQUIRED",
+			Message:  "Screenshot node must set fullPage=true or provide a selector",
+			NodeID:   nodeID,
+			NodeType: nodeType,
+			Pointer:  fmt.Sprintf("/nodes/%d/data", idx),
+		})
+	}
+	return errorsList, nil
+}
+
 func anyFieldPresent(data map[string]any, fields []string) bool {
 	for _, field := range fields {
 		if strings.TrimSpace(getString(data[field])) != "" {
@@ -760,6 +785,24 @@ func getStringOr(value any, fallback string) string {
 		return fmt.Sprintf("%v", typed)
 	default:
 		return fallback
+	}
+}
+
+func getBool(value any) bool {
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		trimmed := strings.ToLower(strings.TrimSpace(typed))
+		return trimmed == "true" || trimmed == "1" || trimmed == "yes"
+	case float64:
+		return typed != 0
+	case int:
+		return typed != 0
+	case int64:
+		return typed != 0
+	default:
+		return false
 	}
 }
 

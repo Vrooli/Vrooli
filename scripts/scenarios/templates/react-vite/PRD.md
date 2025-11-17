@@ -1,5 +1,9 @@
 # Product Requirements Document (PRD)
 
+> **Template Version**: 2.0
+> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
+> **Validation**: Enforced by `prd-control-tower` validator
+
 ## 🎯 Capability Definition
 
 ### Core Capability
