@@ -616,7 +616,7 @@ tests:
 - README.md - Desktop application generation overview and quick start
 - docs/templates.md - Template system documentation
 - docs/frameworks.md - Multi-framework support and selection guide
-- docs/deployment.md - Cross-platform packaging and distribution guide
+- docs/deployment/README.md - Tiered deployment roadmap
 
 ### Related PRDs
 - scenario-to-extension.PRD.md - Sister capability for browser extension generation

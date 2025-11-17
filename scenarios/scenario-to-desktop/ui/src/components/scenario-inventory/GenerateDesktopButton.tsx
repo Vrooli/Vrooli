@@ -1,29 +1,60 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Select } from "../ui/select";
+import { Checkbox } from "../ui/checkbox";
 import { Loader2, Zap, CheckCircle, XCircle } from "lucide-react";
+import type { ProbeResponse } from "../../lib/api";
+import { probeEndpoints } from "../../lib/api";
+import type { ScenarioDesktopStatus } from "./types";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
 
 interface GenerateDesktopButtonProps {
-  scenarioName: string;
+  scenario: ScenarioDesktopStatus;
 }
 
-export function GenerateDesktopButton({ scenarioName }: GenerateDesktopButtonProps) {
+export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) {
   const queryClient = useQueryClient();
   const [buildId, setBuildId] = useState<string | null>(null);
+  const [showConfigurator, setShowConfigurator] = useState(false);
+  const saved = scenario.connection_config;
+  const [deploymentMode, setDeploymentMode] = useState(saved?.deployment_mode ?? "external-server");
+  const [serverUrl, setServerUrl] = useState(saved?.server_url ?? "");
+  const [apiUrl, setApiUrl] = useState(saved?.api_url ?? "");
+  const [autoManageTier1, setAutoManageTier1] = useState(saved?.auto_manage_tier1 ?? false);
+  const [vrooliBinaryPath, setVrooliBinaryPath] = useState(saved?.vrooli_binary_path ?? "vrooli");
+  const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const selectedDeployment = useMemo(
+    () => DEPLOYMENT_OPTIONS.find((option) => option.value === deploymentMode) ?? DEPLOYMENT_OPTIONS[0],
+    [deploymentMode]
+  );
 
   const generateMutation = useMutation({
     mutationFn: async () => {
+      if (deploymentMode !== "external-server") {
+        throw new Error("Only thin clients are supported right now. Choose 'Thin Client (connect to your Vrooli server)'.");
+      }
+      if (!serverUrl || !apiUrl) {
+        throw new Error("Provide both the Vrooli server URL and the API endpoint.");
+      }
       const res = await fetch(buildUrl('/desktop/generate/quick'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          scenario_name: scenarioName,
-          template_type: 'universal' // Universal template works for any scenario
+          scenario_name: scenario.name,
+          template_type: 'universal',
+          deployment_mode: deploymentMode,
+          server_url: serverUrl,
+          api_url: apiUrl,
+          auto_manage_tier1: autoManageTier1,
+          vrooli_binary_path: vrooliBinaryPath
         })
       });
       if (!res.ok) {
@@ -40,7 +71,7 @@ export function GenerateDesktopButton({ scenarioName }: GenerateDesktopButtonPro
 
         // Add status code context
         if (res.status === 404) {
-          throw new Error(`Scenario '${scenarioName}' not found. Check that the scenario exists in the scenarios directory.`);
+          throw new Error(`Scenario '${scenario.name}' not found. Check that the scenario exists in the scenarios directory.`);
         } else if (res.status === 400) {
           throw new Error(`Invalid request: ${errorMessage}`);
         } else if (res.status === 500) {
@@ -57,6 +88,35 @@ export function GenerateDesktopButton({ scenarioName }: GenerateDesktopButtonPro
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
       }, 3000);
+    }
+  });
+
+  useEffect(() => {
+    if (!scenario.connection_config) {
+      return;
+    }
+    const cfg = scenario.connection_config;
+    setDeploymentMode(cfg.deployment_mode ?? "external-server");
+    setServerUrl(cfg.server_url ?? "");
+    setApiUrl(cfg.api_url ?? "");
+    setAutoManageTier1(cfg.auto_manage_tier1 ?? false);
+    setVrooliBinaryPath(cfg.vrooli_binary_path ?? "vrooli");
+  }, [scenario.connection_config?.updated_at, scenario.connection_config, scenario.name]);
+
+  const connectionMutation = useMutation({
+    mutationFn: async () => {
+      if (!serverUrl && !apiUrl) {
+        throw new Error("Enter the URLs first");
+      }
+      return probeEndpoints({ server_url: serverUrl || undefined, api_url: apiUrl || undefined });
+    },
+    onSuccess: (result) => {
+      setConnectionResult(result);
+      setConnectionError(null);
+    },
+    onError: (error: Error) => {
+      setConnectionError(error.message);
+      setConnectionResult(null);
     }
   });
 
@@ -85,14 +145,30 @@ export function GenerateDesktopButton({ scenarioName }: GenerateDesktopButtonPro
 
   if (isComplete) {
     return (
-      <div className="ml-4 flex flex-col items-end gap-2">
-        <Badge variant="success" className="gap-1">
-          <CheckCircle className="h-3 w-3" />
-          Generated!
-        </Badge>
-        <p className="text-xs text-slate-400">
-          {buildStatus.output_path}
-        </p>
+      <div className="ml-4 w-full max-w-xl rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3 text-slate-200">
+        <div className="flex items-center gap-2">
+          <Badge variant="success" className="gap-1">
+            <CheckCircle className="h-3 w-3" />
+            Desktop ready
+          </Badge>
+          <span className="text-xs text-slate-400">Files generated at {buildStatus.output_path}</span>
+        </div>
+        <div className="text-xs space-y-2">
+          <p className="font-semibold text-slate-100">Next steps</p>
+          <p>
+            1. <code>cd {buildStatus.output_path} && npm install</code>
+          </p>
+          <p>
+            2. Update <code>platforms/electron/src/main.ts</code> if your Vrooli server/API URLs change.
+          </p>
+          <p>
+            3. Run <code>npm run dist</code> for the platforms you plan to share.
+          </p>
+          <p>
+            4. After testers run the app, collect telemetry:<br />
+            <code>scenario-to-desktop telemetry collect --scenario {scenario.name} --file /path/to/deployment-telemetry.jsonl</code>
+          </p>
+        </div>
       </div>
     );
   }
@@ -103,10 +179,10 @@ export function GenerateDesktopButton({ scenarioName }: GenerateDesktopButtonPro
     // Parse error to provide actionable suggestions
     const getSuggestion = (error: string): string | null => {
       if (error.includes('not found') || error.includes('404')) {
-        return `💡 Ensure the scenario '${scenarioName}' exists in /scenarios/ directory`;
+        return `💡 Ensure the scenario '${scenario.name}' exists in /scenarios/ directory`;
       }
       if (error.includes('ui/dist') || error.includes('UI not built')) {
-        return `💡 Build the scenario UI first: cd scenarios/${scenarioName}/ui && npm run build`;
+        return `💡 Build the scenario UI first: cd scenarios/${scenario.name}/ui && npm run build`;
       }
       if (error.includes('permission') || error.includes('EACCES')) {
         return '💡 Check file permissions in the scenarios directory';
@@ -179,15 +255,186 @@ export function GenerateDesktopButton({ scenarioName }: GenerateDesktopButtonPro
   }
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="ml-4 gap-2"
-      onClick={() => generateMutation.mutate()}
-      disabled={isBuilding}
-    >
-      <Zap className="h-4 w-4" />
-      Generate Desktop
-    </Button>
+    <div className="ml-4 w-full max-w-xl">
+      {!showConfigurator ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={() => setShowConfigurator(true)}
+        >
+          <Zap className="h-4 w-4" />
+          {scenario.has_desktop ? "Update Desktop Config" : "Configure Desktop Build"}
+        </Button>
+      ) : (
+        <form
+          className="space-y-3 rounded-lg border border-slate-700 bg-slate-900/40 p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            generateMutation.mutate();
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-300">
+              Thin clients connect to the scenario that's already running on your Vrooli server. Paste the browser URL (LAN or Cloudflare/app-monitor) plus the `/api` endpoint so the desktop shell knows where to connect.
+            </p>
+            <Button variant="outline" type="button" size="sm" onClick={() => setShowConfigurator(false)}>
+              Close
+            </Button>
+          </div>
+
+          <div>
+            <Label htmlFor={`deploymentMode-${scenario.name}`}>Deployment intent</Label>
+            <Select
+              id={`deploymentMode-${scenario.name}`}
+              value={deploymentMode}
+              onChange={(e) => setDeploymentMode(e.target.value)}
+              className="mt-1"
+            >
+              {DEPLOYMENT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value} disabled={option.value !== "external-server"}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-slate-400">
+              {selectedDeployment.description}{" "}
+              {selectedDeployment.docs && (
+                <a
+                  href={selectedDeployment.docs}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-300 underline"
+                >
+                  Learn more
+                </a>
+              )}
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor={`serverUrl-${scenario.name}`}>Vrooli server URL</Label>
+            <p className="text-xs text-slate-400 mb-1">
+              Paste the HTTPS address that already loads this scenario in a browser (LAN hostname or the Cloudflare/app-monitor tunnel).
+              <a
+                href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-1-local-dev.md"
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-300 underline ml-1"
+              >
+                Explain Vrooli servers
+              </a>
+            </p>
+            <Input
+              id={`serverUrl-${scenario.name}`}
+              value={serverUrl}
+              onChange={(e) => setServerUrl(e.target.value)}
+              placeholder="https://app-monitor.example.dev/picker-wheel"
+              className="mt-1"
+            />
+            <p className="mt-1 text-xs text-slate-400">Users will see this UI when the desktop app launches. Double-check the spelling before building.</p>
+          </div>
+
+          <div>
+            <Label htmlFor={`apiUrl-${scenario.name}`}>API endpoint</Label>
+            <Input
+              id={`apiUrl-${scenario.name}`}
+              value={apiUrl}
+              onChange={(e) => setApiUrl(e.target.value)}
+              placeholder="https://app-monitor.example.dev/picker-wheel/api"
+              className="mt-1"
+            />
+            <p className="mt-1 text-xs text-slate-400">Copy the `/api` route exposed through the proxy so authentication continues to work.</p>
+
+            <div className="flex items-center gap-2 mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => connectionMutation.mutate()}
+                disabled={connectionMutation.isPending || (!serverUrl && !apiUrl)}
+              >
+                {connectionMutation.isPending ? "Testing..." : "Test connection"}
+              </Button>
+              {connectionResult && connectionResult.server.status === "ok" && connectionResult.api.status === "ok" && (
+                <span className="text-xs text-green-300">Both URLs responded ✔</span>
+              )}
+              {connectionError && <span className="text-xs text-red-300">{connectionError}</span>}
+            </div>
+            {(connectionResult?.server || connectionResult?.api) && (
+              <div className="mt-2 rounded border border-slate-800 bg-black/20 p-2 text-xs text-slate-200 space-y-1">
+                <p className="font-semibold text-slate-100">Connectivity snapshot</p>
+                <p>UI URL: {connectionResult?.server.status === "ok" ? "reachable" : connectionResult?.server.message || "no response"}</p>
+                <p>API URL: {connectionResult?.api.status === "ok" ? "reachable" : connectionResult?.api.message || "no response"}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Checkbox
+              checked={autoManageTier1}
+              onChange={(e) => setAutoManageTier1(e.target.checked)}
+              label="Let the desktop build run the scenario locally (vrooli setup/start)"
+            />
+            <Input
+              value={vrooliBinaryPath}
+              onChange={(e) => setVrooliBinaryPath(e.target.value)}
+              disabled={!autoManageTier1}
+              placeholder="vrooli"
+            />
+            <p className="text-xs text-slate-400">
+              This runs `vrooli setup/start/stop` on the user's machine. Enable only when they expect to host the scenario locally.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button type="submit" className="gap-2" disabled={generateMutation.isPending}>
+              {generateMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Generating...
+                </>
+              ) : (
+                <>
+                  <Zap className="h-4 w-4" /> Generate Thin Client
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => {
+                setServerUrl("");
+                setApiUrl("");
+                setAutoManageTier1(false);
+                setVrooliBinaryPath("vrooli");
+              }}
+            >
+              Reset
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }
+const DEPLOYMENT_OPTIONS = [
+  {
+    value: "external-server",
+    label: "Thin client (connect to your Vrooli server)",
+    description:
+      "Use the full Vrooli stack you already run and tunnel through app-monitor/Cloudflare. Desktop ships UI only.",
+    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
+  },
+  {
+    value: "cloud-api",
+    label: "Cloud API bundle (coming soon)",
+    description: "Future: generate a remote API target via deployment-manager.",
+    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-4-saas.md"
+  },
+  {
+    value: "bundled",
+    label: "Fully bundled/offline (coming soon)",
+    description: "Future: package APIs/resources next to the UI.",
+    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
+  }
+];

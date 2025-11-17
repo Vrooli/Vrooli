@@ -2,6 +2,16 @@
  * Shared types for scenario inventory components
  */
 
+export interface DesktopConnectionConfig {
+  server_url?: string;
+  api_url?: string;
+  deployment_mode?: string;
+  auto_manage_tier1?: boolean;
+  vrooli_binary_path?: string;
+  server_type?: string;
+  updated_at?: string;
+}
+
 export interface ScenarioDesktopStatus {
   name: string;
   display_name?: string;
@@ -13,6 +23,7 @@ export interface ScenarioDesktopStatus {
   dist_path?: string;
   last_modified?: string;
   package_size?: number;
+  connection_config?: DesktopConnectionConfig;
 }
 
 export interface ScenariosResponse {

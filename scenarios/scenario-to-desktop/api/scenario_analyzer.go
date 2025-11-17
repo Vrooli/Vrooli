@@ -31,13 +31,13 @@ type ScenarioMetadata struct {
 // ServiceJSON represents the structure of .vrooli/service.json
 type ServiceJSON struct {
 	Service struct {
-		Name        string `json:"name"`
-		DisplayName string `json:"displayName"`
-		Description string `json:"description"`
-		Version     string `json:"version"`
-		Category    string `json:"category"`
+		Name        string   `json:"name"`
+		DisplayName string   `json:"displayName"`
+		Description string   `json:"description"`
+		Version     string   `json:"version"`
+		Category    string   `json:"category"`
 		Tags        []string `json:"tags"`
-		License     string `json:"license"`
+		License     string   `json:"license"`
 		Maintainers []struct {
 			Name  string `json:"name"`
 			Email string `json:"email"`
@@ -292,13 +292,24 @@ func (sa *ScenarioAnalyzer) CreateDesktopConfigFromMetadata(metadata *ScenarioMe
 	serverType := "static"
 	apiEndpoint := "http://localhost:3000"
 	serverPath := metadata.UIDistPath
+	externalServerURL := ""
+	externalAPIURL := ""
 
 	// Check if scenario has an API
 	apiPath := filepath.Join(metadata.ScenarioPath, "api")
 	if info, err := os.Stat(apiPath); err == nil && info.IsDir() {
 		// Has API - use external mode (desktop app connects to running API)
 		serverType = "external"
-		apiEndpoint = fmt.Sprintf("http://localhost:%d", metadata.APIPort)
+		externalServerURL = fmt.Sprintf("http://localhost:%d", metadata.UIPort)
+		if metadata.UIPort == 0 {
+			externalServerURL = "http://localhost:3000"
+		}
+		externalAPIURL = fmt.Sprintf("http://localhost:%d", metadata.APIPort)
+		if metadata.APIPort == 0 {
+			externalAPIURL = "http://localhost:4000"
+		}
+		serverPath = externalServerURL
+		apiEndpoint = externalAPIURL
 	}
 
 	config := &DesktopConfig{
@@ -310,11 +321,17 @@ func (sa *ScenarioAnalyzer) CreateDesktopConfigFromMetadata(metadata *ScenarioMe
 		License:        metadata.License,
 		AppID:          metadata.AppID,
 
-		ServerType:   serverType,
-		ServerPort:   metadata.UIPort,
-		ServerPath:   serverPath,
-		APIEndpoint:  apiEndpoint,
-		ScenarioPath: metadata.UIDistPath, // UI dist path for copying
+		ServerType:        serverType,
+		ServerPort:        metadata.UIPort,
+		ServerPath:        serverPath,
+		APIEndpoint:       apiEndpoint,
+		ScenarioPath:      metadata.UIDistPath, // UI dist path for copying
+		ScenarioName:      metadata.Name,
+		AutoManageTier1:   false,
+		VrooliBinaryPath:  "",
+		DeploymentMode:    "external-server",
+		ExternalServerURL: externalServerURL,
+		ExternalAPIURL:    externalAPIURL,
 
 		Framework:    "electron",
 		TemplateType: templateType,

@@ -1,19 +1,87 @@
 # 🖥️ Scenario-to-Desktop
 
-Transform Vrooli scenarios into professional native desktop applications using Electron and other modern frameworks. Built as part of the Vrooli AI intelligence platform, this scenario provides a complete pipeline for converting web-based AI scenarios into standalone desktop software.
+> ⚠️ **Current state:** scenario-to-desktop produces **thin-client** Electron wrappers that bundle the UI only. See [Deployment Hub › Tier 2](../../docs/deployment/tiers/tier-2-desktop.md) and the [scenario overview](../../docs/deployment/scenarios/scenario-to-desktop.md) for the full roadmap toward bundled apps.
+
+Transform Vrooli scenarios into desktop-friendly experiences. Today that means quickly generating Electron shells that talk to the Vrooli server where your scenario is already running; the future vision is complete offline bundles once deployment-manager and dependency swapping land.
+
+## ⚠ Current Limitations (v1 Thin Client)
+
+- **UI-only bundles** – we copy the existing `ui/dist` assets from the target scenario into the Electron wrapper.
+- **No API/resource bundling** – every desktop build still depends on the scenario's API and its entire dependency tree running elsewhere (usually the Vrooli server you already run via app-monitor/Cloudflare).
+- **Secrets live on the server** – the desktop wrapper forwards auth/session traffic to the running scenario; it does not ship secrets or credential storage yet.
+- **Offline mode unsupported** – disconnecting the machine running the desktop build from that server will break the app outright.
+- **Future-ready scaffolding** – the wrapper already exposes `SERVER_TYPE` options (external/static/node/executable) and `DEPLOYMENT_MODE` so deployment-manager can switch to bundled APIs once the dependency swapping story exists. Selecting `DEPLOYMENT_MODE=bundled` today shows a stubbed dialog that points you back to the Tier 2 roadmap until bundling is fully implemented.
+
+Keep these guardrails in mind when testing or distributing Windows/macOS/Linux builds; they're thin clients until deployment-manager powers true bundling (see [Deployment Hub › Tier 2](../../docs/deployment/tiers/tier-2-desktop.md)).
+
+## Thin-Client Workflow (connect to your Vrooli server)
+
+Thin clients are just remote controls for the full Vrooli stack that is already running your scenario. Until bundling lands, desktop builds must follow this routine:
+
+1. **Confirm `vrooli` exists on the host running the scenario.** Run `vrooli --version`. If missing, install it and run `./scripts/manage.sh setup --yes yes` once.
+2. **Start the scenario** with `vrooli scenario start <name>` (or `make start`). Wait until `vrooli scenario status <name>` reports healthy.
+3. **Expose the scenario.**
+   - LAN: use `http://hostname:${UI_PORT}`.
+   - Remote/mobile: proxy through `app-monitor` + Cloudflare and copy both the UI URL and the `/api` endpoint.
+4. **Point the desktop wrapper at those URLs.** The generator UI and CLI now label these fields as “Vrooli server URL” and “API endpoint”, include inline explanations, and ship a "Test connection" button so you can confirm they respond before building. Keep `DEPLOYMENT_MODE=external-server` so telemetry and deployment-manager know the UI/API still live on your server.
+5. **Distribute, collect telemetry, and clean up.** Ship the installer, ask testers for their `deployment-telemetry.jsonl`, upload it with `scenario-to-desktop telemetry collect`, then stop the remote scenario with `vrooli scenario stop <name>` when you’re done.
+
+Deployment-manager will eventually automate these steps (detecting/installing `vrooli`, starting/stopping scenarios, and swapping dependencies), but documenting the pipeline now keeps Tier 2 expectations realistic.
+
+> **Server bootstrap is opt-in.** Keep `auto_manage_tier1` off (default) if your desktop build should connect to the remote Vrooli server you already host. Set `auto_manage_tier1: true` only when you expect the desktop user to run the scenario locally and have (or be willing to install) the `vrooli` CLI.
+
+### Optional: Let the desktop app start the scenario locally
+
+Set `auto_manage_tier1: true` when calling `POST /api/v1/desktop/generate` (or when editing the generated config JSON) to let Electron stand up the scenario automatically:
+
+```json
+{
+  "app_name": "picker-wheel",
+  "template_type": "universal",
+  "auto_manage_tier1": true,
+  "deployment_mode": "external-server"
+}
+```
+
+With this flag enabled the wrapper:
+
+1. Looks for the `vrooli` CLI, prompting for a path when it cannot auto-detect it.
+2. Runs `vrooli setup --yes yes --skip-sudo yes` once per machine.
+3. Executes `vrooli scenario start <name>` when your desktop app launches and `vrooli scenario stop <name>` when it exits (if the wrapper started it).
+
+Leave the flag off to deliver the traditional thin client that simply targets whatever URL you bake into `SERVER_PATH`/`API_ENDPOINT`.
+
+### Deployment Telemetry
+
+Every generated Electron wrapper records lifecycle events (`app_start`, `dependency_unreachable`, `tier1_start_failed`, etc.) to `deployment-telemetry.jsonl` inside the OS-specific user data directory (`%APPDATA%/<App Name>/` on Windows, `~/Library/Application Support/<App Name>/` on macOS, and `~/.config/<App Name>/` on Linux). Use the new CLI helper to ingest those logs:
+
+```bash
+scenario-to-desktop telemetry collect \
+  --scenario picker-wheel \
+  --file "$HOME/Library/Application Support/Picker Wheel/deployment-telemetry.jsonl"
+```
+
+The API stores the events under `.vrooli/deployment/telemetry/picker-wheel.jsonl`, giving deployment-manager and scenario-dependency-analyzer a single source of truth for how thin clients behave in the wild.
+
+### Generator UI Upgrades
+
+- **Deployment intent picker** highlights Thin Client (ready today) vs Cloud API / Bundled (stubs). Selecting anything other than Thin Client surfaces a "coming soon" warning so builders don’t think offline bundles ship yet.
+- **Server strategy select** lets you choose between external, static, embedded Node, or executable launches. External remains the golden path; the others stay available for experiments.
+- **Vrooli server connection group** captures the Cloudflare/app-monitor URL and API endpoint right inside the Web UI. You can also opt-in to have the desktop wrapper run `vrooli setup/start/stop` per build.
+- **Scenario inventory button** now expands into the same mini wizard, so "Generate Desktop" can’t happen without forcing a conscious deployment choice.
 
 ## 🎯 Overview
 
-scenario-to-desktop is a **permanent intelligence capability** that enables any Vrooli scenario to become a professional desktop application. Unlike simple web wrappers, this system generates truly native desktop experiences with OS integration, offline capability, and professional distribution channels.
+scenario-to-desktop is a **permanent intelligence capability** for packaging scenarios. In v1 it focuses on rapid thin clients with native menus and distribution scaffolding. Offline capability, auto-updates, and bundled resources are roadmap items coordinated through the deployment hub.
 
 ### Core Value Proposition
 
-- **🚀 Instant Desktop Apps**: Convert any scenario to desktop in minutes, not months
-- **💼 Professional Quality**: Code signing, auto-updates, native menus, system integration
+- **🚀 Instant Desktop Apps**: Convert any scenario to desktop in minutes, not months (as a thin client today)
+- **💼 Professional Quality**: Native menus, OS integration, and future support for code signing/auto-updates
 - **🌍 Cross-Platform**: Windows, macOS, and Linux from a single generation
 - **⚡ Multiple Frameworks**: Electron (primary), Tauri, Neutralino support
 - **🎨 Template Variety**: Basic, Advanced, Multi-Window, and Kiosk mode applications
-- **🛠️ Complete Toolchain**: Generation, building, testing, packaging, and distribution
+- **🛠️ Complete Toolchain**: Generation, building, testing, packaging, and (future) distribution automation
 - **📊 Scenario Inventory**: NEW - View all scenarios and their desktop deployment status
 - **📁 Standardized Structure**: NEW - All desktop apps go to `platforms/electron/` for consistency
 
@@ -99,6 +167,19 @@ scenario-to-desktop generate picker-wheel \
   --framework electron \
   --template advanced \
   --platforms win,mac,linux
+
+> 🔌 **Important**: after generation you must still make the target scenario reachable on your Vrooli server. The desktop build simply proxies to that running instance via the configuration described below.
+
+#### Deployment-aware CLI flags
+
+When you skip the UI and call `scenario-to-desktop generate` directly, the following flags now keep the workflow honest:
+
+- `--deployment-mode <external-server|cloud-api|bundled>` — choose Thin Client today; the other options remain stubs until deployment-manager issues bundle manifests.
+- `--server-type <external|static|node|executable>` — mirrors the UI's server strategy selector.
+- `--server-url` and `--api-url` — required for Thin Client builds so the wrapper knows exactly which Vrooli server host and API proxy to hit.
+- `--auto-manage-tier1` and `--vrooli-binary <path>` — toggle whether the generated Electron app should run `vrooli setup/start/stop` locally.
+
+You can still feed a full JSON config, but if you omit the URLs/intent the CLI refuses to generate so we never ship a "mystery" thin client again.
 ```
 
 ### 4. Build Desktop Packages
@@ -365,6 +446,77 @@ npm run dist:mac         # macOS DMG
 npm run dist:linux       # Linux AppImage
 npm run dist:all         # All platforms
 ```
+
+## 🔌 Connecting Desktop Builds to Running Scenarios
+
+scenario-to-desktop currently assumes you already have the scenario running on a Vrooli server. Before handing a binary to anyone, make sure:
+
+1. The target scenario is running inside your existing environment (e.g., `vrooli scenario start picker-wheel`).
+2. The scenario's UI/API are reachable from the desktop machine (either via the app-monitor + Cloudflare tunnel or an SSH tunnel you expose yourself).
+3. Any required resources (Postgres, Ollama, Redis, etc.) are online in that environment.
+
+If a tester double-clicks the installer while the remote scenario is down, the desktop wrapper will error after its 30-second server check timeout.
+
+### APP_CONFIG Reference
+
+Every generated desktop wrapper writes an `APP_CONFIG` block near the top of `platforms/electron/src/main.ts` (copied from [`templates/vanilla/main.ts`](templates/vanilla/main.ts)). The most important fields today:
+
+```ts
+const APP_CONFIG = {
+  APP_DISPLAY_NAME: "Picker Wheel",
+  APP_URL: "https://picker-wheel.vrooli.dev",   // Used in menus/help
+  SERVER_TYPE: "external",                      // 'external' | 'static' | 'node' | 'executable'
+  DEPLOYMENT_MODE: "external-server",           // external-server | cloud-api | bundled
+  SERVER_PATH: "https://app-monitor.vrooli.dev/apps/picker-wheel/", // Remote UI/API base URL
+  SERVER_PORT: 48001,                            // Used when SERVER_TYPE !== 'external'
+  API_ENDPOINT: "https://app-monitor.vrooli.dev/api/picker-wheel" // Optional convenience
+};
+```
+
+- `SERVER_TYPE="external"` is the default and is the only fully-supported mode right now; it tells the wrapper to open whatever URL you put in `SERVER_PATH`.
+- `SERVER_TYPE="static" | "node" | "executable"` are scaffolding hooks for the future deployment-manager flow. They exist so we can eventually bake UI bundles, Go APIs, or compiled binaries directly into the desktop package, but they are not wired up yet.
+- `DEPLOYMENT_MODE` expresses intent (`external-server`, `cloud-api`, or `bundled`). Thin clients stay on `external-server` so telemetry and deployment-manager know the UI/API still live on your Vrooli server.
+- `SERVER_PATH` doubles as either the remote URL (`external`) or the relative path inside the packaged app (`static`/`node`/`executable`).
+- `API_ENDPOINT` is surfaced to preload scripts/helper menus so you can expose “open API docs” buttons; it does **not** magically proxy API calls—your UI code must still call the correct backend URL.
+
+Whenever you regenerate a desktop wrapper these values are refreshed from `.vrooli/service.json`. If you need to point an existing build to a new server endpoint (e.g., staging vs production), edit `platforms/electron/src/main.ts` before rebuilding.
+
+### Thin-Client Telemetry
+
+Every generated Electron app now logs newline-delimited JSON telemetry to the user data directory (e.g., `%APPDATA%/Picker Wheel/deployment-telemetry.jsonl` on Windows, `~/Library/Application Support/Picker Wheel/deployment-telemetry.jsonl` on macOS, `~/.config/Picker Wheel/deployment-telemetry.jsonl` on Linux). Events include `app_start`, `external_server_mode`, `server_ready`, `dependency_unreachable`, `app_ready`, `startup_error`, and `app_shutdown`, all tagged with `DEPLOYMENT_MODE`. deployment-manager and scenario-dependency-analyzer can consume this file to see how often thin clients fail to reach their servers.
+
+### Vrooli Server Automation Settings
+
+- `AUTO_MANAGE_TIER1` → `true` enables CLI automation. When enabled (and `DEPLOYMENT_MODE === "external-server"`) the Electron app will locate the `vrooli` binary, run `vrooli setup --yes yes --skip-sudo yes`, start the scenario, and stop it on exit.
+- `SCENARIO_NAME` → used to determine which `vrooli scenario start/stop` commands to run. Defaults to the scenario's `service.name`.
+- `VROOLI_BINARY_PATH` → optional override when `vrooli` is not on `PATH`. If left empty, the desktop wrapper will search the system and, failing that, prompt the user to select the CLI.
+
+### Making your Vrooli server reachable
+
+Most teams expose their Vrooli instance via the `app-monitor` scenario and a Cloudflare tunnel:
+
+```bash
+# On the Vrooli server
+vrooli scenario start app-monitor
+
+# Find the public URL (Cloudflare subdomain)
+vrooli scenario status app-monitor
+
+# Use that URL in APP_CONFIG.SERVER_PATH, e.g.
+SERVER_PATH: "https://<org>-app-monitor.trycloudflare.com/apps/picker-wheel/"
+```
+
+For ad-hoc testing you can forward a local port instead:
+
+```bash
+# From your laptop, tunnel app-monitor over SSH
+ssh -L 4444:localhost:37842 user@server
+
+# Set SERVER_PATH to http://localhost:4444/apps/picker-wheel/
+```
+
+Until deployment-manager lands, **desktop builds = glorified browsers** that rely on one of these reachability patterns.
+
 
 ## 💼 Use Cases & Examples
 

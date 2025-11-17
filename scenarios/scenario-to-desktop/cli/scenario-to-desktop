@@ -14,6 +14,10 @@ DEFAULT_OUTPUT_DIR="./desktop-app"
 DEFAULT_FRAMEWORK="electron"
 DEFAULT_TEMPLATE="basic"
 DEFAULT_PLATFORMS="win,mac,linux"
+DEFAULT_SERVER_TYPE="external"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${REPO_ROOT_OVERRIDE:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+SCENARIOS_DIR="${SCENARIOS_DIR_OVERRIDE:-${REPO_ROOT}/scenarios}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -44,6 +48,23 @@ info() {
 
 success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+prompt_for_value() {
+    local prompt_text="$1"
+    local value=""
+    if [ -t 0 ]; then
+        read -r -p "$prompt_text: " value
+    fi
+    echo "$value"
+}
+
+load_saved_desktop_config() {
+    local scenario_name="$1"
+    local config_file="${SCENARIOS_DIR}/${scenario_name}/.vrooli/desktop-config.json"
+    if [ -f "$config_file" ]; then
+        cat "$config_file"
+    fi
 }
 
 # Check dependencies
@@ -150,6 +171,7 @@ COMMANDS:
     build <path>        Build a desktop application project
     test <path>         Test desktop application functionality
     package <path>      Package desktop application for distribution
+    telemetry           Collect and upload deployment telemetry from built apps
 
 GLOBAL OPTIONS:
     --verbose, -v       Enable verbose output
@@ -203,7 +225,19 @@ EOF
 }
 
 cmd_status() {
-    check_api_health
+	check_api_health
+
+	if [ "$server_type" = "external" ]; then
+		if [ -z "$server_url" ] || [ -z "$api_url" ]; then
+			error "Thin clients require --server-url and --api-url so the desktop wrapper knows where to connect."
+			exit 1
+		fi
+	fi
+
+	if [ "$deployment_mode" != "external-server" ]; then
+		warn "Deployment mode '$deployment_mode' isn't supported yet. Using thin client (external-server)."
+		deployment_mode="external-server"
+	fi
     
     local response
     response=$(api_call "GET" "/api/v1/status")
@@ -276,22 +310,28 @@ cmd_generate() {
         exit 1
     fi
     
-    local scenario_name="$1"
-    shift
+	local scenario_name="$1"
+	shift
     
     # Parse options
-    local framework="$DEFAULT_FRAMEWORK"
-    local template="$DEFAULT_TEMPLATE"
-    local platforms="$DEFAULT_PLATFORMS"
-    local output="$DEFAULT_OUTPUT_DIR"
-    local features=""
-    local config_file=""
+	local framework="$DEFAULT_FRAMEWORK"
+	local template="$DEFAULT_TEMPLATE"
+	local platforms="$DEFAULT_PLATFORMS"
+	local output="$DEFAULT_OUTPUT_DIR"
+	local features=""
+	local config_file=""
+	local deployment_mode="external-server"
+	local server_type="$DEFAULT_SERVER_TYPE"
+	local server_url=""
+	local api_url=""
+	local auto_manage_tier1="false"
+	local vrooli_binary_path="vrooli"
     
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --framework)
-                framework="$2"
-                shift 2
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+			--framework)
+				framework="$2"
+				shift 2
                 ;;
             --template)
                 template="$2"
@@ -309,10 +349,34 @@ cmd_generate() {
                 features="$2"
                 shift 2
                 ;;
-            --config)
-                config_file="$2"
-                shift 2
-                ;;
+			--config)
+				config_file="$2"
+				shift 2
+				;;
+			--deployment-mode)
+				deployment_mode="$2"
+				shift 2
+				;;
+			--server-type)
+				server_type="$2"
+				shift 2
+				;;
+			--server-url)
+				server_url="$2"
+				shift 2
+				;;
+			--api-url)
+				api_url="$2"
+				shift 2
+				;;
+			--auto-manage-tier1)
+				auto_manage_tier1="true"
+				shift 1
+				;;
+			--vrooli-binary)
+				vrooli_binary_path="$2"
+				shift 2
+				;;
             --help|-h)
                 cmd_generate_help
                 exit 0
@@ -322,13 +386,74 @@ cmd_generate() {
                 exit 1
                 ;;
         esac
-    done
-    
-    check_api_health
+	done
+
+	local saved_config_file="${SCENARIOS_DIR}/${scenario_name}/.vrooli/desktop-config.json"
+	local saved_config_json=""
+	if [ -f "$saved_config_file" ]; then
+		saved_config_json=$(cat "$saved_config_file")
+	fi
+
+	if [ -z "$server_url" ] && [ -n "$saved_config_json" ]; then
+		server_url=$(echo "$saved_config_json" | jq -r '.server_url // empty')
+	fi
+	if [ -z "$api_url" ] && [ -n "$saved_config_json" ]; then
+		api_url=$(echo "$saved_config_json" | jq -r '.api_url // empty')
+	fi
+	if [ "$deployment_mode" = "external-server" ] && [ -n "$saved_config_json" ]; then
+		local saved_mode=$(echo "$saved_config_json" | jq -r '.deployment_mode // empty')
+		if [ -n "$saved_mode" ]; then
+			deployment_mode="$saved_mode"
+		fi
+	fi
+	if [ "$auto_manage_tier1" = "false" ] && [ -n "$saved_config_json" ]; then
+		local saved_auto=$(echo "$saved_config_json" | jq -r '.auto_manage_tier1 // empty')
+		if [ "$saved_auto" = "true" ]; then
+			auto_manage_tier1="true"
+		fi
+	fi
+	if [ "$vrooli_binary_path" = "vrooli" ] && [ -n "$saved_config_json" ]; then
+		local saved_cli=$(echo "$saved_config_json" | jq -r '.vrooli_binary_path // empty')
+		if [ -n "$saved_cli" ]; then
+			vrooli_binary_path="$saved_cli"
+		fi
+	fi
+	if [ "$server_type" = "$DEFAULT_SERVER_TYPE" ] && [ -n "$saved_config_json" ]; then
+		local saved_server_type=$(echo "$saved_config_json" | jq -r '.server_type // empty')
+		if [ -n "$saved_server_type" ]; then
+			server_type="$saved_server_type"
+		fi
+	fi
+
+	check_api_health
+
+	if [ "$server_type" = "external" ]; then
+		if [ -z "$server_url" ]; then
+			server_url=$(prompt_for_value "Enter the browser URL that already loads this scenario (e.g. https://app-monitor.example.dev/${scenario_name})")
+		fi
+		if [ -z "$server_url" ]; then
+			error "Missing server URL. Provide --server-url or configure ${saved_config_file}."
+			exit 1
+		fi
+		if [ -z "$api_url" ]; then
+			api_url=$(prompt_for_value "Enter the matching API endpoint (usually the same URL + /api)")
+		fi
+		if [ -z "$api_url" ]; then
+			error "Missing API endpoint. Provide --api-url or configure ${saved_config_file}."
+			exit 1
+		fi
+	fi
     
     # Build configuration
     local config
-    if [ -n "$config_file" ] && [ -f "$config_file" ]; then
+	local server_path_value="ui/server.js"
+	local api_endpoint_value="http://localhost:3001/api"
+	if [ "$server_type" = "external" ]; then
+		server_path_value="$server_url"
+		api_endpoint_value="$api_url"
+	fi
+
+	if [ -n "$config_file" ] && [ -f "$config_file" ]; then
         info "Using configuration file: $config_file"
         config=$(cat "$config_file")
     else
@@ -337,7 +462,7 @@ cmd_generate() {
         IFS=',' read -ra ADDR <<< "$platforms"
         platform_array=$(printf '%s\n' "${ADDR[@]}" | jq -R . | jq -s .)
         
-        config=$(cat << EOF
+		config=$(cat << EOF
 {
   "app_name": "${scenario_name}",
   "app_display_name": "${scenario_name^} Desktop",
@@ -346,10 +471,10 @@ cmd_generate() {
   "author": "Vrooli Platform",
   "license": "MIT",
   "app_id": "com.vrooli.${scenario_name//-/.}",
-  "server_type": "node",
+  "server_type": "${server_type}",
   "server_port": 3000,
-  "server_path": "ui/server.js",
-  "api_endpoint": "http://localhost:3001/api",
+  "server_path": "${server_path_value}",
+  "api_endpoint": "${api_endpoint_value}",
   "framework": "$framework",
   "template_type": "$template",
   "platforms": $platform_array,
@@ -363,17 +488,24 @@ cmd_generate() {
     "width": 1200,
     "height": 800,
     "background": "#f5f5f5"
-  }
+  },
+  "deployment_mode": "${deployment_mode}",
+  "auto_manage_tier1": ${auto_manage_tier1},
+  "vrooli_binary_path": "${vrooli_binary_path}",
+  "external_server_url": "${server_url}",
+  "external_api_url": "${api_url}"
 }
 EOF
 )
     fi
     
-    log "Generating desktop application for $scenario_name..."
-    log "Framework: $framework"
-    log "Template: $template"
-    log "Platforms: $platforms"
-    log "Output: $output"
+	log "Generating desktop application for $scenario_name..."
+	log "Framework: $framework"
+	log "Template: $template"
+	log "Platforms: $platforms"
+	log "Output: $output"
+	log "Server type: $server_type"
+	log "Deployment mode: $deployment_mode"
     
     local response
     response=$(api_call "POST" "/api/v1/desktop/generate" "$config")
@@ -410,6 +542,12 @@ OPTIONS:
     --output <path>           Output directory for generated application [default: ./desktop-app]
     --features <features>     Comma-separated list of features (tray,updater,menus)
     --config <file>           Use JSON configuration file instead of command-line options
+    --deployment-mode <mode>  Deployment intent (external-server|cloud-api|bundled) [default: external-server]
+    --server-type <type>      Server strategy (external|node|static|executable) [default: external]
+    --server-url <url>        URL of the scenario running on your Vrooli server (LAN/Cloudflare)
+    --api-url <url>           Scenario API URL (usually the same proxy + /api)
+    --auto-manage-tier1       Let the desktop app run `vrooli setup/start/stop` locally (advanced)
+    --vrooli-binary <path>    Path to vrooli CLI when auto-managing the scenario [default: vrooli]
 
 EXAMPLES:
     # Basic generation
@@ -809,6 +947,102 @@ cmd_wait_for_build() {
     exit 1
 }
 
+cmd_telemetry() {
+    if [ $# -eq 0 ] || [[ $1 = "help" || $1 = "--help" || $1 = "-h" ]]; then
+        cmd_telemetry_help
+        return
+    fi
+
+    case $1 in
+        collect)
+            shift
+            cmd_telemetry_collect "$@"
+            ;;
+        *)
+            error "Unknown telemetry subcommand: $1"
+            cmd_telemetry_help
+            exit 1
+            ;;
+    esac
+}
+
+cmd_telemetry_collect() {
+    local scenario=""
+    local file_path=""
+    local deployment_mode="external-server"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --file)
+                file_path="$2"
+                shift 2
+                ;;
+            --deployment-mode)
+                deployment_mode="$2"
+                shift 2
+                ;;
+            --help|-h)
+                cmd_telemetry_help
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario" ]; then
+        error "--scenario is required"
+        exit 1
+    fi
+    if [ -z "$file_path" ]; then
+        error "--file is required"
+        exit 1
+    fi
+    if [ ! -f "$file_path" ]; then
+        error "Telemetry file not found: $file_path"
+        exit 1
+    fi
+
+    local events_json
+    if ! events_json=$(jq -Rs 'split("\n") | map(select(length > 0) | (try (fromjson) catch {"raw": .}))' "$file_path"); then
+        error "Failed to parse telemetry JSONL at $file_path"
+        exit 1
+    fi
+
+    local payload
+    payload=$(jq -n --arg scenario "$scenario" --arg mode "$deployment_mode" --arg source "$file_path" --argjson events "$events_json" '{scenario_name:$scenario,deployment_mode:$mode,source:$source,events:$events}')
+
+    local response
+    response=$(api_call "POST" "/api/v1/deployment/telemetry" "$payload")
+    success "Uploaded telemetry for $scenario"
+    echo "$response" | jq .
+}
+
+cmd_telemetry_help() {
+    cat << 'EOF'
+Telemetry commands
+
+USAGE:
+    scenario-to-desktop telemetry collect --scenario <name> --file <deployment-telemetry.jsonl>
+
+OPTIONS:
+    --scenario <name>         Scenario name the telemetry belongs to
+    --file <path>             Path to deployment-telemetry.jsonl generated by the desktop app
+    --deployment-mode <mode>  Override deployment mode metadata (default: external-server)
+
+EXAMPLE:
+    scenario-to-desktop telemetry collect \
+        --scenario picker-wheel \
+        --file "$HOME/Library/Application Support/Picker Wheel/deployment-telemetry.jsonl"
+EOF
+}
+
 # Main function
 main() {
     # Global options
@@ -884,6 +1118,9 @@ main() {
             ;;
         package)
             cmd_package "$@"
+            ;;
+        telemetry)
+            cmd_telemetry "$@"
             ;;
         *)
             error "Unknown command: $command"

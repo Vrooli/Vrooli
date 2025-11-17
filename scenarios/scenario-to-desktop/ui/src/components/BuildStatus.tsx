@@ -4,7 +4,7 @@ import { fetchBuildStatus, type BuildStatus as BuildStatusType } from "../lib/ap
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
-import { Terminal, CheckCircle, Loader2, XCircle } from "lucide-react";
+import { Terminal, CheckCircle, Loader2 } from "lucide-react";
 
 interface BuildStatusProps {
   buildId: string | null;
@@ -12,7 +12,7 @@ interface BuildStatusProps {
 }
 
 export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["build-status", buildId],
     queryFn: () => (buildId ? fetchBuildStatus(buildId) : null),
     enabled: !!buildId,

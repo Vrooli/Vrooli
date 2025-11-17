@@ -4,28 +4,47 @@ import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Loader2, RefreshCw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import type { DesktopConnectionConfig } from "./types";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
 
 interface RegenerateButtonProps {
   scenarioName: string;
+  connectionConfig?: DesktopConnectionConfig;
 }
 
-export function RegenerateButton({ scenarioName }: RegenerateButtonProps) {
+export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateButtonProps) {
   const queryClient = useQueryClient();
   const [showConfirm, setShowConfirm] = useState(false);
   const [buildId, setBuildId] = useState<string | null>(null);
 
   const regenerateMutation = useMutation({
     mutationFn: async () => {
+      const payload: Record<string, unknown> = {
+        scenario_name: scenarioName,
+        template_type: 'universal'
+      };
+      if (connectionConfig?.server_url) {
+        payload.server_url = connectionConfig.server_url;
+      }
+      if (connectionConfig?.api_url) {
+        payload.api_url = connectionConfig.api_url;
+      }
+      if (connectionConfig?.deployment_mode) {
+        payload.deployment_mode = connectionConfig.deployment_mode;
+      }
+      if (typeof connectionConfig?.auto_manage_tier1 === 'boolean') {
+        payload.auto_manage_tier1 = connectionConfig.auto_manage_tier1;
+      }
+      if (connectionConfig?.vrooli_binary_path) {
+        payload.vrooli_binary_path = connectionConfig.vrooli_binary_path;
+      }
+
       const res = await fetch(buildUrl('/desktop/generate/quick'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scenario_name: scenarioName,
-          template_type: 'universal' // Universal template works for any scenario
-        })
+        body: JSON.stringify(payload)
       });
       if (!res.ok) {
         const error = await res.text();

@@ -823,21 +823,25 @@ func TestValidateDesktopConfig(t *testing.T) {
 	defer cleanup()
 
 	server := NewServer(0)
-
-	t.Run("ValidConfig", func(t *testing.T) {
-		config := &DesktopConfig{
+	newConfig := func() *DesktopConfig {
+		return &DesktopConfig{
 			AppName:      "TestApp",
 			Framework:    "electron",
 			TemplateType: "basic",
 			OutputPath:   "/tmp/test",
+			ServerType:   "static",
+			ServerPath:   "./dist",
+			APIEndpoint:  "http://localhost:3000",
+		}
+	}
+
+	t.Run("ValidConfig", func(t *testing.T) {
+		config := newConfig()
+
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Fatalf("Expected no error, got: %v", err)
 		}
 
-		err := server.validateDesktopConfig(config)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-
-		// Verify defaults were set
 		if config.License != "MIT" {
 			t.Errorf("Expected default license MIT, got: %s", config.License)
 		}
@@ -847,127 +851,116 @@ func TestValidateDesktopConfig(t *testing.T) {
 	})
 
 	t.Run("MissingAppName", func(t *testing.T) {
-		config := &DesktopConfig{
-			Framework:    "electron",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-		}
+		config := newConfig()
+		config.AppName = ""
 
-		err := server.validateDesktopConfig(config)
-		if err == nil {
-			t.Error("Expected error for missing app_name")
-		}
-		if !strings.Contains(err.Error(), "app_name") {
-			t.Errorf("Expected error to mention app_name, got: %v", err)
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "app_name") {
+			t.Errorf("Expected app_name error, got: %v", err)
 		}
 	})
 
 	t.Run("MissingFramework", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-		}
+		config := newConfig()
+		config.Framework = ""
 
-		err := server.validateDesktopConfig(config)
-		if err == nil || !strings.Contains(err.Error(), "framework") {
-			t.Error("Expected error for missing framework")
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "framework") {
+			t.Errorf("Expected framework error, got: %v", err)
 		}
 	})
 
 	t.Run("InvalidFramework", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "invalid",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-		}
+		config := newConfig()
+		config.Framework = "invalid"
 
-		err := server.validateDesktopConfig(config)
-		if err == nil || !strings.Contains(err.Error(), "framework") {
-			t.Error("Expected error for invalid framework")
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "framework") {
+			t.Errorf("Expected framework validation error, got: %v", err)
 		}
 	})
 
 	t.Run("InvalidTemplateType", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "electron",
-			TemplateType: "invalid",
-			OutputPath:   "/tmp/test",
-		}
+		config := newConfig()
+		config.TemplateType = "invalid"
 
-		err := server.validateDesktopConfig(config)
-		if err == nil || !strings.Contains(err.Error(), "template_type") {
-			t.Error("Expected error for invalid template_type")
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "template_type") {
+			t.Errorf("Expected template_type error, got: %v", err)
 		}
 	})
 
-	t.Run("MissingOutputPath", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "electron",
-			TemplateType: "basic",
-		}
+	t.Run("MissingOutputPathDefaults", func(t *testing.T) {
+		config := newConfig()
+		config.OutputPath = ""
 
-		err := server.validateDesktopConfig(config)
-		// output_path is now optional - defaults to standard location
-		if err != nil {
-			t.Errorf("Expected no error for missing output_path (defaults to standard location), got: %v", err)
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Errorf("Expected default output path handling, got: %v", err)
 		}
 	})
 
 	t.Run("CustomLicense", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "electron",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-			License:      "Apache-2.0",
-		}
+		config := newConfig()
+		config.License = "Apache-2.0"
 
-		err := server.validateDesktopConfig(config)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Errorf("Expected no error for custom license, got: %v", err)
 		}
 		if config.License != "Apache-2.0" {
-			t.Error("Expected license to remain Apache-2.0")
+			t.Errorf("Expected license to remain Apache-2.0, got: %s", config.License)
 		}
 	})
 
 	t.Run("CustomPlatforms", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "electron",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-			Platforms:    []string{"win"},
-		}
+		config := newConfig()
+		config.Platforms = []string{"win"}
 
-		err := server.validateDesktopConfig(config)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Errorf("Expected no error for custom platforms, got: %v", err)
 		}
 		if len(config.Platforms) != 1 {
-			t.Error("Expected platforms to remain as single item")
+			t.Errorf("Expected single platform to remain, got: %v", config.Platforms)
+		}
+	})
+
+	t.Run("InvalidDeploymentMode", func(t *testing.T) {
+		config := newConfig()
+		config.DeploymentMode = "unsupported"
+
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "deployment_mode") {
+			t.Errorf("Expected deployment_mode error, got: %v", err)
+		}
+	})
+
+	t.Run("AutoManageRequiresExternal", func(t *testing.T) {
+		config := newConfig()
+		config.AutoManageTier1 = true
+
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "auto_manage_tier1") {
+			t.Errorf("Expected auto-manage error for static server, got: %v", err)
+		}
+	})
+
+	t.Run("AutoManageAllowedWithExternal", func(t *testing.T) {
+		config := newConfig()
+		config.ServerType = "external"
+		config.ServerPath = "http://localhost:3000"
+		config.APIEndpoint = "http://localhost:3000"
+		config.ExternalServerURL = "http://localhost:3000"
+		config.ExternalAPIURL = "http://localhost:3000"
+		config.AutoManageTier1 = true
+
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Errorf("Expected external auto-manage to pass, got: %v", err)
 		}
 	})
 
 	t.Run("ServerPortDefault", func(t *testing.T) {
-		config := &DesktopConfig{
-			AppName:      "Test",
-			Framework:    "electron",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-			ServerType:   "node",
-		}
+		config := newConfig()
+		config.ServerType = "node"
+		config.ServerPath = "ui/server.js"
 
-		err := server.validateDesktopConfig(config)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
+		if err := server.validateDesktopConfig(config); err != nil {
+			t.Errorf("Expected embedded node config to pass, got: %v", err)
 		}
 		if config.ServerPort != 3000 {
-			t.Errorf("Expected default port 3000, got: %d", config.ServerPort)
+			t.Errorf("Expected default port 3000, got %d", config.ServerPort)
 		}
 	})
 }
@@ -1034,9 +1027,9 @@ func TestServerRoutes(t *testing.T) {
 	server := NewServer(0)
 
 	routes := []struct {
-		method       string
-		path         string
-		allow404     bool // Allow 404 for routes with path parameters (resource not found is valid)
+		method   string
+		path     string
+		allow404 bool // Allow 404 for routes with path parameters (resource not found is valid)
 	}{
 		{"GET", "/api/v1/health", false},
 		{"GET", "/api/v1/status", false},

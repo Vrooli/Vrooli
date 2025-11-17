@@ -17,8 +17,13 @@ import (
 // Quick generate desktop handler - auto-detects scenario configuration
 func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		ScenarioName string `json:"scenario_name"`
-		TemplateType string `json:"template_type"`
+		ScenarioName    string `json:"scenario_name"`
+		TemplateType    string `json:"template_type"`
+		DeploymentMode  string `json:"deployment_mode"`
+		AutoManageTier1 *bool  `json:"auto_manage_tier1"`
+		ServerURL       string `json:"server_url"`
+		APIURL          string `json:"api_url"`
+		VrooliBinary    string `json:"vrooli_binary_path"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -71,6 +76,67 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 		http.Error(w, fmt.Sprintf("Failed to create config: %s", err), http.StatusInternalServerError)
 		return
 	}
+
+	if request.DeploymentMode != "" {
+		config.DeploymentMode = request.DeploymentMode
+	}
+	if request.AutoManageTier1 != nil {
+		config.AutoManageTier1 = *request.AutoManageTier1
+	}
+	savedConfig, err := loadDesktopConnectionConfig(metadata.ScenarioPath)
+	if err != nil {
+		s.logger.Warn("failed to read saved desktop config",
+			"scenario", metadata.Name,
+			"error", err)
+	}
+
+	if request.ServerURL != "" {
+		config.ExternalServerURL = request.ServerURL
+		config.ServerPath = request.ServerURL
+	} else if savedConfig != nil && savedConfig.ServerURL != "" {
+		config.ExternalServerURL = savedConfig.ServerURL
+		config.ServerPath = savedConfig.ServerURL
+	}
+	if request.APIURL != "" {
+		config.ExternalAPIURL = request.APIURL
+		config.APIEndpoint = request.APIURL
+	} else if savedConfig != nil && savedConfig.APIURL != "" {
+		config.ExternalAPIURL = savedConfig.APIURL
+		config.APIEndpoint = savedConfig.APIURL
+	}
+	if request.VrooliBinary != "" {
+		config.VrooliBinaryPath = request.VrooliBinary
+	} else if savedConfig != nil && savedConfig.VrooliBinary != "" {
+		config.VrooliBinaryPath = savedConfig.VrooliBinary
+	}
+	if request.DeploymentMode != "" {
+		config.DeploymentMode = request.DeploymentMode
+	} else if savedConfig != nil && savedConfig.DeploymentMode != "" {
+		config.DeploymentMode = savedConfig.DeploymentMode
+	}
+	if request.AutoManageTier1 != nil {
+		config.AutoManageTier1 = *request.AutoManageTier1
+	} else if savedConfig != nil {
+		config.AutoManageTier1 = savedConfig.AutoManageTier1
+	}
+	if savedConfig != nil && savedConfig.ServerType != "" && request.ServerURL == "" {
+		config.ServerType = savedConfig.ServerType
+	}
+
+	if config.ServerType == "external" && config.ExternalServerURL == "" {
+		http.Error(w, "server_url is required for scenarios with APIs. Provide the Vrooli server URL or Cloudflare/app-monitor proxy.", http.StatusBadRequest)
+		return
+	}
+	if config.ServerType == "external" && config.ExternalAPIURL == "" {
+		http.Error(w, "api_url is required for scenarios with APIs.", http.StatusBadRequest)
+		return
+	}
+	if err := s.validateDesktopConfig(config); err != nil {
+		http.Error(w, fmt.Sprintf("Configuration validation failed: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	s.persistDesktopConfig(metadata.ScenarioPath, config)
 
 	s.logger.Info("quick generate request",
 		"scenario", request.ScenarioName,
@@ -149,15 +215,16 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		// Fallback to calculating from current directory
+		// This assumes API is in <vrooli-root>/scenarios/scenario-to-desktop/api/
+		currentDir, _ := os.Getwd()
+		vrooliRoot = filepath.Join(currentDir, "../../..")
+	}
+
 	// Set default output path to standard location if not provided
 	if config.OutputPath == "" {
-		vrooliRoot := os.Getenv("VROOLI_ROOT")
-		if vrooliRoot == "" {
-			// Fallback to calculating from current directory
-			// This assumes API is in <vrooli-root>/scenarios/scenario-to-desktop/api/
-			currentDir, _ := os.Getwd()
-			vrooliRoot = filepath.Join(currentDir, "../../..")
-		}
 		config.OutputPath = filepath.Join(
 			vrooliRoot,
 			"scenarios",
@@ -169,6 +236,8 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 			"scenario", config.AppName,
 			"path", config.OutputPath)
 	}
+
+	s.persistDesktopConfig(filepath.Join(vrooliRoot, "scenarios", config.AppName), &config)
 
 	// Generate build ID
 	buildID := uuid.New().String()
@@ -286,8 +355,8 @@ func (s *Server) buildScenarioDesktopHandler(w http.ResponseWriter, r *http.Requ
 		Status:             "building",
 		OutputPath:         desktopPath,
 		CreatedAt:          time.Now(),
-		Platforms:          options.Platforms,           // Legacy field (will be updated with successful builds)
-		RequestedPlatforms: options.Platforms,           // NEW: Track what was requested
+		Platforms:          options.Platforms, // Legacy field (will be updated with successful builds)
+		RequestedPlatforms: options.Platforms, // NEW: Track what was requested
 		PlatformResults:    platformResults,
 		BuildLog:           []string{},
 		ErrorLog:           []string{},
@@ -463,6 +532,31 @@ func (s *Server) deleteDesktopHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) persistDesktopConfig(scenarioRoot string, config *DesktopConfig) {
+	if config == nil || scenarioRoot == "" {
+		return
+	}
+	if _, err := os.Stat(scenarioRoot); err != nil {
+		return
+	}
+
+	conn := &DesktopConnectionConfig{
+		ServerURL:       config.ExternalServerURL,
+		APIURL:          config.ExternalAPIURL,
+		DeploymentMode:  config.DeploymentMode,
+		AutoManageTier1: config.AutoManageTier1,
+		VrooliBinary:    config.VrooliBinaryPath,
+		ServerType:      config.ServerType,
+	}
+
+	if err := saveDesktopConnectionConfig(scenarioRoot, conn); err != nil {
+		s.logger.Warn("failed to persist desktop config",
+			"scenario", config.AppName,
+			"path", scenarioRoot,
+			"error", err)
+	}
 }
 
 // Build desktop application handler

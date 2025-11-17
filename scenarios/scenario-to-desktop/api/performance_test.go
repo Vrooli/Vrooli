@@ -454,18 +454,24 @@ func TestValidationPerformance(t *testing.T) {
 	defer cleanup()
 
 	server := NewServer(0)
+	baseConfig := func(name string) *DesktopConfig {
+		return &DesktopConfig{
+			AppName:      name,
+			Framework:    "electron",
+			TemplateType: "basic",
+			OutputPath:   "/tmp/test",
+			ServerType:   "static",
+			ServerPath:   "./dist",
+			APIEndpoint:  "http://localhost:3000",
+		}
+	}
 
 	t.Run("ValidConfigValidation", func(t *testing.T) {
 		validationCount := 10000
 		start := time.Now()
 
 		for i := 0; i < validationCount; i++ {
-			config := &DesktopConfig{
-				AppName:      fmt.Sprintf("App%d", i),
-				Framework:    "electron",
-				TemplateType: "basic",
-				OutputPath:   "/tmp/test",
-			}
+			config := baseConfig(fmt.Sprintf("App%d", i))
 
 			err := server.validateDesktopConfig(config)
 			if err != nil {
@@ -489,12 +495,8 @@ func TestValidationPerformance(t *testing.T) {
 		start := time.Now()
 
 		for i := 0; i < validationCount; i++ {
-			config := &DesktopConfig{
-				AppName:      fmt.Sprintf("App%d", i),
-				Framework:    "invalid",
-				TemplateType: "basic",
-				OutputPath:   "/tmp/test",
-			}
+			config := baseConfig(fmt.Sprintf("App%d", i))
+			config.Framework = "invalid"
 
 			err := server.validateDesktopConfig(config)
 			if err == nil {

@@ -28,16 +28,17 @@ func (s *Server) getScenarioDesktopStatusHandler(w http.ResponseWriter, r *http.
 	}
 
 	type ScenarioDesktopStatus struct {
-		Name         string   `json:"name"`
-		DisplayName  string   `json:"display_name,omitempty"`
-		HasDesktop   bool     `json:"has_desktop"`
-		DesktopPath  string   `json:"desktop_path,omitempty"`
-		Version      string   `json:"version,omitempty"`
-		Platforms    []string `json:"platforms,omitempty"`
-		Built        bool     `json:"built,omitempty"`
-		DistPath     string   `json:"dist_path,omitempty"`
-		LastModified string   `json:"last_modified,omitempty"`
-		PackageSize  int64    `json:"package_size,omitempty"`
+		Name             string                   `json:"name"`
+		DisplayName      string                   `json:"display_name,omitempty"`
+		HasDesktop       bool                     `json:"has_desktop"`
+		DesktopPath      string                   `json:"desktop_path,omitempty"`
+		Version          string                   `json:"version,omitempty"`
+		Platforms        []string                 `json:"platforms,omitempty"`
+		Built            bool                     `json:"built,omitempty"`
+		DistPath         string                   `json:"dist_path,omitempty"`
+		LastModified     string                   `json:"last_modified,omitempty"`
+		PackageSize      int64                    `json:"package_size,omitempty"`
+		ConnectionConfig *DesktopConnectionConfig `json:"connection_config,omitempty"`
 	}
 
 	var scenarios []ScenarioDesktopStatus
@@ -48,7 +49,8 @@ func (s *Server) getScenarioDesktopStatusHandler(w http.ResponseWriter, r *http.
 		}
 
 		scenarioName := entry.Name()
-		electronPath := filepath.Join(scenariosPath, scenarioName, "platforms", "electron")
+		scenarioRoot := filepath.Join(scenariosPath, scenarioName)
+		electronPath := filepath.Join(scenarioRoot, "platforms", "electron")
 
 		status := ScenarioDesktopStatus{
 			Name: scenarioName,
@@ -108,6 +110,14 @@ func (s *Server) getScenarioDesktopStatusHandler(w http.ResponseWriter, r *http.
 				// Remove duplicates
 				status.Platforms = uniqueStrings(status.Platforms)
 			}
+		}
+
+		if cfg, err := loadDesktopConnectionConfig(scenarioRoot); err == nil {
+			status.ConnectionConfig = cfg
+		} else if err != nil {
+			s.logger.Warn("failed to read desktop config",
+				"scenario", scenarioName,
+				"error", err)
 		}
 
 		scenarios = append(scenarios, status)

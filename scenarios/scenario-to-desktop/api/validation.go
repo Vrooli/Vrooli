@@ -44,6 +44,47 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 		config.ServerPort = 3000
 	}
 
+	if config.ServerType == "" {
+		config.ServerType = "external"
+	}
+	if config.DeploymentMode == "" {
+		config.DeploymentMode = "external-server"
+	}
+	validDeploymentModes := []string{"external-server", "cloud-api", "bundled"}
+	if !contains(validDeploymentModes, config.DeploymentMode) {
+		return fmt.Errorf("invalid deployment_mode: %s", config.DeploymentMode)
+	}
+
+	if config.ServerType == "external" {
+		if config.ExternalServerURL == "" && config.ServerPath != "" {
+			config.ExternalServerURL = config.ServerPath
+		}
+		if config.ExternalAPIURL == "" && config.APIEndpoint != "" {
+			config.ExternalAPIURL = config.APIEndpoint
+		}
+		if config.ExternalServerURL == "" {
+			return fmt.Errorf("external_server_url is required when server_type is 'external'")
+		}
+		if config.ExternalAPIURL == "" {
+			return fmt.Errorf("external_api_url is required when server_type is 'external'")
+		}
+		config.ServerPath = config.ExternalServerURL
+		config.APIEndpoint = config.ExternalAPIURL
+	} else {
+		if config.ServerPath == "" {
+			return fmt.Errorf("server_path is required when server_type is '%s'", config.ServerType)
+		}
+	}
+	if config.ScenarioName == "" {
+		config.ScenarioName = config.AppName
+	}
+	if config.VrooliBinaryPath == "" {
+		config.VrooliBinaryPath = "vrooli"
+	}
+	if config.AutoManageTier1 && config.ServerType != "external" {
+		return fmt.Errorf("auto_manage_tier1 is only supported when server_type is 'external'")
+	}
+
 	return nil
 }
 

@@ -37,6 +37,7 @@ type Server struct {
 	wineInstallMux sync.RWMutex
 	templateDir    string
 	logger         *slog.Logger
+	telemetryMux   sync.Mutex
 }
 
 // NewServer creates a new server instance
@@ -77,6 +78,7 @@ func (s *Server) setupRoutes() {
 	// Desktop application operations
 	s.router.HandleFunc("/api/v1/desktop/generate", s.generateDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/generate/quick", s.quickGenerateDesktopHandler).Methods("POST")
+	s.router.HandleFunc("/api/v1/desktop/probe", s.probeEndpointsHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/status/{build_id}", s.getBuildStatusHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/desktop/build", s.buildDesktopHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/test", s.testDesktopHandler).Methods("POST")
@@ -84,6 +86,9 @@ func (s *Server) setupRoutes() {
 
 	// Scenario discovery
 	s.router.HandleFunc("/api/v1/scenarios/desktop-status", s.getScenarioDesktopStatusHandler).Methods("GET")
+
+	// Deployment telemetry ingestion
+	s.router.HandleFunc("/api/v1/deployment/telemetry", s.telemetryIngestHandler).Methods("POST")
 
 	// Build by scenario name (simplified endpoint)
 	s.router.HandleFunc("/api/v1/desktop/build/{scenario_name}", s.buildScenarioDesktopHandler).Methods("POST")

@@ -1,12 +1,11 @@
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { Monitor, Package, CheckCircle, Download, XCircle, Clock } from "lucide-react";
+import { Monitor, Package, CheckCircle, XCircle, Clock } from "lucide-react";
 import { formatBytes } from "./utils";
 import { GenerateDesktopButton } from "./GenerateDesktopButton";
 import { BuildDesktopButton } from "./BuildDesktopButton";
 import { RegenerateButton } from "./RegenerateButton";
 import { DeleteButton } from "./DeleteButton";
-import { DownloadButtons } from "./DownloadButtons";
 import type { ScenarioDesktopStatus } from "./types";
 
 interface ScenarioCardProps {
@@ -101,20 +100,19 @@ export function ScenarioCard({ scenario }: ScenarioCardProps) {
             )}
 
             {/* Action buttons based on state */}
-            {scenario.has_desktop && (
-              <div className="mt-3 ml-13 flex flex-col gap-3">
-                <BuildDesktopButton scenarioName={scenario.name} />
-                <div className="flex flex-wrap gap-2">
-                  {scenario.built && <RegenerateButton scenarioName={scenario.name} />}
-                  <DeleteButton scenarioName={scenario.name} />
-                </div>
-              </div>
-            )}
+            <div className="mt-3 ml-13 flex flex-col gap-3">
+              <GenerateDesktopButton scenario={scenario} />
+              {scenario.has_desktop && (
+                <>
+                  <BuildDesktopButton scenarioName={scenario.name} />
+                  <div className="flex flex-wrap gap-2">
+                    {scenario.built && <RegenerateButton scenarioName={scenario.name} connectionConfig={scenario.connection_config} />}
+                    <DeleteButton scenarioName={scenario.name} />
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-
-          {!scenario.has_desktop && (
-            <GenerateDesktopButton scenarioName={scenario.name} />
-          )}
         </div>
       </CardContent>
     </Card>

@@ -49,6 +49,11 @@ export interface DesktopConfig {
   output_path: string;
   features: Record<string, boolean>;
   window: Record<string, unknown>;
+  deployment_mode?: string;
+  auto_manage_tier1?: boolean;
+  vrooli_binary_path?: string;
+  external_server_url?: string;
+  external_api_url?: string;
 }
 
 export interface PlatformBuildResult {
@@ -77,6 +82,19 @@ export interface BuildStatus {
   error_log?: string[];
   build_log?: string[];
   artifacts?: Record<string, string>;
+}
+
+export interface ProbeResponse {
+  server: {
+    status: "ok" | "error" | "skipped";
+    status_code?: number;
+    message?: string;
+  };
+  api: {
+    status: "ok" | "error" | "skipped";
+    status_code?: number;
+    message?: string;
+  };
 }
 
 export async function fetchHealth(): Promise<HealthResponse> {
@@ -164,4 +182,23 @@ export async function buildScenarioDesktop(
 
 export function getDownloadUrl(scenarioName: string, platform: string): string {
   return buildUrl(`/desktop/download/${scenarioName}/${platform}`);
+}
+
+export async function probeEndpoints(payload: {
+  server_url?: string;
+  api_url?: string;
+  timeout_ms?: number;
+}): Promise<ProbeResponse> {
+  const response = await fetch(buildUrl("/desktop/probe"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || "Failed to probe URLs");
+  }
+
+  return response.json();
 }

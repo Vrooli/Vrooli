@@ -1,15 +1,15 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
-import { generateDesktop, type DesktopConfig } from "../lib/api";
+import { generateDesktop, probeEndpoints, type DesktopConfig, type ProbeResponse } from "../lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
-import { Rocket, Search } from "lucide-react";
-import type { ScenariosResponse } from "./scenario-inventory/types";
+import { Rocket } from "lucide-react";
+import type { DesktopConnectionConfig, ScenariosResponse } from "./scenario-inventory/types";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
@@ -24,12 +24,33 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
   const [scenarioName, setScenarioName] = useState("");
   const [useDropdown, setUseDropdown] = useState(true);
   const [framework, setFramework] = useState("electron");
+  const [serverType, setServerType] = useState("external");
+  const [deploymentMode, setDeploymentMode] = useState("external-server");
   const [platforms, setPlatforms] = useState({
     win: true,
     mac: true,
     linux: true
   });
   const [outputPath, setOutputPath] = useState("./desktop-app");
+  const [serverUrl, setServerUrl] = useState("");
+  const [apiUrl, setApiUrl] = useState("");
+  const [serverPort, setServerPort] = useState(3000);
+  const [localServerPath, setLocalServerPath] = useState("ui/server.js");
+  const [localApiEndpoint, setLocalApiEndpoint] = useState("http://localhost:3001/api");
+  const [autoManageTier1, setAutoManageTier1] = useState(false);
+  const [vrooliBinaryPath, setVrooliBinaryPath] = useState("vrooli");
+  const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
+
+  const selectedDeployment = useMemo(
+    () => DEPLOYMENT_OPTIONS.find((option) => option.value === deploymentMode) ?? DEPLOYMENT_OPTIONS[0],
+    [deploymentMode]
+  );
+  const selectedServerType = useMemo(
+    () => SERVER_TYPE_OPTIONS.find((option) => option.value === serverType) ?? SERVER_TYPE_OPTIONS[0],
+    [serverType]
+  );
 
   // Fetch available scenarios
   const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({
@@ -48,17 +69,75 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
     }
   });
 
+  const connectionMutation = useMutation({
+    mutationFn: async () => {
+      if (!serverUrl && !apiUrl) {
+        throw new Error("Enter the URLs above before testing.");
+      }
+      return probeEndpoints({ server_url: serverUrl || undefined, api_url: apiUrl || undefined });
+    },
+    onSuccess: (result) => {
+      setConnectionResult(result);
+      setConnectionError(null);
+    },
+    onError: (error: Error) => {
+      setConnectionError(error.message);
+      setConnectionResult(null);
+    }
+  });
+
+  const selectedScenario = scenariosData?.scenarios.find((s) => s.name === scenarioName);
+
+  const applySavedConnection = (config?: DesktopConnectionConfig | null) => {
+    if (!config) return;
+    setDeploymentMode(config.deployment_mode ?? "external-server");
+    setServerUrl(config.server_url ?? "");
+    setApiUrl(config.api_url ?? "");
+    setAutoManageTier1(config.auto_manage_tier1 ?? false);
+    setVrooliBinaryPath(config.vrooli_binary_path ?? "vrooli");
+  };
+
+  useEffect(() => {
+    if (!useDropdown || !scenarioName) {
+      return;
+    }
+    const updatedAt = selectedScenario?.connection_config?.updated_at;
+    if (!updatedAt) {
+      return;
+    }
+    const configKey = `${scenarioName}:${updatedAt}`;
+    if (configKey === lastLoadedScenario) {
+      return;
+    }
+    applySavedConnection(selectedScenario?.connection_config);
+    setLastLoadedScenario(configKey);
+  }, [useDropdown, scenarioName, selectedScenario?.connection_config?.updated_at, lastLoadedScenario, selectedScenario?.connection_config]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     const selectedPlatforms = Object.entries(platforms)
-      .filter(([_, enabled]) => enabled)
+      .filter(([, enabled]) => enabled)
       .map(([platform]) => platform);
 
     if (selectedPlatforms.length === 0) {
       alert("Please select at least one target platform");
       return;
     }
+
+    if (deploymentMode !== "external-server") {
+      alert("Bundled and cloud deployments are still in planning. Choose Thin Client (external-server) until deployment-manager ships.");
+      return;
+    }
+
+    const requiresRemoteConfig = serverType === "external";
+    if (requiresRemoteConfig && (!serverUrl || !apiUrl)) {
+      alert("Provide both the Vrooli server URL (where the UI lives) and the API endpoint exposed through app-monitor or Cloudflare.");
+      return;
+    }
+
+    const resolvedServerPath = requiresRemoteConfig ? serverUrl : localServerPath;
+    const resolvedApiEndpoint = requiresRemoteConfig ? apiUrl : localApiEndpoint;
 
     const config: DesktopConfig = {
       app_name: scenarioName,
@@ -68,10 +147,10 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
       author: "Vrooli Platform",
       license: "MIT",
       app_id: `com.vrooli.${scenarioName.replace(/-/g, ".")}`,
-      server_type: "node",
-      server_port: 3000,
-      server_path: "ui/server.js",
-      api_endpoint: "http://localhost:3000",
+      server_type: serverType,
+      server_port: serverPort,
+      server_path: resolvedServerPath,
+      api_endpoint: resolvedApiEndpoint,
       framework,
       template_type: selectedTemplate,
       platforms: selectedPlatforms,
@@ -85,7 +164,12 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
         width: 1200,
         height: 800,
         background: "#f5f5f5"
-      }
+      },
+      deployment_mode: deploymentMode,
+      auto_manage_tier1: autoManageTier1,
+      vrooli_binary_path: vrooliBinaryPath,
+      external_server_url: requiresRemoteConfig ? serverUrl : undefined,
+      external_api_url: requiresRemoteConfig ? apiUrl : undefined
     };
 
     generateMutation.mutate(config);
@@ -106,15 +190,26 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-1.5 gap-3">
               <Label htmlFor="scenarioName">Scenario Name</Label>
-              <button
-                type="button"
-                onClick={() => setUseDropdown(!useDropdown)}
-                className="text-xs text-blue-400 hover:text-blue-300"
-              >
-                {useDropdown ? "Enter manually" : "Select from list"}
-              </button>
+              <div className="flex items-center gap-2">
+                {selectedScenario?.connection_config && (
+                  <button
+                    type="button"
+                    onClick={() => applySavedConnection(selectedScenario.connection_config)}
+                    className="text-xs text-blue-300 hover:text-blue-200"
+                  >
+                    Load saved URLs
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setUseDropdown(!useDropdown)}
+                  className="text-xs text-blue-400 hover:text-blue-300"
+                >
+                  {useDropdown ? "Enter manually" : "Select from list"}
+                </button>
+              </div>
             </div>
 
             {useDropdown ? (
@@ -130,11 +225,12 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
                   {loadingScenarios ? "Loading scenarios..." : "Select a scenario..."}
                 </option>
                 {scenariosData?.scenarios
-                  .filter(s => !s.has_desktop) // Only show scenarios without desktop
                   .sort((a, b) => a.name.localeCompare(b.name))
                   .map(scenario => (
                     <option key={scenario.name} value={scenario.name}>
-                      {scenario.name} {scenario.display_name ? `(${scenario.display_name})` : ""}
+                      {scenario.name}
+                      {scenario.display_name ? ` (${scenario.display_name})` : ""}
+                      {scenario.has_desktop ? " — Desktop ready" : ""}
                     </option>
                   ))}
               </Select>
@@ -186,6 +282,187 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
             </div>
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="deploymentMode">Deployment intent</Label>
+              <Select
+                id="deploymentMode"
+                value={deploymentMode}
+                onChange={(e) => setDeploymentMode(e.target.value)}
+                className="mt-1.5"
+              >
+                {DEPLOYMENT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value} disabled={option.value !== "external-server"}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+              <p className="mt-1.5 text-xs text-slate-400">
+                {selectedDeployment.description}{" "}
+                {selectedDeployment.docs && (
+                  <a
+                    href={selectedDeployment.docs}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-300 underline"
+                  >
+                    Learn more
+                  </a>
+                )}
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="serverType">Where should this desktop build get its data?</Label>
+              <Select
+                id="serverType"
+                value={serverType}
+                onChange={(e) => setServerType(e.target.value)}
+                className="mt-1.5"
+              >
+                {SERVER_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+              <p className="mt-1.5 text-xs text-slate-400">
+                {selectedServerType.description}{" "}
+                {selectedServerType.docs && (
+                  <a
+                    href={selectedServerType.docs}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-300 underline"
+                  >
+                    Learn more
+                  </a>
+                )}
+              </p>
+            </div>
+          </div>
+
+          {serverType === "external" ? (
+            <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3">
+              <div>
+                <Label htmlFor="serverUrl">Vrooli server URL</Label>
+                <p className="text-xs text-slate-400 mb-2">
+                  This is the machine where you already run `vrooli scenario start`. Paste the HTTPS address (LAN hostname or Cloudflare/app-monitor link) that loads the scenario in your browser.
+                </p>
+              </div>
+              <Input
+                id="serverUrl"
+                value={serverUrl}
+                onChange={(e) => setServerUrl(e.target.value)}
+                placeholder="https://app-monitor.example.dev/picker-wheel"
+              />
+              <p className="text-xs text-slate-400 space-x-1">
+                <span>
+                  Users see this URL when the desktop shell opens. Double-check spelling and HTTPS certificates before building.
+                </span>
+                <a
+                  href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-1-local-dev.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-300 underline"
+                >
+                  What counts as a Vrooli server?
+                </a>
+              </p>
+
+              <Label htmlFor="apiUrl">API endpoint</Label>
+              <Input
+                id="apiUrl"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                placeholder="https://app-monitor.example.dev/picker-wheel/api"
+              />
+              <p className="text-xs text-slate-400">If you proxy APIs through app-monitor, copy the `/api` URL exactly so authentication succeeds.</p>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => connectionMutation.mutate()}
+                  disabled={connectionMutation.isPending || (!serverUrl && !apiUrl)}
+                >
+                  {connectionMutation.isPending ? "Testing..." : "Test connection"}
+                </Button>
+                {connectionResult && connectionResult.server.status === "ok" && connectionResult.api.status === "ok" && (
+                  <span className="text-xs text-green-300">Both URLs responded ✔</span>
+                )}
+                {connectionError && <span className="text-xs text-red-300">{connectionError}</span>}
+              </div>
+              {(connectionResult?.server || connectionResult?.api) && (
+                <div className="rounded border border-slate-800 bg-black/20 p-3 text-xs text-slate-300 space-y-1">
+                  <p className="font-semibold text-slate-200">Connectivity snapshot</p>
+                  <p>
+                    UI URL: {connectionResult?.server.status === "ok" ? "reachable" : connectionResult?.server.message || "no response"}
+                  </p>
+                  <p>
+                    API URL: {connectionResult?.api.status === "ok" ? "reachable" : connectionResult?.api.message || "no response"}
+                  </p>
+                </div>
+              )}
+
+              <Checkbox
+                checked={autoManageTier1}
+                onChange={(e) => setAutoManageTier1(e.target.checked)}
+                label="Automatically run the scenario locally with the vrooli CLI (advanced)"
+              />
+              <p className="text-xs text-slate-400">
+                If enabled, the desktop app will look for the `vrooli` binary, run `vrooli setup`, and start/stop the scenario on the user's machine. Enable only when the end user expects to host the full stack locally.
+              </p>
+
+              <Label htmlFor="vrooliBinary" className={autoManageTier1 ? undefined : "text-slate-500"}>
+                vrooli CLI path
+              </Label>
+              <Input
+                id="vrooliBinary"
+                value={vrooliBinaryPath}
+                onChange={(e) => setVrooliBinaryPath(e.target.value)}
+                disabled={!autoManageTier1}
+                placeholder="vrooli"
+              />
+            </div>
+          ) : (
+            <div className="rounded-lg border border-yellow-800 bg-yellow-950/10 p-4 space-y-3">
+              <p className="text-sm text-yellow-200">
+                Embedded servers require more manual work. Make sure the scenario's API can run within the wrapper (Node script or executable) and that resource usage fits the target machine.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="serverPort">Server Port</Label>
+                  <Input
+                    id="serverPort"
+                    type="number"
+                    value={serverPort}
+                    onChange={(e) => setServerPort(Number(e.target.value))}
+                    min={1}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="localServerPath">Server Entry</Label>
+                  <Input
+                    id="localServerPath"
+                    value={localServerPath}
+                    onChange={(e) => setLocalServerPath(e.target.value)}
+                    placeholder="ui/server.js"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="localApiEndpoint">API Endpoint</Label>
+                  <Input
+                    id="localApiEndpoint"
+                    value={localApiEndpoint}
+                    onChange={(e) => setLocalApiEndpoint(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label>Target Platforms</Label>
             <div className="mt-2 flex flex-wrap gap-4">
@@ -219,6 +496,9 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
               placeholder="./desktop-app"
               className="mt-1.5"
             />
+            <p className="mt-1 text-xs text-slate-400">
+              scenario-to-desktop will place the Electron wrapper here. For analyzer-generated builds we still recommend using the scenario's `platforms/electron` folder.
+            </p>
           </div>
 
           <Button
@@ -239,3 +519,57 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
     </Card>
   );
 }
+const DEPLOYMENT_OPTIONS = [
+  {
+    value: "external-server",
+    label: "Thin client (connect to your Vrooli server)",
+    description:
+      "Connects to the scenario you already started via `vrooli scenario start`. APIs/resources stay on that machine; the desktop build just hosts the UI shell.",
+    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
+  },
+  {
+    value: "cloud-api",
+    label: "Cloud API bundle (coming soon)",
+    description:
+      "Planned: package a cloud-friendly API target generated by deployment-manager. Disabled until bundle manifests exist.",
+    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-4-saas.md"
+  },
+  {
+    value: "bundled",
+    label: "Fully bundled/offline (coming soon)",
+    description:
+      "Planned: ship the API/resources inside the desktop installer for true offline use. Blocked on dependency swapping + deployment-manager manifests.",
+    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
+  }
+];
+
+const SERVER_TYPE_OPTIONS = [
+  {
+    value: "external",
+    label: "External (connect to your Vrooli server)",
+    description:
+      "Recommended. Desktop loads UI from the browser URL you already use (LAN or Cloudflare) and calls the remote API.",
+    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-1-local-dev.md"
+  },
+  {
+    value: "static",
+    label: "Static files (UI only)",
+    description:
+      "Ships only the built UI. Use when the scenario has no API or when you plan to wire every API request to a hosted endpoint manually.",
+    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
+  },
+  {
+    value: "node",
+    label: "Embedded Node server",
+    description:
+      "Experimental. Runs a Node script bundled with the app (e.g., lightweight APIs) and proxies requests locally.",
+    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/scenarios/scenario-to-desktop.md"
+  },
+  {
+    value: "executable",
+    label: "Executable / background binary",
+    description:
+      "Launches a binary packaged with the desktop app. Useful for custom services but requires careful resource planning.",
+    docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/scenarios/scenario-to-desktop.md"
+  }
+];

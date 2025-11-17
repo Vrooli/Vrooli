@@ -1,24 +1,40 @@
 package main
 
-// contains checks if a string slice contains a specific string
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
+import (
+	"os"
+	"path/filepath"
+)
+
+func contains(list []string, item string) bool {
+	for _, v := range list {
+		if v == item {
 			return true
 		}
 	}
 	return false
 }
 
-// uniqueStrings removes duplicate strings from a slice
-func uniqueStrings(slice []string) []string {
-	seen := make(map[string]bool)
-	result := []string{}
-	for _, val := range slice {
-		if !seen[val] {
-			seen[val] = true
-			result = append(result, val)
+func uniqueStrings(input []string) []string {
+	seen := make(map[string]struct{})
+	result := make([]string, 0, len(input))
+	for _, value := range input {
+		if _, exists := seen[value]; exists {
+			continue
 		}
+		seen[value] = struct{}{}
+		result = append(result, value)
 	}
 	return result
+}
+
+func detectVrooliRoot() string {
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot != "" {
+		return vrooliRoot
+	}
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return "../../.."
+	}
+	return filepath.Clean(filepath.Join(currentDir, "../../.."))
 }

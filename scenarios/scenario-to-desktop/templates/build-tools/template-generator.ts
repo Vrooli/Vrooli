@@ -30,6 +30,10 @@ interface DesktopConfig {
     server_path: string;
     api_endpoint: string;
     scenario_dist_path?: string;
+    deployment_mode?: 'external-server' | 'cloud-api' | 'bundled';
+    scenario_name?: string;
+    auto_manage_tier1?: boolean;
+    vrooli_binary_path?: string;
 
     // Template configuration
     framework: 'electron' | 'tauri' | 'neutralino';
@@ -291,6 +295,10 @@ class DesktopTemplateGenerator {
             SERVER_PATH: this.config.server_path,
             API_ENDPOINT: this.config.api_endpoint,
             SCENARIO_DIST_PATH: this.config.scenario_dist_path || '../ui/dist',
+            DEPLOYMENT_MODE: this.config.deployment_mode || 'external-server',
+            SCENARIO_NAME: this.config.scenario_name || this.config.app_name,
+            AUTO_MANAGE_TIER1: this.config.auto_manage_tier1 === true,
+            VROOLI_BINARY_PATH: this.config.vrooli_binary_path || 'vrooli',
             
             // Window config (use optional chaining for safety)
             WINDOW_WIDTH: this.config.window?.width || 1200,

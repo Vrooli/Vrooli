@@ -17,11 +17,17 @@ type DesktopConfig struct {
 	AppURL         string `json:"app_url"`
 
 	// Server configuration
-	ServerType   string `json:"server_type" validate:"required,oneof=node static external executable"`
-	ServerPort   int    `json:"server_port"`
-	ServerPath   string `json:"server_path" validate:"required"`
-	APIEndpoint  string `json:"api_endpoint" validate:"required,url"`
-	ScenarioPath string `json:"scenario_dist_path"`
+	ServerType        string `json:"server_type" validate:"required,oneof=node static external executable"`
+	ServerPort        int    `json:"server_port"`
+	ServerPath        string `json:"server_path"`
+	APIEndpoint       string `json:"api_endpoint" validate:"required,url"`
+	ScenarioPath      string `json:"scenario_dist_path"`
+	ScenarioName      string `json:"scenario_name"`
+	AutoManageTier1   bool   `json:"auto_manage_tier1"`
+	VrooliBinaryPath  string `json:"vrooli_binary_path"`
+	DeploymentMode    string `json:"deployment_mode"`
+	ExternalServerURL string `json:"external_server_url"`
+	ExternalAPIURL    string `json:"external_api_url"`
 
 	// Template configuration
 	Framework    string `json:"framework" validate:"required,oneof=electron tauri neutralino"`
