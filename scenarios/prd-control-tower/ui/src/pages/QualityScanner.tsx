@@ -824,11 +824,11 @@ function ReportDetails({ report }: { report: ScenarioQualityReport }) {
       )}
 
       <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-        <Link to={`/prd/${report.entity_type}/${report.entity_name}`} className="text-primary hover:underline">
+        <Link to={`/scenario/${report.entity_type}/${report.entity_name}?tab=prd`} className="text-primary hover:underline">
           View PRD →
         </Link>
         <Link
-          to={`/requirements/${report.entity_type}/${report.entity_name}`}
+          to={`/scenario/${report.entity_type}/${report.entity_name}?tab=requirements`}
           className="text-primary hover:underline"
         >
           Requirements dashboard →

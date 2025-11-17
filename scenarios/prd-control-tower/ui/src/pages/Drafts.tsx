@@ -162,7 +162,7 @@ export default function Drafts() {
       onPublishSuccess={(result) => {
         if (result?.scenario_type && result?.scenario_id) {
           const encoded = encodeURIComponent(result.scenario_id)
-          navigate(`/requirements/${result.scenario_type}/${encoded}?tab=prd`)
+          navigate(`/scenario/${result.scenario_type}/${encoded}?tab=prd`)
           return
         }
         navigate('/catalog')

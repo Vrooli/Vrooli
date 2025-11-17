@@ -342,7 +342,7 @@ export default function RequirementsRegistry() {
                     <div className="text-xs text-muted-foreground">Loading statistics...</div>
                   )}
                   <Button variant="outline" size="sm" className="w-full" asChild>
-                    <Link to={`/requirements/${entry.type}/${encodeURIComponent(entry.name)}`}>
+                    <Link to={`/scenario/${entry.type}/${encodeURIComponent(entry.name)}?tab=requirements`}>
                       <ExternalLink size={14} className="mr-2" />
                       View Requirements
                     </Link>

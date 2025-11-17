@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
-import { ListTree, Target, AlertTriangle, Loader2, FileEdit, FileText, ArrowRight, RefreshCw } from 'lucide-react'
+import { ListTree, Target, AlertTriangle, FileEdit, ArrowRight, RefreshCw, Loader2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
@@ -42,20 +42,12 @@ type QuickAction = {
 }
 
 /**
- * RequirementsDashboard
+ * ScenarioControlCenter
  *
- * Unified dashboard for managing both requirements and operational targets for a scenario/resource.
- * Replaces separate RequirementsExplorer and OperationalTargetsExplorer pages.
- *
- * Features:
- * - Tabbed interface: Overview | Requirements | Targets
- * - Overview tab shows linkage status and validation issues
- * - Requirements tab shows tree view with test linkage
- * - Targets tab shows PRD targets with requirement linkage
- * - Validates that P0/P1 targets are linked to requirements
- * - Shows unmatched requirements (no target coverage)
+ * Unified view for scenario health, PRD content, requirements, and targets.
+ * Acts as the single landing page for understanding any scenario's state.
  */
-export default function RequirementsDashboard() {
+export default function ScenarioControlCenter() {
   const { entityType, entityName } = useParams<{ entityType?: string; entityName?: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const defaultTab = searchParams.get('tab') || 'overview'
@@ -274,8 +266,8 @@ export default function RequirementsDashboard() {
 
   const breadcrumbItems = [
     { label: 'Catalog', to: '/catalog' },
-    { label: `${entityType}/${entityName}`, to: `/prd/${entityType}/${entityName}` },
-    { label: 'Requirements & Targets' },
+    { label: `${entityType}/${entityName}`, to: `/scenario/${entityType}/${entityName}` },
+    { label: 'Scenario Control Center' },
   ]
 
   const handleTabChange = (value: string) => {
@@ -284,13 +276,9 @@ export default function RequirementsDashboard() {
 
   if (loading && totalRequirements === 0 && totalTargets === 0) {
     return (
-      <div className="app-container" data-layout="dual">
+      <div className="app-container space-y-6" data-layout="dual">
         <TopNav />
-        <Card className="border-dashed bg-white/80">
-          <CardContent className="flex items-center gap-3 py-8 text-muted-foreground">
-            <Loader2 size={20} className="animate-spin" /> Loading requirements and targets...
-          </CardContent>
-        </Card>
+        <ControlCenterSkeleton />
       </div>
     )
   }
@@ -337,10 +325,10 @@ export default function RequirementsDashboard() {
               <span className="rounded-2xl bg-gradient-to-br from-purple-100 to-blue-100 p-3 text-purple-600">
                 <ListTree size={28} strokeWidth={2.5} />
               </span>
-              Requirements & Targets
+              Scenario Control Center
             </div>
             <p className="max-w-3xl text-base text-muted-foreground">
-              Comprehensive view of requirements, operational targets, and their linkage for{' '}
+              Comprehensive view of PRD content, requirements, and operational targets for{' '}
               <span className="font-medium text-slate-700">
                 {entityType}/{entityName}
               </span>
@@ -353,12 +341,10 @@ export default function RequirementsDashboard() {
                 Edit Draft
               </Button>
             </Link>
-            <Link to={`/prd/${entityType}/${entityName}`}>
-              <Button variant="ghost" size="sm" className="gap-2 w-full">
-                <FileText size={14} />
-                View PRD
-              </Button>
-            </Link>
+            <Button variant="ghost" size="sm" className="gap-2 w-full" onClick={() => handleTabChange('prd')}>
+              <ArrowRight size={14} />
+              Jump to PRD tab
+            </Button>
           </div>
         </div>
       </header>
@@ -585,6 +571,56 @@ export default function RequirementsDashboard() {
         </TabsContent>
 
       </Tabs>
+    </div>
+  )
+}
+
+function ControlCenterSkeleton() {
+  return (
+    <div className="space-y-6">
+      <header className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-3 flex-1">
+            <div className="h-4 w-32 rounded-full bg-slate-200" />
+            <div className="h-8 w-64 rounded-full bg-slate-200" />
+            <div className="h-4 w-full max-w-xl rounded-full bg-slate-200" />
+          </div>
+          <div className="flex flex-col gap-2 pt-6">
+            <div className="h-9 w-36 rounded-lg bg-slate-200" />
+            <div className="h-9 w-36 rounded-lg bg-slate-100" />
+          </div>
+        </div>
+      </header>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, idx) => (
+          <Card key={idx} className="animate-pulse">
+            <CardContent className="space-y-3 pt-4">
+              <div className="h-3 w-24 rounded-full bg-slate-200" />
+              <div className="h-7 w-20 rounded-lg bg-slate-300" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
+        <div className="space-y-3 animate-pulse">
+          <div className="h-4 w-28 rounded-full bg-slate-200" />
+          <div className="h-5 w-72 rounded-full bg-slate-200" />
+          <div className="h-32 rounded-2xl bg-slate-100" />
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {[...Array(2)].map((_, idx) => (
+          <Card key={`quick-${idx}`} className="animate-pulse">
+            <CardContent className="space-y-3 pt-6">
+              <div className="h-4 w-48 rounded-full bg-slate-200" />
+              <div className="h-4 w-60 rounded-full bg-slate-200" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   )
 }

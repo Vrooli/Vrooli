@@ -24,9 +24,9 @@ export interface CatalogCardProps {
 export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: CatalogCardProps) {
   const encodedName = encodeURIComponent(entry.name)
   const draftKey = `${entry.type}:${entry.name}`
-  const prdPath = `/prd/${entry.type}/${encodedName}`
+  const scenarioPath = `/scenario/${entry.type}/${encodedName}`
   const draftPath = `/draft/${entry.type}/${encodedName}`
-  const primaryPath = entry.has_prd ? prdPath : entry.has_draft ? draftPath : null
+  const primaryPath = entry.has_prd ? scenarioPath : entry.has_draft ? draftPath : null
 
   const status: StatusKey = entry.has_prd ? 'published' : entry.has_draft ? 'draft' : 'missing'
   const statusMeta = statusMap[status]
@@ -76,12 +76,12 @@ export function CatalogCard({ entry, navigate, prepareDraft, preparingId }: Cata
         <div className="flex flex-wrap gap-2" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>
           {entry.has_prd && (
             <Button variant="ghost" size="sm" asChild>
-              <Link to={prdPath}>View PRD</Link>
+              <Link to={`${scenarioPath}?tab=prd`}>View PRD</Link>
             </Button>
           )}
           {entry.has_requirements && (
             <Button variant="ghost" size="sm" asChild>
-              <Link to={`/requirements/${entry.type}/${encodedName}`}>Requirements</Link>
+              <Link to={`${scenarioPath}?tab=requirements`}>Requirements</Link>
             </Button>
           )}
           {entry.has_prd && (

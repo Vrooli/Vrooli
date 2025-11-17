@@ -161,7 +161,7 @@ export function DraftEditorPane({
           </Link>{' '}
           / <span className="capitalize">{draft.entity_type}</span> / <span className="font-medium text-foreground">{draft.entity_name}</span>
         </div>
-        <Link to={`/requirements/${draft.entity_type}/${draft.entity_name}`}>
+        <Link to={`/scenario/${draft.entity_type}/${draft.entity_name}?tab=requirements`}>
           <Button variant="outline" size="sm" className="gap-2">
             <ListTree size={14} />
             View Requirements

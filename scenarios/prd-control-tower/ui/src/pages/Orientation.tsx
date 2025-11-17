@@ -106,7 +106,7 @@ const WORKFLOW_STEPS = [
   {
     title: 'Dispatch ecosystem-manager',
     description:
-      'From Requirements & Targets, create an ecosystem-manager task so an agent keeps iterating until all requirements and targets are green.',
+      'From the Scenario Control Center, create an ecosystem-manager task so an agent keeps iterating until all requirements and targets are green.',
   },
 ]
 

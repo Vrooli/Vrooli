@@ -180,8 +180,8 @@ export function QualityInsightsPanel({ report, loading, error, onRefresh }: Qual
 
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               {report.entity_type && report.entity_name && (
-                <Link to={`/requirements/${report.entity_type}/${report.entity_name}`} className="text-primary hover:underline">
-                  Resolve in Requirements Dashboard →
+                <Link to={`/scenario/${report.entity_type}/${report.entity_name}?tab=requirements`} className="text-primary hover:underline">
+                  Resolve in Scenario Control Center →
                 </Link>
               )}
               <Link to="/quality-scanner" className="text-primary hover:underline">

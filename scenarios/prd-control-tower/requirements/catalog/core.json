@@ -48,10 +48,10 @@
         },
         {
           "type": "manual",
-          "ref": "ui/src/pages/PRDViewer.tsx",
+          "ref": "ui/src/pages/ScenarioControlCenter.tsx",
           "phase": "integration",
           "status": "implemented",
-          "notes": "PRD viewer page displays markdown with ReactMarkdown"
+          "notes": "Scenario Control Center PRD tab displays markdown with ReactMarkdown"
         }
       ]
     },

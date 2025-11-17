@@ -136,10 +136,10 @@ export default function RequirementsExplorer() {
       </div>
 
       <div className="flex flex-wrap gap-4 text-sm">
-        <Link to={`/prd/${entityType}/${entityName}`} className="text-primary hover:underline">
+        <Link to={`/scenario/${entityType}/${entityName}?tab=prd`} className="text-primary hover:underline">
           ← View PRD
         </Link>
-        <Link to={`/targets/${entityType}/${entityName}`} className="text-primary hover:underline">
+        <Link to={`/scenario/${entityType}/${entityName}?tab=targets`} className="text-primary hover:underline">
           → View Operational Targets
         </Link>
         <Link to="/catalog" className="text-primary hover:underline">

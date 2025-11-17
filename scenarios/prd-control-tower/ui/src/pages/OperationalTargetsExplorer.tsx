@@ -75,7 +75,7 @@ export default function OperationalTargetsExplorer() {
 
   const breadcrumbItems = [
     { label: 'Catalog', to: '/catalog' },
-    { label: `${entityType}/${entityName}`, to: `/prd/${entityType}/${entityName}` },
+    { label: `${entityType}/${entityName}`, to: `/scenario/${entityType}/${entityName}` },
     { label: 'Operational Targets' },
   ]
 
@@ -217,10 +217,10 @@ export default function OperationalTargetsExplorer() {
       </div>
 
       <div className="flex flex-wrap gap-4 text-sm">
-        <Link to={`/prd/${entityType}/${entityName}`} className="text-primary hover:underline">
+        <Link to={`/scenario/${entityType}/${entityName}?tab=prd`} className="text-primary hover:underline">
           ← View PRD
         </Link>
-        <Link to={`/requirements/${entityType}/${entityName}`} className="text-primary hover:underline">
+        <Link to={`/scenario/${entityType}/${entityName}?tab=requirements`} className="text-primary hover:underline">
           → View Requirements
         </Link>
         <Link to="/catalog" className="text-primary hover:underline">
