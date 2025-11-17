@@ -1,5 +1,7 @@
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
-import { ListTree, Target, AlertTriangle, Loader2, FileEdit, FileText } from 'lucide-react'
+import { ListTree, Target, AlertTriangle, Loader2, FileEdit, FileText, ArrowRight, RefreshCw } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Card, CardContent } from '../components/ui/card'
@@ -16,6 +18,28 @@ import { Input } from '../components/ui/input'
 import { Badge } from '../components/ui/badge'
 import { usePublishedPRD } from '../hooks/usePublishedPRD'
 import { EcosystemTaskPanel } from '../components/ecosystem/EcosystemTaskPanel'
+import { DiagnosticsPanel, QualityInsightsPanel } from '../components/prd-viewer'
+import { fetchQualityReport } from '../utils/quality'
+import type { ScenarioQualityReport } from '../types'
+import { buildApiUrl } from '../utils/apiClient'
+
+interface DiagnosticsState {
+  entityType: string
+  entityName: string
+  validatedAt?: string
+  cacheUsed?: boolean
+  violations: unknown
+}
+
+type QuickAction = {
+  key: string
+  title: string
+  description: string
+  icon: LucideIcon
+  onClick?: () => void
+  to?: string
+  cta?: string
+}
 
 /**
  * RequirementsDashboard
@@ -67,8 +91,81 @@ export default function RequirementsDashboard() {
     refresh: refreshTargets,
   } = useOperationalTargets({ entityType, entityName })
 
+  const [qualityReport, setQualityReport] = useState<ScenarioQualityReport | null>(null)
+  const [qualityLoading, setQualityLoading] = useState(false)
+  const [qualityError, setQualityError] = useState<string | null>(null)
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsState | null>(null)
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false)
+  const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null)
+
+  const loadQualityReport = useCallback(
+    async (force = false) => {
+      if (!entityType || !entityName) {
+        setQualityReport(null)
+        return
+      }
+
+      setQualityLoading(true)
+      if (force) {
+        setQualityError(null)
+      }
+
+      try {
+        const data = await fetchQualityReport(entityType, entityName, { useCache: !force })
+        setQualityReport(data)
+      } catch (err) {
+        setQualityError(err instanceof Error ? err.message : 'Failed to load quality insights')
+        setQualityReport(null)
+      } finally {
+        setQualityLoading(false)
+      }
+    },
+    [entityType, entityName],
+  )
+
+  const handleRunDiagnostics = useCallback(async () => {
+    if (!entityType || !entityName) {
+      return
+    }
+
+    setDiagnosticsLoading(true)
+    setDiagnosticsError(null)
+
+    try {
+      const response = await fetch(buildApiUrl('/drafts/validate'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity_type: entityType, entity_name: entityName }),
+      })
+
+      if (!response.ok) {
+        const body = await response.text()
+        throw new Error(body || `Failed to run diagnostics: ${response.statusText}`)
+      }
+
+      const data: Record<string, unknown> = await response.json()
+      setDiagnostics({
+        entityType: typeof data.entity_type === 'string' ? (data.entity_type as string) : entityType,
+        entityName: typeof data.entity_name === 'string' ? (data.entity_name as string) : entityName,
+        validatedAt: typeof data.validated_at === 'string' ? (data.validated_at as string) : undefined,
+        cacheUsed: data.cache_used === true,
+        violations: data.violations,
+      })
+    } catch (err) {
+      setDiagnosticsError(err instanceof Error ? err.message : 'Unknown error running diagnostics.')
+    } finally {
+      setDiagnosticsLoading(false)
+    }
+  }, [entityType, entityName])
+
+  useEffect(() => {
+    loadQualityReport(true)
+  }, [loadQualityReport])
+
   const loading = requirementsLoading || targetsLoading
   const error = requirementsError || targetsError
+
+  const entityLabel = entityType && entityName ? `${entityType}/${entityName}` : 'scenario'
 
   const {
     data: prdData,
@@ -100,6 +197,80 @@ export default function RequirementsDashboard() {
   const p1Targets = targets.filter((t) => t.criticality === 'P1')
   const unlinkedP0Targets = p0Targets.filter((t) => !t.linked_requirement_ids || t.linked_requirement_ids.length === 0)
   const unlinkedP1Targets = p1Targets.filter((t) => !t.linked_requirement_ids || t.linked_requirement_ids.length === 0)
+
+  const refreshAllData = () => {
+    refreshRequirements()
+    refreshTargets()
+    loadQualityReport(true)
+  }
+
+  const quickActions: QuickAction[] = [
+    {
+      key: 'requirements',
+      title: 'Requirements tree',
+      description: 'Trace hierarchy & coverage',
+      icon: ListTree,
+      onClick: () => handleTabChange('requirements'),
+      cta: 'Open requirements view',
+    },
+    {
+      key: 'targets',
+      title: 'Operational targets',
+      description: 'Link to requirements',
+      icon: Target,
+      onClick: () => handleTabChange('targets'),
+      cta: 'Jump to targets tab',
+    },
+  ]
+
+  if (entityType && entityName) {
+    quickActions.push({
+      key: 'edit-draft',
+      title: 'Edit PRD draft',
+      description: 'Polish the source document',
+      icon: FileEdit,
+      to: `/draft/${entityType}/${entityName}`,
+      cta: 'Open draft workspace',
+    })
+  }
+
+  const quickActionClasses =
+    'group block h-full rounded-2xl border border-slate-200 bg-white/90 p-4 text-left shadow-soft-sm transition hover:-translate-y-0.5 hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200'
+
+  const renderQuickAction = (action: QuickAction) => {
+    const Icon = action.icon
+    const body = (
+      <>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{action.description}</p>
+            <p className="text-lg font-semibold text-slate-900">{action.title}</p>
+          </div>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+            <Icon size={18} />
+          </span>
+        </div>
+        <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
+          <ArrowRight size={14} />
+          <span>{action.cta || (action.to ? 'Open view' : 'Run action')}</span>
+        </div>
+      </>
+    )
+
+    if (action.to) {
+      return (
+        <Link key={action.key} to={action.to} className={quickActionClasses}>
+          {body}
+        </Link>
+      )
+    }
+
+    return (
+      <button key={action.key} type="button" onClick={action.onClick} className={quickActionClasses}>
+        {body}
+      </button>
+    )
+  }
 
   const breadcrumbItems = [
     { label: 'Catalog', to: '/catalog' },
@@ -196,6 +367,7 @@ export default function RequirementsDashboard() {
       <Tabs value={defaultTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="grid w-full max-w-3xl grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="prd">PRD</TabsTrigger>
           <TabsTrigger value="requirements">
             Requirements
             {totalRequirements > 0 && <Badge className="ml-2">{totalRequirements}</Badge>}
@@ -204,12 +376,10 @@ export default function RequirementsDashboard() {
             Targets
             {totalTargets > 0 && <Badge className="ml-2">{totalTargets}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="prd">PRD</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
-          {/* Metrics Grid */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardContent className="pt-4">
@@ -248,69 +418,25 @@ export default function RequirementsDashboard() {
             </Card>
           </div>
 
-          {/* Validation Issues */}
-          {(unlinkedP0Targets.length > 0 || unlinkedP1Targets.length > 0 || unmatchedRequirements.length > 0) && (
-            <Card className="border-amber-200 bg-amber-50">
-              <CardContent className="space-y-4 pt-6">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="text-amber-600" size={20} />
-                  <h3 className="font-semibold text-amber-900">Validation Issues</h3>
-                </div>
+          {entityType && entityName && (
+            <QualityInsightsPanel
+              report={qualityReport}
+              loading={qualityLoading}
+              error={qualityError}
+              onRefresh={() => loadQualityReport(true)}
+            />
+          )}
 
-                {unlinkedP0Targets.length > 0 && (
-                  <div className="rounded-lg bg-white p-4">
-                    <p className="mb-2 text-sm font-medium text-amber-900">
-                      {unlinkedP0Targets.length} P0 target(s) not linked to requirements
-                    </p>
-                    <ul className="space-y-1 text-sm text-amber-800">
-                      {unlinkedP0Targets.slice(0, 5).map((target) => (
-                        <li key={target.id}>
-                          • {target.title}
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="ml-2 h-auto p-0 text-xs text-blue-600"
-                            onClick={() => handleTabChange('targets')}
-                          >
-                            Link now →
-                          </Button>
-                        </li>
-                      ))}
-                      {unlinkedP0Targets.length > 5 && (
-                        <li className="text-xs text-muted-foreground">... and {unlinkedP0Targets.length - 5} more</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-
-                {unlinkedP1Targets.length > 0 && (
-                  <div className="rounded-lg bg-white p-4">
-                    <p className="mb-2 text-sm font-medium text-amber-900">
-                      {unlinkedP1Targets.length} P1 target(s) not linked to requirements
-                    </p>
-                    <ul className="space-y-1 text-sm text-amber-800">
-                      {unlinkedP1Targets.slice(0, 3).map((target) => (
-                        <li key={target.id}>• {target.title}</li>
-                      ))}
-                      {unlinkedP1Targets.length > 3 && (
-                        <li className="text-xs text-muted-foreground">... and {unlinkedP1Targets.length - 3} more</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-
-                {unmatchedRequirements.length > 0 && (
-                  <div className="rounded-lg bg-white p-4">
-                    <p className="mb-2 text-sm font-medium text-amber-900">
-                      {unmatchedRequirements.length} requirement(s) without target coverage
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      These requirements exist but aren't linked to any operational targets in the PRD.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {entityType && entityName && (
+            <div className="rounded-3xl border bg-white/90 p-6 shadow-soft-lg">
+              <DiagnosticsPanel
+                diagnostics={diagnostics}
+                loading={diagnosticsLoading}
+                error={diagnosticsError}
+                onRunDiagnostics={handleRunDiagnostics}
+                entityLabel={entityLabel}
+              />
+            </div>
           )}
 
           <EcosystemTaskPanel
@@ -320,35 +446,42 @@ export default function RequirementsDashboard() {
             coverageIssues={unmatchedRequirements.length}
           />
 
-          {/* Quick Actions */}
           <Card>
             <CardContent className="space-y-4 pt-6">
-              <h3 className="font-semibold text-slate-900">Quick Actions</h3>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Button variant="outline" className="justify-start" onClick={() => handleTabChange('requirements')}>
-                  <ListTree className="mr-2" size={16} />
-                  View Requirements Tree
-                </Button>
-                <Button variant="outline" className="justify-start" onClick={() => handleTabChange('targets')}>
-                  <Target className="mr-2" size={16} />
-                  Manage Operational Targets
-                </Button>
-                <Link to={`/draft/${entityType}/${entityName}`} className="contents">
-                  <Button variant="outline" className="justify-start">
-                    Edit PRD Draft
-                  </Button>
-                </Link>
-                <Button
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => {
-                    refreshRequirements()
-                    refreshTargets()
-                  }}
-                >
-                  Refresh Data
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900">Quick actions</h3>
+                <Button variant="ghost" size="sm" className="gap-2" onClick={refreshAllData}>
+                  <RefreshCw size={14} className="text-slate-500" /> Refresh all
                 </Button>
               </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {quickActions.map((action) => renderQuickAction(action))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* PRD Tab */}
+        <TabsContent value="prd" className="space-y-6">
+          <Card className="overflow-hidden border bg-white/90 shadow-soft-lg">
+            <CardContent className="p-0">
+              {prdLoading ? (
+                <div className="flex items-center gap-3 px-6 py-6 text-muted-foreground">
+                  <Loader2 size={18} className="animate-spin" /> Loading PRD...
+                </div>
+              ) : prdError ? (
+                <div className="rounded-none border-0 px-6 py-6 text-sm text-red-700">
+                  {prdError}
+                </div>
+              ) : hasPRDContent ? (
+                <div className="prd-content px-6 py-6">
+                  <ReactMarkdown>{prdData?.content ?? ''}</ReactMarkdown>
+                </div>
+              ) : (
+                <div className="px-6 py-6 text-sm text-muted-foreground">
+                  No published PRD yet. Publish a draft to see it here.
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -451,30 +584,6 @@ export default function RequirementsDashboard() {
           </Card>
         </TabsContent>
 
-        {/* PRD Tab */}
-        <TabsContent value="prd" className="space-y-6">
-          <Card>
-            <CardContent className="space-y-4 pt-6">
-              {prdLoading ? (
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <Loader2 size={18} className="animate-spin" /> Loading PRD...
-                </div>
-              ) : prdError ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                  {prdError}
-                </div>
-              ) : hasPRDContent ? (
-                <div className="prose prose-sm max-w-none text-slate-800">
-                  <ReactMarkdown>{prdData?.content ?? ''}</ReactMarkdown>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-sm text-muted-foreground">
-                  No published PRD yet. Publish a draft to see it here.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   )

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -83,6 +84,23 @@ type ecosystemTaskCreatePayload struct {
 
 var ecosystemHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
+func resolveEcosystemManagerBaseURL(ctx context.Context) (string, error) {
+	value := strings.TrimSpace(os.Getenv("ECOSYSTEM_MANAGER_URL"))
+	if value != "" {
+		return strings.TrimRight(value, "/"), nil
+	}
+
+	port, err := resolveScenarioPortViaCLI(ctx, "ecosystem-manager", "API_PORT")
+	if err != nil {
+		return "", fmt.Errorf("ecosystem-manager is not running (start the scenario or set ECOSYSTEM_MANAGER_URL)")
+	}
+	if port <= 0 {
+		return "", fmt.Errorf("ecosystem-manager port could not be resolved")
+	}
+
+	return fmt.Sprintf("http://127.0.0.1:%d", port), nil
+}
+
 func handleGetEcosystemTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	entityType := strings.ToLower(vars["type"])
@@ -92,20 +110,18 @@ func handleGetEcosystemTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	baseURL := strings.TrimSpace(os.Getenv("ECOSYSTEM_MANAGER_URL"))
+	baseURL, resolveErr := resolveEcosystemManagerBaseURL(r.Context())
 	status := EcosystemTaskStatusResponse{
-		Configured: baseURL != "",
+		Configured: resolveErr == nil,
 		Supported:  strings.ToLower(entityType) == EntityTypeScenario,
 	}
 
-	if baseURL != "" {
-		status.ManageURL = strings.TrimRight(baseURL, "/")
-	}
-
-	if !status.Configured {
+	if resolveErr != nil {
+		status.Error = resolveErr.Error()
 		respondJSON(w, http.StatusOK, status)
 		return
 	}
+	status.ManageURL = strings.TrimRight(baseURL, "/")
 	if !status.Supported {
 		status.Error = "ecosystem tasks are only supported for scenarios at this time"
 		respondJSON(w, http.StatusOK, status)
@@ -131,9 +147,9 @@ func handleCreateEcosystemTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	baseURL := strings.TrimSpace(os.Getenv("ECOSYSTEM_MANAGER_URL"))
-	if baseURL == "" {
-		respondJSON(w, http.StatusPreconditionFailed, map[string]string{"error": "ECOSYSTEM_MANAGER_URL is not configured"})
+	baseURL, resolveErr := resolveEcosystemManagerBaseURL(r.Context())
+	if resolveErr != nil {
+		respondJSON(w, http.StatusPreconditionFailed, map[string]string{"error": resolveErr.Error()})
 		return
 	}
 	if entityType != EntityTypeScenario {

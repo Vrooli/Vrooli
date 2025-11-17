@@ -8,7 +8,7 @@ import { Badge } from '../ui/badge'
 import { DiffViewer } from './DiffViewer'
 import { buildApiUrl } from '../../utils/apiClient'
 import { useScenarioTemplates } from '../../hooks/useScenarioTemplates'
-import type { Draft, PublishResponse, ScenarioTemplate } from '../../types'
+import type { Draft, PublishResponse, ScenarioExistenceResponse, ScenarioTemplate } from '../../types'
 
 interface PublishPreviewDialogProps {
   draft: Draft
@@ -67,6 +67,10 @@ export function PublishPreviewDialog({
   const [progressState, setProgressState] = useState<ProgressState>(INITIAL_PROGRESS)
   const [templateValues, setTemplateValues] = useState<Record<string, string>>({})
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
+  const [scenarioCheckLoading, setScenarioCheckLoading] = useState(false)
+  const [scenarioCheckError, setScenarioCheckError] = useState<string | null>(null)
+  const [existingScenarioInfo, setExistingScenarioInfo] = useState<ScenarioExistenceResponse | null>(null)
+  const [confirmScenarioInput, setConfirmScenarioInput] = useState('')
 
   const isNewPRD = publishedContent === ''
   const { templates, loading: templatesLoading, error: templatesError } = useScenarioTemplates({ enabled: open && isNewPRD })
@@ -91,6 +95,10 @@ export function PublishPreviewDialog({
     setSelectedTemplate('')
     setPublishError(null)
     setProgressState(INITIAL_PROGRESS)
+    setExistingScenarioInfo(null)
+    setScenarioCheckError(null)
+    setScenarioCheckLoading(false)
+    setConfirmScenarioInput('')
   }, [open, draft.entity_name])
 
   useEffect(() => {
@@ -139,6 +147,60 @@ export function PublishPreviewDialog({
     setTemplateValues((prev) => ({ ...prev, [key]: value }))
   }
 
+  useEffect(() => {
+    if (!open || !isNewPRD) {
+      return
+    }
+
+    const scenarioId = (templateValues.SCENARIO_ID || '').trim()
+    setConfirmScenarioInput('')
+
+    if (!scenarioId) {
+      setExistingScenarioInfo(null)
+      setScenarioCheckError(null)
+      setScenarioCheckLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    let active = true
+    setScenarioCheckLoading(true)
+    setScenarioCheckError(null)
+
+    const fetchExistence = async () => {
+      try {
+        const response = await fetch(buildApiUrl(`/scenarios/${encodeURIComponent(scenarioId)}/exists`), {
+          signal: controller.signal,
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to check scenario (${response.status})`)
+        }
+        const data: ScenarioExistenceResponse = await response.json()
+        if (!active) {
+          return
+        }
+        setExistingScenarioInfo(data.exists ? data : null)
+      } catch (err) {
+        if (!active || controller.signal.aborted) {
+          return
+        }
+        setExistingScenarioInfo(null)
+        setScenarioCheckError(err instanceof Error ? err.message : 'Unable to verify scenario ID')
+      } finally {
+        if (active) {
+          setScenarioCheckLoading(false)
+        }
+      }
+    }
+
+    fetchExistence()
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [open, isNewPRD, templateValues.SCENARIO_ID])
+
   const requiredFieldsComplete = useMemo(() => {
     if (!activeTemplate) {
       return false
@@ -146,7 +208,17 @@ export function PublishPreviewDialog({
     return activeTemplate.required_vars.every((field) => (templateValues[field.name] || '').trim().length > 0)
   }, [activeTemplate, templateValues])
 
-  const canPublish = !publishing && !loadingPublished && !loadError && (!isNewPRD || (activeTemplate && requiredFieldsComplete))
+  const scenarioIdValue = (templateValues.SCENARIO_ID || '').trim()
+  const scenarioConflict = isNewPRD && Boolean(existingScenarioInfo?.exists)
+  const overwriteConfirmed = !scenarioConflict || confirmScenarioInput.trim() === scenarioIdValue
+
+  const canPublish =
+    !publishing &&
+    !loadingPublished &&
+    !loadError &&
+    (!isNewPRD || (activeTemplate && requiredFieldsComplete)) &&
+    (!scenarioConflict || overwriteConfirmed) &&
+    !scenarioCheckLoading
 
   const handlePublish = async () => {
     setPublishing(true)
@@ -161,12 +233,14 @@ export function PublishPreviewDialog({
       const payload: Record<string, unknown> = {
         create_backup: true,
       }
+      const shouldForceTemplate = scenarioConflict && overwriteConfirmed
 
       if (isNewPRD && activeTemplate) {
         payload.delete_draft = true
         payload.template = {
           name: activeTemplate.name,
           variables: templateValues,
+          force: shouldForceTemplate,
         }
       }
 
@@ -205,6 +279,33 @@ export function PublishPreviewDialog({
   }
 
   const hasChanges = publishedContent !== null && publishedContent !== draft.content
+
+  const renderScenarioIdStatus = () => {
+    if (!isNewPRD) {
+      return null
+    }
+    if (!scenarioIdValue) {
+      return <p className="text-xs text-muted-foreground">Enter a scenario ID to check availability.</p>
+    }
+    if (scenarioCheckLoading) {
+      return (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking existing scenarios...
+        </p>
+      )
+    }
+    if (scenarioCheckError) {
+      return <p className="text-xs text-amber-700">{scenarioCheckError}</p>
+    }
+    if (scenarioConflict && existingScenarioInfo?.path) {
+      return (
+        <p className="text-xs font-medium text-red-700">
+          Scenario folder already exists at <code>{existingScenarioInfo.path}</code>
+        </p>
+      )
+    }
+    return <p className="text-xs text-emerald-700">Scenario ID available.</p>
+  }
 
   const renderTemplateConfigurator = () => {
     if (!isNewPRD) {
@@ -271,6 +372,7 @@ export function PublishPreviewDialog({
                     onChange={(event) => updateTemplateValue(field.name, event.target.value)}
                     placeholder={field.default || ''}
                   />
+                  {field.name === 'SCENARIO_ID' && renderScenarioIdStatus()}
                   {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
                 </div>
               ))}
@@ -286,6 +388,7 @@ export function PublishPreviewDialog({
                           onChange={(event) => updateTemplateValue(field.name, event.target.value)}
                           placeholder={field.default || ''}
                         />
+                        {field.name === 'SCENARIO_ID' && renderScenarioIdStatus()}
                         {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
                       </div>
                     ))}
@@ -293,6 +396,33 @@ export function PublishPreviewDialog({
                 </details>
               )}
             </div>
+            {scenarioConflict && (
+              <div className="space-y-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+                <div className="flex items-start gap-2 text-sm text-red-800">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 text-red-600" />
+                  <div>
+                    <p className="font-semibold">Existing scenario will be overwritten</p>
+                    <p>
+                      Generating <code>{scenarioIdValue}</code> will replace files in{' '}
+                      <code>{existingScenarioInfo?.path}</code>. Existing data may be lost.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-red-800">
+                    Type <code>{scenarioIdValue}</code> to confirm overwrite
+                  </Label>
+                  <Input
+                    value={confirmScenarioInput}
+                    onChange={(event) => setConfirmScenarioInput(event.target.value)}
+                    placeholder={scenarioIdValue}
+                  />
+                  {confirmScenarioInput && !overwriteConfirmed && (
+                    <p className="text-xs text-red-700">Value must match exactly to proceed.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

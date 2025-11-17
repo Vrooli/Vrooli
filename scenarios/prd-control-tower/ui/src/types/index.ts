@@ -111,6 +111,12 @@ export interface ScenarioTemplateListResponse {
   templates: ScenarioTemplate[]
 }
 
+export interface ScenarioExistenceResponse {
+  exists: boolean
+  path?: string
+  last_modified?: string
+}
+
 export interface ValidationRequest {
   use_cache?: boolean
 }

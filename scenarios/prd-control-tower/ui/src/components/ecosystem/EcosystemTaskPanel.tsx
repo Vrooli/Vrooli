@@ -1,4 +1,4 @@
-import { Bot, CheckCircle2, ExternalLink, RefreshCw, TriangleAlert } from 'lucide-react'
+import { Bot, CheckCircle2, ExternalLink, Loader2, RefreshCw, TriangleAlert } from 'lucide-react'
 
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -27,10 +27,21 @@ export function EcosystemTaskPanel({ entityType, entityName, criticalIssues, cov
       return <p className="text-sm text-muted-foreground">Select a specific scenario to view automation status.</p>
     }
 
+    if (loading && !status) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Checking ecosystem-manager status...
+        </div>
+      )
+    }
+
     if (!status?.configured) {
       return (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-muted-foreground">
-          Set <strong>ECOSYSTEM_MANAGER_URL</strong> in the scenario environment to enable dispatching tasks.
+        <div className="flex items-center justify-between rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <span>{status?.error || 'Start the ecosystem-manager scenario to enable dispatching tasks.'}</span>
+          <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </Button>
         </div>
       )
     }
@@ -48,9 +59,22 @@ export function EcosystemTaskPanel({ entityType, entityName, criticalIssues, cov
       )
     }
 
+    const warningBanner = status?.error ? (
+      <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+        <div className="flex items-center gap-2">
+          <TriangleAlert size={14} />
+          <span>{status.error}</span>
+        </div>
+        <Button variant="ghost" size="sm" onClick={refresh} disabled={loading}>
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        </Button>
+      </div>
+    ) : null
+
     if (status?.task) {
       return (
         <div className="space-y-3">
+          {warningBanner}
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600">Active agent</p>
@@ -84,6 +108,7 @@ export function EcosystemTaskPanel({ entityType, entityName, criticalIssues, cov
 
     return (
       <div className="space-y-3">
+        {warningBanner}
         <p className="text-sm text-muted-foreground">No agent is currently working this scenario.</p>
         {disableCreate && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">

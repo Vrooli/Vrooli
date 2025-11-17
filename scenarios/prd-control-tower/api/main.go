@@ -120,6 +120,7 @@ func main() {
 	apiV1.HandleFunc("/drafts/{id}/publish", handlePublishDraft).Methods("POST")
 	apiV1.HandleFunc("/scenario-templates", handleListScenarioTemplates).Methods("GET")
 	apiV1.HandleFunc("/scenario-templates/{name}", handleGetScenarioTemplate).Methods("GET")
+	apiV1.HandleFunc("/scenarios/{name}/exists", handleScenarioExistence).Methods("GET")
 
 	// Quality insights endpoints
 	apiV1.HandleFunc("/quality/{type}/{name}", handleGetQualityReport).Methods("GET")
