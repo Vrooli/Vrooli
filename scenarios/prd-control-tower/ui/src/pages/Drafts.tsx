@@ -131,8 +131,8 @@ export default function Drafts() {
       </CardContent>
     </Card>
   ) : shouldShowDraftEditor && selectedDraft ? (
-    <DraftEditorPane
-      draft={selectedDraft}
+      <DraftEditorPane
+        draft={selectedDraft}
       editorContent={editorContent}
       viewMode={viewMode}
       hasUnsavedChanges={hasUnsavedChanges}
@@ -159,8 +159,12 @@ export default function Drafts() {
       onViewModeChange={setViewMode}
       onOpenMeta={openMetaDialog}
       onCloseMeta={closeMetaDialog}
-      onPublishSuccess={() => {
-        // Navigate to catalog after successful publish
+      onPublishSuccess={(result) => {
+        if (result?.scenario_type && result?.scenario_id) {
+          const encoded = encodeURIComponent(result.scenario_id)
+          navigate(`/requirements/${result.scenario_type}/${encoded}?tab=prd`)
+          return
+        }
         navigate('/catalog')
       }}
     />

@@ -4,9 +4,10 @@ import { ArrowLeft, AlertTriangle, ListTree } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { buildApiUrl } from '../utils/apiClient'
 import { usePrepareDraft } from '../utils/useDraft'
-import type { PublishedPRDResponse, ScenarioQualityReport } from '../types'
+import type { ScenarioQualityReport } from '../types'
 import { DiagnosticsPanel, QualityInsightsPanel } from '../components/prd-viewer'
 import { fetchQualityReport } from '../utils/quality'
+import { usePublishedPRD } from '../hooks/usePublishedPRD'
 
 interface DiagnosticsState {
   entityType: string
@@ -18,9 +19,6 @@ interface DiagnosticsState {
 
 export default function PRDViewer() {
   const { type, name } = useParams<{ type: string; name: string }>()
-  const [prd, setPrd] = useState<PublishedPRDResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [diagnostics, setDiagnostics] = useState<DiagnosticsState | null>(null)
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false)
   const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null)
@@ -29,6 +27,7 @@ export default function PRDViewer() {
   const [qualityError, setQualityError] = useState<string | null>(null)
 
   const { prepareDraft, preparing: preparingDraft } = usePrepareDraft()
+  const { data: prd, loading, error } = usePublishedPRD(type, name)
 
   const hasRenderableContent = useMemo(() => {
     if (!prd?.content) {
@@ -36,30 +35,6 @@ export default function PRDViewer() {
     }
     return prd.content.trim().length > 0
   }, [prd])
-
-  const fetchPRD = useCallback(async () => {
-    if (!type || !name) return
-
-    try {
-      const response = await fetch(buildApiUrl(`/catalog/${type}/${name}`))
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error(`PRD not found for ${type}/${name}`)
-        }
-        throw new Error(`Failed to fetch PRD: ${response.statusText}`)
-      }
-      const data: PublishedPRDResponse = await response.json()
-      setPrd(data)
-      setLoading(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-      setLoading(false)
-    }
-  }, [type, name])
-
-  useEffect(() => {
-    fetchPRD()
-  }, [fetchPRD])
 
   const loadQualityReport = useCallback(async (force = false) => {
     if (!type || !name) {
@@ -140,16 +115,16 @@ export default function PRDViewer() {
 
   if (error) {
     return (
-      <div className="container">
-        <Link to="/catalog" className="back-link">
-          <ArrowLeft size={20} />
-          Back to Catalog
-        </Link>
-        <div className="error">
-          <AlertTriangle size={24} />
-          <p>Error loading PRD: {error}</p>
+        <div className="container">
+          <Link to="/catalog" className="back-link">
+            <ArrowLeft size={20} />
+            Back to Catalog
+          </Link>
+          <div className="error">
+            <AlertTriangle size={24} />
+            <p>Error loading PRD: {error}</p>
+          </div>
         </div>
-      </div>
     )
   }
 

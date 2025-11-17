@@ -37,6 +37,45 @@ PY
     printf '%s\n' "$target"
 }
 
+# Check whether the running API exposes /workflows/validate so we can safely lint via HTTP.
+testing::integration::ensure_validate_endpoint() {
+    local api_base="$1"
+    if [ -z "$api_base" ]; then
+        return 2
+    fi
+
+    local probe_payload
+    probe_payload='{"workflow":{"metadata":{"description":"lint probe"},"nodes":[{"id":"probe-navigate","type":"navigate","position":{"x":0,"y":0},"data":{"destinationType":"url","url":"https://example.com"}},{"id":"probe-wait","type":"wait","position":{"x":120,"y":0},"data":{"waitType":"duration","durationMs":10}}],"edges":[{"id":"probe-edge","source":"probe-navigate","target":"probe-wait"}]},"strict":false}'
+
+    local probe_file
+    probe_file=$(mktemp)
+    local status
+    local curl_rc=0
+    status=$(curl -s -o "$probe_file" -w "%{http_code}" -X POST "$api_base/workflows/validate" \
+        -H 'Content-Type: application/json' -d "$probe_payload") || curl_rc=$?
+
+    rm -f "$probe_file"
+
+    if [ "$curl_rc" -ne 0 ]; then
+        echo "❌ Failed to contact ${api_base}/workflows/validate (curl exit $curl_rc)"
+        return 2
+    fi
+
+    case "$status" in
+        200|400|422)
+            return 0
+            ;;
+        404)
+            echo "⚠️  ${api_base}/workflows/validate not available (404)"
+            return 1
+            ;;
+        *)
+            echo "❌ Unexpected status ${status} probing ${api_base}/workflows/validate"
+            return 2
+            ;;
+    esac
+}
+
 # Run workflow linting against the BAS API before executing playbooks
 testing::integration::lint_workflows_via_api() {
     if [[ "${WORKFLOW_LINT_API:-1}" =~ ^(0|false|no)$ ]]; then
@@ -86,6 +125,16 @@ testing::integration::lint_workflows_via_api() {
     local lint_failed=0
     local selector_root
     selector_root=$(testing::integration::detect_selector_root "$scenario_dir")
+
+    local probe_rc=0
+    testing::integration::ensure_validate_endpoint "$api_base" || probe_rc=$?
+    if [ "$probe_rc" -eq 1 ]; then
+        echo "⚠️  Scenario API does not expose /workflows/validate; skipping API lint"
+        return 0
+    fi
+    if [ "$probe_rc" -ne 0 ]; then
+        return $probe_rc
+    fi
 
     for file_path in "${lint_files[@]}"; do
         local rel_path

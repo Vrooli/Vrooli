@@ -1,5 +1,6 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { ListTree, Target, AlertTriangle, Loader2, FileEdit, FileText } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Card, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button'
@@ -13,6 +14,8 @@ import { TargetsList } from '../components/targets/TargetsList'
 import { TargetDetailPanel } from '../components/targets/TargetDetailPanel'
 import { Input } from '../components/ui/input'
 import { Badge } from '../components/ui/badge'
+import { usePublishedPRD } from '../hooks/usePublishedPRD'
+import { EcosystemTaskPanel } from '../components/ecosystem/EcosystemTaskPanel'
 
 /**
  * RequirementsDashboard
@@ -66,6 +69,13 @@ export default function RequirementsDashboard() {
 
   const loading = requirementsLoading || targetsLoading
   const error = requirementsError || targetsError
+
+  const {
+    data: prdData,
+    loading: prdLoading,
+    error: prdError,
+  } = usePublishedPRD(entityType, entityName, { treatNotFoundAsEmpty: true })
+  const hasPRDContent = Boolean(prdData?.content && prdData.content.trim().length > 0)
 
   // Calculate metrics
   const totalRequirements = requirementGroups.reduce((sum, group) => {
@@ -184,7 +194,7 @@ export default function RequirementsDashboard() {
 
       {/* Tabs */}
       <Tabs value={defaultTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+        <TabsList className="grid w-full max-w-3xl grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="requirements">
             Requirements
@@ -194,6 +204,7 @@ export default function RequirementsDashboard() {
             Targets
             {totalTargets > 0 && <Badge className="ml-2">{totalTargets}</Badge>}
           </TabsTrigger>
+          <TabsTrigger value="prd">PRD</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -301,6 +312,13 @@ export default function RequirementsDashboard() {
               </CardContent>
             </Card>
           )}
+
+          <EcosystemTaskPanel
+            entityType={entityType}
+            entityName={entityName}
+            criticalIssues={unlinkedP0Targets.length}
+            coverageIssues={unmatchedRequirements.length}
+          />
 
           {/* Quick Actions */}
           <Card>
@@ -429,6 +447,31 @@ export default function RequirementsDashboard() {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* PRD Tab */}
+        <TabsContent value="prd" className="space-y-6">
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              {prdLoading ? (
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Loader2 size={18} className="animate-spin" /> Loading PRD...
+                </div>
+              ) : prdError ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {prdError}
+                </div>
+              ) : hasPRDContent ? (
+                <div className="prose prose-sm max-w-none text-slate-800">
+                  <ReactMarkdown>{prdData?.content ?? ''}</ReactMarkdown>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-sm text-muted-foreground">
+                  No published PRD yet. Publish a draft to see it here.
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -9,6 +9,7 @@ import type {
   OperationalTargetsResponse,
   RequirementGroup,
   DraftValidationResult,
+  PublishResponse,
 } from '../../types'
 import { ViewModes } from '../../types'
 import type { DraftMetrics } from '../../utils/formatters'
@@ -62,7 +63,7 @@ interface DraftEditorPaneProps {
   onViewModeChange: (mode: ViewMode) => void
   onOpenMeta: () => void
   onCloseMeta: () => void
-  onPublishSuccess?: () => void
+  onPublishSuccess?: (result: PublishResponse) => void
 }
 
 /**
@@ -285,7 +286,7 @@ export function DraftEditorPane({
             {showPreview && (
               <div className="space-y-3">
                 <span className="text-sm font-semibold text-slate-700">Live preview</span>
-                <div className="min-h-[480px] rounded-2xl border bg-white/80 p-4 text-sm leading-relaxed shadow-inner">
+                <div className="h-[480px] overflow-auto rounded-2xl border bg-white/80 p-4 text-sm leading-relaxed shadow-inner">
                   {editorContent.trim().length === 0 ? (
                     <p className="text-muted-foreground">Start editing to see a formatted preview.</p>
                   ) : (
@@ -370,10 +371,10 @@ export function DraftEditorPane({
         draft={draft}
         open={publishDialogOpen}
         onClose={() => setPublishDialogOpen(false)}
-        onPublishSuccess={() => {
+        onPublishSuccess={(result) => {
           setPublishDialogOpen(false)
           if (onPublishSuccess) {
-            onPublishSuccess()
+            onPublishSuccess(result)
           }
         }}
         orphanedP0Count={orphanedP0Targets.length}

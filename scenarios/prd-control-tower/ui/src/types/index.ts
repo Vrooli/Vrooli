@@ -77,6 +77,40 @@ export interface PublishedPRDResponse {
   content_html?: string
 }
 
+export interface PublishResponse {
+  success: boolean
+  message: string
+  published_to: string
+  backup_path?: string
+  published_at: string
+  draft_removed?: boolean
+  created_scenario?: boolean
+  scenario_id?: string
+  scenario_type?: string
+  scenario_path?: string
+}
+
+export interface ScenarioTemplateVar {
+  name: string
+  flag?: string
+  description: string
+  default?: string
+  required: boolean
+}
+
+export interface ScenarioTemplate {
+  name: string
+  display_name: string
+  description: string
+  stack: string[]
+  required_vars: ScenarioTemplateVar[]
+  optional_vars: ScenarioTemplateVar[]
+}
+
+export interface ScenarioTemplateListResponse {
+  templates: ScenarioTemplate[]
+}
+
 export interface ValidationRequest {
   use_cache?: boolean
 }
@@ -187,6 +221,27 @@ export interface ValidationResponse {
   cached_at?: string
   validated_at: string
   cache_used: boolean
+}
+
+export interface EcosystemTaskSummary {
+  id: string
+  title: string
+  status: string
+  priority: string
+  category: string
+  operation: string
+  target: string
+  view_url?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface EcosystemTaskStatusResponse {
+  configured: boolean
+  supported: boolean
+  error?: string
+  manage_url?: string
+  task?: EcosystemTaskSummary
 }
 
 export interface TargetLinkageIssue {

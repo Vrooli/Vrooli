@@ -2,12 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -15,16 +19,37 @@ import (
 
 // PublishRequest represents a publish request
 type PublishRequest struct {
-	CreateBackup bool `json:"create_backup"`
+	CreateBackup bool                    `json:"create_backup"`
+	DeleteDraft  bool                    `json:"delete_draft"`
+	Template     *PublishTemplateRequest `json:"template,omitempty"`
+}
+
+// PublishTemplateRequest describes template/scenario creation metadata
+type PublishTemplateRequest struct {
+	Name      string            `json:"name"`
+	Variables map[string]string `json:"variables"`
+	Force     bool              `json:"force"`
+	RunHooks  bool              `json:"run_hooks"`
 }
 
 // PublishResponse represents the result of a publish operation
 type PublishResponse struct {
-	Success     bool   `json:"success"`
-	Message     string `json:"message"`
-	PublishedTo string `json:"published_to"`
-	BackupPath  string `json:"backup_path,omitempty"`
-	PublishedAt string `json:"published_at"`
+	Success         bool   `json:"success"`
+	Message         string `json:"message"`
+	PublishedTo     string `json:"published_to"`
+	BackupPath      string `json:"backup_path,omitempty"`
+	PublishedAt     string `json:"published_at"`
+	DraftRemoved    bool   `json:"draft_removed,omitempty"`
+	CreatedScenario bool   `json:"created_scenario,omitempty"`
+	ScenarioID      string `json:"scenario_id,omitempty"`
+	ScenarioType    string `json:"scenario_type,omitempty"`
+	ScenarioPath    string `json:"scenario_path,omitempty"`
+}
+
+type ScenarioGenerationResult struct {
+	ScenarioID   string
+	ScenarioPath string
+	TemplateName string
 }
 
 func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
@@ -47,8 +72,25 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	publishEntityName := draft.EntityName
+	if req.Template != nil {
+		if req.Template.Variables == nil {
+			req.Template.Variables = make(map[string]string)
+		}
+		if candidate, ok := req.Template.Variables["SCENARIO_ID"]; ok {
+			candidate = strings.TrimSpace(candidate)
+			if candidate != "" {
+				publishEntityName = candidate
+			}
+		}
+		if publishEntityName == "" {
+			publishEntityName = draft.EntityName
+		}
+		req.Template.Variables["SCENARIO_ID"] = publishEntityName
+	}
+
 	// Validate operational targets linkage before publishing
-	if err := validateOperationalTargetsLinkage(draft.EntityType, draft.EntityName, draft.Content); err != nil {
+	if err := validateOperationalTargetsLinkage(draft.EntityType, publishEntityName, draft.Content); err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"success": false,
 			"message": err.Error(),
@@ -65,7 +107,16 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	baseDir := filepath.Join(vrooliRoot, draft.EntityType+"s")
-	targetPath := filepath.Join(baseDir, draft.EntityName, "PRD.md")
+	targetPath := filepath.Join(baseDir, publishEntityName, "PRD.md")
+
+	var generationResult *ScenarioGenerationResult
+	if req.Template != nil {
+		generationResult, err = ensureScenarioFromTemplate(draft, publishEntityName, req.Template)
+		if err != nil {
+			respondJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+	}
 
 	// Create backup if requested and file exists
 	var backupPath string
@@ -91,16 +142,25 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update draft status to 'published'
-	_, err = db.Exec(`
-		UPDATE drafts
-		SET status = $1, updated_at = $2
-		WHERE id = $3
-	`, DraftStatusPublished, time.Now(), draftID)
+	deleteDraft := req.DeleteDraft
+	if req.Template != nil {
+		deleteDraft = true
+	}
 
-	if err != nil {
-		// Non-fatal, just log
-		slog.Warn("Failed to update draft status", "error", err, "draft_id", draftID)
+	if deleteDraft {
+		if _, err := db.Exec(`DELETE FROM drafts WHERE id = $1`, draftID); err != nil {
+			slog.Warn("Failed to delete draft after publish", "error", err, "draft_id", draftID)
+		}
+	} else {
+		_, err = db.Exec(`
+			UPDATE drafts
+			SET status = $1, updated_at = $2
+			WHERE id = $3
+		`, DraftStatusPublished, time.Now(), draftID)
+		if err != nil {
+			// Non-fatal, just log
+			slog.Warn("Failed to update draft status", "error", err, "draft_id", draftID)
+		}
 	}
 
 	// Delete draft file
@@ -111,14 +171,143 @@ func handlePublishDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := PublishResponse{
-		Success:     true,
-		Message:     "Draft published successfully",
-		PublishedTo: targetPath,
-		BackupPath:  backupPath,
-		PublishedAt: time.Now().Format(time.RFC3339),
+		Success:         true,
+		Message:         "Draft published successfully",
+		PublishedTo:     targetPath,
+		BackupPath:      backupPath,
+		PublishedAt:     time.Now().Format(time.RFC3339),
+		DraftRemoved:    deleteDraft,
+		CreatedScenario: generationResult != nil,
+		ScenarioID:      publishEntityName,
+		ScenarioType:    draft.EntityType,
+	}
+	if generationResult != nil {
+		response.ScenarioPath = generationResult.ScenarioPath
 	}
 
 	respondJSON(w, http.StatusOK, response)
+}
+
+func ensureScenarioFromTemplate(draft Draft, publishEntityName string, tpl *PublishTemplateRequest) (*ScenarioGenerationResult, error) {
+	if tpl == nil {
+		return nil, nil
+	}
+	if strings.TrimSpace(tpl.Name) == "" {
+		return nil, errors.New("template name is required for publishing")
+	}
+
+	manifest, err := loadScenarioTemplateManifest(tpl.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	vrooliRoot, err := getVrooliRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	scenarioID := strings.TrimSpace(publishEntityName)
+	if scenarioID == "" {
+		scenarioID = strings.TrimSpace(draft.EntityName)
+	}
+	if scenarioID == "" {
+		return nil, errors.New("scenario ID could not be determined")
+	}
+
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", scenarioID)
+	if !tpl.Force {
+		if _, err := os.Stat(scenarioPath); err == nil {
+			return nil, fmt.Errorf("scenario %s already exists", scenarioID)
+		}
+	}
+
+	args, err := buildTemplateArgs(manifest, tpl.Variables)
+	if err != nil {
+		return nil, err
+	}
+
+	cmdArgs := append([]string{"scenario", "generate", tpl.Name}, args...)
+	if tpl.RunHooks {
+		cmdArgs = append(cmdArgs, "--run-hooks")
+	}
+	if tpl.Force {
+		cmdArgs = append(cmdArgs, "--force")
+	}
+
+	cmd := exec.Command("vrooli", cmdArgs...)
+	cmd.Dir = vrooliRoot
+	cmd.Env = os.Environ()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate scenario: %v\n%s", err, string(output))
+	}
+
+	return &ScenarioGenerationResult{
+		ScenarioID:   scenarioID,
+		ScenarioPath: scenarioPath,
+		TemplateName: tpl.Name,
+	}, nil
+}
+
+func buildTemplateArgs(manifest *TemplateManifest, provided map[string]string) ([]string, error) {
+	args := []string{}
+	valueFor := func(name string) string {
+		if provided == nil {
+			return ""
+		}
+		return strings.TrimSpace(provided[name])
+	}
+
+	for _, name := range sortedTemplateKeys(manifest.RequiredVars) {
+		def := manifest.RequiredVars[name]
+		value := valueFor(name)
+		if value == "" {
+			return nil, fmt.Errorf("%s is required", name)
+		}
+		args = append(args, formatTemplateFlag(def, value)...)
+	}
+
+	for _, name := range sortedTemplateKeys(manifest.OptionalVars) {
+		def := manifest.OptionalVars[name]
+		value := valueFor(name)
+		if value == "" {
+			continue
+		}
+		args = append(args, formatTemplateFlag(def, value)...)
+	}
+
+	for name, value := range provided {
+		if _, exists := manifest.RequiredVars[name]; exists {
+			continue
+		}
+		if _, exists := manifest.OptionalVars[name]; exists {
+			continue
+		}
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		args = append(args, "--var", fmt.Sprintf("%s=%s", name, trimmed))
+	}
+
+	return args, nil
+}
+
+func formatTemplateFlag(def templateVarDefinition, value string) []string {
+	flagName := def.Flag
+	if flagName == "" {
+		flagName = strings.ToLower(def.Name)
+	}
+	return []string{"--" + flagName, value}
+}
+
+func sortedTemplateKeys(vars map[string]templateVarDefinition) []string {
+	keys := make([]string, 0, len(vars))
+	for key := range vars {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // validateOperationalTargetsLinkage checks if P0/P1 operational targets have linkages to requirements

@@ -690,16 +690,24 @@ lint_workflows_cli() {
 
     for file_path in "${files[@]}"; do
         if [ ! -f "$file_path" ]; then
-            echo -e "${RED}✗ ${file_path}${NC}"
-            echo "  File not found"
+            if [ "$json_output" = true ]; then
+                json_results+=("$(jq -n --arg file "$file_path" --arg error "file not found" '{file:$file,error:$error}')")
+            else
+                echo -e "${RED}✗ ${file_path}${NC}"
+                echo "  File not found"
+            fi
             lint_failed=1
             continue
         fi
 
         local payload
         if ! payload=$(jq -cs --argjson strict "$strict_value" --arg selector "$selector_root" '{workflow: .[0], strict: $strict, selector_root: ($selector // "")}' "$file_path" 2>/dev/null); then
-            echo -e "${RED}✗ ${file_path}${NC}"
-            echo "  Invalid JSON"
+            if [ "$json_output" = true ]; then
+                json_results+=("$(jq -n --arg file "$file_path" --arg error "invalid JSON" '{file:$file,error:$error}')")
+            else
+                echo -e "${RED}✗ ${file_path}${NC}"
+                echo "  Invalid JSON"
+            fi
             lint_failed=1
             continue
         fi
@@ -710,8 +718,12 @@ lint_workflows_cli() {
         curl_status=$(curl -s -o "$response_file" -w "%{http_code}" -X POST -H 'Content-Type: application/json' -d "$payload" "${API_URL}/workflows/validate") || curl_rc=$?
 
         if [ "$curl_rc" -ne 0 ]; then
-            echo -e "${RED}✗ ${file_path}${NC}"
-            echo "  Failed to contact API (curl exit $curl_rc)"
+            if [ "$json_output" = true ]; then
+                json_results+=("$(jq -n --arg file "$file_path" --arg error "curl exit $curl_rc" '{file:$file,error:$error}')")
+            else
+                echo -e "${RED}✗ ${file_path}${NC}"
+                echo "  Failed to contact API (curl exit $curl_rc)"
+            fi
             rm -f "$response_file"
             lint_failed=1
             continue
@@ -723,12 +735,13 @@ lint_workflows_cli() {
             if [ -z "$detail" ]; then
                 detail="HTTP $curl_status"
             fi
-            echo -e "${RED}✗ ${file_path}${NC}"
-            echo "  ${detail}"
-            lint_failed=1
             if [ "$json_output" = true ]; then
                 json_results+=("$(jq -n --arg file "$file_path" --arg status "$curl_status" --arg error "$detail" '{file:$file, status:$status, error:$error}')")
+            else
+                echo -e "${RED}✗ ${file_path}${NC}"
+                echo "  ${detail}"
             fi
+            lint_failed=1
             rm -f "$response_file"
             continue
         fi
@@ -739,18 +752,21 @@ lint_workflows_cli() {
         node_count=$(jq -r '.stats.node_count // 0' "$response_file" 2>/dev/null)
         edge_count=$(jq -r '.stats.edge_count // 0' "$response_file" 2>/dev/null)
 
-        if [ "$valid" = "true" ]; then
-            echo -e "${GREEN}✓ ${file_path}${NC} (${node_count} nodes, ${edge_count} edges)"
-        else
-            echo -e "${RED}✗ ${file_path}${NC} (${node_count} nodes, ${edge_count} edges)"
-            lint_failed=1
-        fi
-
-        jq -r '.errors[]? | "  [" + (.code // "error") + "] " + (.message // "") + (if .node_id then " (node: " + .node_id + ")" else "" end) + (if .pointer then " @ " + .pointer else "" end)' "$response_file"
-        jq -r '.warnings[]? | "  [warn:" + (.code // "warning") + "] " + (.message // "") + (if .node_id then " (node: " + .node_id + ")" else "" end) + (if .pointer then " @ " + .pointer else "" end)' "$response_file"
-
         if [ "$json_output" = true ]; then
             json_results+=("$(jq -c --arg file "$file_path" '. + {file: $file}' "$response_file")")
+        else
+            if [ "$valid" = "true" ]; then
+                echo -e "${GREEN}✓ ${file_path}${NC} (${node_count} nodes, ${edge_count} edges)"
+            else
+                echo -e "${RED}✗ ${file_path}${NC} (${node_count} nodes, ${edge_count} edges)"
+            fi
+
+            jq -r '.errors[]? | "  [" + (.code // "error") + "] " + (.message // "") + (if .node_id then " (node: " + .node_id + ")" else "" end) + (if .pointer then " @ " + .pointer else "" end)' "$response_file"
+            jq -r '.warnings[]? | "  [warn:" + (.code // "warning") + "] " + (.message // "") + (if .node_id then " (node: " + .node_id + ")" else "" end) + (if .pointer then " @ " + .pointer else "" end)' "$response_file"
+        fi
+
+        if [ "$valid" != "true" ]; then
+            lint_failed=1
         fi
 
         rm -f "$response_file"

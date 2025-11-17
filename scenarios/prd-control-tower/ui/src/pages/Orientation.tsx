@@ -36,26 +36,77 @@ const TEMPLATE_SECTIONS = [
   },
 ]
 
+const PRD_EXAMPLES: Record<'skeleton' | 'full', string> = {
+  skeleton: `# Scenario Name
+
+## Capability Narrative
+## Why Now
+## Stakeholders
+## User Journeys
+## Requirements
+- [ ] PRD-001 | Requirement name
+
+## Operational Targets
+- Target 1 (P0)
+
+## Launch Plan
+## Status
+`,
+  full: `# Scenario Name
+
+## Capability Narrative
+This scenario gives Vrooli the ability to ...
+
+## Why Now
+- Pressure: ...
+- Payoff: ...
+
+## Stakeholders
+- Product ops
+- Founders
+
+## User Journeys
+1. Describe target user story
+
+## Requirements
+- [ ] PRD-001 | Requirement name — mapped to /requirements/core
+
+## Operational Targets
+- Target 1 (P0) | Metric + success criteria | Linked requirements: PRD-001
+
+## Launch Plan
+- Phase, owner, target date
+
+## Status
+- Status marker + next checkpoint
+`,
+}
+
 const WORKFLOW_STEPS = [
   {
-    title: 'Author & Draft',
+    title: 'Capture backlog intent',
     description:
-      'Create structured drafts from templates or existing PRDs. Autosave, AI assistance, and diff previews keep iterations quick.',
+      'Start in Backlog. Capture loose opportunities, cluster ideas, and promote promising ones into drafts when they have signal.',
   },
   {
-    title: 'Validate Structure',
+    title: 'Draft & lock targets',
     description:
-      'scenario-auditor enforces the canonical template. Violations call out missing sections, malformed headings, or checklist drift.',
+      'Use the draft workspace, AI helpers, and validation panels to build the PRD spine and define operational targets plus requirement IDs.',
   },
   {
-    title: 'Link Requirements',
+    title: 'Publish & scaffold scenario',
     description:
-      'Use requirements registries so every PRD item maps to tests, automations, and operational targets. The dashboard highlights unlinked items.',
+      'Run the publish wizard to choose a template, create the scenario, and copy your draft into PRD.md so it becomes the source of truth.',
   },
   {
-    title: 'Publish & Monitor',
+    title: 'Wire requirements & tests',
     description:
-      'Publish to `PRD.md` with atomic writes. Catalog cards update coverage and flag regressions in realtime.',
+      'Link operational targets to requirement registries and map acceptance tests so the control tower can reason over coverage in real-time.',
+  },
+  {
+    title: 'Dispatch ecosystem-manager',
+    description:
+      'From Requirements & Targets, create an ecosystem-manager task so an agent keeps iterating until all requirements and targets are green.',
   },
 ]
 
@@ -92,6 +143,7 @@ export default function Orientation() {
   const [summary, setSummary] = useState({ total: 0, withPrd: 0, drafts: 0 })
   const [qualitySummary, setQualitySummary] = useState<QualitySummary | null>(null)
   const [qualityError, setQualityError] = useState<string | null>(null)
+  const [exampleMode, setExampleMode] = useState<'skeleton' | 'full'>('skeleton')
 
   useEffect(() => {
     async function load() {
@@ -267,20 +319,27 @@ export default function Orientation() {
               </div>
             ))}
             <div className="rounded-2xl border border-dashed bg-white p-4">
-              <p className="text-sm font-semibold text-slate-800">Example skeleton</p>
-              <pre className="mt-2 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100">
-{`# Scenario Name
-
-## Capability Narrative
-## Why Now
-## Stakeholders
-## User Journeys
-## Requirements
-- [ ] PRD-001 | Requirement name
-
-## Launch Plan
-## Status
-`}
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-800">Example view</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant={exampleMode === 'skeleton' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setExampleMode('skeleton')}
+                  >
+                    Skeleton
+                  </Button>
+                  <Button
+                    variant={exampleMode === 'full' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setExampleMode('full')}
+                  >
+                    Full example
+                  </Button>
+                </div>
+              </div>
+              <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100">
+{PRD_EXAMPLES[exampleMode]}
               </pre>
             </div>
           </CardContent>
@@ -291,7 +350,9 @@ export default function Orientation() {
             <CardTitle className="flex items-center gap-2 text-xl">
               <Workflow size={20} /> Lifecycle overview
             </CardTitle>
-            <CardDescription>Follow this loop to keep PRDs trustworthy and actionable.</CardDescription>
+            <CardDescription>
+              Every scenario flows backlog → draft → publish → requirements → ecosystem-manager. This loop keeps PRDs shippable and executable.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {WORKFLOW_STEPS.map((step, index) => (

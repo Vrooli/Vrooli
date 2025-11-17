@@ -94,6 +94,8 @@ func main() {
 	apiV1.HandleFunc("/catalog/{type}/{name}/requirements", handleGetRequirements).Methods("GET")
 	apiV1.HandleFunc("/catalog/{type}/{name}/requirements/{requirement_id}", handleUpdateRequirement).Methods("PUT")
 	apiV1.HandleFunc("/catalog/{type}/{name}/targets", handleGetOperationalTargets).Methods("GET")
+	apiV1.HandleFunc("/catalog/{type}/{name}/ecosystem-task", handleGetEcosystemTask).Methods("GET")
+	apiV1.HandleFunc("/catalog/{type}/{name}/ecosystem-task", handleCreateEcosystemTask).Methods("POST")
 
 	// Draft endpoints
 	apiV1.HandleFunc("/drafts", handleListDrafts).Methods("GET")
@@ -116,6 +118,8 @@ func main() {
 	apiV1.HandleFunc("/drafts/{id}/validate", handleValidateDraft).Methods("POST")
 	apiV1.HandleFunc("/drafts/{id}/ai/generate-section", handleAIGenerateSection).Methods("POST")
 	apiV1.HandleFunc("/drafts/{id}/publish", handlePublishDraft).Methods("POST")
+	apiV1.HandleFunc("/scenario-templates", handleListScenarioTemplates).Methods("GET")
+	apiV1.HandleFunc("/scenario-templates/{name}", handleGetScenarioTemplate).Methods("GET")
 
 	// Quality insights endpoints
 	apiV1.HandleFunc("/quality/{type}/{name}", handleGetQualityReport).Methods("GET")
