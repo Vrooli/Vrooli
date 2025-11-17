@@ -84,6 +84,12 @@ var (
 		Message: "Workflow definition payload could not be parsed",
 	}
 
+	ErrWorkflowValidationFailed = &APIError{
+		Status:  http.StatusBadRequest,
+		Code:    "WORKFLOW_VALIDATION_FAILED",
+		Message: "Workflow definition failed validation",
+	}
+
 	// 404 Not Found errors
 	ErrWorkflowNotFound = &APIError{
 		Status:  http.StatusNotFound,

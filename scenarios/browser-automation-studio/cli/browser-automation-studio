@@ -42,6 +42,7 @@ COMMANDS:
     status                    Show operational status and resource health
     workflow create          Create a workflow from file or AI prompt
     workflow execute         Execute a workflow by ID or name
+    workflow lint           Validate workflow JSON files via the API
     workflow list           List all workflows in tree structure
     workflow delete         Delete a workflow
     workflow versions list  Show saved versions for a workflow
@@ -62,6 +63,9 @@ WORKFLOW COMMANDS:
         --folder <path>      Folder path for organization (default: /)
         --from-file <file>   Import from JSON file
         --ai-prompt <text>   Generate from natural language
+
+    workflow lint <files...> [--strict] [--json] [--selector-root <path>]
+        Validate one or more workflow playbooks via /api/v1/workflows/validate
 
     workflow execute <workflow> [flags]
         --params <json>      JSON parameters for workflow
@@ -575,6 +579,144 @@ list_workflows() {
     fi
 }
 
+lint_workflows_cli() {
+    if [ $# -eq 0 ]; then
+        echo "Usage: browser-automation-studio workflow lint <files...> [--strict] [--json] [--selector-root <path>]" >&2
+        return 1
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo -e "${RED}jq is required for workflow linting${NC}" >&2
+        return 1
+    fi
+
+    local strict=false
+    local json_output=false
+    local selector_root="${WORKFLOW_LINT_SELECTOR_ROOT:-}"
+    local -a files=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --strict)
+                strict=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --selector-root)
+                selector_root="$2"
+                shift 2
+                ;;
+            -h|--help)
+                echo "Usage: browser-automation-studio workflow lint <files...> [--strict] [--json] [--selector-root <path>]" >&2
+                return 0
+                ;;
+            --)
+                shift
+                while [[ $# -gt 0 ]]; do
+                    files+=("$1")
+                    shift
+                done
+                ;;
+            *)
+                files+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [ ${#files[@]} -eq 0 ]; then
+        echo "Provide one or more workflow JSON files" >&2
+        return 1
+    fi
+
+    local strict_value=false
+    [ "$strict" = true ] && strict_value=true
+
+    local lint_failed=0
+    local -a json_results=()
+
+    for file_path in "${files[@]}"; do
+        if [ ! -f "$file_path" ]; then
+            echo -e "${RED}✗ ${file_path}${NC}"
+            echo "  File not found"
+            lint_failed=1
+            continue
+        fi
+
+        local payload
+        if ! payload=$(jq -cs --argjson strict "$strict_value" --arg selector "$selector_root" '{workflow: .[0], strict: $strict, selector_root: ($selector // "")}' "$file_path" 2>/dev/null); then
+            echo -e "${RED}✗ ${file_path}${NC}"
+            echo "  Invalid JSON"
+            lint_failed=1
+            continue
+        fi
+
+        local response_file
+        response_file=$(mktemp)
+        local curl_status curl_rc=0
+        curl_status=$(curl -s -o "$response_file" -w "%{http_code}" -X POST -H 'Content-Type: application/json' -d "$payload" "${API_URL}/workflows/validate") || curl_rc=$?
+
+        if [ "$curl_rc" -ne 0 ]; then
+            echo -e "${RED}✗ ${file_path}${NC}"
+            echo "  Failed to contact API (curl exit $curl_rc)"
+            rm -f "$response_file"
+            lint_failed=1
+            continue
+        fi
+
+        if [ "$curl_status" != "200" ]; then
+            local detail
+            detail=$(jq -r '.message // .error // empty' "$response_file" 2>/dev/null)
+            if [ -z "$detail" ]; then
+                detail="HTTP $curl_status"
+            fi
+            echo -e "${RED}✗ ${file_path}${NC}"
+            echo "  ${detail}"
+            lint_failed=1
+            if [ "$json_output" = true ]; then
+                json_results+=("$(jq -n --arg file "$file_path" --arg status "$curl_status" --arg error "$detail" '{file:$file, status:$status, error:$error}')")
+            fi
+            rm -f "$response_file"
+            continue
+        fi
+
+        local valid
+        valid=$(jq -r '.valid // false' "$response_file" 2>/dev/null)
+        local node_count edge_count
+        node_count=$(jq -r '.stats.node_count // 0' "$response_file" 2>/dev/null)
+        edge_count=$(jq -r '.stats.edge_count // 0' "$response_file" 2>/dev/null)
+
+        if [ "$valid" = "true" ]; then
+            echo -e "${GREEN}✓ ${file_path}${NC} (${node_count} nodes, ${edge_count} edges)"
+        else
+            echo -e "${RED}✗ ${file_path}${NC} (${node_count} nodes, ${edge_count} edges)"
+            lint_failed=1
+        fi
+
+        jq -r '.errors[]? | "  [" + (.code // "error") + "] " + (.message // "") + (if .node_id then " (node: " + .node_id + ")" else "" end) + (if .pointer then " @ " + .pointer else "" end)' "$response_file"
+        jq -r '.warnings[]? | "  [warn:" + (.code // "warning") + "] " + (.message // "") + (if .node_id then " (node: " + .node_id + ")" else "" end) + (if .pointer then " @ " + .pointer else "" end)' "$response_file"
+
+        if [ "$json_output" = true ]; then
+            json_results+=("$(jq -c --arg file "$file_path" '. + {file: $file}' "$response_file")")
+        fi
+
+        rm -f "$response_file"
+    done
+
+    if [ "$json_output" = true ]; then
+        if [ ${#json_results[@]} -eq 0 ]; then
+            echo '{"results":[]}'
+        else
+            printf '%s\n' "${json_results[@]}" | jq -cs '{results: .}'
+        fi
+    fi
+
+    return $lint_failed
+}
+
 list_workflow_versions() {
     local workflow_id="$1"
     shift || true
@@ -718,6 +860,10 @@ case "${1:-}" in
             execute)
                 check_api_health
                 execute_workflow "${@:3}"
+                ;;
+            lint)
+                check_api_health
+                lint_workflows_cli "${@:3}"
                 ;;
             list)
                 check_api_health

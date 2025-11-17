@@ -1,0 +1,73 @@
+{
+  "scenario": "funnel-builder",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:55.924863367Z",
+  "dependencies": [
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "funnel-builder",
+    "generated_at": "2025-11-16T19:40:55.924863367Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/funnel-builder-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/funnel-builder",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "redis",
+        "type": "resource"
+      }
+    ]
+  }
+}

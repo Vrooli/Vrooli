@@ -1,0 +1,64 @@
+{
+  "scenario": "scalable-app-cookbook",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:57.308469833Z",
+  "dependencies": [
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "scalable-app-cookbook",
+    "generated_at": "2025-11-16T19:40:57.308469833Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/scalable-app-cookbook-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/scalable-app-cookbook",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      }
+    ]
+  }
+}

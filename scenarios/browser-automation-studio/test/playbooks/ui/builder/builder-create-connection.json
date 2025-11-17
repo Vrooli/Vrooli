@@ -92,7 +92,7 @@
       },
       "data": {
         "label": "Open seeded demo workflow",
-        "selector": "[data-testid=\"workflow-card\"][data-workflow-name=\"Demo: Capture Example.com Hero\"]",
+        "selector": "[data-testid=\"workflow-card\"][data-workflow-name=\"Demo: Capture Example.com Hero\"] /*dup-1*/",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -289,24 +289,119 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
-    {"id": "e3a", "source": "wait-for-project-detail", "target": "wait-for-demo-workflow", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-for-demo-workflow", "target": "click-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "click-workflow", "target": "wait-for-builder", "type": "smoothstep"},
-    {"id": "e5a", "source": "wait-for-builder", "target": "assert-builder-ready", "type": "smoothstep"},
-    {"id": "e6", "source": "assert-builder-ready", "target": "assert-multiple-nodes", "type": "smoothstep"},
-    {"id": "e7", "source": "assert-multiple-nodes", "target": "count-initial-edges", "type": "smoothstep"},
-    {"id": "e8", "source": "count-initial-edges", "target": "capture-before-connect", "type": "smoothstep"},
-    {"id": "e9", "source": "capture-before-connect", "target": "get-first-node-handle", "type": "smoothstep"},
-    {"id": "e10", "source": "get-first-node-handle", "target": "get-second-node-handle", "type": "smoothstep"},
-    {"id": "e11", "source": "get-second-node-handle", "target": "hover-first-node", "type": "smoothstep"},
-    {"id": "e12", "source": "hover-first-node", "target": "drag-connection", "type": "smoothstep"},
-    {"id": "e13", "source": "drag-connection", "target": "wait-for-connection", "type": "smoothstep"},
-    {"id": "e14", "source": "wait-for-connection", "target": "count-final-edges", "type": "smoothstep"},
-    {"id": "e15", "source": "count-final-edges", "target": "verify-edge-added", "type": "smoothstep"},
-    {"id": "e16", "source": "verify-edge-added", "target": "assert-edge-visible", "type": "smoothstep"},
-    {"id": "e17", "source": "assert-edge-visible", "target": "capture-after-connect", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-for-project-detail",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3a",
+      "source": "wait-for-project-detail",
+      "target": "wait-for-demo-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-demo-workflow",
+      "target": "click-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-workflow",
+      "target": "wait-for-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5a",
+      "source": "wait-for-builder",
+      "target": "assert-builder-ready",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "assert-builder-ready",
+      "target": "assert-multiple-nodes",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-multiple-nodes",
+      "target": "count-initial-edges",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "count-initial-edges",
+      "target": "capture-before-connect",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "capture-before-connect",
+      "target": "get-first-node-handle",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "get-first-node-handle",
+      "target": "get-second-node-handle",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "get-second-node-handle",
+      "target": "hover-first-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "hover-first-node",
+      "target": "drag-connection",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "drag-connection",
+      "target": "wait-for-connection",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "wait-for-connection",
+      "target": "count-final-edges",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "count-final-edges",
+      "target": "verify-edge-added",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "verify-edge-added",
+      "target": "assert-edge-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e17",
+      "source": "assert-edge-visible",
+      "target": "capture-after-connect",
+      "type": "smoothstep"
+    }
   ]
 }

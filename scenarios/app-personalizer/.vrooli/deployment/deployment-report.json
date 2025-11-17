@@ -1,0 +1,100 @@
+{
+  "scenario": "app-personalizer",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:54.324959189Z",
+  "dependencies": [
+    {
+      "name": "claude-code",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "minio",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "n8n",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "qdrant",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "app-personalizer",
+    "generated_at": "2025-11-16T19:40:54.324959189Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/app-personalizer-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": false
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": false
+      },
+      {
+        "path": "cli/app-personalizer",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "claude-code",
+        "type": "resource"
+      },
+      {
+        "name": "minio",
+        "type": "resource"
+      },
+      {
+        "name": "n8n",
+        "type": "resource"
+      },
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "qdrant",
+        "type": "resource"
+      }
+    ]
+  }
+}

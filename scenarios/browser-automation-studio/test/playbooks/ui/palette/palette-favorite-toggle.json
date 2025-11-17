@@ -165,7 +165,7 @@
       },
       "data": {
         "label": "Click favorite button to toggle",
-        "selector": "[data-testid=\"node-palette-navigate-favorite-button\"]",
+        "selector": "[data-testid=\"node-palette-navigate-favorite-button\"] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
@@ -198,17 +198,77 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-project-detail", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-project-detail", "target": "click-new-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "click-new-workflow", "target": "switch-to-manual", "type": "smoothstep"},
-    {"id": "e6", "source": "switch-to-manual", "target": "wait-for-builder", "type": "smoothstep"},
-    {"id": "e7", "source": "wait-for-builder", "target": "assert-node-card-visible", "type": "smoothstep"},
-    {"id": "e8", "source": "assert-node-card-visible", "target": "find-favorite-button", "type": "smoothstep"},
-    {"id": "e9", "source": "find-favorite-button", "target": "capture-before-favorite", "type": "smoothstep"},
-    {"id": "e10", "source": "capture-before-favorite", "target": "click-favorite-button", "type": "smoothstep"},
-    {"id": "e11", "source": "click-favorite-button", "target": "capture-after-favorite", "type": "smoothstep"},
-    {"id": "e12", "source": "capture-after-favorite", "target": "verify-favorite-toggled", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-project-detail",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-project-detail",
+      "target": "click-new-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-new-workflow",
+      "target": "switch-to-manual",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "switch-to-manual",
+      "target": "wait-for-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "wait-for-builder",
+      "target": "assert-node-card-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "assert-node-card-visible",
+      "target": "find-favorite-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "find-favorite-button",
+      "target": "capture-before-favorite",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "capture-before-favorite",
+      "target": "click-favorite-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "click-favorite-button",
+      "target": "capture-after-favorite",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "capture-after-favorite",
+      "target": "verify-favorite-toggled",
+      "type": "smoothstep"
+    }
   ]
 }

@@ -1,0 +1,439 @@
+{
+  "scenario": "browser-automation-studio",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:55.172704815Z",
+  "dependencies": [
+    {
+      "name": "browserless",
+      "type": "resource",
+      "resource_type": "browser-automation",
+      "requirements": {
+        "ram_mb": 2048,
+        "disk_mb": 512,
+        "cpu_cores": 2,
+        "network": "required",
+        "source": "estimated",
+        "confidence": "medium"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.85,
+          "notes": "Managed via shared Browserless resource"
+        },
+        "tier-2-desktop": {
+          "supported": false,
+          "fitness_score": 0.1,
+          "reason": "Electron cannot embed headless Chromium + Node cluster today",
+          "alternatives": [
+            "playwright-packaged"
+          ]
+        },
+        "tier-4-saas": {
+          "supported": true,
+          "fitness_score": 0.6,
+          "notes": "Needs auto-scaling pool"
+        }
+      },
+      "alternatives": [
+        "playwright-packaged"
+      ],
+      "source": "declared"
+    },
+    {
+      "name": "minio",
+      "type": "resource",
+      "resource_type": "object-storage",
+      "requirements": {
+        "ram_mb": 512,
+        "disk_mb": 2048,
+        "cpu_cores": 1,
+        "network": "required",
+        "source": "estimated",
+        "confidence": "medium"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.8,
+          "notes": "Shared MinIO resource"
+        },
+        "tier-2-desktop": {
+          "supported": false,
+          "fitness_score": 0.3,
+          "reason": "Requires bundled object storage process",
+          "alternatives": [
+            "filesystem-store"
+          ]
+        },
+        "tier-4-saas": {
+          "supported": true,
+          "fitness_score": 0.7,
+          "notes": "Map to S3/Spaces bucket"
+        }
+      },
+      "alternatives": [
+        "filesystem-store"
+      ],
+      "source": "declared"
+    },
+    {
+      "name": "ollama",
+      "type": "resource",
+      "resource_type": "llm-server",
+      "requirements": {
+        "ram_mb": 4096,
+        "disk_mb": 8192,
+        "cpu_cores": 4,
+        "gpu": false,
+        "network": "optional",
+        "source": "estimated",
+        "confidence": "low"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.6,
+          "notes": "Optional but heavy"
+        },
+        "tier-2-desktop": {
+          "supported": false,
+          "fitness_score": 0.2,
+          "reason": "Model download sizes exceed desktop bundle budget",
+          "alternatives": [
+            "openrouter"
+          ]
+        }
+      },
+      "alternatives": [
+        "openrouter"
+      ],
+      "source": "declared"
+    },
+    {
+      "name": "openrouter",
+      "type": "resource",
+      "resource_type": "llm-api",
+      "requirements": {
+        "network": "required",
+        "source": "manual",
+        "confidence": "medium"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.7,
+          "notes": "Used when Ollama disabled"
+        },
+        "tier-2-desktop": {
+          "supported": true,
+          "fitness_score": 0.5,
+          "reason": "Requires user-provided API key and network"
+        }
+      },
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "resource_type": "database",
+      "requirements": {
+        "ram_mb": 768,
+        "disk_mb": 4096,
+        "cpu_cores": 1,
+        "network": "required",
+        "source": "estimated",
+        "confidence": "medium"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.9,
+          "notes": "Uses shared postgres resource"
+        },
+        "tier-2-desktop": {
+          "supported": false,
+          "fitness_score": 0.2,
+          "reason": "Desktop install would need embedded database service",
+          "alternatives": [
+            "sqlite"
+          ]
+        },
+        "tier-4-saas": {
+          "supported": true,
+          "fitness_score": 0.7,
+          "notes": "Needs managed PaaS provisioning"
+        }
+      },
+      "alternatives": [
+        "sqlite"
+      ],
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "resource_type": "cache",
+      "requirements": {
+        "ram_mb": 256,
+        "disk_mb": 128,
+        "cpu_cores": 0.5,
+        "network": "optional",
+        "source": "estimated",
+        "confidence": "low"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.8,
+          "notes": "Shared redis"
+        },
+        "tier-2-desktop": {
+          "supported": false,
+          "fitness_score": 0.3,
+          "reason": "Need embedded cache or switch to in-process broadcast",
+          "alternatives": [
+            "event-emitter"
+          ]
+        }
+      },
+      "alternatives": [
+        "event-emitter",
+        "in-memory-pubsub"
+      ],
+      "source": "declared"
+    }
+  ],
+  "aggregates": {
+    "tier-1-local": {
+      "fitness_score": 0.775,
+      "dependency_count": 6,
+      "blocking_dependencies": [
+        "ollama",
+        "openrouter"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 7680,
+        "disk_mb": 14976,
+        "cpu_cores": 8.5
+      }
+    },
+    "tier-2-desktop": {
+      "fitness_score": 0.26666666666666666,
+      "dependency_count": 6,
+      "blocking_dependencies": [
+        "browserless",
+        "minio",
+        "ollama",
+        "openrouter",
+        "postgres",
+        "redis"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 7680,
+        "disk_mb": 14976,
+        "cpu_cores": 8.5
+      }
+    },
+    "tier-4-saas": {
+      "fitness_score": 0.6666666666666666,
+      "dependency_count": 3,
+      "blocking_dependencies": [
+        "browserless",
+        "minio",
+        "postgres"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 3328,
+        "disk_mb": 6656,
+        "cpu_cores": 4
+      }
+    }
+  },
+  "bundle_manifest": {
+    "scenario": "browser-automation-studio",
+    "generated_at": "2025-11-16T19:40:55.172704815Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/browser-automation-studio-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/browser-automation-studio",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "browserless",
+        "type": "resource",
+        "resource_type": "browser-automation",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.85,
+            "notes": "Managed via shared Browserless resource"
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.1,
+            "reason": "Electron cannot embed headless Chromium + Node cluster today",
+            "alternatives": [
+              "playwright-packaged"
+            ]
+          },
+          "tier-4-saas": {
+            "supported": true,
+            "fitness_score": 0.6,
+            "notes": "Needs auto-scaling pool"
+          }
+        },
+        "alternatives": [
+          "playwright-packaged"
+        ]
+      },
+      {
+        "name": "minio",
+        "type": "resource",
+        "resource_type": "object-storage",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.8,
+            "notes": "Shared MinIO resource"
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.3,
+            "reason": "Requires bundled object storage process",
+            "alternatives": [
+              "filesystem-store"
+            ]
+          },
+          "tier-4-saas": {
+            "supported": true,
+            "fitness_score": 0.7,
+            "notes": "Map to S3/Spaces bucket"
+          }
+        },
+        "alternatives": [
+          "filesystem-store"
+        ]
+      },
+      {
+        "name": "ollama",
+        "type": "resource",
+        "resource_type": "llm-server",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.6,
+            "notes": "Optional but heavy"
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.2,
+            "reason": "Model download sizes exceed desktop bundle budget",
+            "alternatives": [
+              "openrouter"
+            ]
+          }
+        },
+        "alternatives": [
+          "openrouter"
+        ]
+      },
+      {
+        "name": "openrouter",
+        "type": "resource",
+        "resource_type": "llm-api",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.7,
+            "notes": "Used when Ollama disabled"
+          },
+          "tier-2-desktop": {
+            "supported": true,
+            "fitness_score": 0.5,
+            "reason": "Requires user-provided API key and network"
+          }
+        }
+      },
+      {
+        "name": "postgres",
+        "type": "resource",
+        "resource_type": "database",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.9,
+            "notes": "Uses shared postgres resource"
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.2,
+            "reason": "Desktop install would need embedded database service",
+            "alternatives": [
+              "sqlite"
+            ]
+          },
+          "tier-4-saas": {
+            "supported": true,
+            "fitness_score": 0.7,
+            "notes": "Needs managed PaaS provisioning"
+          }
+        },
+        "alternatives": [
+          "sqlite"
+        ]
+      },
+      {
+        "name": "redis",
+        "type": "resource",
+        "resource_type": "cache",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.8,
+            "notes": "Shared redis"
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.3,
+            "reason": "Need embedded cache or switch to in-process broadcast",
+            "alternatives": [
+              "event-emitter"
+            ]
+          }
+        },
+        "alternatives": [
+          "event-emitter",
+          "in-memory-pubsub"
+        ]
+      }
+    ]
+  }
+}

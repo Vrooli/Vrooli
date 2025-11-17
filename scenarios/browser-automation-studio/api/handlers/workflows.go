@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
 	"github.com/vrooli/browser-automation-studio/services"
+	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 )
 
 // CreateWorkflowRequest represents the request to create a workflow
@@ -112,6 +113,41 @@ func jsonMapToStd(m database.JSONMap) map[string]any {
 	return result
 }
 
+func (h *Handler) validateWorkflowDefinitionStrict(w http.ResponseWriter, r *http.Request, definition map[string]any) bool {
+	if h == nil || h.workflowValidator == nil {
+		return true
+	}
+	if definition == nil || len(definition) == 0 {
+		return true
+	}
+	result, err := h.workflowValidator.Validate(r.Context(), definition, workflowvalidator.Options{Strict: true})
+	if err != nil {
+		if h.log != nil {
+			h.log.WithError(err).Error("Failed to validate workflow definition")
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "workflow_validation"}))
+		return false
+	}
+	if !result.Valid {
+		h.respondError(w, ErrWorkflowValidationFailed.WithDetails(result))
+		return false
+	}
+	return true
+}
+
+func definitionFromNodesEdges(nodes, edges []any, fallback map[string]any) map[string]any {
+	if fallback != nil && len(fallback) > 0 {
+		return fallback
+	}
+	if len(nodes) == 0 && len(edges) == 0 {
+		return nil
+	}
+	return map[string]any{
+		"nodes": nodes,
+		"edges": edges,
+	}
+}
+
 // CreateWorkflow handles POST /api/v1/workflows/create
 func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	var req CreateWorkflowRequest
@@ -137,6 +173,10 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
+
+	if !h.validateWorkflowDefinitionStrict(w, r, req.FlowDefinition) {
+		return
+	}
 
 	workflow, err := h.workflowService.CreateWorkflowWithProject(ctx, req.ProjectID, req.Name, req.FolderPath, req.FlowDefinition, req.AIPrompt)
 	if err != nil {
@@ -240,6 +280,11 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 		ChangeDescription: req.ChangeDescription,
 		Source:            req.Source,
 		ExpectedVersion:   req.ExpectedVersion,
+	}
+
+	definitionForValidation := definitionFromNodesEdges(req.Nodes, req.Edges, req.FlowDefinition)
+	if !h.validateWorkflowDefinitionStrict(w, r, definitionForValidation) {
+		return
 	}
 
 	workflow, err := h.workflowService.UpdateWorkflow(ctx, id, updateInput)
@@ -482,6 +527,10 @@ func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), constants.AIRequestTimeout)
 	defer cancel()
 
+	if !h.validateWorkflowDefinitionStrict(w, r, req.CurrentFlow) {
+		return
+	}
+
 	workflow, err := h.workflowService.ModifyWorkflow(ctx, workflowID, req.ModificationPrompt, req.CurrentFlow)
 	if err != nil {
 		h.log.WithError(err).WithField("workflow_id", workflowID).Error("Failed to modify workflow via AI")
@@ -545,6 +594,10 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{
 			"field": "flow_definition",
 		}))
+		return
+	}
+
+	if !h.validateWorkflowDefinitionStrict(w, r, req.FlowDefinition) {
 		return
 	}
 

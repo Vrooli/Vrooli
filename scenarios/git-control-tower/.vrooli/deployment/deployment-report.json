@@ -1,0 +1,82 @@
+{
+  "scenario": "git-control-tower",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:55.96658145Z",
+  "dependencies": [
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "resource-openrouter",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "git-control-tower",
+    "generated_at": "2025-11-16T19:40:55.96658145Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/git-control-tower-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/git-control-tower",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "redis",
+        "type": "resource"
+      },
+      {
+        "name": "resource-openrouter",
+        "type": "resource"
+      }
+    ]
+  }
+}

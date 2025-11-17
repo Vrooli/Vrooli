@@ -1,0 +1,118 @@
+{
+  "scenario": "home-automation",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:56.051624953Z",
+  "dependencies": [
+    {
+      "name": "calendar",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "home-assistant",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "notification-hub",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "resource-claude-code",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "scenario-authenticator",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "home-automation",
+    "generated_at": "2025-11-16T19:40:56.051624953Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/home-automation-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/home-automation",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "calendar",
+        "type": "resource"
+      },
+      {
+        "name": "home-assistant",
+        "type": "resource"
+      },
+      {
+        "name": "notification-hub",
+        "type": "resource"
+      },
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "redis",
+        "type": "resource"
+      },
+      {
+        "name": "resource-claude-code",
+        "type": "resource"
+      },
+      {
+        "name": "scenario-authenticator",
+        "type": "resource"
+      }
+    ]
+  }
+}

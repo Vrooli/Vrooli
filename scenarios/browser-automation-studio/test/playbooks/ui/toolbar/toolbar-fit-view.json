@@ -108,7 +108,7 @@
       },
       "data": {
         "label": "Zoom out more",
-        "selector": "[data-testid=\"toolbar-zoom-out-button\"]",
+        "selector": "[data-testid=\"toolbar-zoom-out-button\"] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 300
       }

@@ -202,8 +202,10 @@
       },
       "data": {
         "label": "Close version dialog with Escape",
-        "key": "Escape",
-        "waitForMs": 500
+        "waitForMs": 500,
+        "keys": [
+          "Escape"
+        ]
       }
     },
     {

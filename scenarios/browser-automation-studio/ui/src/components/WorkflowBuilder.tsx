@@ -62,6 +62,8 @@ import 'reactflow/dist/style.css';
 import toast from 'react-hot-toast';
 import ResponsiveDialog from './ResponsiveDialog';
 import type { ExecutionViewportSettings, ViewportPreset } from '../stores/workflowStore';
+import { validateWorkflowDefinition } from '../utils/workflowValidation';
+import type { WorkflowDefinition, WorkflowValidationResult } from '../types/workflow';
 
 const nodeTypes: NodeTypes = {
   browserAction: BrowserActionNode,
@@ -242,6 +244,8 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   const [codeValue, setCodeValue] = useState('');
   const [codeDirty, setCodeDirty] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
+  const [validationResult, setValidationResult] = useState<WorkflowValidationResult | null>(null);
+  const [isValidatingCode, setIsValidatingCode] = useState(false);
 
   useEffect(() => {
     if (viewMode !== 'visual') {
@@ -274,19 +278,30 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
 
   const buildJsonFromState = useCallback(() => {
     try {
-      return JSON.stringify(
-        {
-          nodes: nodes ?? [],
-          edges: edges ?? [],
-        },
-        null,
-        2
-      );
+      const baseDefinition = (currentWorkflow?.flow_definition ?? currentWorkflow?.flowDefinition) as WorkflowDefinition | undefined;
+      const definition: WorkflowDefinition = {
+        nodes: nodes ?? [],
+        edges: edges ?? [],
+      };
+
+      if (baseDefinition?.metadata && Object.keys(baseDefinition.metadata).length > 0) {
+        definition.metadata = baseDefinition.metadata;
+      }
+
+      const mergedSettings: Record<string, unknown> = { ...(baseDefinition?.settings ?? {}) };
+      if (effectiveViewport) {
+        mergedSettings.executionViewport = effectiveViewport;
+      }
+      if (Object.keys(mergedSettings).length > 0) {
+        definition.settings = mergedSettings;
+      }
+
+      return JSON.stringify(definition, null, 2);
     } catch (error) {
       logger.error('Failed to stringify workflow definition', { component: 'WorkflowBuilder', action: 'handleSaveError' }, error);
       return '{\n  "nodes": [],\n  "edges": []\n}';
     }
-  }, [nodes, edges]);
+  }, [currentWorkflow, nodes, edges, effectiveViewport]);
 
   useEffect(() => {
     if (!codeDirty || viewMode !== 'code') {
@@ -313,36 +328,68 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     setHistoryIndex(prev => prev + 1);
   }, [edges, historyIndex, nodes]);
 
-  const applyCodeChanges = useCallback((options?: { silent?: boolean }) => {
-    try {
-      const parsed = JSON.parse(codeValue || '{}');
-      const parsedNodes = normalizeNodes(parsed?.nodes ?? []);
-      const parsedEdges = normalizeEdges(parsed?.edges ?? []);
+  const applyCodeChanges = useCallback(async (options?: { silent?: boolean }) => {
+    let parsedNodes: Node[] = [];
+    let parsedEdges: Edge[] = [];
 
-      saveToHistory();
-      setNodes(parsedNodes);
-      setEdges(parsedEdges);
-      setCodeDirty(false);
-      setCodeError(null);
-      if (!options?.silent) {
-        toast.success('Workflow updated from JSON');
-      }
-      return true;
+    let parsedDefinition: WorkflowDefinition = { nodes: [], edges: [] };
+    try {
+      parsedDefinition = JSON.parse(codeValue || '{}') as WorkflowDefinition;
+      parsedNodes = normalizeNodes(parsedDefinition?.nodes ?? []);
+      parsedEdges = normalizeEdges(parsedDefinition?.edges ?? []);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Invalid JSON';
       setCodeError(message);
       toast.error(`Invalid workflow JSON: ${message}`);
       return false;
     }
-  }, [codeValue, saveToHistory, setEdges, setNodes, updateWorkflow]);
 
-  const handleViewModeChange = useCallback((mode: 'visual' | 'code') => {
+    setIsValidatingCode(true);
+    try {
+      const normalizedDefinition: WorkflowDefinition = {
+        ...parsedDefinition,
+        nodes: parsedNodes,
+        edges: parsedEdges,
+      };
+      const validation = await validateWorkflowDefinition(normalizedDefinition);
+      setValidationResult(validation);
+      if (!validation.valid) {
+        const firstError = validation.errors[0]?.message ?? 'Workflow failed schema validation';
+        setCodeError(firstError);
+        toast.error(`Workflow validation failed: ${firstError}`);
+        return false;
+      }
+      if (validation.warnings.length > 0 && !options?.silent) {
+        const warningMessage = validation.warnings[0]?.message ?? 'Workflow validated with warnings';
+        toast(`⚠️ ${warningMessage}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Workflow validation failed';
+      setCodeError(message);
+      toast.error(message);
+      return false;
+    } finally {
+      setIsValidatingCode(false);
+    }
+
+    saveToHistory();
+    setNodes(parsedNodes);
+    setEdges(parsedEdges);
+    setCodeDirty(false);
+    setCodeError(null);
+    if (!options?.silent) {
+      toast.success('Workflow updated from JSON');
+    }
+    return true;
+  }, [codeValue, saveToHistory, setEdges, setNodes]);
+
+  const handleViewModeChange = useCallback(async (mode: 'visual' | 'code') => {
     if (mode === viewMode) {
       return;
     }
 
     if (mode === 'visual' && viewMode === 'code' && codeDirty) {
-      const applied = applyCodeChanges({ silent: true });
+      const applied = await applyCodeChanges({ silent: true });
       if (!applied) {
         return;
       }
@@ -360,12 +407,14 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     setCodeValue(value || '');
     setCodeDirty(true);
     setCodeError(null);
+    setValidationResult(null);
   };
 
   const handleResetCode = () => {
     setCodeValue(buildJsonFromState());
     setCodeDirty(false);
     setCodeError(null);
+    setValidationResult(null);
   };
 
   // Undo function
@@ -715,6 +764,19 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                   </div>
                 </>
               )}
+              {validationResult && !codeError && (
+                <>
+                  <div className="w-px h-4 bg-gray-700" />
+                  <div
+                    className={`text-xs ${validationResult.valid ? 'text-emerald-400' : 'text-red-400'}`}
+                    data-testid="workflow-builder-code-validation"
+                  >
+                    {validationResult.valid
+                      ? `Validated · ${validationResult.stats.node_count} nodes`
+                      : 'Validation failed'}
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -726,12 +788,12 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                 Reset
               </button>
               <button
-                onClick={() => applyCodeChanges()}
+                onClick={() => { void applyCodeChanges(); }}
                 className="px-3 py-1.5 rounded-md text-xs bg-purple-600 text-white hover:bg-purple-500 transition-all disabled:opacity-50"
-                disabled={!codeDirty}
+                disabled={!codeDirty || isValidatingCode}
                 data-testid="workflow-builder-code-apply-button"
               >
-                Apply Changes
+                {isValidatingCode ? 'Validating…' : 'Apply Changes'}
               </button>
             </div>
           </div>

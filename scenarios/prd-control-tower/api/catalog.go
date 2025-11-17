@@ -64,10 +64,25 @@ func markdownToHTML(markdown []byte) (string, error) {
 }
 
 func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
+	entries, err := listCatalogEntries()
+	if err != nil {
+		respondInternalError(w, "Failed to load catalog", err)
+		return
+	}
+
+	response := CatalogResponse{
+		Entries: entries,
+		Total:   len(entries),
+	}
+
+	respondJSON(w, http.StatusOK, response)
+}
+
+// listCatalogEntries loads scenarios and resources along with PRD/draft status for reuse across endpoints.
+func listCatalogEntries() ([]CatalogEntry, error) {
 	vrooliRoot, err := getVrooliRoot()
 	if err != nil {
-		respondInternalError(w, "Failed to get Vrooli root", err)
-		return
+		return nil, err
 	}
 
 	entries := []CatalogEntry{}
@@ -76,8 +91,7 @@ func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
 	scenarios, err := enumerateEntities(scenariosDir, "scenario")
 	if err != nil {
-		respondInternalError(w, "Failed to enumerate scenarios", err)
-		return
+		return nil, fmt.Errorf("failed to enumerate scenarios: %w", err)
 	}
 	entries = append(entries, scenarios...)
 
@@ -85,8 +99,7 @@ func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 	resourcesDir := filepath.Join(vrooliRoot, "resources")
 	resources, err := enumerateEntities(resourcesDir, "resource")
 	if err != nil {
-		respondInternalError(w, "Failed to enumerate resources", err)
-		return
+		return nil, fmt.Errorf("failed to enumerate resources: %w", err)
 	}
 	entries = append(entries, resources...)
 
@@ -99,12 +112,7 @@ func handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 		entries[i].HasDraft = hasDraft(entries[i].Type, entries[i].Name, draftPresence)
 	}
 
-	response := CatalogResponse{
-		Entries: entries,
-		Total:   len(entries),
-	}
-
-	respondJSON(w, http.StatusOK, response)
+	return entries, nil
 }
 
 func enumerateEntities(baseDir string, entityType string) ([]CatalogEntry, error) {

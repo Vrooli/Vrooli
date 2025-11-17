@@ -249,5 +249,366 @@
       }
     },
     "scenarios": {}
+  },
+  "deployment": {
+    "metadata_version": 1,
+    "last_analyzed_at": "2024-03-28T01:30:00Z",
+    "analyzer": {
+      "name": "manual-draft",
+      "version": "0.1"
+    },
+    "aggregate_requirements": {
+      "ram_mb": 8192,
+      "disk_mb": 12288,
+      "cpu_cores": 4,
+      "gpu": false,
+      "network": "required",
+      "storage_mb_per_user": 200,
+      "startup_time_ms": 45000,
+      "bucket": "large",
+      "source": "estimated",
+      "confidence": "medium"
+    },
+    "tiers": {
+      "tier-1-local": {
+        "status": "ready",
+        "fitness_score": 0.85,
+        "constraints": [
+          "Requires full Vrooli stack with browserless Chromium workers and app-monitor proxy",
+          "Needs outbound network for OpenRouter fallback when Ollama disabled"
+        ],
+        "requirements": {
+          "ram_mb": 8192,
+          "disk_mb": 12288,
+          "cpu_cores": 4,
+          "network": "required",
+          "bucket": "large",
+          "source": "estimated",
+          "confidence": "medium"
+        },
+        "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel.",
+        "secrets": [
+          {
+            "secret_id": "browser-automation-studio/postgres-url",
+            "classification": "service",
+            "notes": "Regenerate per deployment"
+          },
+          {
+            "secret_id": "browserless/api-key",
+            "classification": "infrastructure",
+            "notes": "Never ships with desktop bundles"
+          },
+          {
+            "secret_id": "openrouter/api-key",
+            "classification": "user",
+            "notes": "Prompt desktop users for their own API key when using remote LLMs"
+          }
+        ],
+        "artifacts": [
+          {
+            "type": "cloudflare-proxy",
+            "producer": "app-monitor",
+            "status": "available",
+            "notes": "Standard Tier 1 exposure via Cloudflare Zero Trust"
+          }
+        ]
+      },
+      "tier-2-desktop": {
+        "status": "limited",
+        "fitness_score": 0.35,
+        "constraints": [
+          "Browserless + Postgres footprint too heavy for bundled runtimes",
+          "MinIO requires background server and credentials",
+          "Secrets must be provisioned at install time"
+        ],
+        "requirements": {
+          "ram_mb": 6144,
+          "disk_mb": 8192,
+          "cpu_cores": 4,
+          "network": "optional",
+          "bucket": "large",
+          "source": "estimated",
+          "confidence": "low"
+        },
+        "adaptations": [
+          {
+            "dependency": "postgres",
+            "swap": "sqlite",
+            "impact": "Would enable single-process storage but removes advanced query features",
+            "effort_days": 4,
+            "notes": "Needs schema + migration tooling"
+          },
+          {
+            "dependency": "browserless",
+            "swap": "playwright-packaged",
+            "impact": "Compile Playwright into the Electron app to avoid remote dependency",
+            "effort_days": 5,
+            "notes": "Requires custom runner and sandbox hardening"
+          },
+          {
+            "dependency": "minio",
+            "swap": "filesystem-store",
+            "impact": "Store artifacts in user data folder",
+            "effort_days": 2
+          }
+        ],
+        "notes": "scenario-to-desktop currently ships a thin client only; full bundling blocked until swaps are executed.",
+        "artifacts": [
+          {
+            "type": "electron-app",
+            "producer": "scenario-to-desktop",
+            "status": "thin-client",
+            "notes": "UI bundle works but depends on remote API"
+          }
+        ]
+      },
+      "tier-3-mobile": {
+        "status": "blocked",
+        "fitness_score": 0.1,
+        "constraints": [
+          "Browser automation requires Chromium which is unavailable on mobile",
+          "Resource footprint exceeds mobile limits"
+        ],
+        "notes": "Needs entirely different orchestration model"
+      },
+      "tier-4-saas": {
+        "status": "limited",
+        "fitness_score": 0.6,
+        "constraints": [
+          "Requires deployment-manager driven packaging of dependent resources",
+          "Needs secrets templating + Terraform/K8s automation"
+        ],
+        "requirements": {
+          "ram_mb": 10240,
+          "disk_mb": 16384,
+          "cpu_cores": 6,
+          "network": "required",
+          "bucket": "large",
+          "source": "estimated",
+          "confidence": "low"
+        },
+        "notes": "Viable once deployment-manager can provision Browserless pools and managed storage"
+      },
+      "tier-5-enterprise": {
+        "status": "limited",
+        "fitness_score": 0.55,
+        "constraints": [
+          "Secrets segregation + air-gapped resource support not implemented",
+          "Requires on-prem Browserless fleet management"
+        ],
+        "notes": "Follows SaaS path but with hardened secrets + monitoring"
+      }
+    },
+    "dependencies": {
+      "resources": {
+        "postgres": {
+          "resource_type": "database",
+          "footprint": {
+            "ram_mb": 768,
+            "disk_mb": 4096,
+            "cpu_cores": 1,
+            "network": "required",
+            "source": "estimated",
+            "confidence": "medium"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.9,
+              "notes": "Uses shared postgres resource"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.2,
+              "reason": "Desktop install would need embedded database service",
+              "alternatives": [
+                "sqlite"
+              ]
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "fitness_score": 0.7,
+              "notes": "Needs managed PaaS provisioning"
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "sqlite",
+              "relationship": "migration",
+              "notes": "Only viable for single-user bundles"
+            }
+          ],
+          "packaging_hints": [
+            "Requires initialization/storage/postgres/schema.sql"
+          ]
+        },
+        "browserless": {
+          "resource_type": "browser-automation",
+          "footprint": {
+            "ram_mb": 2048,
+            "disk_mb": 512,
+            "cpu_cores": 2,
+            "network": "required",
+            "source": "estimated",
+            "confidence": "medium"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.85,
+              "notes": "Managed via shared Browserless resource"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.1,
+              "reason": "Electron cannot embed headless Chromium + Node cluster today",
+              "alternatives": [
+                "playwright-packaged"
+              ]
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "fitness_score": 0.6,
+              "notes": "Needs auto-scaling pool"
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "playwright-packaged",
+              "relationship": "future",
+              "notes": "Potential compiled runner for desktop/mobile"
+            }
+          ],
+          "packaging_hints": [
+            "Requires Puppeteer-compatible fonts + sandbox syscalls"
+          ]
+        },
+        "minio": {
+          "resource_type": "object-storage",
+          "footprint": {
+            "ram_mb": 512,
+            "disk_mb": 2048,
+            "cpu_cores": 1,
+            "network": "required",
+            "source": "estimated",
+            "confidence": "medium"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.8,
+              "notes": "Shared MinIO resource"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.3,
+              "reason": "Requires bundled object storage process",
+              "alternatives": [
+                "filesystem-store"
+              ]
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "fitness_score": 0.7,
+              "notes": "Map to S3/Spaces bucket"
+            }
+          },
+          "packaging_hints": [
+            "Provide lifecycle policy for screenshots"
+          ]
+        },
+        "redis": {
+          "resource_type": "cache",
+          "footprint": {
+            "ram_mb": 256,
+            "disk_mb": 128,
+            "cpu_cores": 0.5,
+            "network": "optional",
+            "source": "estimated",
+            "confidence": "low"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.8,
+              "notes": "Shared redis"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.3,
+              "reason": "Need embedded cache or switch to in-process broadcast",
+              "alternatives": [
+                "event-emitter"
+              ]
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "in-memory-pubsub",
+              "relationship": "fallback",
+              "notes": "Only for single-instance desktop"
+            }
+          ]
+        },
+        "ollama": {
+          "resource_type": "llm-server",
+          "footprint": {
+            "ram_mb": 4096,
+            "disk_mb": 8192,
+            "cpu_cores": 4,
+            "gpu": false,
+            "network": "optional",
+            "source": "estimated",
+            "confidence": "low"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.6,
+              "notes": "Optional but heavy"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.2,
+              "reason": "Model download sizes exceed desktop bundle budget",
+              "alternatives": [
+                "openrouter"
+              ]
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "openrouter",
+              "relationship": "cloud-llm",
+              "notes": "Prompt user for API key"
+            }
+          ]
+        },
+        "openrouter": {
+          "resource_type": "llm-api",
+          "footprint": {
+            "network": "required",
+            "source": "manual",
+            "confidence": "medium"
+          },
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.7,
+              "notes": "Used when Ollama disabled"
+            },
+            "tier-2-desktop": {
+              "supported": true,
+              "fitness_score": 0.5,
+              "reason": "Requires user-provided API key and network"
+            }
+          },
+          "packaging_hints": [
+            "Prompt users for key on first launch"
+          ]
+        }
+      },
+      "scenarios": {}
+    }
   }
 }

@@ -148,7 +148,7 @@
       },
       "data": {
         "label": "Click first example prompt",
-        "selector": "[data-testid=\"ai-example-prompt-0\"]",
+        "selector": "[data-testid=\"ai-example-prompt-0\"] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
@@ -220,19 +220,89 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-for-project-detail", "target": "click-new-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "click-new-workflow", "target": "wait-for-ai-modal", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-for-ai-modal", "target": "assert-ai-modal-visible", "type": "smoothstep"},
-    {"id": "e7", "source": "assert-ai-modal-visible", "target": "capture-ai-modal", "type": "smoothstep"},
-    {"id": "e8", "source": "capture-ai-modal", "target": "assert-example-prompts-visible", "type": "smoothstep"},
-    {"id": "e9", "source": "assert-example-prompts-visible", "target": "click-example-prompt", "type": "smoothstep"},
-    {"id": "e10", "source": "click-example-prompt", "target": "wait-for-prompt-populate", "type": "smoothstep"},
-    {"id": "e11", "source": "wait-for-prompt-populate", "target": "verify-prompt-populated", "type": "smoothstep"},
-    {"id": "e12", "source": "verify-prompt-populated", "target": "verify-workflow-name-populated", "type": "smoothstep"},
-    {"id": "e13", "source": "verify-workflow-name-populated", "target": "capture-populated-modal", "type": "smoothstep"},
-    {"id": "e14", "source": "capture-populated-modal", "target": "assert-generate-button-enabled", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-for-project-detail",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-project-detail",
+      "target": "click-new-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-new-workflow",
+      "target": "wait-for-ai-modal",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-for-ai-modal",
+      "target": "assert-ai-modal-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-ai-modal-visible",
+      "target": "capture-ai-modal",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "capture-ai-modal",
+      "target": "assert-example-prompts-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "assert-example-prompts-visible",
+      "target": "click-example-prompt",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "click-example-prompt",
+      "target": "wait-for-prompt-populate",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "wait-for-prompt-populate",
+      "target": "verify-prompt-populated",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "verify-prompt-populated",
+      "target": "verify-workflow-name-populated",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "verify-workflow-name-populated",
+      "target": "capture-populated-modal",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "capture-populated-modal",
+      "target": "assert-generate-button-enabled",
+      "type": "smoothstep"
+    }
   ]
 }

@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {"x": 0, "y": 0},
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,13 +32,23 @@
     {
       "id": "wait-dashboard",
       "type": "wait",
-      "position": {"x": 200, "y": 0},
-      "data": {"label": "Wait for dashboard", "durationMs": 2000, "waitType": "duration"}
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for dashboard",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
     },
     {
       "id": "click-demo-project",
       "type": "click",
-      "position": {"x": 400, "y": 0},
+      "position": {
+        "x": 400,
+        "y": 0
+      },
       "data": {
         "label": "Open Demo Browser Automations project",
         "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
@@ -46,13 +59,23 @@
     {
       "id": "wait-project-view",
       "type": "wait",
-      "position": {"x": 600, "y": 0},
-      "data": {"label": "Wait for project view", "durationMs": 2000, "waitType": "duration"}
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project view",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
     },
     {
       "id": "create-workflow",
       "type": "click",
-      "position": {"x": 800, "y": 0},
+      "position": {
+        "x": 800,
+        "y": 0
+      },
       "data": {
         "label": "Create new workflow",
         "selector": "[data-testid=\"new-workflow-button\"]",
@@ -63,7 +86,10 @@
     {
       "id": "wait-for-ai-modal",
       "type": "wait",
-      "position": {"x": 900, "y": 0},
+      "position": {
+        "x": 900,
+        "y": 0
+      },
       "data": {
         "label": "Wait for AI modal",
         "selector": "[data-testid=\"ai-prompt-modal\"]",
@@ -75,7 +101,10 @@
     {
       "id": "switch-to-manual",
       "type": "click",
-      "position": {"x": 950, "y": 0},
+      "position": {
+        "x": 950,
+        "y": 0
+      },
       "data": {
         "label": "Switch to manual builder",
         "selector": "[data-testid=\"switch-to-manual-button\"]",
@@ -87,7 +116,10 @@
     {
       "id": "wait-builder",
       "type": "wait",
-      "position": {"x": 1000, "y": 0},
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
       "data": {
         "label": "Wait for workflow builder",
         "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
@@ -99,13 +131,23 @@
     {
       "id": "capture-before",
       "type": "screenshot",
-      "position": {"x": 1200, "y": 0},
-      "data": {"label": "Capture builder before adding node", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture builder before adding node",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "drag-navigate-node",
       "type": "dragDrop",
-      "position": {"x": 1400, "y": 0},
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
       "data": {
         "label": "Drag Navigate node onto canvas",
         "sourceSelector": "[data-testid=\"node-palette-navigate-card\"]",
@@ -117,13 +159,23 @@
     {
       "id": "wait-node-added",
       "type": "wait",
-      "position": {"x": 1600, "y": 0},
-      "data": {"label": "Wait for node to appear", "durationMs": 1500, "waitType": "duration"}
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for node to appear",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
     },
     {
       "id": "verify-navigate-node",
       "type": "assert",
-      "position": {"x": 1800, "y": 0},
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
       "data": {
         "label": "Verify Navigate node exists",
         "selector": ".react-flow__node[data-type=\"navigate\"]",
@@ -135,16 +187,26 @@
     {
       "id": "capture-node-added",
       "type": "screenshot",
-      "position": {"x": 2000, "y": 0},
-      "data": {"label": "Capture Navigate node on canvas", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture Navigate node on canvas",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "click-navigate-node",
       "type": "click",
-      "position": {"x": 2200, "y": 0},
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
       "data": {
         "label": "Click Navigate node to select it",
-        "selector": ".react-flow__node[data-type=\"navigate\"]",
+        "selector": ".react-flow__node[data-type=\"navigate\"] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
@@ -152,7 +214,10 @@
     {
       "id": "verify-node-selected",
       "type": "assert",
-      "position": {"x": 2400, "y": 0},
+      "position": {
+        "x": 2400,
+        "y": 0
+      },
       "data": {
         "label": "Verify node is selected",
         "selector": ".react-flow__node.selected[data-type=\"navigate\"]",
@@ -164,7 +229,10 @@
     {
       "id": "find-url-input",
       "type": "assert",
-      "position": {"x": 2600, "y": 0},
+      "position": {
+        "x": 2600,
+        "y": 0
+      },
       "data": {
         "label": "Verify URL input is visible in node",
         "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]",
@@ -176,7 +244,10 @@
     {
       "id": "click-url-mode",
       "type": "click",
-      "position": {"x": 2800, "y": 0},
+      "position": {
+        "x": 2800,
+        "y": 0
+      },
       "data": {
         "label": "Switch to URL mode",
         "selector": ".react-flow__node.selected[data-type=\"navigate\"] button[data-testid=\"url-mode-button\"]",
@@ -188,10 +259,13 @@
     {
       "id": "click-url-input",
       "type": "click",
-      "position": {"x": 3000, "y": 0},
+      "position": {
+        "x": 3000,
+        "y": 0
+      },
       "data": {
         "label": "Click URL input field",
-        "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]",
+        "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 300
       }
@@ -199,20 +273,26 @@
     {
       "id": "clear-url-input",
       "type": "keyboard",
-      "position": {"x": 3200, "y": 0},
+      "position": {
+        "x": 3200,
+        "y": 0
+      },
       "data": {
         "label": "Clear URL input",
-        "key": "Control+a",
+        "keys": ["Control", "a"],
         "waitForMs": 200
       }
     },
     {
       "id": "type-url",
       "type": "type",
-      "position": {"x": 3400, "y": 0},
+      "position": {
+        "x": 3400,
+        "y": 0
+      },
       "data": {
         "label": "Type test URL",
-        "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]",
+        "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"] /*dup-2*/",
         "text": "https://example.com/test-page",
         "timeoutMs": 5000,
         "waitForMs": 500
@@ -221,7 +301,10 @@
     {
       "id": "blur-url-input",
       "type": "click",
-      "position": {"x": 3600, "y": 0},
+      "position": {
+        "x": 3600,
+        "y": 0
+      },
       "data": {
         "label": "Click outside to trigger blur/save",
         "selector": ".react-flow__pane",
@@ -232,13 +315,23 @@
     {
       "id": "capture-url-configured",
       "type": "screenshot",
-      "position": {"x": 3800, "y": 0},
-      "data": {"label": "Capture after URL configuration", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 3800,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture after URL configuration",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "verify-url-persisted",
       "type": "evaluate",
-      "position": {"x": 4000, "y": 0},
+      "position": {
+        "x": 4000,
+        "y": 0
+      },
       "data": {
         "label": "Verify URL value persisted",
         "expression": "document.querySelector('.react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]')?.value.includes('example.com/test-page') ?? false",
@@ -248,7 +341,10 @@
     {
       "id": "assert-url-saved",
       "type": "assert",
-      "position": {"x": 4200, "y": 0},
+      "position": {
+        "x": 4200,
+        "y": 0
+      },
       "data": {
         "label": "Assert URL was saved",
         "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[value*=\"example.com\"]",
@@ -259,28 +355,143 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-dashboard", "target": "click-demo-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-demo-project", "target": "wait-project-view", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-project-view", "target": "create-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "create-workflow", "target": "wait-for-ai-modal", "type": "smoothstep"},
-    {"id": "e5a", "source": "wait-for-ai-modal", "target": "switch-to-manual", "type": "smoothstep"},
-    {"id": "e5b", "source": "switch-to-manual", "target": "wait-builder", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-builder", "target": "capture-before", "type": "smoothstep"},
-    {"id": "e7", "source": "capture-before", "target": "drag-navigate-node", "type": "smoothstep"},
-    {"id": "e8", "source": "drag-navigate-node", "target": "wait-node-added", "type": "smoothstep"},
-    {"id": "e9", "source": "wait-node-added", "target": "verify-navigate-node", "type": "smoothstep"},
-    {"id": "e10", "source": "verify-navigate-node", "target": "capture-node-added", "type": "smoothstep"},
-    {"id": "e11", "source": "capture-node-added", "target": "click-navigate-node", "type": "smoothstep"},
-    {"id": "e12", "source": "click-navigate-node", "target": "verify-node-selected", "type": "smoothstep"},
-    {"id": "e13", "source": "verify-node-selected", "target": "find-url-input", "type": "smoothstep"},
-    {"id": "e14", "source": "find-url-input", "target": "click-url-mode", "type": "smoothstep"},
-    {"id": "e15", "source": "click-url-mode", "target": "click-url-input", "type": "smoothstep"},
-    {"id": "e16", "source": "click-url-input", "target": "clear-url-input", "type": "smoothstep"},
-    {"id": "e17", "source": "clear-url-input", "target": "type-url", "type": "smoothstep"},
-    {"id": "e18", "source": "type-url", "target": "blur-url-input", "type": "smoothstep"},
-    {"id": "e19", "source": "blur-url-input", "target": "capture-url-configured", "type": "smoothstep"},
-    {"id": "e20", "source": "capture-url-configured", "target": "verify-url-persisted", "type": "smoothstep"},
-    {"id": "e21", "source": "verify-url-persisted", "target": "assert-url-saved", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-dashboard",
+      "target": "click-demo-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-demo-project",
+      "target": "wait-project-view",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-project-view",
+      "target": "create-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "create-workflow",
+      "target": "wait-for-ai-modal",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5a",
+      "source": "wait-for-ai-modal",
+      "target": "switch-to-manual",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5b",
+      "source": "switch-to-manual",
+      "target": "wait-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-builder",
+      "target": "capture-before",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "capture-before",
+      "target": "drag-navigate-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "drag-navigate-node",
+      "target": "wait-node-added",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "wait-node-added",
+      "target": "verify-navigate-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "verify-navigate-node",
+      "target": "capture-node-added",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "capture-node-added",
+      "target": "click-navigate-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "click-navigate-node",
+      "target": "verify-node-selected",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "verify-node-selected",
+      "target": "find-url-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "find-url-input",
+      "target": "click-url-mode",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "click-url-mode",
+      "target": "click-url-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "click-url-input",
+      "target": "clear-url-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e17",
+      "source": "clear-url-input",
+      "target": "type-url",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e18",
+      "source": "type-url",
+      "target": "blur-url-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e19",
+      "source": "blur-url-input",
+      "target": "capture-url-configured",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e20",
+      "source": "capture-url-configured",
+      "target": "verify-url-persisted",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e21",
+      "source": "verify-url-persisted",
+      "target": "assert-url-saved",
+      "type": "smoothstep"
+    }
   ]
 }

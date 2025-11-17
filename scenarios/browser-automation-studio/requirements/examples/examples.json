@@ -1,0 +1,24 @@
+{
+  "_metadata": {
+    "description": "Helper/example workflows used for smoke/manual validation",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BAS-EXAMPLE-SIMPLE-NAV",
+      "category": "examples",
+      "title": "Sample workflow navigates to Google",
+      "description": "Maintains a minimal workflow JSON used for manual smoke/lint verification.",
+      "status": "complete",
+      "criticality": "P3",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/__test-simple-navigate.json",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

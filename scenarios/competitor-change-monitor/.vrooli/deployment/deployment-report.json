@@ -1,0 +1,91 @@
+{
+  "scenario": "competitor-change-monitor",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:55.382534216Z",
+  "dependencies": [
+    {
+      "name": "n8n",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "qdrant",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "competitor-change-monitor",
+    "generated_at": "2025-11-16T19:40:55.382534216Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/competitor-change-monitor-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/competitor-change-monitor",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "n8n",
+        "type": "resource"
+      },
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "qdrant",
+        "type": "resource"
+      },
+      {
+        "name": "redis",
+        "type": "resource"
+      }
+    ]
+  }
+}

@@ -4,8 +4,9 @@ import { ArrowLeft, AlertTriangle, ListTree } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { buildApiUrl } from '../utils/apiClient'
 import { usePrepareDraft } from '../utils/useDraft'
-import type { PublishedPRDResponse } from '../types'
-import { DiagnosticsPanel } from '../components/prd-viewer'
+import type { PublishedPRDResponse, ScenarioQualityReport } from '../types'
+import { DiagnosticsPanel, QualityInsightsPanel } from '../components/prd-viewer'
+import { fetchQualityReport } from '../utils/quality'
 
 interface DiagnosticsState {
   entityType: string
@@ -23,6 +24,9 @@ export default function PRDViewer() {
   const [diagnostics, setDiagnostics] = useState<DiagnosticsState | null>(null)
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false)
   const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null)
+  const [qualityReport, setQualityReport] = useState<ScenarioQualityReport | null>(null)
+  const [qualityLoading, setQualityLoading] = useState(true)
+  const [qualityError, setQualityError] = useState<string | null>(null)
 
   const { prepareDraft, preparing: preparingDraft } = usePrepareDraft()
 
@@ -56,6 +60,28 @@ export default function PRDViewer() {
   useEffect(() => {
     fetchPRD()
   }, [fetchPRD])
+
+  const loadQualityReport = useCallback(async (force = false) => {
+    if (!type || !name) {
+      return
+    }
+
+    setQualityLoading(true)
+    setQualityError(null)
+
+    try {
+      const data = await fetchQualityReport(type, name, { useCache: !force })
+      setQualityReport(data)
+    } catch (err) {
+      setQualityError(err instanceof Error ? err.message : 'Failed to load quality insights')
+    } finally {
+      setQualityLoading(false)
+    }
+  }, [type, name])
+
+  useEffect(() => {
+    loadQualityReport(true)
+  }, [loadQualityReport])
 
   const handlePrepareDraft = () => {
     if (prd) {
@@ -179,6 +205,13 @@ export default function PRDViewer() {
             </button>
           </div>
         </div>
+
+        <QualityInsightsPanel
+          report={qualityReport}
+          loading={qualityLoading}
+          error={qualityError}
+          onRefresh={() => loadQualityReport(true)}
+        />
 
         {hasRenderableContent ? (
           <div className="prd-content">

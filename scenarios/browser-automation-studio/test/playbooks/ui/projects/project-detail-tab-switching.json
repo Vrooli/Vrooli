@@ -229,7 +229,7 @@
       },
       "data": {
         "label": "Workflows tab is active again",
-        "selector": "[data-testid=\"workflows-tab\"][class*=\"active\"], [data-testid=\"workflows-tab\"][aria-selected=\"true\"]",
+        "selector": "[data-testid=\"workflows-tab\"][class*=\"active\"], [data-testid=\"workflows-tab\"][aria-selected=\"true\"] /*dup-1*/",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Workflows tab should be active again after switching back"
@@ -250,21 +250,101 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-for-project-detail", "target": "assert-workflows-tab-active", "type": "smoothstep"},
-    {"id": "e5", "source": "assert-workflows-tab-active", "target": "capture-workflows-tab", "type": "smoothstep"},
-    {"id": "e6", "source": "capture-workflows-tab", "target": "verify-workflow-content-visible", "type": "smoothstep"},
-    {"id": "e7", "source": "verify-workflow-content-visible", "target": "click-executions-tab", "type": "smoothstep"},
-    {"id": "e8", "source": "click-executions-tab", "target": "wait-for-executions-load", "type": "smoothstep"},
-    {"id": "e9", "source": "wait-for-executions-load", "target": "assert-executions-tab-active", "type": "smoothstep"},
-    {"id": "e10", "source": "assert-executions-tab-active", "target": "assert-workflows-tab-inactive", "type": "smoothstep"},
-    {"id": "e11", "source": "assert-workflows-tab-inactive", "target": "capture-executions-tab", "type": "smoothstep"},
-    {"id": "e12", "source": "capture-executions-tab", "target": "verify-execution-content-visible", "type": "smoothstep"},
-    {"id": "e13", "source": "verify-execution-content-visible", "target": "click-workflows-tab-again", "type": "smoothstep"},
-    {"id": "e14", "source": "click-workflows-tab-again", "target": "wait-for-workflows-reload", "type": "smoothstep"},
-    {"id": "e15", "source": "wait-for-workflows-reload", "target": "assert-workflows-tab-active-again", "type": "smoothstep"},
-    {"id": "e16", "source": "assert-workflows-tab-active-again", "target": "capture-workflows-tab-again", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-for-project-detail",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-project-detail",
+      "target": "assert-workflows-tab-active",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "assert-workflows-tab-active",
+      "target": "capture-workflows-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "capture-workflows-tab",
+      "target": "verify-workflow-content-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "verify-workflow-content-visible",
+      "target": "click-executions-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-executions-tab",
+      "target": "wait-for-executions-load",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "wait-for-executions-load",
+      "target": "assert-executions-tab-active",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-executions-tab-active",
+      "target": "assert-workflows-tab-inactive",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "assert-workflows-tab-inactive",
+      "target": "capture-executions-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "capture-executions-tab",
+      "target": "verify-execution-content-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "verify-execution-content-visible",
+      "target": "click-workflows-tab-again",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "click-workflows-tab-again",
+      "target": "wait-for-workflows-reload",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "wait-for-workflows-reload",
+      "target": "assert-workflows-tab-active-again",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "assert-workflows-tab-active-again",
+      "target": "capture-workflows-tab-again",
+      "type": "smoothstep"
+    }
   ]
 }

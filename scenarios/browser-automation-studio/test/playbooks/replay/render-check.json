@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Wait for demo project",
-        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
+        "selector": "[data-project-name=\"Demo Browser Automations\"][data-testid=\"project-card\"]",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -111,7 +111,8 @@
       },
       "data": {
         "label": "Wait for execution to complete",
-        "durationMs": 35000
+        "durationMs": 35000,
+        "waitType": "duration"
       }
     },
     {

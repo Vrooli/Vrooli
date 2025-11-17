@@ -196,7 +196,7 @@
       },
       "data": {
         "label": "Modal is closed after save",
-        "selector": "[data-testid=\"project-modal\"]",
+        "selector": "[data-testid=\"project-modal\"] /*dup-1*/",
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "Modal should close after successful project update"

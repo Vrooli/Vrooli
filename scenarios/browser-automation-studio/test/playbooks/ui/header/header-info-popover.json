@@ -122,7 +122,7 @@
       },
       "data": {
         "label": "Click info button to open popover",
-        "selector": "button[title*=\"info\" i], button[aria-label*=\"info\" i], svg.lucide-info",
+        "selector": "button[title*=\"info\" i], button[aria-label*=\"info\" i], svg.lucide-info /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }
@@ -164,21 +164,73 @@
       },
       "data": {
         "label": "Close popover with Escape",
-        "key": "Escape",
-        "waitForMs": 500
+        "waitForMs": 500,
+        "keys": [
+          "Escape"
+        ]
       }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-for-project-detail", "target": "click-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "click-workflow", "target": "wait-for-builder", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-for-builder", "target": "find-info-button", "type": "smoothstep"},
-    {"id": "e7", "source": "find-info-button", "target": "click-info-button", "type": "smoothstep"},
-    {"id": "e8", "source": "click-info-button", "target": "assert-popover-visible", "type": "smoothstep"},
-    {"id": "e9", "source": "assert-popover-visible", "target": "capture-popover", "type": "smoothstep"},
-    {"id": "e10", "source": "capture-popover", "target": "close-popover", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-for-project-detail",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-project-detail",
+      "target": "click-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-workflow",
+      "target": "wait-for-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-for-builder",
+      "target": "find-info-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "find-info-button",
+      "target": "click-info-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-info-button",
+      "target": "assert-popover-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "assert-popover-visible",
+      "target": "capture-popover",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "capture-popover",
+      "target": "close-popover",
+      "type": "smoothstep"
+    }
   ]
 }

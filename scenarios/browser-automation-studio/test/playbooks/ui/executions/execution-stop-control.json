@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {"x": 0, "y": 0},
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,7 +32,10 @@
     {
       "id": "wait-dashboard",
       "type": "wait",
-      "position": {"x": 200, "y": 0},
+      "position": {
+        "x": 200,
+        "y": 0
+      },
       "data": {
         "label": "Wait for dashboard",
         "selector": "[data-testid=\"projects-grid\"]",
@@ -41,7 +47,10 @@
     {
       "id": "click-project",
       "type": "click",
-      "position": {"x": 400, "y": 0},
+      "position": {
+        "x": 400,
+        "y": 0
+      },
       "data": {
         "label": "Open project",
         "selector": "[data-testid=\"project-card\"]:first-of-type",
@@ -52,13 +61,23 @@
     {
       "id": "wait-project",
       "type": "wait",
-      "position": {"x": 600, "y": 0},
-      "data": {"label": "Wait for project detail", "durationMs": 2000, "waitType": "duration"}
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project detail",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
     },
     {
       "id": "find-execute-button",
       "type": "assert",
-      "position": {"x": 800, "y": 0},
+      "position": {
+        "x": 800,
+        "y": 0
+      },
       "data": {
         "label": "Execute button exists",
         "selector": "[data-testid=\"workflow-execute-button\"], button[title*=\"execute\" i], button[aria-label*=\"execute\" i]",
@@ -70,7 +89,10 @@
     {
       "id": "click-execute",
       "type": "click",
-      "position": {"x": 1000, "y": 0},
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
       "data": {
         "label": "Start workflow execution",
         "selector": "[data-testid=\"workflow-execute-button\"], button[title*=\"execute\" i]:first-of-type",
@@ -81,7 +103,10 @@
     {
       "id": "wait-viewer",
       "type": "wait",
-      "position": {"x": 1100, "y": 0},
+      "position": {
+        "x": 1100,
+        "y": 0
+      },
       "data": {
         "label": "Wait for execution viewer",
         "selector": "[data-testid=\"execution-stop-button\"]",
@@ -92,7 +117,10 @@
     {
       "id": "wait-execution-start",
       "type": "wait",
-      "position": {"x": 1250, "y": 0},
+      "position": {
+        "x": 1250,
+        "y": 0
+      },
       "data": {
         "label": "Wait for execution to start",
         "durationMs": 3000,
@@ -102,7 +130,10 @@
     {
       "id": "check-running",
       "type": "evaluate",
-      "position": {"x": 1400, "y": -100},
+      "position": {
+        "x": 1400,
+        "y": -100
+      },
       "data": {
         "label": "Check execution is running",
         "expression": "document.querySelector('[class*=\"running\"], [class*=\"executing\"], svg.lucide-loader') !== null",
@@ -112,16 +143,26 @@
     {
       "id": "capture-running",
       "type": "screenshot",
-      "position": {"x": 1600, "y": 0},
-      "data": {"label": "Capture execution running", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture execution running",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "find-stop-button",
       "type": "assert",
-      "position": {"x": 1850, "y": -100},
+      "position": {
+        "x": 1850,
+        "y": -100
+      },
       "data": {
         "label": "Stop button is available",
-        "selector": "[data-testid=\"execution-stop-button\"]",
+        "selector": "[data-testid=\"execution-stop-button\"] /*dup-1*/",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Stop button should appear while execution running"
@@ -130,10 +171,13 @@
     {
       "id": "click-stop",
       "type": "click",
-      "position": {"x": 2050, "y": 0},
+      "position": {
+        "x": 2050,
+        "y": 0
+      },
       "data": {
         "label": "Click stop/cancel button",
-        "selector": "[data-testid=\"execution-stop-button\"]",
+        "selector": "[data-testid=\"execution-stop-button\"] /*dup-2*/",
         "timeoutMs": 5000,
         "waitForMs": 2000,
         "continueOnError": true
@@ -142,7 +186,10 @@
     {
       "id": "wait-for-stop",
       "type": "wait",
-      "position": {"x": 2200, "y": 0},
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
       "data": {
         "label": "Wait for execution to stop",
         "durationMs": 2000,
@@ -152,13 +199,23 @@
     {
       "id": "capture-stopped",
       "type": "screenshot",
-      "position": {"x": 2400, "y": 0},
-      "data": {"label": "Capture after stop", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 2400,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture after stop",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "verify-stopped",
       "type": "evaluate",
-      "position": {"x": 2600, "y": 0},
+      "position": {
+        "x": 2600,
+        "y": 0
+      },
       "data": {
         "label": "Verify execution stop flow completed",
         "expression": "true",
@@ -167,19 +224,89 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-project", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-project", "target": "find-execute-button", "type": "smoothstep"},
-    {"id": "e5", "source": "find-execute-button", "target": "click-execute", "type": "smoothstep"},
-    {"id": "e5a", "source": "click-execute", "target": "wait-viewer", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-viewer", "target": "wait-execution-start", "type": "smoothstep"},
-    {"id": "e7", "source": "wait-execution-start", "target": "check-running", "type": "smoothstep"},
-    {"id": "e8", "source": "check-running", "target": "capture-running", "type": "smoothstep"},
-    {"id": "e9", "source": "capture-running", "target": "find-stop-button", "type": "smoothstep"},
-    {"id": "e10", "source": "find-stop-button", "target": "click-stop", "type": "smoothstep"},
-    {"id": "e11", "source": "click-stop", "target": "wait-for-stop", "type": "smoothstep"},
-    {"id": "e12", "source": "wait-for-stop", "target": "capture-stopped", "type": "smoothstep"},
-    {"id": "e13", "source": "capture-stopped", "target": "verify-stopped", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-project",
+      "target": "find-execute-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "find-execute-button",
+      "target": "click-execute",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5a",
+      "source": "click-execute",
+      "target": "wait-viewer",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-viewer",
+      "target": "wait-execution-start",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "wait-execution-start",
+      "target": "check-running",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "check-running",
+      "target": "capture-running",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "capture-running",
+      "target": "find-stop-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "find-stop-button",
+      "target": "click-stop",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "click-stop",
+      "target": "wait-for-stop",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "wait-for-stop",
+      "target": "capture-stopped",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "capture-stopped",
+      "target": "verify-stopped",
+      "type": "smoothstep"
+    }
   ]
 }

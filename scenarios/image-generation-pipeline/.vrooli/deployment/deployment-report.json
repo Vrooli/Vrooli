@@ -1,0 +1,118 @@
+{
+  "scenario": "image-generation-pipeline",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:56.113611718Z",
+  "dependencies": [
+    {
+      "name": "comfyui",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "minio",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "n8n",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "qdrant",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "vault",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "whisper",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "image-generation-pipeline",
+    "generated_at": "2025-11-16T19:40:56.113611718Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/image-generation-pipeline-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/image-generation-pipeline",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "comfyui",
+        "type": "resource"
+      },
+      {
+        "name": "minio",
+        "type": "resource"
+      },
+      {
+        "name": "n8n",
+        "type": "resource"
+      },
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "qdrant",
+        "type": "resource"
+      },
+      {
+        "name": "vault",
+        "type": "resource"
+      },
+      {
+        "name": "whisper",
+        "type": "resource"
+      }
+    ]
+  }
+}

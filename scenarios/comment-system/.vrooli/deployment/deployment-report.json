@@ -1,0 +1,106 @@
+{
+  "scenario": "comment-system",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:55.362181344Z",
+  "dependencies": [
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "notification-hub",
+      "type": "scenario",
+      "path": "../../notification-hub",
+      "source": "declared",
+      "children": [
+        {
+          "name": "n8n",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "postgres",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "redis",
+          "type": "resource",
+          "source": "declared"
+        }
+      ]
+    },
+    {
+      "name": "session-authenticator",
+      "type": "scenario",
+      "path": "../../session-authenticator",
+      "notes": "unable to load scenario: scenario session-authenticator not found or missing service.json",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "comment-system",
+    "generated_at": "2025-11-16T19:40:55.362181344Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/comment-system-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/comment-system",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "n8n",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "redis",
+        "type": "resource"
+      },
+      {
+        "name": "notification-hub",
+        "type": "scenario"
+      },
+      {
+        "name": "session-authenticator",
+        "type": "scenario"
+      }
+    ]
+  }
+}

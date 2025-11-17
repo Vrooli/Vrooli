@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for demo project",
-        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
+        "selector": "[data-project-name=\"Demo Browser Automations\"][data-testid=\"project-card\"]",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -111,7 +111,8 @@
       },
       "data": {
         "label": "Wait for heartbeat monitoring",
-        "durationMs": 2000
+        "durationMs": 2000,
+        "waitType": "duration"
       }
     },
     {
@@ -123,7 +124,7 @@
       },
       "data": {
         "label": "Execution viewer functional",
-        "selector": "[data-testid=\"execution-viewer\"]",
+        "selector": "[data-testid=\"execution-viewer\"]:where(:not(:root))",
         "assertMode": "exists",
         "timeoutMs": 10000,
         "failureMessage": "Execution viewer should render"

@@ -22,7 +22,13 @@ func extractOperationalTargets(entityType, entityName string) ([]OperationalTarg
 	if err != nil {
 		return nil, err
 	}
-	return parseOperationalTargets(string(content), entityType, entityName), nil
+	text := string(content)
+	// Prefer v2 parser (supports explicit requirement linkages) with legacy fallback
+	targets := parseOperationalTargetsV2(text, entityType, entityName)
+	if len(targets) == 0 {
+		targets = parseOperationalTargets(text, entityType, entityName)
+	}
+	return targets, nil
 }
 
 func parseOperationalTargets(content, entityType, entityName string) []OperationalTarget {

@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-16T19:35:22.432Z"
+    "last_synced_at": "2025-11-17T02:55:59.632Z"
   },
   "requirements": [
     {
@@ -31,14 +31,14 @@
       "prd_ref": "Workflow Builder > Node Palette",
       "title": "Favorite button toggles node favorites for quick access",
       "description": "Users can click the star icon on node cards to add/remove nodes from the favorites section at the top of the palette",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/palette/palette-favorite-toggle.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates favoriting adds node to favorites section and persists across sessions"
         }
       ]
@@ -49,14 +49,14 @@
       "prd_ref": "Workflow Builder > Node Palette",
       "title": "Category headers expand/collapse to show/hide node groups",
       "description": "Users can click category headers to expand or collapse groups of related nodes for better organization",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/palette/palette-category-expand.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates category expand/collapse toggles node visibility"
         }
       ]

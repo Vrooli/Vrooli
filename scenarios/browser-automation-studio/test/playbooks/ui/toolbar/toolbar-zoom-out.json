@@ -108,7 +108,7 @@
       },
       "data": {
         "label": "Zoom in again",
-        "selector": "[data-testid=\"toolbar-zoom-in-button\"]",
+        "selector": "[data-testid=\"toolbar-zoom-in-button\"] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 500
       }

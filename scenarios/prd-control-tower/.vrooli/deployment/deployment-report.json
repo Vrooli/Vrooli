@@ -1,0 +1,91 @@
+{
+  "scenario": "prd-control-tower",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:56.820794891Z",
+  "dependencies": [
+    {
+      "name": "ecosystem-manager",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "openrouter",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "resource-openrouter",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "scenario-auditor",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "prd-control-tower",
+    "generated_at": "2025-11-16T19:40:56.820794891Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/prd-control-tower-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/prd-control-tower",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "ecosystem-manager",
+        "type": "resource"
+      },
+      {
+        "name": "openrouter",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "resource-openrouter",
+        "type": "resource"
+      },
+      {
+        "name": "scenario-auditor",
+        "type": "resource"
+      }
+    ]
+  }
+}

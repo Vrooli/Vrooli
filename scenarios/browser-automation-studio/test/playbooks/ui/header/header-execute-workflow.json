@@ -122,7 +122,7 @@
       },
       "data": {
         "label": "Click execute",
-        "selector": "[data-testid=\"header-execute-button\"]",
+        "selector": "[data-testid=\"header-execute-button\"] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 3000
       }

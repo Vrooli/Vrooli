@@ -81,7 +81,7 @@
       },
       "data": {
         "label": "Search for nonexistent project",
-        "selector": "input[type=\"text\"][placeholder*=\"Search\"], input[id=\"project-search\"]",
+        "selector": "input[type=\"text\"][placeholder*=\"Search\"], input[id=\"project-search\"] /*dup-1*/",
         "text": "xyznonexistentproject12345",
         "clearFirst": true,
         "timeoutMs": 5000,

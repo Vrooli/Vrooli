@@ -15,6 +15,7 @@ const Drafts = lazy(() => import('./pages/Drafts'))
 const Backlog = lazy(() => import('./pages/Backlog'))
 const RequirementsRegistry = lazy(() => import('./pages/RequirementsRegistry'))
 const RequirementsDashboard = lazy(() => import('./pages/RequirementsDashboard'))
+const QualityScanner = lazy(() => import('./pages/QualityScanner'))
 
 // Loading fallback component
 const PageLoader = () => (
@@ -72,6 +73,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             {/* Legacy routes - redirect to unified dashboard */}
             <Route path="/requirements/:entityType/:entityName" element={<RequirementsDashboard />} />
             <Route path="/targets/:entityType/:entityName" element={<RequirementsDashboard />} />
+            <Route path="/quality-scanner" element={<QualityScanner />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

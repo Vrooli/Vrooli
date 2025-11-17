@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ClipboardList, Layers, StickyNote, Home, ListTree, Compass } from 'lucide-react'
+import { ClipboardList, Layers, StickyNote, Home, ListTree, Compass, ShieldAlert } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { fetchQualitySummary } from '../../utils/quality'
+import type { QualitySummary } from '../../types'
 
 interface NavItem {
   to: string
@@ -14,10 +17,32 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/backlog', label: 'Backlog', icon: StickyNote },
   { to: '/drafts', label: 'Drafts', icon: Layers },
   { to: '/requirements-registry', label: 'Requirements', icon: ListTree },
+  { to: '/quality-scanner', label: 'Quality', icon: ShieldAlert },
 ]
 
 export function TopNav() {
   const location = useLocation()
+  const [qualitySummary, setQualitySummary] = useState<QualitySummary | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    fetchQualitySummary()
+      .then((data) => {
+        if (mounted) {
+          setQualitySummary(data)
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setQualitySummary(null)
+        }
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const outstandingIssues = qualitySummary?.with_issues ?? 0
 
   return (
     <nav className="sticky top-0 z-50 mb-6 rounded-2xl border bg-white/95 px-3 sm:px-6 py-3 shadow-sm backdrop-blur-sm">
@@ -34,6 +59,7 @@ export function TopNav() {
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.to
+            const showIndicator = item.to === '/quality-scanner' && outstandingIssues > 0
 
             return (
               <Link
@@ -47,7 +73,16 @@ export function TopNav() {
                 )}
               >
                 <Icon size={16} />
-                <span className="hidden xs:inline sm:inline">{item.label}</span>
+                <span className="hidden xs:inline sm:inline flex items-center gap-1">
+                  {item.label}
+                  {showIndicator && (
+                    <span
+                      className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-500"
+                      aria-label={`${outstandingIssues} scenarios need review`}
+                      title={`${outstandingIssues} scenarios need review`}
+                    />
+                  )}
+                </span>
               </Link>
             )
           })}

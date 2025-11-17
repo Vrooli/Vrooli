@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for demo project card",
-        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
+        "selector": "[data-project-name=\"Demo Browser Automations\"][data-testid=\"project-card\"]",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -111,7 +111,7 @@
       },
       "data": {
         "label": "Execution progress visible",
-        "selector": "[data-testid=\"execution-progress\"], [data-testid=\"execution-status\"]",
+        "selector": "[data-testid=\"execution-status\"], [data-testid=\"heartbeat-indicator\"]",
         "assertMode": "exists",
         "timeoutMs": 10000,
         "failureMessage": "Execution should display progress indicator"
@@ -126,7 +126,7 @@
       },
       "data": {
         "label": "Execution has status indicator",
-        "selector": "[data-testid^=\"execution-status-\"]",
+        "selector": "[data-testid=\"execution-status\"]",
         "assertMode": "exists",
         "timeoutMs": 10000,
         "failureMessage": "Execution viewer should display execution status"

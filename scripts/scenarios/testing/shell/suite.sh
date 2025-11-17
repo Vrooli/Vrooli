@@ -29,6 +29,125 @@ declare -Ag TESTING_SUITE_DEFAULT_PRESETS=(
 )
 
 declare -Ag TESTING_SUITE_PHASE_SCRIPTS=()
+TESTING_SUITE_LINT_PERFORMED=false
+
+_testing_suite_realpath() {
+    local target="$1"
+    if command -v realpath >/dev/null 2>&1; then
+        realpath "$target"
+        return 0
+    fi
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$target" <<'PY'
+import os, sys
+print(os.path.abspath(sys.argv[1]))
+PY
+        return 0
+    fi
+    printf '%s\n' "$target"
+}
+
+_testing_suite_detect_selector_root() {
+    local scenario_dir="$1"
+    if [ -n "${WORKFLOW_LINT_SELECTOR_ROOT:-}" ]; then
+        printf '%s\n' "${WORKFLOW_LINT_SELECTOR_ROOT}"
+        return 0
+    fi
+    if [ -z "$scenario_dir" ]; then
+        printf '%s\n' ""
+        return 0
+    fi
+    local candidate="$scenario_dir/ui/src"
+    if [ -d "$candidate" ]; then
+        _testing_suite_realpath "$candidate"
+        return 0
+    fi
+    printf '%s\n' ""
+}
+
+_testing_suite_lint_workflows() {
+    if [ "$TESTING_SUITE_LINT_PERFORMED" = true ]; then
+        return 0
+    fi
+    TESTING_SUITE_LINT_PERFORMED=true
+
+    local scenario_dir="$1"
+    local scenario_name="$2"
+    local app_root="$3"
+
+    if [[ "${WORKFLOW_LINT_PRECHECK:-1}" =~ ^(0|false|no)$ ]]; then
+        return 0
+    fi
+
+    local playbook_dir="$scenario_dir/test/playbooks"
+    if [ ! -d "$playbook_dir" ]; then
+        return 0
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        log::warning "⚠️  jq not available; skipping workflow lint"
+        return 0
+    fi
+
+    local invalid_found=0
+    while IFS= read -r -d '' file; do
+        if ! jq empty "$file" >/dev/null 2>&1; then
+            log::error "❌ Invalid JSON in workflow playbook: ${file#$scenario_dir/}"
+            invalid_found=1
+        fi
+    done < <(find "$playbook_dir" -type f -name '*.json' -print0)
+
+    if [ "$invalid_found" -ne 0 ]; then
+        log::error "Fix invalid workflow JSON before rerunning tests."
+        return 1
+    fi
+
+    mapfile -t workflow_files < <(find "$playbook_dir" -type f -name '*.json' | sort)
+    if [ ${#workflow_files[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    if ! command -v go >/dev/null 2>&1; then
+        log::warning "⚠️  Go toolchain not available; skipping workflow lint"
+        return 0
+    fi
+
+    local bas_api_dir="$app_root/scenarios/browser-automation-studio/api"
+    if [ ! -d "$bas_api_dir" ]; then
+        log::warning "⚠️  Browser Automation Studio validator not found; skipping workflow lint"
+        return 0
+    fi
+
+    local selector_root
+    selector_root=$(_testing_suite_detect_selector_root "$scenario_dir")
+
+    local strict_env="${WORKFLOW_LINT_STRICT:-}" 
+    local -a lint_cmd=(go run ./cmd/workflow-lint)
+    if [[ "$strict_env" =~ ^(1|true|yes)$ ]]; then
+        lint_cmd+=(--strict)
+    fi
+    if [ -n "$selector_root" ]; then
+        lint_cmd+=(--selector-root "$selector_root")
+    fi
+
+    local -a abs_files=()
+    local file
+    for file in "${workflow_files[@]}"; do
+        abs_files+=("$(_testing_suite_realpath "$file")")
+    done
+
+    log::info "🔎 Linting ${#abs_files[@]} workflow playbooks (${scenario_name})"
+
+    if ! (
+        cd "$bas_api_dir"
+        "${lint_cmd[@]}" "${abs_files[@]}"
+    ); then
+        log::error "Workflow lint failed"
+        return 1
+    fi
+
+    return 0
+}
 
 _testing_suite_read_json_value() {
     local file="$1"
@@ -262,6 +381,23 @@ testing::suite::run() {
         sync_flag=$(_testing_suite_read_json_value "$config_file" '.requirements.sync' "true")
         if [ "$sync_flag" != "true" ]; then
             export TESTING_REQUIREMENTS_SYNC=0
+        fi
+    fi
+
+    local skip_lint=false
+    local arg
+    for arg in "${runner_args[@]}"; do
+        case "$arg" in
+            -h|--help|help|--usage)
+                skip_lint=true
+                break
+                ;;
+        esac
+    done
+
+    if [ "$skip_lint" = false ]; then
+        if ! _testing_suite_lint_workflows "$scenario_dir" "$scenario_name" "$app_root"; then
+            return 1
         fi
     fi
 

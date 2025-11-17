@@ -192,6 +192,25 @@ const createBaseStoreState = () => ({
   loadWorkflows: vi.fn().mockResolvedValue([]),
 });
 
+const mockValidationResponse = () => ({
+  valid: true,
+  errors: [],
+  warnings: [],
+  stats: {
+    node_count: 0,
+    edge_count: 0,
+    selector_count: 0,
+    unique_selector_count: 0,
+    element_wait_count: 0,
+    has_metadata: false,
+    has_requirement: false,
+    has_execution_viewport: false,
+  },
+  schema_version: 'test',
+  checked_at: new Date().toISOString(),
+  duration_ms: 1,
+});
+
 const applyWorkflowStoreState = (overrides?: Partial<ReturnType<typeof createBaseStoreState>>) => {
   const state = { ...createBaseStoreState(), ...overrides };
   useWorkflowStoreMock.mockImplementation((selector?: (s: typeof state) => any) => (selector ? selector(state) : state));
@@ -200,14 +219,29 @@ const applyWorkflowStoreState = (overrides?: Partial<ReturnType<typeof createBas
 
 const importWorkflowBuilder = async () => (await import('../WorkflowBuilder')).default;
 
+const originalFetch = global.fetch;
+
 describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (global as any).fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockValidationResponse()),
+      }),
+    );
     applyWorkflowStoreState();
   });
 
   afterEach(() => {
     useWorkflowStoreMock.mockReset();
+    vi.restoreAllMocks();
+    if (originalFetch) {
+      global.fetch = originalFetch;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete (global as any).fetch;
+    }
   });
 
   describe('Basic Rendering', () => {

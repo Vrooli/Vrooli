@@ -1,0 +1,82 @@
+{
+  "scenario": "game-dialog-generator",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:55.952229643Z",
+  "dependencies": [
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "qdrant",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "whisper",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "game-dialog-generator",
+    "generated_at": "2025-11-16T19:40:55.952229643Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/game-dialog-generator-api",
+        "type": "api-binary",
+        "exists": false
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": false
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": false
+      },
+      {
+        "path": "cli/game-dialog-generator",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "qdrant",
+        "type": "resource"
+      },
+      {
+        "name": "whisper",
+        "type": "resource"
+      }
+    ]
+  }
+}

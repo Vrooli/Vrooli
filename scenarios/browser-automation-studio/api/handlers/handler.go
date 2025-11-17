@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 )
 
 type WorkflowService interface {
@@ -56,18 +57,19 @@ type replayRenderer interface {
 
 // Handler contains all HTTP handlers
 type Handler struct {
-	workflowService  WorkflowService
-	repo             database.Repository
-	browserless      *browserless.Client
-	wsHub            wsHub.HubInterface
-	storage          storage.StorageInterface
-	recordingService services.RecordingServiceInterface
-	recordingsRoot   string
-	replayRenderer   replayRenderer
-	log              *logrus.Logger
-	upgrader         websocket.Upgrader
-	wsAllowAll       bool
-	wsAllowedOrigins []string
+	workflowService   WorkflowService
+	workflowValidator *workflowvalidator.Validator
+	repo              database.Repository
+	browserless       *browserless.Client
+	wsHub             wsHub.HubInterface
+	storage           storage.StorageInterface
+	recordingService  services.RecordingServiceInterface
+	recordingsRoot    string
+	replayRenderer    replayRenderer
+	log               *logrus.Logger
+	upgrader          websocket.Upgrader
+	wsAllowAll        bool
+	wsAllowedOrigins  []string
 
 	// AI subhandlers
 	screenshotHandler      *ai.ScreenshotHandler
@@ -114,19 +116,25 @@ func NewHandler(repo database.Repository, browserless *browserless.Client, wsHub
 
 	allowedCopy := append([]string(nil), allowedOrigins...)
 
+	validatorInstance, err := workflowvalidator.NewValidator()
+	if err != nil {
+		log.WithError(err).Fatal("Failed to initialize workflow validator")
+	}
+
 	handler := &Handler{
-		workflowService:  workflowSvc,
-		repo:             repo,
-		browserless:      browserless,
-		wsHub:            wsHub,
-		storage:          storageClient,
-		recordingService: recordingService,
-		recordingsRoot:   recordingsRoot,
-		replayRenderer:   replayRenderer,
-		log:              log,
-		wsAllowAll:       allowAllOrigins,
-		wsAllowedOrigins: allowedCopy,
-		upgrader:         websocket.Upgrader{},
+		workflowService:   workflowSvc,
+		workflowValidator: validatorInstance,
+		repo:              repo,
+		browserless:       browserless,
+		wsHub:             wsHub,
+		storage:           storageClient,
+		recordingService:  recordingService,
+		recordingsRoot:    recordingsRoot,
+		replayRenderer:    replayRenderer,
+		log:               log,
+		wsAllowAll:        allowAllOrigins,
+		wsAllowedOrigins:  allowedCopy,
+		upgrader:          websocket.Upgrader{},
 	}
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 

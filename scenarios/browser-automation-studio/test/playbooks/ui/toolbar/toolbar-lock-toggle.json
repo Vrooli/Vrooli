@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {"x": 0, "y": 0},
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,7 +32,10 @@
     {
       "id": "wait-dashboard",
       "type": "wait",
-      "position": {"x": 200, "y": 0},
+      "position": {
+        "x": 200,
+        "y": 0
+      },
       "data": {
         "label": "Wait for dashboard",
         "selector": "[data-testid=\"projects-grid\"]",
@@ -41,7 +47,10 @@
     {
       "id": "click-project",
       "type": "click",
-      "position": {"x": 400, "y": 0},
+      "position": {
+        "x": 400,
+        "y": 0
+      },
       "data": {
         "label": "Open project",
         "selector": "[data-testid=\"project-card\"]:first-of-type",
@@ -52,13 +61,23 @@
     {
       "id": "wait-project",
       "type": "wait",
-      "position": {"x": 600, "y": 0},
-      "data": {"label": "Wait for project", "durationMs": 2000, "waitType": "duration"}
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
     },
     {
       "id": "click-workflow",
       "type": "click",
-      "position": {"x": 800, "y": 0},
+      "position": {
+        "x": 800,
+        "y": 0
+      },
       "data": {
         "label": "Open workflow",
         "selector": "[data-testid=\"workflow-card\"]:first-of-type",
@@ -69,7 +88,10 @@
     {
       "id": "wait-builder",
       "type": "wait",
-      "position": {"x": 1000, "y": 0},
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
       "data": {
         "label": "Wait for builder",
         "durationMs": 3000,
@@ -79,7 +101,10 @@
     {
       "id": "find-lock-button",
       "type": "assert",
-      "position": {"x": 1200, "y": 0},
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
       "data": {
         "label": "Lock button exists",
         "selector": "[data-testid=\"toolbar-lock-button\"], button[title*=\"lock\" i], button[aria-label*=\"lock\" i]",
@@ -91,16 +116,26 @@
     {
       "id": "capture-unlocked",
       "type": "screenshot",
-      "position": {"x": 1400, "y": 0},
-      "data": {"label": "Capture unlocked state", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture unlocked state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "click-lock",
       "type": "click",
-      "position": {"x": 1600, "y": 0},
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
       "data": {
         "label": "Click lock to lock canvas",
-        "selector": "[data-testid=\"toolbar-lock-button\"], button[title*=\"lock\" i], button[aria-label*=\"lock\" i]",
+        "selector": "[data-testid=\"toolbar-lock-button\"], button[title*=\"lock\" i], button[aria-label*=\"lock\" i] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
@@ -108,13 +143,23 @@
     {
       "id": "capture-locked",
       "type": "screenshot",
-      "position": {"x": 1800, "y": 0},
-      "data": {"label": "Capture locked state", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture locked state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "click-unlock",
       "type": "click",
-      "position": {"x": 2000, "y": 0},
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
       "data": {
         "label": "Click lock to unlock canvas",
         "selector": "[data-testid=\"toolbar-lock-button\"], button[title*=\"lock\" i], button[aria-label*=\"lock\" i], button[title*=\"unlock\" i]",
@@ -125,13 +170,23 @@
     {
       "id": "capture-unlocked-again",
       "type": "screenshot",
-      "position": {"x": 2200, "y": 0},
-      "data": {"label": "Capture unlocked state again", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture unlocked state again",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "verify-toggle",
       "type": "evaluate",
-      "position": {"x": 2400, "y": 0},
+      "position": {
+        "x": 2400,
+        "y": 0
+      },
       "data": {
         "label": "Verify lock toggle completed",
         "expression": "true",
@@ -140,17 +195,77 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-project", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-project", "target": "click-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "click-workflow", "target": "wait-builder", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-builder", "target": "find-lock-button", "type": "smoothstep"},
-    {"id": "e7", "source": "find-lock-button", "target": "capture-unlocked", "type": "smoothstep"},
-    {"id": "e8", "source": "capture-unlocked", "target": "click-lock", "type": "smoothstep"},
-    {"id": "e9", "source": "click-lock", "target": "capture-locked", "type": "smoothstep"},
-    {"id": "e10", "source": "capture-locked", "target": "click-unlock", "type": "smoothstep"},
-    {"id": "e11", "source": "click-unlock", "target": "capture-unlocked-again", "type": "smoothstep"},
-    {"id": "e12", "source": "capture-unlocked-again", "target": "verify-toggle", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-project",
+      "target": "click-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-workflow",
+      "target": "wait-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-builder",
+      "target": "find-lock-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "find-lock-button",
+      "target": "capture-unlocked",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "capture-unlocked",
+      "target": "click-lock",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "click-lock",
+      "target": "capture-locked",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "capture-locked",
+      "target": "click-unlock",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "click-unlock",
+      "target": "capture-unlocked-again",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "capture-unlocked-again",
+      "target": "verify-toggle",
+      "type": "smoothstep"
+    }
   ]
 }

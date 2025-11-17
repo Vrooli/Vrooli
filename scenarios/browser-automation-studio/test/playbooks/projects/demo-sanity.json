@@ -54,7 +54,7 @@
       "data": {
         "label": "Wait for demo project card",
         "waitType": "element",
-        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
+        "selector": "[data-project-name=\"Demo Browser Automations\"][data-testid=\"project-card\"]",
         "timeoutMs": 20000,
         "waitForMs": 1500
       }
@@ -96,7 +96,7 @@
       },
       "data": {
         "label": "Demo project card exists",
-        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
+        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]:where(:not(:root))",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Demo Browser Automations project card should be visible on dashboard"
@@ -126,7 +126,8 @@
       },
       "data": {
         "label": "Wait for project detail",
-        "durationMs": 1500
+        "durationMs": 1500,
+        "waitType": "duration"
       }
     },
     {

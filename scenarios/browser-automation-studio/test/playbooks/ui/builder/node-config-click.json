@@ -15,7 +15,10 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {"x": 0, "y": 0},
+      "position": {
+        "x": 0,
+        "y": 0
+      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,13 +32,23 @@
     {
       "id": "wait-dashboard",
       "type": "wait",
-      "position": {"x": 200, "y": 0},
-      "data": {"label": "Wait for dashboard", "durationMs": 2000, "waitType": "duration"}
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for dashboard",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
     },
     {
       "id": "click-demo-project",
       "type": "click",
-      "position": {"x": 400, "y": 0},
+      "position": {
+        "x": 400,
+        "y": 0
+      },
       "data": {
         "label": "Open Demo Browser Automations project",
         "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
@@ -46,13 +59,23 @@
     {
       "id": "wait-project",
       "type": "wait",
-      "position": {"x": 600, "y": 0},
-      "data": {"label": "Wait for project view", "durationMs": 2000, "waitType": "duration"}
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for project view",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
     },
     {
       "id": "create-workflow",
       "type": "click",
-      "position": {"x": 800, "y": 0},
+      "position": {
+        "x": 800,
+        "y": 0
+      },
       "data": {
         "label": "Create new workflow",
         "selector": "[data-testid=\"new-workflow-button\"]",
@@ -63,7 +86,10 @@
     {
       "id": "wait-for-ai-modal",
       "type": "wait",
-      "position": {"x": 900, "y": 0},
+      "position": {
+        "x": 900,
+        "y": 0
+      },
       "data": {
         "label": "Wait for AI modal",
         "selector": "[data-testid=\"ai-prompt-modal\"]",
@@ -75,7 +101,10 @@
     {
       "id": "switch-to-manual",
       "type": "click",
-      "position": {"x": 950, "y": 0},
+      "position": {
+        "x": 950,
+        "y": 0
+      },
       "data": {
         "label": "Switch to manual builder",
         "selector": "[data-testid=\"switch-to-manual-button\"]",
@@ -87,7 +116,10 @@
     {
       "id": "wait-builder",
       "type": "wait",
-      "position": {"x": 1000, "y": 0},
+      "position": {
+        "x": 1000,
+        "y": 0
+      },
       "data": {
         "label": "Wait for builder",
         "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
@@ -99,7 +131,10 @@
     {
       "id": "drag-click-node",
       "type": "dragDrop",
-      "position": {"x": 1200, "y": 0},
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
       "data": {
         "label": "Drag Click node onto canvas",
         "sourceSelector": "[data-testid=\"node-palette-click-card\"]",
@@ -111,13 +146,23 @@
     {
       "id": "wait-node-render",
       "type": "wait",
-      "position": {"x": 1400, "y": 0},
-      "data": {"label": "Wait for node to render", "durationMs": 1500, "waitType": "duration"}
+      "position": {
+        "x": 1400,
+        "y": 0
+      },
+      "data": {
+        "label": "Wait for node to render",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
     },
     {
       "id": "verify-click-node",
       "type": "assert",
-      "position": {"x": 1600, "y": 0},
+      "position": {
+        "x": 1600,
+        "y": 0
+      },
       "data": {
         "label": "Verify Click node exists",
         "selector": ".react-flow__node",
@@ -129,7 +174,10 @@
     {
       "id": "click-node-to-select",
       "type": "click",
-      "position": {"x": 1800, "y": 0},
+      "position": {
+        "x": 1800,
+        "y": 0
+      },
       "data": {
         "label": "Click node to select",
         "selector": ".react-flow__node:first-of-type",
@@ -140,7 +188,10 @@
     {
       "id": "verify-selected",
       "type": "assert",
-      "position": {"x": 2000, "y": 0},
+      "position": {
+        "x": 2000,
+        "y": 0
+      },
       "data": {
         "label": "Node is selected",
         "selector": ".react-flow__node.selected",
@@ -152,13 +203,23 @@
     {
       "id": "capture-before-edit",
       "type": "screenshot",
-      "position": {"x": 2200, "y": 0},
-      "data": {"label": "Capture before editing", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 2200,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture before editing",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "find-selector-input",
       "type": "assert",
-      "position": {"x": 2400, "y": 0},
+      "position": {
+        "x": 2400,
+        "y": 0
+      },
       "data": {
         "label": "Selector input exists",
         "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
@@ -170,10 +231,13 @@
     {
       "id": "click-selector-input",
       "type": "click",
-      "position": {"x": 2600, "y": 0},
+      "position": {
+        "x": 2600,
+        "y": 0
+      },
       "data": {
         "label": "Click selector input",
-        "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
+        "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 300
       }
@@ -181,20 +245,26 @@
     {
       "id": "clear-selector",
       "type": "keyboard",
-      "position": {"x": 2800, "y": 0},
+      "position": {
+        "x": 2800,
+        "y": 0
+      },
       "data": {
         "label": "Clear existing selector",
-        "key": "Control+a",
+        "keys": ["Control", "a"],
         "waitForMs": 200
       }
     },
     {
       "id": "type-selector",
       "type": "type",
-      "position": {"x": 3000, "y": 0},
+      "position": {
+        "x": 3000,
+        "y": 0
+      },
       "data": {
         "label": "Type test selector",
-        "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
+        "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-2*/",
         "text": "#test-button",
         "timeoutMs": 5000,
         "waitForMs": 500
@@ -203,7 +273,10 @@
     {
       "id": "trigger-blur",
       "type": "click",
-      "position": {"x": 3200, "y": 0},
+      "position": {
+        "x": 3200,
+        "y": 0
+      },
       "data": {
         "label": "Click canvas to blur input",
         "selector": ".react-flow__pane",
@@ -214,16 +287,26 @@
     {
       "id": "capture-after-edit",
       "type": "screenshot",
-      "position": {"x": 3400, "y": 0},
-      "data": {"label": "Capture after editing selector", "fullPage": true, "waitForMs": 500}
+      "position": {
+        "x": 3400,
+        "y": 0
+      },
+      "data": {
+        "label": "Capture after editing selector",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "re-select-node",
       "type": "click",
-      "position": {"x": 3600, "y": 0},
+      "position": {
+        "x": 3600,
+        "y": 0
+      },
       "data": {
         "label": "Re-select node to verify persistence",
-        "selector": ".react-flow__node:first-of-type",
+        "selector": ".react-flow__node:first-of-type /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 800
       }
@@ -231,7 +314,10 @@
     {
       "id": "verify-selector-persisted",
       "type": "evaluate",
-      "position": {"x": 3800, "y": 0},
+      "position": {
+        "x": 3800,
+        "y": 0
+      },
       "data": {
         "label": "Verify selector persisted",
         "expression": "document.querySelector('.react-flow__node.selected input[placeholder*=\"Selector\" i]')?.value === '#test-button'",
@@ -241,7 +327,10 @@
     {
       "id": "assert-selector-saved",
       "type": "assert",
-      "position": {"x": 4000, "y": 0},
+      "position": {
+        "x": 4000,
+        "y": 0
+      },
       "data": {
         "label": "Assert selector was saved",
         "selector": ".react-flow__node.selected input[value=\"#test-button\"]",
@@ -252,27 +341,137 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-dashboard", "target": "click-demo-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-demo-project", "target": "wait-project", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-project", "target": "create-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "create-workflow", "target": "wait-for-ai-modal", "type": "smoothstep"},
-    {"id": "e5a", "source": "wait-for-ai-modal", "target": "switch-to-manual", "type": "smoothstep"},
-    {"id": "e5b", "source": "switch-to-manual", "target": "wait-builder", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-builder", "target": "drag-click-node", "type": "smoothstep"},
-    {"id": "e7", "source": "drag-click-node", "target": "wait-node-render", "type": "smoothstep"},
-    {"id": "e8", "source": "wait-node-render", "target": "verify-click-node", "type": "smoothstep"},
-    {"id": "e9", "source": "verify-click-node", "target": "click-node-to-select", "type": "smoothstep"},
-    {"id": "e10", "source": "click-node-to-select", "target": "verify-selected", "type": "smoothstep"},
-    {"id": "e11", "source": "verify-selected", "target": "capture-before-edit", "type": "smoothstep"},
-    {"id": "e12", "source": "capture-before-edit", "target": "find-selector-input", "type": "smoothstep"},
-    {"id": "e13", "source": "find-selector-input", "target": "click-selector-input", "type": "smoothstep"},
-    {"id": "e14", "source": "click-selector-input", "target": "clear-selector", "type": "smoothstep"},
-    {"id": "e15", "source": "clear-selector", "target": "type-selector", "type": "smoothstep"},
-    {"id": "e16", "source": "type-selector", "target": "trigger-blur", "type": "smoothstep"},
-    {"id": "e17", "source": "trigger-blur", "target": "capture-after-edit", "type": "smoothstep"},
-    {"id": "e18", "source": "capture-after-edit", "target": "re-select-node", "type": "smoothstep"},
-    {"id": "e19", "source": "re-select-node", "target": "verify-selector-persisted", "type": "smoothstep"},
-    {"id": "e20", "source": "verify-selector-persisted", "target": "assert-selector-saved", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-dashboard",
+      "target": "click-demo-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-demo-project",
+      "target": "wait-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-project",
+      "target": "create-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "create-workflow",
+      "target": "wait-for-ai-modal",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5a",
+      "source": "wait-for-ai-modal",
+      "target": "switch-to-manual",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5b",
+      "source": "switch-to-manual",
+      "target": "wait-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-builder",
+      "target": "drag-click-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "drag-click-node",
+      "target": "wait-node-render",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "wait-node-render",
+      "target": "verify-click-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "verify-click-node",
+      "target": "click-node-to-select",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "click-node-to-select",
+      "target": "verify-selected",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "verify-selected",
+      "target": "capture-before-edit",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "capture-before-edit",
+      "target": "find-selector-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "find-selector-input",
+      "target": "click-selector-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "click-selector-input",
+      "target": "clear-selector",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "clear-selector",
+      "target": "type-selector",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "type-selector",
+      "target": "trigger-blur",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e17",
+      "source": "trigger-blur",
+      "target": "capture-after-edit",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e18",
+      "source": "capture-after-edit",
+      "target": "re-select-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e19",
+      "source": "re-select-node",
+      "target": "verify-selector-persisted",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e20",
+      "source": "verify-selector-persisted",
+      "target": "assert-selector-saved",
+      "type": "smoothstep"
+    }
   ]
 }

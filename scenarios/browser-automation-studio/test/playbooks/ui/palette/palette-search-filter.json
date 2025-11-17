@@ -179,7 +179,7 @@
       },
       "data": {
         "label": "Clear search",
-        "selector": "[data-testid=\"node-palette-search-input\"]",
+        "selector": "[data-testid=\"node-palette-search-input\"] /*dup-1*/",
         "text": "",
         "clearFirst": true,
         "timeoutMs": 5000,

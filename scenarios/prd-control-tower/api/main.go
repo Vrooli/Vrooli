@@ -117,6 +117,11 @@ func main() {
 	apiV1.HandleFunc("/drafts/{id}/ai/generate-section", handleAIGenerateSection).Methods("POST")
 	apiV1.HandleFunc("/drafts/{id}/publish", handlePublishDraft).Methods("POST")
 
+	// Quality insights endpoints
+	apiV1.HandleFunc("/quality/{type}/{name}", handleGetQualityReport).Methods("GET")
+	apiV1.HandleFunc("/quality/scan", handleQualityScan).Methods("POST")
+	apiV1.HandleFunc("/quality/summary", handleQualitySummary).Methods("GET")
+
 	slog.Info("PRD Control Tower API starting", "port", port, "service", "prd-control-tower")
 	if err := http.ListenAndServe(":"+port, router); err != nil {
 		slog.Error("Failed to start server", "error", err)

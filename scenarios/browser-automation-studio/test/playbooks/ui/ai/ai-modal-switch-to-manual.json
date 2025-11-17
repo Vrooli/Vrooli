@@ -148,7 +148,7 @@
       },
       "data": {
         "label": "Click Switch to Manual Builder",
-        "selector": "[data-testid=\"switch-to-manual-button\"]",
+        "selector": "[data-testid=\"switch-to-manual-button\"] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -252,21 +252,101 @@
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-for-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-for-dashboard", "target": "click-project", "type": "smoothstep"},
-    {"id": "e3", "source": "click-project", "target": "wait-for-project-detail", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-for-project-detail", "target": "click-new-workflow", "type": "smoothstep"},
-    {"id": "e5", "source": "click-new-workflow", "target": "wait-for-ai-modal", "type": "smoothstep"},
-    {"id": "e6", "source": "wait-for-ai-modal", "target": "assert-ai-modal-visible", "type": "smoothstep"},
-    {"id": "e7", "source": "assert-ai-modal-visible", "target": "capture-ai-modal", "type": "smoothstep"},
-    {"id": "e8", "source": "capture-ai-modal", "target": "assert-manual-button-visible", "type": "smoothstep"},
-    {"id": "e9", "source": "assert-manual-button-visible", "target": "click-manual-button", "type": "smoothstep"},
-    {"id": "e10", "source": "click-manual-button", "target": "wait-for-modal-close", "type": "smoothstep"},
-    {"id": "e11", "source": "wait-for-modal-close", "target": "assert-modal-closed", "type": "smoothstep"},
-    {"id": "e12", "source": "assert-modal-closed", "target": "wait-for-builder-load", "type": "smoothstep"},
-    {"id": "e13", "source": "wait-for-builder-load", "target": "assert-builder-visible", "type": "smoothstep"},
-    {"id": "e14", "source": "assert-builder-visible", "target": "verify-url-changed", "type": "smoothstep"},
-    {"id": "e15", "source": "verify-url-changed", "target": "assert-palette-visible", "type": "smoothstep"},
-    {"id": "e16", "source": "assert-palette-visible", "target": "capture-builder", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "wait-for-project-detail",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-for-project-detail",
+      "target": "click-new-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-new-workflow",
+      "target": "wait-for-ai-modal",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-for-ai-modal",
+      "target": "assert-ai-modal-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-ai-modal-visible",
+      "target": "capture-ai-modal",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "capture-ai-modal",
+      "target": "assert-manual-button-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "assert-manual-button-visible",
+      "target": "click-manual-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "click-manual-button",
+      "target": "wait-for-modal-close",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "wait-for-modal-close",
+      "target": "assert-modal-closed",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "assert-modal-closed",
+      "target": "wait-for-builder-load",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "wait-for-builder-load",
+      "target": "assert-builder-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "assert-builder-visible",
+      "target": "verify-url-changed",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "verify-url-changed",
+      "target": "assert-palette-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "assert-palette-visible",
+      "target": "capture-builder",
+      "type": "smoothstep"
+    }
   ]
 }

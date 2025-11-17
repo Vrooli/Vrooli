@@ -140,7 +140,8 @@
       },
       "data": {
         "label": "Wait for project list refresh",
-        "durationMs": 2000
+        "durationMs": 2000,
+        "waitType": "duration"
       }
     },
     {

@@ -128,6 +128,27 @@ export interface PRDTemplateValidationResult {
   is_compliant: boolean
 }
 
+export interface PRDContentIssue {
+  section: string
+  issue_type: string
+  message: string
+  severity: string
+  line_number?: number
+  suggestion?: string
+}
+
+export interface PRDValidationResultV2 {
+  compliant_sections: string[]
+  missing_sections: string[]
+  violations: PRDTemplateViolation[]
+  content_issues: PRDContentIssue[]
+  structure_score: number
+  content_score: number
+  overall_score: number
+  is_fully_compliant: boolean
+  missing_subsections: Record<string, string[]>
+}
+
 /**
  * Error response when auditor is unavailable or encounters issues.
  */
@@ -166,6 +187,84 @@ export interface ValidationResponse {
   cached_at?: string
   validated_at: string
   cache_used: boolean
+}
+
+export interface TargetLinkageIssue {
+  title: string
+  criticality: string
+  message: string
+}
+
+export interface QualityIssueCounts {
+  missing_prd: number
+  missing_template_sections: number
+  target_coverage: number
+  requirement_coverage: number
+  prd_ref: number
+  total: number
+  blocking: number
+}
+
+export interface RequirementSummaryIssue {
+  id: string
+  title: string
+  prd_ref: string
+  criticality: string
+  status: string
+  category: string
+  file_path?: string
+  issue: string
+}
+
+export interface ScenarioQualityReport {
+  entity_type: EntityType
+  entity_name: string
+  has_prd: boolean
+  has_requirements: boolean
+  prd_path?: string
+  requirements_path?: string
+  validated_at: string
+  cache_used: boolean
+  status: 'healthy' | 'needs_attention' | 'blocked' | 'missing_prd' | 'error'
+  message?: string
+  error?: string
+  issue_counts: QualityIssueCounts
+  template_compliance?: PRDTemplateValidationResult
+  template_compliance_v2?: PRDValidationResultV2
+  target_linkage_issues?: TargetLinkageIssue[]
+  requirements_without_targets?: RequirementSummaryIssue[]
+  prd_ref_issues?: PRDValidationIssue[]
+  requirement_count: number
+  target_count: number
+}
+
+export interface QualityScanEntity {
+  type: EntityType
+  name: string
+}
+
+export interface QualityScanResponse {
+  reports: ScenarioQualityReport[]
+  generated_at: string
+  duration_ms: number
+}
+
+export interface QualitySummaryEntity {
+  entity_type: EntityType
+  entity_name: string
+  status: ScenarioQualityReport['status']
+  issue_counts: QualityIssueCounts
+}
+
+export interface QualitySummary {
+  total_entities: number
+  scanned: number
+  with_issues: number
+  missing_prd: number
+  last_generated: string
+  duration_ms: number
+  cache_used: boolean
+  samples?: QualitySummaryEntity[]
 }
 
 export interface AIGenerateRequest {

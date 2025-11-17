@@ -365,7 +365,7 @@ Scenarios are designed for reliable AI generation:
 | 🤖 "How do I make scenarios AI-friendly?" | → [AI Generation Guide](docs/ai-generation-guide.md) |
 | 🔌 "Resource integration isn't working" | → [Resource Integration Guide](docs/resource-integration.md) |
 | 🧪 "Tests are failing" | → [Testing Framework](docs/testing-framework.md) |
-| 🚀 "How do I deploy scenarios?" | → [Deployment Guide](docs/deployment-guide.md) |
+| 🚀 "How do I deploy scenarios?" | → [Deployment Hub](../docs/deployment/README.md) |
 
 ### **Advanced Support**
 - 📚 **Complete Documentation**: [docs/](docs/) directory

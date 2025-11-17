@@ -110,7 +110,7 @@
       },
       "data": {
         "label": "Modal remains open",
-        "selector": "[data-testid=\"project-modal\"]",
+        "selector": "[data-testid=\"project-modal\"] /*dup-1*/",
         "assertMode": "exists",
         "timeoutMs": 3000,
         "failureMessage": "Modal should stay open when validation fails"
@@ -141,7 +141,7 @@
       },
       "data": {
         "label": "Submit whitespace-only name",
-        "selector": "[data-testid=\"project-modal-submit\"]",
+        "selector": "[data-testid=\"project-modal-submit\"] /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -155,7 +155,7 @@
       },
       "data": {
         "label": "Invalid name error appears",
-        "selector": "[data-testid=\"project-modal-name-error\"], [data-testid=\"form-error\"], .error-message",
+        "selector": "[data-testid=\"project-modal-name-error\"], [data-testid=\"form-error\"], .error-message /*dup-1*/",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Form should reject whitespace-only project names"
@@ -170,7 +170,7 @@
       },
       "data": {
         "label": "Modal remains open",
-        "selector": "[data-testid=\"project-modal\"]",
+        "selector": "[data-testid=\"project-modal\"] /*dup-2*/",
         "assertMode": "exists",
         "timeoutMs": 3000
       }
@@ -184,7 +184,7 @@
       },
       "data": {
         "label": "Enter excessively long name",
-        "selector": "[data-testid=\"project-modal-name-input\"]",
+        "selector": "[data-testid=\"project-modal-name-input\"] /*dup-1*/",
         "text": "This is an extremely long project name that exceeds reasonable character limits and should be rejected by the validation logic because it is far too verbose for practical use in the user interface",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -200,7 +200,7 @@
       },
       "data": {
         "label": "Submit long name",
-        "selector": "[data-testid=\"project-modal-submit\"]",
+        "selector": "[data-testid=\"project-modal-submit\"] /*dup-2*/",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -214,7 +214,7 @@
       },
       "data": {
         "label": "Length error appears",
-        "selector": "[data-testid=\"project-modal-name-error\"], [data-testid=\"form-error\"], .error-message",
+        "selector": "[data-testid=\"project-modal-name-error\"], [data-testid=\"form-error\"], .error-message /*dup-2*/",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Form should reject overly long project names"

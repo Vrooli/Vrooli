@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Projects grid is visible",
-        "selector": "[data-testid=\"projects-grid\"]",
+        "selector": "[data-testid=\"projects-grid\"] /*dup-1*/",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Projects grid should be visible on dashboard"

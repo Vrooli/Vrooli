@@ -311,7 +311,7 @@ This composition creates emergent customer service capabilities that exceed the 
 
 - **[Resource System](resources/README.md)** - Complete resource documentation
 - **[Scenario System](scenarios/CONCEPTS.md)** - Dual-purpose scenario concepts  
-- **[Direct Deployment](scenarios/DEPLOYMENT.md)** - Running scenarios in production
+- **[Deployment Hub](deployment/README.md)** - Tiered roadmap and scenario orchestration for deployments
 - **[Development Setup](devops/development-environment.md)** - Local development environment
 - **[CLI Reference](README.md)** - Complete command reference
 

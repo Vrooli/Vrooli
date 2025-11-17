@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.vrooli.com/browser-automation-studio/workflow.schema.json",
+  "title": "Browser Automation Studio Workflow",
+  "description": "Canonical schema for Browser Automation Studio workflow definitions",
+  "type": "object",
+  "required": ["nodes", "edges"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "requirement": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9-_:\\.]+$"
+        },
+        "version": {
+          "type": ["number", "string"]
+        },
+        "owner": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "executionViewport": {
+          "type": "object",
+          "properties": {
+            "width": { "type": "number", "minimum": 200 },
+            "height": { "type": "number", "minimum": 200 },
+            "preset": {
+              "type": "string",
+              "enum": ["desktop", "mobile", "custom"]
+            }
+          },
+          "required": ["width", "height"],
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/node" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/edge" }
+    }
+  },
+  "definitions": {
+    "position": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "type", "data", "position"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "position": { "$ref": "#/definitions/position" },
+        "data": { "type": "object" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "selected": { "type": "boolean" },
+        "dragging": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "edge": {
+      "type": "object",
+      "required": ["id", "source", "target"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "sourceHandle": { "type": "string" },
+        "targetHandle": { "type": "string" },
+        "type": { "type": "string" },
+        "animated": { "type": "boolean" },
+        "label": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
