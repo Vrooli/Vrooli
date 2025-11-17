@@ -1,5 +1,4 @@
-
-package main
+package app
 
 import (
 	"encoding/json"
@@ -7,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	types "scenario-dependency-analyzer/internal/types"
 )
 
 // TestScenarioBuilder provides a fluent interface for building test scenarios
@@ -171,11 +171,11 @@ func (s *HandlerTestSuite) TestEdgeCases(cases map[string]struct {
 
 // DatabaseTestPattern provides database operation testing patterns
 type DatabaseTestPattern struct {
-	Name          string
-	Setup         func(*testing.T)
-	Operation     func(*testing.T) error
-	Verification  func(*testing.T, error)
-	Cleanup       func(*testing.T)
+	Name         string
+	Setup        func(*testing.T)
+	Operation    func(*testing.T) error
+	Verification func(*testing.T, error)
+	Cleanup      func(*testing.T)
 }
 
 // RunDatabaseTests executes a series of database test patterns
@@ -201,7 +201,7 @@ func RunDatabaseTests(t *testing.T, patterns []DatabaseTestPattern) {
 
 // AnalysisTestScenarios provides pre-built test scenarios for dependency analysis
 func AnalysisTestScenarios() map[string]struct {
-	Resources map[string]Resource
+	Resources map[string]types.Resource
 	Expected  struct {
 		ResourceCount int
 		ScenarioCount int
@@ -209,7 +209,7 @@ func AnalysisTestScenarios() map[string]struct {
 	}
 } {
 	return map[string]struct {
-		Resources map[string]Resource
+		Resources map[string]types.Resource
 		Expected  struct {
 			ResourceCount int
 			ScenarioCount int
@@ -217,7 +217,7 @@ func AnalysisTestScenarios() map[string]struct {
 		}
 	}{
 		"simple-postgres": {
-			Resources: map[string]Resource{
+			Resources: map[string]types.Resource{
 				"postgres": {
 					Type:     "postgres",
 					Enabled:  true,
@@ -236,7 +236,7 @@ func AnalysisTestScenarios() map[string]struct {
 			},
 		},
 		"multi-resource": {
-			Resources: map[string]Resource{
+			Resources: map[string]types.Resource{
 				"postgres": {
 					Type:     "postgres",
 					Enabled:  true,
@@ -267,7 +267,7 @@ func AnalysisTestScenarios() map[string]struct {
 			},
 		},
 		"empty-scenario": {
-			Resources: map[string]Resource{},
+			Resources: map[string]types.Resource{},
 			Expected: struct {
 				ResourceCount int
 				ScenarioCount int

@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"bytes"
@@ -17,6 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	types "scenario-dependency-analyzer/internal/types"
 )
 
 // TestLogger provides controlled logging during tests
@@ -139,7 +140,7 @@ type TestScenario struct {
 }
 
 // createTestScenario creates a test scenario with service.json and optional files
-func createTestScenario(t *testing.T, env *TestEnvironment, name string, resources map[string]Resource) *TestScenario {
+func createTestScenario(t *testing.T, env *TestEnvironment, name string, resources map[string]types.Resource) *TestScenario {
 	scenarioPath := filepath.Join(env.ScenariosDir, name)
 	if err := os.MkdirAll(scenarioPath, 0755); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
@@ -152,7 +153,7 @@ func createTestScenario(t *testing.T, env *TestEnvironment, name string, resourc
 	}
 
 	// Create service.json
-	serviceConfig := ServiceConfig{
+	serviceConfig := types.ServiceConfig{
 		Schema:  "https://schemas.vrooli.com/service/v2.0.0.json",
 		Version: "2.0.0",
 		Service: struct {
@@ -337,8 +338,8 @@ func setupTestRouter() *gin.Engine {
 }
 
 // createTestDependency creates a test dependency record
-func createTestDependency(scenarioName, depType, depName string, required bool) ScenarioDependency {
-	return ScenarioDependency{
+func createTestDependency(scenarioName, depType, depName string, required bool) types.ScenarioDependency {
+	return types.ScenarioDependency{
 		ID:             uuid.New().String(),
 		ScenarioName:   scenarioName,
 		DependencyType: depType,
@@ -353,7 +354,7 @@ func createTestDependency(scenarioName, depType, depName string, required bool) 
 }
 
 // insertTestDependency inserts a test dependency into the database
-func insertTestDependency(t *testing.T, testDB *sql.DB, dep ScenarioDependency) {
+func insertTestDependency(t *testing.T, testDB *sql.DB, dep types.ScenarioDependency) {
 	configJSON, _ := json.Marshal(dep.Configuration)
 
 	_, err := testDB.Exec(`

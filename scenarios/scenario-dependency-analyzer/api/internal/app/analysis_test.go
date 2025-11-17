@@ -1,11 +1,19 @@
-package main
+package app
 
 import (
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
+	types "scenario-dependency-analyzer/internal/types"
 )
+
+func repoScenarioPath(parts ...string) string {
+	base := []string{"..", "..", "..", ".."}
+	base = append(base, parts...)
+	return filepath.Join(base...)
+}
 
 // TestAnalyzeScenario tests scenario analysis functionality
 func TestAnalyzeScenario(t *testing.T) {
@@ -17,7 +25,7 @@ func TestAnalyzeScenario(t *testing.T) {
 
 	// Set up test scenario directory
 	scenarioName := "test-scenario"
-	testScenario := createTestScenario(t, env, scenarioName, map[string]Resource{
+	testScenario := createTestScenario(t, env, scenarioName, map[string]types.Resource{
 		"postgres": {
 			Type:     "postgres",
 			Enabled:  true,
@@ -140,11 +148,11 @@ func TestScanForScenarioDependenciesFiltersNoise(t *testing.T) {
 	defer env.Cleanup()
 
 	configureTestScenariosDir(t, env)
-	keep := createTestScenario(t, env, "other-scenario", map[string]Resource{})
+	keep := createTestScenario(t, env, "other-scenario", map[string]types.Resource{})
 	defer keep.Cleanup()
-	cliScenario := createTestScenario(t, env, "browser-automation-studio", map[string]Resource{})
+	cliScenario := createTestScenario(t, env, "browser-automation-studio", map[string]types.Resource{})
 	defer cliScenario.Cleanup()
-	ignored := createTestScenario(t, env, "ignored-scenario", map[string]Resource{})
+	ignored := createTestScenario(t, env, "ignored-scenario", map[string]types.Resource{})
 	defer ignored.Cleanup()
 
 	subjectPath := filepath.Join(env.ScenariosDir, "subject")
@@ -195,9 +203,9 @@ func TestScanForScenarioDependenciesDetectsScenarioPortResolvers(t *testing.T) {
 	defer env.Cleanup()
 
 	configureTestScenariosDir(t, env)
-	issueTracker := createTestScenario(t, env, "app-issue-tracker", map[string]Resource{})
+	issueTracker := createTestScenario(t, env, "app-issue-tracker", map[string]types.Resource{})
 	defer issueTracker.Cleanup()
-	subject := createTestScenario(t, env, "port-resolver", map[string]Resource{})
+	subject := createTestScenario(t, env, "port-resolver", map[string]types.Resource{})
 	defer subject.Cleanup()
 	refreshDependencyCatalogs()
 
@@ -279,18 +287,18 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 	if len(cfg.Dependencies.Resources) == 0 {
 		t.Fatalf("precondition failed: expected postgres in dependencies")
 	}
-	analysis := &DependencyAnalysisResponse{
+	analysis := &types.DependencyAnalysisResponse{
 		Scenario: scenarioName,
-		DetectedResources: []ScenarioDependency{
+		DetectedResources: []types.ScenarioDependency{
 			{ID: "redis-detected", ScenarioName: scenarioName, DependencyType: "resource", DependencyName: "redis", Required: true, AccessMethod: "heuristic"},
 		},
-		ResourceDiff: DependencyDiff{
-			Missing: []DependencyDrift{{Name: "redis"}},
+		ResourceDiff: types.DependencyDiff{
+			Missing: []types.DependencyDrift{{Name: "redis"}},
 		},
 	}
 
 	var captured int
-	applyDiffsHook = func(name string, cfg *ServiceConfig) {
+	applyDiffsHook = func(name string, cfg *types.ServiceConfig) {
 		if name == scenarioName {
 			captured = len(cfg.Dependencies.Resources)
 		}
@@ -386,8 +394,8 @@ func TestLoadServiceConfigIncludesDependencies(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", filepath.Join("..", ".."))
-	cfg, err := loadServiceConfigFromFile(filepath.Join("..", "..", "brand-manager"))
+	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", repoScenarioPath())
+	cfg, err := loadServiceConfigFromFile(repoScenarioPath("brand-manager"))
 	if err != nil {
 		t.Fatalf("failed to load brand-manager config: %v", err)
 	}
@@ -400,7 +408,7 @@ func TestRawServiceConfigMapHasDependencies(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	raw, err := loadRawServiceConfigMap(filepath.Join("..", "..", "brand-manager"))
+	raw, err := loadRawServiceConfigMap(repoScenarioPath("brand-manager"))
 	if err != nil {
 		t.Fatalf("failed to load raw config: %v", err)
 	}
@@ -539,13 +547,13 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	configureTestScenariosDir(t, env)
 	createTestResourceDirs(t, env, "postgres")
 
-	subject := createTestScenario(t, env, "apply-subject", map[string]Resource{})
+	subject := createTestScenario(t, env, "apply-subject", map[string]types.Resource{})
 	defer subject.Cleanup()
-	support := createTestScenario(t, env, "support-scenario", map[string]Resource{})
+	support := createTestScenario(t, env, "support-scenario", map[string]types.Resource{})
 	defer support.Cleanup()
 
-	analysis := &DependencyAnalysisResponse{
-		DetectedResources: []ScenarioDependency{
+	analysis := &types.DependencyAnalysisResponse{
+		DetectedResources: []types.ScenarioDependency{
 			{
 				DependencyName: "postgres",
 				AccessMethod:   "resource_cli",
@@ -554,14 +562,14 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 				},
 			},
 		},
-		ResourceDiff: DependencyDiff{Missing: []DependencyDrift{{Name: "postgres"}}},
-		Scenarios: []ScenarioDependency{
+		ResourceDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "postgres"}}},
+		Scenarios: []types.ScenarioDependency{
 			{
 				DependencyName: "support-scenario",
 				AccessMethod:   "vrooli scenario",
 			},
 		},
-		ScenarioDiff: DependencyDiff{Missing: []DependencyDrift{{Name: "support-scenario"}}},
+		ScenarioDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "support-scenario"}}},
 	}
 
 	summary, err := applyDetectedDiffs("apply-subject", analysis, true, true)
@@ -580,7 +588,7 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 		t.Fatalf("Failed to read service.json: %v", err)
 	}
 
-	var cfg ServiceConfig
+	var cfg types.ServiceConfig
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		t.Fatalf("Failed to parse service.json: %v", err)
 	}
@@ -674,7 +682,7 @@ func TestGenerateDependencyGraph(t *testing.T) {
 	defer func() { db = nil }()
 
 	// Insert test data
-	deps := []ScenarioDependency{
+	deps := []types.ScenarioDependency{
 		createTestDependency("scenario-a", "resource", "postgres", true),
 		createTestDependency("scenario-a", "resource", "redis", false),
 		createTestDependency("scenario-b", "resource", "postgres", true),
@@ -733,7 +741,7 @@ func TestAnalyzeProposedScenario(t *testing.T) {
 	defer cleanup()
 
 	t.Run("ValidRequest", func(t *testing.T) {
-		req := ProposedScenarioRequest{
+		req := types.ProposedScenarioRequest{
 			Name:        "new-scenario",
 			Description: "A scenario that needs database for storing user data",
 			Requirements: []string{
@@ -762,7 +770,7 @@ func TestAnalyzeProposedScenario(t *testing.T) {
 	})
 
 	t.Run("EmptyDescription", func(t *testing.T) {
-		req := ProposedScenarioRequest{
+		req := types.ProposedScenarioRequest{
 			Name:         "empty-scenario",
 			Description:  "",
 			Requirements: []string{},

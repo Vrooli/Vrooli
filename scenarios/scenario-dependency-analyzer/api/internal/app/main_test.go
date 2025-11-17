@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"encoding/json"
@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	types "scenario-dependency-analyzer/internal/types"
 )
 
 // TestHealthHandler tests the health endpoint
@@ -135,7 +137,7 @@ func TestAnalyzeProposedHandler(t *testing.T) {
 	router := setupTestRouter()
 
 	t.Run("Success", func(t *testing.T) {
-		request := ProposedScenarioRequest{
+		request := types.ProposedScenarioRequest{
 			Name:        "test-scenario",
 			Description: "A test scenario for analysis",
 			Requirements: []string{
@@ -171,7 +173,7 @@ func TestAnalyzeProposedHandler(t *testing.T) {
 			},
 			{
 				name:           "Missing name",
-				request:        ProposedScenarioRequest{Description: "test"},
+				request:        types.ProposedScenarioRequest{Description: "test"},
 				expectedStatus: http.StatusOK, // May still process
 			},
 			{
@@ -213,7 +215,7 @@ func TestGetDependenciesHandler(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		// Insert test dependencies
-		deps := []ScenarioDependency{
+		deps := []types.ScenarioDependency{
 			createTestDependency("test-scenario", "resource", "postgres", true),
 			createTestDependency("test-scenario", "resource", "redis", false),
 			createTestDependency("test-scenario", "scenario", "auth-service", true),
@@ -275,9 +277,9 @@ func TestGetDependenciesHandler(t *testing.T) {
 }
 
 func TestGenerateOptimizationRecommendations(t *testing.T) {
-	analysis := &DependencyAnalysisResponse{
-		ResourceDiff: DependencyDiff{
-			Extra: []DependencyDrift{{Name: "redis"}},
+	analysis := &types.DependencyAnalysisResponse{
+		ResourceDiff: types.DependencyDiff{
+			Extra: []types.DependencyDrift{{Name: "redis"}},
 		},
 	}
 	recommendations := generateOptimizationRecommendations("sample", analysis, nil)
@@ -297,15 +299,15 @@ func TestGenerateOptimizationRecommendations(t *testing.T) {
 
 func TestBuildTierBlockerRecommendations(t *testing.T) {
 	fitness := 0.3
-	report := &DeploymentAnalysisReport{
-		Aggregates: map[string]DeploymentTierAggregate{
+	report := &types.DeploymentAnalysisReport{
+		Aggregates: map[string]types.DeploymentTierAggregate{
 			"tier-2": {BlockingDependencies: []string{"postgres"}},
 		},
-		Dependencies: []DeploymentDependencyNode{
+		Dependencies: []types.DeploymentDependencyNode{
 			{
 				Name: "postgres",
 				Type: "resource",
-				TierSupport: map[string]TierSupportSummary{
+				TierSupport: map[string]types.TierSupportSummary{
 					"tier-2": {
 						Supported:    boolPtr(false),
 						FitnessScore: &fitness,
@@ -315,7 +317,7 @@ func TestBuildTierBlockerRecommendations(t *testing.T) {
 			},
 		},
 	}
-	analysis := &DependencyAnalysisResponse{DeploymentReport: report}
+	analysis := &types.DependencyAnalysisResponse{DeploymentReport: report}
 	recommendations := generateOptimizationRecommendations("sample", analysis, nil)
 	if len(recommendations) == 0 {
 		t.Fatalf("expected recommendation for blocker")
@@ -332,9 +334,9 @@ func TestBuildTierBlockerRecommendations(t *testing.T) {
 }
 
 func TestBuildUnusedScenarioRecommendations(t *testing.T) {
-	analysis := &DependencyAnalysisResponse{
-		ScenarioDiff: DependencyDiff{
-			Extra: []DependencyDrift{{Name: "legacy-tool"}},
+	analysis := &types.DependencyAnalysisResponse{
+		ScenarioDiff: types.DependencyDiff{
+			Extra: []types.DependencyDrift{{Name: "legacy-tool"}},
 		},
 	}
 	recs := buildUnusedScenarioRecommendations("sample", analysis, time.Now())
@@ -347,9 +349,9 @@ func TestBuildUnusedScenarioRecommendations(t *testing.T) {
 }
 
 func TestBuildSecretStrategyRecommendations(t *testing.T) {
-	cfg := &ServiceConfig{Deployment: &ServiceDeployment{Tiers: map[string]DeploymentTier{
+	cfg := &types.ServiceConfig{Deployment: &types.ServiceDeployment{Tiers: map[string]types.DeploymentTier{
 		"tier-2": {
-			Secrets: []DeploymentTierSecret{{SecretID: "api-key", StrategyRef: ""}},
+			Secrets: []types.DeploymentTierSecret{{SecretID: "api-key", StrategyRef: ""}},
 		},
 	}}}
 	recs := buildSecretStrategyRecommendations("sample", cfg, time.Now())
@@ -364,7 +366,7 @@ func TestBuildSecretStrategyRecommendations(t *testing.T) {
 func TestRemoveScenarioDependencyFromServiceConfig(t *testing.T) {
 	env := setupTempScenarios(t)
 	cfg := newTestServiceConfig("removal-app")
-	cfg.Dependencies.Scenarios["helper-app"] = ScenarioDependencySpec{Required: true, Description: "helper"}
+	cfg.Dependencies.Scenarios["helper-app"] = types.ScenarioDependencySpec{Required: true, Description: "helper"}
 	scenarioPath := writeTestServiceConfig(t, env.ScenariosDir, "removal-app", cfg)
 	removed, err := removeScenarioDependencyFromServiceConfig(scenarioPath, "helper-app")
 	if err != nil {
@@ -387,28 +389,28 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 	}
 
 	childCfg := newTestServiceConfig("child-app")
-	childCfg.Dependencies.Resources = map[string]Resource{
+	childCfg.Dependencies.Resources = map[string]types.Resource{
 		"redis": {
 			Type:     "cache",
 			Required: true,
 		},
 	}
-	childCfg.Deployment = &ServiceDeployment{
-		AggregateRequirements: &DeploymentRequirements{
+	childCfg.Deployment = &types.ServiceDeployment{
+		AggregateRequirements: &types.DeploymentRequirements{
 			RAMMB:    floatPtr(256),
 			DiskMB:   floatPtr(256),
 			CPUCores: floatPtr(0.5),
 		},
-		Tiers: map[string]DeploymentTier{
+		Tiers: map[string]types.DeploymentTier{
 			"tier-2-desktop": {
 				Status:       "limited",
 				FitnessScore: floatPtr(0.4),
 			},
 		},
-		Dependencies: DeploymentDependencyCatalog{
-			Resources: map[string]DeploymentDependency{
+		Dependencies: types.DeploymentDependencyCatalog{
+			Resources: map[string]types.DeploymentDependency{
 				"redis": {
-					Footprint: &DeploymentRequirements{
+					Footprint: &types.DeploymentRequirements{
 						RAMMB:    floatPtr(256),
 						DiskMB:   floatPtr(128),
 						CPUCores: floatPtr(0.5),
@@ -420,24 +422,24 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 	childPath := writeTestServiceConfig(t, env.ScenariosDir, "child-app", childCfg)
 
 	rootCfg := newTestServiceConfig("root-app")
-	rootCfg.Dependencies.Resources = map[string]Resource{
+	rootCfg.Dependencies.Resources = map[string]types.Resource{
 		"postgres": {
 			Type:     "database",
 			Required: true,
 		},
 	}
-	rootCfg.Dependencies.Scenarios = map[string]ScenarioDependencySpec{
+	rootCfg.Dependencies.Scenarios = map[string]types.ScenarioDependencySpec{
 		"child-app": {
 			Required: true,
 		},
 	}
-	rootCfg.Deployment = &ServiceDeployment{
-		AggregateRequirements: &DeploymentRequirements{
+	rootCfg.Deployment = &types.ServiceDeployment{
+		AggregateRequirements: &types.DeploymentRequirements{
 			RAMMB:    floatPtr(1024),
 			DiskMB:   floatPtr(2048),
 			CPUCores: floatPtr(1),
 		},
-		Tiers: map[string]DeploymentTier{
+		Tiers: map[string]types.DeploymentTier{
 			"tier-1-local": {
 				Status:       "ready",
 				FitnessScore: floatPtr(0.95),
@@ -445,21 +447,21 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 			"tier-2-desktop": {
 				Status:       "limited",
 				FitnessScore: floatPtr(0.6),
-				Adaptations: []DeploymentAdaptation{
+				Adaptations: []types.DeploymentAdaptation{
 					{Swap: "sqlite"},
 				},
 			},
 		},
-		Dependencies: DeploymentDependencyCatalog{
-			Resources: map[string]DeploymentDependency{
+		Dependencies: types.DeploymentDependencyCatalog{
+			Resources: map[string]types.DeploymentDependency{
 				"postgres": {
 					ResourceType: "database",
-					Footprint: &DeploymentRequirements{
+					Footprint: &types.DeploymentRequirements{
 						RAMMB:    floatPtr(512),
 						DiskMB:   floatPtr(1024),
 						CPUCores: floatPtr(1),
 					},
-					PlatformSupport: map[string]DependencyTierSupport{
+					PlatformSupport: map[string]types.DependencyTierSupport{
 						"tier-1-local": {
 							Supported:    boolPtr(true),
 							FitnessScore: floatPtr(0.95),
@@ -470,12 +472,12 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 							Alternatives: []string{"sqlite"},
 						},
 					},
-					SwappableWith: []DependencySwap{{ID: "sqlite"}},
+					SwappableWith: []types.DependencySwap{{ID: "sqlite"}},
 				},
 			},
-			Scenarios: map[string]DeploymentDependency{
+			Scenarios: map[string]types.DeploymentDependency{
 				"child-app": {
-					PlatformSupport: map[string]DependencyTierSupport{
+					PlatformSupport: map[string]types.DependencyTierSupport{
 						"tier-2-desktop": {
 							Supported:    boolPtr(false),
 							FitnessScore: floatPtr(0.5),
@@ -532,7 +534,7 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 	}
 }
 
-func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *ServiceConfig) string {
+func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *types.ServiceConfig) string {
 	t.Helper()
 	scenarioPath := filepath.Join(scenariosDir, name)
 	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0755); err != nil {
@@ -549,15 +551,15 @@ func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *Servic
 	return scenarioPath
 }
 
-func newTestServiceConfig(name string) *ServiceConfig {
-	cfg := &ServiceConfig{Schema: "https://example.com/test.schema.json", Version: "1.0.0"}
+func newTestServiceConfig(name string) *types.ServiceConfig {
+	cfg := &types.ServiceConfig{Schema: "https://example.com/test.schema.json", Version: "1.0.0"}
 	cfg.Service.Name = name
 	cfg.Service.DisplayName = name
 	cfg.Service.Description = "test"
 	cfg.Service.Version = "1.0.0"
 	cfg.Service.Tags = []string{"test"}
-	cfg.Dependencies.Resources = map[string]Resource{}
-	cfg.Dependencies.Scenarios = map[string]ScenarioDependencySpec{}
+	cfg.Dependencies.Resources = map[string]types.Resource{}
+	cfg.Dependencies.Scenarios = map[string]types.ScenarioDependencySpec{}
 	return cfg
 }
 
@@ -574,7 +576,7 @@ func containsString(values []string, target string) bool {
 	return false
 }
 
-func bundleHasFile(entries []BundleFileEntry, target string) bool {
+func bundleHasFile(entries []types.BundleFileEntry, target string) bool {
 	for _, entry := range entries {
 		if entry.Path == target && entry.Exists {
 			return true
@@ -583,7 +585,7 @@ func bundleHasFile(entries []BundleFileEntry, target string) bool {
 	return false
 }
 
-func dependencyHasAlternative(entries []BundleDependencyEntry, name, alternative string) bool {
+func dependencyHasAlternative(entries []types.BundleDependencyEntry, name, alternative string) bool {
 	for _, entry := range entries {
 		if entry.Name != name {
 			continue
@@ -678,11 +680,11 @@ func TestCalculateComplexityScore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			nodes := make([]GraphNode, tt.nodeCount)
-			edges := make([]GraphEdge, tt.edgeCount)
+			nodes := make([]types.GraphNode, tt.nodeCount)
+			edges := make([]types.GraphEdge, tt.edgeCount)
 
 			for i := 0; i < tt.nodeCount; i++ {
-				nodes[i] = GraphNode{
+				nodes[i] = types.GraphNode{
 					ID:    string(rune('A' + i)),
 					Label: "Node " + string(rune('A'+i)),
 					Type:  "test",
@@ -690,7 +692,7 @@ func TestCalculateComplexityScore(t *testing.T) {
 			}
 
 			for i := 0; i < tt.edgeCount; i++ {
-				edges[i] = GraphEdge{
+				edges[i] = types.GraphEdge{
 					Source: "A",
 					Target: "B",
 					Weight: 1.0,
@@ -916,7 +918,7 @@ func TestGetHeuristicPredictions(t *testing.T) {
 
 // TestScenarioDependencyStructure tests the ScenarioDependency struct
 func TestScenarioDependencyStructure(t *testing.T) {
-	dep := ScenarioDependency{
+	dep := types.ScenarioDependency{
 		ID:             "test-id",
 		ScenarioName:   "test-scenario",
 		DependencyType: "resource",
@@ -936,7 +938,7 @@ func TestScenarioDependencyStructure(t *testing.T) {
 	}
 
 	// Test JSON unmarshaling
-	var unmarshaled ScenarioDependency
+	var unmarshaled types.ScenarioDependency
 	if err := json.Unmarshal(jsonData, &unmarshaled); err != nil {
 		t.Fatalf("Failed to unmarshal dependency: %v", err)
 	}
