@@ -1,0 +1,55 @@
+{
+  "scenario": "test-scenario",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:58.283462208Z",
+  "dependencies": [
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "test-scenario",
+    "generated_at": "2025-11-16T19:40:58.283462208Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/test-scenario-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": false
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": false
+      },
+      {
+        "path": "cli/test-scenario",
+        "type": "cli-binary",
+        "exists": false
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "postgres",
+        "type": "resource"
+      }
+    ]
+  }
+}

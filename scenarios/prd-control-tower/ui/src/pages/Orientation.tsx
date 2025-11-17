@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, BookOpen, Compass, FileText, Layers, Sparkles, Target, Workflow } from 'lucide-react'
+import { AlertCircle, BookOpen, Compass, FileText, Layers, ShieldAlert, Sparkles, Target, Workflow } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Separator } from '../components/ui/separator'
 import { TopNav } from '../components/ui/top-nav'
 import { buildApiUrl } from '../utils/apiClient'
-import type { CatalogResponse } from '../types'
+import { fetchQualitySummary } from '../utils/quality'
+import type { CatalogResponse, QualitySummary } from '../types'
 
 const TEMPLATE_SECTIONS = [
   {
@@ -77,12 +78,20 @@ const ACTION_TILES = [
     to: '/requirements-registry',
     icon: Target,
   },
+  {
+    title: 'Run Quality Scanner',
+    description: 'Batch-audit PRDs for template drift, missing targets, and coverage gaps.',
+    to: '/quality-scanner',
+    icon: ShieldAlert,
+  },
 ]
 
 export default function Orientation() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState({ total: 0, withPrd: 0, drafts: 0 })
+  const [qualitySummary, setQualitySummary] = useState<QualitySummary | null>(null)
+  const [qualityError, setQualityError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -119,6 +128,36 @@ export default function Orientation() {
     return Math.round((summary.withPrd / summary.total) * 100)
   }, [summary])
 
+  useEffect(() => {
+    let mounted = true
+    fetchQualitySummary()
+      .then((data) => {
+        if (mounted) {
+          setQualitySummary(data)
+          setQualityError(null)
+        }
+      })
+      .catch((err) => {
+        if (mounted) {
+          setQualitySummary(null)
+          setQualityError(err instanceof Error ? err.message : 'Quality summary unavailable')
+        }
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const qualityStats = useMemo(() => {
+    if (!qualitySummary) return []
+    return [
+      { label: 'Tracked entities', value: qualitySummary.total_entities },
+      { label: 'Missing PRDs', value: qualitySummary.missing_prd },
+      { label: 'With issues', value: qualitySummary.with_issues },
+    ]
+  }, [qualitySummary])
+
   return (
     <div className="app-container space-y-8">
       <TopNav />
@@ -134,7 +173,7 @@ export default function Orientation() {
               Understand the Control Tower
             </div>
             <p className="max-w-3xl text-base text-muted-foreground">
-              Every scenario becomes permanent intelligence. Use this primer to understand the canonical PRD format, validation workflow, and where to take action next.
+              Every scenario becomes permanent intelligence. Use this primer to understand the canonical PRD format, validation workflow, and where to take action next—including the moment to fire the scanner and keep coverage honest.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button size="lg" asChild>
@@ -142,6 +181,9 @@ export default function Orientation() {
               </Button>
               <Button variant="secondary" size="lg" asChild>
                 <Link to="/drafts">Jump to drafts</Link>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <Link to="/quality-scanner">Run quality scan</Link>
               </Button>
             </div>
           </div>
@@ -175,6 +217,24 @@ export default function Orientation() {
                   <p className="text-2xl font-semibold text-slate-900">{loading ? '—' : summary.drafts}</p>
                 </div>
                 <Sparkles size={28} className="text-violet-500" />
+              </div>
+              <Separator />
+              <div>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <ShieldAlert size={16} className="text-rose-500" /> Quality health snapshot
+                </p>
+                <div className="mt-2 grid gap-1 text-sm text-slate-600">
+                  {qualityStats.length === 0 && <span>—</span>}
+                  {qualityStats.map((stat) => (
+                    <span key={stat.label}>
+                      <strong className="text-slate-900">{stat.value}</strong> {stat.label}
+                    </span>
+                  ))}
+                  {qualitySummary?.last_generated && (
+                    <span className="text-xs text-muted-foreground">Updated {new Date(qualitySummary.last_generated).toLocaleString()}</span>
+                  )}
+                  {qualityError && <span className="text-xs text-amber-600">{qualityError}</span>}
+                </div>
               </div>
               {error && (
                 <p className="text-sm text-amber-600">
@@ -245,6 +305,9 @@ export default function Orientation() {
             ))}
             <div className="rounded-2xl border border-dashed bg-slate-50 p-4 text-sm text-slate-600">
               🔗 Need deep dives? See <a className="text-primary underline" href="https://github.com/vrooli/Vrooli/blob/main/docs/prd-template-spec.md" target="_blank" rel="noreferrer">PRD Template Specification</a> and <a className="text-primary underline" href="https://github.com/vrooli/Vrooli/blob/main/docs/testing/architecture/REQUIREMENT_FLOW.md" target="_blank" rel="noreferrer">Requirement Flow</a>.
+            </div>
+            <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900">
+              Close the loop by running the <Link to="/quality-scanner" className="font-semibold underline">Quality Scanner</Link> after each publish. It flags template drift, missing targets, and stale `prd_ref` links within seconds.
             </div>
           </CardContent>
         </Card>

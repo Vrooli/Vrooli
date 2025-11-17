@@ -1,0 +1,44 @@
+{
+  "scenario": "scenario-to-ios",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:57.575981203Z",
+  "dependencies": [],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "scenario-to-ios",
+    "generated_at": "2025-11-16T19:40:57.575981203Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/scenario-to-ios-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": false
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": false
+      },
+      {
+        "path": "cli/scenario-to-ios",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": []
+  }
+}

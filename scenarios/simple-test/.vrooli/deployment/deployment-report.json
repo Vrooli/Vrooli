@@ -1,0 +1,64 @@
+{
+  "scenario": "simple-test",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:57.693950097Z",
+  "dependencies": [
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "qdrant",
+      "type": "resource",
+      "source": "declared"
+    }
+  ],
+  "aggregates": {},
+  "bundle_manifest": {
+    "scenario": "simple-test",
+    "generated_at": "2025-11-16T19:40:57.693950097Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": false
+      },
+      {
+        "path": "api/simple-test-api",
+        "type": "api-binary",
+        "exists": false
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": false
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": false
+      },
+      {
+        "path": "cli/simple-test",
+        "type": "cli-binary",
+        "exists": false
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "qdrant",
+        "type": "resource"
+      }
+    ]
+  }
+}
