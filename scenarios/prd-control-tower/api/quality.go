@@ -270,6 +270,8 @@ func computeQualityReport(entityType, entityName string) (ScenarioQualityReport,
 	for _, subsections := range tmplV2.MissingSubsections {
 		missingSections += len(subsections)
 	}
+	unexpectedSections := len(tmplV2.UnexpectedSections)
+	structureIssues := missingSections + unexpectedSections
 
 	requirementsPath := filepath.Join(vrooliRoot, entityDir, entityName, "requirements", "index.json")
 	if _, err := os.Stat(requirementsPath); err == nil {
@@ -304,14 +306,14 @@ func computeQualityReport(entityType, entityName string) (ScenarioQualityReport,
 	report.RequirementsWithoutTargets = summarizeRequirements(unmatched, "missing_target_linkage")
 	report.PRDRefIssues = prdIssues
 
-	report.IssueCounts.MissingTemplateSections = missingSections
+	report.IssueCounts.MissingTemplateSections = structureIssues
 	report.IssueCounts.TargetCoverage = len(targetIssues)
 	report.IssueCounts.RequirementCoverage = len(unmatched)
 	report.IssueCounts.PRDRef = len(prdIssues)
 	report.IssueCounts.Total = report.IssueCounts.MissingTemplateSections + report.IssueCounts.TargetCoverage + report.IssueCounts.RequirementCoverage + report.IssueCounts.PRDRef
 
 	report.IssueCounts.Blocking = report.IssueCounts.MissingPRD
-	if missingSections > 0 {
+	if structureIssues > 0 {
 		report.IssueCounts.Blocking += 1
 	}
 	report.IssueCounts.Blocking += countCriticalTargetIssues(targetIssues, "P0")

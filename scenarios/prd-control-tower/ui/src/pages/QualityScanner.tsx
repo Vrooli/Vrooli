@@ -20,6 +20,7 @@ import { Badge } from '../components/ui/badge'
 import { cn } from '../lib/utils'
 import { buildApiUrl } from '../utils/apiClient'
 import { runQualityScan, fetchQualitySummary } from '../utils/quality'
+import { flattenMissingTemplateSections } from '../utils/prdStructure'
 import type {
   CatalogEntry,
   CatalogResponse,
@@ -707,8 +708,14 @@ function buildCsv(reports: ScenarioQualityReport[]) {
       return
     }
 
-    report.template_compliance_v2?.missing_sections.forEach((section: string) => {
+    const missingSections = flattenMissingTemplateSections(report.template_compliance_v2)
+    missingSections.forEach((section: string) => {
       rows.push([report.entity_type, report.entity_name, report.status, 'template_section', section])
+    })
+
+    const unexpectedSections = report.template_compliance_v2?.unexpected_sections ?? []
+    unexpectedSections.forEach((section: string) => {
+      rows.push([report.entity_type, report.entity_name, report.status, 'unexpected_section', section])
     })
 
     report.target_linkage_issues?.forEach((issue) => {

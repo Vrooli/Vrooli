@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -42,6 +43,9 @@ type PRDValidationResultV2 struct {
 	OverallScore       float64                `json:"overall_score"`
 	IsFullyCompliant   bool                   `json:"is_fully_compliant"`
 	MissingSubsections map[string][]string    `json:"missing_subsections"`
+	RequiredSections   int                    `json:"required_sections"`
+	CompletedSections  int                    `json:"completed_sections"`
+	UnexpectedSections []string               `json:"unexpected_sections"`
 }
 
 // PRDContentIssue represents content-level problems
@@ -139,20 +143,6 @@ func GetPRDTemplateSchemaV2() PRDTemplateSchemaV2 {
 
 // ValidatePRDTemplateV2 performs comprehensive template validation
 func ValidatePRDTemplateV2(content string) PRDValidationResultV2 {
-	if !strings.Contains(content, "## 🎯 Overview") {
-		return PRDValidationResultV2{
-			CompliantSections:  []string{"Legacy PRD structure"},
-			MissingSections:    []string{},
-			Violations:         []PRDTemplateViolation{},
-			ContentIssues:      []PRDContentIssue{},
-			StructureScore:     100,
-			ContentScore:       100,
-			OverallScore:       100,
-			IsFullyCompliant:   true,
-			MissingSubsections: make(map[string][]string),
-		}
-	}
-
 	schema := GetPRDTemplateSchemaV2()
 	result := PRDValidationResultV2{
 		CompliantSections:  []string{},
@@ -160,15 +150,20 @@ func ValidatePRDTemplateV2(content string) PRDValidationResultV2 {
 		Violations:         []PRDTemplateViolation{},
 		ContentIssues:      []PRDContentIssue{},
 		MissingSubsections: make(map[string][]string),
+		UnexpectedSections: []string{},
 	}
 
 	foundSections := extractSectionsWithContent(content)
 	var totalRequired, foundRequired int
 	var totalSubsections, foundSubsections int
+	validSectionKeys := buildValidSectionMap(schema)
 
 	for _, section := range schema.Sections {
 		sectionKey := fmt.Sprintf("%d:%s", section.Level, normalizeTitle(section.Title))
-		_, sectionFound := foundSections[sectionKey]
+		sectionContent, sectionFound := foundSections[sectionKey]
+
+		requiredSubsections := countRequiredSubsections(section)
+		totalSubsections += requiredSubsections
 
 		if section.Required {
 			totalRequired++
@@ -176,11 +171,9 @@ func ValidatePRDTemplateV2(content string) PRDValidationResultV2 {
 				foundRequired++
 				result.CompliantSections = append(result.CompliantSections, section.Title)
 				if len(section.Subsections) > 0 {
-					validateSubsections(section, foundSections, &result, &totalSubsections, &foundSubsections)
+					validateSubsections(section, foundSections, &result, &foundSubsections)
 				}
-				if sectionContent, ok := foundSections[sectionKey]; ok {
-					validateSectionContent(section, sectionContent, &result)
-				}
+				validateSectionContent(section, sectionContent.Content, &result)
 			} else {
 				result.MissingSections = append(result.MissingSections, section.Title)
 				result.Violations = append(result.Violations, PRDTemplateViolation{
@@ -190,14 +183,27 @@ func ValidatePRDTemplateV2(content string) PRDValidationResultV2 {
 					Severity:   "error",
 					Suggestion: fmt.Sprintf("Add section: %s %s", strings.Repeat("#", section.Level), section.Title),
 				})
+				if requiredSubsections > 0 {
+					result.MissingSubsections[section.Title] = collectRequiredSubsectionTitles(section)
+				}
 			}
 		} else if sectionFound {
 			result.CompliantSections = append(result.CompliantSections, section.Title)
+			if len(section.Subsections) > 0 {
+				validateSubsections(section, foundSections, &result, &foundSubsections)
+			}
+			validateSectionContent(section, sectionContent.Content, &result)
+		} else if requiredSubsections > 0 {
+			// Optional parent section missing but with required subsections
+			result.MissingSubsections[section.Title] = collectRequiredSubsectionTitles(section)
 		}
 	}
 
-	if totalRequired > 0 {
-		result.StructureScore = float64(foundRequired) / float64(totalRequired) * 100
+	result.RequiredSections = totalRequired + totalSubsections
+	result.CompletedSections = foundRequired + foundSubsections
+
+	if result.RequiredSections > 0 {
+		result.StructureScore = float64(result.CompletedSections) / float64(result.RequiredSections) * 100
 	} else {
 		result.StructureScore = 100
 	}
@@ -215,51 +221,63 @@ func ValidatePRDTemplateV2(content string) PRDValidationResultV2 {
 	}
 
 	result.OverallScore = (result.StructureScore*0.6 + result.ContentScore*0.4)
-	result.IsFullyCompliant = result.StructureScore == 100 && len(result.Violations) == 0
+	result.IsFullyCompliant = result.CompletedSections == result.RequiredSections && len(result.Violations) == 0
+	result.UnexpectedSections = collectUnexpectedSections(foundSections, validSectionKeys)
 	return result
 }
 
-func extractSectionsWithContent(content string) map[string]string {
-	sections := make(map[string]string)
+type extractedSection struct {
+	Title   string
+	Level   int
+	Content string
+}
+
+func extractSectionsWithContent(content string) map[string]extractedSection {
+	sections := make(map[string]extractedSection)
 	lines := strings.Split(content, "\n")
 	sectionPattern := regexp.MustCompile(`^(#{2,3})\s+(.+)$`)
 
-	var currentSection string
+	var currentKey string
+	var currentTitle string
+	var currentLevel int
 	var currentContent strings.Builder
+
+	storeCurrent := func() {
+		if currentKey == "" {
+			return
+		}
+		sections[currentKey] = extractedSection{
+			Title:   currentTitle,
+			Level:   currentLevel,
+			Content: strings.TrimRight(currentContent.String(), "\n"),
+		}
+		currentContent.Reset()
+	}
 
 	for _, line := range lines {
 		matches := sectionPattern.FindStringSubmatch(line)
 		if len(matches) == 3 {
-			level := len(matches[1])
-			title := strings.TrimSpace(matches[2])
-			sectionKey := fmt.Sprintf("%d:%s", level, normalizeTitle(title))
-
-			if currentSection != "" {
-				sections[currentSection] = currentContent.String()
-				currentContent.Reset()
-			}
-			currentSection = sectionKey
-		} else if currentSection != "" {
+			storeCurrent()
+			currentLevel = len(matches[1])
+			currentTitle = strings.TrimSpace(matches[2])
+			currentKey = fmt.Sprintf("%d:%s", currentLevel, normalizeTitle(currentTitle))
+			continue
+		}
+		if currentKey != "" {
 			currentContent.WriteString(line)
 			currentContent.WriteString("\n")
 		}
 	}
 
-	if currentSection != "" {
-		sections[currentSection] = currentContent.String()
-	}
+	storeCurrent()
 	return sections
 }
 
-func validateSubsections(parent PRDSectionV2, foundSections map[string]string, result *PRDValidationResultV2, totalSub, foundSub *int) {
+func validateSubsections(parent PRDSectionV2, foundSections map[string]extractedSection, result *PRDValidationResultV2, foundSub *int) {
 	var missing []string
 	for _, subsection := range parent.Subsections {
 		subsectionKey := fmt.Sprintf("%d:%s", subsection.Level, normalizeTitle(subsection.Title))
-		_, found := foundSections[subsectionKey]
-
-		if subsection.Required {
-			*totalSub++
-		}
+		sectionContent, found := foundSections[subsectionKey]
 
 		if subsection.Required && !found {
 			missing = append(missing, subsection.Title)
@@ -275,9 +293,7 @@ func validateSubsections(parent PRDSectionV2, foundSections map[string]string, r
 				*foundSub++
 			}
 			result.CompliantSections = append(result.CompliantSections, fmt.Sprintf("%s > %s", parent.Title, subsection.Title))
-			if sectionContent, ok := foundSections[subsectionKey]; ok {
-				validateSectionContent(subsection, sectionContent, result)
-			}
+			validateSectionContent(subsection, sectionContent.Content, result)
 		}
 	}
 
@@ -346,4 +362,49 @@ func validateSectionContent(section PRDSectionV2, content string, result *PRDVal
 			}
 		}
 	}
+}
+
+func countRequiredSubsections(section PRDSectionV2) int {
+	count := 0
+	for _, subsection := range section.Subsections {
+		if subsection.Required {
+			count++
+		}
+	}
+	return count
+}
+
+func collectRequiredSubsectionTitles(section PRDSectionV2) []string {
+	var titles []string
+	for _, subsection := range section.Subsections {
+		if subsection.Required {
+			titles = append(titles, subsection.Title)
+		}
+	}
+	return titles
+}
+
+func buildValidSectionMap(schema PRDTemplateSchemaV2) map[string]struct{} {
+	valid := make(map[string]struct{})
+	for _, section := range schema.Sections {
+		key := fmt.Sprintf("%d:%s", section.Level, normalizeTitle(section.Title))
+		valid[key] = struct{}{}
+		for _, subsection := range section.Subsections {
+			subKey := fmt.Sprintf("%d:%s", subsection.Level, normalizeTitle(subsection.Title))
+			valid[subKey] = struct{}{}
+		}
+	}
+	return valid
+}
+
+func collectUnexpectedSections(found map[string]extractedSection, valid map[string]struct{}) []string {
+	var unexpected []string
+	for key, section := range found {
+		if _, ok := valid[key]; ok {
+			continue
+		}
+		unexpected = append(unexpected, section.Title)
+	}
+	sort.Strings(unexpected)
+	return unexpected
 }

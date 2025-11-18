@@ -153,6 +153,8 @@ export interface ValidationSummary {
 export interface DraftValidationResult {
   violations: Violation[]
   template_compliance?: PRDTemplateValidationResult
+  template_compliance_v2?: PRDValidationResultV2
+  target_linkage_issues?: TargetLinkageIssue[]
   summary?: ValidationSummary
 }
 
@@ -198,6 +200,9 @@ export interface PRDValidationResultV2 {
   overall_score: number
   is_fully_compliant: boolean
   missing_subsections: Record<string, string[]>
+  required_sections: number
+  completed_sections: number
+  unexpected_sections: string[]
 }
 
 /**

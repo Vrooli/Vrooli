@@ -1,3 +1,5 @@
+import type { PRDValidationResultV2 } from '../types'
+
 // PRD template structure validation aligned with scripts/scenarios/templates/react-vite/PRD.md
 // This validation focuses on CORE required sections while making subsections optional/recommended
 
@@ -77,4 +79,21 @@ export function analyzeDraftStructure(content: string): StructureSummary {
     missingRecommended,
     completenessPercent,
   }
+}
+
+export function flattenMissingTemplateSections(result?: PRDValidationResultV2 | null): string[] {
+  if (!result) {
+    return []
+  }
+
+  const missing: string[] = [...result.missing_sections]
+  const subsectionEntries = Object.entries(result.missing_subsections || {})
+
+  subsectionEntries.forEach(([parent, subsections]) => {
+    subsections.forEach((subsection) => {
+      missing.push(`${parent} → ${subsection}`)
+    })
+  })
+
+  return missing
 }

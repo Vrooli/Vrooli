@@ -5,6 +5,7 @@ import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import type { ScenarioQualityReport } from '../../types'
 import { formatDate } from '../../utils/formatters'
+import { flattenMissingTemplateSections } from '../../utils/prdStructure'
 
 interface IssuesPanelProps {
   report: ScenarioQualityReport | null
@@ -31,6 +32,8 @@ const STATUS_LABELS: Record<ScenarioQualityReport['status'], string> = {
 
 export function IssuesPanel({ report, loading, error, onRefresh }: IssuesPanelProps) {
   const hasIssues = (report?.issue_counts.total ?? 0) > 0
+  const missingTemplateSections = report ? flattenMissingTemplateSections(report.template_compliance_v2) : []
+  const unexpectedSections = report?.template_compliance_v2?.unexpected_sections ?? []
 
   return (
     <Card className="mt-6">
@@ -99,20 +102,40 @@ export function IssuesPanel({ report, loading, error, onRefresh }: IssuesPanelPr
             {hasIssues && (
               <div className="grid gap-4 md:grid-cols-2">
                 {report.template_compliance_v2 && report.issue_counts.missing_template_sections > 0 && (
-                  <div className="space-y-2 rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm">
+                  <div className="space-y-4 rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm">
                     <p className="flex items-center gap-2 font-semibold text-amber-900">
-                      <AlertTriangle size={16} /> Template coverage
+                      <AlertTriangle size={16} /> PRD structure issues
                     </p>
-                    <ul className="list-inside list-disc text-amber-800">
-                      {report.template_compliance_v2.missing_sections.slice(0, 4).map((section: string) => (
-                        <li key={section}>{section}</li>
-                      ))}
-                      {report.template_compliance_v2.missing_sections.length > 4 && (
-                        <li className="text-xs text-muted-foreground">
-                          +{report.template_compliance_v2.missing_sections.length - 4} more sections
-                        </li>
-                      )}
-                    </ul>
+                    {missingTemplateSections.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide">Missing sections</p>
+                        <ul className="list-inside list-disc text-amber-800">
+                          {missingTemplateSections.slice(0, 4).map((section: string) => (
+                            <li key={`missing-${section}`}>{section}</li>
+                          ))}
+                          {missingTemplateSections.length > 4 && (
+                            <li className="text-xs text-muted-foreground">
+                              +{missingTemplateSections.length - 4} more missing section{missingTemplateSections.length - 4 === 1 ? '' : 's'}
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                    {unexpectedSections.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide">Unexpected sections</p>
+                        <ul className="list-inside list-disc text-amber-800">
+                          {unexpectedSections.slice(0, 4).map((section: string) => (
+                            <li key={`extra-${section}`}>{section}</li>
+                          ))}
+                          {unexpectedSections.length > 4 && (
+                            <li className="text-xs text-muted-foreground">
+                              +{unexpectedSections.length - 4} more unexpected section{unexpectedSections.length - 4 === 1 ? '' : 's'}
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
 

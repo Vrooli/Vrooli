@@ -5,6 +5,7 @@ import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { Separator } from '../ui/separator'
 import { buildApiUrl } from '../../utils/apiClient'
+import { flattenMissingTemplateSections } from '../../utils/prdStructure'
 import type { Violation, DraftValidationResult } from '../../types'
 
 interface PRDValidationPanelProps {
@@ -87,9 +88,17 @@ export function PRDValidationPanel({
     }
   }, [draftId, onManualValidate])
 
-  const templateCompliance = validationResult?.template_compliance
-  const completionPercent = templateCompliance ? Math.round(templateCompliance.compliance_percent) : 0
-  const isFullyComplete = templateCompliance?.is_compliant ?? false
+  const templateComplianceV2 = validationResult?.template_compliance_v2
+  const legacyTemplateCompliance = validationResult?.template_compliance
+  const hasTemplateCompliance = Boolean(templateComplianceV2 || legacyTemplateCompliance)
+  const completionPercent = templateComplianceV2
+    ? Math.round(templateComplianceV2.structure_score)
+    : legacyTemplateCompliance
+      ? Math.round(legacyTemplateCompliance.compliance_percent)
+      : 0
+  const isFullyComplete = templateComplianceV2
+    ? templateComplianceV2.is_fully_compliant
+    : legacyTemplateCompliance?.is_compliant ?? false
   const hasLinkageIssues = orphanedTargetsCount > 0 || unmatchedRequirementsCount > 0
   // Ensure violations is an array (API may return object on errors)
   const violations = Array.isArray(validationResult?.violations)
@@ -97,10 +106,18 @@ export function PRDValidationPanel({
     : []
   const hasViolations = violations.length > 0
 
-  const totalSections = templateCompliance
-    ? templateCompliance.compliant_sections.length + templateCompliance.missing_sections.length
-    : 0
-  const completedSections = templateCompliance?.compliant_sections.length ?? 0
+  const totalSections = templateComplianceV2
+    ? templateComplianceV2.required_sections
+    : legacyTemplateCompliance
+      ? legacyTemplateCompliance.compliant_sections.length + legacyTemplateCompliance.missing_sections.length
+      : 0
+  const completedSections = templateComplianceV2
+    ? templateComplianceV2.completed_sections
+    : legacyTemplateCompliance?.compliant_sections.length ?? 0
+  const missingSections = templateComplianceV2
+    ? flattenMissingTemplateSections(templateComplianceV2)
+    : legacyTemplateCompliance?.missing_sections ?? []
+  const extraSections = templateComplianceV2?.unexpected_sections ?? []
 
   const violationsByLine = violations.reduce((acc, violation) => {
     const line = violation.line ?? 0
@@ -154,9 +171,9 @@ export function PRDValidationPanel({
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
-              {templateCompliance ? `${completedSections} / ${totalSections} sections` : 'Click Validate to check'}
+              {hasTemplateCompliance ? `${completedSections} / ${totalSections} sections` : 'Click Validate to check'}
             </span>
-            {templateCompliance && (
+            {hasTemplateCompliance && (
               isFullyComplete ? (
                 <span className="text-green-600 font-medium flex items-center gap-1">
                   <CheckCircle2 size={12} />
@@ -165,7 +182,13 @@ export function PRDValidationPanel({
               ) : (
                 <span className="text-amber-600 font-medium flex items-center gap-1">
                   <AlertCircle size={12} />
-                  {templateCompliance.missing_sections.length} missing
+                  {missingSections.length > 0 && (
+                    <>
+                      {missingSections.length} missing
+                      {extraSections.length > 0 && ' · '}
+                    </>
+                  )}
+                  {extraSections.length > 0 && `${extraSections.length} unexpected`}
                 </span>
               )
             )}
@@ -173,16 +196,37 @@ export function PRDValidationPanel({
         </div>
 
         {/* Missing Template Sections */}
-        {templateCompliance && templateCompliance.missing_sections.length > 0 && (
+        {missingSections.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium text-amber-900">
               <AlertTriangle size={16} />
               Missing Template Sections
             </div>
             <ul className="text-xs space-y-1 text-amber-800">
-              {templateCompliance.missing_sections.map((section, idx) => (
+              {missingSections.map((section, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-amber-600">•</span>
+                  <span>{section}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Unexpected Template Sections */}
+        {extraSections.length > 0 && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
+              <AlertTriangle size={16} />
+              Unexpected PRD Sections
+            </div>
+            <p className="text-xs text-blue-800">
+              These headings are not part of the canonical template and should be removed or migrated.
+            </p>
+            <ul className="text-xs space-y-1 text-blue-900">
+              {extraSections.map((section, idx) => (
+                <li key={idx} className="flex items-start gap-2">
+                  <span className="text-blue-600">•</span>
                   <span>{section}</span>
                 </li>
               ))}
@@ -278,7 +322,8 @@ export function PRDValidationPanel({
                                 : violation.severity === 'warning'
                                 ? 'warning'
                                 : 'secondary'
-                            }
+        }
+
                             className="text-xs shrink-0"
                           >
                             {violation.severity ?? 'info'}
