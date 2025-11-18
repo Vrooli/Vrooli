@@ -589,7 +589,7 @@ func lintSelectorValue(selector, pointer, nodeID, nodeType string, registry map[
 		if _, ok := registry[value]; !ok {
 			location := selectorSource
 			if location == "" {
-				location = "ui/src/consts/selectors.ts"
+				location = "ui/src/consts/" + manifestFilename
 			}
 			issues = append(issues, Issue{
 				Severity: SeverityWarning,

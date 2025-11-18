@@ -46,7 +46,7 @@
       },
       "data": {
         "label": "Workflow toolbar is visible",
-        "selector": "@selector/workflowToolbar",
+        "selector": "@selector/toolbar.root",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Workflow toolbar should be visible"
@@ -87,7 +87,7 @@
       },
       "data": {
         "label": "Click zoom in button",
-        "selector": "@selector/toolbarZoomInButton",
+        "selector": "@selector/toolbar.zoomInButton",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }

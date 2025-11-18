@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Workflow exists",
-        "selector": "@selector/workflowCard",
+        "selector": "@selector/workflows.card",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Demo workflow should exist"
@@ -61,7 +61,7 @@
       },
       "data": {
         "label": "Start workflow execution",
-        "selector": "@selector/workflowExecuteButton, button[title*=\"execute\" i]:first-of-type",
+        "selector": "@selector/workflowBuilder.executeButton",
         "timeoutMs": 5000,
         "waitForMs": 3000
       }

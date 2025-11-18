@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-17T20:48:10.559Z"
+    "last_synced_at": "2025-11-18T16:40:11.872Z"
   },
   "requirements": [
     {
@@ -13,7 +13,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Timeline artifacts persist normalized execution events",
       "description": "Ensures execution artifacts are normalized, stored, and queryable so the replay UI and marketing renderer consume consistent payloads.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "validation": [
         {
@@ -34,7 +34,7 @@
           "type": "automation",
           "ref": "test/playbooks/replay/render-check.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "E2E validation that replay artifacts are persisted and accessible for rendering"
         }
       ]

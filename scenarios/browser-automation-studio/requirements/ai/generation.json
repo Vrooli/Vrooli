@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-17T20:48:10.559Z"
+    "last_synced_at": "2025-11-18T16:40:11.871Z"
   },
   "requirements": [
     {
@@ -95,14 +95,14 @@
       "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI modal provides example prompts",
       "description": "The AI prompt modal displays example prompts to guide users in creating effective workflow generation requests",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/ai/ai-modal-example-prompt.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates example prompt display and interaction in AI modal"
         }
       ]

@@ -15,7 +15,7 @@ import {
 import { useReactFlow } from "reactflow";
 import { usePopoverPosition } from "../hooks/usePopoverPosition";
 import type { ExecutionViewportSettings } from "../stores/workflowStore";
-import { testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 const COMPACT_WIDTH_THRESHOLD = 560;
 const menuButtonClass =
@@ -166,14 +166,14 @@ function WorkflowToolbar({
   return (
     <div
       className="absolute top-4 left-4 z-10 workflow-toolbar"
-      data-testid={testIds.workflowToolbar}
+      data-testid={selectors.toolbar.root}
     >
       <button
         type="button"
         onClick={() => zoomIn()}
         className="toolbar-button"
         title="Zoom in"
-        data-testid={testIds.toolbarZoomInButton}
+        data-testid={selectors.toolbar.zoomInButton}
       >
         <ZoomIn size={18} />
       </button>
@@ -183,7 +183,7 @@ function WorkflowToolbar({
         onClick={() => zoomOut()}
         className="toolbar-button"
         title="Zoom out"
-        data-testid={testIds.toolbarZoomOutButton}
+        data-testid={selectors.toolbar.zoomOutButton}
       >
         <ZoomOut size={18} />
       </button>
@@ -200,7 +200,7 @@ function WorkflowToolbar({
             aria-haspopup="menu"
             aria-expanded={showLayoutMenu}
             title={`Canvas options${viewportSummary ? ` (${viewportSummary})` : ""}`}
-            data-testid={testIds.toolbarLayoutMenuButton}
+            data-testid={selectors.toolbar.layoutMenuButton}
           >
             <Maximize2 size={16} />
             <ChevronDown size={14} className="text-gray-500" />
@@ -211,13 +211,13 @@ function WorkflowToolbar({
               ref={layoutMenuRef}
               style={{ ...layoutMenuStyles, zIndex: 40 }}
               className="mt-1 min-w-[200px] rounded-md border border-gray-700 bg-flow-node p-1 shadow-xl"
-              data-testid={testIds.toolbarLayoutMenu}
+              data-testid={selectors.toolbar.layoutMenu}
             >
               <button
                 type="button"
                 className={menuButtonClass}
                 onClick={handleFitView}
-                data-testid={testIds.toolbarFitViewMenuItem}
+                data-testid={selectors.toolbar.fitViewMenuItem}
               >
                 <Maximize2 size={16} className="text-gray-400" />
                 <span>Fit to view</span>
@@ -226,7 +226,7 @@ function WorkflowToolbar({
                 type="button"
                 className={`${menuButtonClass} flex-col items-start`}
                 onClick={handleConfigureViewportClick}
-                data-testid={testIds.toolbarConfigureViewportMenuItem}
+                data-testid={selectors.toolbar.configureViewportMenuItem}
               >
                 <span className="flex items-center gap-2 text-gray-200">
                   <MonitorSmartphone size={16} className="text-gray-400" />
@@ -242,7 +242,7 @@ function WorkflowToolbar({
                 type="button"
                 className={menuButtonClass}
                 onClick={handleToggleLockClick}
-                data-testid={testIds.toolbarToggleLockMenuItem}
+                data-testid={selectors.toolbar.toggleLockMenuItem}
               >
                 {locked ? (
                   <Lock size={16} className="text-gray-400" />
@@ -265,7 +265,7 @@ function WorkflowToolbar({
             onClick={handleFitView}
             className="toolbar-button"
             title="Fit view"
-            data-testid={testIds.toolbarFitViewButton}
+            data-testid={selectors.toolbar.fitViewButton}
           >
             <Maximize2 size={18} />
           </button>
@@ -275,7 +275,7 @@ function WorkflowToolbar({
             onClick={handleConfigureViewportClick}
             className="toolbar-button"
             title={`Set execution dimensions${viewportSummary ? ` (${viewportSummary})` : ""}`}
-            data-testid={testIds.toolbarConfigureViewportButton}
+            data-testid={selectors.toolbar.configureViewportButton}
           >
             <MonitorSmartphone size={18} />
           </button>
@@ -286,7 +286,7 @@ function WorkflowToolbar({
             className="toolbar-button"
             title={locked ? "Unlock editing" : "Lock editing"}
             data-testid={
-              locked ? testIds.toolbarUnlockButton : testIds.toolbarLockButton
+              locked ? selectors.toolbar.unlockButton : selectors.toolbar.lockButton
             }
           >
             {locked ? <Lock size={18} /> : <Unlock size={18} />}
@@ -302,7 +302,7 @@ function WorkflowToolbar({
         className={`toolbar-button ${!canUndo ? "opacity-50 cursor-not-allowed" : ""}`}
         title="Undo"
         disabled={!canUndo}
-        data-testid={testIds.toolbarUndoButton}
+        data-testid={selectors.toolbar.undoButton}
       >
         <Undo size={18} />
       </button>
@@ -313,7 +313,7 @@ function WorkflowToolbar({
         className={`toolbar-button ${!canRedo ? "opacity-50 cursor-not-allowed" : ""}`}
         title="Redo"
         disabled={!canRedo}
-        data-testid={testIds.toolbarRedoButton}
+        data-testid={selectors.toolbar.redoButton}
       >
         <Redo size={18} />
       </button>
@@ -329,7 +329,7 @@ function WorkflowToolbar({
             aria-haspopup="menu"
             aria-expanded={showSelectionMenu}
             title="Selection actions"
-            data-testid={testIds.toolbarSelectionMenuButton}
+            data-testid={selectors.toolbar.selectionMenuButton}
           >
             <Copy size={16} />
             <ChevronDown size={14} className="text-gray-500" />
@@ -339,13 +339,13 @@ function WorkflowToolbar({
               ref={selectionMenuRef}
               style={{ ...selectionMenuStyles, zIndex: 40 }}
               className="mt-1 min-w-[180px] rounded-md border border-gray-700 bg-flow-node p-1 shadow-xl"
-              data-testid={testIds.toolbarSelectionMenu}
+              data-testid={selectors.toolbar.selectionMenu}
             >
               <button
                 type="button"
                 className={menuButtonClass}
                 onClick={handleDuplicateClick}
-                data-testid={testIds.toolbarDuplicateMenuItem}
+                data-testid={selectors.toolbar.selectionMenuDuplicate}
               >
                 <Copy size={16} className="text-gray-400" />
                 <span>Duplicate selected</span>
@@ -354,7 +354,7 @@ function WorkflowToolbar({
                 type="button"
                 className={`${menuButtonClass} text-red-300 hover:bg-red-500/10`}
                 onClick={handleDeleteClick}
-                data-testid={testIds.toolbarDeleteMenuItem}
+                data-testid={selectors.toolbar.selectionMenuDelete}
               >
                 <Trash2 size={16} className="text-red-300" />
                 <span>Delete selected</span>
@@ -371,7 +371,7 @@ function WorkflowToolbar({
             onClick={onDuplicate}
             className="toolbar-button"
             title="Duplicate selected"
-            data-testid={testIds.toolbarDuplicateButton}
+            data-testid={selectors.toolbar.duplicateButton}
           >
             <Copy size={18} />
           </button>
@@ -381,7 +381,7 @@ function WorkflowToolbar({
             onClick={onDelete}
             className="toolbar-button text-red-400 hover:text-red-300"
             title="Delete selected"
-            data-testid={testIds.toolbarDeleteButton}
+            data-testid={selectors.toolbar.deleteButton}
           >
             <Trash2 size={18} />
           </button>

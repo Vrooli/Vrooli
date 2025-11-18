@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useProjectStore, Project } from "../stores/projectStore";
 import { openCalendar } from "../utils/vrooli";
-import { testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
@@ -156,7 +156,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
               </p>
             </div>
             <button
-              data-testid={testIds.dashboardNewProjectButton}
+              data-testid={selectors.dashboard.newProjectButton}
               onClick={onCreateProject}
               className="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
@@ -183,6 +183,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-10 py-2 bg-flow-node border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-flow-accent focus:ring-2 focus:ring-flow-accent/50"
               aria-label="Search for projects by name or description"
+              data-testid={selectors.projects.search.input}
             />
             {searchTerm && (
               <button
@@ -190,6 +191,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                 onClick={() => setSearchTerm("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                 aria-label="Clear project search"
+                data-testid={selectors.projects.search.clearButton}
               >
                 <X size={16} aria-hidden="true" />
               </button>
@@ -223,7 +225,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
               </p>
               {!error && (
                 <button
-                  data-testid={testIds.dashboardNewProjectButton}
+                  data-testid={selectors.dashboard.newProjectButton}
                   onClick={onCreateProject}
                   className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >
@@ -251,7 +253,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
           <div
             id="projects-content"
             className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-            data-testid={testIds.projectsGrid}
+            data-testid={selectors.projects.grid}
             role="region"
             aria-label="Projects list"
           >
@@ -260,7 +262,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                 key={project.id}
                 onClick={() => onProjectSelect(project)}
                 className="bg-flow-node border border-gray-700 rounded-lg p-5 sm:p-6 cursor-pointer hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/20 transition-all"
-                data-testid={testIds.projectCard}
+                data-testid={selectors.projects.card}
                 data-project-id={project.id}
                 data-project-name={project.name}
               >
@@ -274,7 +276,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                       <h3
                         className="font-semibold text-white truncate max-w-[12rem] sm:max-w-32"
                         title={project.name}
-                        data-testid={testIds.projectCardTitle}
+                        data-testid={selectors.projects.cardTitle}
                         data-project-id={project.id}
                         data-project-name={project.name}
                       >

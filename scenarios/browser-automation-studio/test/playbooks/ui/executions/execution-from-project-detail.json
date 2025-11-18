@@ -59,7 +59,7 @@
       },
       "data": {
         "label": "Hover over workflow card to reveal actions",
-        "selector": "@selector/workflowCard:first-of-type",
+        "selector": "@selector/workflows.card:first-of-type",
         "timeoutMs": 3000,
         "waitForMs": 1000
       }
@@ -73,7 +73,7 @@
       },
       "data": {
         "label": "Wait for execute button to appear after hover",
-        "selector": "@selector/workflowExecuteButton",
+        "selector": "@selector/workflowBuilder.executeButton",
         "timeoutMs": 5000,
         "waitForMs": 500,
         "waitType": "element"
@@ -88,7 +88,7 @@
       },
       "data": {
         "label": "Click execute button",
-        "selector": "@selector/workflowExecuteButton:first-of-type",
+        "selector": "@selector/workflowBuilder.executeButton:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -115,7 +115,7 @@
       },
       "data": {
         "label": "Check for execution indicators",
-        "expression": "document.querySelector('@selector/executionItem, @selector/executionStatus, @selector/executionStopButton)') !== null",
+        "expression": "document.querySelector('@selector/executions.list.item, @selector/executions.viewer.status, @selector/executions.viewer.stopButton)') !== null",
         "storeAs": "executionStarted"
       }
     },

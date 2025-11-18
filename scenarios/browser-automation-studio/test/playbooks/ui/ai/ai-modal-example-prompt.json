@@ -51,7 +51,7 @@
       },
       "data": {
         "label": "Open first project",
-        "selector": "@selector/projectCard:first-of-type",
+        "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -78,7 +78,7 @@
       },
       "data": {
         "label": "Click New Workflow button",
-        "selector": "@selector/newWorkflowButton",
+        "selector": "@selector/workflows.newButton",
         "timeoutMs": 10000,
         "waitForMs": 1500
       }
@@ -133,7 +133,7 @@
       },
       "data": {
         "label": "Example prompts section is visible",
-        "selector": "@selector/promptExample(index=0)",
+        "selector": "@selector/ai.modal.promptExample(index=0)",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Example prompts should be displayed in AI modal"
@@ -148,7 +148,7 @@
       },
       "data": {
         "label": "Click first example prompt",
-        "selector": "@selector/promptExample(index=0) /*dup-1*/",
+        "selector": "@selector/ai.modal.promptExample(index=0) /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
@@ -214,7 +214,7 @@
       },
       "data": {
         "label": "Generate button should be enabled",
-        "expression": "(() => { const button = document.querySelector('@selector/aiGenerateButton'); if (!button) return false; return !button.disabled && !button.hasAttribute('disabled'); })()",
+        "expression": "(() => { const button = document.querySelector('@selector/ai.modal.generateButton'); if (!button) return false; return !button.disabled && !button.hasAttribute('disabled'); })()",
         "storeAs": "generateButtonEnabled"
       }
     }

@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Navigate to Executions tab",
-        "selector": "@selector/executionsTab",
+        "selector": "@selector/projects.tabs.executions",
         "timeoutMs": 5000,
         "waitForMs": 2000,
         "continueOnError": true
@@ -74,7 +74,7 @@
       },
       "data": {
         "label": "Verify execution entries exist",
-        "selector": "@selector/executionItem",
+        "selector": "@selector/executions.list.item",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Should have at least one execution"
@@ -89,7 +89,7 @@
       },
       "data": {
         "label": "Open execution details",
-        "selector": "@selector/executionViewButton",
+        "selector": "@selector/executions.actions.viewButton",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
@@ -103,7 +103,7 @@
       },
       "data": {
         "label": "Wait for execution viewer",
-        "selector": "@selector/executionViewer",
+        "selector": "@selector/executions.viewer.root",
         "timeoutMs": 10000,
         "waitType": "element"
       }
@@ -130,7 +130,7 @@
       },
       "data": {
         "label": "Check for export/download button",
-        "expression": "!!document.querySelector('@selector/exportReplayButton')",
+        "expression": "!!document.querySelector('@selector/executions.actions.exportReplayButton')",
         "storeAs": "hasExportButton"
       }
     },

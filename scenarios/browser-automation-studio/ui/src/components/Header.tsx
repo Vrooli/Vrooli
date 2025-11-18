@@ -23,7 +23,7 @@ import AIEditModal from "./AIEditModal";
 import toast from "react-hot-toast";
 import { usePopoverPosition } from "../hooks/usePopoverPosition";
 import ResponsiveDialog from "./ResponsiveDialog";
-import { dynamicTestIds, testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 type HeaderWorkflow = Pick<
   Workflow,
@@ -343,7 +343,7 @@ function Header({
             }}
             disabled={historyButtonDisabled}
             className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-amber-100 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-            data-testid={testIds.headerVersionConflictDetailsButton}
+            data-testid={selectors.header.buttons.versionConflictDetails}
           >
             Details
           </button>
@@ -367,7 +367,7 @@ function Header({
             className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/20 text-rose-50 transition-colors hover:bg-rose-500/30 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:ring-offset-2 focus:ring-offset-gray-900"
             title="View autosave error details"
             aria-label="View autosave error details"
-            data-testid={testIds.headerSaveErrorDetailsButton}
+            data-testid={selectors.header.buttons.saveErrorDetails}
           >
             <Info size={14} />
           </button>
@@ -379,7 +379,7 @@ function Header({
             }}
             disabled={isSaving}
             className="rounded border border-rose-400/40 bg-rose-500/20 px-2 py-1 text-xs font-medium text-rose-50 transition-colors hover:bg-rose-500/30 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
-            data-testid={testIds.headerSaveRetryButton}
+            data-testid={selectors.header.buttons.saveRetry}
           >
             Retry
           </button>
@@ -392,7 +392,7 @@ function Header({
             className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/20 text-rose-50 transition-colors hover:bg-rose-500/30 focus:outline-none focus:ring-2 focus:ring-rose-300/60 focus:ring-offset-2 focus:ring-offset-gray-900"
             title="Dismiss autosave error"
             aria-label="Dismiss autosave error"
-            data-testid={testIds.headerSaveErrorDismissButton}
+            data-testid={selectors.header.buttons.saveErrorDismiss}
           >
             <X size={14} />
           </button>
@@ -438,7 +438,7 @@ function Header({
         <span>Saved {lastSavedLabel}</span>
         <button
           type="button"
-          data-testid={testIds.headerVersionHistoryButton}
+          data-testid={selectors.header.buttons.versionHistory}
           onClick={(event) => {
             event.stopPropagation();
             void handleHistoryButtonClick();
@@ -461,7 +461,7 @@ function Header({
         <span>Not saved yet</span>
         <button
           type="button"
-          data-testid={testIds.headerVersionHistoryButton}
+          data-testid={selectors.header.buttons.versionHistory}
           onClick={(event) => {
             event.stopPropagation();
             void handleHistoryButtonClick();
@@ -485,7 +485,7 @@ function Header({
       onClick={handleAutosaveIndicatorClick}
       onKeyDown={handleAutosaveIndicatorKeyDown}
       className="inline-flex rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-flow-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 cursor-pointer"
-      data-testid={testIds.headerSaveStatusIndicator}
+      data-testid={selectors.header.saveStatus.indicator}
     >
       {saveStatusNode}
     </div>
@@ -595,7 +595,7 @@ function Header({
     <>
       <header
         className="bg-flow-node border-b border-gray-800 px-4 py-3"
-        data-testid={testIds.header}
+        data-testid={selectors.header.root}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
@@ -609,8 +609,8 @@ function Header({
                   }
                   data-testid={
                     showBackToProject
-                      ? testIds.headerBackToProjectButton
-                      : testIds.headerBackToDashboardButton
+                      ? selectors.header.buttons.backToProject
+                      : selectors.header.buttons.backToDashboard
                   }
                 >
                   <ArrowLeft size={16} />
@@ -631,13 +631,13 @@ function Header({
                           onBlur={handleSaveTitle}
                           className="bg-gray-800 text-white px-2 py-1 rounded border border-gray-600 focus:border-flow-accent focus:outline-none"
                           placeholder="Workflow name..."
-                          data-testid={testIds.headerTitleInput}
+                          data-testid={selectors.header.title.input}
                         />
                         <button
                           onClick={handleSaveTitle}
                           className="text-green-400 hover:text-green-300 p-1"
                           title="Save title"
-                          data-testid={testIds.headerTitleSaveButton}
+                          data-testid={selectors.header.title.saveButton}
                         >
                           <Check size={14} />
                         </button>
@@ -645,7 +645,7 @@ function Header({
                           onClick={handleCancelEditTitle}
                           className="text-red-400 hover:text-red-300 p-1"
                           title="Cancel editing"
-                          data-testid={testIds.headerTitleCancelButton}
+                          data-testid={selectors.header.title.cancelButton}
                         >
                           <X size={14} />
                         </button>
@@ -655,7 +655,7 @@ function Header({
                         <span
                           className="cursor-pointer"
                           onClick={handleStartEditTitle}
-                          data-testid={testIds.headerWorkflowTitle}
+                          data-testid={selectors.header.title.text}
                         >
                           {displayWorkflow.name}
                         </span>
@@ -663,7 +663,7 @@ function Header({
                           onClick={handleStartEditTitle}
                           className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white transition-opacity p-1"
                           title="Edit workflow name"
-                          data-testid={testIds.headerTitleEditButton}
+                          data-testid={selectors.header.title.editButton}
                         >
                           <Edit2 size={14} />
                         </button>
@@ -686,7 +686,7 @@ function Header({
                     title="Workflow details"
                     aria-label="Workflow details"
                     aria-expanded={showWorkflowInfo}
-                    data-testid={testIds.headerInfoButton}
+                    data-testid={selectors.header.buttons.info}
                   >
                     <Info size={16} />
                   </button>
@@ -695,7 +695,7 @@ function Header({
                       ref={infoPopoverRef}
                       style={workflowInfoStyles}
                       className="z-30 w-80 max-h-96 overflow-y-auto rounded-lg border border-gray-700 bg-flow-node p-4 shadow-lg"
-                      data-testid={testIds.headerInfoPopover}
+                      data-testid={selectors.header.info.popover}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-semibold text-white">
@@ -706,7 +706,7 @@ function Header({
                           onClick={() => setShowWorkflowInfo(false)}
                           className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
                           aria-label="Close workflow details"
-                          data-testid={testIds.headerInfoCloseButton}
+                          data-testid={selectors.header.buttons.infoClose}
                         >
                           <X size={14} />
                         </button>
@@ -831,7 +831,7 @@ function Header({
               className="toolbar-button flex items-center gap-0 sm:gap-2"
               title="Edit with AI"
               aria-label="Edit with AI"
-              data-testid={testIds.headerDebugButton}
+              data-testid={selectors.header.buttons.debug}
             >
               <Bug size={16} />
               <span className="hidden text-sm sm:inline">Debug</span>
@@ -842,7 +842,7 @@ function Header({
               className="bg-flow-accent hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-0 sm:gap-2 transition-colors"
               title="Execute Workflow"
               aria-label="Execute Workflow"
-              data-testid={testIds.headerExecuteButton}
+              data-testid={selectors.header.buttons.execute}
             >
               <Play size={16} />
               <span className="hidden text-sm font-medium sm:inline">
@@ -861,7 +861,7 @@ function Header({
         isOpen={showSaveErrorDetails && Boolean(lastSaveError)}
         onDismiss={() => setShowSaveErrorDetails(false)}
         ariaLabel="Autosave error details"
-        data-testid={testIds.headerSaveErrorDialog}
+        data-testid={selectors.header.saveError.dialog}
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">Autosave error</h2>
@@ -869,7 +869,7 @@ function Header({
             type="button"
             onClick={() => setShowSaveErrorDetails(false)}
             className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
-            data-testid={testIds.headerSaveErrorDialogCloseButton}
+            data-testid={selectors.header.saveError.dialogCloseButton}
           >
             <X size={16} />
           </button>
@@ -895,7 +895,7 @@ function Header({
         onDismiss={() => setShowVersionHistory(false)}
         ariaLabel="Workflow Versions"
         size="wide"
-        data-testid={testIds.headerVersionHistoryDialog}
+        data-testid={selectors.header.versionHistory.dialog}
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">
@@ -905,7 +905,7 @@ function Header({
             type="button"
             onClick={() => setShowVersionHistory(false)}
             className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
-            data-testid={testIds.headerVersionHistoryCloseButton}
+            data-testid={selectors.header.versionHistory.closeButton}
           >
             <X size={16} />
           </button>
@@ -967,7 +967,7 @@ function Header({
                 type="button"
                 onClick={() => void handleRefreshConflict()}
                 className="rounded border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 transition-colors hover:bg-amber-500/20"
-                data-testid={testIds.headerVersionConflictRefreshButton}
+                data-testid={selectors.header.buttons.versionConflictRefresh}
               >
                 Refresh snapshot
               </button>
@@ -975,7 +975,7 @@ function Header({
                 type="button"
                 onClick={() => void handleReloadWorkflow()}
                 className="rounded border border-amber-400/60 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 transition-colors hover:bg-amber-500/25"
-                data-testid={testIds.headerVersionConflictReloadButton}
+                data-testid={selectors.header.buttons.versionConflictReload}
               >
                 Reload remote
               </button>
@@ -984,7 +984,7 @@ function Header({
                 onClick={() => void handleForceSave()}
                 disabled={isSaving}
                 className="rounded bg-amber-500/20 px-3 py-1.5 text-xs text-amber-50 transition-colors hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
-                data-testid={testIds.headerVersionConflictForceSaveButton}
+                data-testid={selectors.header.buttons.versionConflictForceSave}
               >
                 Force save local
               </button>
@@ -1015,7 +1015,9 @@ function Header({
               return (
                 <div
                   key={version.version}
-                  data-testid={dynamicTestIds.versionHistoryItem(version.version)}
+                  data-testid={selectors.header.versionHistory.item({
+                    version: version.version.toString(),
+                  })}
                   className={`rounded-lg border p-4 bg-gray-900/70 ${
                     isCurrent
                       ? "border-blue-500/60 shadow-inner shadow-blue-500/20"
@@ -1057,9 +1059,9 @@ function Header({
                   <div className="mt-3 flex items-center justify-end gap-2">
                     <button
                       type="button"
-                      data-testid={dynamicTestIds.versionRestoreButton(
-                        version.version,
-                      )}
+                      data-testid={selectors.header.versionHistory.restoreButton({
+                        version: version.version.toString(),
+                      })}
                       onClick={() => handleRestoreVersion(version.version)}
                       disabled={
                         isCurrent || restoringVersion === version.version

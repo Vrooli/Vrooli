@@ -46,7 +46,7 @@
       },
       "data": {
         "label": "Lock button exists",
-        "selector": "@selector/toolbarLockButton, button[title*=\"lock\" i], button[aria-label*=\"lock\" i]",
+        "selector": "@selector/toolbar.lockButton",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Lock button should exist in toolbar"
@@ -74,7 +74,7 @@
       },
       "data": {
         "label": "Click lock to lock canvas",
-        "selector": "@selector/toolbarLockButton, button[title*=\"lock\" i], button[aria-label*=\"lock\" i] /*dup-1*/",
+        "selector": "@selector/toolbar.lockButton",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
@@ -101,7 +101,7 @@
       },
       "data": {
         "label": "Click lock to unlock canvas",
-        "selector": "@selector/toolbarLockButton, button[title*=\"lock\" i], button[aria-label*=\"lock\" i], button[title*=\"unlock\" i]",
+        "selector": "@selector/toolbar.lockButton",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }

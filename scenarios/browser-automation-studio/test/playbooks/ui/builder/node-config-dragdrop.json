@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Wait for builder",
-        "selector": "@selector/workflowBuilderCodeModeButton",
+        "selector": "@selector/workflowBuilder.code.modeButton",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -48,7 +48,7 @@
       },
       "data": {
         "label": "Drag DragDrop node (camelCase compiler bug regression test)",
-        "sourceSelector": "@selector/nodePaletteDragdropCard, @selector/nodePaletteDragDropCard",
+        "sourceSelector": "@selector/nodePalette.cards.dragDrop",
         "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
         "waitForMs": 2000

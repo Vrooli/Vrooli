@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Click Executions tab",
-        "selector": "@selector/executionsTab",
+        "selector": "@selector/projects.tabs.executions",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }
@@ -60,7 +60,7 @@
       },
       "data": {
         "label": "At least one execution exists",
-        "selector": "@selector/executionItem, @selector/executionViewButton",
+        "selector": "@selector/executions.list.item, @selector/executions.actions.viewButton",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Should have at least one execution to test replay"
@@ -75,7 +75,7 @@
       },
       "data": {
         "label": "Click View button on first execution",
-        "selector": "@selector/executionViewButton:first-of-type",
+        "selector": "@selector/executions.actions.viewButton:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -102,7 +102,7 @@
       },
       "data": {
         "label": "Execution viewer is visible",
-        "selector": "@selector/executionViewer, @selector/executionLogs, @selector/executionScreenshots",
+        "selector": "@selector/executions.viewer.root, @selector/executions.viewer.logs, @selector/executions.viewer.screenshots",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Execution viewer should be visible"
@@ -130,7 +130,7 @@
       },
       "data": {
         "label": "Check if Replay tab exists",
-        "expression": "(() => { const replayTab = document.querySelector('@selector/executionTabReplay'); return replayTab !== null; })()",
+        "expression": "(() => { const replayTab = document.querySelector('@selector/executions.tabs.replay'); return replayTab !== null; })()",
         "storeAs": "hasReplayTab"
       }
     },
@@ -143,7 +143,7 @@
       },
       "data": {
         "label": "Click Replay tab",
-        "selector": "@selector/executionTabReplay",
+        "selector": "@selector/executions.tabs.replay",
         "timeoutMs": 5000,
         "waitForMs": 1500,
         "continueOnError": true
@@ -171,7 +171,7 @@
       },
       "data": {
         "label": "Verify replay-related content exists",
-        "expression": "(() => { const screenshots = document.querySelectorAll('@selector/executionScreenshot, @selector/replayScreenshot'); const timeline = document.querySelector('@selector/replayTimeline, @selector/replayViewer'); return screenshots.length > 0 || timeline !== null; })()",
+        "expression": "(() => { const screenshots = document.querySelectorAll('@selector/executions.viewer.screenshot, @selector/replay.screenshot'); const timeline = document.querySelector('@selector/replay.timeline, @selector/replay.viewer'); return screenshots.length > 0 || timeline !== null; })()",
         "storeAs": "hasReplayContent"
       }
     },
@@ -210,7 +210,7 @@
       },
       "data": {
         "label": "Check if timeline/controls exist",
-        "expression": "(() => { const controls = document.querySelectorAll('button[aria-label*=\"play\"], button[aria-label*=\"pause\"], button[aria-label*=\"next\"], button[aria-label*=\"previous\"], input[type=\"range\"]'); return controls.length > 0; })()",
+        "expression": "(() => { return document.querySelector('@selector/replay.player') !== null; })()",
         "storeAs": "hasTimelineControls"
       }
     }

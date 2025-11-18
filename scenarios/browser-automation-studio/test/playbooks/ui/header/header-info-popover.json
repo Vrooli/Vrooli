@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for projects grid",
-        "selector": "@selector/projectsGrid",
+        "selector": "@selector/projects.grid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Open first project",
-        "selector": "@selector/projectCard:first-of-type",
+        "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -80,7 +80,7 @@
       },
       "data": {
         "label": "Open workflow",
-        "selector": "@selector/workflowCard:first-of-type",
+        "selector": "@selector/workflows.card:first-of-type",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -107,7 +107,7 @@
       },
       "data": {
         "label": "Info button exists in header",
-        "selector": "button[title*=\"info\" i], button[aria-label*=\"info\" i], svg.lucide-info",
+        "selector": "@selector/header.buttons.info",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Info button should be visible in workflow header"
@@ -122,7 +122,7 @@
       },
       "data": {
         "label": "Click info button to open popover",
-        "selector": "button[title*=\"info\" i], button[aria-label*=\"info\" i], svg.lucide-info /*dup-1*/",
+        "selector": "@selector/header.buttons.info",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }
@@ -136,7 +136,7 @@
       },
       "data": {
         "label": "Info popover is visible",
-        "selector": "[role=\"dialog\"], [class*=\"popover\"], [class*=\"info\"]",
+        "selector": "@selector/header.info.popover",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Info popover should appear after clicking info button"

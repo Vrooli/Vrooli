@@ -19,7 +19,7 @@
       "position": {"x": 220, "y": 0},
       "data": {
         "label": "Wait for seeded workflow card",
-        "selector": "@selector/workflowCard[data-workflow-name=\"Demo: Capture Example.com Hero\"]",
+        "selector": "@selector/workflows.card[data-workflow-name=\"Demo: Capture Example.com Hero\"]",
         "timeoutMs": 15000,
         "waitType": "element"
       }
@@ -30,7 +30,7 @@
       "position": {"x": 440, "y": 0},
       "data": {
         "label": "Open seeded workflow",
-        "selector": "@selector/workflowCard[data-workflow-name=\"Demo: Capture Example.com Hero\"]",
+        "selector": "@selector/workflows.card[data-workflow-name=\"Demo: Capture Example.com Hero\"]",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -41,7 +41,7 @@
       "position": {"x": 660, "y": 0},
       "data": {
         "label": "Wait for builder to load",
-        "selector": "@selector/workflowBuilderCodeModeButton",
+        "selector": "@selector/workflowBuilder.code.modeButton",
         "timeoutMs": 15000,
         "waitType": "element"
       }

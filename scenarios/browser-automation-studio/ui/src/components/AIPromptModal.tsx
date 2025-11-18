@@ -3,7 +3,7 @@ import { X, Sparkles, Wand2, FileCode, Loader, Wrench } from "lucide-react";
 import { useWorkflowStore } from "../stores/workflowStore";
 import toast from "react-hot-toast";
 import ResponsiveDialog from "./ResponsiveDialog";
-import { dynamicTestIds, testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 import type { Workflow } from "../stores/workflowStore";
 
@@ -105,7 +105,7 @@ function AIPromptModal({
       ariaLabelledBy={titleId}
       size="wide"
       className="bg-flow-node border border-gray-700 shadow-2xl"
-      data-testid={testIds.aiPromptModal}
+      data-testid={selectors.ai.modal.root}
     >
       <div className="flex items-center justify-between p-4 border-b border-gray-700">
         <div className="flex items-center gap-3">
@@ -148,7 +148,7 @@ function AIPromptModal({
               </div>
             </div>
             <button
-              data-testid={testIds.switchToManualButton}
+              data-testid={selectors.ai.modal.switchToManualButton}
               onClick={onSwitchToManual}
               className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
             >
@@ -168,7 +168,7 @@ function AIPromptModal({
             className="w-full px-3 py-2 bg-flow-bg rounded-lg text-sm border border-gray-700 focus:border-flow-accent focus:outline-none"
             value={workflowName}
             onChange={(e) => setWorkflowName(e.target.value)}
-            data-testid={testIds.aiWorkflowNameInput}
+            data-testid={selectors.ai.modal.workflowNameInput}
           />
         </div>
 
@@ -182,7 +182,7 @@ function AIPromptModal({
             rows={6}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            data-testid={testIds.aiPromptInput}
+            data-testid={selectors.ai.modal.promptInput}
           />
         </div>
 
@@ -197,7 +197,7 @@ function AIPromptModal({
             {examplePrompts.map((example, index) => (
               <button
                 key={index}
-                data-testid={dynamicTestIds.promptExample(index)}
+                data-testid={selectors.ai.modal.promptExample({ index })}
                 onClick={() => handleExampleClick(example)}
                 className="w-full text-left p-3 bg-flow-bg rounded-lg border border-gray-700 hover:border-purple-500/50 transition-colors group"
               >
@@ -242,7 +242,7 @@ function AIPromptModal({
             Cancel
           </button>
           <button
-            data-testid={testIds.aiGenerateButton}
+            data-testid={selectors.ai.modal.generateButton}
             onClick={handleGenerate}
             disabled={isGenerating}
             className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-sm font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"

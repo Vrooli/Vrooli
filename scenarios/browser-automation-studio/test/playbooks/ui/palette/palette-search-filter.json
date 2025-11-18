@@ -46,7 +46,7 @@
       },
       "data": {
         "label": "Palette visible",
-        "selector": "@selector/nodePaletteContainer",
+        "selector": "@selector/nodePalette.container",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Palette should be visible"
@@ -61,7 +61,7 @@
       },
       "data": {
         "label": "Count all nodes",
-        "expression": "document.querySelectorAll('@selector/nodePaletteCardList').length",
+        "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
         "storeAs": "totalNodes"
       }
     },
@@ -74,7 +74,7 @@
       },
       "data": {
         "label": "Search 'navigate'",
-        "selector": "@selector/nodePaletteSearchInput",
+        "selector": "@selector/nodePalette.searchInput",
         "text": "navigate",
         "clearFirst": false,
         "timeoutMs": 5000,
@@ -90,7 +90,7 @@
       },
       "data": {
         "label": "Count filtered",
-        "expression": "document.querySelectorAll('@selector/nodePaletteVisibleCardList').length",
+        "expression": "document.querySelectorAll('@selector/nodePalette.visibleCardList').length",
         "storeAs": "filteredNodes"
       }
     },
@@ -103,7 +103,7 @@
       },
       "data": {
         "label": "Navigate node visible",
-        "selector": "@selector/nodePaletteNavigateCard",
+        "selector": "@selector/nodePalette.cards.navigate",
         "assertMode": "exists",
         "timeoutMs": 3000,
         "failureMessage": "Navigate node should be visible after search"
@@ -131,7 +131,7 @@
       },
       "data": {
         "label": "Clear search",
-        "selector": "@selector/nodePaletteSearchInput /*dup-1*/",
+        "selector": "@selector/nodePalette.searchInput /*dup-1*/",
         "text": "",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -147,7 +147,7 @@
       },
       "data": {
         "label": "Count after clear",
-        "expression": "document.querySelectorAll('@selector/nodePaletteCardList').length",
+        "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
         "storeAs": "clearedNodes"
       }
     }

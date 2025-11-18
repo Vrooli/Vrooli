@@ -316,6 +316,7 @@ _validate_playbook_linkage() {
 _validate_selector_registry() {
   local scenario_dir="$1"
   local selectors_file="$scenario_dir/ui/src/consts/selectors.ts"
+  local manifest_file="$scenario_dir/ui/src/consts/selectors.manifest.json"
 
   if [ ! -f "$selectors_file" ]; then
     log::success "✅ Selector registry not found (skipping registry validation)"
@@ -323,8 +324,23 @@ _validate_selector_registry() {
     return 0
   fi
 
+  if [ ! -f "$manifest_file" ]; then
+    testing::phase::add_error "Selector manifest missing at $manifest_file"
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  local selectors_mtime manifest_mtime
+  selectors_mtime=$(stat -f %m "$selectors_file" 2>/dev/null || stat -c %Y "$selectors_file" 2>/dev/null || echo 0)
+  manifest_mtime=$(stat -f %m "$manifest_file" 2>/dev/null || stat -c %Y "$manifest_file" 2>/dev/null || echo 0)
+  if [ "$manifest_mtime" -lt "$selectors_mtime" ]; then
+    testing::phase::add_error "Selector manifest is outdated. Re-run build-selector-manifest.js"
+    testing::phase::add_test failed
+    return 1
+  fi
+
   if ! command -v node >/dev/null 2>&1; then
-    testing::phase::add_warning "Node.js not available; skipping selector registry validation"
+    testing::phase::add_warning "Node.js not available; skipping selector manifest validation"
     testing::phase::add_test passed
     return 0
   fi
@@ -338,10 +354,10 @@ _validate_selector_registry() {
   fi
 
   if node "$registry_script" --scenario "$scenario_dir" >/dev/null 2>&1; then
-    log::success "✅ Selector registry resolved successfully"
+    log::success "✅ Selector manifest parsed successfully"
     testing::phase::add_test passed
   else
-    testing::phase::add_error "Selector registry resolution failed"
+    testing::phase::add_error "Selector manifest validation failed"
     testing::phase::add_test failed
   fi
 }

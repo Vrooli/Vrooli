@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for projects grid",
-        "selector": "@selector/projectsGrid",
+        "selector": "@selector/projects.grid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Open new project modal",
-        "selector": "@selector/dashboardNewProjectButton",
+        "selector": "@selector/dashboard.newProjectButton",
         "timeoutMs": 15000,
         "waitForMs": 1500
       }
@@ -67,7 +67,7 @@
       },
       "data": {
         "label": "Project modal visible",
-        "selector": "@selector/projectModal",
+        "selector": "@selector/dialogs.project.root",
         "assertMode": "exists",
         "timeoutMs": 10000
       }
@@ -81,7 +81,7 @@
       },
       "data": {
         "label": "Try submitting empty form",
-        "selector": "@selector/projectModalSubmit",
+        "selector": "@selector/dialogs.project.submitButton",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -95,7 +95,7 @@
       },
       "data": {
         "label": "Name required error appears",
-        "selector": "@selector/projectModalNameError, @selector/formError, .error-message",
+        "selector": "@selector/dialogs.project.nameError",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Form should display error when project name is empty"
@@ -110,7 +110,7 @@
       },
       "data": {
         "label": "Modal remains open",
-        "selector": "@selector/projectModal /*dup-1*/",
+        "selector": "@selector/dialogs.project.root /*dup-1*/",
         "assertMode": "exists",
         "timeoutMs": 3000,
         "failureMessage": "Modal should stay open when validation fails"
@@ -125,7 +125,7 @@
       },
       "data": {
         "label": "Enter whitespace-only name",
-        "selector": "@selector/projectModalNameInput",
+        "selector": "@selector/dialogs.project.nameInput",
         "text": "   ",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -141,7 +141,7 @@
       },
       "data": {
         "label": "Submit whitespace-only name",
-        "selector": "@selector/projectModalSubmit /*dup-1*/",
+        "selector": "@selector/dialogs.project.submitButton /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -155,7 +155,7 @@
       },
       "data": {
         "label": "Invalid name error appears",
-        "selector": "@selector/projectModalNameError, @selector/formError, .error-message /*dup-1*/",
+        "selector": "@selector/dialogs.project.nameError",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Form should reject whitespace-only project names"
@@ -170,7 +170,7 @@
       },
       "data": {
         "label": "Modal remains open",
-        "selector": "@selector/projectModal /*dup-2*/",
+        "selector": "@selector/dialogs.project.root /*dup-2*/",
         "assertMode": "exists",
         "timeoutMs": 3000
       }
@@ -184,7 +184,7 @@
       },
       "data": {
         "label": "Enter excessively long name",
-        "selector": "@selector/projectModalNameInput /*dup-1*/",
+        "selector": "@selector/dialogs.project.nameInput /*dup-1*/",
         "text": "This is an extremely long project name that exceeds reasonable character limits and should be rejected by the validation logic because it is far too verbose for practical use in the user interface",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -200,7 +200,7 @@
       },
       "data": {
         "label": "Submit long name",
-        "selector": "@selector/projectModalSubmit /*dup-2*/",
+        "selector": "@selector/dialogs.project.submitButton /*dup-2*/",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -214,7 +214,7 @@
       },
       "data": {
         "label": "Length error appears",
-        "selector": "@selector/projectModalNameError, @selector/formError, .error-message /*dup-2*/",
+        "selector": "@selector/dialogs.project.nameError",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Form should reject overly long project names"

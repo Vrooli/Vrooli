@@ -135,9 +135,9 @@ Use these fixtures whenever a workflow needs to begin from a known dashboard or 
 ## Selector Registry
 
 - `ui/src/consts/selectors.ts` is the canonical list of every `data-testid` in the BAS UI. Components import from that file and the workflow tooling resolves selectors against it.
-- Reference selectors inside playbooks with the `@selector/<key>` token instead of hardcoding `[data-testid="..."]`. The resolver replaces the token with the attribute selector before linting/execution.
-- Dynamic selectors are exposed with parameterized tokens such as `@selector/executionFilter(filter=failed)` or `@selector/promptExample(index=0)`. Definitions live in `ui/src/consts/selectors.ts`, so both the UI and automation flows stay aligned even for selectors that embed runtime data (indexes, filter names, etc.).
-- Convenience helpers like `@selector/projectCardByName(name=Demo Browser Automations)` and `@selector/workflowCardByName(name=Demo: Capture Example.com Hero)` expand into attribute selectors that match list items by their data attributes, so the workflows stay expressive without repeating brittle CSS.
+- Reference selectors inside playbooks with the `@selector/<key>` token (for example `@selector/projects.grid`) instead of hardcoding `[data-testid="..."]`. The resolver replaces the token with the attribute selector before linting/execution.
+- Dynamic selectors are exposed with parameterized tokens such as `@selector/executions.filters.filter(filter=failed)` or `@selector/ai.modal.promptExample(index=0)`. Definitions live in `ui/src/consts/selectors.ts`, so both the UI and automation flows stay aligned even for selectors that embed runtime data (indexes, filter names, etc.).
+- Convenience helpers like `@selector/projects.cardByName(name=Demo Browser Automations)` and `@selector/workflows.cardByName(name=Demo: Capture Example.com Hero)` expand into attribute selectors that match list items by their data attributes, so the workflows stay expressive without repeating brittle CSS.
 - Example:
 
 ```json
@@ -146,7 +146,7 @@ Use these fixtures whenever a workflow needs to begin from a known dashboard or 
   "type": "assert",
   "data": {
     "label": "Projects grid is visible",
-    "selector": "@selector/projectsGrid",
+    "selector": "@selector/projects.grid",
     "assertMode": "exists"
   }
 }
@@ -222,7 +222,7 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
   "type": "wait",
   "data": {
     "label": "Wait for projects grid",
-    "selector": "@selector/projectsGrid",
+    "selector": "@selector/projects.grid",
     "waitType": "element",      // "element" or "duration"
     "timeoutMs": 10000,
     "waitForMs": 1000
@@ -238,7 +238,7 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
   "type": "click",
   "data": {
     "label": "Click Demo project",
-    "selector": "@selector/projectCardByName(name=Demo Browser Automations)",
+    "selector": "@selector/projects.cardByName(name=Demo Browser Automations)",
     "timeoutMs": 5000,
     "waitForMs": 2000
   }
@@ -251,7 +251,7 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
   "type": "type",
   "data": {
     "label": "Enter project name",
-    "selector": "@selector/projectModalNameInput",
+    "selector": "@selector/dialogs.project.nameInput",
     "text": "Test Project",
     "clearFirst": true,
     "timeoutMs": 5000,
@@ -266,7 +266,7 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
   "type": "assert",
   "data": {
     "label": "Modal should be visible",
-    "selector": "@selector/projectModal",
+    "selector": "@selector/dialogs.project.root",
     "assertMode": "exists",     // "exists", "not_exists", "text_contains"
     "timeoutMs": 5000,
     "failureMessage": "Project modal should appear"
@@ -303,7 +303,7 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
 ### Selector Strategy
 1. **Prefer selector tokens** (most reliable)
    ```json
-   "selector": "@selector/projectCard"
+   "selector": "@selector/projects.card"
    ```
 
 2. **Use semantic HTML when possible**
@@ -319,7 +319,7 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
 
 4. **Use dynamic selectors for parameterized cases**
    ```json
-   "selector": "@selector/workflowCardByName(name=Demo: Capture Example.com Hero)"
+   "selector": "@selector/workflows.cardByName(name=Demo: Capture Example.com Hero)"
    ```
 
 ### Wait Strategy
@@ -472,7 +472,7 @@ See `test/playbooks/ui/projects/new-project-create.json` for a comprehensive exa
       "position": {"x": 200, "y": 0},
       "data": {
         "label": "Wait for projects grid",
-        "selector": "@selector/projectsGrid",
+        "selector": "@selector/projects.grid",
         "waitType": "element",
         "timeoutMs": 10000
       }
@@ -483,7 +483,7 @@ See `test/playbooks/ui/projects/new-project-create.json` for a comprehensive exa
       "position": {"x": 400, "y": 0},
       "data": {
         "label": "Projects grid exists",
-        "selector": "@selector/projectsGrid",
+        "selector": "@selector/projects.grid",
         "assertMode": "exists",
         "failureMessage": "Dashboard should show projects grid"
       }

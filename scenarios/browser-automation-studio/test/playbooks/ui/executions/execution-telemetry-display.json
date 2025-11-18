@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Start execution to observe telemetry",
-        "selector": "@selector/workflowExecuteButton, button[title*=\"execute\" i]:first-of-type",
+        "selector": "@selector/workflowBuilder.executeButton",
         "timeoutMs": 5000,
         "waitForMs": 3000
       }
@@ -47,7 +47,7 @@
       },
       "data": {
         "label": "Execution viewer should open",
-        "selector": "@selector/executionViewer, [class*=\"execution\"], [class*=\"viewer\"]",
+        "selector": "@selector/executions.viewer.root",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Execution viewer should appear",

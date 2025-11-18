@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ResponsiveDialog from "@components/ResponsiveDialog";
-import { testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 describe("ResponsiveDialog [REQ:BAS-PROJECT-DIALOG-OPEN] [REQ:BAS-PROJECT-DIALOG-CLOSE]", () => {
   it("renders when isOpen is true", () => {
@@ -57,11 +57,11 @@ describe("ResponsiveDialog [REQ:BAS-PROJECT-DIALOG-OPEN] [REQ:BAS-PROJECT-DIALOG
         onDismiss={handleDismiss}
         ariaLabel="Test Dialog"
       >
-        <div data-testid={testIds.responsiveDialogContent}>Dialog Content</div>
+        <div data-testid={selectors.dialogs.responsive.content}>Dialog Content</div>
       </ResponsiveDialog>,
     );
 
-    const content = screen.getByTestId(testIds.responsiveDialogContent);
+    const content = screen.getByTestId(selectors.dialogs.responsive.content);
     await user.click(content);
 
     expect(handleDismiss).not.toHaveBeenCalled();

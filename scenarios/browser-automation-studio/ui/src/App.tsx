@@ -18,7 +18,7 @@ import { useScenarioStore } from "./stores/scenarioStore";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import type { Workflow } from "./stores/workflowStore";
 import toast from "react-hot-toast";
-import { testIds } from "./consts/selectors";
+import { selectors } from "./consts/selectors";
 
 interface NormalizedWorkflow extends Partial<Workflow> {
   id: string;
@@ -445,7 +445,7 @@ function App() {
     return (
       <div
         className="h-screen flex flex-col bg-flow-bg"
-        data-testid={testIds.appReady}
+        data-testid={selectors.app.shell.ready}
       >
         <Suspense
           fallback={
@@ -475,7 +475,7 @@ function App() {
     return (
       <div
         className="h-screen flex flex-col bg-flow-bg"
-        data-testid={testIds.appReady}
+        data-testid={selectors.app.shell.ready}
       >
         <Suspense
           fallback={
@@ -514,7 +514,7 @@ function App() {
     <ReactFlowProvider>
       <div
         className="h-screen flex flex-col bg-flow-bg"
-        data-testid={testIds.appReady}
+        data-testid={selectors.app.shell.ready}
       >
         <Header
           onNewWorkflow={() => setShowAIModal(true)}

@@ -59,7 +59,7 @@
       },
       "data": {
         "label": "Click navigate node",
-        "selector": "@selector/nodePaletteNavigateCard",
+        "selector": "@selector/nodePalette.cards.navigate",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -113,7 +113,7 @@
       },
       "data": {
         "label": "Click undo",
-        "selector": "@selector/toolbarUndoButton",
+        "selector": "@selector/toolbar.undoButton",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }

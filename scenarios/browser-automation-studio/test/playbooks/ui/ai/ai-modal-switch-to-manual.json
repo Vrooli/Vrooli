@@ -51,7 +51,7 @@
       },
       "data": {
         "label": "Open first project",
-        "selector": "@selector/projectCard:first-of-type",
+        "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -78,7 +78,7 @@
       },
       "data": {
         "label": "Click New Workflow button",
-        "selector": "@selector/newWorkflowButton",
+        "selector": "@selector/workflows.newButton",
         "timeoutMs": 10000,
         "waitForMs": 1500
       }
@@ -133,7 +133,7 @@
       },
       "data": {
         "label": "Manual builder button is visible",
-        "selector": "@selector/switchToManualButton",
+        "selector": "@selector/ai.modal.switchToManualButton",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Switch to Manual Builder button should be visible"
@@ -148,7 +148,7 @@
       },
       "data": {
         "label": "Click Switch to Manual Builder",
-        "selector": "@selector/switchToManualButton /*dup-1*/",
+        "selector": "@selector/ai.modal.switchToManualButton /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -203,7 +203,7 @@
       },
       "data": {
         "label": "Workflow builder canvas is visible",
-        "selector": ".react-flow, @selector/workflowBuilderCanvas",
+        "selector": "@selector/workflowBuilder.canvas.root",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Workflow builder should load after switching to manual"
@@ -231,7 +231,7 @@
       },
       "data": {
         "label": "Node palette is visible",
-        "selector": "@selector/nodePaletteContainer",
+        "selector": "@selector/nodePalette.container",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Node palette should be visible in builder"

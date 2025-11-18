@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Open project",
-        "selector": "@selector/projectCard:first-of-type",
+        "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -52,7 +52,7 @@
       },
       "data": {
         "label": "Wait for workflows to load",
-        "selector": "@selector/workflowCard",
+        "selector": "@selector/workflows.card",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -67,7 +67,7 @@
       },
       "data": {
         "label": "Open workflow with nodes",
-        "selector": "@selector/workflowCard:first-of-type",
+        "selector": "@selector/workflows.card:first-of-type",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -94,7 +94,7 @@
       },
       "data": {
         "label": "Execute button visible",
-        "selector": "@selector/headerExecuteButton",
+        "selector": "@selector/header.buttons.execute",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Execute button should be visible"
@@ -122,7 +122,7 @@
       },
       "data": {
         "label": "Click execute",
-        "selector": "@selector/headerExecuteButton /*dup-1*/",
+        "selector": "@selector/header.buttons.execute /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 3000
       }
@@ -149,7 +149,7 @@
       },
       "data": {
         "label": "Check for execution feedback",
-        "expression": "(() => { const loading = document.querySelector('@selector/headerExecuteButton [class*=\"loader\"], @selector/headerExecuteButton[disabled]'); const viewer = document.querySelector('@selector/executionViewer'); return loading !== null || viewer !== null; })()",
+        "expression": "(() => { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
         "storeAs": "hasExecutionFeedback"
       }
     },

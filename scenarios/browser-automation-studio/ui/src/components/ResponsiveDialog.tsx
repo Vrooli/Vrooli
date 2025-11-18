@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { HTMLAttributes, PointerEvent, ReactNode, Ref, useEffect } from "react";
 import "./ResponsiveDialog.css";
-import { testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 type ResponsiveDialogSize = "default" | "wide" | "xl";
 
@@ -72,14 +72,14 @@ export default function ResponsiveDialog({
   const { "data-testid": dataTestId, ...otherContentProps } =
     contentProps as Record<string, unknown>;
   const testId =
-    (dataTestId as string | undefined) || testIds.responsiveDialogContent;
+    (dataTestId as string | undefined) || selectors.dialogs.responsive.content;
 
   return (
     <div
       className={clsx("responsive-dialog__overlay", overlayClassName)}
       role="presentation"
       onPointerDown={handleOverlayPointerDown}
-      data-testid={testIds.responsiveDialogOverlay}
+      data-testid={selectors.dialogs.responsive.overlay}
     >
       <div
         role={role}

@@ -13,7 +13,7 @@ import {
   type NodeCategory,
   type WorkflowNodeDefinition,
 } from "../constants/nodeCategories";
-import { dynamicTestIds, testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 const FAVORITES_KEY = "bas.palette.favorites";
 const RECENTS_KEY = "bas.palette.recents";
@@ -108,7 +108,7 @@ function NodeCard({
       draggable
       onDragStart={(event) => onDragStart(event, node.type)}
       className="relative bg-flow-bg border border-gray-700 rounded-lg p-3 cursor-move hover:border-flow-accent transition-colors group"
-      data-testid={dynamicTestIds.nodePaletteCard(node.type)}
+      data-testid={selectors.nodePalette.card({ type: node.type })}
     >
       <button
         type="button"
@@ -120,7 +120,9 @@ function NodeCard({
           event.preventDefault();
           onToggleFavorite(node.type);
         }}
-        data-testid={dynamicTestIds.nodePaletteFavoriteButton(node.type)}
+        data-testid={selectors.nodePalette.favoriteButton({
+          type: node.type,
+        })}
       >
         <Star
           size={14}
@@ -351,7 +353,7 @@ function NodePalette() {
   return (
     <div
       className="flex-1 overflow-y-auto p-3"
-      data-testid={testIds.nodePaletteContainer}
+      data-testid={selectors.nodePalette.container}
     >
       <div className="mb-3">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
@@ -374,7 +376,7 @@ function NodePalette() {
             }}
             placeholder="Search nodes (Cmd/Ctrl + K)"
             className="w-full bg-flow-bg border border-gray-700 rounded-lg py-2 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-flow-accent"
-            data-testid={testIds.nodePaletteSearchInput}
+            data-testid={selectors.nodePalette.searchInput}
           />
         </div>
       </div>
@@ -382,14 +384,14 @@ function NodePalette() {
       {showQuickAccess && (
         <div
           className="mb-4 border border-gray-700 rounded-lg"
-          data-testid={testIds.nodePaletteQuickAccess}
+          data-testid={selectors.nodePalette.quickAccess}
         >
           <button
             type="button"
             className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide"
             onClick={() => setQuickAccessExpanded((value) => !value)}
             aria-expanded={quickAccessExpanded}
-            data-testid={testIds.nodePaletteQuickAccessToggle}
+            data-testid={selectors.nodePalette.quickAccessToggle}
           >
             <span className="flex items-center gap-2">
               <History size={14} className="text-flow-accent" />
@@ -406,7 +408,7 @@ function NodePalette() {
           >
             <div className="p-3 space-y-3">
               {favoriteNodes.length > 0 && (
-                <div data-testid={testIds.nodePaletteFavoritesSection}>
+                <div data-testid={selectors.nodePalette.favorites.section}>
                   <div className="text-xs text-gray-400 uppercase font-semibold mb-2">
                     Favorites
                   </div>
@@ -426,7 +428,7 @@ function NodePalette() {
               )}
 
               {recentNodes.length > 0 && (
-                <div data-testid={testIds.nodePaletteRecentsSection}>
+                <div data-testid={selectors.nodePalette.recents.section}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs text-gray-400 uppercase font-semibold">
                       Recent
@@ -435,7 +437,7 @@ function NodePalette() {
                       type="button"
                       className="text-[11px] text-gray-500 hover:text-gray-300"
                       onClick={() => setRecents([])}
-                      data-testid={testIds.nodePaletteClearRecentsButton}
+                      data-testid={selectors.nodePalette.recents.clearButton}
                     >
                       Clear
                     </button>
@@ -470,7 +472,9 @@ function NodePalette() {
             <div
               key={category.id}
               className="border border-gray-800 rounded-lg"
-              data-testid={dynamicTestIds.nodePaletteCategory(category.id)}
+              data-testid={selectors.nodePalette.category({
+                category: category.id,
+              })}
             >
               <button
                 type="button"
@@ -479,7 +483,9 @@ function NodePalette() {
                 aria-expanded={categoryExpanded}
                 aria-controls={`${category.id}-nodes`}
                 disabled={Boolean(normalizedQuery)}
-                data-testid={dynamicTestIds.nodePaletteCategoryToggle(category.id)}
+                data-testid={selectors.nodePalette.categoryToggle({
+                  category: category.id,
+                })}
               >
                 <div className="flex items-center gap-2">
                   <CategoryIcon size={16} className="text-flow-accent" />
@@ -523,7 +529,7 @@ function NodePalette() {
       {normalizedQuery && totalVisibleNodes === 0 && (
         <div
           className="mt-4 text-center text-sm text-gray-500"
-          data-testid={testIds.nodePaletteNoResults}
+          data-testid={selectors.nodePalette.noResults}
         >
           No nodes match "{searchTerm}". Try a different keyword.
         </div>

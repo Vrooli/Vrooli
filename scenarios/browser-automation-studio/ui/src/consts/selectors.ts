@@ -1,355 +1,617 @@
 /**
- * Canonical registry of every `data-testid` string used by the Browser Automation Studio UI.
+ * Browser Automation Studio selector registry
  *
- * Components import from this file to avoid hardcoded selectors, and the workflow tooling
- * consumes the same registry to validate BAS playbooks. When adding a new test id, update
- * this file so both the UI and automation helpers stay in sync.
+ * This file is the single source of truth for every selector used by the UI and
+ * by Browser Automation Studio workflows. We deliberately model selectors as two
+ * declarative maps (one literal, one dynamic) and rely on a small helper to
+ * produce the typed `selectors` export plus the manifest consumed by workflow
+ * linting. Do not hand-roll selector helpers or change this structure—update the
+ * maps below so UI code, automation flows, and the manifest builder all stay in
+ * sync across every scenario.
  */
 
-const toSelector = (testId: string) => `[data-testid="${testId}"]`;
+type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
 
-type DynamicParamType = "string" | "number";
+type ParamType = "string" | "number" | "enum";
 
-type DynamicSelectorDefinition = {
-  pattern: string;
-  selectorPattern?: string;
-  params: readonly string[];
-  allowedValues?: Record<string, readonly string[]>;
-  valueTypes?: Record<string, DynamicParamType>;
-  description?: string;
+type ParamDefinition =
+  | { readonly type: "string" }
+  | { readonly type: "number" }
+  | { readonly type: "enum"; readonly values: readonly (string | number)[] };
+
+type ParamSchema = Readonly<Record<string, ParamDefinition>>;
+
+type ParamValueType<T extends ParamDefinition> = T extends { type: "number" }
+  ? number
+  : T extends { type: "enum"; values: readonly (infer V)[] }
+  ? V
+  : string;
+
+type ParamValues<P extends ParamSchema | undefined> = P extends ParamSchema
+  ? { [K in keyof P]: ParamValueType<P[K]> }
+  : Record<string, never>;
+
+interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefined> {
+  readonly kind: "dynamic-selector";
+  readonly description: string;
+  readonly params?: P;
+  readonly testIdPattern?: string;
+  readonly selectorPattern?: string;
+}
+
+type DynamicSelectorBranch = {
+  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
 };
 
-type SelectorTree<T> = {
-  [K in keyof T]: T[K] extends string ? string : SelectorTree<T[K]>;
+type DynamicSelectorTree = DynamicSelectorBranch;
+
+type DynamicSelectorFn<P extends ParamSchema | undefined> = keyof ParamValues<P> extends never
+  ? () => string
+  : (params: ParamValues<P>) => string;
+
+type DynamicBranchResult<D extends DynamicSelectorTree> = {
+  [K in keyof D]: D[K] extends DynamicSelectorDefinition<infer P>
+  ? DynamicSelectorFn<P>
+  : D[K] extends DynamicSelectorTree
+  ? DynamicBranchResult<D[K]>
+  : never;
 };
 
-export const testIds = {
-  aiGenerateButton: "ai-generate-button",
-  aiPromptInput: "ai-prompt-input",
-  aiPromptModal: "ai-prompt-modal",
-  aiWorkflowNameInput: "ai-workflow-name-input",
-  appReady: "app-ready",
-  appBackground: "background",
-  breadcrumbProject: "breadcrumb-project",
-  dashboardNewProjectButton: "dashboard-new-project-button",
-  dialogCloseButton: "dialog-close-button",
-  dialogContent: "dialog-content",
-  executionCard: "execution-card",
-  executionFilterAll: "execution-filter-all",
-  executionHistory: "execution-history",
-  executionHistoryList: "execution-history-list",
-  executionHistoryMock: "execution-history-mock",
-  executionHistoryRefresh: "execution-history-refresh",
-  executionItem: "execution-item",
-  executionLogs: "execution-logs",
-  executionScreenshot: "execution-screenshot",
-  executionScreenshots: "execution-screenshots",
-  executionStatus: "execution-status",
-  executionStatusCancelled: "execution-status-cancelled",
-  executionStatusCompleted: "execution-status-completed",
-  executionStatusFailed: "execution-status-failed",
-  executionStopButton: "execution-stop-button",
-  executionTabExecutions: "execution-tab-executions",
-  executionTabLogs: "execution-tab-logs",
-  executionTabReplay: "execution-tab-replay",
-  executionTabScreenshots: "execution-tab-screenshots",
-  executionViewButton: "execution-view-button",
-  executionViewer: "execution-viewer",
-  executionViewerMock: "execution-viewer-mock",
-  executionsTab: "executions-tab",
-  exportReplayButton: "export-replay-button",
-  exportConfirmButton: "export-confirm-button",
-  exportInProgress: "export-in-progress",
-  formError: "form-error",
-  header: "header",
-  headerDebugButton: "header-debug-button",
-  headerBackToProjectButton: "header-back-to-project-button",
-  headerBackToDashboardButton: "header-back-to-dashboard-button",
-  headerExecuteButton: "header-execute-button",
-  headerInfoButton: "header-info-button",
-  headerInfoCloseButton: "header-info-close-button",
-  headerInfoPopover: "header-info-popover",
-  headerSaveErrorDetailsButton: "header-save-error-details-button",
-  headerSaveErrorDialog: "header-save-error-dialog",
-  headerSaveErrorDialogCloseButton: "header-save-error-dialog-close-button",
-  headerSaveErrorDismissButton: "header-save-error-dismiss-button",
-  headerSaveRetryButton: "header-save-retry-button",
-  headerSaveStatusIndicator: "header-save-status-indicator",
-  headerTitleCancelButton: "header-title-cancel-button",
-  headerTitleEditButton: "header-title-edit-button",
-  headerTitleInput: "header-title-input",
-  headerTitleSaveButton: "header-title-save-button",
-  headerVersionConflictDetailsButton: "header-version-conflict-details-button",
-  headerVersionConflictForceSaveButton:
-    "header-version-conflict-force-save-button",
-  headerVersionConflictRefreshButton: "header-version-conflict-refresh-button",
-  headerVersionConflictReloadButton: "header-version-conflict-reload-button",
-  headerVersionHistoryButton: "header-version-history-button",
-  headerVersionHistoryCloseButton: "header-version-history-close-button",
-  headerVersionHistoryDialog: "header-version-history-dialog",
-  headerWorkflowTitle: "header-workflow-title",
-  heartbeatIndicator: "heartbeat-indicator",
-  heartbeatStatus: "heartbeat-status",
-  heartbeatLagWarning: "heartbeat-lag-warning",
-  logEntry: "log-entry",
-  minimap: "minimap",
-  monacoEditor: "monaco-editor",
-  newWorkflowButton: "new-workflow-button",
-  newWorkflowButtonFab: "new-workflow-button-fab",
-  nodePaletteAssertCard: "node-palette-assert-card",
-  nodePaletteCategoryNavigationToggle:
-    "node-palette-category-navigation-toggle",
-  nodePaletteClearRecentsButton: "node-palette-clear-recents-button",
-  nodePaletteClickCard: "node-palette-click-card",
-  nodePaletteContainer: "node-palette-container",
-  nodePaletteDragDropCard: "node-palette-dragDrop-card",
-  nodePaletteDragdropCard: "node-palette-dragdrop-card",
-  nodePaletteFavoritesSection: "node-palette-favorites-section",
-  nodePaletteNavigateCard: "node-palette-navigate-card",
-  nodePaletteNavigateFavoriteButton: "node-palette-navigate-favorite-button",
-  nodePaletteNoResults: "node-palette-no-results",
-  nodePaletteQuickAccess: "node-palette-quick-access",
-  nodePaletteQuickAccessToggle: "node-palette-quick-access-toggle",
-  nodePaletteRecentsSection: "node-palette-recents-section",
-  nodePaletteScreenshotCard: "node-palette-screenshot-card",
-  nodePaletteSearchInput: "node-palette-search-input",
-  nodePaletteSetVariableCard: "node-palette-setVariable-card",
-  nodePaletteSetvariableCard: "node-palette-setvariable-card",
-  nodePaletteUseVariableCard: "node-palette-useVariable-card",
-  nodePaletteUsevariableCard: "node-palette-usevariable-card",
-  nodePaletteWaitCard: "node-palette-wait-card",
-  nodePropertyUrlInput: "node-property-url-input",
-  projectCard: "project-card",
-  projectCardTitle: "project-card-title",
-  projectEditButton: "project-edit-button",
-  projectModal: "project-modal",
-  projectModalCancel: "project-modal-cancel",
-  projectModalDescriptionInput: "project-modal-description-input",
-  projectModalForm: "project-modal-form",
-  projectModalNameError: "project-modal-name-error",
-  projectModalNameInput: "project-modal-name-input",
-  projectModalSubmit: "project-modal-submit",
-  projectTabExecutions: "project-tab-executions",
-  projectsGrid: "projects-grid",
-  reactFlowCanvas: "react-flow-canvas",
-  replayPlayer: "replay-player",
-  replayScreenshot: "replay-screenshot",
-  replayTimeline: "replay-timeline",
-  replayViewer: "replay-viewer",
-  responsiveDialogContent: "responsive-dialog-content",
-  responsiveDialogOverlay: "responsive-dialog-overlay",
-  switchToManualButton: "switch-to-manual-button",
-  timelineFrame: "timeline-frame",
-  toolbarConfigureViewportButton: "toolbar-configure-viewport-button",
-  toolbarConfigureViewportMenuItem: "toolbar-configure-viewport-menu-item",
-  toolbarDeleteButton: "toolbar-delete-button",
-  toolbarDeleteMenuItem: "toolbar-delete-menu-item",
-  toolbarDuplicateButton: "toolbar-duplicate-button",
-  toolbarDuplicateMenuItem: "toolbar-duplicate-menu-item",
-  toolbarFitViewButton: "toolbar-fit-view-button",
-  toolbarFitViewMenuItem: "toolbar-fit-view-menu-item",
-  toolbarLayoutMenu: "toolbar-layout-menu",
-  toolbarLayoutMenuButton: "toolbar-layout-menu-button",
-  toolbarLockButton: "toolbar-lock-button",
-  toolbarUnlockButton: "toolbar-unlock-button",
-  toolbarRedoButton: "toolbar-redo-button",
-  toolbarSelectionMenu: "toolbar-selection-menu",
-  toolbarSelectionMenuButton: "toolbar-selection-menu-button",
-  toolbarToggleLockMenuItem: "toolbar-toggle-lock-menu-item",
-  toolbarUndoButton: "toolbar-undo-button",
-  toolbarZoomInButton: "toolbar-zoom-in-button",
-  toolbarZoomOutButton: "toolbar-zoom-out-button",
-  urlModeButton: "url-mode-button",
-  variableSuggestions: "variable-suggestions",
-  variableSuggestionsEmpty: "variable-suggestions-empty",
-  viewportDialogCancelButton: "viewport-dialog-cancel-button",
-  viewportDialogError: "viewport-dialog-error",
-  viewportDialogHeightInput: "viewport-dialog-height-input",
-  viewportDialogSaveButton: "viewport-dialog-save-button",
-  viewportDialogTitle: "viewport-dialog-title",
-  viewportDialogWidthInput: "viewport-dialog-width-input",
-  workflowBuilderCanvas: "workflow-builder-canvas",
-  workflowBuilderCodeApplyButton: "workflow-builder-code-apply-button",
-  workflowBuilderCodeEditor: "workflow-builder-code-editor",
-  workflowBuilderCodeEditorContainer: "workflow-builder-code-editor-container",
-  workflowBuilderCodeError: "workflow-builder-code-error",
-  workflowBuilderCodeLineCount: "workflow-builder-code-line-count",
-  workflowBuilderCodeModeButton: "workflow-builder-code-mode-button",
-  workflowBuilderCodeResetButton: "workflow-builder-code-reset-button",
-  workflowBuilderCodeToolbar: "workflow-builder-code-toolbar",
-  workflowBuilderCodeValidation: "workflow-builder-code-validation",
-  workflowBuilderCodeView: "workflow-builder-code-view",
-  workflowBuilderViewModeToggle: "workflow-builder-view-mode-toggle",
-  workflowBuilderViewportDialog: "workflow-builder-viewport-dialog",
-  workflowBuilderVisualModeButton: "workflow-builder-visual-mode-button",
-  workflowCard: "workflow-card",
-  workflowExecuteButton: "workflow-execute-button",
-  workflowSearchClear: "workflow-search-clear",
-  workflowSearchInput: "workflow-search-input",
-  workflowToolbar: "workflow-toolbar",
-  workflowsTab: "workflows-tab",
-} as const;
+type SelectorTreeResult<
+  L extends LiteralSelectorTree,
+  D extends DynamicSelectorTree,
+> = {
+  [K in keyof L]: L[K] extends string
+  ? string
+  : SelectorTreeResult<L[K], K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree>;
+} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
 
-export type TestIdRegistry = typeof testIds;
-export type TestIdKey = keyof TestIdRegistry;
+const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
-const mapSelectors = <T>(registry: T): SelectorTree<T> => {
-  const result: Record<string, any> = {};
-  for (const [key, value] of Object.entries(registry as Record<string, any>)) {
-    result[key] =
-      typeof value === "string" ? toSelector(value) : mapSelectors(value);
-  }
-  return result as SelectorTree<T>;
-};
-
-export const workflowSelectors = mapSelectors(testIds);
-export const selectorFromTestId = toSelector;
-
-const DYNAMIC_TEMPLATE_PATTERN = /\$\{([^}]+)\}/g;
-
-const formatDynamicTestId = (
-  pattern: string,
-  params: Record<string, string | number>,
-) =>
-  pattern.replace(DYNAMIC_TEMPLATE_PATTERN, (_match, key) => {
-    if (!(key in params)) {
-      throw new Error(`Missing parameter '${key}' for dynamic test id`);
+const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
+  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+    if (!(token in values)) {
+      throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
-    return String(params[key]);
+    return String(values[token]);
   });
 
-export type ExecutionFilterKey =
-  | "all"
-  | "completed"
-  | "failed"
-  | "running"
-  | "cancelled";
+const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-export type ViewportPresetKey = "desktop" | "mobile" | "custom";
+const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
+  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
 
-export const dynamicTestIds = {
-  promptExample: (index: number) =>
-    formatDynamicTestId("ai-example-prompt-${index}", { index }),
-  executionFilter: (filter: ExecutionFilterKey) =>
-    formatDynamicTestId("execution-filter-${filter}", { filter }),
-  nodePaletteCard: (type: string) =>
-    formatDynamicTestId("node-palette-${type}-card", { type }),
-  nodePaletteFavoriteButton: (type: string) =>
-    formatDynamicTestId("node-palette-${type}-favorite-button", { type }),
-  nodePaletteCategory: (category: string) =>
-    formatDynamicTestId("node-palette-category-${category}", { category }),
-  nodePaletteCategoryToggle: (category: string) =>
-    formatDynamicTestId("node-palette-category-${category}-toggle", {
-      category,
-    }),
-  versionHistoryItem: (versionLabel: string | number) =>
-    formatDynamicTestId("version-history-item-${version}", {
-      version: versionLabel,
-    }),
-  versionRestoreButton: (versionLabel: string | number) =>
-    formatDynamicTestId("version-restore-button-${version}", {
-      version: versionLabel,
-    }),
-  viewportPresetButton: (preset: ViewportPresetKey) =>
-    formatDynamicTestId("viewport-dialog-preset-${preset}-button", { preset }),
-  uploadNodePathCount: (nodeId: string | number) =>
-    formatDynamicTestId("upload-node-${id}-path-count", { id: nodeId }),
-} as const;
+const normalizeParams = (
+  definition: DynamicSelectorDefinition<any>,
+  raw: Record<string, string | number>,
+  path: string,
+) => {
+  const schema = definition.params ?? ({} as ParamSchema);
+  const normalized: Record<string, string | number> = {};
 
-const mapDynamicSelectorDefinitions = <
-  T extends Record<string, DynamicSelectorDefinition>,
->(definitions: T) => {
-  const result: Record<string, DynamicSelectorDefinition & { selectorPattern: string }> = {};
-  for (const [key, value] of Object.entries(definitions)) {
-    const selectorPattern = value.selectorPattern ?? toSelector(value.pattern);
-    result[key] = { ...value, selectorPattern };
+  for (const key of Object.keys(schema)) {
+    if (!(key in raw)) {
+      throw new Error(`Selector '${path}' is missing parameter '${key}'`);
+    }
+    const definitionEntry = schema[key];
+    const value = raw[key];
+    if (definitionEntry.type === "number") {
+      if (typeof value !== "number") {
+        throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
+      }
+      normalized[key] = value;
+      continue;
+    }
+    if (definitionEntry.type === "enum") {
+      if (!definitionEntry.values.includes(value)) {
+        throw new Error(
+          `Selector '${path}' parameter '${key}' must be one of: ${definitionEntry.values.join(", ")}`,
+        );
+      }
+      normalized[key] = value;
+      continue;
+    }
+    normalized[key] = value;
   }
-  return result as {
-    [K in keyof T]: DynamicSelectorDefinition & { selectorPattern: string };
+
+  const extras = Object.keys(raw).filter((key) => !(key in schema));
+  if (extras.length > 0) {
+    throw new Error(`Selector '${path}' received unknown parameter(s): ${extras.join(", ")}`);
+  }
+
+  return normalized;
+};
+
+const flattenLiteralSelectors = (
+  tree: LiteralSelectorTree,
+  prefix: string[] = [],
+  target: Record<string, { testId: string; selector: string }> = {},
+) => {
+  for (const [key, value] of Object.entries(tree)) {
+    const nextPath = [...prefix, key];
+    if (typeof value === "string") {
+      const manifestKey = nextPath.join(".");
+      target[manifestKey] = {
+        testId: value,
+        selector: toDataTestIdSelector(value),
+      };
+      continue;
+    }
+    flattenLiteralSelectors(value, nextPath, target);
+  }
+  return target;
+};
+
+const flattenDynamicSelectors = (
+  tree: DynamicSelectorTree,
+  prefix: string[] = [],
+  target: Record<string, {
+    description: string;
+    selectorPattern: string;
+    testIdPattern?: string;
+    params: Array<{ name: string; type: ParamType; values?: readonly (string | number)[] }>;
+  }> = {},
+) => {
+  for (const [key, value] of Object.entries(tree)) {
+    const nextPath = [...prefix, key];
+    if (isDynamicDefinition(value)) {
+      const manifestKey = nextPath.join(".");
+      const paramEntries = Object.entries(value.params ?? {});
+      target[manifestKey] = {
+        description: value.description,
+        selectorPattern:
+          value.selectorPattern ?? (value.testIdPattern ? toDataTestIdSelector(value.testIdPattern) : ""),
+        testIdPattern: value.testIdPattern,
+        params: paramEntries.map(([name, config]) => ({
+          name,
+          type: config.type,
+          values: config.type === "enum" ? config.values : undefined,
+        })),
+      };
+      continue;
+    }
+    flattenDynamicSelectors(value, nextPath, target);
+  }
+  return target;
+};
+
+const mergeLiteralAndDynamicNodes = (
+  literalNode: LiteralSelectorTree | undefined,
+  dynamicNode: DynamicSelectorTree | undefined,
+  path: string[] = [],
+): Record<string, unknown> => {
+  const merged: Record<string, unknown> = {};
+  const keys = new Set([
+    ...Object.keys(literalNode ?? {}),
+    ...Object.keys(dynamicNode ?? {}),
+  ]);
+
+  keys.forEach((key) => {
+    const literalValue = literalNode?.[key];
+    const dynamicValue = dynamicNode?.[key];
+    const nextPath = [...path, key];
+
+    if (typeof literalValue === "string") {
+      merged[key] = literalValue;
+      return;
+    }
+
+    if (literalValue && typeof literalValue === "object") {
+      merged[key] = mergeLiteralAndDynamicNodes(literalValue as LiteralSelectorTree, isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined), nextPath);
+      return;
+    }
+
+    if (dynamicValue) {
+      if (isDynamicDefinition(dynamicValue)) {
+        merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
+        return;
+      }
+      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
+    }
+  });
+
+  return merged;
+};
+
+const createDynamicSelectorFn = (
+  definition: DynamicSelectorDefinition<any>,
+  path: string,
+) => {
+  return (params?: Record<string, string | number>) => {
+    const normalized = normalizeParams(definition, params ?? {}, path);
+    const template = definition.testIdPattern ?? definition.selectorPattern;
+    if (!template) {
+      throw new Error(`Selector '${path}' is missing both testIdPattern and selectorPattern`);
+    }
+    return formatTemplate(template, normalized, path);
   };
 };
 
-export const dynamicSelectors = mapDynamicSelectorDefinitions({
-  promptExample: {
-    description: "AI modal example prompts rendered with ai-example-prompt-${index}",
-    pattern: "ai-example-prompt-${index}",
-    params: ["index"] as const,
-    valueTypes: { index: "number" },
-  },
-  executionFilter: {
-    description: "Execution history filter buttons (all/completed/failed/etc.)",
-    pattern: "execution-filter-${filter}",
-    params: ["filter"] as const,
-    allowedValues: {
-      filter: ["all", "completed", "failed", "running", "cancelled"] as const,
-    },
-  },
-  nodePaletteCard: {
-    description: "Node palette card for a workflow node type",
-    pattern: "node-palette-${type}-card",
-    params: ["type"] as const,
-  },
-  nodePaletteFavoriteButton: {
-    description: "Favorite toggle button for a workflow node card",
-    pattern: "node-palette-${type}-favorite-button",
-    params: ["type"] as const,
-  },
-  nodePaletteCategory: {
-    description: "Category container in the node palette sidebar",
-    pattern: "node-palette-category-${category}",
-    params: ["category"] as const,
-  },
-  nodePaletteCategoryToggle: {
-    description: "Category toggle button in the node palette sidebar",
-    pattern: "node-palette-category-${category}-toggle",
-    params: ["category"] as const,
-  },
-  versionHistoryItem: {
-    description: "Version history row in header modal",
-    pattern: "version-history-item-${version}",
-    params: ["version"] as const,
-  },
-  versionRestoreButton: {
-    description: "Restore button for a version history entry",
-    pattern: "version-restore-button-${version}",
-    params: ["version"] as const,
-  },
-  projectCardByName: {
-    description: "Dashboard/project list card filtered by data-project-name",
-    pattern: "project-card-by-name-${name}",
-    selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-    params: ["name"] as const,
-  },
-  workflowCardByName: {
-    description: "Workflow list card filtered by data-workflow-name",
-    pattern: "workflow-card-by-name-${name}",
-    selectorPattern: '[data-testid="workflow-card"][data-workflow-name="${name}"]',
-    params: ["name"] as const,
-  },
-  viewportPresetButton: {
-    description: "Viewport preset button inside the execution dimensions dialog",
-    pattern: "viewport-dialog-preset-${preset}-button",
-    params: ["preset"] as const,
-    allowedValues: {
-      preset: ["desktop", "mobile", "custom"] as const,
-    },
-  },
-  uploadNodePathCount: {
-    description: "Upload node selected file count chip",
-    pattern: "upload-node-${id}-path-count",
-    params: ["id"] as const,
-  },
-  nodePaletteCardList: {
-    description: "Matches all node palette cards regardless of node type",
-    pattern: "node-palette-card-list",
-    selectorPattern: '[data-testid^="node-palette-"][data-testid$="-card"]',
-    params: [] as const,
-  },
-  nodePaletteVisibleCardList: {
-    description: "Matches visible node palette cards (after filters)",
-    pattern: "node-palette-card-visible",
-    selectorPattern:
-      '[data-testid^="node-palette-"][data-testid$="-card"]:not([style*="display: none"])',
-    params: [] as const,
-  },
+const defineDynamicSelector = <P extends ParamSchema | undefined>(
+  definition: Omit<DynamicSelectorDefinition<P>, "kind">,
+): DynamicSelectorDefinition<P> => ({
+  ...definition,
+  kind: "dynamic-selector",
 });
+
+const createSelectorRegistry = <
+  L extends LiteralSelectorTree,
+  D extends DynamicSelectorTree,
+>(literalTree: L, dynamicTree: D) => {
+  const selectors = mergeLiteralAndDynamicNodes(literalTree, dynamicTree) as SelectorTreeResult<L, D>;
+  const manifest = {
+    selectors: flattenLiteralSelectors(literalTree),
+    dynamicSelectors: flattenDynamicSelectors(dynamicTree),
+  };
+  return { selectors, manifest };
+};
+
+const literalSelectors = {
+  app: {
+    shell: {
+      ready: "app-ready",
+    },
+    background: "background",
+  },
+  ai: {
+    modal: {
+      root: "ai-prompt-modal",
+      generateButton: "ai-generate-button",
+      promptInput: "ai-prompt-input",
+      workflowNameInput: "ai-workflow-name-input",
+      switchToManualButton: "switch-to-manual-button",
+    },
+  },
+  breadcrumbs: {
+    project: "breadcrumb-project",
+  },
+  dashboard: {
+    newProjectButton: "dashboard-new-project-button",
+  },
+  dialogs: {
+    base: {
+      closeButton: "dialog-close-button",
+      content: "dialog-content",
+    },
+    responsive: {
+      content: "responsive-dialog-content",
+      overlay: "responsive-dialog-overlay",
+    },
+    project: {
+      root: "project-modal",
+      form: "project-modal-form",
+      nameInput: "project-modal-name-input",
+      nameError: "project-modal-name-error",
+      descriptionInput: "project-modal-description-input",
+      cancelButton: "project-modal-cancel",
+      submitButton: "project-modal-submit",
+    },
+  },
+  forms: {
+    error: "form-error",
+  },
+  executions: {
+    tabs: {
+      executions: "execution-tab-executions",
+      logs: "execution-tab-logs",
+      replay: "execution-tab-replay",
+      screenshots: "execution-tab-screenshots",
+    },
+    filters: {
+      all: "execution-filter-all",
+    },
+    list: {
+      root: "execution-history",
+      list: "execution-history-list",
+      refreshButton: "execution-history-refresh",
+      item: "execution-item",
+      card: "execution-card",
+    },
+    mock: {
+      history: "execution-history-mock",
+      viewer: "execution-viewer-mock",
+    },
+    viewer: {
+      root: "execution-viewer",
+      status: "execution-status",
+      statusCancelled: "execution-status-cancelled",
+      statusCompleted: "execution-status-completed",
+      statusFailed: "execution-status-failed",
+      stopButton: "execution-stop-button",
+      logs: "execution-logs",
+      screenshots: "execution-screenshots",
+      screenshot: "execution-screenshot",
+    },
+    navigation: {
+      executionsTab: "executions-tab",
+    },
+    actions: {
+      viewButton: "execution-view-button",
+      exportReplayButton: "export-replay-button",
+      exportConfirmButton: "export-confirm-button",
+    },
+    export: {
+      inProgress: "export-in-progress",
+    },
+    logEntry: "log-entry",
+  },
+  header: {
+    root: "header",
+    buttons: {
+      debug: "header-debug-button",
+      execute: "header-execute-button",
+      info: "header-info-button",
+      infoClose: "header-info-close-button",
+      versionHistory: "header-version-history-button",
+      backToProject: "header-back-to-project-button",
+      backToDashboard: "header-back-to-dashboard-button",
+      saveRetry: "header-save-retry-button",
+      saveErrorDetails: "header-save-error-details-button",
+      saveErrorDismiss: "header-save-error-dismiss-button",
+      versionConflictDetails: "header-version-conflict-details-button",
+      versionConflictRefresh: "header-version-conflict-refresh-button",
+      versionConflictReload: "header-version-conflict-reload-button",
+      versionConflictForceSave: "header-version-conflict-force-save-button",
+    },
+    title: {
+      input: "header-title-input",
+      saveButton: "header-title-save-button",
+      cancelButton: "header-title-cancel-button",
+      editButton: "header-title-edit-button",
+      text: "header-workflow-title",
+    },
+    info: {
+      popover: "header-info-popover",
+    },
+    saveStatus: {
+      indicator: "header-save-status-indicator",
+    },
+    saveError: {
+      dialog: "header-save-error-dialog",
+      dialogCloseButton: "header-save-error-dialog-close-button",
+    },
+    versionHistory: {
+      dialog: "header-version-history-dialog",
+      closeButton: "header-version-history-close-button",
+    },
+  },
+  heartbeat: {
+    indicator: "heartbeat-indicator",
+    status: "heartbeat-status",
+    lagWarning: "heartbeat-lag-warning",
+  },
+  nodePalette: {
+    container: "node-palette-container",
+    searchInput: "node-palette-search-input",
+    quickAccess: "node-palette-quick-access",
+    quickAccessToggle: "node-palette-quick-access-toggle",
+    favorites: {
+      section: "node-palette-favorites-section",
+    },
+    recents: {
+      section: "node-palette-recents-section",
+      clearButton: "node-palette-clear-recents-button",
+    },
+    cards: {
+      assert: "node-palette-assert-card",
+      click: "node-palette-click-card",
+      dragDrop: "node-palette-dragDrop-card",
+      navigate: "node-palette-navigate-card",
+      screenshot: "node-palette-screenshot-card",
+      setVariable: "node-palette-setVariable-card",
+      useVariable: "node-palette-useVariable-card",
+      wait: "node-palette-wait-card",
+    },
+    categories: {
+      navigationToggle: "node-palette-category-navigation-toggle",
+    },
+    noResults: "node-palette-no-results",
+  },
+  nodeProperties: {
+    urlInput: "node-property-url-input",
+    urlModeButton: "url-mode-button",
+  },
+  projects: {
+    grid: "projects-grid",
+    card: "project-card",
+    cardTitle: "project-card-title",
+    editButton: "project-edit-button",
+    search: {
+      input: "projects-search-input",
+      clearButton: "projects-search-clear",
+    },
+    tabs: {
+      executions: "project-tab-executions",
+    },
+  },
+  replay: {
+    player: "replay-player",
+    screenshot: "replay-screenshot",
+    timeline: "replay-timeline",
+    viewer: "replay-viewer",
+  },
+  timeline: {
+    frame: "timeline-frame",
+  },
+  toolbar: {
+    root: "workflow-toolbar",
+    zoomInButton: "toolbar-zoom-in-button",
+    zoomOutButton: "toolbar-zoom-out-button",
+    fitViewButton: "toolbar-fit-view-button",
+    configureViewportButton: "toolbar-configure-viewport-button",
+    configureViewportMenuItem: "toolbar-configure-viewport-menu-item",
+    layoutMenu: "toolbar-layout-menu",
+    layoutMenuButton: "toolbar-layout-menu-button",
+    lockButton: "toolbar-lock-button",
+    unlockButton: "toolbar-unlock-button",
+    redoButton: "toolbar-redo-button",
+    undoButton: "toolbar-undo-button",
+    duplicateButton: "toolbar-duplicate-button",
+    deleteButton: "toolbar-delete-button",
+    selectionMenu: "toolbar-selection-menu",
+    selectionMenuButton: "toolbar-selection-menu-button",
+    selectionMenuDuplicate: "toolbar-duplicate-menu-item",
+    selectionMenuDelete: "toolbar-delete-menu-item",
+    toggleLockMenuItem: "toolbar-toggle-lock-menu-item",
+    fitViewMenuItem: "toolbar-fit-view-menu-item",
+  },
+  variables: {
+    suggestions: "variable-suggestions",
+    suggestionsEmpty: "variable-suggestions-empty",
+  },
+  viewport: {
+    dialog: {
+      root: "workflow-builder-viewport-dialog",
+      cancelButton: "viewport-dialog-cancel-button",
+      error: "viewport-dialog-error",
+      heightInput: "viewport-dialog-height-input",
+      saveButton: "viewport-dialog-save-button",
+      title: "viewport-dialog-title",
+      widthInput: "viewport-dialog-width-input",
+    },
+  },
+  workflowBuilder: {
+    canvas: {
+      root: "workflow-builder-canvas",
+      reactFlow: "react-flow-canvas",
+      minimap: "minimap",
+    },
+    code: {
+      view: "workflow-builder-code-view",
+      toolbar: "workflow-builder-code-toolbar",
+      editor: "workflow-builder-code-editor",
+      editorContainer: "workflow-builder-code-editor-container",
+      error: "workflow-builder-code-error",
+      lineCount: "workflow-builder-code-line-count",
+      modeButton: "workflow-builder-code-mode-button",
+      resetButton: "workflow-builder-code-reset-button",
+      applyButton: "workflow-builder-code-apply-button",
+      validation: "workflow-builder-code-validation",
+    },
+    viewModeToggle: "workflow-builder-view-mode-toggle",
+    visualModeButton: "workflow-builder-visual-mode-button",
+    executeButton: "workflow-execute-button",
+    search: {
+      input: "workflow-search-input",
+      clearButton: "workflow-search-clear",
+    },
+    monacoEditor: "monaco-editor",
+    formError: "form-error",
+  },
+  workflows: {
+    tab: "workflows-tab",
+    card: "workflow-card",
+    newButton: "new-workflow-button",
+    newButtonFab: "new-workflow-button-fab",
+  },
+} as const;
+
+const dynamicSelectorDefinitions = {
+  ai: {
+    modal: {
+      promptExample: defineDynamicSelector({
+        description: "AI modal example prompts rendered as ai-example-prompt-${index}",
+        testIdPattern: "ai-example-prompt-${index}",
+        params: { index: { type: "number" } },
+      }),
+    },
+  },
+  executions: {
+    filters: {
+      filter: defineDynamicSelector({
+        description: "Execution history filter buttons",
+        testIdPattern: "execution-filter-${filter}",
+        params: {
+          filter: { type: "enum", values: ["all", "completed", "failed", "running", "cancelled"] },
+        },
+      }),
+    },
+  },
+  nodePalette: {
+    card: defineDynamicSelector({
+      description: "Node palette card for a workflow node type",
+      testIdPattern: "node-palette-${type}-card",
+      params: { type: { type: "string" } },
+    }),
+    favoriteButton: defineDynamicSelector({
+      description: "Favorite toggle button for a node palette card",
+      testIdPattern: "node-palette-${type}-favorite-button",
+      params: { type: { type: "string" } },
+    }),
+    category: defineDynamicSelector({
+      description: "Node palette category section",
+      testIdPattern: "node-palette-category-${category}",
+      params: { category: { type: "string" } },
+    }),
+    categoryToggle: defineDynamicSelector({
+      description: "Toggle button for a node palette category",
+      testIdPattern: "node-palette-category-${category}-toggle",
+      params: { category: { type: "string" } },
+    }),
+    cardList: defineDynamicSelector({
+      description: "Matches all node palette cards",
+      selectorPattern: '[data-testid^="node-palette-"][data-testid$="-card"]',
+    }),
+    visibleCardList: defineDynamicSelector({
+      description: "Visible node palette cards once filters are applied",
+      selectorPattern:
+        '[data-testid^="node-palette-"][data-testid$="-card"]:not([style*="display: none"])',
+    }),
+  },
+  header: {
+    versionHistory: {
+      item: defineDynamicSelector({
+        description: "Version history entries in the header dialog",
+        testIdPattern: "version-history-item-${version}",
+        params: { version: { type: "string" } },
+      }),
+      restoreButton: defineDynamicSelector({
+        description: "Restore button inside version history rows",
+        testIdPattern: "version-restore-button-${version}",
+        params: { version: { type: "string" } },
+      }),
+    },
+  },
+  viewport: {
+    dialog: {
+      presetButton: defineDynamicSelector({
+        description: "Viewport dialog preset buttons",
+        testIdPattern: "viewport-dialog-preset-${preset}-button",
+        params: {
+          preset: { type: "enum", values: ["desktop", "mobile", "custom"] },
+        },
+      }),
+    },
+  },
+  workflowBuilder: {
+    nodes: {
+      upload: {
+        pathCount: defineDynamicSelector({
+          description: "Upload node selected path count chip",
+          testIdPattern: "upload-node-${id}-path-count",
+          params: { id: { type: "string" } },
+        }),
+      },
+    },
+  },
+  projects: {
+    cardByName: defineDynamicSelector({
+      description: "Dashboard project card filtered by name",
+      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
+      params: { name: { type: "string" } },
+    }),
+  },
+  workflows: {
+    cardByName: defineDynamicSelector({
+      description: "Workflow list card filtered by name",
+      selectorPattern: '[data-testid="workflow-card"][data-workflow-name="${name}"]',
+      params: { name: { type: "string" } },
+    }),
+  },
+} as const satisfies DynamicSelectorTree;
+
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+
+export const selectors = registry.selectors;
+export type Selectors = typeof selectors;
+export const selectorsManifest = registry.manifest;

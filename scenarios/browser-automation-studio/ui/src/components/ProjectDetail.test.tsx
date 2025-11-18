@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "@/test-utils/testHelpers";
 import type { Project } from "@stores/projectStore";
 import ProjectDetail from "@components/ProjectDetail";
-import { testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 const mockDeleteProject = vi.fn();
 const mockBulkDeleteWorkflows = vi.fn();
@@ -72,12 +72,12 @@ vi.mock("react-hot-toast", () => ({
 
 vi.mock("./ExecutionViewer", () => ({
   __esModule: true,
-  default: () => <div data-testid={testIds.executionViewerMock} />,
+  default: () => <div data-testid={selectors.executions.mock.viewer} />,
 }));
 
 vi.mock("./ExecutionHistory", () => ({
   __esModule: true,
-  default: () => <div data-testid={testIds.executionHistoryMock} />,
+  default: () => <div data-testid={selectors.executions.mock.history} />,
 }));
 
 vi.mock("../utils/logger", () => ({
@@ -161,7 +161,7 @@ describe("ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]",
     );
 
     const executeButtons = await screen.findAllByTestId(
-      testIds.workflowExecuteButton,
+      selectors.workflowBuilder.executeButton,
     );
     await user.click(executeButtons[0]);
 

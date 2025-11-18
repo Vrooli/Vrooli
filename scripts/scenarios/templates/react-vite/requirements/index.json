@@ -10,7 +10,7 @@
       "title": "Technical requirement placeholder",
       "status": "planned",
       "criticality": "P0",
-      "prd_ref": "Operational Targets > P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "children": [
         "SCENARIO-FEATURE-FOUNDATION"
       ]

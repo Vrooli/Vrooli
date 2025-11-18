@@ -51,7 +51,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import type { Node, Edge } from "reactflow";
-import { testIds } from "../../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 const useWorkflowStoreMock = vi.hoisted(() => vi.fn());
 
@@ -116,7 +116,7 @@ vi.mock("@monaco-editor/react", () => ({
     onChange: (value?: string) => void;
   }) => (
     <textarea
-      data-testid={testIds.monacoEditor}
+      data-testid={selectors.workflowBuilder.monacoEditor}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -152,7 +152,7 @@ vi.mock("reactflow", () => {
     edges,
   }: any) => (
     <div
-      data-testid={testIds.reactFlowCanvas}
+      data-testid={selectors.workflowBuilder.canvas.reactFlow}
       onDrop={onDrop}
       onDragOver={onDragOver}
       data-nodes-count={nodes?.length || 0}
@@ -178,8 +178,8 @@ vi.mock("reactflow", () => {
     ReactFlowProvider: ({ children }: { children: React.ReactNode }) => (
       <div>{children}</div>
     ),
-    MiniMap: () => <div data-testid={testIds.minimap} />,
-    Background: () => <div data-testid={testIds.appBackground} />,
+    MiniMap: () => <div data-testid={selectors.workflowBuilder.canvas.minimap} />,
+    Background: () => <div data-testid={selectors.app.background} />,
     BackgroundVariant: { Dots: "dots" },
     MarkerType: { ArrowClosed: "arrowclosed" },
     ConnectionMode: { Loose: "loose" },

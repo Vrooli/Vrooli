@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { WorkflowVariableInfo } from "../hooks/useWorkflowVariables";
-import { testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 interface VariableSuggestionListProps {
   variables: WorkflowVariableInfo[];
@@ -17,7 +17,7 @@ function VariableSuggestionList({
     return (
       <p
         className="mt-1 text-[10px] text-gray-500"
-        data-testid={testIds.variableSuggestionsEmpty}
+        data-testid={selectors.variables.suggestionsEmpty}
       >
         {emptyHint ??
           "Define a variable earlier in the workflow to reference it here."}
@@ -28,7 +28,7 @@ function VariableSuggestionList({
   return (
     <div
       className="mt-1 flex flex-wrap gap-1"
-      data-testid={testIds.variableSuggestions}
+      data-testid={selectors.variables.suggestions}
     >
       {variables.map((variable) => (
         <button

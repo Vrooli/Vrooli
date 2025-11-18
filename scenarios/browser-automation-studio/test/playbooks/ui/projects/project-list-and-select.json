@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for projects grid to load",
-        "selector": "@selector/projectsGrid",
+        "selector": "@selector/projects.grid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Projects grid is visible",
-        "selector": "@selector/projectsGrid /*dup-1*/",
+        "selector": "@selector/projects.grid /*dup-1*/",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Projects grid should be visible on dashboard"
@@ -68,7 +68,7 @@
       },
       "data": {
         "label": "At least one project card exists",
-        "selector": "@selector/projectCard",
+        "selector": "@selector/projects.card",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "At least one project should be visible in the grid"
@@ -96,7 +96,7 @@
       },
       "data": {
         "label": "Click first project card",
-        "selector": "@selector/projectCard:first-of-type",
+        "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }

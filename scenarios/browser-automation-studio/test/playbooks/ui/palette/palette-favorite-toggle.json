@@ -46,7 +46,7 @@
       },
       "data": {
         "label": "Node cards are visible in palette",
-        "selector": "@selector/nodePaletteNavigateCard",
+        "selector": "@selector/nodePalette.cards.navigate",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Node palette cards should be visible"
@@ -61,7 +61,7 @@
       },
       "data": {
         "label": "Favorite button exists on node card",
-        "selector": "@selector/nodePaletteNavigateFavoriteButton",
+        "selector": "@selector/nodePalette.favoriteButton(type=\"navigate\")",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Favorite button should exist on node cards"
@@ -89,7 +89,7 @@
       },
       "data": {
         "label": "Click favorite button to toggle",
-        "selector": "@selector/nodePaletteNavigateFavoriteButton /*dup-1*/",
+        "selector": "@selector/nodePalette.favoriteButton(type=\"navigate\")",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }

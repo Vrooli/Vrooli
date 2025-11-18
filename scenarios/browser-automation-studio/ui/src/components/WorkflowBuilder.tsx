@@ -65,7 +65,7 @@ import type {
   ExecutionViewportSettings,
   ViewportPreset,
 } from "../stores/workflowStore";
-import { dynamicTestIds, testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 import { validateWorkflowDefinition } from "../utils/workflowValidation";
 import type {
   WorkflowDefinition,
@@ -745,7 +745,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
     <div
       ref={graphContainerRef}
       className="flex-1 relative"
-      data-testid={testIds.workflowBuilderCanvas}
+      data-testid={selectors.workflowBuilder.canvas.root}
     >
       {viewMode === "visual" && (
         <WorkflowToolbar
@@ -765,13 +765,13 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
 
       <div
         className="absolute top-4 right-4 z-10 flex items-center gap-2"
-        data-testid={testIds.workflowBuilderViewModeToggle}
+        data-testid={selectors.workflowBuilder.viewModeToggle}
       >
         <button
           onClick={() => handleViewModeChange("visual")}
           className={`toolbar-button ${viewMode === "visual" ? "active" : ""}`}
           title="Visual Builder"
-          data-testid={testIds.workflowBuilderVisualModeButton}
+          data-testid={selectors.workflowBuilder.visualModeButton}
         >
           <Eye size={18} />
         </button>
@@ -779,7 +779,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           onClick={() => handleViewModeChange("code")}
           className={`toolbar-button ${viewMode === "code" ? "active" : ""}`}
           title="JSON Editor"
-          data-testid={testIds.workflowBuilderCodeModeButton}
+          data-testid={selectors.workflowBuilder.code.modeButton}
         >
           <Code size={18} />
         </button>
@@ -809,7 +809,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           nodesConnectable={!locked}
           elementsSelectable={!locked}
           edgesUpdatable={!locked}
-          data-testid={testIds.workflowBuilderCanvas}
+          data-testid={selectors.workflowBuilder.canvas.root}
         >
           <MiniMap
             nodeStrokeColor={(node) => {
@@ -868,11 +868,11 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       ) : (
         <div
           className="absolute inset-0 flex flex-col bg-[#1e1e1e] border border-gray-800 rounded-lg overflow-hidden"
-          data-testid={testIds.workflowBuilderCodeView}
+          data-testid={selectors.workflowBuilder.code.view}
         >
           <div
             className="flex-1 overflow-hidden"
-            data-testid={testIds.workflowBuilderCodeEditorContainer}
+            data-testid={selectors.workflowBuilder.code.editorContainer}
           >
             <Editor
               height="100%"
@@ -880,7 +880,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
               value={codeValue}
               onChange={handleCodeChange}
               theme="vs-dark"
-              data-testid={testIds.workflowBuilderCodeEditor}
+              data-testid={selectors.workflowBuilder.code.editor}
               options={{
                 minimap: { enabled: false },
                 fontSize: 13,
@@ -902,12 +902,12 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           </div>
           <div
             className="flex items-center justify-between border-t border-gray-800 bg-[#252526] px-4 py-3"
-            data-testid={testIds.workflowBuilderCodeToolbar}
+            data-testid={selectors.workflowBuilder.code.toolbar}
           >
             <div className="flex items-center gap-3">
               <div
                 className="text-xs text-gray-400"
-                data-testid={testIds.workflowBuilderCodeLineCount}
+                data-testid={selectors.workflowBuilder.code.lineCount}
               >
                 {codeValue.split("\n").length} lines
               </div>
@@ -916,7 +916,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                   <div className="w-px h-4 bg-gray-700" />
                   <div
                     className="text-xs text-red-400"
-                    data-testid={testIds.workflowBuilderCodeError}
+                    data-testid={selectors.workflowBuilder.code.error}
                   >
                     {codeError}
                   </div>
@@ -927,7 +927,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                   <div className="w-px h-4 bg-gray-700" />
                   <div
                     className={`text-xs ${validationResult.valid ? "text-emerald-400" : "text-red-400"}`}
-                    data-testid={testIds.workflowBuilderCodeValidation}
+                    data-testid={selectors.workflowBuilder.code.validation}
                   >
                     {validationResult.valid
                       ? `Validated · ${validationResult.stats.node_count} nodes`
@@ -941,7 +941,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                 onClick={handleResetCode}
                 className="px-3 py-1.5 rounded-md text-xs bg-gray-700 text-gray-200 hover:bg-gray-600 transition-all disabled:opacity-50"
                 disabled={!codeDirty}
-                data-testid={testIds.workflowBuilderCodeResetButton}
+                data-testid={selectors.workflowBuilder.code.resetButton}
               >
                 Reset
               </button>
@@ -951,7 +951,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
                 }}
                 className="px-3 py-1.5 rounded-md text-xs bg-purple-600 text-white hover:bg-purple-500 transition-all disabled:opacity-50"
                 disabled={!codeDirty || isValidatingCode}
-                data-testid={testIds.workflowBuilderCodeApplyButton}
+                data-testid={selectors.workflowBuilder.code.applyButton}
               >
                 {isValidatingCode ? "Validating…" : "Apply Changes"}
               </button>
@@ -1075,12 +1075,12 @@ function ViewportDialog({
       onDismiss={onDismiss}
       ariaLabel="Configure execution dimensions"
       className="bg-flow-node border border-gray-800 rounded-lg shadow-2xl w-[360px] max-w-[90vw]"
-      data-testid={testIds.workflowBuilderViewportDialog}
+      data-testid={selectors.viewport.dialog.root}
     >
       <div className="px-6 py-4 border-b border-gray-800">
         <h2
           className="text-lg font-semibold text-white"
-          data-testid={testIds.viewportDialogTitle}
+          data-testid={selectors.viewport.dialog.title}
         >
           Execution dimensions
         </h2>
@@ -1107,7 +1107,9 @@ function ViewportDialog({
                       ? "border-flow-accent bg-flow-accent/20 text-white"
                       : "border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white"
                   }`}
-                  data-testid={dynamicTestIds.viewportPresetButton(id)}
+                  data-testid={selectors.viewport.dialog.presetButton({
+                    preset: id,
+                  })}
                 >
                   <span className="font-semibold text-sm">{label}</span>
                   <span className="mt-0.5 text-[11px] text-gray-400">
@@ -1129,7 +1131,7 @@ function ViewportDialog({
               value={widthValue}
               onChange={(event) => handleWidthChange(event.target.value)}
               className="mt-1 w-full rounded-md border border-gray-700 bg-flow-bg px-3 py-2 text-sm text-gray-200 focus:border-flow-accent focus:outline-none"
-              data-testid={testIds.viewportDialogWidthInput}
+              data-testid={selectors.viewport.dialog.widthInput}
             />
           </label>
           <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -1141,7 +1143,7 @@ function ViewportDialog({
               value={heightValue}
               onChange={(event) => handleHeightChange(event.target.value)}
               className="mt-1 w-full rounded-md border border-gray-700 bg-flow-bg px-3 py-2 text-sm text-gray-200 focus:border-flow-accent focus:outline-none"
-              data-testid={testIds.viewportDialogHeightInput}
+              data-testid={selectors.viewport.dialog.heightInput}
             />
           </label>
         </div>
@@ -1154,7 +1156,7 @@ function ViewportDialog({
         {error && (
           <div
             className="rounded-md border border-red-500/60 bg-red-500/10 px-3 py-2 text-xs text-red-300"
-            data-testid={testIds.viewportDialogError}
+            data-testid={selectors.viewport.dialog.error}
           >
             {error}
           </div>
@@ -1166,7 +1168,7 @@ function ViewportDialog({
           type="button"
           className="rounded-md border border-gray-700 bg-flow-bg px-4 py-2 text-sm font-semibold text-gray-300 hover:border-gray-500 hover:text-white"
           onClick={onDismiss}
-          data-testid={testIds.viewportDialogCancelButton}
+          data-testid={selectors.viewport.dialog.cancelButton}
         >
           Cancel
         </button>
@@ -1174,7 +1176,7 @@ function ViewportDialog({
           type="button"
           className="rounded-md bg-flow-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
           onClick={handleSave}
-          data-testid={testIds.viewportDialogSaveButton}
+          data-testid={selectors.viewport.dialog.saveButton}
         >
           Save
         </button>

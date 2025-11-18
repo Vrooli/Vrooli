@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Wait for workflow builder",
-        "selector": "@selector/workflowBuilderCodeModeButton",
+        "selector": "@selector/workflowBuilder.code.modeButton",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -61,7 +61,7 @@
       },
       "data": {
         "label": "Drag Navigate node onto canvas",
-        "sourceSelector": "@selector/nodePaletteNavigateCard",
+        "sourceSelector": "@selector/nodePalette.cards.navigate",
         "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
         "waitForMs": 2000
@@ -161,7 +161,7 @@
       },
       "data": {
         "label": "Switch to URL mode",
-        "selector": ".react-flow__node.selected[data-type=\"navigate\"] button@selector/urlModeButton",
+        "selector": ".react-flow__node.selected[data-type=\"navigate\"] button@selector/nodeProperties.urlModeButton",
         "timeoutMs": 5000,
         "waitForMs": 500,
         "continueOnError": true

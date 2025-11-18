@@ -3,7 +3,7 @@ import { logger } from "../utils/logger";
 import { X, FolderOpen, AlertCircle } from "lucide-react";
 import { useProjectStore, Project } from "../stores/projectStore";
 import ResponsiveDialog from "./ResponsiveDialog";
-import { testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 const normalizePath = (value: string) => value.replace(/\\/g, "/");
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, "");
@@ -225,7 +225,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
       ariaLabelledBy={titleId}
       size="default"
       className="bg-flow-node border border-gray-700 shadow-2xl"
-      data-testid={testIds.projectModal}
+      data-testid={selectors.dialogs.project.root}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-gray-700">
@@ -238,7 +238,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
           </h2>
         </div>
         <button
-          data-testid={testIds.dialogCloseButton}
+          data-testid={selectors.dialogs.base.closeButton}
           onClick={onClose}
           className="text-gray-400 hover:text-white transition-colors"
           aria-label="Close project modal"
@@ -249,7 +249,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
 
       {/* Form */}
       <form
-        data-testid={testIds.projectModalForm}
+        data-testid={selectors.dialogs.project.form}
         onSubmit={handleSubmit}
         className="p-6"
       >
@@ -268,7 +268,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
           </label>
           <input
             type="text"
-            data-testid={testIds.projectModalNameInput}
+            data-testid={selectors.dialogs.project.nameInput}
             value={formData.name}
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, name: e.target.value }))
@@ -281,7 +281,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
           {validationErrors.name && (
             <p
               className="mt-1 text-red-400 text-xs"
-              data-testid={testIds.projectModalNameError}
+              data-testid={selectors.dialogs.project.nameError}
             >
               {validationErrors.name}
             </p>
@@ -294,7 +294,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
             Description
           </label>
           <textarea
-            data-testid={testIds.projectModalDescriptionInput}
+            data-testid={selectors.dialogs.project.descriptionInput}
             value={formData.description}
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, description: e.target.value }))
@@ -360,7 +360,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
         <div className="flex justify-end gap-3">
           <button
             type="button"
-            data-testid={testIds.projectModalCancel}
+            data-testid={selectors.dialogs.project.cancelButton}
             onClick={onClose}
             className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
             disabled={isSubmitting}
@@ -369,7 +369,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
           </button>
           <button
             type="submit"
-            data-testid={testIds.projectModalSubmit}
+            data-testid={selectors.dialogs.project.submitButton}
             disabled={isSubmitting || isLoading}
             className="px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >

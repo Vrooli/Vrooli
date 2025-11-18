@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Click Execution History tab",
-        "selector": "@selector/executionsTab, button[aria-label*='execution'], button[aria-label*='history']",
+        "selector": "@selector/projects.tabs.executions",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }
@@ -60,7 +60,7 @@
       },
       "data": {
         "label": "Filter to failed executions",
-        "selector": "@selector/executionFilter(filter=failed)",
+        "selector": "@selector/executions.filters.filter(filter=failed)",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
@@ -100,7 +100,7 @@
       },
       "data": {
         "label": "Check if executions are visible",
-        "expression": "document.querySelectorAll('@selector/executionItem, @selector/executionCard, @selector/executionViewButton').length > 0",
+        "expression": "document.querySelectorAll('@selector/executions.list.item, @selector/executions.list.card, @selector/executions.actions.viewButton').length > 0",
         "storeAs": "hasExecutions"
       }
     },
@@ -113,7 +113,7 @@
       },
       "data": {
         "label": "Click first execution (if exists)",
-        "selector": "@selector/executionItem:first-of-type, @selector/executionCard:first-of-type, @selector/executionViewButton:first-of-type",
+        "selector": "@selector/executions.list.item:first-of-type, @selector/executions.list.card:first-of-type, @selector/executions.actions.viewButton:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000,
         "continueOnError": true
@@ -141,7 +141,7 @@
       },
       "data": {
         "label": "Check if execution viewer is visible",
-        "expression": "document.querySelector('@selector/executionViewer, @selector/executionLogs, @selector/executionScreenshots') !== null",
+        "expression": "document.querySelector('@selector/executions.viewer.root, @selector/executions.viewer.logs, @selector/executions.viewer.screenshots') !== null",
         "storeAs": "viewerVisible"
       }
     },

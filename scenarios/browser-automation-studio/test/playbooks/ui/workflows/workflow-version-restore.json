@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for dashboard",
-        "selector": "@selector/projectsGrid",
+        "selector": "@selector/projects.grid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Open first project",
-        "selector": "@selector/projectCard:first-of-type",
+        "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -82,7 +82,7 @@
       },
       "data": {
         "label": "Check if workflows exist",
-        "expression": "document.querySelectorAll('@selector/workflowCard').length > 0",
+        "expression": "document.querySelectorAll('@selector/workflows.card').length > 0",
         "storeAs": "hasWorkflows"
       }
     },
@@ -95,7 +95,7 @@
       },
       "data": {
         "label": "Open first workflow",
-        "selector": "@selector/workflowCard:first-of-type",
+        "selector": "@selector/workflows.card:first-of-type",
         "timeoutMs": 10000,
         "waitForMs": 2000,
         "continueOnError": true
@@ -123,7 +123,7 @@
       },
       "data": {
         "label": "Check for version history button",
-        "expression": "!!document.querySelector('@selector/headerVersionHistoryButton, @selector/headerVersionHistoryCloseButton)')",
+        "expression": "!!document.querySelector('@selector/header.buttons.versionHistory, @selector/header.versionHistory.closeButton)')",
         "storeAs": "versionButtonExists"
       }
     },
@@ -136,7 +136,7 @@
       },
       "data": {
         "label": "Open version history",
-        "selector": "@selector/headerVersionHistoryButton",
+        "selector": "@selector/header.buttons.versionHistory",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }
@@ -163,7 +163,7 @@
       },
       "data": {
         "label": "Verify version list is visible",
-        "expression": "document.querySelector('@selector/headerVersionHistoryDialog, @selector/headerVersionHistoryCloseButton)') !== null",
+        "expression": "document.querySelector('@selector/header.versionHistory.dialog, @selector/header.versionHistory.closeButton)') !== null",
         "storeAs": "versionListVisible"
       }
     },
@@ -189,7 +189,7 @@
       },
       "data": {
         "label": "Check for restore buttons",
-        "expression": "document.querySelectorAll('@selector/headerVersionHistoryButton, @selector/headerVersionConflictRefreshButton, @selector/headerVersionConflictForceSaveButton').length > 0",
+        "expression": "document.querySelectorAll('@selector/header.buttons.versionHistory, @selector/header.buttons.versionConflictRefresh, @selector/header.buttons.versionConflictForceSave').length > 0",
         "storeAs": "hasRestoreButtons"
       }
     },

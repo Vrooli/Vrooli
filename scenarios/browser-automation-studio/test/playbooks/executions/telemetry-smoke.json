@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for demo project card",
-        "selector": "[data-project-name=\"Demo Browser Automations\"]@selector/projectCard",
+        "selector": "[data-project-name=\"Demo Browser Automations\"]@selector/projects.card",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Open demo project",
-        "selector": "@selector/projectCard[data-project-name=\"Demo Browser Automations\"]",
+        "selector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 10000,
         "waitForMs": 1000
       }
@@ -82,7 +82,7 @@
       },
       "data": {
         "label": "Execute demo workflow",
-        "selector": "@selector/workflowExecuteButton",
+        "selector": "@selector/workflowBuilder.executeButton",
         "timeoutMs": 10000,
         "waitForMs": 1500
       }
@@ -96,7 +96,7 @@
       },
       "data": {
         "label": "Wait for execution viewer",
-        "selector": "@selector/executionViewer",
+        "selector": "@selector/executions.viewer.root",
         "timeoutMs": 20000,
         "waitForMs": 2000,
         "waitType": "element"
@@ -111,7 +111,7 @@
       },
       "data": {
         "label": "Execution progress visible",
-        "selector": "@selector/executionStatus, @selector/heartbeatIndicator",
+        "selector": "@selector/executions.viewer.status, @selector/heartbeat.indicator",
         "assertMode": "exists",
         "timeoutMs": 10000,
         "failureMessage": "Execution should display progress indicator"
@@ -126,7 +126,7 @@
       },
       "data": {
         "label": "Execution has status indicator",
-        "selector": "@selector/executionStatus",
+        "selector": "@selector/executions.viewer.status",
         "assertMode": "exists",
         "timeoutMs": 10000,
         "failureMessage": "Execution viewer should display execution status"
@@ -141,7 +141,7 @@
       },
       "data": {
         "label": "Execution viewer is functional",
-        "selector": "@selector/executionTabLogs, @selector/executionTabScreenshots",
+        "selector": "@selector/executions.tabs.logs, @selector/executions.tabs.screenshots",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Execution viewer should render with tabs"

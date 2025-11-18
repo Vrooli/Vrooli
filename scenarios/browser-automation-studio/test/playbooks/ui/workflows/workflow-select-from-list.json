@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for dashboard",
-        "selector": "@selector/projectsGrid",
+        "selector": "@selector/projects.grid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Open first project",
-        "selector": "@selector/projectCard:first-of-type",
+        "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -82,7 +82,7 @@
       },
       "data": {
         "label": "Check if on workflows tab",
-        "expression": "document.querySelector('@selector/workflowCard, @selector/workflowSearchInput, @selector/workflowToolbar)') !== null",
+        "expression": "document.querySelector('@selector/workflows.card, @selector/workflowBuilder.search.input, @selector/toolbar.root)') !== null",
         "storeAs": "onWorkflowsTab"
       }
     },
@@ -108,7 +108,7 @@
       },
       "data": {
         "label": "Verify workflows are listed",
-        "expression": "document.querySelectorAll('@selector/workflowCard').length > 0",
+        "expression": "document.querySelectorAll('@selector/workflows.card').length > 0",
         "storeAs": "hasWorkflows"
       }
     },
@@ -134,7 +134,7 @@
       },
       "data": {
         "label": "Click first workflow in list",
-        "selector": "@selector/workflowCard:first-of-type",
+        "selector": "@selector/workflows.card:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2500
       }

@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Wait for builder to load",
-        "selector": "@selector/workflowBuilderCodeModeButton",
+        "selector": "@selector/workflowBuilder.code.modeButton",
         "timeoutMs": 15000,
         "waitType": "element"
       }

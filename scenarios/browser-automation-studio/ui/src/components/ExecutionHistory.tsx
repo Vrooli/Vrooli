@@ -14,7 +14,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { useExecutionStore } from "../stores/executionStore";
 import { logger } from "../utils/logger";
 import { usePopoverPosition } from "../hooks/usePopoverPosition";
-import { dynamicTestIds, testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 interface ExecutionHistoryProps {
   workflowId?: string;
@@ -288,7 +288,7 @@ function ExecutionHistory({
   return (
     <div
       className="flex flex-col h-full"
-      data-testid={testIds.executionHistory}
+      data-testid={selectors.executions.list.root}
     >
       {/* Header with filters */}
       <div className="p-4 border-b border-gray-800 space-y-2">
@@ -298,7 +298,7 @@ function ExecutionHistory({
           {STATUS_FILTERS.map((filter) => (
             <button
               key={filter}
-              data-testid={dynamicTestIds.executionFilter(filter)}
+              data-testid={selectors.executions.filters.filter({ filter })}
               onClick={() => setStatusFilter(filter)}
               className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                 statusFilter === filter
@@ -310,7 +310,7 @@ function ExecutionHistory({
             </button>
           ))}
           <button
-            data-testid={testIds.executionHistoryRefresh}
+            data-testid={selectors.executions.list.refreshButton}
             onClick={handleRefresh}
             disabled={isRefreshing}
             className="ml-auto p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -393,7 +393,7 @@ function ExecutionHistory({
       {/* Execution list */}
       <div
         className="flex-1 overflow-auto"
-        data-testid={testIds.executionHistoryList}
+        data-testid={selectors.executions.list.list}
       >
         {filteredExecutions.length === 0 ? (
           <div className="flex items-center justify-center h-full p-8">
@@ -416,7 +416,7 @@ function ExecutionHistory({
             {filteredExecutions.map((execution) => (
               <div
                 key={execution.id}
-                data-testid={testIds.executionItem}
+                data-testid={selectors.executions.list.item}
                 data-execution-id={execution.id}
                 data-execution-status={execution.status}
                 onClick={() => onSelectExecution?.(execution)}
@@ -487,7 +487,7 @@ function ExecutionHistory({
                   {/* View button */}
                   {onSelectExecution && (
                     <button
-                      data-testid={testIds.executionViewButton}
+                      data-testid={selectors.executions.actions.viewButton}
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectExecution(execution);

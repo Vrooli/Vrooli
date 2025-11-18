@@ -1,0 +1,804 @@
+{
+  "schemaVersion": "2025.11",
+  "generatedAt": "2025-11-18T17:37:58.872Z",
+  "selectors": {
+    "app.shell.ready": {
+      "testId": "app-ready",
+      "selector": "[data-testid=\"app-ready\"]"
+    },
+    "app.background": {
+      "testId": "background",
+      "selector": "[data-testid=\"background\"]"
+    },
+    "ai.modal.root": {
+      "testId": "ai-prompt-modal",
+      "selector": "[data-testid=\"ai-prompt-modal\"]"
+    },
+    "ai.modal.generateButton": {
+      "testId": "ai-generate-button",
+      "selector": "[data-testid=\"ai-generate-button\"]"
+    },
+    "ai.modal.promptInput": {
+      "testId": "ai-prompt-input",
+      "selector": "[data-testid=\"ai-prompt-input\"]"
+    },
+    "ai.modal.workflowNameInput": {
+      "testId": "ai-workflow-name-input",
+      "selector": "[data-testid=\"ai-workflow-name-input\"]"
+    },
+    "ai.modal.switchToManualButton": {
+      "testId": "switch-to-manual-button",
+      "selector": "[data-testid=\"switch-to-manual-button\"]"
+    },
+    "breadcrumbs.project": {
+      "testId": "breadcrumb-project",
+      "selector": "[data-testid=\"breadcrumb-project\"]"
+    },
+    "dashboard.newProjectButton": {
+      "testId": "dashboard-new-project-button",
+      "selector": "[data-testid=\"dashboard-new-project-button\"]"
+    },
+    "dialogs.base.closeButton": {
+      "testId": "dialog-close-button",
+      "selector": "[data-testid=\"dialog-close-button\"]"
+    },
+    "dialogs.base.content": {
+      "testId": "dialog-content",
+      "selector": "[data-testid=\"dialog-content\"]"
+    },
+    "dialogs.responsive.content": {
+      "testId": "responsive-dialog-content",
+      "selector": "[data-testid=\"responsive-dialog-content\"]"
+    },
+    "dialogs.responsive.overlay": {
+      "testId": "responsive-dialog-overlay",
+      "selector": "[data-testid=\"responsive-dialog-overlay\"]"
+    },
+    "dialogs.project.root": {
+      "testId": "project-modal",
+      "selector": "[data-testid=\"project-modal\"]"
+    },
+    "dialogs.project.form": {
+      "testId": "project-modal-form",
+      "selector": "[data-testid=\"project-modal-form\"]"
+    },
+    "dialogs.project.nameInput": {
+      "testId": "project-modal-name-input",
+      "selector": "[data-testid=\"project-modal-name-input\"]"
+    },
+    "dialogs.project.nameError": {
+      "testId": "project-modal-name-error",
+      "selector": "[data-testid=\"project-modal-name-error\"]"
+    },
+    "dialogs.project.descriptionInput": {
+      "testId": "project-modal-description-input",
+      "selector": "[data-testid=\"project-modal-description-input\"]"
+    },
+    "dialogs.project.cancelButton": {
+      "testId": "project-modal-cancel",
+      "selector": "[data-testid=\"project-modal-cancel\"]"
+    },
+    "dialogs.project.submitButton": {
+      "testId": "project-modal-submit",
+      "selector": "[data-testid=\"project-modal-submit\"]"
+    },
+    "forms.error": {
+      "testId": "form-error",
+      "selector": "[data-testid=\"form-error\"]"
+    },
+    "executions.tabs.executions": {
+      "testId": "execution-tab-executions",
+      "selector": "[data-testid=\"execution-tab-executions\"]"
+    },
+    "executions.tabs.logs": {
+      "testId": "execution-tab-logs",
+      "selector": "[data-testid=\"execution-tab-logs\"]"
+    },
+    "executions.tabs.replay": {
+      "testId": "execution-tab-replay",
+      "selector": "[data-testid=\"execution-tab-replay\"]"
+    },
+    "executions.tabs.screenshots": {
+      "testId": "execution-tab-screenshots",
+      "selector": "[data-testid=\"execution-tab-screenshots\"]"
+    },
+    "executions.filters.all": {
+      "testId": "execution-filter-all",
+      "selector": "[data-testid=\"execution-filter-all\"]"
+    },
+    "executions.list.root": {
+      "testId": "execution-history",
+      "selector": "[data-testid=\"execution-history\"]"
+    },
+    "executions.list.list": {
+      "testId": "execution-history-list",
+      "selector": "[data-testid=\"execution-history-list\"]"
+    },
+    "executions.list.refreshButton": {
+      "testId": "execution-history-refresh",
+      "selector": "[data-testid=\"execution-history-refresh\"]"
+    },
+    "executions.list.item": {
+      "testId": "execution-item",
+      "selector": "[data-testid=\"execution-item\"]"
+    },
+    "executions.list.card": {
+      "testId": "execution-card",
+      "selector": "[data-testid=\"execution-card\"]"
+    },
+    "executions.mock.history": {
+      "testId": "execution-history-mock",
+      "selector": "[data-testid=\"execution-history-mock\"]"
+    },
+    "executions.mock.viewer": {
+      "testId": "execution-viewer-mock",
+      "selector": "[data-testid=\"execution-viewer-mock\"]"
+    },
+    "executions.viewer.root": {
+      "testId": "execution-viewer",
+      "selector": "[data-testid=\"execution-viewer\"]"
+    },
+    "executions.viewer.status": {
+      "testId": "execution-status",
+      "selector": "[data-testid=\"execution-status\"]"
+    },
+    "executions.viewer.statusCancelled": {
+      "testId": "execution-status-cancelled",
+      "selector": "[data-testid=\"execution-status-cancelled\"]"
+    },
+    "executions.viewer.statusCompleted": {
+      "testId": "execution-status-completed",
+      "selector": "[data-testid=\"execution-status-completed\"]"
+    },
+    "executions.viewer.statusFailed": {
+      "testId": "execution-status-failed",
+      "selector": "[data-testid=\"execution-status-failed\"]"
+    },
+    "executions.viewer.stopButton": {
+      "testId": "execution-stop-button",
+      "selector": "[data-testid=\"execution-stop-button\"]"
+    },
+    "executions.viewer.logs": {
+      "testId": "execution-logs",
+      "selector": "[data-testid=\"execution-logs\"]"
+    },
+    "executions.viewer.screenshots": {
+      "testId": "execution-screenshots",
+      "selector": "[data-testid=\"execution-screenshots\"]"
+    },
+    "executions.viewer.screenshot": {
+      "testId": "execution-screenshot",
+      "selector": "[data-testid=\"execution-screenshot\"]"
+    },
+    "executions.navigation.executionsTab": {
+      "testId": "executions-tab",
+      "selector": "[data-testid=\"executions-tab\"]"
+    },
+    "executions.actions.viewButton": {
+      "testId": "execution-view-button",
+      "selector": "[data-testid=\"execution-view-button\"]"
+    },
+    "executions.actions.exportReplayButton": {
+      "testId": "export-replay-button",
+      "selector": "[data-testid=\"export-replay-button\"]"
+    },
+    "executions.actions.exportConfirmButton": {
+      "testId": "export-confirm-button",
+      "selector": "[data-testid=\"export-confirm-button\"]"
+    },
+    "executions.export.inProgress": {
+      "testId": "export-in-progress",
+      "selector": "[data-testid=\"export-in-progress\"]"
+    },
+    "executions.logEntry": {
+      "testId": "log-entry",
+      "selector": "[data-testid=\"log-entry\"]"
+    },
+    "header.root": {
+      "testId": "header",
+      "selector": "[data-testid=\"header\"]"
+    },
+    "header.buttons.debug": {
+      "testId": "header-debug-button",
+      "selector": "[data-testid=\"header-debug-button\"]"
+    },
+    "header.buttons.execute": {
+      "testId": "header-execute-button",
+      "selector": "[data-testid=\"header-execute-button\"]"
+    },
+    "header.buttons.info": {
+      "testId": "header-info-button",
+      "selector": "[data-testid=\"header-info-button\"]"
+    },
+    "header.buttons.infoClose": {
+      "testId": "header-info-close-button",
+      "selector": "[data-testid=\"header-info-close-button\"]"
+    },
+    "header.buttons.versionHistory": {
+      "testId": "header-version-history-button",
+      "selector": "[data-testid=\"header-version-history-button\"]"
+    },
+    "header.buttons.backToProject": {
+      "testId": "header-back-to-project-button",
+      "selector": "[data-testid=\"header-back-to-project-button\"]"
+    },
+    "header.buttons.backToDashboard": {
+      "testId": "header-back-to-dashboard-button",
+      "selector": "[data-testid=\"header-back-to-dashboard-button\"]"
+    },
+    "header.buttons.saveRetry": {
+      "testId": "header-save-retry-button",
+      "selector": "[data-testid=\"header-save-retry-button\"]"
+    },
+    "header.buttons.saveErrorDetails": {
+      "testId": "header-save-error-details-button",
+      "selector": "[data-testid=\"header-save-error-details-button\"]"
+    },
+    "header.buttons.saveErrorDismiss": {
+      "testId": "header-save-error-dismiss-button",
+      "selector": "[data-testid=\"header-save-error-dismiss-button\"]"
+    },
+    "header.buttons.versionConflictDetails": {
+      "testId": "header-version-conflict-details-button",
+      "selector": "[data-testid=\"header-version-conflict-details-button\"]"
+    },
+    "header.buttons.versionConflictRefresh": {
+      "testId": "header-version-conflict-refresh-button",
+      "selector": "[data-testid=\"header-version-conflict-refresh-button\"]"
+    },
+    "header.buttons.versionConflictReload": {
+      "testId": "header-version-conflict-reload-button",
+      "selector": "[data-testid=\"header-version-conflict-reload-button\"]"
+    },
+    "header.buttons.versionConflictForceSave": {
+      "testId": "header-version-conflict-force-save-button",
+      "selector": "[data-testid=\"header-version-conflict-force-save-button\"]"
+    },
+    "header.title.input": {
+      "testId": "header-title-input",
+      "selector": "[data-testid=\"header-title-input\"]"
+    },
+    "header.title.saveButton": {
+      "testId": "header-title-save-button",
+      "selector": "[data-testid=\"header-title-save-button\"]"
+    },
+    "header.title.cancelButton": {
+      "testId": "header-title-cancel-button",
+      "selector": "[data-testid=\"header-title-cancel-button\"]"
+    },
+    "header.title.editButton": {
+      "testId": "header-title-edit-button",
+      "selector": "[data-testid=\"header-title-edit-button\"]"
+    },
+    "header.title.text": {
+      "testId": "header-workflow-title",
+      "selector": "[data-testid=\"header-workflow-title\"]"
+    },
+    "header.info.popover": {
+      "testId": "header-info-popover",
+      "selector": "[data-testid=\"header-info-popover\"]"
+    },
+    "header.saveStatus.indicator": {
+      "testId": "header-save-status-indicator",
+      "selector": "[data-testid=\"header-save-status-indicator\"]"
+    },
+    "header.saveError.dialog": {
+      "testId": "header-save-error-dialog",
+      "selector": "[data-testid=\"header-save-error-dialog\"]"
+    },
+    "header.saveError.dialogCloseButton": {
+      "testId": "header-save-error-dialog-close-button",
+      "selector": "[data-testid=\"header-save-error-dialog-close-button\"]"
+    },
+    "header.versionHistory.dialog": {
+      "testId": "header-version-history-dialog",
+      "selector": "[data-testid=\"header-version-history-dialog\"]"
+    },
+    "header.versionHistory.closeButton": {
+      "testId": "header-version-history-close-button",
+      "selector": "[data-testid=\"header-version-history-close-button\"]"
+    },
+    "heartbeat.indicator": {
+      "testId": "heartbeat-indicator",
+      "selector": "[data-testid=\"heartbeat-indicator\"]"
+    },
+    "heartbeat.status": {
+      "testId": "heartbeat-status",
+      "selector": "[data-testid=\"heartbeat-status\"]"
+    },
+    "heartbeat.lagWarning": {
+      "testId": "heartbeat-lag-warning",
+      "selector": "[data-testid=\"heartbeat-lag-warning\"]"
+    },
+    "nodePalette.container": {
+      "testId": "node-palette-container",
+      "selector": "[data-testid=\"node-palette-container\"]"
+    },
+    "nodePalette.searchInput": {
+      "testId": "node-palette-search-input",
+      "selector": "[data-testid=\"node-palette-search-input\"]"
+    },
+    "nodePalette.quickAccess": {
+      "testId": "node-palette-quick-access",
+      "selector": "[data-testid=\"node-palette-quick-access\"]"
+    },
+    "nodePalette.quickAccessToggle": {
+      "testId": "node-palette-quick-access-toggle",
+      "selector": "[data-testid=\"node-palette-quick-access-toggle\"]"
+    },
+    "nodePalette.favorites.section": {
+      "testId": "node-palette-favorites-section",
+      "selector": "[data-testid=\"node-palette-favorites-section\"]"
+    },
+    "nodePalette.recents.section": {
+      "testId": "node-palette-recents-section",
+      "selector": "[data-testid=\"node-palette-recents-section\"]"
+    },
+    "nodePalette.recents.clearButton": {
+      "testId": "node-palette-clear-recents-button",
+      "selector": "[data-testid=\"node-palette-clear-recents-button\"]"
+    },
+    "nodePalette.cards.assert": {
+      "testId": "node-palette-assert-card",
+      "selector": "[data-testid=\"node-palette-assert-card\"]"
+    },
+    "nodePalette.cards.click": {
+      "testId": "node-palette-click-card",
+      "selector": "[data-testid=\"node-palette-click-card\"]"
+    },
+    "nodePalette.cards.dragDrop": {
+      "testId": "node-palette-dragDrop-card",
+      "selector": "[data-testid=\"node-palette-dragDrop-card\"]"
+    },
+    "nodePalette.cards.navigate": {
+      "testId": "node-palette-navigate-card",
+      "selector": "[data-testid=\"node-palette-navigate-card\"]"
+    },
+    "nodePalette.cards.screenshot": {
+      "testId": "node-palette-screenshot-card",
+      "selector": "[data-testid=\"node-palette-screenshot-card\"]"
+    },
+    "nodePalette.cards.setVariable": {
+      "testId": "node-palette-setVariable-card",
+      "selector": "[data-testid=\"node-palette-setVariable-card\"]"
+    },
+    "nodePalette.cards.useVariable": {
+      "testId": "node-palette-useVariable-card",
+      "selector": "[data-testid=\"node-palette-useVariable-card\"]"
+    },
+    "nodePalette.cards.wait": {
+      "testId": "node-palette-wait-card",
+      "selector": "[data-testid=\"node-palette-wait-card\"]"
+    },
+    "nodePalette.categories.navigationToggle": {
+      "testId": "node-palette-category-navigation-toggle",
+      "selector": "[data-testid=\"node-palette-category-navigation-toggle\"]"
+    },
+    "nodePalette.noResults": {
+      "testId": "node-palette-no-results",
+      "selector": "[data-testid=\"node-palette-no-results\"]"
+    },
+    "nodeProperties.urlInput": {
+      "testId": "node-property-url-input",
+      "selector": "[data-testid=\"node-property-url-input\"]"
+    },
+    "nodeProperties.urlModeButton": {
+      "testId": "url-mode-button",
+      "selector": "[data-testid=\"url-mode-button\"]"
+    },
+    "projects.grid": {
+      "testId": "projects-grid",
+      "selector": "[data-testid=\"projects-grid\"]"
+    },
+    "projects.card": {
+      "testId": "project-card",
+      "selector": "[data-testid=\"project-card\"]"
+    },
+    "projects.cardTitle": {
+      "testId": "project-card-title",
+      "selector": "[data-testid=\"project-card-title\"]"
+    },
+    "projects.editButton": {
+      "testId": "project-edit-button",
+      "selector": "[data-testid=\"project-edit-button\"]"
+    },
+    "projects.search.input": {
+      "testId": "projects-search-input",
+      "selector": "[data-testid=\"projects-search-input\"]"
+    },
+    "projects.search.clearButton": {
+      "testId": "projects-search-clear",
+      "selector": "[data-testid=\"projects-search-clear\"]"
+    },
+    "projects.tabs.executions": {
+      "testId": "project-tab-executions",
+      "selector": "[data-testid=\"project-tab-executions\"]"
+    },
+    "replay.player": {
+      "testId": "replay-player",
+      "selector": "[data-testid=\"replay-player\"]"
+    },
+    "replay.screenshot": {
+      "testId": "replay-screenshot",
+      "selector": "[data-testid=\"replay-screenshot\"]"
+    },
+    "replay.timeline": {
+      "testId": "replay-timeline",
+      "selector": "[data-testid=\"replay-timeline\"]"
+    },
+    "replay.viewer": {
+      "testId": "replay-viewer",
+      "selector": "[data-testid=\"replay-viewer\"]"
+    },
+    "timeline.frame": {
+      "testId": "timeline-frame",
+      "selector": "[data-testid=\"timeline-frame\"]"
+    },
+    "toolbar.root": {
+      "testId": "workflow-toolbar",
+      "selector": "[data-testid=\"workflow-toolbar\"]"
+    },
+    "toolbar.zoomInButton": {
+      "testId": "toolbar-zoom-in-button",
+      "selector": "[data-testid=\"toolbar-zoom-in-button\"]"
+    },
+    "toolbar.zoomOutButton": {
+      "testId": "toolbar-zoom-out-button",
+      "selector": "[data-testid=\"toolbar-zoom-out-button\"]"
+    },
+    "toolbar.fitViewButton": {
+      "testId": "toolbar-fit-view-button",
+      "selector": "[data-testid=\"toolbar-fit-view-button\"]"
+    },
+    "toolbar.configureViewportButton": {
+      "testId": "toolbar-configure-viewport-button",
+      "selector": "[data-testid=\"toolbar-configure-viewport-button\"]"
+    },
+    "toolbar.configureViewportMenuItem": {
+      "testId": "toolbar-configure-viewport-menu-item",
+      "selector": "[data-testid=\"toolbar-configure-viewport-menu-item\"]"
+    },
+    "toolbar.layoutMenu": {
+      "testId": "toolbar-layout-menu",
+      "selector": "[data-testid=\"toolbar-layout-menu\"]"
+    },
+    "toolbar.layoutMenuButton": {
+      "testId": "toolbar-layout-menu-button",
+      "selector": "[data-testid=\"toolbar-layout-menu-button\"]"
+    },
+    "toolbar.lockButton": {
+      "testId": "toolbar-lock-button",
+      "selector": "[data-testid=\"toolbar-lock-button\"]"
+    },
+    "toolbar.unlockButton": {
+      "testId": "toolbar-unlock-button",
+      "selector": "[data-testid=\"toolbar-unlock-button\"]"
+    },
+    "toolbar.redoButton": {
+      "testId": "toolbar-redo-button",
+      "selector": "[data-testid=\"toolbar-redo-button\"]"
+    },
+    "toolbar.undoButton": {
+      "testId": "toolbar-undo-button",
+      "selector": "[data-testid=\"toolbar-undo-button\"]"
+    },
+    "toolbar.duplicateButton": {
+      "testId": "toolbar-duplicate-button",
+      "selector": "[data-testid=\"toolbar-duplicate-button\"]"
+    },
+    "toolbar.deleteButton": {
+      "testId": "toolbar-delete-button",
+      "selector": "[data-testid=\"toolbar-delete-button\"]"
+    },
+    "toolbar.selectionMenu": {
+      "testId": "toolbar-selection-menu",
+      "selector": "[data-testid=\"toolbar-selection-menu\"]"
+    },
+    "toolbar.selectionMenuButton": {
+      "testId": "toolbar-selection-menu-button",
+      "selector": "[data-testid=\"toolbar-selection-menu-button\"]"
+    },
+    "toolbar.selectionMenuDuplicate": {
+      "testId": "toolbar-duplicate-menu-item",
+      "selector": "[data-testid=\"toolbar-duplicate-menu-item\"]"
+    },
+    "toolbar.selectionMenuDelete": {
+      "testId": "toolbar-delete-menu-item",
+      "selector": "[data-testid=\"toolbar-delete-menu-item\"]"
+    },
+    "toolbar.toggleLockMenuItem": {
+      "testId": "toolbar-toggle-lock-menu-item",
+      "selector": "[data-testid=\"toolbar-toggle-lock-menu-item\"]"
+    },
+    "toolbar.fitViewMenuItem": {
+      "testId": "toolbar-fit-view-menu-item",
+      "selector": "[data-testid=\"toolbar-fit-view-menu-item\"]"
+    },
+    "variables.suggestions": {
+      "testId": "variable-suggestions",
+      "selector": "[data-testid=\"variable-suggestions\"]"
+    },
+    "variables.suggestionsEmpty": {
+      "testId": "variable-suggestions-empty",
+      "selector": "[data-testid=\"variable-suggestions-empty\"]"
+    },
+    "viewport.dialog.root": {
+      "testId": "workflow-builder-viewport-dialog",
+      "selector": "[data-testid=\"workflow-builder-viewport-dialog\"]"
+    },
+    "viewport.dialog.cancelButton": {
+      "testId": "viewport-dialog-cancel-button",
+      "selector": "[data-testid=\"viewport-dialog-cancel-button\"]"
+    },
+    "viewport.dialog.error": {
+      "testId": "viewport-dialog-error",
+      "selector": "[data-testid=\"viewport-dialog-error\"]"
+    },
+    "viewport.dialog.heightInput": {
+      "testId": "viewport-dialog-height-input",
+      "selector": "[data-testid=\"viewport-dialog-height-input\"]"
+    },
+    "viewport.dialog.saveButton": {
+      "testId": "viewport-dialog-save-button",
+      "selector": "[data-testid=\"viewport-dialog-save-button\"]"
+    },
+    "viewport.dialog.title": {
+      "testId": "viewport-dialog-title",
+      "selector": "[data-testid=\"viewport-dialog-title\"]"
+    },
+    "viewport.dialog.widthInput": {
+      "testId": "viewport-dialog-width-input",
+      "selector": "[data-testid=\"viewport-dialog-width-input\"]"
+    },
+    "workflowBuilder.canvas.root": {
+      "testId": "workflow-builder-canvas",
+      "selector": "[data-testid=\"workflow-builder-canvas\"]"
+    },
+    "workflowBuilder.canvas.reactFlow": {
+      "testId": "react-flow-canvas",
+      "selector": "[data-testid=\"react-flow-canvas\"]"
+    },
+    "workflowBuilder.canvas.minimap": {
+      "testId": "minimap",
+      "selector": "[data-testid=\"minimap\"]"
+    },
+    "workflowBuilder.code.view": {
+      "testId": "workflow-builder-code-view",
+      "selector": "[data-testid=\"workflow-builder-code-view\"]"
+    },
+    "workflowBuilder.code.toolbar": {
+      "testId": "workflow-builder-code-toolbar",
+      "selector": "[data-testid=\"workflow-builder-code-toolbar\"]"
+    },
+    "workflowBuilder.code.editor": {
+      "testId": "workflow-builder-code-editor",
+      "selector": "[data-testid=\"workflow-builder-code-editor\"]"
+    },
+    "workflowBuilder.code.editorContainer": {
+      "testId": "workflow-builder-code-editor-container",
+      "selector": "[data-testid=\"workflow-builder-code-editor-container\"]"
+    },
+    "workflowBuilder.code.error": {
+      "testId": "workflow-builder-code-error",
+      "selector": "[data-testid=\"workflow-builder-code-error\"]"
+    },
+    "workflowBuilder.code.lineCount": {
+      "testId": "workflow-builder-code-line-count",
+      "selector": "[data-testid=\"workflow-builder-code-line-count\"]"
+    },
+    "workflowBuilder.code.modeButton": {
+      "testId": "workflow-builder-code-mode-button",
+      "selector": "[data-testid=\"workflow-builder-code-mode-button\"]"
+    },
+    "workflowBuilder.code.resetButton": {
+      "testId": "workflow-builder-code-reset-button",
+      "selector": "[data-testid=\"workflow-builder-code-reset-button\"]"
+    },
+    "workflowBuilder.code.applyButton": {
+      "testId": "workflow-builder-code-apply-button",
+      "selector": "[data-testid=\"workflow-builder-code-apply-button\"]"
+    },
+    "workflowBuilder.code.validation": {
+      "testId": "workflow-builder-code-validation",
+      "selector": "[data-testid=\"workflow-builder-code-validation\"]"
+    },
+    "workflowBuilder.viewModeToggle": {
+      "testId": "workflow-builder-view-mode-toggle",
+      "selector": "[data-testid=\"workflow-builder-view-mode-toggle\"]"
+    },
+    "workflowBuilder.visualModeButton": {
+      "testId": "workflow-builder-visual-mode-button",
+      "selector": "[data-testid=\"workflow-builder-visual-mode-button\"]"
+    },
+    "workflowBuilder.executeButton": {
+      "testId": "workflow-execute-button",
+      "selector": "[data-testid=\"workflow-execute-button\"]"
+    },
+    "workflowBuilder.search.input": {
+      "testId": "workflow-search-input",
+      "selector": "[data-testid=\"workflow-search-input\"]"
+    },
+    "workflowBuilder.search.clearButton": {
+      "testId": "workflow-search-clear",
+      "selector": "[data-testid=\"workflow-search-clear\"]"
+    },
+    "workflowBuilder.monacoEditor": {
+      "testId": "monaco-editor",
+      "selector": "[data-testid=\"monaco-editor\"]"
+    },
+    "workflowBuilder.formError": {
+      "testId": "form-error",
+      "selector": "[data-testid=\"form-error\"]"
+    },
+    "workflows.tab": {
+      "testId": "workflows-tab",
+      "selector": "[data-testid=\"workflows-tab\"]"
+    },
+    "workflows.card": {
+      "testId": "workflow-card",
+      "selector": "[data-testid=\"workflow-card\"]"
+    },
+    "workflows.newButton": {
+      "testId": "new-workflow-button",
+      "selector": "[data-testid=\"new-workflow-button\"]"
+    },
+    "workflows.newButtonFab": {
+      "testId": "new-workflow-button-fab",
+      "selector": "[data-testid=\"new-workflow-button-fab\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "ai.modal.promptExample": {
+      "description": "AI modal example prompts rendered as ai-example-prompt-${index}",
+      "selectorPattern": "[data-testid=\"ai-example-prompt-${index}\"]",
+      "testIdPattern": "ai-example-prompt-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "executions.filters.filter": {
+      "description": "Execution history filter buttons",
+      "selectorPattern": "[data-testid=\"execution-filter-${filter}\"]",
+      "testIdPattern": "execution-filter-${filter}",
+      "params": [
+        {
+          "name": "filter",
+          "type": "enum",
+          "values": [
+            "all",
+            "completed",
+            "failed",
+            "running",
+            "cancelled"
+          ]
+        }
+      ]
+    },
+    "nodePalette.card": {
+      "description": "Node palette card for a workflow node type",
+      "selectorPattern": "[data-testid=\"node-palette-${type}-card\"]",
+      "testIdPattern": "node-palette-${type}-card",
+      "params": [
+        {
+          "name": "type",
+          "type": "string"
+        }
+      ]
+    },
+    "nodePalette.favoriteButton": {
+      "description": "Favorite toggle button for a node palette card",
+      "selectorPattern": "[data-testid=\"node-palette-${type}-favorite-button\"]",
+      "testIdPattern": "node-palette-${type}-favorite-button",
+      "params": [
+        {
+          "name": "type",
+          "type": "string"
+        }
+      ]
+    },
+    "nodePalette.category": {
+      "description": "Node palette category section",
+      "selectorPattern": "[data-testid=\"node-palette-category-${category}\"]",
+      "testIdPattern": "node-palette-category-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "string"
+        }
+      ]
+    },
+    "nodePalette.categoryToggle": {
+      "description": "Toggle button for a node palette category",
+      "selectorPattern": "[data-testid=\"node-palette-category-${category}-toggle\"]",
+      "testIdPattern": "node-palette-category-${category}-toggle",
+      "params": [
+        {
+          "name": "category",
+          "type": "string"
+        }
+      ]
+    },
+    "nodePalette.cardList": {
+      "description": "Matches all node palette cards",
+      "selectorPattern": "[data-testid^=\"node-palette-\"][data-testid$=\"-card\"]",
+      "params": []
+    },
+    "nodePalette.visibleCardList": {
+      "description": "Visible node palette cards once filters are applied",
+      "selectorPattern": "[data-testid^=\"node-palette-\"][data-testid$=\"-card\"]:not([style*=\"display: none\"])",
+      "params": []
+    },
+    "header.versionHistory.item": {
+      "description": "Version history entries in the header dialog",
+      "selectorPattern": "[data-testid=\"version-history-item-${version}\"]",
+      "testIdPattern": "version-history-item-${version}",
+      "params": [
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    "header.versionHistory.restoreButton": {
+      "description": "Restore button inside version history rows",
+      "selectorPattern": "[data-testid=\"version-restore-button-${version}\"]",
+      "testIdPattern": "version-restore-button-${version}",
+      "params": [
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    "viewport.dialog.presetButton": {
+      "description": "Viewport dialog preset buttons",
+      "selectorPattern": "[data-testid=\"viewport-dialog-preset-${preset}-button\"]",
+      "testIdPattern": "viewport-dialog-preset-${preset}-button",
+      "params": [
+        {
+          "name": "preset",
+          "type": "enum",
+          "values": [
+            "desktop",
+            "mobile",
+            "custom"
+          ]
+        }
+      ]
+    },
+    "workflowBuilder.nodes.upload.pathCount": {
+      "description": "Upload node selected path count chip",
+      "selectorPattern": "[data-testid=\"upload-node-${id}-path-count\"]",
+      "testIdPattern": "upload-node-${id}-path-count",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "projects.cardByName": {
+      "description": "Dashboard project card filtered by name",
+      "selectorPattern": "[data-testid=\"project-card\"][data-project-name=\"${name}\"]",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "workflows.cardByName": {
+      "description": "Workflow list card filtered by name",
+      "selectorPattern": "[data-testid=\"workflow-card\"][data-workflow-name=\"${name}\"]",
+      "params": [
+        {
+          "name": "name",
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import { FC, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
 import { UploadCloud, FileWarning } from 'lucide-react';
-import { dynamicTestIds } from '../../consts/selectors';
+import { selectors } from '../../consts/selectors';
 
 const normalizeTimeout = (value: unknown, fallback: number): number => {
   const numeric = Number(value);
@@ -160,7 +160,7 @@ const UploadFileNode: FC<NodeProps> = ({ id, data, selected }) => {
           {activePaths.length > 0 && (
             <p
               className="text-[10px] text-emerald-300 mt-1"
-              data-testid={dynamicTestIds.uploadNodePathCount(id)}
+              data-testid={selectors.workflowBuilder.nodes.upload.pathCount({ id })}
             >
               {activePaths.length === 1 ? '1 file selected' : `${activePaths.length} files selected`}
             </p>

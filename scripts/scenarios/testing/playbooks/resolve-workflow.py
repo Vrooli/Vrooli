@@ -6,16 +6,16 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, Set
 
 
 SELECTOR_CACHE: Dict[str, Dict[str, Any]] = {}
-REGISTRY_SCRIPT = Path(__file__).resolve().parent / "selector-registry.js"
+MANIFEST_FILENAME = "selectors.manifest.json"
 SELECTOR_TOKEN_PATTERN = re.compile(r"@selector/([A-Za-z0-9_.-]+)(\([^)]*\))?")
 DATA_TESTID_PATTERN = re.compile(r"\[data-testid[^\]]*\]")
+NUMBER_PATTERN = re.compile(r"^-?\d+(?:\.\d+)?$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -90,46 +90,18 @@ def resolve_definition(definition: Dict[str, Any], fixtures: Dict[str, Dict[str,
 
 
 def load_selector_registry(scenario_dir: Path) -> Dict[str, Any]:
-    selectors_map: Dict[str, Any] = {}
-    selectors_path = scenario_dir / "ui" / "src" / "consts" / "selectors.ts"
-    if not selectors_path.exists():
-        return selectors_map
-    cache_key = str(selectors_path)
-    mtime = selectors_path.stat().st_mtime_ns
+    manifest_path = scenario_dir / "ui" / "src" / "consts" / MANIFEST_FILENAME
+    if not manifest_path.exists():
+        return {}
+    cache_key = str(manifest_path)
+    mtime = manifest_path.stat().st_mtime_ns
     cached = SELECTOR_CACHE.get(cache_key)
     if cached and cached.get("mtime") == mtime:
         return cached["data"]
-    if not REGISTRY_SCRIPT.exists():
-        raise RuntimeError(f"Selector registry helper missing at {REGISTRY_SCRIPT}")
-    try:
-        completed = subprocess.run(
-            ["node", str(REGISTRY_SCRIPT), "--scenario", str(scenario_dir)],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(
-            f"Failed to load selector registry: {exc.stderr.strip() or exc.stdout.strip() or exc}"
-        ) from exc
-    data = json.loads(completed.stdout)
+    manifest = load_json(manifest_path)
+    data = {"manifest": manifest, "path": str(manifest_path)}
     SELECTOR_CACHE[cache_key] = {"mtime": mtime, "data": data}
     return data
-
-
-def resolve_selector_key(key: str, tree: Dict[str, Any]) -> str | None:
-    if not isinstance(tree, dict):
-        return None
-    segments = [segment.strip() for segment in re.split(r"[./]", key) if segment.strip()]
-    if not segments:
-        return None
-    current: Any = tree
-    for segment in segments:
-        if isinstance(current, dict) and segment in current:
-            current = current[segment]
-        else:
-            return None
-    return current if isinstance(current, str) else None
 
 
 def parse_selector_arguments(argument_segment: str, pointer: str) -> Dict[str, str]:
@@ -177,26 +149,26 @@ def substitute_template(template: str, values: Dict[str, str], pointer: str) -> 
 def build_dynamic_selector(
     selector_key: str,
     argument_segment: str | None,
-    selectors: Dict[str, Any],
-    selectors_path: Path,
+    manifest: Dict[str, Any],
+    manifest_path: Path,
     pointer: str,
 ) -> str | None:
-    dynamic_map = selectors.get("dynamicSelectors") or {}
+    dynamic_map = manifest.get("dynamicSelectors") or {}
     definition = dynamic_map.get(selector_key)
     if not definition:
         return None
-    params = definition.get("params") or []
 
-    template = definition.get("selectorPattern") or definition.get("pattern")
+    template = definition.get("selectorPattern")
     if not isinstance(template, str) or not template:
         raise RuntimeError(
-            f"Selector '@selector/{selector_key}' is missing a selectorPattern in {selectors_path}"
+            f"Selector '@selector/{selector_key}' is missing a selectorPattern in {manifest_path}"
         )
 
+    param_configs = definition.get("params") or []
     has_args = bool(argument_segment and argument_segment.strip())
 
-    if not params:
-        if has_args and argument_segment.strip() not in ("", "()"): 
+    if not param_configs:
+        if has_args and argument_segment.strip() not in ("", "()"):
             provided_args = parse_selector_arguments(argument_segment, pointer)
             if provided_args:
                 raise RuntimeError(
@@ -215,7 +187,10 @@ def build_dynamic_selector(
 
     provided = parse_selector_arguments(argument_segment, pointer)
 
-    missing = [param for param in params if param not in provided]
+    normalized: Dict[str, str] = {}
+    expected_keys = {param.get("name"): param for param in param_configs if param.get("name")}
+
+    missing = [name for name in expected_keys.keys() if name not in provided]
     if missing:
         raise RuntimeError(
             "Selector '@selector/"
@@ -225,7 +200,7 @@ def build_dynamic_selector(
             + f" ({pointer})"
         )
 
-    extra = sorted(set(provided.keys()) - set(params))
+    extra = [name for name in provided.keys() if name not in expected_keys]
     if extra:
         raise RuntimeError(
             "Selector '@selector/"
@@ -235,62 +210,60 @@ def build_dynamic_selector(
             + f" ({pointer})"
         )
 
-    allowed = definition.get("allowedValues") or {}
-    for param, allowed_values in allowed.items():
-        if param in provided and allowed_values and provided[param] not in allowed_values:
+    for name, config in expected_keys.items():
+        value = provided.get(name, "")
+        param_type = (config.get("type") or "string").lower()
+        if param_type == "number" and not NUMBER_PATTERN.fullmatch(value):
             raise RuntimeError(
                 "Selector '@selector/"
                 + selector_key
                 + "' parameter '"
-                + param
-                + "' must be one of: "
-                + ", ".join(allowed_values)
+                + name
+                + "' must be numeric"
                 + f" ({pointer})"
             )
+        if param_type == "enum":
+            allowed_values = config.get("values") or []
+            if value not in allowed_values:
+                raise RuntimeError(
+                    "Selector '@selector/"
+                    + selector_key
+                    + "' parameter '"
+                    + name
+                    + "' must be one of: "
+                    + ", ".join(map(str, allowed_values))
+                    + f" ({pointer})"
+                )
+        normalized[name] = value
 
-    value_types = definition.get("valueTypes") or {}
-    for param, expected in value_types.items():
-        if param not in provided:
-            continue
-        value = provided[param]
-        if expected == "number" and not re.fullmatch(r"\d+", value):
-            raise RuntimeError(
-                "Selector '@selector/"
-                + selector_key
-                + "' parameter '"
-                + param
-                + "' must be a positive integer"
-                + f" ({pointer})"
-            )
-
-    resolved = substitute_template(template, provided, pointer)
+    resolved = substitute_template(template, normalized, pointer)
     return resolved
 
 
 def inject_selector_references(
     definition: Any,
-    selectors: Dict[str, Any],
-    selectors_path: Path,
+    manifest: Dict[str, Any],
+    manifest_path: Path,
     pointer: str = "",
 ) -> Any:
     if isinstance(definition, dict):
         for key, value in definition.items():
             next_pointer = f"{pointer}/{key}" if pointer else f"/{key}"
-            definition[key] = inject_selector_references(value, selectors, selectors_path, next_pointer)
+            definition[key] = inject_selector_references(value, manifest, manifest_path, next_pointer)
         return definition
     if isinstance(definition, list):
         for idx, value in enumerate(definition):
             next_pointer = f"{pointer}/{idx}" if pointer else f"/{idx}"
-            definition[idx] = inject_selector_references(value, selectors, selectors_path, next_pointer)
+            definition[idx] = inject_selector_references(value, manifest, manifest_path, next_pointer)
         return definition
     if isinstance(definition, str):
-        selector_tree = selectors.get("workflowSelectors", {})
-        if selectors and DATA_TESTID_PATTERN.search(definition):
+        selector_map = manifest.get("selectors", {})
+        if manifest and DATA_TESTID_PATTERN.search(definition):
             raise RuntimeError(
                 "Raw data-testid selector detected at "
                 + pointer
                 + "; replace it with an @selector/<key> token registered in "
-                + str(selectors_path)
+                + str(manifest_path)
             )
 
         def _replace(match: re.Match[str]) -> str:
@@ -303,18 +276,20 @@ def inject_selector_references(
                 resolved = build_dynamic_selector(
                     selector_key,
                     args_segment,
-                    selectors,
-                    selectors_path,
+                    manifest,
+                    manifest_path,
                     pointer,
                 )
             else:
-                resolved = resolve_selector_key(selector_key, selector_tree)
-                if resolved is None:
+                entry = selector_map.get(selector_key)
+                if entry is not None:
+                    resolved = entry.get("selector")
+                else:
                     resolved = build_dynamic_selector(
                         selector_key,
                         args_segment,
-                        selectors,
-                        selectors_path,
+                        manifest,
+                        manifest_path,
                         pointer,
                     )
 
@@ -323,7 +298,7 @@ def inject_selector_references(
                     "Selector reference '@selector/"
                     + selector_key
                     + "' not found. Define it in "
-                    + str(selectors_path)
+                    + str(manifest_path)
                 )
             return resolved
 
@@ -347,8 +322,9 @@ def main() -> None:
     resolve_definition(workflow, fixtures, used)
     selector_registry = load_selector_registry(scenario_dir)
     if selector_registry:
-        selectors_path = Path(selector_registry.get("selectorsPath", "")) or scenario_dir / "ui" / "src" / "consts" / "selectors.ts"
-        workflow = inject_selector_references(workflow, selector_registry, selectors_path)
+        manifest = selector_registry.get("manifest") or {}
+        manifest_path = Path(selector_registry.get("path", "")) or scenario_dir / "ui" / "src" / "consts" / MANIFEST_FILENAME
+        workflow = inject_selector_references(workflow, manifest, manifest_path)
     json.dump(workflow, sys.stdout, indent=2)
     sys.stdout.write("\n")
 

@@ -35,7 +35,7 @@ import ProjectModal from "./ProjectModal";
 import ExecutionHistory from "./ExecutionHistory";
 import ExecutionViewer from "./ExecutionViewer";
 import { usePopoverPosition } from "../hooks/usePopoverPosition";
-import { testIds } from "../consts/selectors";
+import { selectors } from "../consts/selectors";
 
 // Extended Workflow interface with API response fields
 interface WorkflowWithStats extends Workflow {
@@ -755,7 +755,7 @@ function ProjectDetail({
             return (
               <div
                 key={workflow.id}
-                data-testid={testIds.workflowCard}
+                data-testid={selectors.workflows.card}
                 data-workflow-id={workflow.id}
                 data-workflow-name={workflow.name}
                 onClick={handleRowClick}
@@ -797,7 +797,7 @@ function ProjectDetail({
                 {!selectionMode && (
                   <div className="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      data-testid={testIds.workflowExecuteButton}
+                      data-testid={selectors.workflowBuilder.executeButton}
                       onClick={(e) => handleExecuteWorkflow(e, workflow.id)}
                       disabled={executionInProgress[workflow.id]}
                       className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
@@ -982,7 +982,7 @@ function ProjectDetail({
 
                     {/* Edit Button */}
                     <button
-                      data-testid={testIds.projectEditButton}
+                      data-testid={selectors.projects.editButton}
                       onClick={() => setShowEditProjectModal(true)}
                       className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
                       title="Edit project details"
@@ -1060,7 +1060,7 @@ function ProjectDetail({
                       )}
                     </div>
                     <button
-                      data-testid={testIds.newWorkflowButton}
+                      data-testid={selectors.workflows.newButton}
                       onClick={onCreateWorkflow}
                       className="hidden md:flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors md:ml-auto"
                     >
@@ -1135,7 +1135,7 @@ function ProjectDetail({
           <div>
             <div className="flex items-center gap-3 border-b border-gray-700 pb-2">
               <button
-                data-testid={testIds.workflowsTab}
+                data-testid={selectors.workflows.tab}
                 onClick={() => setActiveTab("workflows")}
                 role="tab"
                 aria-selected={activeTab === "workflows"}
@@ -1153,7 +1153,7 @@ function ProjectDetail({
                 </div>
               </button>
               <button
-                data-testid={testIds.executionsTab}
+                data-testid={selectors.projects.tabs.executions}
                 onClick={() => setActiveTab("executions")}
                 role="tab"
                 aria-selected={activeTab === "executions"}
@@ -1180,7 +1180,7 @@ function ProjectDetail({
                   />
                   <input
                     type="text"
-                    data-testid={testIds.workflowSearchInput}
+                    data-testid={selectors.workflowBuilder.search.input}
                     placeholder="Search workflows..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -1189,7 +1189,7 @@ function ProjectDetail({
                   {searchTerm && (
                     <button
                       type="button"
-                      data-testid={testIds.workflowSearchClear}
+                      data-testid={selectors.workflowBuilder.search.clearButton}
                       onClick={() => setSearchTerm("")}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                       aria-label="Clear workflow search"
@@ -1331,7 +1331,7 @@ function ProjectDetail({
                     </p>
                     {!error && (
                       <button
-                        data-testid={testIds.newWorkflowButton}
+                        data-testid={selectors.workflows.newButton}
                         onClick={onCreateWorkflow}
                         className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
                       >
@@ -1397,7 +1397,7 @@ function ProjectDetail({
                     return (
                       <div
                         key={workflow.id}
-                        data-testid={testIds.workflowCard}
+                        data-testid={selectors.workflows.card}
                         data-workflow-id={workflow.id}
                         data-workflow-name={workflow.name}
                         onClick={handleCardClick}
@@ -1456,7 +1456,7 @@ function ProjectDetail({
                           ) : (
                             <div className="flex items-center gap-1">
                               <button
-                                data-testid={testIds.workflowExecuteButton}
+                                data-testid={selectors.workflowBuilder.executeButton}
                                 onClick={(e) =>
                                   handleExecuteWorkflow(e, workflow.id)
                                 }
@@ -1565,7 +1565,7 @@ function ProjectDetail({
 
       {/* Floating Action Button (FAB) - Mobile only */}
       <button
-        data-testid={testIds.newWorkflowButtonFab}
+        data-testid={selectors.workflows.newButtonFab}
         onClick={onCreateWorkflow}
         className="md:hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-flow-accent text-white rounded-full shadow-lg hover:bg-blue-600 transition-all hover:shadow-xl flex items-center justify-center"
         aria-label="New Workflow"
