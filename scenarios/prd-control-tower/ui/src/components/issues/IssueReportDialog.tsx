@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
-import { AlertTriangle, ClipboardCopy, Loader2 } from 'lucide-react'
+import { AlertTriangle, CheckSquare, ChevronDown, ChevronUp, ClipboardCopy, Eraser, Loader2 } from 'lucide-react'
 import type {
   IssueReportSeed,
   IssueReportSelectionInput,
@@ -29,6 +29,39 @@ interface SelectionEntry extends IssueReportSelectionInput {
   categoryTitle: string
 }
 
+interface DocumentationLink {
+  title: string
+  path: string
+  summary: string
+}
+
+const canonicalTemplateDoc: DocumentationLink = {
+  title: 'Canonical PRD Template',
+  path: 'scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md',
+  summary: 'Defines the required PRD.md sections, emoji headings, and editing guardrails enforced by the quality scanner.',
+}
+
+const requirementsGuideDoc: DocumentationLink = {
+  title: 'Requirements Registry README',
+  path: 'scenarios/prd-control-tower/requirements/README.md',
+  summary: 'Explains how requirements/index.json, imports, and operational target coverage flow are wired for PRD Control Tower.',
+}
+
+const integrationRequirementsDoc: DocumentationLink = {
+  title: 'Operational Target Integration Requirements',
+  path: 'scenarios/prd-control-tower/requirements/requirements/integration.json',
+  summary: 'Captures PCT-REQ-TARGETS and PCT-REQ-LINKAGE expectations for parsing targets, requirements, and reference alignment.',
+}
+
+const DOCUMENTATION_LIBRARY: Record<string, DocumentationLink[]> = {
+  missing_prd: [canonicalTemplateDoc, requirementsGuideDoc],
+  structure_missing: [canonicalTemplateDoc],
+  structure_unexpected: [canonicalTemplateDoc],
+  target_linkage: [requirementsGuideDoc, integrationRequirementsDoc],
+  requirements_without_targets: [requirementsGuideDoc, integrationRequirementsDoc],
+  prd_reference: [requirementsGuideDoc, integrationRequirementsDoc, canonicalTemplateDoc],
+}
+
 function getSeverityBadge(severity?: string) {
   switch (severity) {
     case 'critical':
@@ -46,18 +79,21 @@ function getSeverityBadge(severity?: string) {
 
 export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: IssueReportDialogProps) {
   const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [notes, setNotes] = useState<Record<string, string>>({})
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
   const [acknowledged, setAcknowledged] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [isCustomizingDescription, setIsCustomizingDescription] = useState(false)
+  const [manualDescription, setManualDescription] = useState('')
+  const [customizationBaseline, setCustomizationBaseline] = useState<{ selected: string[]; notes: Record<string, string> } | null>(null)
 
   useEffect(() => {
     if (!seed || !open) {
       return
     }
     setTitle(seed.title)
-    setDescription(seed.description)
     const next = new Set<string>()
     const nextNotes: Record<string, string> = {}
     seed.categories.forEach((category) => {
@@ -72,7 +108,12 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
     })
     setSelectedIds(next)
     setNotes(nextNotes)
+    setCollapsedCategories(new Set())
+    setExpandedNotes(new Set(Object.keys(nextNotes)))
     setAcknowledged(false)
+    setIsCustomizingDescription(false)
+    setManualDescription('')
+    setCustomizationBaseline(null)
   }, [seed, open])
 
   const selections = useMemo<SelectionEntry[]>(() => {
@@ -91,6 +132,70 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
 
   const selectedEntries = useMemo(() => selections.filter((entry) => selectedIds.has(entry.id)), [selections, selectedIds])
 
+  const normalizedNotes = useMemo(() => {
+    const snapshot: Record<string, string> = {}
+    Object.entries(notes).forEach(([key, value]) => {
+      const trimmed = value?.trim()
+      if (trimmed) {
+        snapshot[key] = trimmed
+      }
+    })
+    return snapshot
+  }, [notes])
+
+  const selectionSignature = useMemo(() => Array.from(selectedIds).sort(), [selectedIds])
+
+  const selectedDocs = useMemo(() => {
+    const seen = new Set<string>()
+    const docs: DocumentationLink[] = []
+    selectedEntries.forEach((entry) => {
+      const entries = DOCUMENTATION_LIBRARY[entry.categoryId] ?? []
+      entries.forEach((doc) => {
+        const key = `${doc.title}-${doc.path}`
+        if (!seen.has(key)) {
+          docs.push(doc)
+          seen.add(key)
+        }
+      })
+    })
+    return docs
+  }, [selectedEntries])
+
+  const generatedDescription = useMemo(() => {
+    if (!seed) return ''
+    const sections: string[] = []
+    const scanDate = seed.metadata?.last_scanned
+    const intro = `${seed.display_name || seed.entity_name}: ${selectedEntries.length} actionable issue${selectedEntries.length === 1 ? '' : 's'} selected for ${seed.source?.replace(/_/g, ' ') || 'quality scan'} triage${scanDate ? ` (last scan ${scanDate})` : ''}.`
+    sections.push(intro)
+    if (seed.description?.trim()) {
+      sections.push(seed.description.trim())
+    }
+
+    const issueLines = selectedEntries.map((entry, index) => {
+      const severityLabel = entry.severity ? entry.severity.toUpperCase() : 'INFO'
+      const reference = entry.reference ? ` Reference: ${entry.reference}.` : ''
+      const note = (normalizedNotes[entry.id] ?? entry.notes)?.trim()
+      const noteText = note ? ` Notes: ${note}` : ''
+      return `${index + 1}. [${entry.categoryTitle}] ${entry.title} — ${entry.detail.trim()} (Severity: ${severityLabel}).${reference}${noteText}`
+    })
+
+    if (issueLines.length > 0) {
+      sections.push(['### Selected issues', '', ...issueLines].join('\n'))
+    }
+
+    if (selectedDocs.length > 0) {
+      sections.push([
+        '### Documentation kit',
+        '',
+        ...selectedDocs.map((doc) => `- ${doc.title}: ${doc.summary} (${doc.path})`),
+      ].join('\n'))
+    }
+
+    return sections.filter(Boolean).join('\n\n')
+  }, [seed, selectedEntries, normalizedNotes, selectedDocs])
+
+  const descriptionToSubmit = isCustomizingDescription ? manualDescription : generatedDescription
+
   const { summary, status, error: statusError, refresh } = useScenarioIssues({
     entityType: seed?.entity_type,
     entityName: seed?.entity_name,
@@ -98,7 +203,8 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
   })
 
   const hasOpenIssues = Boolean(summary && (summary.open_count > 0 || summary.active_count > 0))
-  const canSubmit = Boolean(seed && selectedEntries.length > 0 && (!hasOpenIssues || acknowledged) && !busy)
+  const hasDescription = descriptionToSubmit.trim().length > 0
+  const canSubmit = Boolean(seed && selectedEntries.length > 0 && (!hasOpenIssues || acknowledged) && !busy && hasDescription)
 
   const close = useCallback(() => {
     onOpenChange?.(false)
@@ -132,14 +238,39 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
     })
   }
 
+  const toggleCategoryCollapsed = (categoryId: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(categoryId)) {
+        next.delete(categoryId)
+      } else {
+        next.add(categoryId)
+      }
+      return next
+    })
+  }
+
+  const toggleNoteVisibility = (id: string) => {
+    setExpandedNotes((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
   const copySummary = async () => {
     if (!seed) return
-    const lines = [`${seed.entity_name}: ${selectedEntries.length} issues`]
-    selectedEntries.forEach((entry) => {
-      lines.push(`- [${entry.categoryTitle}] ${entry.title} — ${entry.detail}`)
-    })
+    const payload = descriptionToSubmit.trim() || generatedDescription
+    if (!payload) {
+      toast.error('Nothing to copy yet')
+      return
+    }
     try {
-      await navigator.clipboard.writeText(lines.join('\n'))
+      await navigator.clipboard.writeText(payload)
       toast.success('Copied issue summary')
     } catch (err) {
       console.error(err)
@@ -147,10 +278,44 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
     }
   }
 
+  const beginCustomizing = () => {
+    setIsCustomizingDescription(true)
+    setManualDescription((prev) => (prev ? prev : generatedDescription))
+    setCustomizationBaseline({ selected: [...selectionSignature], notes: { ...normalizedNotes } })
+  }
+
+  const exitCustomizing = () => {
+    setIsCustomizingDescription(false)
+    setCustomizationBaseline(null)
+    setManualDescription('')
+  }
+
+  const selectionDrift = useMemo(() => {
+    if (!customizationBaseline) return false
+    const { selected } = customizationBaseline
+    if (selected.length !== selectionSignature.length) return true
+    return selected.some((value, index) => selectionSignature[index] !== value)
+  }, [customizationBaseline, selectionSignature])
+
+  const notesDrift = useMemo(() => {
+    if (!customizationBaseline) return false
+    const keys = new Set([...Object.keys(customizationBaseline.notes), ...Object.keys(normalizedNotes)])
+    for (const key of keys) {
+      if ((customizationBaseline.notes[key] ?? '') !== (normalizedNotes[key] ?? '')) {
+        return true
+      }
+    }
+    return false
+  }, [customizationBaseline, normalizedNotes])
+
+  const hasManualDrift = Boolean(isCustomizingDescription && customizationBaseline && (selectionDrift || notesDrift))
+
   const handleSubmit = async () => {
     if (!seed || !canSubmit) {
       return
     }
+
+    const finalDescription = descriptionToSubmit.trim() || generatedDescription
 
     const metadata = {
       ...(seed.metadata ?? {}),
@@ -162,7 +327,7 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
       entity_name: seed.entity_name,
       source: seed.source,
       title: title.trim(),
-      description: description.trim(),
+      description: finalDescription.trim(),
       summary: seed.summary,
       tags: seed.tags,
       labels: seed.labels,
@@ -243,17 +408,27 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
 
             <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
               <span>Detected issues</span>
-              <div className="space-x-2">
-                <button type="button" onClick={() => setSelectedIds(new Set())} className="text-primary underline-offset-2 hover:underline">
-                  Clear
-                </button>
-                <button
+              <div className="flex items-center gap-2">
+                <Button
                   type="button"
-                  onClick={() => setSelectedIds(new Set(selections.map((entry) => entry.id)))}
-                  className="text-primary underline-offset-2 hover:underline"
+                  variant="ghost"
+                  size="icon"
+                  title="Clear selection"
+                  onClick={() => setSelectedIds(new Set())}
                 >
-                  Select all
-                </button>
+                  <Eraser size={16} />
+                  <span className="sr-only">Clear selection</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  title="Select every issue"
+                  onClick={() => setSelectedIds(new Set(selections.map((entry) => entry.id)))}
+                >
+                  <CheckSquare size={16} />
+                  <span className="sr-only">Select every issue</span>
+                </Button>
               </div>
             </div>
 
@@ -262,6 +437,7 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
                 const categoryKey = category.id ?? `category-${index}`
                 const categoryItems = selections.filter((entry) => entry.categoryId === categoryKey)
                 const isFullySelected = categoryItems.every((entry) => selectedIds.has(entry.id))
+                const isCollapsed = collapsedCategories.has(categoryKey)
                 return (
                   <div key={categoryKey} className="rounded-lg border p-3">
                     <div className="flex items-center justify-between">
@@ -269,40 +445,77 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
                         <p className="font-semibold text-slate-900">{category.title}</p>
                         {category.description && <p className="text-xs text-muted-foreground">{category.description}</p>}
                       </div>
-                      <button type="button" className="text-xs text-primary underline-offset-2 hover:underline" onClick={() => toggleCategory(categoryKey)}>
-                        {isFullySelected ? 'Deselect' : 'Select'} all
-                      </button>
+                      <div className="flex items-center gap-1 text-xs">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title={isCollapsed ? 'Expand category' : 'Collapse category'}
+                          onClick={() => toggleCategoryCollapsed(categoryKey)}
+                        >
+                          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                          <span className="sr-only">{isCollapsed ? 'Expand category' : 'Collapse category'}</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title={isFullySelected ? 'Clear category' : 'Select entire category'}
+                          onClick={() => toggleCategory(categoryKey)}
+                        >
+                          <CheckSquare size={16} />
+                          <span className="sr-only">{isFullySelected ? 'Clear category' : 'Select entire category'}</span>
+                        </Button>
+                      </div>
                     </div>
-                    <div className="mt-3 space-y-2">
-                      {categoryItems.map((entry) => {
-                        const severityClass = getSeverityBadge(entry.severity)
-                        return (
-                          <div key={entry.id} className="rounded border border-slate-200 p-3 text-xs">
-                            <label className="flex items-start gap-2">
-                              <input
-                                type="checkbox"
-                                className="mt-1"
-                                checked={selectedIds.has(entry.id)}
-                                onChange={() => handleSelectionToggle(entry.id)}
-                              />
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-slate-900">
-                                  <span className="font-semibold">{entry.title}</span>
-                                  <Badge className={severityClass}>{entry.severity?.toUpperCase() || 'INFO'}</Badge>
-                                </div>
-                                <p className="text-slate-600">{entry.detail}</p>
-                                <Textarea
-                                  value={notes[entry.id] ?? ''}
-                                  onChange={(event) => setNotes((prev) => ({ ...prev, [entry.id]: event.target.value }))}
-                                  placeholder="Add context..."
-                                  className="mt-1 h-16"
+                    {!isCollapsed && (
+                      <div className="mt-3 space-y-2">
+                        {categoryItems.map((entry) => {
+                          const severityClass = getSeverityBadge(entry.severity)
+                          const existingNote = notes[entry.id]?.trim()
+                          const showNotes = expandedNotes.has(entry.id) || Boolean(existingNote)
+                          return (
+                            <div key={entry.id} className="rounded border border-slate-200 p-3 text-xs">
+                              <label className="flex items-start gap-2">
+                                <input
+                                  type="checkbox"
+                                  className="mt-1"
+                                  checked={selectedIds.has(entry.id)}
+                                  onChange={() => handleSelectionToggle(entry.id)}
                                 />
-                              </div>
-                            </label>
-                          </div>
-                        )
-                      })}
-                    </div>
+                                <div className="space-y-1">
+                                  <div className="flex flex-wrap items-center gap-2 text-slate-900">
+                                    <span className="font-semibold">{entry.title}</span>
+                                    <Badge className={severityClass}>{entry.severity?.toUpperCase() || 'INFO'}</Badge>
+                                  </div>
+                                  <p className="text-slate-600">{entry.detail}</p>
+                                  <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                                    {existingNote && !showNotes && <span className="truncate">{existingNote}</span>}
+                                    <button
+                                      type="button"
+                                      className="font-semibold text-primary underline-offset-2 hover:underline"
+                                      onClick={() => toggleNoteVisibility(entry.id)}
+                                    >
+                                      {showNotes ? 'Hide notes' : existingNote ? 'Edit notes' : 'Add notes'}
+                                    </button>
+                                  </div>
+                                  {showNotes && (
+                                    <Textarea
+                                      value={notes[entry.id] ?? ''}
+                                      onChange={(event) =>
+                                        setNotes((prev) => ({ ...prev, [entry.id]: event.target.value }))
+                                      }
+                                      placeholder="Add context so fixes are deterministic"
+                                      className="mt-1 h-16"
+                                    />
+                                  )}
+                                </div>
+                              </label>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -315,8 +528,38 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
               <Input value={title} onChange={(event) => setTitle(event.target.value)} />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-500">Description</label>
-              <Textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={10} />
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">Issue report preview</label>
+                  <p className="text-xs text-muted-foreground">Auto-updates with selections until you customize it.</p>
+                </div>
+                {isCustomizingDescription ? (
+                  <Button variant="outline" size="sm" onClick={exitCustomizing}>
+                    Return to preview
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={beginCustomizing}>
+                    Customize description
+                  </Button>
+                )}
+              </div>
+              <Textarea
+                value={isCustomizingDescription ? manualDescription : generatedDescription}
+                onChange={(event) => setManualDescription(event.target.value)}
+                disabled={!isCustomizingDescription}
+                rows={12}
+              />
+              {isCustomizingDescription && hasManualDrift && (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                  <AlertTriangle size={16} className="mt-0.5 text-amber-600" />
+                  <div>
+                    <p className="font-semibold">Selections have drifted</p>
+                    <p>
+                      The chosen issues or their notes changed after you started editing. Refresh your custom description or return to the preview to keep the report aligned.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
             {seed.metadata && (
               <div className="rounded-lg border border-dashed p-3 text-xs">

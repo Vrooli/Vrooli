@@ -329,6 +329,16 @@ export default function QualityScanner() {
     })
   }, [reports, resultFilter])
 
+  const visibleSelectableReportIds = useMemo(() => {
+    return filteredReports.filter((report) => canReportScenario(report)).map((report) => buildReportKey(report))
+  }, [filteredReports])
+
+  const visibleSelectedCount = useMemo(() => {
+    return visibleSelectableReportIds.reduce((count, id) => (selectedReports.has(id) ? count + 1 : count), 0)
+  }, [selectedReports, visibleSelectableReportIds])
+
+  const allVisibleSelected = visibleSelectableReportIds.length > 0 && visibleSelectedCount === visibleSelectableReportIds.length
+
   const sortedReports = useMemo(() => {
     return sortReports(filteredReports, sortConfig)
   }, [filteredReports, sortConfig])
@@ -362,6 +372,23 @@ export default function QualityScanner() {
       return acc + (selected[key] ? 1 : 0)
     }, 0)
   }
+
+  const toggleVisibleReportSelection = useCallback(
+    (select: boolean) => {
+      setSelectedReports((prev) => {
+        const next = new Set(prev)
+        visibleSelectableReportIds.forEach((id) => {
+          if (select) {
+            next.add(id)
+          } else {
+            next.delete(id)
+          }
+        })
+        return next
+      })
+    },
+    [visibleSelectableReportIds],
+  )
 
   const exportJSON = () => {
     if (reports.length === 0) {
@@ -602,6 +629,16 @@ export default function QualityScanner() {
               </Button>
               <Button variant="outline" size="sm" className="gap-2" onClick={exportCSV}>
                 <Download size={14} /> Export CSV
+              </Button>
+              <Button
+                variant={allVisibleSelected ? 'ghost' : 'outline'}
+                size="sm"
+                onClick={() => toggleVisibleReportSelection(!allVisibleSelected)}
+                disabled={visibleSelectableReportIds.length === 0}
+              >
+                {allVisibleSelected
+                  ? 'Clear visible selection'
+                  : `Select all visible (${visibleSelectableReportIds.length})`}
               </Button>
               <Button
                 size="sm"

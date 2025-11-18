@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
 import { Loader2 } from 'lucide-react'
@@ -7,6 +7,9 @@ import { bulkSubmitIssueReports } from '../../services/issues'
 import { scenarioIssuesStore } from '../../state/scenarioIssuesStore'
 import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
+import { Input } from '../ui/input'
+import { Textarea } from '../ui/textarea'
+import { Badge } from '../ui/badge'
 
 interface BulkIssueReportDialogProps {
   open: boolean
@@ -44,25 +47,51 @@ export function BulkIssueReportDialog({ open, seeds, onOpenChange }: BulkIssueRe
   const [batchSize, setBatchSize] = useState(5)
   const [submitting, setSubmitting] = useState(false)
   const [batches, setBatches] = useState<BatchResult[]>([])
+  const [draftSeeds, setDraftSeeds] = useState<IssueReportSeed[]>([])
+  const [activeSeedIndex, setActiveSeedIndex] = useState(0)
 
-  useEffect(() => {
-    if (open) {
+  const resetDialogState = useCallback(
+    (seedList: IssueReportSeed[]) => {
       setBatches([])
       setSubmitting(false)
-    }
-  }, [open, seeds])
+      setDraftSeeds(seedList.map((seed) => ({ ...seed })))
+      setActiveSeedIndex(0)
+    },
+    [],
+  )
 
-  const resolvedBatchSize = Math.min(Math.max(batchSize, 1), Math.min(MAX_BATCH_SIZE, Math.max(1, seeds.length)))
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    // We intentionally reset internal dialog state whenever the modal is re-opened
+    // so that the batch planner reflects the seeds provided by the caller.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    resetDialogState(seeds)
+  }, [open, resetDialogState, seeds])
+
+  const resolvedBatchSize = Math.min(
+    Math.max(batchSize, 1),
+    Math.min(MAX_BATCH_SIZE, Math.max(1, draftSeeds.length || seeds.length || 1)),
+  )
   const plannedBatches = useMemo(() => {
-    if (!seeds || seeds.length === 0) return []
+    if (!draftSeeds || draftSeeds.length === 0) return []
     const chunks: IssueReportSeed[][] = []
-    for (let i = 0; i < seeds.length; i += resolvedBatchSize) {
-      chunks.push(seeds.slice(i, i + resolvedBatchSize))
+    for (let i = 0; i < draftSeeds.length; i += resolvedBatchSize) {
+      chunks.push(draftSeeds.slice(i, i + resolvedBatchSize))
     }
     return chunks
-  }, [seeds, resolvedBatchSize])
+  }, [draftSeeds, resolvedBatchSize])
 
   const close = () => onOpenChange?.(false)
+
+  const activeSeed = draftSeeds[activeSeedIndex]
+
+  const updateActiveSeed = (updates: Partial<IssueReportSeed>) => {
+    setDraftSeeds((prev) =>
+      prev.map((seed, index) => (index === activeSeedIndex ? { ...seed, ...updates } : seed)),
+    )
+  }
 
   const handleSubmit = async () => {
     if (!plannedBatches.length) {
@@ -123,7 +152,7 @@ export function BulkIssueReportDialog({ open, seeds, onOpenChange }: BulkIssueRe
         <div className="flex items-center justify-between border-b px-6 py-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-slate-500">Bulk issue reports</p>
-            <h2 className="text-2xl font-semibold text-slate-900">{seeds.length} scenario(s) selected</h2>
+            <h2 className="text-2xl font-semibold text-slate-900">{draftSeeds.length} scenario(s) selected</h2>
             <p className="text-sm text-muted-foreground">Chunked into {plannedBatches.length || 1} batch(es)</p>
           </div>
           <button type="button" className="text-slate-500 hover:text-slate-900" onClick={close}>
@@ -138,7 +167,7 @@ export function BulkIssueReportDialog({ open, seeds, onOpenChange }: BulkIssueRe
               <input
                 type="range"
                 min={1}
-                max={Math.max(1, Math.min(MAX_BATCH_SIZE, seeds.length || 1))}
+                max={Math.max(1, Math.min(MAX_BATCH_SIZE, draftSeeds.length || seeds.length || 1))}
                 value={resolvedBatchSize}
                 onChange={(event) => setBatchSize(Number(event.target.value))}
                 className="flex-1"
@@ -153,11 +182,85 @@ export function BulkIssueReportDialog({ open, seeds, onOpenChange }: BulkIssueRe
           <div className="rounded-lg border border-dashed p-4">
             <p className="text-sm font-semibold text-slate-700">Included scenarios</p>
             <ul className="mt-2 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
-              {seeds.map((seed) => (
+              {draftSeeds.map((seed) => (
                 <li key={`${seed.entity_type}:${seed.entity_name}`}>{seed.display_name || seed.entity_name}</li>
               ))}
             </ul>
           </div>
+
+          {draftSeeds.length > 0 && activeSeed && (
+            <div className="grid gap-4 lg:grid-cols-[260px,1fr]">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Review scenarios</p>
+                <div className="rounded-lg border">
+                  {draftSeeds.map((seed, index) => {
+                    const key = `${seed.entity_type}:${seed.entity_name}`
+                    const isActive = index === activeSeedIndex
+                    return (
+                      <button
+                        type="button"
+                        key={key}
+                        className={`block w-full border-b px-3 py-2 text-left text-sm ${isActive ? 'bg-violet-50 font-semibold text-violet-900' : 'hover:bg-slate-50'}`}
+                        onClick={() => setActiveSeedIndex(index)}
+                      >
+                        {seed.display_name || seed.entity_name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-xl border p-4 space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">Title</p>
+                  <Input value={activeSeed.title} onChange={(event) => updateActiveSeed({ title: event.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">Description</p>
+                  <Textarea
+                    value={activeSeed.description}
+                    onChange={(event) => updateActiveSeed({ description: event.target.value })}
+                    rows={6}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500">Summary</p>
+                    <p className="mt-1 text-sm text-slate-700">{activeSeed.summary || 'No summary provided'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500">Tags</p>
+                    <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                      {(activeSeed.tags || []).length === 0 && <span className="text-muted-foreground">None</span>}
+                      {activeSeed.tags?.map((tag) => (
+                        <Badge key={tag} variant="secondary">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">Issue categories</p>
+                  <div className="mt-2 max-h-48 space-y-2 overflow-y-auto">
+                    {activeSeed.categories.map((category, index) => (
+                      <div
+                        key={category.id ?? `${category.title}-${index}`}
+                        className="rounded border border-slate-200 p-2 text-xs text-slate-700"
+                      >
+                        <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
+                          <span>{category.title}</span>
+                          <Badge variant="outline">{category.items.length}</Badge>
+                        </div>
+                        {category.description && <p className="text-[11px] text-muted-foreground">{category.description}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {batches.length > 0 && (
             <div className="space-y-3">
@@ -193,7 +296,7 @@ export function BulkIssueReportDialog({ open, seeds, onOpenChange }: BulkIssueRe
           <Button variant="ghost" onClick={close}>
             Close
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting || seeds.length === 0} className="gap-2">
+          <Button onClick={handleSubmit} disabled={submitting || draftSeeds.length === 0} className="gap-2">
             {submitting ? <Loader2 size={16} className="animate-spin" /> : 'Submit batches'}
           </Button>
         </div>

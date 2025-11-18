@@ -6,6 +6,13 @@ function makeSelectionId(prefix: string, index: number) {
   return `${prefix}-${index}`
 }
 
+function summarizeList(items: string[], limit = 3) {
+  if (items.length === 0) return ''
+  const displayed = items.slice(0, limit)
+  const remainder = items.length - displayed.length
+  return `${displayed.join(', ')}${remainder > 0 ? ` +${remainder} more` : ''}`
+}
+
 function deriveSeverity(criticality?: string): 'critical' | 'high' | 'medium' | 'low' {
   const normalized = (criticality ?? '').toUpperCase()
   if (normalized === 'P0') return 'critical'
@@ -146,9 +153,92 @@ export function buildIssueReportSeedFromQualityReport(
     ...buildReferenceCategories(report),
   ].filter((category) => category.items.length > 0)
 
-  const description = `Quality scan detected ${report.issue_counts.total} structural or linkage issue${
-    report.issue_counts.total === 1 ? '' : 's'
-  } for ${report.entity_name} on ${formatDate(report.validated_at)}.`
+  const issueCount = report.issue_counts.total
+  const summaryLine =
+    report.status === 'missing_prd'
+      ? `Quality scanner could not find a PRD or requirements file for ${report.entity_name} during the run on ${formatDate(report.validated_at)}.`
+      : `Quality scanner flagged ${issueCount} structural or linkage issue${issueCount === 1 ? '' : 's'} for ${report.entity_name} on ${formatDate(report.validated_at)}.`
+
+  const missingSections = flattenMissingTemplateSections(report.template_compliance_v2)
+  const unexpectedSections = report.template_compliance_v2?.unexpected_sections ?? []
+  const targetIssues = report.target_linkage_issues ?? []
+  const orphanRequirements = report.requirements_without_targets ?? []
+  const prdReferenceIssues = report.prd_ref_issues ?? []
+
+  const keyFindings: string[] = []
+  if (report.status === 'missing_prd') {
+    keyFindings.push('PRD.md was not detected in the scenario directory, so deeper structural checks were skipped.')
+    if (!report.has_requirements) {
+      keyFindings.push('requirements.json is also missing which blocks requirement-to-target coverage checks.')
+    }
+  } else {
+    if (missingSections.length > 0) {
+      keyFindings.push(
+        `Template coverage incomplete: ${missingSections.length} required section${missingSections.length === 1 ? '' : 's'} missing (${summarizeList(missingSections)}).`,
+      )
+    }
+    if (unexpectedSections.length > 0) {
+      keyFindings.push(
+        `Unexpected sections present (${summarizeList(unexpectedSections)}). Align PRD.md with the canonical template to keep navigation deterministic.`,
+      )
+    }
+    if (targetIssues.length > 0) {
+      keyFindings.push(
+        `Operational targets referencing invalid or missing requirements (${targetIssues.length} impacted, e.g. ${summarizeList(targetIssues.map((issue) => issue.title))}).`,
+      )
+    }
+    if (orphanRequirements.length > 0) {
+      keyFindings.push(
+        `${orphanRequirements.length} requirement${orphanRequirements.length === 1 ? '' : 's'} have no operational target coverage (e.g. ${summarizeList(orphanRequirements.map((req) => req.id || req.title))}).`,
+      )
+    }
+    if (prdReferenceIssues.length > 0) {
+      keyFindings.push(
+        `PRD reference mismatches detected for ${prdReferenceIssues.length} requirement${prdReferenceIssues.length === 1 ? '' : 's'} (sample: ${summarizeList(prdReferenceIssues.map((issue) => issue.requirement_id))}).`,
+      )
+    }
+  }
+
+  const remediationSteps: string[] = []
+  if (report.status === 'missing_prd') {
+    remediationSteps.push('Create PRD.md (use the canonical template in docs/prd-template) under the scenario root and commit it to the repo.')
+    remediationSteps.push('Add requirements.json so quality scanner can map requirements to operational targets before the next release gate.')
+  } else {
+    if (missingSections.length > 0 || !report.has_prd) {
+      remediationSteps.push('Restore every required section in PRD.md and keep headings identical to the template so future diffs stay machine-readable.')
+    }
+    if (targetIssues.length > 0 || orphanRequirements.length > 0) {
+      remediationSteps.push('Link every requirement to at least one operational target (Operational Targets panel → link requirement ID) and update targets missing references.')
+    }
+    if (prdReferenceIssues.length > 0) {
+      remediationSteps.push('Normalize requirement checkboxes / IDs in the PRD references table so they exactly match requirements.json entries.')
+    }
+  }
+
+  remediationSteps.push('Rerun PRD Control Tower → Quality Scanner after fixes to confirm the issue counter reaches zero.')
+
+  const metadataLines: string[] = []
+  if (report.prd_path) metadataLines.push(`- PRD path: ${report.prd_path}`)
+  if (report.requirements_path) metadataLines.push(`- Requirements path: ${report.requirements_path}`)
+  metadataLines.push(`- Cache used: ${report.cache_used ? 'yes' : 'no'}`)
+
+  const descriptionSections = [summaryLine]
+  if (report.message) {
+    descriptionSections.push(`Latest status: ${report.message}`)
+  }
+  if (keyFindings.length > 0) {
+    descriptionSections.push(['### Key findings', '', ...keyFindings.map((finding) => `- ${finding}`)].join('\n'))
+  }
+  if (remediationSteps.length > 0) {
+    descriptionSections.push([
+      '### Required remediation',
+      '',
+      ...remediationSteps.map((step, index) => `${index + 1}. ${step}`),
+    ].join('\n'))
+  }
+  descriptionSections.push(['### Validation context', '', ...metadataLines].join('\n'))
+
+  const description = descriptionSections.filter(Boolean).join('\n\n')
 
   return {
     entity_type: report.entity_type,
