@@ -226,91 +226,101 @@ export default function Orientation() {
       <TopNav />
 
       <header className="rounded-3xl border bg-white/95 p-8 shadow-soft-lg">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-4">
-            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">PRD Operating Guide</span>
-            <div className="flex items-center gap-3 text-3xl font-semibold text-slate-900">
-              <span className="rounded-2xl bg-amber-100 p-3 text-amber-600">
-                <BookOpen size={28} strokeWidth={2.5} />
-              </span>
-              Understand the Control Tower
-            </div>
-            <p className="max-w-3xl text-base text-muted-foreground">
-              Every scenario becomes permanent intelligence. Use this primer to understand the canonical PRD format, validation workflow, and where to take action next—including the moment to fire the scanner and keep coverage honest.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button size="lg" asChild>
-                <Link to="/catalog">Dive into catalog</Link>
-              </Button>
-              <Button variant="secondary" size="lg" asChild>
-                <Link to="/drafts">Jump to drafts</Link>
-              </Button>
-              <Button variant="outline" size="lg" asChild>
-                <Link to="/quality-scanner">Run quality scan</Link>
-              </Button>
-            </div>
+        <div className="space-y-4">
+          <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">PRD Operating Guide</span>
+          <div className="flex items-center gap-3 text-3xl font-semibold text-slate-900">
+            <span className="rounded-2xl bg-amber-100 p-3 text-amber-600">
+              <BookOpen size={28} strokeWidth={2.5} />
+            </span>
+            Understand the Control Tower
           </div>
-          <Card className="w-full max-w-sm border-dashed bg-gradient-to-br from-indigo-50 to-white">
-            <CardHeader>
-              <CardTitle className="text-lg">Current Coverage</CardTitle>
-              <CardDescription>Live metrics pulled from the catalog service.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
+          <p className="max-w-3xl text-base text-muted-foreground">
+            Every scenario becomes permanent intelligence. Use this primer to understand the canonical PRD format, validation workflow, and where to take action next—including the moment to fire the scanner and keep coverage honest.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button size="lg" asChild>
+              <Link to="/catalog">Dive into catalog</Link>
+            </Button>
+            <Button variant="secondary" size="lg" asChild>
+              <Link to="/drafts">Jump to drafts</Link>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <Link to="/quality-scanner">Run quality scan</Link>
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <section className="grid gap-4 lg:grid-cols-[2fr,1fr]">
+        <Card className="border bg-white/95">
+          <CardHeader>
+            <CardTitle className="text-lg">Current Coverage</CardTitle>
+            <CardDescription>Live metrics straight from the catalog service.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-6 sm:grid-cols-3">
               <div>
                 <p className="text-sm text-muted-foreground">Total entities</p>
                 <p className="text-3xl font-semibold text-slate-900">
                   {loading ? '—' : summary.total.toLocaleString()}
                 </p>
               </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Published PRDs</p>
-                  <p className="text-2xl font-semibold text-emerald-600">{loading ? '—' : summary.withPrd}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Coverage</p>
-                  <p className="text-2xl font-semibold text-emerald-600">{loading ? '—' : `${coverage}%`}</p>
-                </div>
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Active drafts</p>
-                  <p className="text-2xl font-semibold text-slate-900">{loading ? '—' : summary.drafts}</p>
-                </div>
-                <Sparkles size={28} className="text-violet-500" />
-              </div>
-              <Separator />
               <div>
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <ShieldAlert size={16} className="text-rose-500" /> Quality health snapshot
-                </p>
-                <div className="mt-2 grid gap-1 text-sm text-slate-600">
-                  {qualityStats.length === 0 && <span>—</span>}
-                  {qualityStats.map((stat) => (
-                    <span key={stat.label}>
-                      <strong className="text-slate-900">{stat.value}</strong> {stat.label}
-                    </span>
-                  ))}
-                  {qualitySummary?.last_generated && (
-                    <span className="text-xs text-muted-foreground">Updated {new Date(qualitySummary.last_generated).toLocaleString()}</span>
-                  )}
-                  {qualityError && <span className="text-xs text-amber-600">{qualityError}</span>}
-                </div>
+                <p className="text-sm text-muted-foreground">Published PRDs</p>
+                <p className="text-2xl font-semibold text-emerald-600">{loading ? '—' : summary.withPrd}</p>
               </div>
-              {error && (
-                <p className="text-sm text-amber-600">
-                  <AlertCircle className="mr-2 inline" size={14} /> {error}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </header>
+              <div>
+                <p className="text-sm text-muted-foreground">Active drafts</p>
+                <p className="text-2xl font-semibold text-slate-900">{loading ? '—' : summary.drafts}</p>
+              </div>
+            </div>
+            <Separator />
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Coverage</p>
+                <p className="text-4xl font-semibold text-emerald-600">{loading ? '—' : `${coverage}%`}</p>
+              </div>
+              <div className="flex items-center gap-3 rounded-2xl border border-dashed bg-slate-50 px-4 py-2 text-sm text-slate-700">
+                <Sparkles size={18} className="text-violet-500" />
+                Keep drafts moving to lift the percentage.
+              </div>
+            </div>
+            {error && (
+              <p className="text-sm text-amber-600">
+                <AlertCircle className="mr-2 inline" size={14} /> {error}
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
-      <section className="grid gap-6 lg:grid-cols-[1.3fr,1fr]">
-        <Card className="border bg-white/90">
+        <Card className="border bg-white/95">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <ShieldAlert size={18} className="text-rose-500" /> Quality health snapshot
+            </CardTitle>
+            <CardDescription>Quick pulse on tracked entities and issue counts.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2 text-sm text-slate-600">
+              {qualityStats.length === 0 && <span>—</span>}
+              {qualityStats.map((stat) => (
+                <span key={stat.label}>
+                  <strong className="text-slate-900">{stat.value}</strong> {stat.label}
+                </span>
+              ))}
+            </div>
+            {qualitySummary?.last_generated && (
+              <p className="text-xs text-muted-foreground">
+                Updated {new Date(qualitySummary.last_generated).toLocaleString()}
+              </p>
+            )}
+            {qualityError && <p className="text-xs text-amber-600">{qualityError}</p>}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr),minmax(0,1fr)]">
+        <Card className="border bg-white/90 min-w-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
               <FileText size={20} /> Canonical PRD spine
@@ -329,7 +339,7 @@ export default function Orientation() {
                 <p className="text-sm text-slate-600">{section.description}</p>
               </div>
             ))}
-            <div className="rounded-2xl border border-dashed bg-white p-4">
+            <div className="rounded-2xl border border-dashed bg-white p-4 min-w-0">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-slate-800">Example view</p>
                 <div className="flex gap-2">
@@ -350,10 +360,10 @@ export default function Orientation() {
                 </div>
               </div>
               <div
-                className="mt-3 max-h-[28rem] w-full overflow-auto rounded-xl border border-slate-200 bg-slate-900 p-4 text-sm shadow-inner"
+                className="mt-3 max-h-[28rem] w-full overflow-x-auto overflow-y-auto rounded-xl border border-slate-200 bg-slate-900 p-4 text-sm shadow-inner"
                 tabIndex={0}
               >
-                <pre className="min-w-full whitespace-pre text-xs leading-relaxed text-slate-100">
+                <pre className="block min-w-full whitespace-pre text-xs leading-relaxed text-slate-100">
 {PRD_EXAMPLES[exampleMode]}
                 </pre>
               </div>
@@ -361,7 +371,7 @@ export default function Orientation() {
           </CardContent>
         </Card>
 
-        <Card className="border bg-white/90">
+        <Card className="border bg-white/90 min-w-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
               <Workflow size={20} /> Lifecycle overview

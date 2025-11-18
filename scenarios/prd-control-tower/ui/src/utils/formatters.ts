@@ -17,6 +17,39 @@ export function formatDate(dateString: string): string {
 }
 
 /**
+ * Compact timestamp for list views: time today, month/day this year, otherwise include year
+ */
+export function formatCompactDate(dateString: string): string {
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) {
+    return '—'
+  }
+  const now = new Date()
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  if (sameDay) {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  }
+  const sameYear = date.getFullYear() === now.getFullYear()
+  if (sameYear) {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+/**
  * Format file size in bytes to human-readable format (KB)
  */
 export function formatFileSize(bytes: number): string {
