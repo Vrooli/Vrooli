@@ -64,6 +64,17 @@
       "validation": []
     },
     {
+      "id": "SEC-VLT-006",
+      "category": "vault-intelligence",
+      "title": "Resource secrets workspace",
+      "description": "Provide per-resource views with secret lists, owners, rotation notes, and inline actions to sync or open provisioning flows.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "criticality": "P0",
+      "status": "planned",
+      "tags": ["ui", "vault", "inventory"],
+      "validation": []
+    },
+    {
       "id": "SEC-SCAN-001",
       "category": "security-scanning",
       "title": "Cross-scenario code scanning",
@@ -86,6 +97,17 @@
       "validation": []
     },
     {
+      "id": "SEC-SCAN-004",
+      "category": "security-scanning",
+      "title": "Remediation intelligence",
+      "description": "Attach remediation steps, ownership hints, and jump-to-code links for every vulnerability so operators know the next best action.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "criticality": "P0",
+      "status": "planned",
+      "tags": ["security", "remediation", "ux"],
+      "validation": []
+    },
+    {
       "id": "SEC-COMP-001",
       "category": "compliance",
       "title": "Unified compliance aggregator",
@@ -105,6 +127,50 @@
       "criticality": "P0",
       "status": "in_progress",
       "tags": ["lifecycle", "health"],
+      "validation": []
+    },
+    {
+      "id": "SEC-DEP-001",
+      "category": "deployment",
+      "title": "Tier strategy metadata",
+      "description": "Store per-tier handling strategies (strip/generate/prompt/delegate) for every secret and surface them via API + CLI.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "criticality": "P0",
+      "status": "planned",
+      "tags": ["deployment", "metadata"],
+      "validation": []
+    },
+    {
+      "id": "SEC-DEP-002",
+      "category": "deployment",
+      "title": "Bundle manifest export",
+      "description": "Generate machine-readable bundles describing selected secrets, tiers, prompts, and generators for deployment-manager and scenario-to-*.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "criticality": "P0",
+      "status": "planned",
+      "tags": ["deployment", "manifest", "api"],
+      "validation": []
+    },
+    {
+      "id": "SEC-DEP-003",
+      "category": "deployment",
+      "title": "Deployment-manager handshake",
+      "description": "Expose `/deployment/secrets` + webhook push so deployment-manager can visualize plans, request updates, and confirm readiness.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "criticality": "P0",
+      "status": "planned",
+      "tags": ["deployment", "api", "integration"],
+      "validation": []
+    },
+    {
+      "id": "SEC-DEP-004",
+      "category": "deployment",
+      "title": "Scenario-to-* integration",
+      "description": "Provide SDK/CLI helpers so scenario-to-desktop/mobile/cloud can request tier manifests and receive scoped secrets during packaging.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "criticality": "P0",
+      "status": "planned",
+      "tags": ["deployment", "sdk"],
       "validation": []
     },
     {
@@ -193,6 +259,39 @@
       "criticality": "P1",
       "status": "in_progress",
       "tags": ["ux", "branding"],
+      "validation": []
+    },
+    {
+      "id": "SEC-UX-002",
+      "category": "ui",
+      "title": "Orientation landing hub",
+      "description": "Design the home view with hero stats, deployment readiness tiles, and journey cards (configure secrets, fix vulns, prep deployments).",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "criticality": "P0",
+      "status": "planned",
+      "tags": ["ux", "dashboard"],
+      "validation": []
+    },
+    {
+      "id": "SEC-UX-003",
+      "category": "ui",
+      "title": "Guided remedial flows",
+      "description": "Provide multi-step wizards for each journey so operators move from detection to resolution with progress indicators and contextual help.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "criticality": "P0",
+      "status": "planned",
+      "tags": ["ux", "flows"],
+      "validation": []
+    },
+    {
+      "id": "SEC-UX-004",
+      "category": "ui",
+      "title": "Contextual action rail",
+      "description": "Every table/detail panel should surface the next action (open provisioning, file issue, run scan) with inline status + blockers.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "criticality": "P0",
+      "status": "planned",
+      "tags": ["ux", "actions"],
       "validation": []
     },
     {

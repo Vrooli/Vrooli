@@ -9,13 +9,14 @@
 
 ## 🎯 Operational Targets
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Vault Coverage Map | Discover every declared secret, detect missing/invalid entries, and expose the results via `/vault/secrets/status` + CLI/UI consumers.
-- [ ] OT-P0-002 | Cross-Scenario Vulnerability Scanning | Crawl scenario source trees, flag vulnerabilities with severity + file metadata, and persist structured findings.
-- [ ] OT-P0-003 | Unified Compliance Scoring | Blend vault coverage + scan posture into an API response that highlights risk score trends and supports health checks.
+- [ ] OT-P0-001 | Tier-Aware Secret Intelligence | Maintain a complete inventory of every resource/scenario secret, normalize metadata (owner, tier fitness, rotation notes), and expose per-resource drilldowns with current Vault status.
+- [ ] OT-P0-002 | Threat & Vulnerability Detection | Continuously scan scenarios/resources for hardcoded secrets and insecure patterns, rank findings by severity, and link each issue to contextual remediation guidance.
+- [ ] OT-P0-003 | Deployment Readiness Engine | Produce tier-specific secret strategies (strip/generate/prompt/delegate), emit bundle-ready manifests for deployment-manager + scenario-to-*, and verify no infrastructure secrets leak outside Tier 1.
+- [ ] OT-P0-004 | Guided Operator Journeys | Ship an orientation hub with hero stats and journey cards plus multi-step flows that walk operators from detection → action (configure secrets, fix vulns, prep deployments) without guesswork.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Guided Provisioning & Export | Provide APIs/CLI hooks to provision secrets, re-run validation, and export the values safely into workflows.
-- [ ] OT-P1-002 | Operator Dashboard | Deliver the dark-chrome React UI with hero stats, filters, and actionable tables sourced directly from the API/requirements registry.
+- [ ] OT-P1-002 | Operator Dashboard | Deliver the dark-chrome React UI with hero stats, filters, actionable tables, and guided flows sourced directly from the API/requirements registry.
 - [ ] OT-P1-003 | Historical Telemetry | Persist validation + scan history in Postgres so compliance scores include context and trend deltas.
 - [ ] OT-P1-004 | Automation-Friendly CLI | Keep the CLI as a thin API proxy so CI and other scenarios can script audits without bespoke logic.
 - [ ] OT-P1-005 | Lifecycle & Testing Guardrails | Ensure lifecycle setup, phased tests, and resource seeds keep the scenario reproducible in dev/CI.
