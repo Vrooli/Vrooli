@@ -95,8 +95,13 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
       </div>
       <p className="text-xs text-slate-400">
         Every desktop wrapper records start-up events, dependency failures, and shutdowns to <code>deployment-telemetry.jsonl</code>. Uploading the file lets
-        deployment-manager see where bundling still fails—no secrets are stored inside the log.
+        deployment-manager see exactly which dependencies or secrets failed so we know what to fix next—no credentials are stored inside the log.
       </p>
+      <ol className="list-decimal space-y-1 rounded border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-300">
+        <li>Use the path guide below to open the telemetry file on your machine.</li>
+        <li>Drag the file into the picker or click to browse for it.</li>
+        <li>Hit <strong>Upload telemetry</strong> so the events sync to deployment-manager.</li>
+      </ol>
       <div className="rounded border border-slate-800 bg-black/30 p-3 text-xs text-slate-300">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -142,6 +147,11 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
         accept=".jsonl,.json,.txt"
         onChange={(event) => handleFileChange(event.target.files)}
       />
+      <div className="rounded border border-slate-800 bg-slate-950/40 p-3 text-[11px] text-slate-300">
+        <p className="font-semibold text-slate-100">Need an example?</p>
+        <p className="mt-1">Each line is JSON. A single entry might look like:</p>
+        <pre className="mt-2 overflow-x-auto rounded bg-black/40 p-2 text-[10px] text-slate-100">{`{"event":"api_unreachable","detail":"https://example.com","timestamp":"2025-01-01T12:00:00Z"}`}</pre>
+      </div>
       <div className="flex items-center gap-3">
         <Button
           size="sm"
@@ -167,18 +177,19 @@ export function TelemetryUploadCard({ scenarioName, appDisplayName }: TelemetryU
           <CheckCircle2 className="h-3 w-3" /> Uploaded! Saved to {successPath}
         </p>
       )}
-      <p className="text-[11px] text-slate-500">
-        We only store these logs locally and forward them to deployment-manager. Read more about telemetry expectations in the{' '}
+      <div className="rounded border border-slate-800 bg-slate-950/40 p-3 text-[11px] text-slate-400">
+        Why upload? Telemetry tells deployment-manager which swaps or secret strategies to suggest. Logs remain local unless you press Upload, and the
+        UI automatically strips infrastructure credentials.{' '}
         <a
           href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/examples/picker-wheel-desktop.md"
           target="_blank"
           rel="noreferrer"
           className="text-blue-300 underline"
         >
-          Deployment Hub examples
+          Read the real-world example
         </a>
         .
-      </p>
+      </div>
     </div>
   );
 }

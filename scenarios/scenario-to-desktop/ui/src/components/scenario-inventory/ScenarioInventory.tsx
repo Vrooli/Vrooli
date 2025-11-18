@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Card, CardContent } from "../ui/card";
@@ -6,7 +6,8 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Monitor, Package, Search, Download, Loader2, XCircle } from "lucide-react";
 import { ScenarioCard } from "./ScenarioCard";
-import type { ScenariosResponse, FilterStatus } from "./types";
+import { ScenarioDetails } from "./ScenarioDetails";
+import type { ScenariosResponse, FilterStatus, ScenarioDesktopStatus } from "./types";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
@@ -14,6 +15,7 @@ const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
 export function ScenarioInventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [selectedScenario, setSelectedScenario] = useState<ScenarioDesktopStatus | null>(null);
 
   const { data, isLoading, error } = useQuery<ScenariosResponse>({
     queryKey: ['scenarios-desktop-status'],
@@ -24,6 +26,14 @@ export function ScenarioInventory() {
     },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
+
+  useEffect(() => {
+    if (!selectedScenario || !data?.scenarios) return;
+    const updatedScenario = data.scenarios.find((scenario) => scenario.name === selectedScenario.name);
+    if (updatedScenario && updatedScenario !== selectedScenario) {
+      setSelectedScenario(updatedScenario);
+    }
+  }, [data, selectedScenario]);
 
   if (isLoading) {
     return (
@@ -59,6 +69,10 @@ export function ScenarioInventory() {
                          (filterStatus === "web" && !scenario.has_desktop);
     return matchesSearch && matchesFilter;
   }) || [];
+
+  const activeScenario = selectedScenario && filteredScenarios.some((scenario) => scenario.name === selectedScenario.name)
+    ? selectedScenario
+    : null;
 
   return (
     <div className="space-y-6">
@@ -154,6 +168,16 @@ export function ScenarioInventory() {
         </CardContent>
       </Card>
 
+      {/* Scenario Details */}
+      {activeScenario && (
+        <div>
+          <ScenarioDetails
+            scenario={activeScenario}
+            onClose={() => setSelectedScenario(null)}
+          />
+        </div>
+      )}
+
       {/* Scenarios List */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -171,7 +195,12 @@ export function ScenarioInventory() {
           </Card>
         ) : (
           filteredScenarios.map((scenario) => (
-            <ScenarioCard key={scenario.name} scenario={scenario} />
+            <ScenarioCard
+              key={scenario.name}
+              scenario={scenario}
+              onSelect={setSelectedScenario}
+              isSelected={activeScenario?.name === scenario.name}
+            />
           ))
         )}
       </div>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
-import { Loader2, Hammer, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Loader2, Hammer, CheckCircle, XCircle, AlertCircle, Check, HelpCircle } from "lucide-react";
 import { PlatformChip } from "./PlatformChip";
 import { WineInstallDialog } from "../wine";
 import { platformIcons, platformNames } from "./utils";
@@ -290,22 +290,17 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
     );
   };
 
-  const platformButtons = ['win', 'mac', 'linux'].map((platform) => {
-    const active = selectedPlatforms.includes(platform);
-    return (
-      <Button
-        key={platform}
-        variant={active ? 'default' : 'outline'}
-        size="sm"
-        className="gap-2"
-        type="button"
-        onClick={() => togglePlatform(platform)}
-      >
-        <span>{platformIcons[platform]}</span>
-        {platformNames[platform]}
-      </Button>
-    );
-  });
+  const platformOptions = [
+    { id: 'win', label: 'Windows (.exe)', helper: 'Most laptops and desktops' },
+    { id: 'mac', label: 'macOS (.dmg)', helper: 'MacBook + iMac' },
+    { id: 'linux', label: 'Linux (.AppImage)', helper: 'Ubuntu, Fedora, etc.' },
+  ];
+
+  const selectionSummary = (() => {
+    if (selectedPlatforms.length === platformOptions.length) return 'Building installers for every platform.';
+    if (selectedPlatforms.length === 0) return 'Select at least one platform to get started.';
+    return `Building ${selectedPlatforms.map((platform) => platformNames[platform]).join(' + ')}.`;
+  })();
 
   return (
     <>
@@ -318,8 +313,48 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
           onInstallComplete={handleWineInstallComplete}
         />
       )}
-      <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">{platformButtons}</div>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Which installers do you need?</p>
+          <p className="text-xs text-slate-400">{selectionSummary}</p>
+          <div className="grid gap-2 md:grid-cols-3">
+            {platformOptions.map(({ id, label, helper }) => {
+              const active = selectedPlatforms.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => togglePlatform(id)}
+                  className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    active ? 'border-blue-400 bg-blue-950/40 shadow-inner' : 'border-slate-700 bg-slate-900/40'
+                  }`}
+                  aria-pressed={active}
+                >
+                  <div className="flex items-center justify-between text-sm font-semibold text-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span>{platformIcons[id]}</span>
+                      {label}
+                    </div>
+                    {active && <Check className="h-4 w-4 text-green-400" />}
+                  </div>
+                  <p className="text-[11px] text-slate-400">{helper}</p>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1 text-[11px] text-slate-500">
+            <HelpCircle className="h-3 w-3" />
+            Need help choosing?{' '}
+            <a
+              href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-300 underline"
+            >
+              Read the desktop tier guide
+            </a>
+          </div>
+        </div>
         {platformError && <p className="text-xs text-red-300">{platformError}</p>}
         <Button
           variant="default"
