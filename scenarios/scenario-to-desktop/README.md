@@ -16,6 +16,8 @@ Keep these guardrails in mind when testing or distributing Windows/macOS/Linux b
 
 ## Thin-Client Workflow (connect to your Vrooli server)
 
+> **New:** The scenario-to-desktop UI now generates wrappers, runs `npm install/build/dist` for Windows/macOS/Linux, and ingests telemetry directly. The manual steps below are still useful for debugging or when you need to script the process yourself.
+
 Thin clients are just remote controls for the full Vrooli stack that is already running your scenario. Until bundling lands, desktop builds must follow this routine:
 
 1. **Confirm `vrooli` exists on the host running the scenario.** Run `vrooli --version`. If missing, install it and run `./scripts/manage.sh setup --yes yes` once.
@@ -24,7 +26,7 @@ Thin clients are just remote controls for the full Vrooli stack that is already 
    - LAN: use `http://hostname:${UI_PORT}/`.
    - Remote/mobile: proxy through `app-monitor` + Cloudflare and copy the exact proxy URL (for example `https://app-monitor.<domain>/apps/<scenario>/proxy/`).
 4. **Point the desktop wrapper at that proxy URL.** The generator UI and CLI now capture a single `proxy_url`, show detected suggestions, and ship a "Test connection" button so you can confirm it responds before building. Keep `DEPLOYMENT_MODE=external-server` so telemetry and deployment-manager know the UI/API still live on your server.
-5. **Distribute, collect telemetry, and clean up.** Ship the installer, ask testers for their `deployment-telemetry.jsonl`, upload it with `scenario-to-desktop telemetry collect`, then stop the remote scenario with `vrooli scenario stop <name>` when you’re done.
+5. **Distribute, collect telemetry, and clean up.** Ship the installer, ask testers for their `deployment-telemetry.jsonl`, upload it through the scenario-to-desktop UI (or with `scenario-to-desktop telemetry collect` if you prefer the CLI), then stop the remote scenario with `vrooli scenario stop <name>` when you’re done.
 
 Deployment-manager will eventually automate these steps (detecting/installing `vrooli`, starting/stopping scenarios, and swapping dependencies), but documenting the pipeline now keeps Tier 2 expectations realistic.
 

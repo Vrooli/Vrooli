@@ -727,6 +727,11 @@ SOFTWARE.`;
     }
 
     private async installDependencies(): Promise<void> {
+        if (process.env.SKIP_DESKTOP_DEPENDENCY_INSTALL === '1') {
+            console.log('⏭️  Skipping dependency installation (SKIP_DESKTOP_DEPENDENCY_INSTALL=1)');
+            return;
+        }
+
         console.log('📦 Installing dependencies...');
         
         try {

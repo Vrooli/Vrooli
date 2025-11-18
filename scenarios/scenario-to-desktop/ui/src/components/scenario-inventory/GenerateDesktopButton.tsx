@@ -11,6 +11,8 @@ import { Loader2, Zap, CheckCircle, XCircle } from "lucide-react";
 import type { ProbeResponse } from "../../lib/api";
 import { probeEndpoints } from "../../lib/api";
 import type { ScenarioDesktopStatus } from "./types";
+import { BuildDesktopButton } from "./BuildDesktopButton";
+import { TelemetryUploadCard } from "./TelemetryUploadCard";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
@@ -38,7 +40,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (deploymentMode !== "external-server") {
-        throw new Error("Only thin clients are supported right now. Choose 'Thin Client (connect to your Vrooli server)'.");
+        throw new Error("Only the 'Connect to existing Vrooli instance' option works right now.");
       }
       if (!proxyUrl) {
         throw new Error("Provide the proxy URL you use in the browser.");
@@ -142,30 +144,27 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
 
   if (isComplete) {
     return (
-      <div className="ml-4 w-full max-w-xl rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3 text-slate-200">
-        <div className="flex items-center gap-2">
-          <Badge variant="success" className="gap-1">
-            <CheckCircle className="h-3 w-3" />
-            Desktop ready
-          </Badge>
-          <span className="text-xs text-slate-400">Files generated at {buildStatus.output_path}</span>
-        </div>
-        <div className="text-xs space-y-2">
-          <p className="font-semibold text-slate-100">Next steps</p>
-          <p>
-            1. <code>cd {buildStatus.output_path} && npm install</code>
-          </p>
-          <p>
-            2. Update <code>platforms/electron/src/main.ts</code> if your Vrooli server/API URLs change.
-          </p>
-          <p>
-            3. Run <code>npm run dist</code> for the platforms you plan to share.
-          </p>
-          <p>
-            4. After testers run the app, collect telemetry:<br />
-            <code>scenario-to-desktop telemetry collect --scenario {scenario.name} --file /path/to/deployment-telemetry.jsonl</code>
+      <div className="ml-4 w-full max-w-xl space-y-4 text-slate-200">
+        <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge variant="success" className="gap-1">
+              <CheckCircle className="h-3 w-3" />
+              Desktop wrapper ready
+            </Badge>
+            <span className="text-xs text-slate-400">Files live at {buildStatus.output_path}</span>
+          </div>
+          <p className="text-xs text-slate-400">
+            Use the controls below to build installers and upload telemetry—no terminal required.
           </p>
         </div>
+        <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3">
+          <p className="text-sm font-semibold text-slate-100">Build installers</p>
+          <p className="text-xs text-slate-400">
+            We'll run <code>npm install</code>, <code>npm run build</code>, and <code>npm run dist</code> for the platforms you select.
+          </p>
+          <BuildDesktopButton scenarioName={scenario.name} />
+        </div>
+        <TelemetryUploadCard scenarioName={scenario.name} />
       </div>
     );
   }
@@ -273,7 +272,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
         >
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-300">
-              Thin clients connect to the scenario that's already running on your Vrooli server. Paste the browser URL (LAN or Cloudflare/app-monitor) plus the `/api` endpoint so the desktop shell knows where to connect.
+              Connect this desktop wrapper to the same Vrooli instance you already open in the browser (local machine or Cloudflare/app-monitor link). Paste that URL so the desktop shell can reuse it.
             </p>
             <Button variant="outline" type="button" size="sm" onClick={() => setShowConfigurator(false)}>
               Close
@@ -371,7 +370,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
                 </>
               ) : (
                 <>
-                  <Zap className="h-4 w-4" /> Generate Thin Client
+                  <Zap className="h-4 w-4" /> Generate Desktop Wrapper
                 </>
               )}
             </Button>
@@ -379,9 +378,11 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
               variant="outline"
               type="button"
               onClick={() => {
-                setServerUrl("");
-                setApiUrl("");
-                setAutoManageTier1(false);
+                setProxyUrl("");
+                setDeploymentMode("external-server");
+                setAutoManageVrooli(false);
+                setConnectionResult(null);
+                setConnectionError(null);
                 setVrooliBinaryPath("vrooli");
               }}
             >
@@ -396,21 +397,21 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
 const DEPLOYMENT_OPTIONS = [
   {
     value: "external-server",
-    label: "Thin client (connect to your Vrooli server)",
+    label: "Connect to existing Vrooli instance (UI-only)",
     description:
-      "Use the full Vrooli stack you already run and tunnel through app-monitor/Cloudflare. Desktop ships UI only.",
+      "Reuse the URL you already open in the browser (local or Cloudflare/app-monitor). The desktop shell streams against that server.",
     docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
   },
   {
     value: "cloud-api",
-    label: "Cloud API bundle (coming soon)",
-    description: "Future: generate a remote API target via deployment-manager.",
+    label: "Package remote API (coming soon)",
+    description: "Future option: hand deployment-manager a cloud target and connect this desktop app to it.",
     docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-4-saas.md"
   },
   {
     value: "bundled",
-    label: "Fully bundled/offline (coming soon)",
-    description: "Future: package APIs/resources next to the UI.",
+    label: "Offline bundle (coming soon)",
+    description: "Future option: ship APIs/resources next to the UI so everything runs on the desktop.",
     docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
   }
 ];
