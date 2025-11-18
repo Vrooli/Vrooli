@@ -50,8 +50,9 @@ export interface DesktopConfig {
   features: Record<string, boolean>;
   window: Record<string, unknown>;
   deployment_mode?: string;
-  auto_manage_tier1?: boolean;
+  auto_manage_vrooli?: boolean;
   vrooli_binary_path?: string;
+  proxy_url?: string;
   external_server_url?: string;
   external_api_url?: string;
 }
@@ -95,6 +96,16 @@ export interface ProbeResponse {
     status_code?: number;
     message?: string;
   };
+}
+
+export interface ProxyHintsResponse {
+  scenario: string;
+  hints: Array<{
+    url: string;
+    source: string;
+    confidence: string;
+    message: string;
+  }>;
 }
 
 export async function fetchHealth(): Promise<HealthResponse> {
@@ -185,6 +196,7 @@ export function getDownloadUrl(scenarioName: string, platform: string): string {
 }
 
 export async function probeEndpoints(payload: {
+  proxy_url?: string;
   server_url?: string;
   api_url?: string;
   timeout_ms?: number;
@@ -200,5 +212,13 @@ export async function probeEndpoints(payload: {
     throw new Error(error.message || "Failed to probe URLs");
   }
 
+  return response.json();
+}
+
+export async function fetchProxyHints(scenarioName: string): Promise<ProxyHintsResponse> {
+  const response = await fetch(buildUrl(`/desktop/proxy-hints/${encodeURIComponent(scenarioName)}`));
+  if (!response.ok) {
+    throw new Error("Failed to load proxy hints");
+  }
   return response.json();
 }

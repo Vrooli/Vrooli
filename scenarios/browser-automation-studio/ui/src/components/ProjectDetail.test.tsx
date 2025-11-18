@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { renderWithProviders } from '@/test-utils/testHelpers';
-import type { Project } from '@stores/projectStore';
-import ProjectDetail from '@components/ProjectDetail';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { renderWithProviders } from "@/test-utils/testHelpers";
+import type { Project } from "@stores/projectStore";
+import ProjectDetail from "@components/ProjectDetail";
+import { testIds } from "../consts/selectors";
 
 const mockDeleteProject = vi.fn();
 const mockBulkDeleteWorkflows = vi.fn();
@@ -15,31 +16,47 @@ const executionStoreState = {
   viewerWorkflowId: null,
 };
 
-vi.mock('@stores/projectStore', () => ({
+vi.mock("@stores/projectStore", () => ({
   __esModule: true,
-  useProjectStore: vi.fn((selector?: (state: { deleteProject: typeof mockDeleteProject }) => unknown) => {
-    const state = { deleteProject: mockDeleteProject };
-    return typeof selector === 'function' ? selector(state) : state;
-  }),
+  useProjectStore: vi.fn(
+    (
+      selector?: (state: {
+        deleteProject: typeof mockDeleteProject;
+      }) => unknown,
+    ) => {
+      const state = { deleteProject: mockDeleteProject };
+      return typeof selector === "function" ? selector(state) : state;
+    },
+  ),
 }));
 
-vi.mock('@stores/workflowStore', () => ({
+vi.mock("@stores/workflowStore", () => ({
   __esModule: true,
-  useWorkflowStore: vi.fn((selector?: (state: { bulkDeleteWorkflows: typeof mockBulkDeleteWorkflows }) => unknown) => {
-    const state = { bulkDeleteWorkflows: mockBulkDeleteWorkflows };
-    return typeof selector === 'function' ? selector(state) : state;
-  }),
+  useWorkflowStore: vi.fn(
+    (
+      selector?: (state: {
+        bulkDeleteWorkflows: typeof mockBulkDeleteWorkflows;
+      }) => unknown,
+    ) => {
+      const state = { bulkDeleteWorkflows: mockBulkDeleteWorkflows };
+      return typeof selector === "function" ? selector(state) : state;
+    },
+  ),
 }));
 
-vi.mock('@stores/executionStore', () => ({
+vi.mock("@stores/executionStore", () => ({
   __esModule: true,
-  useExecutionStore: vi.fn((selector?: (state: typeof executionStoreState) => unknown) => {
-    return typeof selector === 'function' ? selector(executionStoreState) : executionStoreState;
-  }),
+  useExecutionStore: vi.fn(
+    (selector?: (state: typeof executionStoreState) => unknown) => {
+      return typeof selector === "function"
+        ? selector(executionStoreState)
+        : executionStoreState;
+    },
+  ),
 }));
 
 const getConfigMock = vi.hoisted(() => vi.fn());
-vi.mock('../config', () => ({
+vi.mock("../config", () => ({
   __esModule: true,
   getConfig: getConfigMock,
 }));
@@ -48,22 +65,22 @@ const toastMock = vi.hoisted(() => ({
   success: vi.fn(),
   error: vi.fn(),
 }));
-vi.mock('react-hot-toast', () => ({
+vi.mock("react-hot-toast", () => ({
   __esModule: true,
   default: toastMock,
 }));
 
-vi.mock('./ExecutionViewer', () => ({
+vi.mock("./ExecutionViewer", () => ({
   __esModule: true,
-  default: () => <div data-testid="execution-viewer-mock" />,
+  default: () => <div data-testid={testIds.executionViewerMock} />,
 }));
 
-vi.mock('./ExecutionHistory', () => ({
+vi.mock("./ExecutionHistory", () => ({
   __esModule: true,
-  default: () => <div data-testid="execution-history-mock" />,
+  default: () => <div data-testid={testIds.executionHistoryMock} />,
 }));
 
-vi.mock('../utils/logger', () => ({
+vi.mock("../utils/logger", () => ({
   __esModule: true,
   logger: {
     info: vi.fn(),
@@ -73,24 +90,24 @@ vi.mock('../utils/logger', () => ({
   },
 }));
 
-describe('ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]', () => {
-  const apiBase = 'http://localhost:19770/api/v1';
+describe("ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]", () => {
+  const apiBase = "http://localhost:19770/api/v1";
   const project: Project = {
-    id: 'project-demo',
-    name: 'Demo Project',
-    description: 'Demo description',
-    folder_path: '/demo',
-    created_at: '2025-01-01T00:00:00Z',
-    updated_at: '2025-01-01T00:00:00Z',
+    id: "project-demo",
+    name: "Demo Project",
+    description: "Demo description",
+    folder_path: "/demo",
+    created_at: "2025-01-01T00:00:00Z",
+    updated_at: "2025-01-01T00:00:00Z",
   };
 
   const workflow = {
-    id: 'workflow-demo',
-    name: 'Telemetry Workflow',
-    description: 'Ensures telemetry render',
-    folder_path: '/demo',
-    created_at: '2025-01-01T00:00:00Z',
-    updated_at: '2025-01-02T00:00:00Z',
+    id: "workflow-demo",
+    name: "Telemetry Workflow",
+    description: "Ensures telemetry render",
+    folder_path: "/demo",
+    created_at: "2025-01-01T00:00:00Z",
+    updated_at: "2025-01-02T00:00:00Z",
     stats: {
       execution_count: 3,
       success_rate: 100,
@@ -106,7 +123,7 @@ describe('ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]',
     executionStoreState.startExecution.mockResolvedValue(undefined);
 
     fetchMock = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
-      const url = typeof input === 'string' ? input : input.toString();
+      const url = typeof input === "string" ? input : input.toString();
       if (url === `${apiBase}/projects/${project.id}/workflows`) {
         return Promise.resolve({
           ok: true,
@@ -117,7 +134,7 @@ describe('ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]',
       if (url === `${apiBase}/workflows/${workflow.id}/execute`) {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ execution_id: 'exec-123', status: 'pending' }),
+          json: async () => ({ execution_id: "exec-123", status: "pending" }),
         } as Response);
       }
 
@@ -131,7 +148,7 @@ describe('ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]',
     global.fetch = originalFetch;
   });
 
-  it('starts executions through the execution store when executing a workflow', async () => {
+  it("starts executions through the execution store when executing a workflow", async () => {
     const user = userEvent.setup();
 
     renderWithProviders(
@@ -143,11 +160,15 @@ describe('ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]',
       />,
     );
 
-    const executeButtons = await screen.findAllByTestId('workflow-execute-button');
+    const executeButtons = await screen.findAllByTestId(
+      testIds.workflowExecuteButton,
+    );
     await user.click(executeButtons[0]);
 
     await waitFor(() => {
-      expect(executionStoreState.startExecution).toHaveBeenCalledWith(workflow.id);
+      expect(executionStoreState.startExecution).toHaveBeenCalledWith(
+        workflow.id,
+      );
     });
   });
 });

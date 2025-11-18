@@ -17,13 +17,15 @@ import (
 // Quick generate desktop handler - auto-detects scenario configuration
 func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		ScenarioName    string `json:"scenario_name"`
-		TemplateType    string `json:"template_type"`
-		DeploymentMode  string `json:"deployment_mode"`
-		AutoManageTier1 *bool  `json:"auto_manage_tier1"`
-		ServerURL       string `json:"server_url"`
-		APIURL          string `json:"api_url"`
-		VrooliBinary    string `json:"vrooli_binary_path"`
+		ScenarioName     string `json:"scenario_name"`
+		TemplateType     string `json:"template_type"`
+		DeploymentMode   string `json:"deployment_mode"`
+		AutoManageVrooli *bool  `json:"auto_manage_vrooli"`
+		LegacyAutoManage *bool  `json:"auto_manage_tier1"`
+		ProxyURL         string `json:"proxy_url"`
+		LegacyServerURL  string `json:"server_url"`
+		LegacyAPIURL     string `json:"api_url"`
+		VrooliBinary     string `json:"vrooli_binary_path"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -80,8 +82,10 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 	if request.DeploymentMode != "" {
 		config.DeploymentMode = request.DeploymentMode
 	}
-	if request.AutoManageTier1 != nil {
-		config.AutoManageTier1 = *request.AutoManageTier1
+	if request.AutoManageVrooli != nil {
+		config.AutoManageVrooli = *request.AutoManageVrooli
+	} else if request.LegacyAutoManage != nil {
+		config.AutoManageVrooli = *request.LegacyAutoManage
 	}
 	savedConfig, err := loadDesktopConnectionConfig(metadata.ScenarioPath)
 	if err != nil {
@@ -90,19 +94,17 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 			"error", err)
 	}
 
-	if request.ServerURL != "" {
-		config.ExternalServerURL = request.ServerURL
-		config.ServerPath = request.ServerURL
+	if request.ProxyURL != "" {
+		config.ProxyURL = request.ProxyURL
+	} else if savedConfig != nil && savedConfig.ProxyURL != "" {
+		config.ProxyURL = savedConfig.ProxyURL
 	} else if savedConfig != nil && savedConfig.ServerURL != "" {
-		config.ExternalServerURL = savedConfig.ServerURL
-		config.ServerPath = savedConfig.ServerURL
+		config.ProxyURL = savedConfig.ServerURL
+	} else if request.LegacyServerURL != "" {
+		config.ProxyURL = request.LegacyServerURL
 	}
-	if request.APIURL != "" {
-		config.ExternalAPIURL = request.APIURL
-		config.APIEndpoint = request.APIURL
-	} else if savedConfig != nil && savedConfig.APIURL != "" {
-		config.ExternalAPIURL = savedConfig.APIURL
-		config.APIEndpoint = savedConfig.APIURL
+	if config.ProxyURL == "" && request.LegacyAPIURL != "" {
+		config.ProxyURL = request.LegacyAPIURL
 	}
 	if request.VrooliBinary != "" {
 		config.VrooliBinaryPath = request.VrooliBinary
@@ -114,23 +116,17 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 	} else if savedConfig != nil && savedConfig.DeploymentMode != "" {
 		config.DeploymentMode = savedConfig.DeploymentMode
 	}
-	if request.AutoManageTier1 != nil {
-		config.AutoManageTier1 = *request.AutoManageTier1
+	if request.AutoManageVrooli != nil {
+		config.AutoManageVrooli = *request.AutoManageVrooli
+	} else if request.LegacyAutoManage != nil {
+		config.AutoManageVrooli = *request.LegacyAutoManage
 	} else if savedConfig != nil {
-		config.AutoManageTier1 = savedConfig.AutoManageTier1
+		config.AutoManageVrooli = savedConfig.AutoManageVrooli
 	}
-	if savedConfig != nil && savedConfig.ServerType != "" && request.ServerURL == "" {
+	if savedConfig != nil && savedConfig.ServerType != "" && request.ProxyURL == "" && request.LegacyServerURL == "" {
 		config.ServerType = savedConfig.ServerType
 	}
 
-	if config.ServerType == "external" && config.ExternalServerURL == "" {
-		http.Error(w, "server_url is required for scenarios with APIs. Provide the Vrooli server URL or Cloudflare/app-monitor proxy.", http.StatusBadRequest)
-		return
-	}
-	if config.ServerType == "external" && config.ExternalAPIURL == "" {
-		http.Error(w, "api_url is required for scenarios with APIs.", http.StatusBadRequest)
-		return
-	}
 	if err := s.validateDesktopConfig(config); err != nil {
 		http.Error(w, fmt.Sprintf("Configuration validation failed: %s", err), http.StatusBadRequest)
 		return
@@ -195,22 +191,22 @@ func (s *Server) quickGenerateDesktopHandler(w http.ResponseWriter, r *http.Requ
 }
 
 // Generate desktop application handler
-func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) {
-	var config DesktopConfig
 
+func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
 
-	if err := json.Unmarshal(body, &config); err != nil {
+	config, err := decodeDesktopConfig(body)
+	if err != nil {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
 
 	// Validate configuration
-	if err := s.validateDesktopConfig(&config); err != nil {
+	if err := s.validateDesktopConfig(config); err != nil {
 		http.Error(w, fmt.Sprintf("Configuration validation failed: %s", err), http.StatusBadRequest)
 		return
 	}
@@ -237,7 +233,7 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 			"path", config.OutputPath)
 	}
 
-	s.persistDesktopConfig(filepath.Join(vrooliRoot, "scenarios", config.AppName), &config)
+	s.persistDesktopConfig(filepath.Join(vrooliRoot, "scenarios", config.AppName), config)
 
 	// Generate build ID
 	buildID := uuid.New().String()
@@ -264,7 +260,7 @@ func (s *Server) generateDesktopHandler(w http.ResponseWriter, r *http.Request) 
 	s.buildMutex.Unlock()
 
 	// Start build process asynchronously
-	go s.performDesktopGeneration(buildID, &config)
+	go s.performDesktopGeneration(buildID, config)
 
 	// Return immediate response
 	response := map[string]interface{}{
@@ -543,12 +539,13 @@ func (s *Server) persistDesktopConfig(scenarioRoot string, config *DesktopConfig
 	}
 
 	conn := &DesktopConnectionConfig{
-		ServerURL:       config.ExternalServerURL,
-		APIURL:          config.ExternalAPIURL,
-		DeploymentMode:  config.DeploymentMode,
-		AutoManageTier1: config.AutoManageTier1,
-		VrooliBinary:    config.VrooliBinaryPath,
-		ServerType:      config.ServerType,
+		ProxyURL:         config.ProxyURL,
+		ServerURL:        config.ExternalServerURL,
+		APIURL:           config.ExternalAPIURL,
+		DeploymentMode:   config.DeploymentMode,
+		AutoManageVrooli: config.AutoManageVrooli,
+		VrooliBinary:     config.VrooliBinaryPath,
+		ServerType:       config.ServerType,
 	}
 
 	if err := saveDesktopConnectionConfig(scenarioRoot, conn); err != nil {

@@ -25,9 +25,8 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
   const [showConfigurator, setShowConfigurator] = useState(false);
   const saved = scenario.connection_config;
   const [deploymentMode, setDeploymentMode] = useState(saved?.deployment_mode ?? "external-server");
-  const [serverUrl, setServerUrl] = useState(saved?.server_url ?? "");
-  const [apiUrl, setApiUrl] = useState(saved?.api_url ?? "");
-  const [autoManageTier1, setAutoManageTier1] = useState(saved?.auto_manage_tier1 ?? false);
+  const [proxyUrl, setProxyUrl] = useState(saved?.proxy_url ?? saved?.server_url ?? "");
+  const [autoManageVrooli, setAutoManageVrooli] = useState(saved?.auto_manage_vrooli ?? false);
   const [vrooliBinaryPath, setVrooliBinaryPath] = useState(saved?.vrooli_binary_path ?? "vrooli");
   const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -41,8 +40,8 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
       if (deploymentMode !== "external-server") {
         throw new Error("Only thin clients are supported right now. Choose 'Thin Client (connect to your Vrooli server)'.");
       }
-      if (!serverUrl || !apiUrl) {
-        throw new Error("Provide both the Vrooli server URL and the API endpoint.");
+      if (!proxyUrl) {
+        throw new Error("Provide the proxy URL you use in the browser.");
       }
       const res = await fetch(buildUrl('/desktop/generate/quick'), {
         method: 'POST',
@@ -51,9 +50,8 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
           scenario_name: scenario.name,
           template_type: 'universal',
           deployment_mode: deploymentMode,
-          server_url: serverUrl,
-          api_url: apiUrl,
-          auto_manage_tier1: autoManageTier1,
+          proxy_url: proxyUrl,
+          auto_manage_vrooli: autoManageVrooli,
           vrooli_binary_path: vrooliBinaryPath
         })
       });
@@ -97,18 +95,17 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
     }
     const cfg = scenario.connection_config;
     setDeploymentMode(cfg.deployment_mode ?? "external-server");
-    setServerUrl(cfg.server_url ?? "");
-    setApiUrl(cfg.api_url ?? "");
-    setAutoManageTier1(cfg.auto_manage_tier1 ?? false);
+    setProxyUrl(cfg.proxy_url ?? cfg.server_url ?? "");
+    setAutoManageVrooli(cfg.auto_manage_vrooli ?? false);
     setVrooliBinaryPath(cfg.vrooli_binary_path ?? "vrooli");
   }, [scenario.connection_config?.updated_at, scenario.connection_config, scenario.name]);
 
   const connectionMutation = useMutation({
     mutationFn: async () => {
-      if (!serverUrl && !apiUrl) {
-        throw new Error("Enter the URLs first");
+      if (!proxyUrl) {
+        throw new Error("Enter the proxy URL first");
       }
-      return probeEndpoints({ server_url: serverUrl || undefined, api_url: apiUrl || undefined });
+      return probeEndpoints({ proxy_url: proxyUrl });
     },
     onSuccess: (result) => {
       setConnectionResult(result);
@@ -313,38 +310,17 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
           </div>
 
           <div>
-            <Label htmlFor={`serverUrl-${scenario.name}`}>Vrooli server URL</Label>
+            <Label htmlFor={`proxyUrl-${scenario.name}`}>Proxy URL</Label>
             <p className="text-xs text-slate-400 mb-1">
-              Paste the HTTPS address that already loads this scenario in a browser (LAN hostname or the Cloudflare/app-monitor tunnel).
-              <a
-                href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-1-local-dev.md"
-                target="_blank"
-                rel="noreferrer"
-                className="text-blue-300 underline ml-1"
-              >
-                Explain Vrooli servers
-              </a>
+              Paste the Cloudflare/app-monitor link you already use (for example <code>https://app-monitor.example.com/apps/{scenario.name}/proxy/</code>). Desktop apps simply open this URL.
             </p>
             <Input
-              id={`serverUrl-${scenario.name}`}
-              value={serverUrl}
-              onChange={(e) => setServerUrl(e.target.value)}
-              placeholder="https://app-monitor.example.dev/picker-wheel"
+              id={`proxyUrl-${scenario.name}`}
+              value={proxyUrl}
+              onChange={(e) => setProxyUrl(e.target.value)}
+              placeholder="https://app-monitor.example.dev/apps/picker-wheel/proxy/"
               className="mt-1"
             />
-            <p className="mt-1 text-xs text-slate-400">Users will see this UI when the desktop app launches. Double-check the spelling before building.</p>
-          </div>
-
-          <div>
-            <Label htmlFor={`apiUrl-${scenario.name}`}>API endpoint</Label>
-            <Input
-              id={`apiUrl-${scenario.name}`}
-              value={apiUrl}
-              onChange={(e) => setApiUrl(e.target.value)}
-              placeholder="https://app-monitor.example.dev/picker-wheel/api"
-              className="mt-1"
-            />
-            <p className="mt-1 text-xs text-slate-400">Copy the `/api` route exposed through the proxy so authentication continues to work.</p>
 
             <div className="flex items-center gap-2 mt-2">
               <Button
@@ -352,12 +328,12 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
                 variant="outline"
                 size="sm"
                 onClick={() => connectionMutation.mutate()}
-                disabled={connectionMutation.isPending || (!serverUrl && !apiUrl)}
+                disabled={connectionMutation.isPending || !proxyUrl}
               >
                 {connectionMutation.isPending ? "Testing..." : "Test connection"}
               </Button>
               {connectionResult && connectionResult.server.status === "ok" && connectionResult.api.status === "ok" && (
-                <span className="text-xs text-green-300">Both URLs responded ✔</span>
+                <span className="text-xs text-green-300">Proxy responded ✔</span>
               )}
               {connectionError && <span className="text-xs text-red-300">{connectionError}</span>}
             </div>
@@ -372,14 +348,14 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
 
           <div className="space-y-2">
             <Checkbox
-              checked={autoManageTier1}
-              onChange={(e) => setAutoManageTier1(e.target.checked)}
+              checked={autoManageVrooli}
+              onChange={(e) => setAutoManageVrooli(e.target.checked)}
               label="Let the desktop build run the scenario locally (vrooli setup/start)"
             />
             <Input
               value={vrooliBinaryPath}
               onChange={(e) => setVrooliBinaryPath(e.target.value)}
-              disabled={!autoManageTier1}
+              disabled={!autoManageVrooli}
               placeholder="vrooli"
             />
             <p className="text-xs text-slate-400">

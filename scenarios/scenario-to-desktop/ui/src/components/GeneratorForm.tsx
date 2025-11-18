@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
-import { generateDesktop, probeEndpoints, type DesktopConfig, type ProbeResponse } from "../lib/api";
+import { fetchProxyHints, generateDesktop, probeEndpoints, type DesktopConfig, type ProbeResponse, type ProxyHintsResponse } from "../lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -32,8 +32,7 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
     linux: true
   });
   const [outputPath, setOutputPath] = useState("./desktop-app");
-  const [serverUrl, setServerUrl] = useState("");
-  const [apiUrl, setApiUrl] = useState("");
+  const [proxyUrl, setProxyUrl] = useState("");
   const [serverPort, setServerPort] = useState(3000);
   const [localServerPath, setLocalServerPath] = useState("ui/server.js");
   const [localApiEndpoint, setLocalApiEndpoint] = useState("http://localhost:3001/api");
@@ -71,10 +70,10 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
 
   const connectionMutation = useMutation({
     mutationFn: async () => {
-      if (!serverUrl && !apiUrl) {
-        throw new Error("Enter the URLs above before testing.");
+      if (!proxyUrl) {
+        throw new Error("Enter the proxy URL above before testing.");
       }
-      return probeEndpoints({ server_url: serverUrl || undefined, api_url: apiUrl || undefined });
+      return probeEndpoints({ proxy_url: proxyUrl });
     },
     onSuccess: (result) => {
       setConnectionResult(result);
@@ -88,12 +87,26 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
 
   const selectedScenario = scenariosData?.scenarios.find((s) => s.name === scenarioName);
 
+  const { data: proxyHints } = useQuery<ProxyHintsResponse | null>({
+    queryKey: ['proxy-hints', scenarioName],
+    queryFn: async () => {
+      if (!scenarioName) return null;
+      try {
+        return await fetchProxyHints(scenarioName);
+      } catch (error) {
+        console.warn('Failed to load proxy hints', error);
+        return null;
+      }
+    },
+    enabled: Boolean(scenarioName),
+    staleTime: 1000 * 60,
+  });
+
   const applySavedConnection = (config?: DesktopConnectionConfig | null) => {
     if (!config) return;
     setDeploymentMode(config.deployment_mode ?? "external-server");
-    setServerUrl(config.server_url ?? "");
-    setApiUrl(config.api_url ?? "");
-    setAutoManageTier1(config.auto_manage_tier1 ?? false);
+    setProxyUrl(config.proxy_url ?? config.server_url ?? "");
+    setAutoManageTier1(config.auto_manage_vrooli ?? false);
     setVrooliBinaryPath(config.vrooli_binary_path ?? "vrooli");
   };
 
@@ -131,13 +144,13 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
     }
 
     const requiresRemoteConfig = serverType === "external";
-    if (requiresRemoteConfig && (!serverUrl || !apiUrl)) {
-      alert("Provide both the Vrooli server URL (where the UI lives) and the API endpoint exposed through app-monitor or Cloudflare.");
+    if (requiresRemoteConfig && !proxyUrl) {
+      alert("Provide the proxy URL you use in the browser (for example https://app-monitor.example.com/apps/<scenario>/proxy/).");
       return;
     }
 
-    const resolvedServerPath = requiresRemoteConfig ? serverUrl : localServerPath;
-    const resolvedApiEndpoint = requiresRemoteConfig ? apiUrl : localApiEndpoint;
+    const resolvedServerPath = requiresRemoteConfig ? proxyUrl : localServerPath;
+    const resolvedApiEndpoint = requiresRemoteConfig ? proxyUrl : localApiEndpoint;
 
     const config: DesktopConfig = {
       app_name: scenarioName,
@@ -166,11 +179,16 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
         background: "#f5f5f5"
       },
       deployment_mode: deploymentMode,
-      auto_manage_tier1: autoManageTier1,
+      auto_manage_vrooli: autoManageTier1,
       vrooli_binary_path: vrooliBinaryPath,
-      external_server_url: requiresRemoteConfig ? serverUrl : undefined,
-      external_api_url: requiresRemoteConfig ? apiUrl : undefined
+      proxy_url: requiresRemoteConfig ? proxyUrl : undefined,
+      external_server_url: requiresRemoteConfig ? proxyUrl : undefined,
+      external_api_url: requiresRemoteConfig ? undefined : undefined
     };
+
+    if (!requiresRemoteConfig) {
+      config.external_api_url = localApiEndpoint;
+    }
 
     generateMutation.mutate(config);
   };
@@ -345,39 +363,41 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
           {serverType === "external" ? (
             <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3">
               <div>
-                <Label htmlFor="serverUrl">Vrooli server URL</Label>
+                <Label htmlFor="proxyUrl">Proxy URL</Label>
                 <p className="text-xs text-slate-400 mb-2">
-                  This is the machine where you already run `vrooli scenario start`. Paste the HTTPS address (LAN hostname or Cloudflare/app-monitor link) that loads the scenario in your browser.
+                  Paste the exact URL you open in your browser (for example <code>https://app-monitor.yourdomain.com/apps/{scenarioName || "scenario"}/proxy/</code>). This keeps all traffic inside the secure tunnel.
                 </p>
               </div>
               <Input
-                id="serverUrl"
-                value={serverUrl}
-                onChange={(e) => setServerUrl(e.target.value)}
-                placeholder="https://app-monitor.example.dev/picker-wheel"
+                id="proxyUrl"
+                value={proxyUrl}
+                onChange={(e) => setProxyUrl(e.target.value)}
+                placeholder="https://app-monitor.example.dev/apps/picker-wheel/proxy/"
               />
               <p className="text-xs text-slate-400 space-x-1">
-                <span>
-                  Users see this URL when the desktop shell opens. Double-check spelling and HTTPS certificates before building.
-                </span>
-                <a
-                  href="https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-1-local-dev.md"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-blue-300 underline"
-                >
-                  What counts as a Vrooli server?
-                </a>
+                <span>Desktop apps simply load this URL. Use the Cloudflare/app-monitor address if you want remote access.</span>
               </p>
 
-              <Label htmlFor="apiUrl">API endpoint</Label>
-              <Input
-                id="apiUrl"
-                value={apiUrl}
-                onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="https://app-monitor.example.dev/picker-wheel/api"
-              />
-              <p className="text-xs text-slate-400">If you proxy APIs through app-monitor, copy the `/api` URL exactly so authentication succeeds.</p>
+              {proxyHints?.hints && proxyHints.hints.length > 0 && (
+                <div className="rounded border border-slate-800 bg-black/20 p-3 space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Detected URLs</p>
+                  <div className="space-y-2">
+                    {proxyHints.hints.map((hint) => (
+                      <button
+                        key={hint.url}
+                        type="button"
+                        onClick={() => setProxyUrl(hint.url)}
+                        className="w-full rounded border border-slate-700 bg-slate-950/30 px-3 py-2 text-left text-sm hover:border-blue-500"
+                      >
+                        <div className="font-medium text-slate-200">{hint.url}</div>
+                        <div className="text-xs text-slate-400">
+                          {hint.message} · Source: {hint.source}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-2">
                 <Button
@@ -385,7 +405,7 @@ export function GeneratorForm({ selectedTemplate, onTemplateChange, onBuildStart
                   variant="outline"
                   size="sm"
                   onClick={() => connectionMutation.mutate()}
-                  disabled={connectionMutation.isPending || (!serverUrl && !apiUrl)}
+                  disabled={connectionMutation.isPending || !proxyUrl}
                 >
                   {connectionMutation.isPending ? "Testing..." : "Test connection"}
                 </Button>

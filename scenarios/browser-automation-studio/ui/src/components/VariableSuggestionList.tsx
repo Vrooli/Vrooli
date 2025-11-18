@@ -1,5 +1,6 @@
-import { memo } from 'react';
-import type { WorkflowVariableInfo } from '../hooks/useWorkflowVariables';
+import { memo } from "react";
+import type { WorkflowVariableInfo } from "../hooks/useWorkflowVariables";
+import { testIds } from "../consts/selectors";
 
 interface VariableSuggestionListProps {
   variables: WorkflowVariableInfo[];
@@ -7,17 +8,28 @@ interface VariableSuggestionListProps {
   onSelect?: (value: string) => void;
 }
 
-function VariableSuggestionList({ variables, emptyHint, onSelect }: VariableSuggestionListProps) {
+function VariableSuggestionList({
+  variables,
+  emptyHint,
+  onSelect,
+}: VariableSuggestionListProps) {
   if (!variables || variables.length === 0) {
     return (
-      <p className="mt-1 text-[10px] text-gray-500" data-testid="variable-suggestions-empty">
-        {emptyHint ?? 'Define a variable earlier in the workflow to reference it here.'}
+      <p
+        className="mt-1 text-[10px] text-gray-500"
+        data-testid={testIds.variableSuggestionsEmpty}
+      >
+        {emptyHint ??
+          "Define a variable earlier in the workflow to reference it here."}
       </p>
     );
   }
 
   return (
-    <div className="mt-1 flex flex-wrap gap-1" data-testid="variable-suggestions">
+    <div
+      className="mt-1 flex flex-wrap gap-1"
+      data-testid={testIds.variableSuggestions}
+    >
       {variables.map((variable) => (
         <button
           key={`${variable.name}-${variable.sourceNodeId}`}

@@ -25,17 +25,16 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
         scenario_name: scenarioName,
         template_type: 'universal'
       };
-      if (connectionConfig?.server_url) {
-        payload.server_url = connectionConfig.server_url;
-      }
-      if (connectionConfig?.api_url) {
-        payload.api_url = connectionConfig.api_url;
+      if (connectionConfig?.proxy_url) {
+        payload.proxy_url = connectionConfig.proxy_url;
+      } else if (connectionConfig?.server_url) {
+        payload.proxy_url = connectionConfig.server_url;
       }
       if (connectionConfig?.deployment_mode) {
         payload.deployment_mode = connectionConfig.deployment_mode;
       }
-      if (typeof connectionConfig?.auto_manage_tier1 === 'boolean') {
-        payload.auto_manage_tier1 = connectionConfig.auto_manage_tier1;
+      if (typeof connectionConfig?.auto_manage_vrooli === 'boolean') {
+        payload.auto_manage_vrooli = connectionConfig.auto_manage_vrooli;
       }
       if (connectionConfig?.vrooli_binary_path) {
         payload.vrooli_binary_path = connectionConfig.vrooli_binary_path;

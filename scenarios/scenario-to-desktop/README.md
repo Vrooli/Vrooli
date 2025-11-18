@@ -21,24 +21,24 @@ Thin clients are just remote controls for the full Vrooli stack that is already 
 1. **Confirm `vrooli` exists on the host running the scenario.** Run `vrooli --version`. If missing, install it and run `./scripts/manage.sh setup --yes yes` once.
 2. **Start the scenario** with `vrooli scenario start <name>` (or `make start`). Wait until `vrooli scenario status <name>` reports healthy.
 3. **Expose the scenario.**
-   - LAN: use `http://hostname:${UI_PORT}`.
-   - Remote/mobile: proxy through `app-monitor` + Cloudflare and copy both the UI URL and the `/api` endpoint.
-4. **Point the desktop wrapper at those URLs.** The generator UI and CLI now label these fields as “Vrooli server URL” and “API endpoint”, include inline explanations, and ship a "Test connection" button so you can confirm they respond before building. Keep `DEPLOYMENT_MODE=external-server` so telemetry and deployment-manager know the UI/API still live on your server.
+   - LAN: use `http://hostname:${UI_PORT}/`.
+   - Remote/mobile: proxy through `app-monitor` + Cloudflare and copy the exact proxy URL (for example `https://app-monitor.<domain>/apps/<scenario>/proxy/`).
+4. **Point the desktop wrapper at that proxy URL.** The generator UI and CLI now capture a single `proxy_url`, show detected suggestions, and ship a "Test connection" button so you can confirm it responds before building. Keep `DEPLOYMENT_MODE=external-server` so telemetry and deployment-manager know the UI/API still live on your server.
 5. **Distribute, collect telemetry, and clean up.** Ship the installer, ask testers for their `deployment-telemetry.jsonl`, upload it with `scenario-to-desktop telemetry collect`, then stop the remote scenario with `vrooli scenario stop <name>` when you’re done.
 
 Deployment-manager will eventually automate these steps (detecting/installing `vrooli`, starting/stopping scenarios, and swapping dependencies), but documenting the pipeline now keeps Tier 2 expectations realistic.
 
-> **Server bootstrap is opt-in.** Keep `auto_manage_tier1` off (default) if your desktop build should connect to the remote Vrooli server you already host. Set `auto_manage_tier1: true` only when you expect the desktop user to run the scenario locally and have (or be willing to install) the `vrooli` CLI.
+> **Server bootstrap is opt-in.** Keep `auto_manage_vrooli` off (default) if your desktop build should connect to the remote Vrooli server you already host. Set `auto_manage_vrooli: true` only when you expect the desktop user to run the scenario locally and have (or be willing to install) the `vrooli` CLI.
 
 ### Optional: Let the desktop app start the scenario locally
 
-Set `auto_manage_tier1: true` when calling `POST /api/v1/desktop/generate` (or when editing the generated config JSON) to let Electron stand up the scenario automatically:
+Set `auto_manage_vrooli: true` when calling `POST /api/v1/desktop/generate` (or when editing the generated config JSON) to let Electron stand up the scenario automatically:
 
 ```json
 {
   "app_name": "picker-wheel",
   "template_type": "universal",
-  "auto_manage_tier1": true,
+  "auto_manage_vrooli": true,
   "deployment_mode": "external-server"
 }
 ```
@@ -53,7 +53,7 @@ Leave the flag off to deliver the traditional thin client that simply targets wh
 
 ### Deployment Telemetry
 
-Every generated Electron wrapper records lifecycle events (`app_start`, `dependency_unreachable`, `tier1_start_failed`, etc.) to `deployment-telemetry.jsonl` inside the OS-specific user data directory (`%APPDATA%/<App Name>/` on Windows, `~/Library/Application Support/<App Name>/` on macOS, and `~/.config/<App Name>/` on Linux). Use the new CLI helper to ingest those logs:
+Every generated Electron wrapper records lifecycle events (`app_start`, `dependency_unreachable`, `local_vrooli_start_failed`, etc.) to `deployment-telemetry.jsonl` inside the OS-specific user data directory (`%APPDATA%/<App Name>/` on Windows, `~/Library/Application Support/<App Name>/` on macOS, and `~/.config/<App Name>/` on Linux). Use the new CLI helper to ingest those logs:
 
 ```bash
 scenario-to-desktop telemetry collect \
@@ -67,7 +67,7 @@ The API stores the events under `.vrooli/deployment/telemetry/picker-wheel.jsonl
 
 - **Deployment intent picker** highlights Thin Client (ready today) vs Cloud API / Bundled (stubs). Selecting anything other than Thin Client surfaces a "coming soon" warning so builders don’t think offline bundles ship yet.
 - **Server strategy select** lets you choose between external, static, embedded Node, or executable launches. External remains the golden path; the others stay available for experiments.
-- **Vrooli server connection group** captures the Cloudflare/app-monitor URL and API endpoint right inside the Web UI. You can also opt-in to have the desktop wrapper run `vrooli setup/start/stop` per build.
+- **Proxy connection group** captures the Cloudflare/app-monitor URL right inside the Web UI, shows detected hints, and lets you test the proxy before building. You can also opt-in to have the desktop wrapper run `vrooli setup/start/stop` per build.
 - **Scenario inventory button** now expands into the same mini wizard, so "Generate Desktop" can’t happen without forcing a conscious deployment choice.
 
 ## 🎯 Overview
@@ -177,7 +177,7 @@ When you skip the UI and call `scenario-to-desktop generate` directly, the follo
 - `--deployment-mode <external-server|cloud-api|bundled>` — choose Thin Client today; the other options remain stubs until deployment-manager issues bundle manifests.
 - `--server-type <external|static|node|executable>` — mirrors the UI's server strategy selector.
 - `--server-url` and `--api-url` — required for Thin Client builds so the wrapper knows exactly which Vrooli server host and API proxy to hit.
-- `--auto-manage-tier1` and `--vrooli-binary <path>` — toggle whether the generated Electron app should run `vrooli setup/start/stop` locally.
+- `--auto-manage-vrooli` (alias: `--auto-manage-tier1`) and `--vrooli-binary <path>` — toggle whether the generated Electron app should run `vrooli setup/start/stop` locally.
 
 You can still feed a full JSON config, but if you omit the URLs/intent the CLI refuses to generate so we never ship a "mystery" thin client again.
 ```

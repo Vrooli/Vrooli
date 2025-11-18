@@ -40,8 +40,8 @@ const APP_CONFIG = {
     SERVER_CHECK_TIMEOUT_MS: 30000,
 };
 
-const TIER1_BOOTSTRAP = {
-    ENABLE: {{AUTO_MANAGE_TIER1}},
+const LOCAL_VROOLI_BOOTSTRAP = {
+    ENABLE: {{AUTO_MANAGE_VROOLI}},
     SCENARIO_NAME: "{{SCENARIO_NAME}}",
     VROOLI_BINARY: "{{VROOLI_BINARY_PATH}}",
 };
@@ -60,7 +60,7 @@ const SERVER_URL = APP_CONFIG.SERVER_TYPE === 'external'
     : `http://localhost:${APP_CONFIG.SERVER_PORT}`;
 
 type TelemetryDetails = Record<string, unknown>;
-interface TierOneBootstrapState {
+interface LocalVrooliBootstrapState {
     vrooliPath?: string;
     setupCompleted?: boolean;
 }
@@ -72,15 +72,15 @@ interface CommandResult {
 }
 
 let telemetryFilePath: string | null = null;
-let bootstrapStateCache: TierOneBootstrapState | null = null;
+let bootstrapStateCache: LocalVrooliBootstrapState | null = null;
 let bootstrapStatePath: string | null = null;
-const tierOneRuntime = {
+const localVrooliRuntime = {
     startedByApp: false,
     vrooliBinary: "",
 };
-const shouldBootstrapTierOne = APP_CONFIG.DEPLOYMENT_MODE === "external-server"
-    && TIER1_BOOTSTRAP.ENABLE
-    && Boolean(TIER1_BOOTSTRAP.SCENARIO_NAME);
+const shouldBootstrapLocalVrooli = APP_CONFIG.DEPLOYMENT_MODE === "external-server"
+    && LOCAL_VROOLI_BOOTSTRAP.ENABLE
+    && Boolean(LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME);
 const isBundledMode = APP_CONFIG.DEPLOYMENT_MODE === "bundled";
 
 async function initializeTelemetry() {
@@ -117,12 +117,12 @@ async function getBootstrapStatePath(): Promise<string> {
         if (!app.isReady()) {
             await app.whenReady();
         }
-        bootstrapStatePath = path.join(app.getPath("userData"), "tier1-bootstrap.json");
+        bootstrapStatePath = path.join(app.getPath("userData"), "local-vrooli-bootstrap.json");
     }
     return bootstrapStatePath;
 }
 
-async function loadBootstrapState(): Promise<TierOneBootstrapState> {
+async function loadBootstrapState(): Promise<LocalVrooliBootstrapState> {
     if (bootstrapStateCache) {
         return bootstrapStateCache;
     }
@@ -130,7 +130,7 @@ async function loadBootstrapState(): Promise<TierOneBootstrapState> {
     try {
         const statePath = await getBootstrapStatePath();
         const raw = await fs.readFile(statePath, "utf-8");
-        bootstrapStateCache = JSON.parse(raw) as TierOneBootstrapState;
+        bootstrapStateCache = JSON.parse(raw) as LocalVrooliBootstrapState;
     } catch {
         bootstrapStateCache = {};
     }
@@ -138,7 +138,7 @@ async function loadBootstrapState(): Promise<TierOneBootstrapState> {
     return bootstrapStateCache;
 }
 
-async function saveBootstrapState(state: TierOneBootstrapState): Promise<void> {
+async function saveBootstrapState(state: LocalVrooliBootstrapState): Promise<void> {
     bootstrapStateCache = state;
     const statePath = await getBootstrapStatePath();
     await fs.writeFile(statePath, JSON.stringify(state, null, 2));
@@ -205,41 +205,41 @@ async function promptForVrooliBinary(): Promise<string | null> {
 }
 
 async function resolveVrooliCommand(): Promise<string | null> {
-    if (!shouldBootstrapTierOne) {
+    if (!shouldBootstrapLocalVrooli) {
         return null;
     }
 
-    if (tierOneRuntime.vrooliBinary) {
-        return tierOneRuntime.vrooliBinary;
+    if (localVrooliRuntime.vrooliBinary) {
+        return localVrooliRuntime.vrooliBinary;
     }
 
-    const preferred = TIER1_BOOTSTRAP.VROOLI_BINARY?.trim();
+    const preferred = LOCAL_VROOLI_BOOTSTRAP.VROOLI_BINARY?.trim();
     if (preferred && preferred !== "vrooli" && (preferred.includes(path.sep) || preferred.includes("/") || preferred.includes("\\"))) {
         if (await pathExists(preferred)) {
-            tierOneRuntime.vrooliBinary = preferred;
+            localVrooliRuntime.vrooliBinary = preferred;
             return preferred;
         }
     } else if (preferred && preferred !== "" && preferred !== "vrooli") {
-        tierOneRuntime.vrooliBinary = preferred;
+        localVrooliRuntime.vrooliBinary = preferred;
         return preferred;
     }
 
     const state = await loadBootstrapState();
     if (state.vrooliPath && await pathExists(state.vrooliPath)) {
-        tierOneRuntime.vrooliBinary = state.vrooliPath;
+        localVrooliRuntime.vrooliBinary = state.vrooliPath;
         return state.vrooliPath;
     }
 
     const located = await locateBinaryInPath("vrooli");
     if (located) {
-        tierOneRuntime.vrooliBinary = located;
+        localVrooliRuntime.vrooliBinary = located;
         return located;
     }
 
     if (process.platform === "win32") {
         const locatedCmd = await locateBinaryInPath("vrooli.cmd");
         if (locatedCmd) {
-            tierOneRuntime.vrooliBinary = locatedCmd;
+            localVrooliRuntime.vrooliBinary = locatedCmd;
             return locatedCmd;
         }
     }
@@ -249,7 +249,7 @@ async function resolveVrooliCommand(): Promise<string | null> {
         const updatedState = await loadBootstrapState();
         updatedState.vrooliPath = userSelection;
         await saveBootstrapState(updatedState);
-        tierOneRuntime.vrooliBinary = userSelection;
+        localVrooliRuntime.vrooliBinary = userSelection;
         return userSelection;
     }
 
@@ -320,22 +320,22 @@ async function ensureVrooliSetup(vrooliBinary: string): Promise<boolean> {
         return true;
     }
 
-    void recordTelemetry("tier1_setup_attempt");
+    void recordTelemetry("local_vrooli_setup_attempt");
     const setupResult = await runVrooliCommand(vrooliBinary, ["setup", "--yes", "yes", "--skip-sudo", "yes"], { timeoutMs: 5 * 60 * 1000 });
     if (!setupResult.success) {
-        void recordTelemetry("tier1_setup_failed", { stderr: setupResult.stderr });
+        void recordTelemetry("local_vrooli_setup_failed", { stderr: setupResult.stderr });
         dialog.showErrorBox("Vrooli Setup Failed", "Unable to run 'vrooli setup'. Please run it manually and restart the desktop app.");
         return false;
     }
 
     state.setupCompleted = true;
     await saveBootstrapState(state);
-    void recordTelemetry("tier1_setup_completed");
+    void recordTelemetry("local_vrooli_setup_completed");
     return true;
 }
 
 async function isScenarioRunning(vrooliBinary: string): Promise<boolean> {
-    const statusResult = await runVrooliCommand(vrooliBinary, ["scenario", "status", TIER1_BOOTSTRAP.SCENARIO_NAME!], { ignoreErrors: true, timeoutMs: 60 * 1000 });
+    const statusResult = await runVrooliCommand(vrooliBinary, ["scenario", "status", LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME!], { ignoreErrors: true, timeoutMs: 60 * 1000 });
     return statusResult.success;
 }
 
@@ -349,14 +349,14 @@ async function waitForScenarioReady(vrooliBinary: string, attempts = 10): Promis
     return false;
 }
 
-async function ensureTierOneReady(): Promise<void> {
-    if (!shouldBootstrapTierOne) {
+async function ensureLocalVrooliReady(): Promise<void> {
+    if (!shouldBootstrapLocalVrooli) {
         return;
     }
 
     const vrooliBinary = await resolveVrooliCommand();
     if (!vrooliBinary) {
-        void recordTelemetry("tier1_bootstrap_skipped", { reason: "vrooli_not_found" });
+        void recordTelemetry("local_vrooli_bootstrap_skipped", { reason: "vrooli_not_found" });
         dialog.showErrorBox("Vrooli CLI Missing", "Install the Vrooli CLI or run the scenario manually before launching the desktop app.");
         return;
     }
@@ -366,37 +366,37 @@ async function ensureTierOneReady(): Promise<void> {
     }
 
     if (await isScenarioRunning(vrooliBinary)) {
-        void recordTelemetry("tier1_already_running");
+        void recordTelemetry("local_vrooli_already_running");
         return;
     }
 
-    void recordTelemetry("tier1_start_attempt");
-    const startResult = await runVrooliCommand(vrooliBinary, ["scenario", "start", TIER1_BOOTSTRAP.SCENARIO_NAME!], { timeoutMs: 3 * 60 * 1000 });
+    void recordTelemetry("local_vrooli_start_attempt");
+    const startResult = await runVrooliCommand(vrooliBinary, ["scenario", "start", LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME!], { timeoutMs: 3 * 60 * 1000 });
     if (!startResult.success) {
-        void recordTelemetry("tier1_start_failed", { stderr: startResult.stderr });
-        dialog.showErrorBox("Unable to Start Scenario", `vrooli failed to start ${TIER1_BOOTSTRAP.SCENARIO_NAME}. Please inspect your Vrooli server.`);
+        void recordTelemetry("local_vrooli_start_failed", { stderr: startResult.stderr });
+        dialog.showErrorBox("Unable to Start Scenario", `vrooli failed to start ${LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME}. Please inspect your Vrooli server.`);
         return;
     }
 
-    tierOneRuntime.startedByApp = true;
+    localVrooliRuntime.startedByApp = true;
     const ready = await waitForScenarioReady(vrooliBinary);
     if (ready) {
-        void recordTelemetry("tier1_started");
+        void recordTelemetry("local_vrooli_started");
     } else {
-        void recordTelemetry("tier1_start_timeout");
-        dialog.showErrorBox("Scenario Not Ready", `${TIER1_BOOTSTRAP.SCENARIO_NAME} did not become healthy in time. You may need to troubleshoot manually.`);
+        void recordTelemetry("local_vrooli_start_timeout");
+        dialog.showErrorBox("Scenario Not Ready", `${LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME} did not become healthy in time. You may need to troubleshoot manually.`);
     }
 }
 
-async function shutdownTierOne(): Promise<void> {
-    if (!shouldBootstrapTierOne || !tierOneRuntime.startedByApp || !tierOneRuntime.vrooliBinary) {
+async function shutdownLocalVrooli(): Promise<void> {
+    if (!shouldBootstrapLocalVrooli || !localVrooliRuntime.startedByApp || !localVrooliRuntime.vrooliBinary) {
         return;
     }
 
-    void recordTelemetry("tier1_stop_attempt");
-    await runVrooliCommand(tierOneRuntime.vrooliBinary, ["scenario", "stop", TIER1_BOOTSTRAP.SCENARIO_NAME!], { timeoutMs: 60 * 1000, ignoreErrors: true });
-    tierOneRuntime.startedByApp = false;
-    void recordTelemetry("tier1_stop_completed");
+    void recordTelemetry("local_vrooli_stop_attempt");
+    await runVrooliCommand(localVrooliRuntime.vrooliBinary, ["scenario", "stop", LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME!], { timeoutMs: 60 * 1000, ignoreErrors: true });
+    localVrooliRuntime.startedByApp = false;
+    void recordTelemetry("local_vrooli_stop_completed");
 }
 
 function delay(ms: number): Promise<void> {
@@ -881,8 +881,8 @@ app.whenReady().then(async () => {
             return;
         }
 
-        if (shouldBootstrapTierOne) {
-            await ensureTierOneReady();
+        if (shouldBootstrapLocalVrooli) {
+            await ensureLocalVrooliReady();
         }
 
         // Start scenario server
@@ -951,7 +951,7 @@ app.on("before-quit", () => {
         serverProcess = null;
     }
 
-    void shutdownTierOne();
+    void shutdownLocalVrooli();
     void recordTelemetry("app_shutdown");
 });
 

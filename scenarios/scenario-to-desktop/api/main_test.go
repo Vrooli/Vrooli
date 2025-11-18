@@ -930,9 +930,9 @@ func TestValidateDesktopConfig(t *testing.T) {
 
 	t.Run("AutoManageRequiresExternal", func(t *testing.T) {
 		config := newConfig()
-		config.AutoManageTier1 = true
+		config.AutoManageVrooli = true
 
-		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "auto_manage_tier1") {
+		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "auto_manage_vrooli") {
 			t.Errorf("Expected auto-manage error for static server, got: %v", err)
 		}
 	})
@@ -940,11 +940,8 @@ func TestValidateDesktopConfig(t *testing.T) {
 	t.Run("AutoManageAllowedWithExternal", func(t *testing.T) {
 		config := newConfig()
 		config.ServerType = "external"
-		config.ServerPath = "http://localhost:3000"
-		config.APIEndpoint = "http://localhost:3000"
-		config.ExternalServerURL = "http://localhost:3000"
-		config.ExternalAPIURL = "http://localhost:3000"
-		config.AutoManageTier1 = true
+		config.ProxyURL = "http://localhost:3000/"
+		config.AutoManageVrooli = true
 
 		if err := server.validateDesktopConfig(config); err != nil {
 			t.Errorf("Expected external auto-manage to pass, got: %v", err)

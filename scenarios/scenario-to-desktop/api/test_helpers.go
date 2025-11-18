@@ -275,7 +275,7 @@ func setupTestDesktopConfig(t *testing.T, appName string) *TestDesktopConfig {
 		APIEndpoint:      "http://localhost:3000",
 		ScenarioPath:     "./dist",
 		ScenarioName:     appName,
-		AutoManageTier1:  false,
+		AutoManageVrooli: false,
 		VrooliBinaryPath: "vrooli",
 		DeploymentMode:   "external-server",
 		Framework:        "electron",

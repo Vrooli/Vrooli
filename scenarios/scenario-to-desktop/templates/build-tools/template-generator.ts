@@ -32,7 +32,9 @@ interface DesktopConfig {
     scenario_dist_path?: string;
     deployment_mode?: 'external-server' | 'cloud-api' | 'bundled';
     scenario_name?: string;
-    auto_manage_tier1?: boolean;
+    auto_manage_vrooli?: boolean;
+    auto_manage_tier1?: boolean; // Legacy alias from early builds
+    proxy_url?: string;
     vrooli_binary_path?: string;
 
     // Template configuration
@@ -297,7 +299,7 @@ class DesktopTemplateGenerator {
             SCENARIO_DIST_PATH: this.config.scenario_dist_path || '../ui/dist',
             DEPLOYMENT_MODE: this.config.deployment_mode || 'external-server',
             SCENARIO_NAME: this.config.scenario_name || this.config.app_name,
-            AUTO_MANAGE_TIER1: this.config.auto_manage_tier1 === true,
+            AUTO_MANAGE_VROOLI: this.config.auto_manage_vrooli === true || this.config.auto_manage_tier1 === true,
             VROOLI_BINARY_PATH: this.config.vrooli_binary_path || 'vrooli',
             
             // Window config (use optional chaining for safety)

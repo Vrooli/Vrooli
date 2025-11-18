@@ -71,6 +71,7 @@ import {
   resolveUrl,
 } from "../utils/executionTypeMappers";
 import ExecutionHistory from "./ExecutionHistory";
+import { testIds } from "../consts/selectors";
 // Unsplash assets (IDs: m_7p45JfXQo, Tn29N3Hpf2E, KfFmwa7m5VQ) licensed for free use
 const ABSOLUTE_URL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 const MOVIE_SPEC_POLL_INTERVAL_MS = 4000;
@@ -951,9 +952,9 @@ function ActiveExecutionViewer({
   const composerPreviewOriginRef = useRef<string | null>(null);
   const [isComposerReady, setIsComposerReady] = useState(false);
   const [isPreviewComposerReady, setIsPreviewComposerReady] = useState(false);
-  const [previewComposerError, setPreviewComposerError] = useState<string | null>(
-    null,
-  );
+  const [previewComposerError, setPreviewComposerError] = useState<
+    string | null
+  >(null);
   const composerFrameStateRef = useRef({ frameIndex: 0, progress: 0 });
   const movieSpecRetryTimeoutRef = useRef<number | null>(null);
   const movieSpecAbortControllerRef = useRef<AbortController | null>(null);
@@ -1721,7 +1722,9 @@ function ActiveExecutionViewer({
 
   const heartbeatState: HeartbeatState = useMemo(() => {
     const isRunning = execution.status === "running";
-    const hasHeartbeat = Boolean(execution.lastHeartbeat || derivedHeartbeatTimestamp);
+    const hasHeartbeat = Boolean(
+      execution.lastHeartbeat || derivedHeartbeatTimestamp,
+    );
     if (!hasHeartbeat) {
       return isRunning ? "awaiting" : "idle";
     }
@@ -1735,7 +1738,12 @@ function ActiveExecutionViewer({
       return "delayed";
     }
     return "healthy";
-  }, [execution.status, execution.lastHeartbeat, heartbeatAgeSeconds, derivedHeartbeatTimestamp]);
+  }, [
+    execution.status,
+    execution.lastHeartbeat,
+    heartbeatAgeSeconds,
+    derivedHeartbeatTimestamp,
+  ]);
 
   const heartbeatDescriptor = useMemo(() => {
     const baseDescriptor = (() => {
@@ -1802,7 +1810,13 @@ function ActiveExecutionViewer({
       ...baseDescriptor,
       label: labelWithSource,
     };
-  }, [heartbeatState, heartbeatAgeLabel, heartbeatAgeSeconds, execution.status, execution.lastHeartbeat]);
+  }, [
+    heartbeatState,
+    heartbeatAgeLabel,
+    heartbeatAgeSeconds,
+    execution.status,
+    execution.lastHeartbeat,
+  ]);
 
   const statusMessage = useMemo(() => {
     const label =
@@ -2184,10 +2198,10 @@ function ActiveExecutionViewer({
       }),
       browser_frame: scaleFrameRect(basePresentation?.browser_frame),
       device_scale_factor:
-        (basePresentation?.device_scale_factor &&
-          basePresentation.device_scale_factor > 0
+        basePresentation?.device_scale_factor &&
+        basePresentation.device_scale_factor > 0
           ? basePresentation.device_scale_factor
-          : 1),
+          : 1,
     };
 
     cloned.presentation = presentation;
@@ -2196,8 +2210,14 @@ function ActiveExecutionViewer({
       cloned.frames = cloned.frames.map((frame) => ({
         ...frame,
         viewport: scaleDimensions(frame.viewport, {
-          width: frame.viewport?.width ?? basePresentation?.viewport?.width ?? baseCanvasWidth,
-          height: frame.viewport?.height ?? basePresentation?.viewport?.height ?? baseCanvasHeight,
+          width:
+            frame.viewport?.width ??
+            basePresentation?.viewport?.width ??
+            baseCanvasWidth,
+          height:
+            frame.viewport?.height ??
+            basePresentation?.viewport?.height ??
+            baseCanvasHeight,
         }),
       }));
     }
@@ -2443,7 +2463,11 @@ function ActiveExecutionViewer({
           } catch (error) {
             logger.warn(
               "Failed to resolve composer origin",
-              { component: "ExecutionViewer", executionId: execution.id, context: label },
+              {
+                component: "ExecutionViewer",
+                executionId: execution.id,
+                context: label,
+              },
               error,
             );
           }
@@ -3061,15 +3085,45 @@ function ActiveExecutionViewer({
     const statusTestId = `execution-status-${execution.status}`;
     switch (execution.status) {
       case "running":
-        return <Loader size={16} className="animate-spin text-blue-400" data-testid={statusTestId} />;
+        return (
+          <Loader
+            size={16}
+            className="animate-spin text-blue-400"
+            data-testid={statusTestId}
+          />
+        );
       case "completed":
-        return <CheckCircle size={16} className="text-green-400" data-testid={statusTestId} />;
+        return (
+          <CheckCircle
+            size={16}
+            className="text-green-400"
+            data-testid={statusTestId}
+          />
+        );
       case "failed":
-        return <XCircle size={16} className="text-red-400" data-testid={statusTestId} />;
+        return (
+          <XCircle
+            size={16}
+            className="text-red-400"
+            data-testid={statusTestId}
+          />
+        );
       case "cancelled":
-        return <AlertTriangle size={16} className="text-yellow-400" data-testid={statusTestId} />;
+        return (
+          <AlertTriangle
+            size={16}
+            className="text-yellow-400"
+            data-testid={statusTestId}
+          />
+        );
       default:
-        return <Clock size={16} className="text-gray-400" data-testid={statusTestId} />;
+        return (
+          <Clock
+            size={16}
+            className="text-gray-400"
+            data-testid={statusTestId}
+          />
+        );
     }
   };
 
@@ -3087,7 +3141,10 @@ function ActiveExecutionViewer({
   };
 
   return (
-    <div className="h-full flex flex-col bg-flow-node min-h-0" data-testid="execution-viewer">
+    <div
+      className="h-full flex flex-col bg-flow-node min-h-0"
+      data-testid={testIds.executionViewer}
+    >
       <div className="flex items-center justify-between p-3 border-b border-gray-800">
         <div className="flex items-center gap-3">
           {getStatusIcon()}
@@ -3095,14 +3152,26 @@ function ActiveExecutionViewer({
             <div className="text-sm font-medium text-white">
               Execution #{execution.id.slice(0, 8)}
             </div>
-            <div className="text-xs text-gray-500" data-testid="execution-status">{statusMessage}</div>
+            <div
+              className="text-xs text-gray-500"
+              data-testid={testIds.executionStatus}
+            >
+              {statusMessage}
+            </div>
             {heartbeatDescriptor && (
-              <div className="mt-1 flex items-center gap-2 text-[11px]" data-testid="heartbeat-indicator">
+              <div
+                className="mt-1 flex items-center gap-2 text-[11px]"
+                data-testid={testIds.heartbeatIndicator}
+              >
                 {heartbeatDescriptor.tone === "stalled" ? (
                   <AlertTriangle
                     size={12}
                     className={heartbeatDescriptor.iconClass}
-                    data-testid={heartbeatDescriptor.tone === "stalled" ? "heartbeat-lag-warning" : undefined}
+                    data-testid={
+                      heartbeatDescriptor.tone === "stalled"
+                        ? testIds.heartbeatLagWarning
+                        : undefined
+                    }
                   />
                 ) : (
                   <Activity
@@ -3110,7 +3179,10 @@ function ActiveExecutionViewer({
                     className={heartbeatDescriptor.iconClass}
                   />
                 )}
-                <span className={heartbeatDescriptor.textClass} data-testid="heartbeat-status">
+                <span
+                  className={heartbeatDescriptor.textClass}
+                  data-testid={testIds.heartbeatStatus}
+                >
                   {heartbeatDescriptor.label}
                 </span>
                 {inStepLabel && execution.lastHeartbeat && (
@@ -3159,7 +3231,7 @@ function ActiveExecutionViewer({
             }
             onClick={handleOpenExportDialog}
             disabled={replayFrames.length === 0}
-            data-testid="export-replay-button"
+            data-testid={testIds.exportReplayButton}
           >
             <Download size={14} />
           </button>
@@ -3168,7 +3240,7 @@ function ActiveExecutionViewer({
             title={isRunning ? "Stop execution" : "Execution not running"}
             onClick={handleStop}
             disabled={!isRunning || isStopping}
-            data-testid="execution-stop-button"
+            data-testid={testIds.executionStopButton}
           >
             {isStopping ? (
               <Loader size={14} className="animate-spin" />
@@ -3197,7 +3269,7 @@ function ActiveExecutionViewer({
 
       <div className="flex border-b border-gray-800">
         <button
-          data-testid="execution-tab-replay"
+          data-testid={testIds.executionTabReplay}
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "replay"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -3211,7 +3283,7 @@ function ActiveExecutionViewer({
           Replay ({replayFrames.length})
         </button>
         <button
-          data-testid="execution-tab-screenshots"
+          data-testid={testIds.executionTabScreenshots}
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "screenshots"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -3223,7 +3295,7 @@ function ActiveExecutionViewer({
           Screenshots ({screenshots.length})
         </button>
         <button
-          data-testid="execution-tab-logs"
+          data-testid={testIds.executionTabLogs}
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "logs"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -3236,7 +3308,7 @@ function ActiveExecutionViewer({
         </button>
         {showExecutionSwitcher && (
           <button
-            data-testid="execution-tab-executions"
+            data-testid={testIds.executionTabExecutions}
             className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
               activeTab === "executions"
                 ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -3256,7 +3328,10 @@ function ActiveExecutionViewer({
 
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">
         {activeTab === "replay" ? (
-          <div className="flex-1 overflow-auto p-3 space-y-3" data-testid="replay-viewer">
+          <div
+            className="flex-1 overflow-auto p-3 space-y-3"
+            data-testid={testIds.replayViewer}
+          >
             {!hasTimeline && (
               <div className="rounded-lg border border-dashed border-slate-700/60 bg-slate-900/60 px-4 py-3 text-sm text-slate-200/80">
                 Replay frames stream in as each action runs. Leave this tab open
@@ -3271,11 +3346,13 @@ function ActiveExecutionViewer({
                 />
                 <div className="flex-1 text-sm">
                   <div className="font-medium text-rose-200 mb-1">
-                    Execution {isFailed ? "Failed" : "Cancelled"} - Replay Incomplete
+                    Execution {isFailed ? "Failed" : "Cancelled"} - Replay
+                    Incomplete
                   </div>
                   <div className="text-rose-100/80">
                     This replay shows only {replayFrames.length} of the
-                    workflow's steps. Execution {isFailed ? "failed" : "was cancelled"}
+                    workflow's steps. Execution{" "}
+                    {isFailed ? "failed" : "was cancelled"}
                     at {execution.currentStep || "an unknown step"}.
                   </div>
                   {isFailed && executionError && (
@@ -3911,7 +3988,7 @@ function ActiveExecutionViewer({
                           ? "border-flow-accent/80 shadow-[0_22px_50px_rgba(59,130,246,0.35)]"
                           : "border-gray-800 hover:border-flow-accent/50 hover:shadow-[0_15px_40px_rgba(59,130,246,0.2)]",
                       )}
-                      data-testid="timeline-frame"
+                      data-testid={testIds.timelineFrame}
                     >
                       <div className="bg-slate-900/80 px-3 py-2 flex items-center justify-between text-xs text-slate-300">
                         <span className="truncate font-medium">
@@ -3926,7 +4003,7 @@ function ActiveExecutionViewer({
                         alt={screenshot.stepName}
                         loading="lazy"
                         className="block w-full"
-                        data-testid="execution-screenshot"
+                        data-testid={testIds.executionScreenshot}
                       />
                     </div>
                   ))}
@@ -3974,10 +4051,17 @@ function ActiveExecutionViewer({
             )}
           </div>
         ) : (
-          <div className="flex-1 overflow-auto p-3" data-testid="execution-logs">
+          <div
+            className="flex-1 overflow-auto p-3"
+            data-testid={testIds.executionLogs}
+          >
             <div className="terminal-output">
               {execution.logs.map((log) => (
-                <div key={log.id} className="flex gap-2 mb-1" data-testid="log-entry">
+                <div
+                  key={log.id}
+                  className="flex gap-2 mb-1"
+                  data-testid={testIds.logEntry}
+                >
                   <span className="text-xs text-gray-600">
                     {format(log.timestamp, "HH:mm:ss")}
                   </span>
@@ -4411,7 +4495,11 @@ function ActiveExecutionViewer({
                   ? isExporting || isExportPreviewLoading
                   : isExporting || replayFrames.length === 0
               }
-              data-testid={isExporting ? "export-in-progress" : "export-confirm-button"}
+              data-testid={
+                isExporting
+                  ? testIds.exportInProgress
+                  : testIds.exportConfirmButton
+              }
             >
               {exportFormat === "json" ? (
                 isExporting || isExportPreviewLoading ? (
@@ -4587,7 +4675,7 @@ function EmptyExecutionViewer({
 
       <div className="flex border-b border-gray-800">
         <button
-          data-testid="execution-tab-replay"
+          data-testid={testIds.executionTabReplay}
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "replay"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -4599,7 +4687,7 @@ function EmptyExecutionViewer({
           Replay (0)
         </button>
         <button
-          data-testid="execution-tab-screenshots"
+          data-testid={testIds.executionTabScreenshots}
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "screenshots"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -4611,7 +4699,7 @@ function EmptyExecutionViewer({
           Screenshots (0)
         </button>
         <button
-          data-testid="execution-tab-logs"
+          data-testid={testIds.executionTabLogs}
           className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
             activeTab === "logs"
               ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -4624,7 +4712,7 @@ function EmptyExecutionViewer({
         </button>
         {showExecutionSwitcher && (
           <button
-            data-testid="execution-tab-executions"
+            data-testid={testIds.executionTabExecutions}
             className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
               activeTab === "executions"
                 ? "bg-flow-bg text-white border-b-2 border-flow-accent"
@@ -4639,45 +4727,46 @@ function EmptyExecutionViewer({
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-        {activeTab === "replay"
-          ? renderEmptyTab(
-              "No execution in progress",
-              "Start the workflow to capture a replay of each automation step.",
-            )
-          : activeTab === "screenshots"
-            ? renderEmptyTab(
-                "Screenshots will appear here",
-                "As the workflow runs, screenshots from each step are collected for review.",
-              )
-            : activeTab === "logs"
-              ? renderEmptyTab(
-                  "Execution logs are empty",
-                  "Run the workflow to stream live log output, retries, and console messages.",
-                )
-              : showExecutionSwitcher && workflowId
-                ? (
-                    <div className="flex-1 overflow-auto p-4 space-y-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-sm font-medium text-white">
-                            Execution history
-                          </h3>
-                          <p className="text-xs text-slate-400">
-                            Select a past execution to inspect its replay, screenshots, and logs.
-                          </p>
-                        </div>
-                        {renderStartButton()}
-                      </div>
-                      <ExecutionHistory
-                        workflowId={workflowId}
-                        onSelectExecution={handleHistorySelect}
-                      />
-                    </div>
-                  )
-                : renderEmptyTab(
-                    "Execution history unavailable",
-                    "Enable execution history to review previous workflow runs.",
-                  )}
+        {activeTab === "replay" ? (
+          renderEmptyTab(
+            "No execution in progress",
+            "Start the workflow to capture a replay of each automation step.",
+          )
+        ) : activeTab === "screenshots" ? (
+          renderEmptyTab(
+            "Screenshots will appear here",
+            "As the workflow runs, screenshots from each step are collected for review.",
+          )
+        ) : activeTab === "logs" ? (
+          renderEmptyTab(
+            "Execution logs are empty",
+            "Run the workflow to stream live log output, retries, and console messages.",
+          )
+        ) : showExecutionSwitcher && workflowId ? (
+          <div className="flex-1 overflow-auto p-4 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-medium text-white">
+                  Execution history
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Select a past execution to inspect its replay, screenshots,
+                  and logs.
+                </p>
+              </div>
+              {renderStartButton()}
+            </div>
+            <ExecutionHistory
+              workflowId={workflowId}
+              onSelectExecution={handleHistorySelect}
+            />
+          </div>
+        ) : (
+          renderEmptyTab(
+            "Execution history unavailable",
+            "Enable execution history to review previous workflow runs.",
+          )
+        )}
       </div>
     </div>
   );

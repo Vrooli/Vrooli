@@ -324,7 +324,8 @@ cmd_generate() {
 	local server_type="$DEFAULT_SERVER_TYPE"
 	local server_url=""
 	local api_url=""
-	local auto_manage_tier1="false"
+	local proxy_url=""
+	local auto_manage_vrooli="false"
 	local vrooli_binary_path="vrooli"
     
 	while [[ $# -gt 0 ]]; do
@@ -369,8 +370,12 @@ cmd_generate() {
 				api_url="$2"
 				shift 2
 				;;
-			--auto-manage-tier1)
-				auto_manage_tier1="true"
+			--proxy-url)
+				proxy_url="$2"
+				shift 2
+				;;
+			--auto-manage-vrooli|--auto-manage-tier1)
+				auto_manage_vrooli="true"
 				shift 1
 				;;
 			--vrooli-binary)
@@ -400,16 +405,19 @@ cmd_generate() {
 	if [ -z "$api_url" ] && [ -n "$saved_config_json" ]; then
 		api_url=$(echo "$saved_config_json" | jq -r '.api_url // empty')
 	fi
+	if [ -z "$proxy_url" ] && [ -n "$saved_config_json" ]; then
+		proxy_url=$(echo "$saved_config_json" | jq -r '.proxy_url // .server_url // empty')
+	fi
 	if [ "$deployment_mode" = "external-server" ] && [ -n "$saved_config_json" ]; then
 		local saved_mode=$(echo "$saved_config_json" | jq -r '.deployment_mode // empty')
 		if [ -n "$saved_mode" ]; then
 			deployment_mode="$saved_mode"
 		fi
 	fi
-	if [ "$auto_manage_tier1" = "false" ] && [ -n "$saved_config_json" ]; then
-		local saved_auto=$(echo "$saved_config_json" | jq -r '.auto_manage_tier1 // empty')
+	if [ "$auto_manage_vrooli" = "false" ] && [ -n "$saved_config_json" ]; then
+		local saved_auto=$(echo "$saved_config_json" | jq -r '.auto_manage_vrooli // empty')
 		if [ "$saved_auto" = "true" ]; then
-			auto_manage_tier1="true"
+			auto_manage_vrooli="true"
 		fi
 	fi
 	if [ "$vrooli_binary_path" = "vrooli" ] && [ -n "$saved_config_json" ]; then
@@ -425,23 +433,23 @@ cmd_generate() {
 		fi
 	fi
 
+	if [ -z "$proxy_url" ] && [ -n "$server_url" ]; then
+		proxy_url="$server_url"
+	fi
+
 	check_api_health
 
 	if [ "$server_type" = "external" ]; then
-		if [ -z "$server_url" ]; then
-			server_url=$(prompt_for_value "Enter the browser URL that already loads this scenario (e.g. https://app-monitor.example.dev/${scenario_name})")
+		if [ -z "$proxy_url" ]; then
+			proxy_url=$(prompt_for_value "Enter the proxy URL you already open in a browser (e.g. https://app-monitor.example.dev/apps/${scenario_name}/proxy/)")
 		fi
-		if [ -z "$server_url" ]; then
-			error "Missing server URL. Provide --server-url or configure ${saved_config_file}."
+		if [ -z "$proxy_url" ]; then
+			error "Missing proxy URL. Provide --proxy-url or configure ${saved_config_file}."
 			exit 1
 		fi
-		if [ -z "$api_url" ]; then
-			api_url=$(prompt_for_value "Enter the matching API endpoint (usually the same URL + /api)")
-		fi
-		if [ -z "$api_url" ]; then
-			error "Missing API endpoint. Provide --api-url or configure ${saved_config_file}."
-			exit 1
-		fi
+		proxy_url="${proxy_url%/}/"
+		server_url="$proxy_url"
+		api_url="${proxy_url}api"
 	fi
     
     # Build configuration
@@ -490,7 +498,8 @@ cmd_generate() {
     "background": "#f5f5f5"
   },
   "deployment_mode": "${deployment_mode}",
-  "auto_manage_tier1": ${auto_manage_tier1},
+  "proxy_url": "${proxy_url}",
+  "auto_manage_vrooli": ${auto_manage_vrooli},
   "vrooli_binary_path": "${vrooli_binary_path}",
   "external_server_url": "${server_url}",
   "external_api_url": "${api_url}"
@@ -544,9 +553,10 @@ OPTIONS:
     --config <file>           Use JSON configuration file instead of command-line options
     --deployment-mode <mode>  Deployment intent (external-server|cloud-api|bundled) [default: external-server]
     --server-type <type>      Server strategy (external|node|static|executable) [default: external]
-    --server-url <url>        URL of the scenario running on your Vrooli server (LAN/Cloudflare)
-    --api-url <url>           Scenario API URL (usually the same proxy + /api)
-    --auto-manage-tier1       Let the desktop app run `vrooli setup/start/stop` locally (advanced)
+    --proxy-url <url>         Proxy/Cloudflare URL you already open in a browser (preferred)
+    --server-url <url>        Legacy alias for --proxy-url
+    --api-url <url>           Legacy alias for --proxy-url + /api
+    --auto-manage-vrooli      Let the desktop app run `vrooli setup/start/stop` locally (advanced)
     --vrooli-binary <path>    Path to vrooli CLI when auto-managing the scenario [default: vrooli]
 
 EXAMPLES:

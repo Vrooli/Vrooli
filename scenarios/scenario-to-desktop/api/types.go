@@ -23,9 +23,10 @@ type DesktopConfig struct {
 	APIEndpoint       string `json:"api_endpoint" validate:"required,url"`
 	ScenarioPath      string `json:"scenario_dist_path"`
 	ScenarioName      string `json:"scenario_name"`
-	AutoManageTier1   bool   `json:"auto_manage_tier1"`
+	AutoManageVrooli  bool   `json:"auto_manage_vrooli"`
 	VrooliBinaryPath  string `json:"vrooli_binary_path"`
 	DeploymentMode    string `json:"deployment_mode"`
+	ProxyURL          string `json:"proxy_url,omitempty"`
 	ExternalServerURL string `json:"external_server_url"`
 	ExternalAPIURL    string `json:"external_api_url"`
 

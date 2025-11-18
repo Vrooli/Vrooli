@@ -327,9 +327,10 @@ func (sa *ScenarioAnalyzer) CreateDesktopConfigFromMetadata(metadata *ScenarioMe
 		APIEndpoint:       apiEndpoint,
 		ScenarioPath:      metadata.UIDistPath, // UI dist path for copying
 		ScenarioName:      metadata.Name,
-		AutoManageTier1:   false,
+		AutoManageVrooli:  false,
 		VrooliBinaryPath:  "",
 		DeploymentMode:    "external-server",
+		ProxyURL:          externalServerURL,
 		ExternalServerURL: externalServerURL,
 		ExternalAPIURL:    externalAPIURL,
 

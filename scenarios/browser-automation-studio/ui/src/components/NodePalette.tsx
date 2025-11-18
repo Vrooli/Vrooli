@@ -1,18 +1,28 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Code, History, Search, Star } from 'lucide-react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { ChevronDown, Code, History, Search, Star } from "lucide-react";
 import {
   NODE_CATEGORIES,
   WORKFLOW_NODE_DEFINITIONS,
   type NodeCategory,
   type WorkflowNodeDefinition,
-} from '../constants/nodeCategories';
+} from "../constants/nodeCategories";
+import { testIds } from "../consts/selectors";
 
-const FAVORITES_KEY = 'bas.palette.favorites';
-const RECENTS_KEY = 'bas.palette.recents';
-const EXPANDED_KEY = 'bas.palette.categories';
+const FAVORITES_KEY = "bas.palette.favorites";
+const RECENTS_KEY = "bas.palette.recents";
+const EXPANDED_KEY = "bas.palette.categories";
 const MAX_FAVORITES = 5;
 const MAX_RECENTS = 5;
-const DEFAULT_EXPANDED_IDS = NODE_CATEGORIES.filter((category) => category.defaultExpanded).map((c) => c.id);
+const DEFAULT_EXPANDED_IDS = NODE_CATEGORIES.filter(
+  (category) => category.defaultExpanded,
+).map((c) => c.id);
 
 interface CategoryWithNodes extends NodeCategory {
   resolvedNodes: WorkflowNodeDefinition[];
@@ -20,7 +30,8 @@ interface CategoryWithNodes extends NodeCategory {
 
 const normalizeQuery = (value: string) => value.trim().toLowerCase();
 
-const escapeRegExp = (value: string) => value.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+const escapeRegExp = (value: string) =>
+  value.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
 
 const fuzzyMatch = (value: string, query: string) => {
   if (!query) {
@@ -29,7 +40,11 @@ const fuzzyMatch = (value: string, query: string) => {
   let queryIndex = 0;
   const lowerValue = value.toLowerCase();
   const lowerQuery = query.toLowerCase();
-  for (let i = 0; i < lowerValue.length && queryIndex < lowerQuery.length; i += 1) {
+  for (
+    let i = 0;
+    i < lowerValue.length && queryIndex < lowerQuery.length;
+    i += 1
+  ) {
     if (lowerValue[i] === lowerQuery[queryIndex]) {
       queryIndex += 1;
     }
@@ -53,18 +68,21 @@ const highlightText = (text: string, query: string) => {
     return text;
   }
   const safeQuery = escapeRegExp(query);
-  const splitRegex = new RegExp(`(${safeQuery})`, 'ig');
-  const matchRegex = new RegExp(`^${safeQuery}$`, 'i');
+  const splitRegex = new RegExp(`(${safeQuery})`, "ig");
+  const matchRegex = new RegExp(`^${safeQuery}$`, "i");
   const parts = text.split(splitRegex);
-  return parts.map((part, index) => (
-    matchRegex.test(part)
-      ? (
-          <mark key={`${part}-${index}`} className="bg-flow-accent/20 text-flow-accent rounded px-0.5">
-            {part}
-          </mark>
-        )
-      : <Fragment key={`${part}-${index}`}>{part}</Fragment>
-  ));
+  return parts.map((part, index) =>
+    matchRegex.test(part) ? (
+      <mark
+        key={`${part}-${index}`}
+        className="bg-flow-accent/20 text-flow-accent rounded px-0.5"
+      >
+        {part}
+      </mark>
+    ) : (
+      <Fragment key={`${part}-${index}`}>{part}</Fragment>
+    ),
+  );
 };
 
 interface NodeCardProps {
@@ -75,7 +93,13 @@ interface NodeCardProps {
   searchTerm: string;
 }
 
-function NodeCard({ node, onDragStart, onToggleFavorite, isFavorite, searchTerm }: NodeCardProps) {
+function NodeCard({
+  node,
+  onDragStart,
+  onToggleFavorite,
+  isFavorite,
+  searchTerm,
+}: NodeCardProps) {
   const Icon = node.icon;
 
   return (
@@ -88,7 +112,7 @@ function NodeCard({ node, onDragStart, onToggleFavorite, isFavorite, searchTerm 
     >
       <button
         type="button"
-        aria-label={`${isFavorite ? 'Remove' : 'Add'} ${node.label} ${isFavorite ? 'from' : 'to'} favorites`}
+        aria-label={`${isFavorite ? "Remove" : "Add"} ${node.label} ${isFavorite ? "from" : "to"} favorites`}
         aria-pressed={isFavorite}
         className="absolute right-2 top-2 text-gray-500 hover:text-yellow-300"
         onClick={(event) => {
@@ -98,10 +122,16 @@ function NodeCard({ node, onDragStart, onToggleFavorite, isFavorite, searchTerm 
         }}
         data-testid={`node-palette-${node.type}-favorite-button`}
       >
-        <Star size={14} className={isFavorite ? 'text-yellow-300' : 'text-gray-500'} fill={isFavorite ? 'currentColor' : 'none'} />
+        <Star
+          size={14}
+          className={isFavorite ? "text-yellow-300" : "text-gray-500"}
+          fill={isFavorite ? "currentColor" : "none"}
+        />
       </button>
       <div className="flex items-start gap-3">
-        <div className={`mt-0.5 ${node.color} group-hover:scale-110 transition-transform`}>
+        <div
+          className={`mt-0.5 ${node.color} group-hover:scale-110 transition-transform`}
+        >
           <Icon size={18} />
         </div>
         <div className="flex-1">
@@ -118,20 +148,25 @@ function NodeCard({ node, onDragStart, onToggleFavorite, isFavorite, searchTerm 
 }
 
 function NodePalette() {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [recents, setRecents] = useState<string[]>([]);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => new Set(DEFAULT_EXPANDED_IDS));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    () => new Set(DEFAULT_EXPANDED_IDS),
+  );
   const [quickAccessExpanded, setQuickAccessExpanded] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const normalizedQuery = normalizeQuery(searchTerm);
 
-  const isValidNodeType = useCallback((nodeType: string) => Boolean(WORKFLOW_NODE_DEFINITIONS[nodeType]), []);
+  const isValidNodeType = useCallback(
+    (nodeType: string) => Boolean(WORKFLOW_NODE_DEFINITIONS[nodeType]),
+    [],
+  );
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       setHydrated(true);
       return;
     }
@@ -141,7 +176,14 @@ function NodePalette() {
       if (storedFavorites) {
         const parsed: unknown = JSON.parse(storedFavorites);
         if (Array.isArray(parsed)) {
-          setFavorites(new Set(parsed.filter((value): value is string => typeof value === 'string' && isValidNodeType(value))));
+          setFavorites(
+            new Set(
+              parsed.filter(
+                (value): value is string =>
+                  typeof value === "string" && isValidNodeType(value),
+              ),
+            ),
+          );
         }
       }
 
@@ -149,7 +191,14 @@ function NodePalette() {
       if (storedRecents) {
         const parsed: unknown = JSON.parse(storedRecents);
         if (Array.isArray(parsed)) {
-          setRecents(parsed.filter((value): value is string => typeof value === 'string' && isValidNodeType(value)).slice(0, MAX_RECENTS));
+          setRecents(
+            parsed
+              .filter(
+                (value): value is string =>
+                  typeof value === "string" && isValidNodeType(value),
+              )
+              .slice(0, MAX_RECENTS),
+          );
         }
       }
 
@@ -157,7 +206,13 @@ function NodePalette() {
       if (storedExpanded) {
         const parsed: unknown = JSON.parse(storedExpanded);
         if (Array.isArray(parsed)) {
-          setExpandedCategories(new Set(parsed.filter((value): value is string => typeof value === 'string')));
+          setExpandedCategories(
+            new Set(
+              parsed.filter(
+                (value): value is string => typeof value === "string",
+              ),
+            ),
+          );
         }
       }
     } catch {
@@ -168,35 +223,41 @@ function NodePalette() {
   }, [isValidNodeType]);
 
   useEffect(() => {
-    if (!hydrated || typeof window === 'undefined') {
+    if (!hydrated || typeof window === "undefined") {
       return;
     }
-    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(favorites)));
+    window.localStorage.setItem(
+      FAVORITES_KEY,
+      JSON.stringify(Array.from(favorites)),
+    );
   }, [favorites, hydrated]);
 
   useEffect(() => {
-    if (!hydrated || typeof window === 'undefined') {
+    if (!hydrated || typeof window === "undefined") {
       return;
     }
     window.localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
   }, [recents, hydrated]);
 
   useEffect(() => {
-    if (!hydrated || typeof window === 'undefined') {
+    if (!hydrated || typeof window === "undefined") {
       return;
     }
-    window.localStorage.setItem(EXPANDED_KEY, JSON.stringify(Array.from(expandedCategories)));
+    window.localStorage.setItem(
+      EXPANDED_KEY,
+      JSON.stringify(Array.from(expandedCategories)),
+    );
   }, [expandedCategories, hydrated]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         searchInputRef.current?.focus();
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   const toggleFavorite = (nodeType: string) => {
@@ -225,12 +286,15 @@ function NodePalette() {
     });
   };
 
-  const handleDragStart = (event: React.DragEvent<HTMLDivElement>, nodeType: string) => {
-    event.dataTransfer.setData('nodeType', nodeType);
-    event.dataTransfer.effectAllowed = 'move';
+  const handleDragStart = (
+    event: React.DragEvent<HTMLDivElement>,
+    nodeType: string,
+  ) => {
+    event.dataTransfer.setData("nodeType", nodeType);
+    event.dataTransfer.effectAllowed = "move";
     recordRecent(nodeType);
     if (normalizedQuery) {
-      setSearchTerm('');
+      setSearchTerm("");
     }
   };
 
@@ -262,71 +326,90 @@ function NodePalette() {
   }, [normalizedQuery]);
 
   const favoriteNodes = useMemo(
-    () => Array.from(favorites)
-      .map((nodeType) => WORKFLOW_NODE_DEFINITIONS[nodeType])
-      .filter((node): node is WorkflowNodeDefinition => Boolean(node)),
+    () =>
+      Array.from(favorites)
+        .map((nodeType) => WORKFLOW_NODE_DEFINITIONS[nodeType])
+        .filter((node): node is WorkflowNodeDefinition => Boolean(node)),
     [favorites],
   );
 
   const recentNodes = useMemo(
-    () => recents
-      .filter((nodeType) => !favorites.has(nodeType))
-      .map((nodeType) => WORKFLOW_NODE_DEFINITIONS[nodeType])
-      .filter((node): node is WorkflowNodeDefinition => Boolean(node)),
+    () =>
+      recents
+        .filter((nodeType) => !favorites.has(nodeType))
+        .map((nodeType) => WORKFLOW_NODE_DEFINITIONS[nodeType])
+        .filter((node): node is WorkflowNodeDefinition => Boolean(node)),
     [recents, favorites],
   );
 
-  const totalVisibleNodes = filteredCategories.reduce((sum, category) => sum + category.resolvedNodes.length, 0);
+  const totalVisibleNodes = filteredCategories.reduce(
+    (sum, category) => sum + category.resolvedNodes.length,
+    0,
+  );
   const showQuickAccess = favoriteNodes.length > 0 || recentNodes.length > 0;
 
   return (
-    <div className="flex-1 overflow-y-auto p-3" data-testid="node-palette-container">
+    <div
+      className="flex-1 overflow-y-auto p-3"
+      data-testid={testIds.nodePaletteContainer}
+    >
       <div className="mb-3">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
           Node Library
         </h3>
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+          />
           <input
             ref={searchInputRef}
             type="search"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Escape' && searchTerm) {
-                setSearchTerm('');
+              if (event.key === "Escape" && searchTerm) {
+                setSearchTerm("");
               }
             }}
             placeholder="Search nodes (Cmd/Ctrl + K)"
             className="w-full bg-flow-bg border border-gray-700 rounded-lg py-2 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-flow-accent"
-            data-testid="node-palette-search-input"
+            data-testid={testIds.nodePaletteSearchInput}
           />
         </div>
       </div>
 
       {showQuickAccess && (
-        <div className="mb-4 border border-gray-700 rounded-lg" data-testid="node-palette-quick-access">
+        <div
+          className="mb-4 border border-gray-700 rounded-lg"
+          data-testid={testIds.nodePaletteQuickAccess}
+        >
           <button
             type="button"
             className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide"
             onClick={() => setQuickAccessExpanded((value) => !value)}
             aria-expanded={quickAccessExpanded}
-            data-testid="node-palette-quick-access-toggle"
+            data-testid={testIds.nodePaletteQuickAccessToggle}
           >
             <span className="flex items-center gap-2">
               <History size={14} className="text-flow-accent" />
               Quick Access
             </span>
-            <ChevronDown size={14} className={`transition-transform ${quickAccessExpanded ? 'rotate-0' : '-rotate-90'}`} />
+            <ChevronDown
+              size={14}
+              className={`transition-transform ${quickAccessExpanded ? "rotate-0" : "-rotate-90"}`}
+            />
           </button>
           <div
             className="overflow-hidden transition-[max-height] duration-300"
-            style={{ maxHeight: quickAccessExpanded ? '600px' : '0px' }}
+            style={{ maxHeight: quickAccessExpanded ? "600px" : "0px" }}
           >
             <div className="p-3 space-y-3">
               {favoriteNodes.length > 0 && (
-                <div data-testid="node-palette-favorites-section">
-                  <div className="text-xs text-gray-400 uppercase font-semibold mb-2">Favorites</div>
+                <div data-testid={testIds.nodePaletteFavoritesSection}>
+                  <div className="text-xs text-gray-400 uppercase font-semibold mb-2">
+                    Favorites
+                  </div>
                   <div className="space-y-2">
                     {favoriteNodes.map((node) => (
                       <NodeCard
@@ -343,14 +426,16 @@ function NodePalette() {
               )}
 
               {recentNodes.length > 0 && (
-                <div data-testid="node-palette-recents-section">
+                <div data-testid={testIds.nodePaletteRecentsSection}>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs text-gray-400 uppercase font-semibold">Recent</div>
+                    <div className="text-xs text-gray-400 uppercase font-semibold">
+                      Recent
+                    </div>
                     <button
                       type="button"
                       className="text-[11px] text-gray-500 hover:text-gray-300"
                       onClick={() => setRecents([])}
-                      data-testid="node-palette-clear-recents-button"
+                      data-testid={testIds.nodePaletteClearRecentsButton}
                     >
                       Clear
                     </button>
@@ -376,11 +461,17 @@ function NodePalette() {
 
       <div className="space-y-3">
         {filteredCategories.map((category) => {
-          const categoryExpanded = normalizedQuery ? true : expandedCategories.has(category.id);
+          const categoryExpanded = normalizedQuery
+            ? true
+            : expandedCategories.has(category.id);
           const CategoryIcon = category.icon;
 
           return (
-            <div key={category.id} className="border border-gray-800 rounded-lg" data-testid={`node-palette-category-${category.id}`}>
+            <div
+              key={category.id}
+              className="border border-gray-800 rounded-lg"
+              data-testid={`node-palette-category-${category.id}`}
+            >
               <button
                 type="button"
                 className="w-full flex items-center gap-3 px-3 py-2 text-left"
@@ -393,19 +484,23 @@ function NodePalette() {
                 <div className="flex items-center gap-2">
                   <CategoryIcon size={16} className="text-flow-accent" />
                   <div>
-                    <div className="text-sm font-semibold text-white">{category.label}</div>
-                    <div className="text-[11px] text-gray-500">{category.description}</div>
+                    <div className="text-sm font-semibold text-white">
+                      {category.label}
+                    </div>
+                    <div className="text-[11px] text-gray-500">
+                      {category.description}
+                    </div>
                   </div>
                 </div>
                 <ChevronDown
                   size={14}
-                  className={`ml-auto text-gray-500 transition-transform ${categoryExpanded ? 'rotate-0' : '-rotate-90'}`}
+                  className={`ml-auto text-gray-500 transition-transform ${categoryExpanded ? "rotate-0" : "-rotate-90"}`}
                 />
               </button>
               <div
                 id={`${category.id}-nodes`}
                 className="overflow-hidden transition-[max-height] duration-300"
-                style={{ maxHeight: categoryExpanded ? '999px' : '0px' }}
+                style={{ maxHeight: categoryExpanded ? "999px" : "0px" }}
               >
                 <div className="p-3 space-y-2">
                   {category.resolvedNodes.map((node) => (
@@ -426,7 +521,10 @@ function NodePalette() {
       </div>
 
       {normalizedQuery && totalVisibleNodes === 0 && (
-        <div className="mt-4 text-center text-sm text-gray-500" data-testid="node-palette-no-results">
+        <div
+          className="mt-4 text-center text-sm text-gray-500"
+          data-testid={testIds.nodePaletteNoResults}
+        >
           No nodes match "{searchTerm}". Try a different keyword.
         </div>
       )}
@@ -437,8 +535,9 @@ function NodePalette() {
           <span className="text-xs font-semibold text-gray-400">PRO TIP</span>
         </div>
         <p className="text-xs text-gray-500">
-          Drag nodes from any category or quick access list onto the canvas. Favorites pin essential actions, and
-          Cmd/Ctrl + K jumps to search instantly.
+          Drag nodes from any category or quick access list onto the canvas.
+          Favorites pin essential actions, and Cmd/Ctrl + K jumps to search
+          instantly.
         </p>
       </div>
     </div>

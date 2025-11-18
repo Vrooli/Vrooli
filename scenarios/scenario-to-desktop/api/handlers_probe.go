@@ -11,6 +11,7 @@ import (
 // probeEndpointsHandler validates that the provided UI/API URLs respond before we generate a thin client.
 func (s *Server) probeEndpointsHandler(w http.ResponseWriter, r *http.Request) {
 	var request struct {
+		ProxyURL  string `json:"proxy_url"`
 		ServerURL string `json:"server_url"`
 		APIURL    string `json:"api_url"`
 		TimeoutMs int    `json:"timeout_ms"`
@@ -19,6 +20,18 @@ func (s *Server) probeEndpointsHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "invalid JSON payload", http.StatusBadRequest)
 		return
+	}
+	if request.ProxyURL != "" {
+		normalized, err := normalizeProxyURL(request.ProxyURL)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid proxy_url: %s", err.Error()), http.StatusBadRequest)
+			return
+		}
+		request.ProxyURL = normalized
+		request.ServerURL = normalized
+		if request.APIURL == "" {
+			request.APIURL = proxyAPIURL(normalized)
+		}
 	}
 
 	if request.ServerURL == "" && request.APIURL == "" {
@@ -62,8 +75,9 @@ func (s *Server) probeEndpointsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]any{
-		"server": probe(request.ServerURL),
-		"api":    probe(request.APIURL),
+		"proxy_url": request.ProxyURL,
+		"server":    probe(request.ServerURL),
+		"api":       probe(request.APIURL),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

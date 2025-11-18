@@ -46,41 +46,50 @@
  * Full drag-drop, connection, and manipulation testing deferred to integration suite.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { useState } from 'react';
-import userEvent from '@testing-library/user-event';
-import type { Node, Edge } from 'reactflow';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { useState } from "react";
+import userEvent from "@testing-library/user-event";
+import type { Node, Edge } from "reactflow";
+import { testIds } from "../../consts/selectors";
 
 const useWorkflowStoreMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../stores/workflowStore', () => ({
+vi.mock("../../stores/workflowStore", () => ({
   useWorkflowStore: useWorkflowStoreMock,
 }));
 
-if (typeof window !== 'undefined' && typeof (window as any).DragEvent === 'undefined') {
+if (
+  typeof window !== "undefined" &&
+  typeof (window as any).DragEvent === "undefined"
+) {
   class DragEventPolyfill extends Event {
     dataTransfer: DataTransfer;
-    constructor(type: string, eventInitDict?: DragEventInit & { dataTransfer?: DataTransfer }) {
+    constructor(
+      type: string,
+      eventInitDict?: DragEventInit & { dataTransfer?: DataTransfer },
+    ) {
       super(type, eventInitDict);
-      this.dataTransfer = eventInitDict?.dataTransfer ?? {
-        dropEffect: 'move',
-        effectAllowed: 'all',
-        files: [] as unknown as FileList,
-        items: [] as unknown as DataTransferItemList,
-        types: [],
-        setData: () => {},
-        getData: () => '',
-        clearData: () => {},
-        setDragImage: () => {},
-      } as DataTransfer;
+      this.dataTransfer =
+        eventInitDict?.dataTransfer ??
+        ({
+          dropEffect: "move",
+          effectAllowed: "all",
+          files: [] as unknown as FileList,
+          items: [] as unknown as DataTransferItemList,
+          types: [],
+          setData: () => {},
+          getData: () => "",
+          clearData: () => {},
+          setDragImage: () => {},
+        } as DataTransfer);
     }
   }
   (window as any).DragEvent = DragEventPolyfill as typeof DragEvent;
 }
 
 // Mock react-hot-toast
-vi.mock('react-hot-toast', () => ({
+vi.mock("react-hot-toast", () => ({
   default: {
     success: vi.fn(),
     error: vi.fn(),
@@ -88,7 +97,7 @@ vi.mock('react-hot-toast', () => ({
 }));
 
 // Mock logger
-vi.mock('../../utils/logger', () => ({
+vi.mock("../../utils/logger", () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -98,10 +107,16 @@ vi.mock('../../utils/logger', () => ({
 }));
 
 // Mock Monaco Editor
-vi.mock('@monaco-editor/react', () => ({
-  default: ({ value, onChange }: { value: string; onChange: (value?: string) => void }) => (
+vi.mock("@monaco-editor/react", () => ({
+  default: ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (value?: string) => void;
+  }) => (
     <textarea
-      data-testid="monaco-editor"
+      data-testid={testIds.monacoEditor}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -128,10 +143,16 @@ const mockUseEdgesState = vi.fn((initialEdges: Edge[]) => {
   return useState(initialEdges);
 });
 
-vi.mock('reactflow', () => {
-  const MockReactFlow = ({ children, onDrop, onDragOver, nodes, edges }: any) => (
+vi.mock("reactflow", () => {
+  const MockReactFlow = ({
+    children,
+    onDrop,
+    onDragOver,
+    nodes,
+    edges,
+  }: any) => (
     <div
-      data-testid="react-flow-canvas"
+      data-testid={testIds.reactFlowCanvas}
       onDrop={onDrop}
       onDragOver={onDragOver}
       data-nodes-count={nodes?.length || 0}
@@ -139,7 +160,11 @@ vi.mock('reactflow', () => {
     >
       {children}
       {nodes?.map((node: Node) => (
-        <div key={node.id} data-testid={`node-${node.id}`} data-node-type={node.type}>
+        <div
+          key={node.id}
+          data-testid={`node-${node.id}`}
+          data-node-type={node.type}
+        >
           {node.data?.label || node.type}
         </div>
       ))}
@@ -150,32 +175,37 @@ vi.mock('reactflow', () => {
     __esModule: true,
     default: MockReactFlow,
     ReactFlow: MockReactFlow,
-    ReactFlowProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-    MiniMap: () => <div data-testid="minimap" />,
-    Background: () => <div data-testid="background" />,
-    BackgroundVariant: { Dots: 'dots' },
-    MarkerType: { ArrowClosed: 'arrowclosed' },
-    ConnectionMode: { Loose: 'loose' },
+    ReactFlowProvider: ({ children }: { children: React.ReactNode }) => (
+      <div>{children}</div>
+    ),
+    MiniMap: () => <div data-testid={testIds.minimap} />,
+    Background: () => <div data-testid={testIds.appBackground} />,
+    BackgroundVariant: { Dots: "dots" },
+    MarkerType: { ArrowClosed: "arrowclosed" },
+    ConnectionMode: { Loose: "loose" },
     useReactFlow: mockUseReactFlow,
     useNodesState: mockUseNodesState,
     useEdgesState: mockUseEdgesState,
-    addEdge: vi.fn((connection, edges) => [...edges, { ...connection, id: `edge-${Date.now()}` }]),
+    addEdge: vi.fn((connection, edges) => [
+      ...edges,
+      { ...connection, id: `edge-${Date.now()}` },
+    ]),
   };
 });
 
 // Test data builders
 const createMockNode = (overrides: Partial<Node> = {}): Node => ({
   id: `node-${Date.now()}`,
-  type: 'navigate',
+  type: "navigate",
   position: { x: 100, y: 100 },
-  data: { label: 'Navigate' },
+  data: { label: "Navigate" },
   ...overrides,
 });
 
 const createMockEdge = (overrides: Partial<Edge> = {}): Edge => ({
   id: `edge-${Date.now()}`,
-  source: 'node-1',
-  target: 'node-2',
+  source: "node-1",
+  target: "node-2",
   ...overrides,
 });
 
@@ -183,7 +213,7 @@ const createBaseStoreState = () => ({
   nodes: [],
   edges: [],
   workflows: [],
-  currentWorkflow: { id: 'workflow-1', name: 'Test Workflow' },
+  currentWorkflow: { id: "workflow-1", name: "Test Workflow" },
   isDirty: false,
   hasVersionConflict: false,
   updateWorkflow: vi.fn(),
@@ -206,22 +236,28 @@ const mockValidationResponse = () => ({
     has_requirement: false,
     has_execution_viewport: false,
   },
-  schema_version: 'test',
+  schema_version: "test",
   checked_at: new Date().toISOString(),
   duration_ms: 1,
 });
 
-const applyWorkflowStoreState = (overrides?: Partial<ReturnType<typeof createBaseStoreState>>) => {
+const applyWorkflowStoreState = (
+  overrides?: Partial<ReturnType<typeof createBaseStoreState>>,
+) => {
   const state = { ...createBaseStoreState(), ...overrides };
-  useWorkflowStoreMock.mockImplementation((selector?: (s: typeof state) => any) => (selector ? selector(state) : state));
+  useWorkflowStoreMock.mockImplementation(
+    (selector?: (s: typeof state) => any) =>
+      selector ? selector(state) : state,
+  );
   return state;
 };
 
-const importWorkflowBuilder = async () => (await import('../WorkflowBuilder')).default;
+const importWorkflowBuilder = async () =>
+  (await import("../WorkflowBuilder")).default;
 
 const originalFetch = global.fetch;
 
-describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
+describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (global as any).fetch = vi.fn(() =>
@@ -244,31 +280,31 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
     }
   });
 
-  describe('Basic Rendering', () => {
-    it('renders canvas in visual mode by default [REQ:BAS-WORKFLOW-BUILDER-CORE]', async () => {
+  describe("Basic Rendering", () => {
+    it("renders canvas in visual mode by default [REQ:BAS-WORKFLOW-BUILDER-CORE]", async () => {
       const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
-      expect(screen.getByTestId('react-flow-canvas')).toBeInTheDocument();
-      expect(screen.getByTestId('minimap')).toBeInTheDocument();
-      expect(screen.getByTestId('background')).toBeInTheDocument();
+      expect(screen.getByTestId("react-flow-canvas")).toBeInTheDocument();
+      expect(screen.getByTestId("minimap")).toBeInTheDocument();
+      expect(screen.getByTestId("background")).toBeInTheDocument();
     });
 
-    it('renders with empty canvas when no workflow loaded [REQ:BAS-WORKFLOW-BUILDER-CORE]', async () => {
+    it("renders with empty canvas when no workflow loaded [REQ:BAS-WORKFLOW-BUILDER-CORE]", async () => {
       applyWorkflowStoreState({ currentWorkflow: null });
 
       const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
-      const canvas = screen.getByTestId('react-flow-canvas');
-      expect(canvas).toHaveAttribute('data-nodes-count', '0');
-      expect(canvas).toHaveAttribute('data-edges-count', '0');
+      const canvas = screen.getByTestId("react-flow-canvas");
+      expect(canvas).toHaveAttribute("data-nodes-count", "0");
+      expect(canvas).toHaveAttribute("data-edges-count", "0");
     });
 
-    it('renders existing nodes from store [REQ:BAS-WORKFLOW-BUILDER-CORE]', async () => {
+    it("renders existing nodes from store [REQ:BAS-WORKFLOW-BUILDER-CORE]", async () => {
       const mockNodes = [
-        createMockNode({ id: 'node-1', type: 'navigate' }),
-        createMockNode({ id: 'node-2', type: 'click' }),
+        createMockNode({ id: "node-1", type: "navigate" }),
+        createMockNode({ id: "node-2", type: "click" }),
       ];
       applyWorkflowStoreState({ nodes: mockNodes });
 
@@ -277,99 +313,101 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
 
       // Note: Due to ReactFlow mocking limitations, we verify nodes are passed to ReactFlow
       // Full node rendering tests would require more complex ReactFlow mock setup
-      const canvas = screen.getByTestId('react-flow-canvas');
-      expect(canvas).toHaveAttribute('data-nodes-count', '2');
+      const canvas = screen.getByTestId("react-flow-canvas");
+      expect(canvas).toHaveAttribute("data-nodes-count", "2");
     });
   });
 
-  describe('View Mode Switching', () => {
-    it('switches to code view when code button clicked [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]', async () => {
+  describe("View Mode Switching", () => {
+    it("switches to code view when code button clicked [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]", async () => {
       const WorkflowBuilder = await importWorkflowBuilder();
       const user = userEvent.setup();
       render(<WorkflowBuilder />);
 
-      const codeButton = screen.getByTitle('JSON Editor');
+      const codeButton = screen.getByTitle("JSON Editor");
       await user.click(codeButton);
 
-      expect(screen.getByTestId('monaco-editor')).toBeInTheDocument();
-      expect(screen.queryByTestId('react-flow-canvas')).not.toBeInTheDocument();
+      expect(screen.getByTestId("monaco-editor")).toBeInTheDocument();
+      expect(screen.queryByTestId("react-flow-canvas")).not.toBeInTheDocument();
     });
 
-    it('switches back to visual view when visual button clicked [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]', async () => {
+    it("switches back to visual view when visual button clicked [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]", async () => {
       const WorkflowBuilder = await importWorkflowBuilder();
       const user = userEvent.setup();
       render(<WorkflowBuilder />);
 
       // Switch to code view
-      const codeButton = screen.getByTitle('JSON Editor');
+      const codeButton = screen.getByTitle("JSON Editor");
       await user.click(codeButton);
-      expect(screen.getByTestId('monaco-editor')).toBeInTheDocument();
+      expect(screen.getByTestId("monaco-editor")).toBeInTheDocument();
 
       // Switch back to visual
-      const visualButton = screen.getByTitle('Visual Builder');
+      const visualButton = screen.getByTitle("Visual Builder");
       await user.click(visualButton);
-      expect(screen.getByTestId('react-flow-canvas')).toBeInTheDocument();
-      expect(screen.queryByTestId('monaco-editor')).not.toBeInTheDocument();
+      expect(screen.getByTestId("react-flow-canvas")).toBeInTheDocument();
+      expect(screen.queryByTestId("monaco-editor")).not.toBeInTheDocument();
     });
 
-    it('displays workflow JSON in code view [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]', async () => {
-      const mockNodes = [createMockNode({ id: 'node-1', type: 'navigate' })];
-      const mockEdges = [createMockEdge({ id: 'edge-1', source: 'node-1', target: 'node-2' })];
+    it("displays workflow JSON in code view [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]", async () => {
+      const mockNodes = [createMockNode({ id: "node-1", type: "navigate" })];
+      const mockEdges = [
+        createMockEdge({ id: "edge-1", source: "node-1", target: "node-2" }),
+      ];
       applyWorkflowStoreState({ nodes: mockNodes, edges: mockEdges });
 
       const WorkflowBuilder = await importWorkflowBuilder();
       const user = userEvent.setup();
       render(<WorkflowBuilder />);
 
-      const codeButton = screen.getByTitle('JSON Editor');
+      const codeButton = screen.getByTitle("JSON Editor");
       await user.click(codeButton);
 
-      const editor = screen.getByTestId('monaco-editor');
+      const editor = screen.getByTestId("monaco-editor");
       const editorValue = (editor as HTMLTextAreaElement).value;
 
       // Verify JSON structure
       expect(editorValue).toContain('"nodes"');
       expect(editorValue).toContain('"edges"');
-      expect(editorValue).toContain('node-1');
-      expect(editorValue).toContain('edge-1');
+      expect(editorValue).toContain("node-1");
+      expect(editorValue).toContain("edge-1");
     });
   });
 
-  describe('Toolbar Integration', () => {
-    it('renders WorkflowToolbar in visual mode [REQ:BAS-WORKFLOW-BUILDER-ZOOM]', async () => {
+  describe("Toolbar Integration", () => {
+    it("renders WorkflowToolbar in visual mode [REQ:BAS-WORKFLOW-BUILDER-ZOOM]", async () => {
       const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
       // WorkflowToolbar renders zoom controls - tested in WorkflowToolbar.test.tsx
       // Here we just verify it's present in visual mode
-      expect(screen.getByTestId('react-flow-canvas')).toBeInTheDocument();
+      expect(screen.getByTestId("react-flow-canvas")).toBeInTheDocument();
     });
 
-    it('does not render WorkflowToolbar in code mode', async () => {
+    it("does not render WorkflowToolbar in code mode", async () => {
       const WorkflowBuilder = await importWorkflowBuilder();
       const user = userEvent.setup();
       render(<WorkflowBuilder />);
 
       // Switch to code view
-      const codeButton = screen.getByTitle('JSON Editor');
+      const codeButton = screen.getByTitle("JSON Editor");
       await user.click(codeButton);
 
       // Toolbar should not be in code view
-      expect(screen.queryByTitle('Zoom in')).not.toBeInTheDocument();
+      expect(screen.queryByTitle("Zoom in")).not.toBeInTheDocument();
     });
   });
 
-  describe('Drag and Drop', () => {
-    it('accepts drop events on canvas [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', async () => {
+  describe("Drag and Drop", () => {
+    it("accepts drop events on canvas [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]", async () => {
       const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
-      const canvas = screen.getByTestId('react-flow-canvas');
+      const canvas = screen.getByTestId("react-flow-canvas");
 
-      const dragOverEvent = new Event('dragover', { bubbles: true });
-      Object.defineProperty(dragOverEvent, 'dataTransfer', {
+      const dragOverEvent = new Event("dragover", { bubbles: true });
+      Object.defineProperty(dragOverEvent, "dataTransfer", {
         value: {
-          dropEffect: 'none',
+          dropEffect: "none",
         },
       });
       fireEvent(canvas, dragOverEvent);
@@ -378,26 +416,27 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
       expect(canvas).toBeInTheDocument();
     });
 
-    it('creates node when dropped on canvas [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]', async () => {
+    it("creates node when dropped on canvas [REQ:BAS-WORKFLOW-BUILDER-DRAG-DROP]", async () => {
       const updateWorkflow = vi.fn();
       applyWorkflowStoreState({ updateWorkflow });
 
       const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
 
-      const canvas = screen.getByTestId('react-flow-canvas');
+      const canvas = screen.getByTestId("react-flow-canvas");
 
       // Simulate drop event with node type data
-      const dropEvent = new DragEvent('drop', {
+      const dropEvent = new DragEvent("drop", {
         bubbles: true,
         clientX: 200,
         clientY: 150,
       });
 
       // Mock dataTransfer
-      Object.defineProperty(dropEvent, 'dataTransfer', {
+      Object.defineProperty(dropEvent, "dataTransfer", {
         value: {
-          getData: (format: string) => format === 'nodeType' ? 'navigate' : '',
+          getData: (format: string) =>
+            format === "nodeType" ? "navigate" : "",
         },
       });
 
@@ -409,8 +448,8 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
     });
   });
 
-  describe('Autosave Integration', () => {
-    it('schedules autosave when workflow becomes dirty [REQ:BAS-WORKFLOW-PERSIST-CRUD]', async () => {
+  describe("Autosave Integration", () => {
+    it("schedules autosave when workflow becomes dirty [REQ:BAS-WORKFLOW-PERSIST-CRUD]", async () => {
       const scheduleAutosave = vi.fn();
       applyWorkflowStoreState({ isDirty: true, scheduleAutosave });
 
@@ -422,9 +461,13 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
       });
     });
 
-    it('cancels autosave when version conflict detected [REQ:BAS-WORKFLOW-PERSIST-CRUD]', async () => {
+    it("cancels autosave when version conflict detected [REQ:BAS-WORKFLOW-PERSIST-CRUD]", async () => {
       const cancelAutosave = vi.fn();
-      applyWorkflowStoreState({ isDirty: true, hasVersionConflict: true, cancelAutosave });
+      applyWorkflowStoreState({
+        isDirty: true,
+        hasVersionConflict: true,
+        cancelAutosave,
+      });
 
       const WorkflowBuilder = await importWorkflowBuilder();
       render(<WorkflowBuilder />);
@@ -434,7 +477,7 @@ describe('WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]', () => {
       });
     });
 
-    it('cancels autosave when no current workflow [REQ:BAS-WORKFLOW-PERSIST-CRUD]', async () => {
+    it("cancels autosave when no current workflow [REQ:BAS-WORKFLOW-PERSIST-CRUD]", async () => {
       const cancelAutosave = vi.fn();
       applyWorkflowStoreState({ currentWorkflow: null, cancelAutosave });
 

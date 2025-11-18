@@ -1,23 +1,24 @@
-import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
-import { ReactFlowProvider } from 'reactflow';
-import ResponsiveDialog from './components/ResponsiveDialog';
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
-import ProjectModal from './components/ProjectModal';
+import { useCallback, useEffect, useState, lazy, Suspense } from "react";
+import { ReactFlowProvider } from "reactflow";
+import ResponsiveDialog from "./components/ResponsiveDialog";
+import Sidebar from "./components/Sidebar";
+import Header from "./components/Header";
+import ProjectModal from "./components/ProjectModal";
 
 // Lazy load heavy components for better initial load performance
-const WorkflowBuilder = lazy(() => import('./components/WorkflowBuilder'));
-const ExecutionViewer = lazy(() => import('./components/ExecutionViewer'));
-const AIPromptModal = lazy(() => import('./components/AIPromptModal'));
-const Dashboard = lazy(() => import('./components/Dashboard'));
-const ProjectDetail = lazy(() => import('./components/ProjectDetail'));
-import { useExecutionStore } from './stores/executionStore';
-import { useProjectStore, Project } from './stores/projectStore';
-import { useWorkflowStore } from './stores/workflowStore';
-import { useScenarioStore } from './stores/scenarioStore';
-import { useMediaQuery } from './hooks/useMediaQuery';
-import type { Workflow } from './stores/workflowStore';
-import toast from 'react-hot-toast';
+const WorkflowBuilder = lazy(() => import("./components/WorkflowBuilder"));
+const ExecutionViewer = lazy(() => import("./components/ExecutionViewer"));
+const AIPromptModal = lazy(() => import("./components/AIPromptModal"));
+const Dashboard = lazy(() => import("./components/Dashboard"));
+const ProjectDetail = lazy(() => import("./components/ProjectDetail"));
+import { useExecutionStore } from "./stores/executionStore";
+import { useProjectStore, Project } from "./stores/projectStore";
+import { useWorkflowStore } from "./stores/workflowStore";
+import { useScenarioStore } from "./stores/scenarioStore";
+import { useMediaQuery } from "./hooks/useMediaQuery";
+import type { Workflow } from "./stores/workflowStore";
+import toast from "react-hot-toast";
+import { testIds } from "./consts/selectors";
 
 interface NormalizedWorkflow extends Partial<Workflow> {
   id: string;
@@ -27,11 +28,10 @@ interface NormalizedWorkflow extends Partial<Workflow> {
   updatedAt: Date;
   projectId?: string;
 }
-import { logger } from './utils/logger';
-import 'reactflow/dist/style.css';
+import { logger } from "./utils/logger";
+import "reactflow/dist/style.css";
 
-
-type AppView = 'dashboard' | 'project-detail' | 'project-workflow';
+type AppView = "dashboard" | "project-detail" | "project-workflow";
 
 const EXECUTION_MIN_WIDTH = 360;
 const EXECUTION_MAX_WIDTH = 720;
@@ -41,9 +41,12 @@ function App() {
   const [currentView, setCurrentView] = useState<AppView | null>(null);
   const [showAIModal, setShowAIModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
-  const [selectedFolder, setSelectedFolder] = useState<string>('/');
-  const [selectedWorkflow, setSelectedWorkflow] = useState<NormalizedWorkflow | null>(null);
-  const [executionPaneWidth, setExecutionPaneWidth] = useState(EXECUTION_DEFAULT_WIDTH);
+  const [selectedFolder, setSelectedFolder] = useState<string>("/");
+  const [selectedWorkflow, setSelectedWorkflow] =
+    useState<NormalizedWorkflow | null>(null);
+  const [executionPaneWidth, setExecutionPaneWidth] = useState(
+    EXECUTION_DEFAULT_WIDTH,
+  );
   const [isResizingExecution, setIsResizingExecution] = useState(false);
 
   const { currentProject, setCurrentProject } = useProjectStore();
@@ -52,10 +55,11 @@ function App() {
   const viewerWorkflowId = useExecutionStore((state) => state.viewerWorkflowId);
   const closeExecutionViewer = useExecutionStore((state) => state.closeViewer);
   const { fetchScenarios } = useScenarioStore();
-  const isLargeScreen = useMediaQuery('(min-width: 1024px)');
+  const isLargeScreen = useMediaQuery("(min-width: 1024px)");
 
   const clampExecutionWidth = useCallback(
-    (value: number) => Math.min(EXECUTION_MAX_WIDTH, Math.max(EXECUTION_MIN_WIDTH, value)),
+    (value: number) =>
+      Math.min(EXECUTION_MAX_WIDTH, Math.max(EXECUTION_MIN_WIDTH, value)),
     [],
   );
 
@@ -72,8 +76,8 @@ function App() {
       const startWidth = executionPaneWidth;
 
       setIsResizingExecution(true);
-      document.body.style.userSelect = 'none';
-      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "col-resize";
 
       const onMouseMove = (moveEvent: MouseEvent) => {
         const deltaX = moveEvent.clientX - startX;
@@ -83,14 +87,14 @@ function App() {
 
       const onMouseUp = () => {
         setIsResizingExecution(false);
-        document.body.style.userSelect = '';
-        document.body.style.cursor = '';
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
       };
 
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
     },
     [clampExecutionWidth, executionPaneWidth, isLargeScreen],
   );
@@ -101,13 +105,17 @@ function App() {
   }, [fetchScenarios]);
 
   const isExecutionViewerOpen = Boolean(viewerWorkflowId);
-  const activeExecutionWorkflowId = viewerWorkflowId ?? currentExecution?.workflowId ?? selectedWorkflow?.id ?? null;
+  const activeExecutionWorkflowId =
+    viewerWorkflowId ??
+    currentExecution?.workflowId ??
+    selectedWorkflow?.id ??
+    null;
 
   useEffect(() => {
     if (!isExecutionViewerOpen) {
       setIsResizingExecution(false);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
     }
   }, [isExecutionViewerOpen]);
 
@@ -125,100 +133,143 @@ function App() {
     [key: string]: unknown;
   }
 
-  const transformWorkflow = useCallback((workflow: RawWorkflow | null | undefined): NormalizedWorkflow | null => {
-    if (!workflow || !workflow.id || !workflow.name) return null;
-    return {
-      ...workflow,
-      id: workflow.id,
-      name: workflow.name,
-      folderPath: workflow.folder_path ?? workflow.folderPath ?? '/',
-      createdAt: workflow.created_at ? new Date(workflow.created_at) : workflow.createdAt ? new Date(workflow.createdAt) : new Date(),
-      updatedAt: workflow.updated_at ? new Date(workflow.updated_at) : workflow.updatedAt ? new Date(workflow.updatedAt) : new Date(),
-      projectId: workflow.project_id ?? workflow.projectId,
-    };
-  }, []);
+  const transformWorkflow = useCallback(
+    (workflow: RawWorkflow | null | undefined): NormalizedWorkflow | null => {
+      if (!workflow || !workflow.id || !workflow.name) return null;
+      return {
+        ...workflow,
+        id: workflow.id,
+        name: workflow.name,
+        folderPath: workflow.folder_path ?? workflow.folderPath ?? "/",
+        createdAt: workflow.created_at
+          ? new Date(workflow.created_at)
+          : workflow.createdAt
+            ? new Date(workflow.createdAt)
+            : new Date(),
+        updatedAt: workflow.updated_at
+          ? new Date(workflow.updated_at)
+          : workflow.updatedAt
+            ? new Date(workflow.updatedAt)
+            : new Date(),
+        projectId: workflow.project_id ?? workflow.projectId,
+      };
+    },
+    [],
+  );
 
-  const safeNavigate = useCallback((state: Record<string, unknown>, url: string, replace = false) => {
-    try {
-      if (replace) {
-        window.history.replaceState(state, '', url);
-      } else {
-        window.history.pushState(state, '', url);
+  const safeNavigate = useCallback(
+    (state: Record<string, unknown>, url: string, replace = false) => {
+      try {
+        if (replace) {
+          window.history.replaceState(state, "", url);
+        } else {
+          window.history.pushState(state, "", url);
+        }
+      } catch (error) {
+        // Some embedded hosts sandbox history APIs; log but continue rendering.
+        logger.warn(
+          "Failed to update history state",
+          { component: "App", action: "safeNavigate" },
+          error,
+        );
       }
-    } catch (error) {
-      // Some embedded hosts sandbox history APIs; log but continue rendering.
-      logger.warn('Failed to update history state', { component: 'App', action: 'safeNavigate' }, error);
-    }
-  }, []);
+    },
+    [],
+  );
 
-  const navigateToDashboard = useCallback((replace = false) => {
-    const url = '/';
-    const state = { view: 'dashboard' };
-    safeNavigate(state, url, replace);
-    setShowAIModal(false);
-    setShowProjectModal(false);
-    setSelectedWorkflow(null);
-    setSelectedFolder('/');
-    setCurrentProject(null);
-    setCurrentView('dashboard');
-  }, [safeNavigate, setCurrentProject]);
-
-  const openProject = useCallback((project: Project, options?: { replace?: boolean }) => {
-    if (!project) {
-      navigateToDashboard(options?.replace ?? false);
-      return;
-    }
-
-    const url = `/projects/${project.id}`;
-    const state = { view: 'project-detail', projectId: project.id };
-    safeNavigate(state, url, options?.replace ?? false);
-
-    setShowAIModal(false);
-    setShowProjectModal(false);
-    setCurrentProject(project);
-    setSelectedFolder(project.folder_path ?? '/');
-    setSelectedWorkflow(null);
-    setCurrentView('project-detail');
-  }, [navigateToDashboard, safeNavigate, setCurrentProject]);
-
-  const openWorkflow = useCallback(async (
-    project: Project,
-    workflowId: string | undefined,
-    options?: { replace?: boolean; workflowData?: Record<string, unknown> }
-  ) => {
-    if (!project || !workflowId) {
-      navigateToDashboard(options?.replace ?? false);
-      return;
-    }
-
-    const url = `/projects/${project.id}/workflows/${workflowId}`;
-    const state = { view: 'project-workflow', projectId: project.id, workflowId };
-    safeNavigate(state, url, options?.replace ?? false);
-
-    setShowAIModal(false);
-    setShowProjectModal(false);
-    setCurrentProject(project);
-
-    const initialWorkflow = options?.workflowData ? transformWorkflow(options.workflowData) : null;
-    if (initialWorkflow) {
-      setSelectedWorkflow(initialWorkflow);
-      setSelectedFolder(initialWorkflow.folderPath || project.folder_path || '/');
-    } else {
+  const navigateToDashboard = useCallback(
+    (replace = false) => {
+      const url = "/";
+      const state = { view: "dashboard" };
+      safeNavigate(state, url, replace);
+      setShowAIModal(false);
+      setShowProjectModal(false);
       setSelectedWorkflow(null);
-      setSelectedFolder(project.folder_path || '/');
-    }
+      setSelectedFolder("/");
+      setCurrentProject(null);
+      setCurrentView("dashboard");
+    },
+    [safeNavigate, setCurrentProject],
+  );
 
-    await loadWorkflow(workflowId);
-    const loadedWorkflow = useWorkflowStore.getState().currentWorkflow;
-    if (loadedWorkflow) {
-      const normalized = transformWorkflow(loadedWorkflow);
-      if (normalized) {
-        setSelectedWorkflow(normalized);
-        setSelectedFolder(normalized.folderPath || project.folder_path || '/');
+  const openProject = useCallback(
+    (project: Project, options?: { replace?: boolean }) => {
+      if (!project) {
+        navigateToDashboard(options?.replace ?? false);
+        return;
       }
-    }
-    setCurrentView('project-workflow');
-  }, [loadWorkflow, navigateToDashboard, safeNavigate, setCurrentProject, transformWorkflow]);
+
+      const url = `/projects/${project.id}`;
+      const state = { view: "project-detail", projectId: project.id };
+      safeNavigate(state, url, options?.replace ?? false);
+
+      setShowAIModal(false);
+      setShowProjectModal(false);
+      setCurrentProject(project);
+      setSelectedFolder(project.folder_path ?? "/");
+      setSelectedWorkflow(null);
+      setCurrentView("project-detail");
+    },
+    [navigateToDashboard, safeNavigate, setCurrentProject],
+  );
+
+  const openWorkflow = useCallback(
+    async (
+      project: Project,
+      workflowId: string | undefined,
+      options?: { replace?: boolean; workflowData?: Record<string, unknown> },
+    ) => {
+      if (!project || !workflowId) {
+        navigateToDashboard(options?.replace ?? false);
+        return;
+      }
+
+      const url = `/projects/${project.id}/workflows/${workflowId}`;
+      const state = {
+        view: "project-workflow",
+        projectId: project.id,
+        workflowId,
+      };
+      safeNavigate(state, url, options?.replace ?? false);
+
+      setShowAIModal(false);
+      setShowProjectModal(false);
+      setCurrentProject(project);
+
+      const initialWorkflow = options?.workflowData
+        ? transformWorkflow(options.workflowData)
+        : null;
+      if (initialWorkflow) {
+        setSelectedWorkflow(initialWorkflow);
+        setSelectedFolder(
+          initialWorkflow.folderPath || project.folder_path || "/",
+        );
+      } else {
+        setSelectedWorkflow(null);
+        setSelectedFolder(project.folder_path || "/");
+      }
+
+      await loadWorkflow(workflowId);
+      const loadedWorkflow = useWorkflowStore.getState().currentWorkflow;
+      if (loadedWorkflow) {
+        const normalized = transformWorkflow(loadedWorkflow);
+        if (normalized) {
+          setSelectedWorkflow(normalized);
+          setSelectedFolder(
+            normalized.folderPath || project.folder_path || "/",
+          );
+        }
+      }
+      setCurrentView("project-workflow");
+    },
+    [
+      loadWorkflow,
+      navigateToDashboard,
+      safeNavigate,
+      setCurrentProject,
+      transformWorkflow,
+    ],
+  );
 
   const handleProjectSelect = (project: Project) => {
     openProject(project);
@@ -226,7 +277,9 @@ function App() {
 
   const handleWorkflowSelect = async (workflow: Workflow) => {
     if (!currentProject) return;
-    await openWorkflow(currentProject, workflow.id, { workflowData: workflow as Record<string, unknown> });
+    await openWorkflow(currentProject, workflow.id, {
+      workflowData: workflow as Record<string, unknown>,
+    });
   };
 
   const handleBackToDashboard = () => {
@@ -258,25 +311,33 @@ function App() {
 
   const handleSwitchToManualBuilder = async () => {
     if (!currentProject?.id) {
-      toast.error('Select a project before using the manual builder.');
+      toast.error("Select a project before using the manual builder.");
       return;
     }
 
     // Create a new empty workflow and switch to the manual builder
     const workflowName = `new-workflow-${Date.now()}`;
-    const folderPath = selectedFolder || '/';
+    const folderPath = selectedFolder || "/";
     try {
-      const workflow = await useWorkflowStore.getState().createWorkflow(
-        workflowName,
-        folderPath,
-        currentProject.id
-      );
+      const workflow = await useWorkflowStore
+        .getState()
+        .createWorkflow(workflowName, folderPath, currentProject.id);
       if (currentProject && workflow?.id) {
-        await openWorkflow(currentProject, workflow.id, { workflowData: workflow as Record<string, unknown> });
+        await openWorkflow(currentProject, workflow.id, {
+          workflowData: workflow as Record<string, unknown>,
+        });
       }
     } catch (error) {
-      logger.error('Failed to create workflow', { component: 'App', action: 'handleCreateWorkflow', projectId: currentProject?.id }, error);
-      toast.error('Failed to open the manual builder. Please try again.');
+      logger.error(
+        "Failed to create workflow",
+        {
+          component: "App",
+          action: "handleCreateWorkflow",
+          projectId: currentProject?.id,
+        },
+        error,
+      );
+      toast.error("Failed to open the manual builder. Please try again.");
     }
   };
 
@@ -286,32 +347,45 @@ function App() {
     }
 
     try {
-      await openWorkflow(currentProject, workflow.id, { workflowData: workflow as Record<string, unknown> });
+      await openWorkflow(currentProject, workflow.id, {
+        workflowData: workflow as Record<string, unknown>,
+      });
     } catch (error) {
-      logger.error('Failed to open generated workflow', { component: 'App', action: 'handleWorkflowGenerated', workflowId: workflow.id, projectId: currentProject.id }, error);
+      logger.error(
+        "Failed to open generated workflow",
+        {
+          component: "App",
+          action: "handleWorkflowGenerated",
+          workflowId: workflow.id,
+          projectId: currentProject.id,
+        },
+        error,
+      );
     }
   };
 
   useEffect(() => {
     const resolvePath = async (path: string, replace = false) => {
-      const normalized = path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+      const normalized = path.replace(/\/+/g, "/").replace(/\/$/, "") || "/";
 
-      if (normalized === '/') {
+      if (normalized === "/") {
         navigateToDashboard(replace);
         return;
       }
 
-      const segments = normalized.split('/').filter(Boolean);
-      if (segments[0] !== 'projects' || !segments[1]) {
+      const segments = normalized.split("/").filter(Boolean);
+      if (segments[0] !== "projects" || !segments[1]) {
         navigateToDashboard(replace);
         return;
       }
 
       const projectId = segments[1];
       const projectState = useProjectStore.getState();
-      let project: Project | null | undefined = projectState.projects.find((p) => p.id === projectId);
+      let project: Project | null | undefined = projectState.projects.find(
+        (p) => p.id === projectId,
+      );
       if (!project) {
-        project = await projectState.getProject(projectId) as Project | null;
+        project = (await projectState.getProject(projectId)) as Project | null;
         if (project) {
           useProjectStore.setState((state) => ({
             projects: state.projects.some((p) => p.id === project!.id)
@@ -326,7 +400,7 @@ function App() {
         return;
       }
 
-      if (segments.length >= 4 && segments[2] === 'workflows') {
+      if (segments.length >= 4 && segments[2] === "workflows") {
         const workflowId = segments[3];
         await openWorkflow(project, workflowId, { replace });
         return;
@@ -336,17 +410,25 @@ function App() {
     };
 
     resolvePath(window.location.pathname, true).catch((error) => {
-      logger.warn('Failed to resolve initial route', { component: 'App', action: 'resolvePath' }, error);
+      logger.warn(
+        "Failed to resolve initial route",
+        { component: "App", action: "resolvePath" },
+        error,
+      );
     });
 
     const popHandler = () => {
       resolvePath(window.location.pathname, true).catch((error) => {
-        logger.warn('Failed to resolve popstate route', { component: 'App', action: 'handlePopState' }, error);
+        logger.warn(
+          "Failed to resolve popstate route",
+          { component: "App", action: "handlePopState" },
+          error,
+        );
       });
     };
 
-    window.addEventListener('popstate', popHandler);
-    return () => window.removeEventListener('popstate', popHandler);
+    window.addEventListener("popstate", popHandler);
+    return () => window.removeEventListener("popstate", popHandler);
   }, [navigateToDashboard, openProject, openWorkflow]);
 
   // Show loading while determining initial route
@@ -359,14 +441,19 @@ function App() {
   }
 
   // Dashboard View
-  if (currentView === 'dashboard') {
+  if (currentView === "dashboard") {
     return (
-      <div className="h-screen flex flex-col bg-flow-bg" data-testid="app-ready">
-        <Suspense fallback={
-          <div className="h-screen flex items-center justify-center bg-flow-bg">
-            <div className="text-flow-text">Loading dashboard...</div>
-          </div>
-        }>
+      <div
+        className="h-screen flex flex-col bg-flow-bg"
+        data-testid={testIds.appReady}
+      >
+        <Suspense
+          fallback={
+            <div className="h-screen flex items-center justify-center bg-flow-bg">
+              <div className="text-flow-text">Loading dashboard...</div>
+            </div>
+          }
+        >
           <Dashboard
             onProjectSelect={handleProjectSelect}
             onCreateProject={handleCreateProject}
@@ -384,14 +471,19 @@ function App() {
   }
 
   // Project Detail View
-  if (currentView === 'project-detail' && currentProject) {
+  if (currentView === "project-detail" && currentProject) {
     return (
-      <div className="h-screen flex flex-col bg-flow-bg" data-testid="app-ready">
-        <Suspense fallback={
-          <div className="h-screen flex items-center justify-center bg-flow-bg">
-            <div className="text-flow-text">Loading project...</div>
-          </div>
-        }>
+      <div
+        className="h-screen flex flex-col bg-flow-bg"
+        data-testid={testIds.appReady}
+      >
+        <Suspense
+          fallback={
+            <div className="h-screen flex items-center justify-center bg-flow-bg">
+              <div className="text-flow-text">Loading project...</div>
+            </div>
+          }
+        >
           <ProjectDetail
             project={currentProject}
             onBack={handleBackToDashboard}
@@ -401,7 +493,9 @@ function App() {
         </Suspense>
 
         {showAIModal && (
-          <Suspense fallback={<div className="text-flow-text">Loading AI modal...</div>}>
+          <Suspense
+            fallback={<div className="text-flow-text">Loading AI modal...</div>}
+          >
             <AIPromptModal
               onClose={() => setShowAIModal(false)}
               folder={selectedFolder}
@@ -418,90 +512,122 @@ function App() {
   // Project Workflow View (fallback)
   return (
     <ReactFlowProvider>
-      <div className="h-screen flex flex-col bg-flow-bg" data-testid="app-ready">
+      <div
+        className="h-screen flex flex-col bg-flow-bg"
+        data-testid={testIds.appReady}
+      >
         <Header
           onNewWorkflow={() => setShowAIModal(true)}
-          onBackToDashboard={currentView === 'project-workflow' ? handleBackToProjectDetail : handleBackToDashboard}
+          onBackToDashboard={
+            currentView === "project-workflow"
+              ? handleBackToProjectDetail
+              : handleBackToDashboard
+          }
           currentProject={currentProject}
           currentWorkflow={selectedWorkflow}
-          showBackToProject={currentView === 'project-workflow'}
+          showBackToProject={currentView === "project-workflow"}
         />
-        
+
         <div className="flex-1 flex overflow-hidden min-h-0">
           <Sidebar
             selectedFolder={selectedFolder}
             onFolderSelect={setSelectedFolder}
             projectId={currentProject?.id}
           />
-          
-          <div className={`flex-1 flex min-h-0 ${isResizingExecution ? 'select-none' : ''}`}>
+
+          <div
+            className={`flex-1 flex min-h-0 ${isResizingExecution ? "select-none" : ""}`}
+          >
             <div className="flex-1 flex flex-col min-h-0">
-              <Suspense fallback={
-                <div className="h-full flex items-center justify-center">
-                  <div className="text-flow-text">Loading workflow builder...</div>
-                </div>
-              }>
+              <Suspense
+                fallback={
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-flow-text">
+                      Loading workflow builder...
+                    </div>
+                  </div>
+                }
+              >
                 <WorkflowBuilder projectId={currentProject?.id} />
               </Suspense>
             </div>
 
-            {isExecutionViewerOpen && activeExecutionWorkflowId && isLargeScreen && (
-              <>
-                <div
-                  role="separator"
-                  aria-orientation="vertical"
-                  className={`w-1 cursor-col-resize transition-colors ${
-                    isResizingExecution ? 'bg-flow-accent/50' : 'bg-transparent hover:bg-flow-accent/40'
-                  }`}
-                  onMouseDown={handleExecutionResizeMouseDown}
-                  aria-label="Resize execution viewer pane"
-                />
-                <div
-                  className="border-l border-gray-800 flex flex-col min-h-0"
-                  style={{ width: executionPaneWidth, minWidth: EXECUTION_MIN_WIDTH }}
-                >
-                  <Suspense fallback={
-                    <div className="h-full flex items-center justify-center">
-                      <div className="text-flow-text">Loading execution viewer...</div>
-                    </div>
-                  }>
-                    <ExecutionViewer
-                      workflowId={activeExecutionWorkflowId}
-                      execution={currentExecution}
-                      onClose={closeExecutionViewer}
-                      showExecutionSwitcher
-                    />
-                  </Suspense>
-                </div>
-              </>
-            )}
+            {isExecutionViewerOpen &&
+              activeExecutionWorkflowId &&
+              isLargeScreen && (
+                <>
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    className={`w-1 cursor-col-resize transition-colors ${
+                      isResizingExecution
+                        ? "bg-flow-accent/50"
+                        : "bg-transparent hover:bg-flow-accent/40"
+                    }`}
+                    onMouseDown={handleExecutionResizeMouseDown}
+                    aria-label="Resize execution viewer pane"
+                  />
+                  <div
+                    className="border-l border-gray-800 flex flex-col min-h-0"
+                    style={{
+                      width: executionPaneWidth,
+                      minWidth: EXECUTION_MIN_WIDTH,
+                    }}
+                  >
+                    <Suspense
+                      fallback={
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-flow-text">
+                            Loading execution viewer...
+                          </div>
+                        </div>
+                      }
+                    >
+                      <ExecutionViewer
+                        workflowId={activeExecutionWorkflowId}
+                        execution={currentExecution}
+                        onClose={closeExecutionViewer}
+                        showExecutionSwitcher
+                      />
+                    </Suspense>
+                  </div>
+                </>
+              )}
           </div>
         </div>
 
-        {isExecutionViewerOpen && activeExecutionWorkflowId && !isLargeScreen && (
-          <ResponsiveDialog
-            isOpen={true}
-            onDismiss={closeExecutionViewer}
-            ariaLabel="Execution Viewer"
-            size="xl"
-          >
-            <Suspense fallback={
-              <div className="h-full flex items-center justify-center">
-                <div className="text-flow-text">Loading execution viewer...</div>
-              </div>
-            }>
-              <ExecutionViewer
-                workflowId={activeExecutionWorkflowId}
-                execution={currentExecution}
-                onClose={closeExecutionViewer}
-                showExecutionSwitcher
-              />
-            </Suspense>
-          </ResponsiveDialog>
-        )}
+        {isExecutionViewerOpen &&
+          activeExecutionWorkflowId &&
+          !isLargeScreen && (
+            <ResponsiveDialog
+              isOpen={true}
+              onDismiss={closeExecutionViewer}
+              ariaLabel="Execution Viewer"
+              size="xl"
+            >
+              <Suspense
+                fallback={
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-flow-text">
+                      Loading execution viewer...
+                    </div>
+                  </div>
+                }
+              >
+                <ExecutionViewer
+                  workflowId={activeExecutionWorkflowId}
+                  execution={currentExecution}
+                  onClose={closeExecutionViewer}
+                  showExecutionSwitcher
+                />
+              </Suspense>
+            </ResponsiveDialog>
+          )}
 
         {showAIModal && (
-          <Suspense fallback={<div className="text-flow-text">Loading AI modal...</div>}>
+          <Suspense
+            fallback={<div className="text-flow-text">Loading AI modal...</div>}
+          >
             <AIPromptModal
               onClose={() => setShowAIModal(false)}
               folder={selectedFolder}

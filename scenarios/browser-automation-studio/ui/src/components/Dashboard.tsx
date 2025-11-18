@@ -1,8 +1,20 @@
-import { useState, useEffect } from 'react';
-import { logger } from '../utils/logger';
-import { Plus, FolderOpen, Play, Clock, Calendar, PlayCircle, Loader, WifiOff, Search, X } from 'lucide-react';
-import { useProjectStore, Project } from '../stores/projectStore';
-import { openCalendar } from '../utils/vrooli';
+import { useState, useEffect } from "react";
+import { logger } from "../utils/logger";
+import {
+  Plus,
+  FolderOpen,
+  Play,
+  Clock,
+  Calendar,
+  PlayCircle,
+  Loader,
+  WifiOff,
+  Search,
+  X,
+} from "lucide-react";
+import { useProjectStore, Project } from "../stores/projectStore";
+import { openCalendar } from "../utils/vrooli";
+import { testIds } from "../consts/selectors";
 
 interface DashboardProps {
   onProjectSelect: (project: Project) => void;
@@ -10,24 +22,25 @@ interface DashboardProps {
 }
 
 function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
-  const { 
-    projects, 
-    isLoading, 
-    error, 
+  const {
+    projects,
+    isLoading,
+    error,
     bulkExecutionInProgress,
-    fetchProjects, 
+    fetchProjects,
     executeAllWorkflows,
-    clearError 
+    clearError,
   } = useProjectStore();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
 
   const normalizedSearch = searchTerm.toLowerCase();
-  const filteredProjects = projects.filter(project => {
-    const nameMatch = project.name?.toLowerCase().includes(normalizedSearch) ?? false;
+  const filteredProjects = projects.filter((project) => {
+    const nameMatch =
+      project.name?.toLowerCase().includes(normalizedSearch) ?? false;
     const descriptionMatch = project.description
       ? project.description.toLowerCase().includes(normalizedSearch)
       : false;
@@ -35,10 +48,10 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
   });
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -47,36 +60,51 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
     try {
       await openCalendar();
     } catch (error) {
-      logger.error('Failed to open calendar', { component: 'Dashboard', action: 'handleOpenCalendar' }, error);
-      alert('Failed to open calendar. Make sure the calendar scenario is running.');
+      logger.error(
+        "Failed to open calendar",
+        { component: "Dashboard", action: "handleOpenCalendar" },
+        error,
+      );
+      alert(
+        "Failed to open calendar. Make sure the calendar scenario is running.",
+      );
     }
   };
 
-  const handleRunAllWorkflows = async (e: React.MouseEvent, projectId: string) => {
+  const handleRunAllWorkflows = async (
+    e: React.MouseEvent,
+    projectId: string,
+  ) => {
     e.stopPropagation(); // Prevent project selection
     try {
       const result = await executeAllWorkflows(projectId);
-      
+
       // Show success message with details
-      const successCount = result.executions.filter(exec => exec.status !== 'failed').length;
+      const successCount = result.executions.filter(
+        (exec) => exec.status !== "failed",
+      ).length;
       const failureCount = result.executions.length - successCount;
-      
+
       let message = `Started ${successCount} workflow(s)`;
       if (failureCount > 0) {
         message += `, ${failureCount} failed to start`;
       }
-      
+
       alert(message);
     } catch (error) {
-      logger.error('Failed to execute all workflows', { component: 'Dashboard', action: 'handleExecuteAll' }, error);
-      alert('Failed to execute workflows. Please try again.');
+      logger.error(
+        "Failed to execute all workflows",
+        { component: "Dashboard", action: "handleExecuteAll" },
+        error,
+      );
+      alert("Failed to execute workflows. Please try again.");
     }
   };
 
   // Status bar for API connection issues
   const StatusBar = () => {
     if (!error) return null;
-    
+
     return (
       <div className="px-4 sm:px-6 mt-4">
         <div className="bg-red-900/20 border-l-4 border-red-500 p-4 rounded-lg">
@@ -84,7 +112,9 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
             <div className="flex items-center gap-3">
               <WifiOff size={20} className="text-red-400" />
               <div>
-                <div className="text-red-400 font-medium">API Connection Failed</div>
+                <div className="text-red-400 font-medium">
+                  API Connection Failed
+                </div>
                 <div className="text-red-300/80 text-sm">{error}</div>
               </div>
             </div>
@@ -118,11 +148,15 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
         <div className="px-4 py-4 sm:px-6 sm:py-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-white">Browser Automation Studio</h1>
-              <p className="text-gray-400 text-sm sm:text-base">Manage your automation projects and workflows</p>
+              <h1 className="text-2xl font-bold text-white">
+                Browser Automation Studio
+              </h1>
+              <p className="text-gray-400 text-sm sm:text-base">
+                Manage your automation projects and workflows
+              </p>
             </div>
             <button
-              data-testid="dashboard-new-project-button"
+              data-testid={testIds.dashboardNewProjectButton}
               onClick={onCreateProject}
               className="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
@@ -136,7 +170,11 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
             <label htmlFor="project-search" className="sr-only">
               Search projects
             </label>
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden="true" />
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+              aria-hidden="true"
+            />
             <input
               id="project-search"
               type="text"
@@ -149,7 +187,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
             {searchTerm && (
               <button
                 type="button"
-                onClick={() => setSearchTerm('')}
+                onClick={() => setSearchTerm("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                 aria-label="Clear project search"
               >
@@ -169,24 +207,23 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
           <div className="flex items-center justify-center h-64">
             <div className="text-gray-400">Loading projects...</div>
           </div>
-        ) : filteredProjects.length === 0 && searchTerm === '' ? (
+        ) : filteredProjects.length === 0 && searchTerm === "" ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="mb-4 flex items-center justify-center text-gray-600">
                 {error ? <WifiOff size={48} /> : <FolderOpen size={48} />}
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">
-                {error ? 'Unable to Load Projects' : 'No Projects Yet'}
+                {error ? "Unable to Load Projects" : "No Projects Yet"}
               </h3>
               <p className="text-gray-400 mb-6">
-                {error 
-                  ? 'There was an issue connecting to the API. You can still use the interface when the connection is restored.'
-                  : 'Create your first project to get started with browser automation'
-                }
+                {error
+                  ? "There was an issue connecting to the API. You can still use the interface when the connection is restored."
+                  : "Create your first project to get started with browser automation"}
               </p>
               {!error && (
                 <button
-                  data-testid="dashboard-new-project-button"
+                  data-testid={testIds.dashboardNewProjectButton}
                   onClick={onCreateProject}
                   className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
                 >
@@ -202,15 +239,19 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
               <div className="mb-4 flex items-center justify-center text-gray-600">
                 <FolderOpen size={48} />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">No Projects Found</h3>
-              <p className="text-gray-400">No projects match your search criteria</p>
+              <h3 className="text-lg font-semibold text-white mb-2">
+                No Projects Found
+              </h3>
+              <p className="text-gray-400">
+                No projects match your search criteria
+              </p>
             </div>
           </div>
         ) : (
           <div
             id="projects-content"
             className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-            data-testid="projects-grid"
+            data-testid={testIds.projectsGrid}
             role="region"
             aria-label="Projects list"
           >
@@ -219,7 +260,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                 key={project.id}
                 onClick={() => onProjectSelect(project)}
                 className="bg-flow-node border border-gray-700 rounded-lg p-5 sm:p-6 cursor-pointer hover:border-flow-accent hover:shadow-lg hover:shadow-blue-500/20 transition-all"
-                data-testid="project-card"
+                data-testid={testIds.projectCard}
                 data-project-id={project.id}
                 data-project-name={project.name}
               >
@@ -233,7 +274,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                       <h3
                         className="font-semibold text-white truncate max-w-[12rem] sm:max-w-32"
                         title={project.name}
-                        data-testid="project-card-title"
+                        data-testid={testIds.projectCardTitle}
                         data-project-id={project.id}
                         data-project-name={project.name}
                       >
@@ -241,7 +282,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                       </h3>
                     </div>
                   </div>
-                  
+
                   {/* Action Buttons */}
                   <div className="hidden sm:flex items-center gap-1">
                     {/* Schedule Button */}
@@ -259,8 +300,16 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                       onClick={(e) => handleRunAllWorkflows(e, project.id)}
                       disabled={bulkExecutionInProgress[project.id]}
                       className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={bulkExecutionInProgress[project.id] ? 'Running workflows...' : 'Run All Workflows'}
-                      aria-label={bulkExecutionInProgress[project.id] ? 'Running workflows' : 'Run all workflows in project'}
+                      title={
+                        bulkExecutionInProgress[project.id]
+                          ? "Running workflows..."
+                          : "Run All Workflows"
+                      }
+                      aria-label={
+                        bulkExecutionInProgress[project.id]
+                          ? "Running workflows"
+                          : "Run all workflows in project"
+                      }
                     >
                       {bulkExecutionInProgress[project.id] ? (
                         <Loader size={14} className="animate-spin" />
@@ -310,13 +359,18 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                   {project.stats?.last_execution && (
                     <div className="flex items-center gap-1">
                       <Play size={12} />
-                      <span>Last run {formatDate(project.stats.last_execution)}</span>
+                      <span>
+                        Last run {formatDate(project.stats.last_execution)}
+                      </span>
                     </div>
                   )}
                 </div>
 
                 {/* Folder Path */}
-                <div className="mt-2 text-xs text-gray-600 truncate" title={project.folder_path}>
+                <div
+                  className="mt-2 text-xs text-gray-600 truncate"
+                  title={project.folder_path}
+                >
                   {project.folder_path}
                 </div>
               </div>

@@ -367,27 +367,27 @@ func (s *Server) performFlatpakAutoInstallation(installID string) {
 	// Step 1: Download and install Flatpak binary to user-space
 	addLog("Downloading Flatpak binary for user-space installation...")
 	addLog("Note: This installs a minimal Flatpak binary, not the full system package")
-	
+
 	// Download Flatpak single-file bundle (if available) or use system package manager
 	// For now, inform user that system Flatpak is needed but we'll try package manager
 	addLog("Attempting to install Flatpak using system package manager...")
 	addLog("Checking available package managers...")
-	
+
 	// Try different package managers with --user or user-space options
-	packageManagers := []struct{
-		name string
-		checkCmd []string
+	packageManagers := []struct {
+		name       string
+		checkCmd   []string
 		installCmd []string
 	}{
 		{
-			name: "apt (Debian/Ubuntu)",
-			checkCmd: []string{"which", "apt-get"},
+			name:       "apt (Debian/Ubuntu)",
+			checkCmd:   []string{"which", "apt-get"},
 			installCmd: []string{"apt-get", "download", "flatpak"},
 		},
 		// Note: Most package managers require root for installation
 		// The reality is Flatpak itself typically needs system-level install
 	}
-	
+
 	flatpakInstalled := false
 	for _, pm := range packageManagers {
 		if _, err := exec.Command(pm.checkCmd[0], pm.checkCmd[1:]...).Output(); err == nil {
@@ -397,11 +397,11 @@ func (s *Server) performFlatpakAutoInstallation(installID string) {
 			break
 		}
 	}
-	
+
 	if !flatpakInstalled {
 		addLog("Cannot install Flatpak without system package manager or sudo")
 		addLog("Switching to Wine AppImage installation method (no Flatpak needed)...")
-		
+
 		// Call AppImage installation instead
 		s.performAppImageInstallation(installID)
 		return
@@ -460,14 +460,14 @@ func (s *Server) performAppImageInstallation(installID string) {
 
 	// Step 1: Download Wine AppImage
 	addLog("Downloading Wine AppImage (this may take 2-3 minutes)...")
-	
+
 	// Wine AppImage URL (using a stable version)
 	wineAppImageURL := "https://github.com/mmtrt/WINE_AppImage/releases/download/continuous/wine-stable_7.0-x86_64.AppImage"
 	wineAppImage := filepath.Join(localBinDir, "wine.AppImage")
-	
+
 	addLog(fmt.Sprintf("Downloading from: %s", wineAppImageURL))
 	addLog("This is a ~70MB download, please wait...")
-	
+
 	cmd := exec.Command("curl", "-L", "-o", wineAppImage, wineAppImageURL)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		fail(fmt.Sprintf("Failed to download Wine AppImage: %v\nOutput: %s", err, string(output)))
@@ -490,7 +490,7 @@ func (s *Server) performAppImageInstallation(installID string) {
 # Wine AppImage wrapper
 exec "%s" "$@"
 `, wineAppImage)
-	
+
 	if err := os.WriteFile(wineScript, []byte(wineScriptContent), 0755); err != nil {
 		fail(fmt.Sprintf("Failed to create wine wrapper script: %v", err))
 		return
@@ -499,11 +499,11 @@ exec "%s" "$@"
 
 	// Step 4: Verify installation
 	addLog("Verifying Wine installation...")
-	
+
 	// Update PATH to include ~/.local/bin for this check
 	currentPath := os.Getenv("PATH")
 	os.Setenv("PATH", localBinDir+":"+currentPath)
-	
+
 	cmd = exec.Command("wine", "--version")
 	if output, err := cmd.Output(); err != nil {
 		addError(fmt.Sprintf("Wine AppImage created but verification failed: %v", err))

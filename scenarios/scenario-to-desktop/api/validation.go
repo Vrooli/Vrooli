@@ -56,19 +56,24 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 	}
 
 	if config.ServerType == "external" {
-		if config.ExternalServerURL == "" && config.ServerPath != "" {
-			config.ExternalServerURL = config.ServerPath
+		proxyURL := config.ProxyURL
+		if proxyURL == "" {
+			proxyURL = config.ExternalServerURL
 		}
-		if config.ExternalAPIURL == "" && config.APIEndpoint != "" {
-			config.ExternalAPIURL = config.APIEndpoint
+		if proxyURL == "" {
+			proxyURL = config.ServerPath
 		}
-		if config.ExternalServerURL == "" {
-			return fmt.Errorf("external_server_url is required when server_type is 'external'")
+		if proxyURL == "" {
+			return fmt.Errorf("proxy_url is required when server_type is 'external'")
 		}
-		if config.ExternalAPIURL == "" {
-			return fmt.Errorf("external_api_url is required when server_type is 'external'")
+		normalizedProxy, err := normalizeProxyURL(proxyURL)
+		if err != nil {
+			return err
 		}
-		config.ServerPath = config.ExternalServerURL
+		config.ProxyURL = normalizedProxy
+		config.ExternalServerURL = normalizedProxy
+		config.ServerPath = normalizedProxy
+		config.ExternalAPIURL = proxyAPIURL(normalizedProxy)
 		config.APIEndpoint = config.ExternalAPIURL
 	} else {
 		if config.ServerPath == "" {
@@ -81,8 +86,8 @@ func (s *Server) validateDesktopConfig(config *DesktopConfig) error {
 	if config.VrooliBinaryPath == "" {
 		config.VrooliBinaryPath = "vrooli"
 	}
-	if config.AutoManageTier1 && config.ServerType != "external" {
-		return fmt.Errorf("auto_manage_tier1 is only supported when server_type is 'external'")
+	if config.AutoManageVrooli && config.ServerType != "external" {
+		return fmt.Errorf("auto_manage_vrooli is only supported when server_type is 'external'")
 	}
 
 	return nil

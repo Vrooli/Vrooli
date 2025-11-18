@@ -1,8 +1,9 @@
-import clsx from 'clsx';
-import { HTMLAttributes, PointerEvent, ReactNode, Ref, useEffect } from 'react';
-import './ResponsiveDialog.css';
+import clsx from "clsx";
+import { HTMLAttributes, PointerEvent, ReactNode, Ref, useEffect } from "react";
+import "./ResponsiveDialog.css";
+import { testIds } from "../consts/selectors";
 
-type ResponsiveDialogSize = 'default' | 'wide' | 'xl';
+type ResponsiveDialogSize = "default" | "wide" | "xl";
 
 type ResponsiveDialogProps = {
   isOpen: boolean;
@@ -12,14 +13,14 @@ type ResponsiveDialogProps = {
   ariaLabelledBy?: string;
   size?: ResponsiveDialogSize;
   overlayClassName?: string;
-  role?: 'dialog' | 'alertdialog';
+  role?: "dialog" | "alertdialog";
   contentRef?: Ref<HTMLDivElement>;
 } & HTMLAttributes<HTMLDivElement>;
 
 const sizeClassMap: Record<ResponsiveDialogSize, string | null> = {
   default: null,
-  wide: 'responsive-dialog__content--wide',
-  xl: 'responsive-dialog__content--xl',
+  wide: "responsive-dialog__content--wide",
+  xl: "responsive-dialog__content--xl",
 };
 
 export default function ResponsiveDialog({
@@ -28,9 +29,9 @@ export default function ResponsiveDialog({
   onDismiss,
   ariaLabel,
   ariaLabelledBy,
-  size = 'default',
+  size = "default",
   overlayClassName,
-  role = 'dialog',
+  role = "dialog",
   contentRef,
   className,
   ...contentProps
@@ -42,14 +43,14 @@ export default function ResponsiveDialog({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         onDismiss();
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onDismiss]);
 
@@ -68,15 +69,17 @@ export default function ResponsiveDialog({
   };
 
   // Extract data-testid from contentProps if provided, otherwise use default
-  const { 'data-testid': dataTestId, ...otherContentProps } = contentProps as Record<string, unknown>;
-  const testId = (dataTestId as string | undefined) || 'responsive-dialog-content';
+  const { "data-testid": dataTestId, ...otherContentProps } =
+    contentProps as Record<string, unknown>;
+  const testId =
+    (dataTestId as string | undefined) || testIds.responsiveDialogContent;
 
   return (
     <div
-      className={clsx('responsive-dialog__overlay', overlayClassName)}
+      className={clsx("responsive-dialog__overlay", overlayClassName)}
       role="presentation"
       onPointerDown={handleOverlayPointerDown}
-      data-testid="responsive-dialog-overlay"
+      data-testid={testIds.responsiveDialogOverlay}
     >
       <div
         role={role}
@@ -85,7 +88,7 @@ export default function ResponsiveDialog({
         aria-labelledby={ariaLabelledBy}
         ref={contentRef}
         className={clsx(
-          'responsive-dialog__content',
+          "responsive-dialog__content",
           sizeClassMap[size],
           className,
         )}
