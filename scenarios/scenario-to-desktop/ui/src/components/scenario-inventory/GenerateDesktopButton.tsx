@@ -11,8 +11,6 @@ import { Loader2, Zap, CheckCircle, XCircle } from "lucide-react";
 import type { ProbeResponse } from "../../lib/api";
 import { probeEndpoints } from "../../lib/api";
 import type { ScenarioDesktopStatus } from "./types";
-import { BuildDesktopButton } from "./BuildDesktopButton";
-import { TelemetryUploadCard } from "./TelemetryUploadCard";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
@@ -24,7 +22,7 @@ interface GenerateDesktopButtonProps {
 export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) {
   const queryClient = useQueryClient();
   const [buildId, setBuildId] = useState<string | null>(null);
-  const [showConfigurator, setShowConfigurator] = useState(false);
+  const [showConfigurator, setShowConfigurator] = useState(!scenario.has_desktop);
   const saved = scenario.connection_config;
   const [deploymentMode, setDeploymentMode] = useState(saved?.deployment_mode ?? "external-server");
   const [proxyUrl, setProxyUrl] = useState(saved?.proxy_url ?? saved?.server_url ?? "");
@@ -69,27 +67,32 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
           errorMessage = textError || errorMessage;
         }
 
-        // Add status code context
         if (res.status === 404) {
           throw new Error(`Scenario '${scenario.name}' not found. Check that the scenario exists in the scenarios directory.`);
         } else if (res.status === 400) {
           throw new Error(`Invalid request: ${errorMessage}`);
         } else if (res.status === 500) {
           throw new Error(`Server error: ${errorMessage}. Check API logs for details.`);
-        } else {
-          throw new Error(`${errorMessage} (HTTP ${res.status})`);
         }
+        throw new Error(`${errorMessage} (HTTP ${res.status})`);
       }
       return res.json();
     },
     onSuccess: (data) => {
       setBuildId(data.build_id);
-      // Refresh scenarios list to show the new desktop version
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
       }, 3000);
     }
   });
+
+  useEffect(() => {
+    if (scenario.has_desktop) {
+      setShowConfigurator(false);
+    } else {
+      setShowConfigurator(true);
+    }
+  }, [scenario.has_desktop]);
 
   useEffect(() => {
     if (!scenario.connection_config) {
@@ -119,7 +122,6 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
     }
   });
 
-  // Poll build status if we have a buildId
   const { data: buildStatus } = useQuery({
     queryKey: ['build-status', buildId],
     queryFn: async () => {
@@ -130,11 +132,10 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
     },
     enabled: !!buildId,
     refetchInterval: (data) => {
-      // Stop polling if build is complete or failed
       if (data?.status === 'ready' || data?.status === 'failed') {
         return false;
       }
-      return 2000; // Poll every 2 seconds while building
+      return 2000;
     }
   });
 
@@ -142,126 +143,62 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
   const isComplete = buildStatus?.status === 'ready';
   const isFailed = buildStatus?.status === 'failed' || generateMutation.isError;
 
-  if (isComplete) {
-    return (
-      <div className="ml-4 w-full max-w-xl space-y-4 text-slate-200">
-        <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <Badge variant="success" className="gap-1">
-              <CheckCircle className="h-3 w-3" />
-              Desktop wrapper ready
-            </Badge>
-            <span className="text-xs text-slate-400">Files live at {buildStatus.output_path}</span>
-          </div>
-          <p className="text-xs text-slate-400">
-            Use the controls below to build installers and upload telemetry—no terminal required.
-          </p>
-        </div>
-        <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 space-y-3">
-          <p className="text-sm font-semibold text-slate-100">Build installers</p>
-          <p className="text-xs text-slate-400">
-            We'll run <code>npm install</code>, <code>npm run build</code>, and <code>npm run dist</code> for the platforms you select.
-          </p>
-          <BuildDesktopButton scenarioName={scenario.name} />
-        </div>
-        <TelemetryUploadCard scenarioName={scenario.name} />
-      </div>
-    );
-  }
-
-  if (isFailed) {
-    const errorMessage = buildStatus?.error_log?.join('\n\n') || generateMutation.error?.message || 'Unknown error';
-
-    // Parse error to provide actionable suggestions
-    const getSuggestion = (error: string): string | null => {
-      if (error.includes('not found') || error.includes('404')) {
-        return `💡 Ensure the scenario '${scenario.name}' exists in /scenarios/ directory`;
-      }
-      if (error.includes('ui/dist') || error.includes('UI not built')) {
-        return `💡 Build the scenario UI first: cd scenarios/${scenario.name}/ui && npm run build`;
-      }
-      if (error.includes('permission') || error.includes('EACCES')) {
-        return '💡 Check file permissions in the scenarios directory';
-      }
-      if (error.includes('ENOSPC') || error.includes('no space')) {
-        return '💡 Free up disk space and try again';
-      }
-      if (error.includes('port') || error.includes('EADDRINUSE')) {
-        return '💡 Another process is using the required port. Stop it or change ports.';
-      }
-      return null;
-    };
-
-    const suggestion = getSuggestion(errorMessage);
-
-    const copyError = () => {
-      navigator.clipboard.writeText(errorMessage);
-    };
-
-    return (
-      <div className="ml-4 flex flex-col items-end gap-2 max-w-md">
-        <Badge variant="destructive" className="gap-1">
-          <XCircle className="h-3 w-3" />
-          Failed
-        </Badge>
-        <div className="w-full rounded border border-red-900 bg-red-950/20 p-2">
-          <p className="text-xs text-red-300 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
-            {errorMessage}
-          </p>
-          {suggestion && (
-            <p className="mt-2 text-xs text-yellow-300 border-t border-red-800 pt-2">
-              {suggestion}
-            </p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={copyError}
-            className="gap-1"
-          >
-            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            Copy Error
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setBuildId(null);
-              generateMutation.reset();
-            }}
-          >
-            Retry
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (isBuilding) {
-    return (
-      <div className="ml-4 flex items-center gap-2">
-        <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
-        <span className="text-sm text-slate-400">Generating...</span>
-      </div>
-    );
-  }
+  const defaultSummary = scenario.connection_config;
 
   return (
-    <div className="ml-4 w-full max-w-xl">
-      {!showConfigurator ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={() => setShowConfigurator(true)}
-        >
-          <Zap className="h-4 w-4" />
-          {scenario.has_desktop ? "Update Desktop Config" : "Configure Desktop Build"}
-        </Button>
+    <div className="space-y-3">
+      {isComplete && (
+        <div className="rounded-lg border border-green-900 bg-green-950/30 p-3 text-xs text-green-200">
+          <div className="flex items-center gap-2">
+            <Badge variant="success" className="gap-1">
+              <CheckCircle className="h-3 w-3" /> Ready
+            </Badge>
+            <span>Files live at {buildStatus?.output_path || scenario.desktop_path}</span>
+          </div>
+          <p className="mt-1 text-[11px]">We’ll keep polling so the Scenario Inventory stays up to date.</p>
+        </div>
+      )}
+
+      {isBuilding && (
+        <div className="flex items-center gap-2 text-sm text-blue-300">
+          <Loader2 className="h-4 w-4 animate-spin" /> Generating desktop wrapper...
+        </div>
+      )}
+
+      {isFailed && (
+        <ErrorCallout
+          scenarioName={scenario.name}
+          errorMessage={buildStatus?.error_log?.join('\n\n') || generateMutation.error?.message || 'Unknown error'}
+          onRetry={() => {
+            setBuildId(null);
+            generateMutation.reset();
+          }}
+        />
+      )}
+
+      {!showConfigurator && scenario.has_desktop && defaultSummary ? (
+        <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 text-sm text-slate-200 space-y-2">
+          <p className="font-semibold">Currently targeting</p>
+          <p className="text-xs text-slate-400">
+            {defaultSummary.proxy_url || defaultSummary.server_url || 'No proxy URL saved yet. Click edit to add it.'}
+          </p>
+          {defaultSummary.deployment_mode && (
+            <p className="text-xs text-slate-500">Mode: {defaultSummary.deployment_mode}</p>
+          )}
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button
+              size="sm"
+              className="gap-2"
+              disabled={isBuilding}
+              onClick={() => generateMutation.mutate()}
+            >
+              <Zap className="h-4 w-4" /> Regenerate wrapper
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowConfigurator(true)}>
+              Edit connection
+            </Button>
+          </div>
+        </div>
       ) : (
         <form
           className="space-y-3 rounded-lg border border-slate-700 bg-slate-900/40 p-4"
@@ -272,11 +209,13 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
         >
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-300">
-              Connect this desktop wrapper to the same Vrooli instance you already open in the browser (local machine or Cloudflare/app-monitor link). Paste that URL so the desktop shell can reuse it.
+              Connect this desktop wrapper to the same Vrooli instance you already open in the browser (local machine or Cloudflare/app-monitor link).
             </p>
-            <Button variant="outline" type="button" size="sm" onClick={() => setShowConfigurator(false)}>
-              Close
-            </Button>
+            {scenario.has_desktop && (
+              <Button variant="outline" type="button" size="sm" onClick={() => setShowConfigurator(false)}>
+                Close
+              </Button>
+            )}
           </div>
 
           <div>
@@ -310,8 +249,8 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
 
           <div>
             <Label htmlFor={`proxyUrl-${scenario.name}`}>Proxy URL</Label>
-            <p className="text-xs text-slate-400 mb-1">
-              Paste the Cloudflare/app-monitor link you already use (for example <code>https://app-monitor.example.com/apps/{scenario.name}/proxy/</code>). Desktop apps simply open this URL.
+            <p className="mb-1 text-xs text-slate-400">
+              Paste the Cloudflare/app-monitor link you already use (for example <code>https://app-monitor.example.com/apps/{scenario.name}/proxy/</code>).
             </p>
             <Input
               id={`proxyUrl-${scenario.name}`}
@@ -321,7 +260,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
               className="mt-1"
             />
 
-            <div className="flex items-center gap-2 mt-2">
+            <div className="mt-2 flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -337,7 +276,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
               {connectionError && <span className="text-xs text-red-300">{connectionError}</span>}
             </div>
             {(connectionResult?.server || connectionResult?.api) && (
-              <div className="mt-2 rounded border border-slate-800 bg-black/20 p-2 text-xs text-slate-200 space-y-1">
+              <div className="mt-2 space-y-1 rounded border border-slate-800 bg-black/20 p-2 text-xs text-slate-200">
                 <p className="font-semibold text-slate-100">Connectivity snapshot</p>
                 <p>UI URL: {connectionResult?.server.status === "ok" ? "reachable" : connectionResult?.server.message || "no response"}</p>
                 <p>API URL: {connectionResult?.api.status === "ok" ? "reachable" : connectionResult?.api.message || "no response"}</p>
@@ -362,7 +301,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" className="gap-2" disabled={generateMutation.isPending}>
               {generateMutation.isPending ? (
                 <>
@@ -394,6 +333,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
     </div>
   );
 }
+
 const DEPLOYMENT_OPTIONS = [
   {
     value: "external-server",
@@ -415,3 +355,57 @@ const DEPLOYMENT_OPTIONS = [
     docs: "https://github.com/vrooli/vrooli/blob/main/docs/deployment/tiers/tier-2-desktop.md"
   }
 ];
+
+function ErrorCallout({
+  scenarioName,
+  errorMessage,
+  onRetry
+}: {
+  scenarioName: string;
+  errorMessage: string;
+  onRetry: () => void;
+}) {
+  const suggestion = (() => {
+    if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+      return `Ensure the scenario '${scenarioName}' exists in /scenarios/ first.`;
+    }
+    if (errorMessage.includes('ui/dist') || errorMessage.includes('UI not built')) {
+      return `Build the scenario UI first: cd scenarios/${scenarioName}/ui && npm run build.`;
+    }
+    if (errorMessage.includes('permission') || errorMessage.includes('EACCES')) {
+      return 'Check file permissions in the scenarios directory.';
+    }
+    if (errorMessage.includes('ENOSPC') || errorMessage.includes('no space')) {
+      return 'Free up disk space and try again.';
+    }
+    if (errorMessage.includes('port') || errorMessage.includes('EADDRINUSE')) {
+      return 'Another process is using the required port. Stop it or change ports.';
+    }
+    return null;
+  })();
+
+  return (
+    <div className="space-y-2 rounded-lg border border-red-900 bg-red-950/20 p-3 text-xs text-red-200">
+      <div className="flex items-center gap-2 text-red-300">
+        <XCircle className="h-3 w-3" /> Unable to generate desktop wrapper
+      </div>
+      <pre className="max-h-32 overflow-y-auto whitespace-pre-wrap font-mono text-[11px] text-red-200/80">
+        {errorMessage}
+      </pre>
+      {suggestion && <p className="text-yellow-200">{suggestion}</p>}
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigator.clipboard.writeText(errorMessage)}
+          className="gap-1"
+        >
+          Copy error
+        </Button>
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      </div>
+    </div>
+  );
+}

@@ -32,6 +32,16 @@ Deployment-manager will eventually automate these steps (detecting/installing `v
 
 > **Server bootstrap is opt-in.** Keep `auto_manage_vrooli` off (default) if your desktop build should connect to the remote Vrooli server you already host. Set `auto_manage_vrooli: true` only when you expect the desktop user to run the scenario locally and have (or be willing to install) the `vrooli` CLI.
 
+### Guided build experience in Scenario Inventory
+
+The Scenario Inventory dashboard mirrors the workflow above so nobody has to remember the checklist:
+
+1. **Connect to your Tier 1 scenario** — paste the Cloudflare/app-monitor URL once and the generator reuses it for every teammate. A quick “Test connection” button confirms the proxy responds before you regenerate the wrapper.
+2. **Build installers** — pick Windows/macOS/Linux chips and click “Build selected installers.” The service runs `npm install`, `npm run build`, and `npm run dist` for those platforms while streaming status per platform.
+3. **Download + share telemetry** — previously built installers stay visible even after a refresh, and the telemetry panel now lists the exact `%APPDATA%` / `~/Library/Application Support/` / `~/.config/` paths so you can upload `deployment-telemetry.jsonl` without leaving the UI.
+
+That UI-first loop eliminates the “refresh and rebuild” trap, keeps non-Electron experts oriented, and gives deployment-manager consistent telemetry for every desktop experiment.
+
 ### Optional: Let the desktop app start the scenario locally
 
 Set `auto_manage_vrooli: true` when calling `POST /api/v1/desktop/generate` (or when editing the generated config JSON) to let Electron stand up the scenario automatically:

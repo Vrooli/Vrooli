@@ -13,6 +13,15 @@ export interface DesktopConnectionConfig {
   updated_at?: string;
 }
 
+export interface DesktopBuildArtifact {
+  platform?: string;
+  file_name: string;
+  size_bytes?: number;
+  modified_at?: string;
+  absolute_path?: string;
+  relative_path?: string;
+}
+
 export interface ScenarioDesktopStatus {
   name: string;
   display_name?: string;
@@ -25,6 +34,7 @@ export interface ScenarioDesktopStatus {
   last_modified?: string;
   package_size?: number;
   connection_config?: DesktopConnectionConfig;
+  build_artifacts?: DesktopBuildArtifact[];
 }
 
 export interface ScenariosResponse {

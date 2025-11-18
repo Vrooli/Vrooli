@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 import { Button } from "../ui/button";
 import { Loader2, Hammer, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { PlatformChip } from "./PlatformChip";
 import { WineInstallDialog } from "../wine";
+import { platformIcons, platformNames } from "./utils";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 const buildUrl = (path: string) => buildApiUrl(path, { baseUrl: API_BASE });
@@ -26,6 +27,30 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [showWineDialog, setShowWineDialog] = useState(false);
   const [pendingPlatforms, setPendingPlatforms] = useState<string[]>([]);
+  const [platformError, setPlatformError] = useState<string | null>(null);
+
+  const storageKey = useMemo(() => `desktop-platforms-${scenarioName}`, [scenarioName]);
+  const defaultPlatforms = ['win', 'mac', 'linux'];
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return defaultPlatforms;
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) {
+          return parsed;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to parse stored platform selection', error);
+    }
+    return defaultPlatforms;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(storageKey, JSON.stringify(selectedPlatforms));
+  }, [selectedPlatforms, storageKey]);
 
   // Check Wine status when building for Windows
   const { data: wineCheck } = useQuery<WineCheckResponse>({
@@ -63,19 +88,26 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   });
 
   // Handle build initiation with Wine check
-  const handleBuild = (platforms: string[] = ['win', 'mac', 'linux']) => {
+  const handleBuild = (platforms?: string[]) => {
+    const targets = platforms && platforms.length ? platforms : selectedPlatforms;
+    if (!targets.length) {
+      setPlatformError('Select at least one platform to build.');
+      return;
+    }
+    setPlatformError(null);
+
     // Check if Wine is needed and not installed
-    const needsWine = platforms.includes('win') && wineCheck?.platform === 'linux';
+    const needsWine = targets.includes('win') && wineCheck?.platform === 'linux';
 
     if (needsWine && !wineCheck?.installed) {
       // Save platforms for after Wine installation
-      setPendingPlatforms(platforms);
+      setPendingPlatforms(targets);
       setShowWineDialog(true);
       return;
     }
 
     // Wine not needed or already installed - proceed with build
-    buildMutation.mutate(platforms);
+    buildMutation.mutate(targets);
   };
 
   // Handle Wine installation complete
@@ -163,10 +195,10 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
             onClick={() => {
               setBuildId(null);
               setMutationError(null);
-              handleBuild();
+              handleBuild(selectedPlatforms);
             }}
           >
-            Rebuild All
+            Rebuild Selected
           </Button>
         </div>
       </div>
@@ -252,6 +284,29 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
     );
   }
 
+  const togglePlatform = (platform: string) => {
+    setSelectedPlatforms((prev) =>
+      prev.includes(platform) ? prev.filter((value) => value !== platform) : [...prev, platform]
+    );
+  };
+
+  const platformButtons = ['win', 'mac', 'linux'].map((platform) => {
+    const active = selectedPlatforms.includes(platform);
+    return (
+      <Button
+        key={platform}
+        variant={active ? 'default' : 'outline'}
+        size="sm"
+        className="gap-2"
+        type="button"
+        onClick={() => togglePlatform(platform)}
+      >
+        <span>{platformIcons[platform]}</span>
+        {platformNames[platform]}
+      </Button>
+    );
+  });
+
   return (
     <>
       {showWineDialog && (
@@ -263,15 +318,19 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
           onInstallComplete={handleWineInstallComplete}
         />
       )}
-      <Button
-        variant="default"
-        size="sm"
-        className="gap-2"
-        onClick={() => handleBuild()}
-      >
-        <Hammer className="h-4 w-4" />
-        Build Desktop App
-      </Button>
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">{platformButtons}</div>
+        {platformError && <p className="text-xs text-red-300">{platformError}</p>}
+        <Button
+          variant="default"
+          size="sm"
+          className="gap-2"
+          onClick={() => handleBuild(selectedPlatforms)}
+        >
+          <Hammer className="h-4 w-4" />
+          Build selected installers
+        </Button>
+      </div>
     </>
   );
 }

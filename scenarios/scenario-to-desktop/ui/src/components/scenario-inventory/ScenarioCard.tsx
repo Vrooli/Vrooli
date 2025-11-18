@@ -4,8 +4,10 @@ import { Monitor, Package, CheckCircle, XCircle, Clock } from "lucide-react";
 import { formatBytes } from "./utils";
 import { GenerateDesktopButton } from "./GenerateDesktopButton";
 import { BuildDesktopButton } from "./BuildDesktopButton";
-import { RegenerateButton } from "./RegenerateButton";
 import { DeleteButton } from "./DeleteButton";
+import { StepCard } from "./StepCard";
+import { DownloadButtons } from "./DownloadButtons";
+import { TelemetryUploadCard } from "./TelemetryUploadCard";
 import type { ScenarioDesktopStatus } from "./types";
 
 interface ScenarioCardProps {
@@ -13,6 +15,9 @@ interface ScenarioCardProps {
 }
 
 export function ScenarioCard({ scenario }: ScenarioCardProps) {
+  const artifacts = scenario.build_artifacts || [];
+  const hasArtifacts = artifacts.length > 0;
+
   return (
     <Card
       className={`border ${
@@ -99,18 +104,53 @@ export function ScenarioCard({ scenario }: ScenarioCardProps) {
               </div>
             )}
 
-            {/* Action buttons based on state */}
-            <div className="mt-3 ml-13 flex flex-col gap-3">
-              <GenerateDesktopButton scenario={scenario} />
-              {scenario.has_desktop && (
-                <>
+            {/* Guided flow */}
+            <div className="mt-4 ml-13 space-y-4">
+              <StepCard
+                step={1}
+                title="Connect to your Tier 1 scenario"
+                description="Paste the Cloudflare/app-monitor URL the desktop app should open. Scenario-to-desktop will save it for everyone."
+                complete={scenario.has_desktop}
+              >
+                <GenerateDesktopButton scenario={scenario} />
+              </StepCard>
+
+              <StepCard
+                step={2}
+                title="Build installers"
+                description="We run npm install/build/dist so you can click download instead of touching a terminal."
+                complete={hasArtifacts}
+                disabled={!scenario.has_desktop}
+              >
+                {scenario.has_desktop ? (
                   <BuildDesktopButton scenarioName={scenario.name} />
-                  <div className="flex flex-wrap gap-2">
-                    {scenario.built && <RegenerateButton scenarioName={scenario.name} connectionConfig={scenario.connection_config} />}
-                    <DeleteButton scenarioName={scenario.name} />
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    Generate the desktop wrapper first so we know where to run the build pipeline.
+                  </p>
+                )}
+              </StepCard>
+
+              <StepCard
+                step={3}
+                title="Download + share telemetry"
+                description="Hand installers to testers and upload the deployment-telemetry log so deployment-manager learns what broke."
+                complete={hasArtifacts}
+                disabled={!hasArtifacts}
+              >
+                {hasArtifacts ? (
+                  <div className="space-y-4">
+                    <DownloadButtons scenarioName={scenario.name} artifacts={artifacts} />
+                    <TelemetryUploadCard scenarioName={scenario.name} appDisplayName={scenario.display_name || scenario.name} />
                   </div>
-                </>
-              )}
+                ) : (
+                  <p className="text-sm text-slate-400">Build at least one installer to unlock downloads and telemetry uploads.</p>
+                )}
+              </StepCard>
+
+              <div className="flex justify-end">
+                <DeleteButton scenarioName={scenario.name} />
+              </div>
             </div>
           </div>
         </div>
