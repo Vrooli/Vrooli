@@ -327,7 +327,7 @@ curl -f http://localhost:$API_PORT/health                  # Go API
 - [Windmill App Creation](../../resources/automation/windmill/)  
 - [Go Runtime Setup](../../lib/runtimes/go.sh)
 - [Scenario Architecture Guide](../../../docs/scenarios/)
-- [Direct Scenario Execution](../../../docs/scenarios/DEPLOYMENT.md)
+- [Deployment Hub · Tier 1 Local Stack](../../../docs/deployment/tiers/tier-1-local-dev.md)
 
 ---
 

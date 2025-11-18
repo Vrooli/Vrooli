@@ -1,183 +1,140 @@
-# App Monitor - Product Requirements Document
+# Product Requirements Document (PRD)
 
-## Overview
-VROOLI App Monitor is a comprehensive monitoring dashboard for managing and overseeing all running scenarios within the Vrooli ecosystem. The system provides real-time monitoring, control capabilities, and performance insights through a Matrix-themed cyberpunk interface.
+> **Version**: 2.0.0
+> **Last Updated**: 2025-11-18
+> **Status**: Active
+> **Template**: Canonical PRD v2.0.0
 
-## Core Features
+## 🎯 Overview
 
-### 1. Real-time Application Monitoring
-- Live status tracking for all running applications/scenarios
-- Performance metrics (CPU, Memory, Network, Disk usage)
-- Health check monitoring with automated alerts
-- Container-level monitoring through Docker integration
+App Monitor provides comprehensive real-time monitoring and control for all running scenarios and resources within the Vrooli ecosystem through a distinctive Matrix-themed cyberpunk interface.
 
-### 2. Application Control Interface
-- Start/Stop/Restart application controls
-- Quick batch operations (restart all, stop all)
-- Individual application detail views with comprehensive information
-- Real-time log streaming and filtering
+**Purpose**: Enable operators to oversee system health, manage application lifecycle, and diagnose issues across the entire Vrooli deployment from a unified dashboard.
 
-### 3. Resource Management
-- Monitor status of core resources (PostgreSQL, Redis, n8n, Node-RED, Ollama)
-- Visual resource health indicators
-- Integration status tracking
+**Primary Users**:
+- System administrators managing Vrooli deployments
+- Developers monitoring scenario health during development
+- DevOps teams overseeing production environments
 
-### 4. Interactive Terminal
-- Built-in command interface for system operations
-- Command history and auto-completion
-- Direct integration with app control functions
+**Deployment Surfaces**:
+- Web UI with real-time WebSocket updates
+- REST API for programmatic access
+- Docker integration for container monitoring
+- Cloudflare tunnel for remote access (Tier 1 deployments)
 
-### 5. Performance Analytics
-- Real-time charts and metrics visualization
-- Historical performance data
-- System-wide health monitoring dashboard
+## 🎯 Operational Targets
 
-## UI Design Specifications
+### 🔴 P0 – Must ship for viability
 
-### Design Theme: Matrix Cyberpunk
-The application employs a distinctive Matrix-inspired cyberpunk aesthetic that creates an immersive monitoring experience.
+- [x] OT-P0-001 | Real-time scenario status monitoring | Display running/stopped/error states for all scenarios with live updates
+- [x] OT-P0-002 | Application lifecycle control | Start, stop, and restart scenarios through UI and API
+- [x] OT-P0-003 | Resource health tracking | Monitor status of core resources (PostgreSQL, Redis, Ollama, etc.)
+- [x] OT-P0-004 | Performance metrics display | Show CPU, memory, network, and disk usage per scenario
+- [x] OT-P0-005 | Live log streaming | Stream real-time logs from running scenarios with filtering
+- [x] OT-P0-006 | Matrix cyberpunk UI theme | Deliver distinctive green-on-black aesthetic with terminal fonts and glow effects
+- [x] OT-P0-007 | Docker container integration | Monitor and control scenarios via Docker API
 
-#### Color Palette
-- **Primary Green**: `#00ff41` (Matrix green) - Used for primary text, borders, and accents
-- **Dark Green**: `#008f11` - Used for secondary elements and hover states
-- **Light Green**: `#39ff14` - Used for highlighting and active states
-- **Cyan**: `#00ffff` - Used for section headers and special elements
-- **Background**: `#0a0a0a` - Primary dark background
-- **Card Background**: `#0d1117` - Secondary background for content areas
-- **Border**: `#1a472a` - Green-tinted borders
-- **Red**: `#ff0040` - Error states and critical alerts
-- **Yellow**: `#ffb000` - Warning states
-- **Blue**: `#00a8ff` - Information states
+### 🟠 P1 – Should have post-launch
 
-#### Typography
-- **Primary Font**: `Share Tech Mono` - Monospace font for the authentic terminal feel
-- **Logo Font**: `Orbitron` - Futuristic font for headers and branding
-- **Font Weights**: 400 (regular), 700 (bold), 900 (heavy) for logo
+- [ ] OT-P1-001 | Historical performance analytics | Store and visualize performance trends over time
+- [ ] OT-P1-002 | Automated health alerts | Notify operators of degraded health or failures
+- [ ] OT-P1-003 | Batch scenario operations | Execute start/stop/restart on multiple scenarios simultaneously
+- [ ] OT-P1-004 | Interactive terminal interface | Built-in command interface for system operations
+- [ ] OT-P1-005 | Custom dashboard layouts | Allow users to customize metric panels and views
+- [ ] OT-P1-006 | Advanced log analysis | Search, filter, and export logs with pattern matching
 
-#### Visual Effects
+### 🟢 P2 – Future / expansion
 
-**Matrix Rain Animation**
-- Subtle animated background effect with falling matrix-style characters
-- Low opacity overlay that doesn't interfere with content readability
-- Creates atmospheric depth and reinforces the cyberpunk theme
+- [ ] OT-P2-001 | Multi-server monitoring | Aggregate monitoring across distributed Vrooli installations
+- [ ] OT-P2-002 | Mobile-optimized interface | Responsive design with mobile-first interactions
+- [ ] OT-P2-003 | Predictive health modeling | ML-based predictions of resource exhaustion or failures
+- [ ] OT-P2-004 | Integration with external APM tools | Export metrics to Prometheus, Grafana, Datadog
+- [ ] OT-P2-005 | Role-based access control | Limit operations based on user permissions
+- [ ] OT-P2-006 | Scenario dependency visualization | Graph view of inter-scenario dependencies
 
-**Glow Effects**
-- Text shadows with green glow for key elements
-- Box shadows on interactive elements during hover states
-- Pulsing animations for active status indicators
+## 🧱 Tech Direction Snapshot
 
-**Scan Lines and Grid**
-- Subtle scan line animation in the header
-- Grid patterns in background overlays
-- Linear gradient effects for depth
+**Frontend Stack**:
+- Vanilla JavaScript for minimal bundle size and direct DOM control
+- Custom CSS with Matrix cyberpunk theme (green #00ff41, dark backgrounds, monospace fonts)
+- WebSocket client for real-time updates
+- Canvas API for performance charts
+- No framework dependencies – prioritize simplicity and performance
 
-#### Layout Structure
+**Backend Stack**:
+- Go API server for scenario management and Docker integration
+- Node.js proxy server for UI hosting and WebSocket relay
+- Express-based routing and API proxying
+- Docker SDK for container monitoring
 
-**Header**
-- Full-width header with brand identity
-- Real-time system status indicators (System Status, App Count, Uptime)
-- Animated scan line effect across bottom border
+**Data Flow**:
+- UI ↔ Node.js server ↔ Go API backend
+- WebSocket connections for live updates
+- Docker API for container stats
+- Mock data fallbacks for development/testing
 
-**Sidebar Navigation**
-- Fixed-width navigation panel (250px)
-- Menu items with hover states and active indicators
-- Quick action buttons for common operations
-- Collapsible on mobile devices
+**Non-Goals**:
+- Not replacing dedicated APM tools (Prometheus, Grafana) for production monitoring
+- Not building custom container orchestration (use existing Docker/Kubernetes)
+- Not supporting Windows-native deployments (Linux/macOS only)
 
-**Main Content Area**
-- Flexible content area with multiple view panels
-- Smooth transitions between different views
-- Responsive grid layouts for content cards
+## 🤝 Dependencies & Launch Plan
 
-**Modal System**
-- Full-screen modal overlays for detailed views
-- Consistent styling with main interface
-- Smooth fade-in/fade-out animations
+**Required Local Resources**:
+- Docker (container monitoring and control)
+- PostgreSQL (optional: for storing historical metrics)
+- Redis (optional: for caching scenario states)
 
-#### Component Specifications
+**Scenario Dependencies**:
+- None – App Monitor is a foundational monitoring tool
 
-**Application Cards**
-- Grid-based layout with responsive columns
-- Status indicators with color-coded badges
-- Real-time metrics display (CPU, Memory, Uptime, Port)
-- Hover effects with border highlighting and glow
-- Integrated action buttons (Start, Stop, Details)
+**Launch Sequencing**:
+1. Core monitoring API with Docker integration (P0 targets)
+2. Matrix-themed UI with real-time updates
+3. Deploy via Cloudflare tunnel for Tier 1 access
+4. Historical analytics and alerting (P1 targets)
+5. Multi-server and mobile support (P2 targets)
 
-**Status Indicators**
-- Running: Green background with green border
-- Stopped: Red background with red border  
-- Error: Yellow background with yellow border
-- Online: Green for resources
-- Offline: Red for resources
+**Risks**:
+- Docker API permissions may require elevated privileges in some environments
+- WebSocket connection stability on poor networks
+- Performance overhead of monitoring many scenarios simultaneously
 
-**Interactive Elements**
-- Consistent button styling with green borders
-- Hover states with background color inversion
-- Uppercase text for technical aesthetic
-- Smooth transition animations (0.3s ease)
+## 🎨 UX & Branding
 
-**Charts and Visualizations**
-- Canvas-based charts with green color scheme
-- Real-time updating data visualization
-- Grid lines and technical styling
-- Consistent with overall theme
+**Visual Identity**:
+- **Matrix Cyberpunk Theme**: Green-on-black (#00ff41 on #0a0a0a) with cyan accents (#00ffff)
+- **Typography**: Share Tech Mono (monospace) for terminal authenticity, Orbitron for headers
+- **Visual Effects**: Animated matrix rain background, glow effects on hover, scan lines in header
+- **Color Coding**: Green (running/online), Red (stopped/error), Yellow (warning), Blue (info)
 
-**Terminal Interface**
-- Full terminal emulation with command processing
-- Green text on dark background
-- Authentic terminal prompt styling
-- Command history and response formatting
+**Interaction Patterns**:
+- Immediate status clarity – health visible at a glance
+- Hover states with border glow and background inversion
+- Smooth 0.3s transitions on all interactive elements
+- Real-time updates without jarring page reloads
+- Touch-friendly targets for mobile interfaces
 
-#### Responsive Design
-- Mobile-first approach with collapsible sidebar
-- Responsive grid systems that adapt to screen size
-- Touch-friendly interface elements on mobile
-- Maintained theme consistency across all devices
+**Accessibility**:
+- Maintain WCAG AA color contrast despite dark theme
+- Keyboard navigation for all controls
+- Screen reader support for status indicators
+- Reduced motion option to disable animations
 
-#### Animation and Interaction
-- Smooth page transitions with fade effects
-- Loading spinners with Matrix-green color
-- Hover animations on all interactive elements
-- Real-time updates without jarring transitions
+**Voice & Personality**:
+- Professional technical aesthetic – no unnecessary playfulness
+- Direct, concise status messaging
+- Technical accuracy over marketing language
+- "Hacker command center" tone that enhances focus
 
-### User Experience Principles
-1. **Immediate Clarity**: Status and health information is immediately visible
-2. **Efficient Control**: Common operations are easily accessible
-3. **Professional Aesthetic**: The Matrix theme enhances rather than distracts from functionality
-4. **Real-time Updates**: Information updates seamlessly without user intervention
-5. **Responsive Design**: Consistent experience across all device sizes
+**Performance Expectations**:
+- Initial page load < 2 seconds
+- Real-time update latency < 500ms
+- Responsive interactions < 100ms
+- Memory usage < 50MB typical
 
-## Technical Architecture
+## 📎 Appendix
 
-### Frontend Stack
-- **Vanilla JavaScript**: No framework dependencies for lightweight performance
-- **Custom CSS**: Matrix-themed styling with CSS custom properties
-- **WebSocket Integration**: Real-time updates from backend
-- **Canvas API**: Custom chart implementations
-- **Local Storage**: User preferences and session data
+**Legacy Content Reference**: The original PRD contained detailed UI specifications for components, layout structure, and responsive design patterns. These details now live in `ui/src/styles/` (CSS implementation), `ui/docs/DESIGN_SYSTEM.md` (component specifications), and `docs/PROGRESS.md` (implementation milestones).
 
-### Backend Integration
-- **Node.js Server**: Express-based server for UI hosting
-- **API Proxy**: Transparent proxy to Go API backend
-- **WebSocket Server**: Real-time communication with clients
-- **Docker Integration**: Container monitoring and control
-
-### Data Flow
-1. UI connects to Node.js server
-2. API calls proxied to Go backend
-3. Real-time updates via WebSocket
-4. Mock data fallbacks for development
-
-## Browser Compatibility
-- Modern browsers with ES6+ support
-- WebSocket support required
-- Canvas API support for charts
-- CSS Grid and Flexbox support
-
-## Performance Requirements
-- Initial page load: < 2 seconds
-- Real-time update latency: < 500ms  
-- Responsive interactions: < 100ms
-- Memory usage: < 50MB typical
-
-This PRD serves as the definitive specification for maintaining and enhancing the App Monitor's distinctive Matrix cyberpunk interface while ensuring robust monitoring functionality.
+**Browser Compatibility**: Requires modern browsers with ES6+ support, WebSocket support, Canvas API for charts, and CSS Grid and Flexbox support.

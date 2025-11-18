@@ -10,17 +10,18 @@ export class SettingsManager {
         this.originalTheme = null; // Track original theme for preview cancellation
         this.recyclerModelCache = {};
         this.recyclerModelRequests = {};
-        this.defaultSettings = {
-            theme: 'dark',
-            slots: 1,
-            refresh_interval: 30,
-            active: false,
-            max_turns: 60,
-            allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
-            skip_permissions: true,
-            task_timeout: 30,
-            condensed_mode: false,
-            max_tasks: 0, // 0 = unlimited
+		this.defaultSettings = {
+			theme: 'dark',
+			slots: 1,
+			refresh_interval: 30,
+			active: false,
+			max_turns: 60,
+			allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
+			skip_permissions: true,
+			task_timeout: 30,
+			idle_timeout_cap: 30,
+			condensed_mode: false,
+			max_tasks: 0, // 0 = unlimited
             recycler: {
                 enabled_for: 'off',
                 interval_seconds: 60,
@@ -70,12 +71,13 @@ export class SettingsManager {
     updateSliderConstraints() {
         if (!this.constraints) return;
 
-        const sliderConfigs = [
-            { id: 'settings-max-turns', constraint: this.constraints.max_turns },
-            { id: 'settings-task-timeout', constraint: this.constraints.task_timeout },
-            { id: 'settings-slots', constraint: this.constraints.slots },
-            { id: 'settings-refresh', constraint: this.constraints.refresh_interval }
-        ];
+		const sliderConfigs = [
+			{ id: 'settings-max-turns', constraint: this.constraints.max_turns },
+			{ id: 'settings-task-timeout', constraint: this.constraints.task_timeout },
+			{ id: 'settings-idle-timeout', constraint: this.constraints.idle_timeout_cap },
+			{ id: 'settings-slots', constraint: this.constraints.slots },
+			{ id: 'settings-refresh', constraint: this.constraints.refresh_interval }
+		];
 
         sliderConfigs.forEach(({ id, constraint }) => {
             if (!constraint) return;
@@ -145,18 +147,19 @@ export class SettingsManager {
         settings.theme = resolvedTheme;
 
         // Map settings keys to form field IDs (using backend field names)
-        const fieldMapping = {
-            'theme': 'settings-theme',
-            'condensed_mode': 'settings-condensed-mode',
-            'slots': 'settings-slots',
-            'refresh_interval': 'settings-refresh',
-            'active': 'settings-active',
-            'max_turns': 'settings-max-turns',
-            'allowed_tools': 'settings-tools',
-            'skip_permissions': 'settings-skip-permissions',
-            'task_timeout': 'settings-task-timeout',
-            'max_tasks': 'settings-max-tasks'
-        };
+		const fieldMapping = {
+			'theme': 'settings-theme',
+			'condensed_mode': 'settings-condensed-mode',
+			'slots': 'settings-slots',
+			'refresh_interval': 'settings-refresh',
+			'active': 'settings-active',
+			'max_turns': 'settings-max-turns',
+			'allowed_tools': 'settings-tools',
+			'skip_permissions': 'settings-skip-permissions',
+			'task_timeout': 'settings-task-timeout',
+			'idle_timeout_cap': 'settings-idle-timeout',
+			'max_tasks': 'settings-max-tasks'
+		};
         
         // Update form fields with settings values
         Object.entries(fieldMapping).forEach(([settingKey, fieldId]) => {
@@ -259,18 +262,19 @@ export class SettingsManager {
         const formData = {};
         
         // Map form field IDs to settings keys (using backend field names)
-        const fieldMapping = {
-            'settings-theme': 'theme',
-            'settings-condensed-mode': 'condensed_mode',
-            'settings-slots': 'slots',
-            'settings-refresh': 'refresh_interval',
-            'settings-active': 'active',
-            'settings-max-turns': 'max_turns',
-            'settings-tools': 'allowed_tools',
-            'settings-skip-permissions': 'skip_permissions',
-            'settings-task-timeout': 'task_timeout',
-            'settings-max-tasks': 'max_tasks'
-        };
+		const fieldMapping = {
+			'settings-theme': 'theme',
+			'settings-condensed-mode': 'condensed_mode',
+			'settings-slots': 'slots',
+			'settings-refresh': 'refresh_interval',
+			'settings-active': 'active',
+			'settings-max-turns': 'max_turns',
+			'settings-tools': 'allowed_tools',
+			'settings-skip-permissions': 'skip_permissions',
+			'settings-task-timeout': 'task_timeout',
+			'settings-idle-timeout': 'idle_timeout_cap',
+			'settings-max-tasks': 'max_tasks'
+		};
         
         // Collect settings from form using mapped field IDs
         Object.entries(fieldMapping).forEach(([fieldId, settingKey]) => {
@@ -285,11 +289,15 @@ export class SettingsManager {
                         value = 1;
                     }
                     // Convert task timeout from minutes to seconds BEFORE setting
-                    if (settingKey === 'task_timeout') {
-                        // Backend expects minutes, but let's make sure we have a valid value
-                        if (value < 5) value = 5;
-                        if (value > 240) value = 240;
-                    }
+				if (settingKey === 'task_timeout') {
+					// Backend expects minutes, but let's make sure we have a valid value
+					if (value < 5) value = 5;
+					if (value > 240) value = 240;
+				}
+				if (settingKey === 'idle_timeout_cap') {
+					if (value < 2) value = 2;
+					if (value > 240) value = 240;
+				}
                     formData[settingKey] = value;
                 } else {
                     formData[settingKey] = element.value;

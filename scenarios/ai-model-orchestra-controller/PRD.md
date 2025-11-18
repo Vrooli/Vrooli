@@ -772,7 +772,7 @@ tests:
 - README.md - User-facing overview and quick start
 - docs/api.md - Complete API specification with examples
 - docs/cli.md - CLI command reference and usage patterns
-- docs/deployment.md - Production deployment guides
+- docs/deployment/README.md - Deployment hub and tiered roadmap
 - docs/performance.md - Performance tuning and optimization
 
 ### Related PRDs

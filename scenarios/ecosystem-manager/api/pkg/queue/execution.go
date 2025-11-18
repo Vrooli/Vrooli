@@ -286,6 +286,12 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 				log.Printf("⚠️  MAX_TURNS exceeded for task %s - using enhanced cleanup verification", task.ID)
 				systemlog.Warnf("MAX_TURNS exceeded for task %s - enhanced cleanup will be applied", task.ID)
 			}
+			if result.IdleTimeout {
+				if extras == nil {
+					extras = make(map[string]any)
+				}
+				extras["idle_timeout"] = true
+			}
 			if finalizeErr := qp.handleTaskFailureWithTiming(&task, result.Error, result.Output, executionStartTime, executionTime, timeoutDuration, extras); finalizeErr != nil {
 				log.Printf("CRITICAL: Failed to finalize failed task %s: %v", task.ID, finalizeErr)
 				systemlog.Errorf("Failed to finalize failed task %s: %v - task will remain in executions", task.ID, finalizeErr)
@@ -524,10 +530,23 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	var lastActivity int64
 	atomic.StoreInt64(&lastActivity, time.Now().UnixNano())
 
-	idleLimit := time.Duration(math.Min(float64(timeoutDuration)*MaxIdleTimeoutFactor, float64(DefaultIdleTimeoutCap)))
+	idleCap := time.Duration(currentSettings.IdleTimeoutCap) * time.Minute
+	if idleCap <= 0 {
+		idleCap = timeoutDuration
+	}
+	idleLimit := time.Duration(math.Min(float64(timeoutDuration)*MaxIdleTimeoutFactor, float64(idleCap)))
+	if idleLimit > timeoutDuration {
+		idleLimit = timeoutDuration
+	}
 	if idleLimit < MinIdleTimeout {
 		idleLimit = MinIdleTimeout
 	}
+	idleLimitRounded := idleLimit.Round(time.Second)
+	idleCapRounded := idleCap.Round(time.Second)
+	if idleCapRounded == 0 {
+		idleCapRounded = idleCap
+	}
+	var idleTriggered int32
 
 	readsDone := make(chan struct{})
 	stopWatch := make(chan struct{})
@@ -550,7 +569,8 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 			case <-ticker.C:
 				last := time.Unix(0, atomic.LoadInt64(&lastActivity))
 				if time.Since(last) > idleLimit {
-					message := fmt.Sprintf("⚠️  No Claude output for %v. Cancelling execution.", idleLimit)
+					atomic.StoreInt32(&idleTriggered, 1)
+					message := fmt.Sprintf("⚠️  No Claude output for %v (idle cap %v). Cancelling execution.", idleLimitRounded, idleCapRounded)
 					qp.appendTaskLog(task.ID, agentTag, "stderr", message)
 					cancel()
 					return
@@ -671,6 +691,17 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 			}
 		}
 
+		if waitErr != nil && atomic.LoadInt32(&idleTriggered) == 1 {
+			idleMsg := fmt.Sprintf("IDLE TIMEOUT: No Claude output for %v (idle cap %v). The watchdog cancelled execution. Increase the Idle Timeout Cap in Settings or emit periodic heartbeats during long operations.", idleLimitRounded, idleCapRounded)
+			qp.appendTaskLog(task.ID, agentTag, "stderr", idleMsg)
+			return &tasks.ClaudeCodeResponse{
+				Success:     false,
+				Error:       idleMsg,
+				Output:      combinedOutput,
+				IdleTimeout: true,
+			}, cleanup, nil
+		}
+
 		if waitErr != nil {
 			if detectMaxTurnsExceeded(combinedOutput) {
 				maxTurnsMsg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
@@ -693,7 +724,11 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	}
 
 	if ctxErr == context.Canceled {
-		qp.appendTaskLog(task.ID, agentTag, "stderr", "INFO: Claude process completed after idle watchdog cancellation signal")
+		if atomic.LoadInt32(&idleTriggered) == 1 {
+			qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("INFO: Claude process completed after idle watchdog cancellation (limit %v, cap %v)", idleLimitRounded, idleCapRounded))
+		} else {
+			qp.appendTaskLog(task.ID, agentTag, "stderr", "INFO: Claude process completed after cancellation signal")
+		}
 	}
 
 	elapsed := time.Since(startTime)

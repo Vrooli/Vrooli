@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
-import { AlertTriangle, CheckSquare, ChevronDown, ChevronUp, ClipboardCopy, Eraser, Loader2 } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, ClipboardCopy, Eraser, Loader2 } from 'lucide-react'
 import type {
   IssueReportSeed,
   IssueReportSelectionInput,
@@ -88,6 +88,8 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
   const [isCustomizingDescription, setIsCustomizingDescription] = useState(false)
   const [manualDescription, setManualDescription] = useState('')
   const [customizationBaseline, setCustomizationBaseline] = useState<{ selected: string[]; notes: Record<string, string> } | null>(null)
+  const overallCheckboxRef = useRef<HTMLInputElement | null>(null)
+  const categoryCheckboxRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
     if (!seed || !open) {
@@ -131,6 +133,16 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
   }, [seed])
 
   const selectedEntries = useMemo(() => selections.filter((entry) => selectedIds.has(entry.id)), [selections, selectedIds])
+  const totalSelectable = selections.length
+  const overallSelectionState: 'none' | 'partial' | 'all' = useMemo(() => {
+    if (totalSelectable === 0 || selectedEntries.length === 0) {
+      return 'none'
+    }
+    if (selectedEntries.length === totalSelectable) {
+      return 'all'
+    }
+    return 'partial'
+  }, [selectedEntries.length, totalSelectable])
 
   const normalizedNotes = useMemo(() => {
     const snapshot: Record<string, string> = {}
@@ -206,6 +218,25 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
   const hasDescription = descriptionToSubmit.trim().length > 0
   const canSubmit = Boolean(seed && selectedEntries.length > 0 && (!hasOpenIssues || acknowledged) && !busy && hasDescription)
 
+  useEffect(() => {
+    if (overallCheckboxRef.current) {
+      overallCheckboxRef.current.indeterminate = overallSelectionState === 'partial'
+    }
+  }, [overallSelectionState])
+
+  useEffect(() => {
+    Object.entries(categoryCheckboxRefs.current).forEach(([categoryId, element]) => {
+      if (!element) return
+      const items = selections.filter((entry) => entry.categoryId === categoryId)
+      if (items.length === 0) {
+        element.indeterminate = false
+        return
+      }
+      const selectedCount = items.filter((entry) => selectedIds.has(entry.id)).length
+      element.indeterminate = selectedCount > 0 && selectedCount < items.length
+    })
+  }, [selections, selectedIds])
+
   const close = useCallback(() => {
     onOpenChange?.(false)
   }, [onOpenChange])
@@ -222,19 +253,27 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
     })
   }
 
-  const toggleCategory = (categoryId: string) => {
+  const setCategorySelection = (categoryId: string, shouldSelect: boolean) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
       const items = selections.filter((entry) => entry.categoryId === categoryId)
-      const isFullySelected = items.every((item) => next.has(item.id))
       items.forEach((item) => {
-        if (isFullySelected) {
-          next.delete(item.id)
-        } else {
+        if (shouldSelect) {
           next.add(item.id)
+        } else {
+          next.delete(item.id)
         }
       })
       return next
+    })
+  }
+
+  const setAllSelected = (shouldSelect: boolean) => {
+    setSelectedIds(() => {
+      if (!shouldSelect) {
+        return new Set()
+      }
+      return new Set(selections.map((entry) => entry.id))
     })
   }
 
@@ -407,29 +446,33 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
             {!summary && statusError && <p className="text-xs text-rose-600">{statusError}</p>}
 
             <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
-              <span>Detected issues</span>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  title="Clear selection"
-                  onClick={() => setSelectedIds(new Set())}
-                >
-                  <Eraser size={16} />
-                  <span className="sr-only">Clear selection</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  title="Select every issue"
-                  onClick={() => setSelectedIds(new Set(selections.map((entry) => entry.id)))}
-                >
-                  <CheckSquare size={16} />
-                  <span className="sr-only">Select every issue</span>
-                </Button>
-              </div>
+              <label className="flex flex-1 items-center gap-3">
+                <input
+                  ref={overallCheckboxRef}
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300"
+                  disabled={totalSelectable === 0}
+                  checked={overallSelectionState === 'all' && totalSelectable > 0}
+                  onChange={(event) => setAllSelected(event.target.checked)}
+                />
+                <div>
+                  <span>Detected issues</span>
+                  <p className="text-[11px] font-normal text-muted-foreground">
+                    {selectedEntries.length}/{totalSelectable} selected
+                  </p>
+                </div>
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                title="Clear selection"
+                onClick={() => setSelectedIds(new Set())}
+                disabled={selectedEntries.length === 0}
+              >
+                <Eraser size={16} />
+                <span className="sr-only">Clear selection</span>
+              </Button>
             </div>
 
             <div className="space-y-3 overflow-y-auto pr-2" style={{ maxHeight: '60vh' }}>
@@ -438,14 +481,30 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
                 const categoryItems = selections.filter((entry) => entry.categoryId === categoryKey)
                 const isFullySelected = categoryItems.every((entry) => selectedIds.has(entry.id))
                 const isCollapsed = collapsedCategories.has(categoryKey)
+                const selectedCount = categoryItems.filter((entry) => selectedIds.has(entry.id)).length
                 return (
                   <div key={categoryKey} className="rounded-lg border p-3">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-slate-900">{category.title}</p>
-                        {category.description && <p className="text-xs text-muted-foreground">{category.description}</p>}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs">
+                      <label className="flex flex-1 items-start gap-3">
+                        <input
+                          ref={(element) => {
+                            categoryCheckboxRefs.current[categoryKey] = element
+                          }}
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 rounded border-slate-300"
+                          checked={isFullySelected && categoryItems.length > 0}
+                          disabled={categoryItems.length === 0}
+                          onChange={(event) => setCategorySelection(categoryKey, event.target.checked)}
+                        />
+                        <div>
+                          <p className="font-semibold text-slate-900">{category.title}</p>
+                          {category.description && <p className="text-xs text-muted-foreground">{category.description}</p>}
+                          <p className="text-[11px] font-normal text-muted-foreground">
+                            {selectedCount}/{categoryItems.length} selected
+                          </p>
+                        </div>
+                      </label>
+                      <div className="flex items-center gap-1 text-xs pl-3">
                         <Button
                           type="button"
                           variant="ghost"
@@ -455,16 +514,6 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
                         >
                           {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                           <span className="sr-only">{isCollapsed ? 'Expand category' : 'Collapse category'}</span>
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          title={isFullySelected ? 'Clear category' : 'Select entire category'}
-                          onClick={() => toggleCategory(categoryKey)}
-                        >
-                          <CheckSquare size={16} />
-                          <span className="sr-only">{isFullySelected ? 'Clear category' : 'Select entire category'}</span>
                         </Button>
                       </div>
                     </div>

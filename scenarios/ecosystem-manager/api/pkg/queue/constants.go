@@ -10,11 +10,8 @@ const (
 	// MinIdleTimeout is the minimum idle timeout duration for task execution
 	MinIdleTimeout = 2 * time.Minute
 
-	// MaxIdleTimeoutFactor determines the idle timeout as a fraction of total timeout
-	MaxIdleTimeoutFactor = 0.5 // Half of total timeout
-
-	// DefaultIdleTimeoutCap is the maximum idle timeout duration
-	DefaultIdleTimeoutCap = 5 * time.Minute
+	// MaxIdleTimeoutFactor determines the idle timeout as a fraction of total timeout (defense-in-depth)
+	MaxIdleTimeoutFactor = 0.9
 
 	// IdleCheckInterval is how often we check for idle processes
 	IdleCheckInterval = 30 * time.Second

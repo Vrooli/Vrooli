@@ -63,6 +63,10 @@ func (h *SettingsHandlers) GetSettingsHandler(w http.ResponseWriter, r *http.Req
 				"min": settings.MinTaskTimeout,
 				"max": settings.MaxTaskTimeout,
 			},
+			"idle_timeout_cap": map[string]int{
+				"min": settings.MinIdleTimeoutCap,
+				"max": settings.MaxIdleTimeoutCap,
+			},
 			"recycler": map[string]any{
 				"interval_seconds": map[string]int{
 					"min": settings.MinRecyclerInterval,
@@ -88,6 +92,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		return
 	}
 	newSettings := *newSettingsPtr
+	oldSettings := settings.GetSettings()
 
 	// Validate settings
 	if newSettings.Slots < settings.MinSlots || newSettings.Slots > settings.MaxSlots {
@@ -106,8 +111,14 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		writeError(w, fmt.Sprintf("Task timeout must be between %d and %d minutes", settings.MinTaskTimeout, settings.MaxTaskTimeout), http.StatusBadRequest)
 		return
 	}
+	if newSettings.IdleTimeoutCap == 0 {
+		newSettings.IdleTimeoutCap = oldSettings.IdleTimeoutCap
+	}
+	if newSettings.IdleTimeoutCap < settings.MinIdleTimeoutCap || newSettings.IdleTimeoutCap > settings.MaxIdleTimeoutCap {
+		writeError(w, fmt.Sprintf("Idle timeout cap must be between %d and %d minutes", settings.MinIdleTimeoutCap, settings.MaxIdleTimeoutCap), http.StatusBadRequest)
+		return
+	}
 
-	oldSettings := settings.GetSettings()
 	recycler := newSettings.Recycler
 	if recycler.EnabledFor == "" {
 		recycler.EnabledFor = oldSettings.Recycler.EnabledFor
@@ -198,8 +209,8 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 
 	writeJSON(w, response, http.StatusOK)
 
-	log.Printf("Settings updated: slots=%d, refresh=%ds, active=%v, max_turns=%d, timeout=%dm",
-		newSettings.Slots, newSettings.RefreshInterval, newSettings.Active, newSettings.MaxTurns, newSettings.TaskTimeout)
+	log.Printf("Settings updated: slots=%d, refresh=%ds, active=%v, max_turns=%d, timeout=%dm, idle_cap=%dm",
+		newSettings.Slots, newSettings.RefreshInterval, newSettings.Active, newSettings.MaxTurns, newSettings.TaskTimeout, newSettings.IdleTimeoutCap)
 }
 
 // GetRecyclerModelsHandler returns available models for a given provider.

@@ -25,6 +25,9 @@ func TestGetSettings(t *testing.T) {
 	if settings.TaskTimeout != DefaultTaskTimeout {
 		t.Errorf("Expected TaskTimeout=%d, got %d", DefaultTaskTimeout, settings.TaskTimeout)
 	}
+	if settings.IdleTimeoutCap != DefaultIdleTimeoutCap {
+		t.Errorf("Expected IdleTimeoutCap=%d, got %d", DefaultIdleTimeoutCap, settings.IdleTimeoutCap)
+	}
 	if settings.AllowedTools != DefaultAllowedTools {
 		t.Errorf("Expected AllowedTools=%s, got %s", DefaultAllowedTools, settings.AllowedTools)
 	}
@@ -51,6 +54,7 @@ func TestUpdateSettings(t *testing.T) {
 		AllowedTools:    "Read,Write,Edit",
 		SkipPermissions: false,
 		TaskTimeout:     120,
+		IdleTimeoutCap:  90,
 		Recycler: RecyclerSettings{
 			EnabledFor:          "both",
 			IntervalSeconds:     600,
@@ -89,6 +93,9 @@ func TestUpdateSettings(t *testing.T) {
 	if retrieved.TaskTimeout != 120 {
 		t.Errorf("Expected TaskTimeout=120, got %d", retrieved.TaskTimeout)
 	}
+	if retrieved.IdleTimeoutCap != 90 {
+		t.Errorf("Expected IdleTimeoutCap=90, got %d", retrieved.IdleTimeoutCap)
+	}
 	if retrieved.Recycler.EnabledFor != "both" {
 		t.Errorf("Expected Recycler.EnabledFor='both', got '%s'", retrieved.Recycler.EnabledFor)
 	}
@@ -118,6 +125,7 @@ func TestResetSettings(t *testing.T) {
 		AllowedTools:    "Read",
 		SkipPermissions: false,
 		TaskTimeout:     240,
+		IdleTimeoutCap:  180,
 	})
 
 	// Reset
@@ -138,6 +146,9 @@ func TestResetSettings(t *testing.T) {
 	}
 	if reset.TaskTimeout != DefaultTaskTimeout {
 		t.Errorf("Expected TaskTimeout=%d after reset, got %d", DefaultTaskTimeout, reset.TaskTimeout)
+	}
+	if reset.IdleTimeoutCap != DefaultIdleTimeoutCap {
+		t.Errorf("Expected IdleTimeoutCap=%d after reset, got %d", DefaultIdleTimeoutCap, reset.IdleTimeoutCap)
 	}
 	if reset.AllowedTools != DefaultAllowedTools {
 		t.Errorf("Expected AllowedTools=%s after reset, got %s", DefaultAllowedTools, reset.AllowedTools)
@@ -172,6 +183,7 @@ func TestIsActive(t *testing.T) {
 		AllowedTools:    DefaultAllowedTools,
 		SkipPermissions: DefaultSkipPermissions,
 		TaskTimeout:     DefaultTaskTimeout,
+		IdleTimeoutCap:  DefaultIdleTimeoutCap,
 	})
 
 	if !IsActive() {
@@ -187,6 +199,7 @@ func TestIsActive(t *testing.T) {
 		AllowedTools:    DefaultAllowedTools,
 		SkipPermissions: DefaultSkipPermissions,
 		TaskTimeout:     DefaultTaskTimeout,
+		IdleTimeoutCap:  DefaultIdleTimeoutCap,
 	})
 
 	if IsActive() {

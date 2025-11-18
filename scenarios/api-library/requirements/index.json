@@ -1,0 +1,254 @@
+{
+  "_metadata": {
+    "description": "api-library operational requirements mapped to canonical PRD v2.0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true,
+    "last_validated_at": "",
+    "last_synced_at": ""
+  },
+  "meta": {
+    "scenario": "api-library",
+    "version": "2025.09",
+    "generated": "2025-09-27",
+    "owners": [
+      {
+        "team": "Vrooli Platform",
+        "contact": "platform@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [],
+  "requirements": [
+    {
+      "id": "API-LIB-P0-001",
+      "category": "catalog-core",
+      "title": "Structured API metadata store",
+      "description": "Persist provider, endpoint, pricing, rate-limit, and auth metadata for every tracked API.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["postgres", "metadata"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P0-002",
+      "category": "discovery",
+      "title": "Semantic capability search",
+      "description": "Vector-search API descriptions/capabilities so agents can query by intent instead of keyword.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["qdrant", "semantic-search"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P0-003",
+      "category": "operations",
+      "title": "Credential readiness tracking",
+      "description": "Track which APIs have credentials configured and expose readiness signals in UI/API.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["credentials", "ops"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P0-004",
+      "category": "knowledge",
+      "title": "Integration notes registry",
+      "description": "Store notes, gotchas, and learnings per API with history for future operators.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["notes", "history"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P0-005",
+      "category": "intake",
+      "title": "Research-assistant ingestion",
+      "description": "Ingest discoveries from research-assistant workflows and normalize them into the catalog.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["integration", "automation"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P0-006",
+      "category": "metadata",
+      "title": "Metadata lineage tracking",
+      "description": "Capture creation/update timestamps plus source URLs for every API entry.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["lineage", "audit"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P0-007",
+      "category": "platform-api",
+      "title": "Scenario-facing REST API",
+      "description": "Expose CRUD/search endpoints so scenarios can query and mutate the API catalog.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["api", "rest"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P0-008",
+      "category": "ui",
+      "title": "Operator web console",
+      "description": "Provide a web UI for browsing, searching, editing, and monitoring APIs.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["ui", "react"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P1-001",
+      "category": "performance",
+      "title": "Redis caching layer",
+      "description": "Serve frequently accessed APIs via Redis to reduce latency and load on Postgres.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["redis", "performance"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P1-002",
+      "category": "pricing",
+      "title": "Automated pricing refresh",
+      "description": "Fetch pricing data from source URLs every 24 hours and flag deltas.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["pricing", "scheduler"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P1-003",
+      "category": "analytics",
+      "title": "Usage-based cost calculator",
+      "description": "Estimate monthly cost per scenario based on stored usage profiles and rate cards.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["analytics", "cost"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P1-004",
+      "category": "taxonomy",
+      "title": "API categorization and tagging",
+      "description": "Manage categories/tags with dedicated endpoints and enforce tagging on every API.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["taxonomy", "tags"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P1-005",
+      "category": "versioning",
+      "title": "Version tracking",
+      "description": "Maintain version history, highlight breaking changes, and expose upgrade recommendations.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["versioning", "history"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P1-006",
+      "category": "knowledge",
+      "title": "Integration recipes and snippets",
+      "description": "Store code snippets/recipes with voting and attach them to API records.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["snippets", "recipes"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P1-007",
+      "category": "status",
+      "title": "API status monitoring",
+      "description": "Track deprecated/sunset states and surface dedicated status endpoints per API.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["monitoring", "status"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P1-008",
+      "category": "export",
+      "title": "Catalog export",
+      "description": "Provide JSON and CSV export endpoints plus CLI commands for reporting.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-008",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["export", "reporting"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P2-001",
+      "category": "analysis",
+      "title": "API comparison matrix",
+      "description": "Generate comparison matrices that score APIs across capability, cost, and readiness dimensions.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["analysis", "comparison"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P2-002",
+      "category": "analytics",
+      "title": "Usage analytics and recommendations",
+      "description": "Aggregate usage data per scenario and provide recommendations for optimization.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["analytics", "recommendations"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P2-003",
+      "category": "events",
+      "title": "Webhook notifications",
+      "description": "Emit webhooks when API metadata changes so dependent scenarios can react.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["webhook", "events"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P2-004",
+      "category": "codegen",
+      "title": "Code generator integrations",
+      "description": "Provide code-generation endpoints/snippets for bootstraping integrations in dependent scenarios.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["codegen", "integration"],
+      "validation": []
+    },
+    {
+      "id": "API-LIB-P2-005",
+      "category": "monitoring",
+      "title": "API health monitoring",
+      "description": "Collect uptime/performance metrics for tracked APIs and expose them via monitoring endpoints.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["monitoring", "uptime"],
+      "validation": []
+    }
+  ]
+}

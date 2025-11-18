@@ -28,7 +28,8 @@ type Settings struct {
 	MaxTurns        int    `json:"max_turns"`
 	AllowedTools    string `json:"allowed_tools"`
 	SkipPermissions bool   `json:"skip_permissions"`
-	TaskTimeout     int    `json:"task_timeout"` // Task execution timeout in minutes
+	TaskTimeout     int    `json:"task_timeout"`     // Task execution timeout in minutes
+	IdleTimeoutCap  int    `json:"idle_timeout_cap"` // Max idle time allowed before watchdog cancellation (minutes)
 
 	// Recycler automation settings
 	Recycler RecyclerSettings `json:"recycler"`
@@ -46,6 +47,7 @@ func newDefaultSettings() Settings {
 		AllowedTools:    DefaultAllowedTools,
 		SkipPermissions: DefaultSkipPermissions,
 		TaskTimeout:     DefaultTaskTimeout,
+		IdleTimeoutCap:  DefaultIdleTimeoutCap,
 		Recycler: RecyclerSettings{
 			EnabledFor:          DefaultRecyclerEnabledFor,
 			IntervalSeconds:     DefaultRecyclerInterval,

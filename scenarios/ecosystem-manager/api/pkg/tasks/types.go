@@ -78,6 +78,7 @@ type ClaudeCodeResponse struct {
 	RateLimited      bool   `json:"rate_limited,omitempty"`
 	RetryAfter       int    `json:"retry_after,omitempty"` // Seconds to wait before retry
 	MaxTurnsExceeded bool   `json:"max_turns_exceeded,omitempty"`
+	IdleTimeout      bool   `json:"idle_timeout,omitempty"`
 }
 
 // ResourceInfo represents information about a discovered resource

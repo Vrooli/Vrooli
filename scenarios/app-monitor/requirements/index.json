@@ -1,0 +1,371 @@
+{
+  "_metadata": {
+    "description": "App Monitor requirement registry mapping operational targets to implementation requirements",
+    "last_validated_at": "2025-11-18T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-18T17:52:00.000Z"
+  },
+  "meta": {
+    "scenario": "app-monitor",
+    "version": "1.0.0",
+    "generated": "2025-11-18",
+    "owners": [
+      {
+        "platform": "app-monitor",
+        "contact": "monitoring-team@vrooli.dev"
+      }
+    ]
+  },
+  "requirements": [
+    {
+      "id": "AM-P0-001",
+      "category": "monitoring",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Real-time scenario status monitoring",
+      "description": "Display running/stopped/error states for all scenarios with live updates",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/AppCard.js",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Status badges with color coding implemented and visible in UI"
+        },
+        {
+          "type": "test",
+          "ref": "api/monitor_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Unit tests for status monitoring pending"
+        }
+      ]
+    },
+    {
+      "id": "AM-P0-002",
+      "category": "control",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Application lifecycle control",
+      "description": "Start, stop, and restart scenarios through UI and API",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/AppCard.js",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Start/stop/restart buttons functional in UI"
+        }
+      ]
+    },
+    {
+      "id": "AM-P0-003",
+      "category": "monitoring",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Resource health tracking",
+      "description": "Monitor status of core resources (PostgreSQL, Redis, Ollama, etc.)",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/ResourceMonitor.js",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Resource cards display online/offline status"
+        }
+      ]
+    },
+    {
+      "id": "AM-P0-004",
+      "category": "metrics",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Performance metrics display",
+      "description": "Show CPU, memory, network, and disk usage per scenario",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/AppCard.js",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Metrics displayed on app cards with real-time updates"
+        }
+      ]
+    },
+    {
+      "id": "AM-P0-005",
+      "category": "logs",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Live log streaming",
+      "description": "Stream real-time logs from running scenarios with filtering",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/LogViewer.js",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Log viewer modal streams logs with filtering capabilities"
+        }
+      ]
+    },
+    {
+      "id": "AM-P0-006",
+      "category": "design",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Matrix cyberpunk UI theme",
+      "description": "Deliver distinctive green-on-black aesthetic with terminal fonts and glow effects",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/styles.css",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Full Matrix theme implemented with Share Tech Mono font, green color palette, and glow effects"
+        }
+      ]
+    },
+    {
+      "id": "AM-P0-007",
+      "category": "integration",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "Docker container integration",
+      "description": "Monitor and control scenarios via Docker API",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/docker.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Docker SDK integration for container monitoring and control"
+        }
+      ]
+    },
+    {
+      "id": "AM-P1-001",
+      "category": "analytics",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Historical performance analytics",
+      "description": "Store and visualize performance trends over time",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/analytics_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Feature not yet implemented"
+        }
+      ]
+    },
+    {
+      "id": "AM-P1-002",
+      "category": "alerts",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Automated health alerts",
+      "description": "Notify operators of degraded health or failures",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/alerts_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Feature not yet implemented"
+        }
+      ]
+    },
+    {
+      "id": "AM-P1-003",
+      "category": "control",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Batch scenario operations",
+      "description": "Execute start/stop/restart on multiple scenarios simultaneously",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/BatchControls.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Feature not yet implemented"
+        }
+      ]
+    },
+    {
+      "id": "AM-P1-004",
+      "category": "terminal",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Interactive terminal interface",
+      "description": "Built-in command interface for system operations",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Terminal.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Feature not yet implemented"
+        }
+      ]
+    },
+    {
+      "id": "AM-P1-005",
+      "category": "customization",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Custom dashboard layouts",
+      "description": "Allow users to customize metric panels and views",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Dashboard.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Feature not yet implemented"
+        }
+      ]
+    },
+    {
+      "id": "AM-P1-006",
+      "category": "logs",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Advanced log analysis",
+      "description": "Search, filter, and export logs with pattern matching",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/logs_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Feature not yet implemented"
+        }
+      ]
+    },
+    {
+      "id": "AM-P2-001",
+      "category": "distributed",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Multi-server monitoring",
+      "description": "Aggregate monitoring across distributed Vrooli installations",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/multiserver_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Future feature"
+        }
+      ]
+    },
+    {
+      "id": "AM-P2-002",
+      "category": "mobile",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Mobile-optimized interface",
+      "description": "Responsive design with mobile-first interactions",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/styles.css",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Future feature"
+        }
+      ]
+    },
+    {
+      "id": "AM-P2-003",
+      "category": "ml",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Predictive health modeling",
+      "description": "ML-based predictions of resource exhaustion or failures",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/predictions_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Future feature requiring ML integration"
+        }
+      ]
+    },
+    {
+      "id": "AM-P2-004",
+      "category": "integration",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Integration with external APM tools",
+      "description": "Export metrics to Prometheus, Grafana, Datadog",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/exporters_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Future feature"
+        }
+      ]
+    },
+    {
+      "id": "AM-P2-005",
+      "category": "security",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "Role-based access control",
+      "description": "Limit operations based on user permissions",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/auth_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Future feature requiring authentication system"
+        }
+      ]
+    },
+    {
+      "id": "AM-P2-006",
+      "category": "visualization",
+      "prd_ref": "Operational Targets > P2 > OT-P2-006",
+      "title": "Scenario dependency visualization",
+      "description": "Graph view of inter-scenario dependencies",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/DependencyGraph.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Future feature"
+        }
+      ]
+    }
+  ]
+}

@@ -548,6 +548,16 @@
                                 </div>
                                 <small class="form-help">Maximum time for task execution (range dynamically set by backend)</small>
                             </div>
+
+                            <div class="form-group">
+                                <label for="settings-idle-timeout">Idle Timeout Cap (minutes)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="settings-idle-timeout" name="idle_timeout_cap" min="2" max="240" value="30"
+                                           oninput="ecosystemManager.updateSliderValue('settings-idle-timeout', 'idle-timeout-value')">
+                                    <span id="idle-timeout-value" class="slider-value">30</span>
+                                </div>
+                                <small class="form-help">Maximum time a task may stay silent before the watchdog cancels it</small>
+                            </div>
                         </div>
                     </div>
                     

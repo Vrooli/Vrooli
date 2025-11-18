@@ -18,6 +18,10 @@ const (
 	MinTaskTimeout = 5
 	MaxTaskTimeout = 240
 
+	// Idle timeout cap constraints (minutes)
+	MinIdleTimeoutCap = 2
+	MaxIdleTimeoutCap = 240
+
 	// Recycler interval constraints (seconds)
 	MinRecyclerInterval = 30
 	MaxRecyclerInterval = 1800
@@ -47,6 +51,7 @@ const (
 	DefaultRefreshInterval = 30
 	DefaultMaxTurns        = 80
 	DefaultTaskTimeout     = 30
+	DefaultIdleTimeoutCap  = DefaultTaskTimeout
 	DefaultAllowedTools    = "Read,Write,Edit,Bash,LS,Glob,Grep"
 	DefaultSkipPermissions = true
 	DefaultActive          = false

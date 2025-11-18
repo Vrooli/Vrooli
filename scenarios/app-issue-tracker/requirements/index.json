@@ -1,0 +1,184 @@
+{
+  "requirements": [
+    {
+      "id": "AIT-REQ-001",
+      "title": "Health Check Endpoint",
+      "description": "API must provide /health endpoint returning 200 status with version and storage information",
+      "priority": "P0",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "validation_method": "API GET /health returns 200 with storage field populated",
+      "tags": ["api", "health-check", "monitoring"]
+    },
+    {
+      "id": "AIT-REQ-002",
+      "title": "Issue Creation",
+      "description": "System must support creating issues via API/CLI with metadata persistence to YAML",
+      "priority": "P0",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "validation_method": "app-issue-tracker create followed by list shows new issue in YAML store",
+      "tags": ["core", "api", "cli", "storage"]
+    },
+    {
+      "id": "AIT-REQ-003",
+      "title": "Issue Listing and Filtering",
+      "description": "System must provide API endpoints to list and filter issues by status",
+      "priority": "P0",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "validation_method": "API returns filtered results based on status parameter",
+      "tags": ["api", "core", "search"]
+    },
+    {
+      "id": "AIT-REQ-004",
+      "title": "File-Based Storage",
+      "description": "All issues must be stored as YAML files in data/issues/* directory structure with schema validation",
+      "priority": "P0",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "validation_method": "Issues persist correctly in data/issues/active, completed, failed directories",
+      "tags": ["storage", "core", "yaml"]
+    },
+    {
+      "id": "AIT-REQ-005",
+      "title": "Investigation Trigger",
+      "description": "API must support triggering AI investigation with background execution",
+      "priority": "P0",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "validation_method": "Investigation endpoint starts unified-resolver agent in background",
+      "tags": ["ai", "api", "investigation"]
+    },
+    {
+      "id": "AIT-REQ-006",
+      "title": "Fix Generation",
+      "description": "System must automatically generate and apply fixes via auto_resolve flag",
+      "priority": "P0",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "validation_method": "Investigation with auto_resolve produces transcript and applies fixes",
+      "tags": ["ai", "automation", "investigation"]
+    },
+    {
+      "id": "AIT-REQ-007",
+      "title": "CLI Operations",
+      "description": "Complete CLI must support create, list, investigate commands with API backing",
+      "priority": "P0",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "validation_method": "CLI commands execute successfully and interact with API",
+      "tags": ["cli", "core"]
+    },
+    {
+      "id": "AIT-REQ-008",
+      "title": "Semantic Search",
+      "description": "Vector-based similar issue detection via Qdrant integration with graceful degradation",
+      "priority": "P1",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "validation_method": "Search returns semantically similar issues when Qdrant available",
+      "tags": ["search", "ai", "qdrant"],
+      "notes": "Blocked: Qdrant not available, feature disabled with keyword fallback"
+    },
+    {
+      "id": "AIT-REQ-009",
+      "title": "Web UI",
+      "description": "Interactive React dashboard for issue management with responsive design",
+      "priority": "P1",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "validation_method": "UI accessible on Vite dev server with functional issue display",
+      "tags": ["ui", "react", "web"]
+    },
+    {
+      "id": "AIT-REQ-010",
+      "title": "Git Integration",
+      "description": "Create GitHub PRs with fixes via API endpoint",
+      "priority": "P1",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "validation_method": "POST /api/v1/issues/{id}/create-pr endpoint wired and functional",
+      "tags": ["git", "github", "integration"]
+    },
+    {
+      "id": "AIT-REQ-011",
+      "title": "Export Functions",
+      "description": "Generate reports in JSON, CSV, and Markdown formats",
+      "priority": "P1",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "validation_method": "All export formats working via /api/v1/export endpoint",
+      "tags": ["export", "api", "reporting"]
+    },
+    {
+      "id": "AIT-REQ-012",
+      "title": "Security Configuration",
+      "description": "Production-ready CORS, authentication, and rate limiting via environment variables",
+      "priority": "P1",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "validation_method": "CORS configurable, security documentation complete",
+      "tags": ["security", "cors", "config"]
+    },
+    {
+      "id": "AIT-REQ-013",
+      "title": "Performance Analytics",
+      "description": "Real-time resolution metrics calculation from issue timestamps",
+      "priority": "P1",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "validation_method": "avg_resolution_hours calculated and exposed in API",
+      "tags": ["analytics", "performance", "metrics"]
+    },
+    {
+      "id": "AIT-REQ-014",
+      "title": "Integration Testing",
+      "description": "Comprehensive API validation suite covering all endpoints",
+      "priority": "P1",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "validation_method": "test-integration.sh covers health, stats, CORS, export, git endpoints",
+      "tags": ["testing", "integration", "validation"]
+    },
+    {
+      "id": "AIT-REQ-015",
+      "title": "Advanced Performance Dashboards",
+      "description": "Historical trend analysis and forecasting capabilities",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "validation_method": "TBD",
+      "tags": ["analytics", "dashboard", "future"]
+    },
+    {
+      "id": "AIT-REQ-016",
+      "title": "Multi-Agent Support",
+      "description": "Different AI agents specialized for different issue types",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "validation_method": "TBD",
+      "tags": ["ai", "agents", "future"]
+    },
+    {
+      "id": "AIT-REQ-017",
+      "title": "Webhook Integration",
+      "description": "Notify external systems on issue state changes",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "validation_method": "TBD",
+      "tags": ["integration", "webhooks", "future"]
+    }
+  ],
+  "metadata": {
+    "scenario": "app-issue-tracker",
+    "version": "2.0.0",
+    "last_updated": "2025-11-18",
+    "total_requirements": 17,
+    "validated_count": 13,
+    "pending_count": 1,
+    "planned_count": 3
+  }
+}
