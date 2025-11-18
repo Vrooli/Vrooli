@@ -3,7 +3,7 @@ import { X, Sparkles, Wand2, FileCode, Loader, Wrench } from "lucide-react";
 import { useWorkflowStore } from "../stores/workflowStore";
 import toast from "react-hot-toast";
 import ResponsiveDialog from "./ResponsiveDialog";
-import { testIds } from "../consts/selectors";
+import { dynamicTestIds, testIds } from "../consts/selectors";
 
 import type { Workflow } from "../stores/workflowStore";
 
@@ -197,7 +197,7 @@ function AIPromptModal({
             {examplePrompts.map((example, index) => (
               <button
                 key={index}
-                data-testid={`ai-example-prompt-${index}`}
+                data-testid={dynamicTestIds.promptExample(index)}
                 onClick={() => handleExampleClick(example)}
                 className="w-full text-left p-3 bg-flow-bg rounded-lg border border-gray-700 hover:border-purple-500/50 transition-colors group"
               >

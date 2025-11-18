@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -22,9 +23,13 @@ const schemaVersion = "2025.11.16"
 var workflowSchemaBytes []byte
 
 var (
-	schemaOnce     sync.Once
-	compiledSchema *jsonschema.Schema
-	schemaErr      error
+	schemaOnce        sync.Once
+	compiledSchema    *jsonschema.Schema
+	schemaErr         error
+	selectorOnce      sync.Once
+	selectorValues    map[string]struct{}
+	selectorSource    string
+	dataTestIDPattern = regexp.MustCompile(`(?i)data-testid\s*=\s*(?:"([^"]+)"|'([^']+)')`)
 )
 
 // Validator validates workflow definitions against the canonical schema and lint rules.
@@ -32,8 +37,7 @@ type Validator struct{}
 
 // Options control linting behaviour.
 type Options struct {
-	Strict       bool
-	SelectorRoot string
+	Strict bool
 }
 
 // IssueSeverity conveys validation severity.
@@ -118,7 +122,7 @@ func (v *Validator) Validate(ctx context.Context, definition map[string]any, opt
 		result.Errors = append(result.Errors, convertSchemaErrors(err)...) //nolint:contextcheck
 	}
 
-	stats, lintErrors, lintWarnings := runLint(definition, opts.SelectorRoot)
+	stats, lintErrors, lintWarnings := runLint(definition)
 	result.Stats = stats
 	result.Errors = append(result.Errors, lintErrors...)
 	result.Warnings = append(result.Warnings, lintWarnings...)
@@ -237,11 +241,11 @@ var nodeRules = map[string]nodeRule{
 	},
 }
 
-func runLint(definition map[string]any, selectorRoot string) (Stats, []Issue, []Issue) {
+func runLint(definition map[string]any) (Stats, []Issue, []Issue) {
 	var errorsList []Issue
 	var warningsList []Issue
 	stats := Stats{}
-	registry := getSelectorRegistry(selectorRoot)
+	allowedSelectors := loadSelectorSet()
 
 	nodes := toSlice(definition["nodes"])
 	edges := toSlice(definition["edges"])
@@ -327,12 +331,12 @@ func runLint(definition map[string]any, selectorRoot string) (Stats, []Issue, []
 		if selectorValue != "" {
 			stats.SelectorCount++
 			selectorSet[selectorValue] = struct{}{}
-			warningsList = append(warningsList, lintSelectorValue(selectorValue, fmt.Sprintf("/nodes/%d/data/selector", idx), nodeID, nodeType, registry)...)
+			warningsList = append(warningsList, lintSelectorValue(selectorValue, fmt.Sprintf("/nodes/%d/data/selector", idx), nodeID, nodeType, allowedSelectors)...)
 		}
 		if frameSelector := strings.TrimSpace(getString(dataMap["frameSelector"])); frameSelector != "" {
 			stats.SelectorCount++
 			selectorSet[frameSelector] = struct{}{}
-			warningsList = append(warningsList, lintSelectorValue(frameSelector, fmt.Sprintf("/nodes/%d/data/frameSelector", idx), nodeID, nodeType, registry)...)
+			warningsList = append(warningsList, lintSelectorValue(frameSelector, fmt.Sprintf("/nodes/%d/data/frameSelector", idx), nodeID, nodeType, allowedSelectors)...)
 		}
 
 		if strings.ToLower(strings.TrimSpace(getString(dataMap["waitType"]))) == "element" {
@@ -495,6 +499,22 @@ func applyNodeRule(rule nodeRule, nodeID, nodeType string, idx int, data map[str
 	return issues
 }
 
+func loadSelectorSet() map[string]struct{} {
+	selectorOnce.Do(func() {
+		manifest, source, err := loadSelectorManifest("")
+		if err != nil {
+			selectorValues = nil
+			return
+		}
+		selectorSource = source
+		selectorValues = make(map[string]struct{}, len(manifest))
+		for testID := range manifest {
+			selectorValues[testID] = struct{}{}
+		}
+	})
+	return selectorValues
+}
+
 func lintWaitNode(node map[string]any, data map[string]any, idx int) ([]Issue, []Issue) {
 	waitType := strings.ToLower(strings.TrimSpace(getString(data["waitType"])))
 	var errorsList []Issue
@@ -546,6 +566,43 @@ func lintWaitNode(node map[string]any, data map[string]any, idx int) ([]Issue, [
 		})
 	}
 	return errorsList, warningsList
+}
+
+func lintSelectorValue(selector, pointer, nodeID, nodeType string, registry map[string]struct{}) []Issue {
+	if len(registry) == 0 {
+		return nil
+	}
+	matches := dataTestIDPattern.FindAllStringSubmatch(selector, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	var issues []Issue
+	for _, match := range matches {
+		value := match[1]
+		if value == "" && len(match) > 2 {
+			value = match[2]
+		}
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := registry[value]; !ok {
+			location := selectorSource
+			if location == "" {
+				location = "ui/src/consts/selectors.ts"
+			}
+			issues = append(issues, Issue{
+				Severity: SeverityWarning,
+				Code:     "WF_SELECTOR_UNKNOWN_TESTID",
+				Message:  "Selector references data-testid '" + value + "' which is not registered in " + location,
+				NodeID:   nodeID,
+				NodeType: nodeType,
+				Pointer:  pointer,
+				Hint:     "Define the selector in " + location + " or update the workflow",
+			})
+		}
+	}
+	return issues
 }
 
 func lintKeyboardNode(node map[string]any, data map[string]any, idx int) ([]Issue, []Issue) {

@@ -23,7 +23,7 @@ import AIEditModal from "./AIEditModal";
 import toast from "react-hot-toast";
 import { usePopoverPosition } from "../hooks/usePopoverPosition";
 import ResponsiveDialog from "./ResponsiveDialog";
-import { testIds } from "../consts/selectors";
+import { dynamicTestIds, testIds } from "../consts/selectors";
 
 type HeaderWorkflow = Pick<
   Workflow,
@@ -1015,7 +1015,7 @@ function Header({
               return (
                 <div
                   key={version.version}
-                  data-testid={`version-history-item-${version.version}`}
+                  data-testid={dynamicTestIds.versionHistoryItem(version.version)}
                   className={`rounded-lg border p-4 bg-gray-900/70 ${
                     isCurrent
                       ? "border-blue-500/60 shadow-inner shadow-blue-500/20"
@@ -1057,7 +1057,9 @@ function Header({
                   <div className="mt-3 flex items-center justify-end gap-2">
                     <button
                       type="button"
-                      data-testid={`version-restore-button-${version.version}`}
+                      data-testid={dynamicTestIds.versionRestoreButton(
+                        version.version,
+                      )}
                       onClick={() => handleRestoreVersion(version.version)}
                       disabled={
                         isCurrent || restoringVersion === version.version

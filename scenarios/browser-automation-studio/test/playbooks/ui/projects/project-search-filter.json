@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for projects grid",
-        "selector": "[data-testid=\"projects-grid\"]",
+        "selector": "@selector/projectsGrid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Count initial project cards",
-        "expression": "document.querySelectorAll('[data-testid=\"project-card\"]').length",
+        "expression": "document.querySelectorAll('@selector/projectCard').length",
         "storeAs": "initialCount"
       }
     },
@@ -97,7 +97,7 @@
       },
       "data": {
         "label": "Verify no projects shown",
-        "expression": "document.querySelectorAll('[data-testid=\"project-card\"]').length === 0",
+        "expression": "document.querySelectorAll('@selector/projectCard').length === 0",
         "storeAs": "noResults"
       }
     },
@@ -150,7 +150,7 @@
       },
       "data": {
         "label": "Projects reappear after clearing",
-        "selector": "[data-testid=\"project-card\"]",
+        "selector": "@selector/projectCard",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Projects should reappear when search is cleared"

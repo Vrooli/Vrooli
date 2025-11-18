@@ -59,7 +59,7 @@
       },
       "data": {
         "label": "Hover over workflow card to reveal actions",
-        "selector": "[data-testid*=\"workflow\"]:first-of-type, [class*=\"workflow-card\"]:first-of-type",
+        "selector": "@selector/workflowCard:first-of-type",
         "timeoutMs": 3000,
         "waitForMs": 1000
       }
@@ -73,7 +73,7 @@
       },
       "data": {
         "label": "Wait for execute button to appear after hover",
-        "selector": "[data-testid=\"workflow-execute-button\"]",
+        "selector": "@selector/workflowExecuteButton",
         "timeoutMs": 5000,
         "waitForMs": 500,
         "waitType": "element"
@@ -88,7 +88,7 @@
       },
       "data": {
         "label": "Click execute button",
-        "selector": "[data-testid=\"workflow-execute-button\"]:first-of-type",
+        "selector": "@selector/workflowExecuteButton:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -115,7 +115,7 @@
       },
       "data": {
         "label": "Check for execution indicators",
-        "expression": "document.querySelector('[data-testid*=\"execution\"], [class*=\"executing\"], [class*=\"running\"], .animate-spin, [aria-label*=\"Executing\"]') !== null",
+        "expression": "document.querySelector('@selector/executionItem, @selector/executionStatus, @selector/executionStopButton)') !== null",
         "storeAs": "executionStarted"
       }
     },

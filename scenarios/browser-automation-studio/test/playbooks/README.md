@@ -132,6 +132,28 @@ Defines workflow execution order:
 
 Use these fixtures whenever a workflow needs to begin from a known dashboard or builder state instead of repeating the navigation boilerplate.
 
+## Selector Registry
+
+- `ui/src/consts/selectors.ts` is the canonical list of every `data-testid` in the BAS UI. Components import from that file and the workflow tooling resolves selectors against it.
+- Reference selectors inside playbooks with the `@selector/<key>` token instead of hardcoding `[data-testid="..."]`. The resolver replaces the token with the attribute selector before linting/execution.
+- Dynamic selectors are exposed with parameterized tokens such as `@selector/executionFilter(filter=failed)` or `@selector/promptExample(index=0)`. Definitions live in `ui/src/consts/selectors.ts`, so both the UI and automation flows stay aligned even for selectors that embed runtime data (indexes, filter names, etc.).
+- Convenience helpers like `@selector/projectCardByName(name=Demo Browser Automations)` and `@selector/workflowCardByName(name=Demo: Capture Example.com Hero)` expand into attribute selectors that match list items by their data attributes, so the workflows stay expressive without repeating brittle CSS.
+- Example:
+
+```json
+{
+  "id": "assert-projects-visible",
+  "type": "assert",
+  "data": {
+    "label": "Projects grid is visible",
+    "selector": "@selector/projectsGrid",
+    "assertMode": "exists"
+  }
+}
+```
+
+- If a selector key is missing, add it to `ui/src/consts/selectors.ts` (and run Prettier). The workflow resolver and validator will raise descriptive errors pointing back to that file when an unknown selector is referenced.
+
 Example fixture:
 
 ```json
@@ -199,8 +221,8 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
 {
   "type": "wait",
   "data": {
-    "label": "Wait for element",
-    "selector": "[data-testid=\"projects-grid\"]",
+    "label": "Wait for projects grid",
+    "selector": "@selector/projectsGrid",
     "waitType": "element",      // "element" or "duration"
     "timeoutMs": 10000,
     "waitForMs": 1000
@@ -215,8 +237,8 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
 {
   "type": "click",
   "data": {
-    "label": "Click project card",
-    "selector": "[data-testid=\"project-card\"]:first-of-type",
+    "label": "Click Demo project",
+    "selector": "@selector/projectCardByName(name=Demo Browser Automations)",
     "timeoutMs": 5000,
     "waitForMs": 2000
   }
@@ -229,7 +251,7 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
   "type": "type",
   "data": {
     "label": "Enter project name",
-    "selector": "[data-testid=\"project-name-input\"]",
+    "selector": "@selector/projectModalNameInput",
     "text": "Test Project",
     "clearFirst": true,
     "timeoutMs": 5000,
@@ -244,7 +266,7 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
   "type": "assert",
   "data": {
     "label": "Modal should be visible",
-    "selector": "[data-testid=\"project-modal\"]",
+    "selector": "@selector/projectModal",
     "assertMode": "exists",     // "exists", "not_exists", "text_contains"
     "timeoutMs": 5000,
     "failureMessage": "Project modal should appear"
@@ -279,9 +301,9 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
 ## Best Practices
 
 ### Selector Strategy
-1. **Prefer data-testid attributes** (most reliable)
+1. **Prefer selector tokens** (most reliable)
    ```json
-   "selector": "[data-testid=\"project-card\"]"
+   "selector": "@selector/projectCard"
    ```
 
 2. **Use semantic HTML when possible**
@@ -295,9 +317,9 @@ The apply/cleanup scripts ensure Browser Automation Studio returns to its origin
    "selector": ".btn-primary"  // ❌ Fragile
    ```
 
-4. **Use :first-of-type for lists**
+4. **Use dynamic selectors for parameterized cases**
    ```json
-   "selector": "[data-testid=\"workflow-item\"]:first-of-type"
+   "selector": "@selector/workflowCardByName(name=Demo: Capture Example.com Hero)"
    ```
 
 ### Wait Strategy
@@ -450,7 +472,7 @@ See `test/playbooks/ui/projects/new-project-create.json` for a comprehensive exa
       "position": {"x": 200, "y": 0},
       "data": {
         "label": "Wait for projects grid",
-        "selector": "[data-testid=\"projects-grid\"]",
+        "selector": "@selector/projectsGrid",
         "waitType": "element",
         "timeoutMs": 10000
       }
@@ -461,7 +483,7 @@ See `test/playbooks/ui/projects/new-project-create.json` for a comprehensive exa
       "position": {"x": 400, "y": 0},
       "data": {
         "label": "Projects grid exists",
-        "selector": "[data-testid=\"projects-grid\"]",
+        "selector": "@selector/projectsGrid",
         "assertMode": "exists",
         "failureMessage": "Dashboard should show projects grid"
       }

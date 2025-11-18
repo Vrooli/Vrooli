@@ -57,7 +57,7 @@
       },
       "data": {
         "label": "Wait for projects grid to load",
-        "selector": "[data-testid=\"projects-grid\"]",
+        "selector": "@selector/projectsGrid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -72,7 +72,7 @@
       },
       "data": {
         "label": "Click New Project button",
-        "selector": "[data-testid=\"dashboard-new-project-button\"]",
+        "selector": "@selector/dashboardNewProjectButton",
         "timeoutMs": 10000,
         "waitForMs": 1500
       }
@@ -86,7 +86,7 @@
       },
       "data": {
         "label": "Wait for project creation modal",
-        "selector": "[data-testid=\"project-modal\"]",
+        "selector": "@selector/projectModal",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -114,7 +114,7 @@
       },
       "data": {
         "label": "Enter project name",
-        "selector": "[data-testid=\"project-modal-name-input\"]",
+        "selector": "@selector/projectModalNameInput",
         "text": "{{projectName}}",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -130,7 +130,7 @@
       },
       "data": {
         "label": "Enter project description",
-        "selector": "[data-testid=\"project-modal-description-input\"]",
+        "selector": "@selector/projectModalDescriptionInput",
         "text": "End-to-end test validating new user onboarding flow",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -146,7 +146,7 @@
       },
       "data": {
         "label": "Submit project creation form",
-        "selector": "[data-testid=\"project-modal-submit\"]",
+        "selector": "@selector/projectModalSubmit",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -188,7 +188,7 @@
       },
       "data": {
         "label": "Click New Workflow button",
-        "selector": "[data-testid=\"new-workflow-button\"]",
+        "selector": "@selector/newWorkflowButton",
         "timeoutMs": 10000,
         "waitForMs": 1500
       }
@@ -215,7 +215,7 @@
       },
       "data": {
         "label": "Switch to manual builder (skip AI for deterministic test)",
-        "selector": "[data-testid=\"switch-to-manual-button\"]",
+        "selector": "@selector/switchToManualButton",
         "timeoutMs": 10000,
         "waitForMs": 2000,
         "continueOnError": true
@@ -230,7 +230,7 @@
       },
       "data": {
         "label": "Wait for workflow builder canvas",
-        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "selector": "@selector/workflowBuilderCodeModeButton",
         "timeoutMs": 15000,
         "waitForMs": 2000,
         "waitType": "element"
@@ -258,7 +258,7 @@
       },
       "data": {
         "label": "Add Navigate node to canvas",
-        "sourceSelector": "[data-testid=\"node-palette-navigate-card\"]",
+        "sourceSelector": "@selector/nodePaletteNavigateCard",
         "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
         "waitForMs": 2000
@@ -314,7 +314,7 @@
       },
       "data": {
         "label": "Set navigate URL to example.com",
-        "selector": "[data-testid=\"node-property-url-input\"], input[placeholder*=\"URL\"]",
+        "selector": "@selector/nodePropertyUrlInput, input[placeholder*=\"URL\"]",
         "text": "https://example.com",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -331,7 +331,7 @@
       },
       "data": {
         "label": "Add Screenshot node to canvas",
-        "sourceSelector": "[data-testid=\"node-palette-screenshot-card\"]",
+        "sourceSelector": "@selector/nodePaletteScreenshotCard",
         "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
         "waitForMs": 2000
@@ -403,7 +403,7 @@
       },
       "data": {
         "label": "Execute workflow from header",
-        "selector": "[data-testid=\"header-execute-button\"]",
+        "selector": "@selector/headerExecuteButton",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -456,7 +456,7 @@
       },
       "data": {
         "label": "Navigate back to project detail",
-        "selector": "[data-testid=\"breadcrumb-project\"], nav a[href*=\"projects\"]",
+        "selector": "@selector/breadcrumbProject, nav a[href*=\"projects\"]",
         "timeoutMs": 10000,
         "waitForMs": 2000,
         "continueOnError": true
@@ -471,7 +471,7 @@
       },
       "data": {
         "label": "Switch to Executions tab",
-        "selector": "[data-testid=\"project-tab-executions\"]",
+        "selector": "@selector/projectTabExecutions",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -485,7 +485,7 @@
       },
       "data": {
         "label": "Wait for executions list to load",
-        "selector": "[data-testid=\"execution-card\"], [data-testid=\"execution-item\"]",
+        "selector": "@selector/executionCard, @selector/executionItem",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -500,7 +500,7 @@
       },
       "data": {
         "label": "Verify execution appears in history",
-        "selector": "[data-testid=\"execution-card\"], [data-testid=\"execution-item\"] /*dup-1*/",
+        "selector": "@selector/executionCard, @selector/executionItem /*dup-1*/",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Execution should appear in history after workflow run"
@@ -528,7 +528,7 @@
       },
       "data": {
         "label": "Open first execution details",
-        "selector": "[data-testid=\"execution-card\"]:first-of-type, [data-testid=\"execution-item\"]:first-of-type",
+        "selector": "@selector/executionCard:first-of-type, @selector/executionItem:first-of-type",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -542,7 +542,7 @@
       },
       "data": {
         "label": "Wait for execution viewer to load",
-        "selector": "[data-testid=\"execution-viewer\"]",
+        "selector": "@selector/executionViewer",
         "timeoutMs": 10000,
         "waitForMs": 1500,
         "waitType": "element"
@@ -557,7 +557,7 @@
       },
       "data": {
         "label": "Verify Replay tab is available",
-        "selector": "[data-testid=\"execution-tab-replay\"]",
+        "selector": "@selector/executionTabReplay",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Replay tab should be visible in execution viewer"
@@ -572,7 +572,7 @@
       },
       "data": {
         "label": "Open Replay tab",
-        "selector": "[data-testid=\"execution-tab-replay\"] /*dup-1*/",
+        "selector": "@selector/executionTabReplay /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -586,7 +586,7 @@
       },
       "data": {
         "label": "Wait for replay player to load",
-        "selector": "[data-testid=\"replay-player\"], [data-testid=\"replay-timeline\"]",
+        "selector": "@selector/replayPlayer, @selector/replayTimeline",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -601,7 +601,7 @@
       },
       "data": {
         "label": "Verify replay screenshots are displayed",
-        "selector": "img[src*=\"screenshot\"], [data-testid=\"replay-screenshot\"]",
+        "selector": "img[src*=\"screenshot\"], @selector/replayScreenshot",
         "assertMode": "exists",
         "timeoutMs": 10000,
         "failureMessage": "Replay should display execution screenshots"

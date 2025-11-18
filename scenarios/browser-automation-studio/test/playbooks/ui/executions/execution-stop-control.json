@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Execute button exists",
-        "selector": "[data-testid=\"workflow-execute-button\"], button[title*=\"execute\" i], button[aria-label*=\"execute\" i]",
+        "selector": "@selector/workflowExecuteButton, button[title*=\"execute\" i], button[aria-label*=\"execute\" i]",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Execute button should be visible"
@@ -48,7 +48,7 @@
       },
       "data": {
         "label": "Start workflow execution",
-        "selector": "[data-testid=\"workflow-execute-button\"], button[title*=\"execute\" i]:first-of-type",
+        "selector": "@selector/workflowExecuteButton, button[title*=\"execute\" i]:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -62,7 +62,7 @@
       },
       "data": {
         "label": "Wait for execution viewer",
-        "selector": "[data-testid=\"execution-stop-button\"]",
+        "selector": "@selector/executionStopButton",
         "timeoutMs": 15000,
         "waitType": "element"
       }
@@ -115,7 +115,7 @@
       },
       "data": {
         "label": "Stop button is available",
-        "selector": "[data-testid=\"execution-stop-button\"] /*dup-1*/",
+        "selector": "@selector/executionStopButton /*dup-1*/",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Stop button should appear while execution running"
@@ -130,7 +130,7 @@
       },
       "data": {
         "label": "Click stop/cancel button",
-        "selector": "[data-testid=\"execution-stop-button\"] /*dup-2*/",
+        "selector": "@selector/executionStopButton /*dup-2*/",
         "timeoutMs": 5000,
         "waitForMs": 2000,
         "continueOnError": true

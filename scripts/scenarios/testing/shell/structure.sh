@@ -171,6 +171,9 @@ testing::structure::validate_all() {
   # Validate playbook-requirement linkage
   _validate_playbook_linkage "$scenario_dir"
 
+  # Validate selector registry wiring when present
+  _validate_selector_registry "$scenario_dir"
+
   echo ""
   local total_checks=$((${#dirs_to_check[@]} + ${#files_to_check[@]} + 3))
   echo "✅ Structure validation completed ($total_checks checks)"
@@ -307,6 +310,39 @@ _validate_playbook_linkage() {
     testing::phase::add_error "Playbook-requirement linkage validation failed (exit code: $validation_exit_code)"
     testing::phase::add_test failed
     return 1
+  fi
+}
+
+_validate_selector_registry() {
+  local scenario_dir="$1"
+  local selectors_file="$scenario_dir/ui/src/consts/selectors.ts"
+
+  if [ ! -f "$selectors_file" ]; then
+    log::success "✅ Selector registry not found (skipping registry validation)"
+    testing::phase::add_test passed
+    return 0
+  fi
+
+  if ! command -v node >/dev/null 2>&1; then
+    testing::phase::add_warning "Node.js not available; skipping selector registry validation"
+    testing::phase::add_test passed
+    return 0
+  fi
+
+  local app_root="${TESTING_PHASE_APP_ROOT:-${APP_ROOT:-$(cd "$scenario_dir/../.." && pwd)}}"
+  local registry_script="$app_root/scripts/scenarios/testing/playbooks/selector-registry.js"
+  if [ ! -f "$registry_script" ]; then
+    testing::phase::add_warning "Selector registry helper missing at $registry_script"
+    testing::phase::add_test passed
+    return 0
+  fi
+
+  if node "$registry_script" --scenario "$scenario_dir" >/dev/null 2>&1; then
+    log::success "✅ Selector registry resolved successfully"
+    testing::phase::add_test passed
+  else
+    testing::phase::add_error "Selector registry resolution failed"
+    testing::phase::add_test failed
   fi
 }
 

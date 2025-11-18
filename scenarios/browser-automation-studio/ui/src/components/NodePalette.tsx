@@ -13,7 +13,7 @@ import {
   type NodeCategory,
   type WorkflowNodeDefinition,
 } from "../constants/nodeCategories";
-import { testIds } from "../consts/selectors";
+import { dynamicTestIds, testIds } from "../consts/selectors";
 
 const FAVORITES_KEY = "bas.palette.favorites";
 const RECENTS_KEY = "bas.palette.recents";
@@ -108,7 +108,7 @@ function NodeCard({
       draggable
       onDragStart={(event) => onDragStart(event, node.type)}
       className="relative bg-flow-bg border border-gray-700 rounded-lg p-3 cursor-move hover:border-flow-accent transition-colors group"
-      data-testid={`node-palette-${node.type}-card`}
+      data-testid={dynamicTestIds.nodePaletteCard(node.type)}
     >
       <button
         type="button"
@@ -120,7 +120,7 @@ function NodeCard({
           event.preventDefault();
           onToggleFavorite(node.type);
         }}
-        data-testid={`node-palette-${node.type}-favorite-button`}
+        data-testid={dynamicTestIds.nodePaletteFavoriteButton(node.type)}
       >
         <Star
           size={14}
@@ -470,7 +470,7 @@ function NodePalette() {
             <div
               key={category.id}
               className="border border-gray-800 rounded-lg"
-              data-testid={`node-palette-category-${category.id}`}
+              data-testid={dynamicTestIds.nodePaletteCategory(category.id)}
             >
               <button
                 type="button"
@@ -479,7 +479,7 @@ function NodePalette() {
                 aria-expanded={categoryExpanded}
                 aria-controls={`${category.id}-nodes`}
                 disabled={Boolean(normalizedQuery)}
-                data-testid={`node-palette-category-${category.id}-toggle`}
+                data-testid={dynamicTestIds.nodePaletteCategoryToggle(category.id)}
               >
                 <div className="flex items-center gap-2">
                   <CategoryIcon size={16} className="text-flow-accent" />

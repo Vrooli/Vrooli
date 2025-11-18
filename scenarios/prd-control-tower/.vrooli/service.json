@@ -143,7 +143,7 @@
         },
         {
           "name": "initialize-database",
-          "run": "if command -v psql &> /dev/null; then psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} -f initialization/postgres/schema.sql 2>/dev/null || echo '⚠️  Database schema initialization skipped (psql connection failed - run schema manually via docker exec)'; else echo '⚠️  Database initialization skipped (psql not available - run: docker exec vrooli-postgres-main psql -U vrooli -d vrooli -f /path/to/schema.sql)'; fi",
+          "run": "bash scripts/init-db.sh",
           "description": "Run schema in shared vrooli database (optional if using containerized DB)"
         },
         {

@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for projects grid",
-        "selector": "[data-testid=\"projects-grid\"]",
+        "selector": "@selector/projectsGrid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Open project modal (X button test)",
-        "selector": "[data-testid=\"dashboard-new-project-button\"]",
+        "selector": "@selector/dashboardNewProjectButton",
         "timeoutMs": 15000,
         "waitForMs": 1500
       }
@@ -67,7 +67,7 @@
       },
       "data": {
         "label": "Modal is visible",
-        "selector": "[data-testid=\"project-modal\"]",
+        "selector": "@selector/projectModal",
         "assertMode": "exists",
         "timeoutMs": 10000
       }
@@ -81,7 +81,7 @@
       },
       "data": {
         "label": "Click X button",
-        "selector": "[data-testid=\"dialog-close-button\"]",
+        "selector": "@selector/dialogCloseButton",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -95,7 +95,7 @@
       },
       "data": {
         "label": "Modal closed (X button)",
-        "selector": "[data-testid=\"project-modal\"] /*dup-1*/",
+        "selector": "@selector/projectModal /*dup-1*/",
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "Modal should close when X button is clicked"
@@ -110,7 +110,7 @@
       },
       "data": {
         "label": "Open project modal (Cancel button test)",
-        "selector": "[data-testid=\"dashboard-new-project-button\"] /*dup-1*/",
+        "selector": "@selector/dashboardNewProjectButton /*dup-1*/",
         "timeoutMs": 15000,
         "waitForMs": 1500
       }
@@ -124,7 +124,7 @@
       },
       "data": {
         "label": "Modal is visible",
-        "selector": "[data-testid=\"project-modal\"] /*dup-2*/",
+        "selector": "@selector/projectModal /*dup-2*/",
         "assertMode": "exists",
         "timeoutMs": 10000
       }
@@ -138,7 +138,7 @@
       },
       "data": {
         "label": "Click Cancel button",
-        "selector": "[data-testid=\"project-modal-cancel\"]",
+        "selector": "@selector/projectModalCancel",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -152,7 +152,7 @@
       },
       "data": {
         "label": "Modal closed (Cancel button)",
-        "selector": "[data-testid=\"project-modal\"] /*dup-3*/",
+        "selector": "@selector/projectModal /*dup-3*/",
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "Modal should close when Cancel button is clicked"
@@ -167,7 +167,7 @@
       },
       "data": {
         "label": "Open project modal (Escape key test)",
-        "selector": "[data-testid=\"dashboard-new-project-button\"] /*dup-2*/",
+        "selector": "@selector/dashboardNewProjectButton /*dup-2*/",
         "timeoutMs": 15000,
         "waitForMs": 1500
       }
@@ -181,7 +181,7 @@
       },
       "data": {
         "label": "Modal is visible",
-        "selector": "[data-testid=\"project-modal\"] /*dup-4*/",
+        "selector": "@selector/projectModal /*dup-4*/",
         "assertMode": "exists",
         "timeoutMs": 10000
       }
@@ -210,7 +210,7 @@
       },
       "data": {
         "label": "Modal closed (Escape key)",
-        "selector": "[data-testid=\"project-modal\"] /*dup-5*/",
+        "selector": "@selector/projectModal /*dup-5*/",
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "Modal should close when Escape key is pressed"

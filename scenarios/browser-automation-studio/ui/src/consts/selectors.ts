@@ -8,12 +8,22 @@
 
 const toSelector = (testId: string) => `[data-testid="${testId}"]`;
 
+type DynamicParamType = "string" | "number";
+
+type DynamicSelectorDefinition = {
+  pattern: string;
+  selectorPattern?: string;
+  params: readonly string[];
+  allowedValues?: Record<string, readonly string[]>;
+  valueTypes?: Record<string, DynamicParamType>;
+  description?: string;
+};
+
 type SelectorTree<T> = {
   [K in keyof T]: T[K] extends string ? string : SelectorTree<T[K]>;
 };
 
 export const testIds = {
-  aiExamplePrompt0: "ai-example-prompt-0",
   aiGenerateButton: "ai-generate-button",
   aiPromptInput: "ai-prompt-input",
   aiPromptModal: "ai-prompt-modal",
@@ -194,3 +204,152 @@ const mapSelectors = <T>(registry: T): SelectorTree<T> => {
 
 export const workflowSelectors = mapSelectors(testIds);
 export const selectorFromTestId = toSelector;
+
+const DYNAMIC_TEMPLATE_PATTERN = /\$\{([^}]+)\}/g;
+
+const formatDynamicTestId = (
+  pattern: string,
+  params: Record<string, string | number>,
+) =>
+  pattern.replace(DYNAMIC_TEMPLATE_PATTERN, (_match, key) => {
+    if (!(key in params)) {
+      throw new Error(`Missing parameter '${key}' for dynamic test id`);
+    }
+    return String(params[key]);
+  });
+
+export type ExecutionFilterKey =
+  | "all"
+  | "completed"
+  | "failed"
+  | "running"
+  | "cancelled";
+
+export type ViewportPresetKey = "desktop" | "mobile" | "custom";
+
+export const dynamicTestIds = {
+  promptExample: (index: number) =>
+    formatDynamicTestId("ai-example-prompt-${index}", { index }),
+  executionFilter: (filter: ExecutionFilterKey) =>
+    formatDynamicTestId("execution-filter-${filter}", { filter }),
+  nodePaletteCard: (type: string) =>
+    formatDynamicTestId("node-palette-${type}-card", { type }),
+  nodePaletteFavoriteButton: (type: string) =>
+    formatDynamicTestId("node-palette-${type}-favorite-button", { type }),
+  nodePaletteCategory: (category: string) =>
+    formatDynamicTestId("node-palette-category-${category}", { category }),
+  nodePaletteCategoryToggle: (category: string) =>
+    formatDynamicTestId("node-palette-category-${category}-toggle", {
+      category,
+    }),
+  versionHistoryItem: (versionLabel: string | number) =>
+    formatDynamicTestId("version-history-item-${version}", {
+      version: versionLabel,
+    }),
+  versionRestoreButton: (versionLabel: string | number) =>
+    formatDynamicTestId("version-restore-button-${version}", {
+      version: versionLabel,
+    }),
+  viewportPresetButton: (preset: ViewportPresetKey) =>
+    formatDynamicTestId("viewport-dialog-preset-${preset}-button", { preset }),
+  uploadNodePathCount: (nodeId: string | number) =>
+    formatDynamicTestId("upload-node-${id}-path-count", { id: nodeId }),
+} as const;
+
+const mapDynamicSelectorDefinitions = <
+  T extends Record<string, DynamicSelectorDefinition>,
+>(definitions: T) => {
+  const result: Record<string, DynamicSelectorDefinition & { selectorPattern: string }> = {};
+  for (const [key, value] of Object.entries(definitions)) {
+    const selectorPattern = value.selectorPattern ?? toSelector(value.pattern);
+    result[key] = { ...value, selectorPattern };
+  }
+  return result as {
+    [K in keyof T]: DynamicSelectorDefinition & { selectorPattern: string };
+  };
+};
+
+export const dynamicSelectors = mapDynamicSelectorDefinitions({
+  promptExample: {
+    description: "AI modal example prompts rendered with ai-example-prompt-${index}",
+    pattern: "ai-example-prompt-${index}",
+    params: ["index"] as const,
+    valueTypes: { index: "number" },
+  },
+  executionFilter: {
+    description: "Execution history filter buttons (all/completed/failed/etc.)",
+    pattern: "execution-filter-${filter}",
+    params: ["filter"] as const,
+    allowedValues: {
+      filter: ["all", "completed", "failed", "running", "cancelled"] as const,
+    },
+  },
+  nodePaletteCard: {
+    description: "Node palette card for a workflow node type",
+    pattern: "node-palette-${type}-card",
+    params: ["type"] as const,
+  },
+  nodePaletteFavoriteButton: {
+    description: "Favorite toggle button for a workflow node card",
+    pattern: "node-palette-${type}-favorite-button",
+    params: ["type"] as const,
+  },
+  nodePaletteCategory: {
+    description: "Category container in the node palette sidebar",
+    pattern: "node-palette-category-${category}",
+    params: ["category"] as const,
+  },
+  nodePaletteCategoryToggle: {
+    description: "Category toggle button in the node palette sidebar",
+    pattern: "node-palette-category-${category}-toggle",
+    params: ["category"] as const,
+  },
+  versionHistoryItem: {
+    description: "Version history row in header modal",
+    pattern: "version-history-item-${version}",
+    params: ["version"] as const,
+  },
+  versionRestoreButton: {
+    description: "Restore button for a version history entry",
+    pattern: "version-restore-button-${version}",
+    params: ["version"] as const,
+  },
+  projectCardByName: {
+    description: "Dashboard/project list card filtered by data-project-name",
+    pattern: "project-card-by-name-${name}",
+    selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
+    params: ["name"] as const,
+  },
+  workflowCardByName: {
+    description: "Workflow list card filtered by data-workflow-name",
+    pattern: "workflow-card-by-name-${name}",
+    selectorPattern: '[data-testid="workflow-card"][data-workflow-name="${name}"]',
+    params: ["name"] as const,
+  },
+  viewportPresetButton: {
+    description: "Viewport preset button inside the execution dimensions dialog",
+    pattern: "viewport-dialog-preset-${preset}-button",
+    params: ["preset"] as const,
+    allowedValues: {
+      preset: ["desktop", "mobile", "custom"] as const,
+    },
+  },
+  uploadNodePathCount: {
+    description: "Upload node selected file count chip",
+    pattern: "upload-node-${id}-path-count",
+    params: ["id"] as const,
+  },
+  nodePaletteCardList: {
+    description: "Matches all node palette cards regardless of node type",
+    pattern: "node-palette-card-list",
+    selectorPattern: '[data-testid^="node-palette-"][data-testid$="-card"]',
+    params: [] as const,
+  },
+  nodePaletteVisibleCardList: {
+    description: "Matches visible node palette cards (after filters)",
+    pattern: "node-palette-card-visible",
+    selectorPattern:
+      '[data-testid^="node-palette-"][data-testid$="-card"]:not([style*="display: none"])',
+    params: [] as const,
+  },
+});

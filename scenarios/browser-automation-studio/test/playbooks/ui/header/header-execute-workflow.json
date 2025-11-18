@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Open project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "selector": "@selector/projectCard:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -52,7 +52,7 @@
       },
       "data": {
         "label": "Wait for workflows to load",
-        "selector": "[data-testid=\"workflow-card\"]",
+        "selector": "@selector/workflowCard",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -67,7 +67,7 @@
       },
       "data": {
         "label": "Open workflow with nodes",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "selector": "@selector/workflowCard:first-of-type",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -94,7 +94,7 @@
       },
       "data": {
         "label": "Execute button visible",
-        "selector": "[data-testid=\"header-execute-button\"]",
+        "selector": "@selector/headerExecuteButton",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Execute button should be visible"
@@ -122,7 +122,7 @@
       },
       "data": {
         "label": "Click execute",
-        "selector": "[data-testid=\"header-execute-button\"] /*dup-1*/",
+        "selector": "@selector/headerExecuteButton /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 3000
       }
@@ -149,7 +149,7 @@
       },
       "data": {
         "label": "Check for execution feedback",
-        "expression": "(() => { const loading = document.querySelector('[data-testid=\"header-execute-button\"] [class*=\"loader\"], [data-testid=\"header-execute-button\"][disabled]'); const viewer = document.querySelector('[data-testid=\"execution-viewer\"]'); return loading !== null || viewer !== null; })()",
+        "expression": "(() => { const loading = document.querySelector('@selector/headerExecuteButton [class*=\"loader\"], @selector/headerExecuteButton[disabled]'); const viewer = document.querySelector('@selector/executionViewer'); return loading !== null || viewer !== null; })()",
         "storeAs": "hasExecutionFeedback"
       }
     },

@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for projects grid",
-        "selector": "[data-testid=\"projects-grid\"]",
+        "selector": "@selector/projectsGrid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Open first project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "selector": "@selector/projectCard:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -80,7 +80,7 @@
       },
       "data": {
         "label": "Open workflow",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "selector": "@selector/workflowCard:first-of-type",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }

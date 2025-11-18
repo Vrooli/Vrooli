@@ -46,7 +46,7 @@
       },
       "data": {
         "label": "Palette visible",
-        "selector": "[data-testid=\"node-palette-container\"]",
+        "selector": "@selector/nodePaletteContainer",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Palette should be visible"
@@ -61,7 +61,7 @@
       },
       "data": {
         "label": "Count all nodes",
-        "expression": "document.querySelectorAll('[data-testid^=\"node-palette-\"][data-testid$=\"-card\"]').length",
+        "expression": "document.querySelectorAll('@selector/nodePaletteCardList').length",
         "storeAs": "totalNodes"
       }
     },
@@ -74,7 +74,7 @@
       },
       "data": {
         "label": "Search 'navigate'",
-        "selector": "[data-testid=\"node-palette-search-input\"]",
+        "selector": "@selector/nodePaletteSearchInput",
         "text": "navigate",
         "clearFirst": false,
         "timeoutMs": 5000,
@@ -90,7 +90,7 @@
       },
       "data": {
         "label": "Count filtered",
-        "expression": "document.querySelectorAll('[data-testid^=\"node-palette-\"][data-testid$=\"-card\"]:not([style*=\"display: none\"])').length",
+        "expression": "document.querySelectorAll('@selector/nodePaletteVisibleCardList').length",
         "storeAs": "filteredNodes"
       }
     },
@@ -103,7 +103,7 @@
       },
       "data": {
         "label": "Navigate node visible",
-        "selector": "[data-testid=\"node-palette-navigate-card\"]",
+        "selector": "@selector/nodePaletteNavigateCard",
         "assertMode": "exists",
         "timeoutMs": 3000,
         "failureMessage": "Navigate node should be visible after search"
@@ -131,7 +131,7 @@
       },
       "data": {
         "label": "Clear search",
-        "selector": "[data-testid=\"node-palette-search-input\"] /*dup-1*/",
+        "selector": "@selector/nodePaletteSearchInput /*dup-1*/",
         "text": "",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -147,7 +147,7 @@
       },
       "data": {
         "label": "Count after clear",
-        "expression": "document.querySelectorAll('[data-testid^=\"node-palette-\"][data-testid$=\"-card\"]').length",
+        "expression": "document.querySelectorAll('@selector/nodePaletteCardList').length",
         "storeAs": "clearedNodes"
       }
     }

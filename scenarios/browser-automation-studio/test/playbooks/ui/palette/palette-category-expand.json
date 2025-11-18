@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Wait for workflow builder",
-        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "selector": "@selector/workflowBuilderCodeModeButton",
         "timeoutMs": 15000,
         "waitType": "element"
       }
@@ -47,7 +47,7 @@
       },
       "data": {
         "label": "Node palette is visible",
-        "selector": "[data-testid^=\"node-palette-\"]",
+        "selector": "@selector/nodePaletteContainer",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Node palette should be visible"
@@ -75,7 +75,7 @@
       },
       "data": {
         "label": "Check for expandable category headers",
-        "expression": "document.querySelectorAll('[role=\"button\"], button, [data-testid*=\"category\"]').length > 0",
+        "expression": "document.querySelector('@selector/nodePaletteCategory(category=navigation)') !== null",
         "storeAs": "hasCategoryHeaders"
       }
     },
@@ -88,7 +88,7 @@
       },
       "data": {
         "label": "Click first category to toggle",
-        "selector": "[data-testid=\"node-palette-category-navigation-toggle\"]",
+        "selector": "@selector/nodePaletteCategoryNavigationToggle",
         "timeoutMs": 5000,
         "waitForMs": 1000,
         "continueOnError": true

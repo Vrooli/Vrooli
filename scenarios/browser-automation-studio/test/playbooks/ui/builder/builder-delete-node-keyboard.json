@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Wait for builder to load",
-        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "selector": "@selector/workflowBuilderCodeModeButton",
         "timeoutMs": 15000,
         "waitType": "element"
       }

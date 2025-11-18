@@ -46,7 +46,7 @@
       },
       "data": {
         "label": "Zoom out far to offset view",
-        "selector": "[data-testid=\"toolbar-zoom-out-button\"]",
+        "selector": "@selector/toolbarZoomOutButton",
         "timeoutMs": 5000,
         "waitForMs": 300
       }
@@ -60,7 +60,7 @@
       },
       "data": {
         "label": "Zoom out more",
-        "selector": "[data-testid=\"toolbar-zoom-out-button\"] /*dup-1*/",
+        "selector": "@selector/toolbarZoomOutButton /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 300
       }
@@ -87,7 +87,7 @@
       },
       "data": {
         "label": "Click fit view button",
-        "selector": "[data-testid=\"toolbar-fit-view-button\"], [data-testid=\"toolbar-fit-view-menu-item\"]",
+        "selector": "@selector/toolbarFitViewButton, @selector/toolbarFitViewMenuItem",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }

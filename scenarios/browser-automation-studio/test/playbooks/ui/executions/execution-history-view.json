@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Click Execution History tab",
-        "selector": "[data-testid=\"executions-tab\"], button[aria-label*='execution'], button[aria-label*='history']",
+        "selector": "@selector/executionsTab, button[aria-label*='execution'], button[aria-label*='history']",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }
@@ -48,6 +48,33 @@
       "data": {
         "label": "Wait for execution history to load",
         "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "click-filter-failed",
+      "type": "click",
+      "position": {
+        "x": 1100,
+        "y": -120
+      },
+      "data": {
+        "label": "Filter to failed executions",
+        "selector": "@selector/executionFilter(filter=failed)",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "wait-after-filter",
+      "type": "wait",
+      "position": {
+        "x": 1250,
+        "y": -120
+      },
+      "data": {
+        "label": "Wait for filtered list",
+        "durationMs": 1000,
         "waitType": "duration"
       }
     },
@@ -73,7 +100,7 @@
       },
       "data": {
         "label": "Check if executions are visible",
-        "expression": "document.querySelectorAll('[data-testid*=\"execution\"], [role=\"row\"], .execution-item, [class*=\"execution\"]').length > 0",
+        "expression": "document.querySelectorAll('@selector/executionItem, @selector/executionCard, @selector/executionViewButton').length > 0",
         "storeAs": "hasExecutions"
       }
     },
@@ -86,7 +113,7 @@
       },
       "data": {
         "label": "Click first execution (if exists)",
-        "selector": "[data-testid*=\"execution\"]:first-of-type, [role=\"row\"]:first-of-type, .execution-item:first-of-type",
+        "selector": "@selector/executionItem:first-of-type, @selector/executionCard:first-of-type, @selector/executionViewButton:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000,
         "continueOnError": true
@@ -114,7 +141,7 @@
       },
       "data": {
         "label": "Check if execution viewer is visible",
-        "expression": "document.querySelector('[data-testid=\"execution-viewer\"], [data-testid=\"execution-logs\"], [data-testid=\"execution-screenshots\"]') !== null",
+        "expression": "document.querySelector('@selector/executionViewer, @selector/executionLogs, @selector/executionScreenshots') !== null",
         "storeAs": "viewerVisible"
       }
     },
@@ -148,6 +175,18 @@
     {
       "id": "e6",
       "source": "wait-for-execution-list",
+      "target": "click-filter-failed",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6-filter",
+      "source": "click-filter-failed",
+      "target": "wait-after-filter",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6-filter-wait",
+      "source": "wait-after-filter",
       "target": "capture-execution-history",
       "type": "smoothstep"
     },

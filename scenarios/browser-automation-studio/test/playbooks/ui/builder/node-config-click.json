@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Wait for builder",
-        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "selector": "@selector/workflowBuilderCodeModeButton",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -48,7 +48,7 @@
       },
       "data": {
         "label": "Drag Click node onto canvas",
-        "sourceSelector": "[data-testid=\"node-palette-click-card\"]",
+        "sourceSelector": "@selector/nodePaletteClickCard",
         "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
         "waitForMs": 2000

@@ -86,7 +86,7 @@
       },
       "data": {
         "label": "Click duplicate button",
-        "selector": "[data-testid=\"toolbar-duplicate-button\"], button[title*=\"duplicate\" i], button[aria-label*=\"duplicate\" i]",
+        "selector": "@selector/toolbarDuplicateButton, button[title*=\"duplicate\" i], button[aria-label*=\"duplicate\" i]",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }

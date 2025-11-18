@@ -74,7 +74,7 @@
       },
       "data": {
         "label": "Node palette is visible",
-        "selector": "[data-testid^=\"node-palette-\"]",
+        "selector": "@selector/nodePaletteContainer",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Node palette should be visible in sidebar"
@@ -102,7 +102,7 @@
       },
       "data": {
         "label": "Get navigate node card position",
-        "expression": "(() => { const card = document.querySelector('[data-testid=\"node-palette-navigate-card\"]'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+        "expression": "(() => { const card = document.querySelector('@selector/nodePaletteNavigateCard'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
         "storeAs": "nodePalettePosition"
       }
     },
@@ -115,7 +115,7 @@
       },
       "data": {
         "label": "Calculate canvas drop position",
-        "expression": "(() => { const canvas = document.querySelector('.react-flow, [data-testid=\"workflow-builder-canvas\"]'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
+        "expression": "(() => { const canvas = document.querySelector('.react-flow, @selector/workflowBuilderCanvas'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
         "storeAs": "canvasDropPosition"
       }
     },
@@ -128,7 +128,7 @@
       },
       "data": {
         "label": "Drag navigate node from palette to canvas",
-        "sourceSelector": "[data-testid=\"node-palette-navigate-card\"]",
+        "sourceSelector": "@selector/nodePaletteNavigateCard",
         "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
         "waitForMs": 2000

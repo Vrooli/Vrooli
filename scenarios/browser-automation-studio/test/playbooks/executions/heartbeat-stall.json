@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for demo project",
-        "selector": "[data-project-name=\"Demo Browser Automations\"][data-testid=\"project-card\"]",
+        "selector": "[data-project-name=\"Demo Browser Automations\"]@selector/projectCard",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Open demo project",
-        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
+        "selector": "@selector/projectCard[data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 10000,
         "waitForMs": 1000
       }
@@ -82,7 +82,7 @@
       },
       "data": {
         "label": "Execute workflow",
-        "selector": "[data-testid=\"workflow-execute-button\"]",
+        "selector": "@selector/workflowExecuteButton",
         "timeoutMs": 10000,
         "waitForMs": 1500
       }
@@ -96,7 +96,7 @@
       },
       "data": {
         "label": "Wait for execution to start",
-        "selector": "[data-testid=\"execution-viewer\"]",
+        "selector": "@selector/executionViewer",
         "timeoutMs": 15000,
         "waitForMs": 2000,
         "waitType": "element"
@@ -124,7 +124,7 @@
       },
       "data": {
         "label": "Execution viewer functional",
-        "selector": "[data-testid=\"execution-viewer\"]:where(:not(:root))",
+        "selector": "@selector/executionViewer:where(:not(:root))",
         "assertMode": "exists",
         "timeoutMs": 10000,
         "failureMessage": "Execution viewer should render"

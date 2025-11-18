@@ -101,7 +101,7 @@
       },
       "data": {
         "label": "Click toolbar delete button",
-        "selector": "[data-testid=\"toolbar-delete-button\"], button[title*=\"delete\" i], button[aria-label*=\"delete\" i]",
+        "selector": "@selector/toolbarDeleteButton, button[title*=\"delete\" i], button[aria-label*=\"delete\" i]",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }

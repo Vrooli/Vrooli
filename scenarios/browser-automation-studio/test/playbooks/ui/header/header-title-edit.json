@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Open project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "selector": "@selector/projectCard:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -52,7 +52,7 @@
       },
       "data": {
         "label": "Wait for workflows",
-        "selector": "[data-testid=\"workflow-card\"]",
+        "selector": "@selector/workflowCard",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -67,7 +67,7 @@
       },
       "data": {
         "label": "Open workflow",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "selector": "@selector/workflowCard:first-of-type",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -94,7 +94,7 @@
       },
       "data": {
         "label": "Get original title",
-        "expression": "document.querySelector('[data-testid=\"header-workflow-title\"]')?.textContent?.trim() || ''",
+        "expression": "document.querySelector('@selector/headerWorkflowTitle')?.textContent?.trim() || ''",
         "storeAs": "originalTitle"
       }
     },
@@ -107,7 +107,7 @@
       },
       "data": {
         "label": "Click edit button",
-        "selector": "[data-testid=\"header-title-edit-button\"]",
+        "selector": "@selector/headerTitleEditButton",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }
@@ -121,7 +121,7 @@
       },
       "data": {
         "label": "Input visible",
-        "selector": "[data-testid=\"header-title-input\"]",
+        "selector": "@selector/headerTitleInput",
         "assertMode": "exists",
         "timeoutMs": 3000,
         "failureMessage": "Title input should appear"
@@ -136,7 +136,7 @@
       },
       "data": {
         "label": "Type new title",
-        "selector": "[data-testid=\"header-title-input\"] /*dup-1*/",
+        "selector": "@selector/headerTitleInput /*dup-1*/",
         "text": "Updated Workflow Title",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -152,7 +152,7 @@
       },
       "data": {
         "label": "Save title",
-        "selector": "[data-testid=\"header-title-save-button\"]",
+        "selector": "@selector/headerTitleSaveButton",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -179,7 +179,7 @@
       },
       "data": {
         "label": "Input hidden",
-        "selector": "[data-testid=\"header-title-input\"] /*dup-2*/",
+        "selector": "@selector/headerTitleInput /*dup-2*/",
         "assertMode": "not_exists",
         "timeoutMs": 3000,
         "failureMessage": "Input should be hidden after save"

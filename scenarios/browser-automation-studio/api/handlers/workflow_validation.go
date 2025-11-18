@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
 )
@@ -11,7 +10,6 @@ import (
 type workflowValidationRequest struct {
 	Workflow map[string]any `json:"workflow"`
 	Strict   bool           `json:"strict"`
-	Selector string         `json:"selector_root"`
 }
 
 // ValidateWorkflow validates ad-hoc workflow definitions via schema + lint rules.
@@ -33,8 +31,7 @@ func (h *Handler) ValidateWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.workflowValidator.Validate(r.Context(), req.Workflow, workflowvalidator.Options{
-		Strict:       req.Strict,
-		SelectorRoot: strings.TrimSpace(req.Selector),
+		Strict: req.Strict,
 	})
 	if err != nil {
 		h.respondError(w, &APIError{

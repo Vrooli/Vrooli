@@ -14,7 +14,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { useExecutionStore } from "../stores/executionStore";
 import { logger } from "../utils/logger";
 import { usePopoverPosition } from "../hooks/usePopoverPosition";
-import { testIds } from "../consts/selectors";
+import { dynamicTestIds, testIds } from "../consts/selectors";
 
 interface ExecutionHistoryProps {
   workflowId?: string;
@@ -298,7 +298,7 @@ function ExecutionHistory({
           {STATUS_FILTERS.map((filter) => (
             <button
               key={filter}
-              data-testid={`execution-filter-${filter}`}
+              data-testid={dynamicTestIds.executionFilter(filter)}
               onClick={() => setStatusFilter(filter)}
               className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                 statusFilter === filter

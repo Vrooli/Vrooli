@@ -46,7 +46,7 @@
       },
       "data": {
         "label": "Zoom in twice first",
-        "selector": "[data-testid=\"toolbar-zoom-in-button\"]",
+        "selector": "@selector/toolbarZoomInButton",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -60,7 +60,7 @@
       },
       "data": {
         "label": "Zoom in again",
-        "selector": "[data-testid=\"toolbar-zoom-in-button\"] /*dup-1*/",
+        "selector": "@selector/toolbarZoomInButton /*dup-1*/",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -87,7 +87,7 @@
       },
       "data": {
         "label": "Click zoom out button",
-        "selector": "[data-testid=\"toolbar-zoom-out-button\"]",
+        "selector": "@selector/toolbarZoomOutButton",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }

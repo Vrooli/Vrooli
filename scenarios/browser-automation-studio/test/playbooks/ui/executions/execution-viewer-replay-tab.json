@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Click Executions tab",
-        "selector": "[data-testid=\"executions-tab\"]",
+        "selector": "@selector/executionsTab",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }
@@ -60,7 +60,7 @@
       },
       "data": {
         "label": "At least one execution exists",
-        "selector": "[data-testid=\"execution-item\"], [data-testid=\"execution-view-button\"]",
+        "selector": "@selector/executionItem, @selector/executionViewButton",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Should have at least one execution to test replay"
@@ -75,7 +75,7 @@
       },
       "data": {
         "label": "Click View button on first execution",
-        "selector": "[data-testid=\"execution-view-button\"]:first-of-type",
+        "selector": "@selector/executionViewButton:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -102,7 +102,7 @@
       },
       "data": {
         "label": "Execution viewer is visible",
-        "selector": "[data-testid=\"execution-viewer\"], [data-testid=\"execution-logs\"], [data-testid=\"execution-screenshots\"]",
+        "selector": "@selector/executionViewer, @selector/executionLogs, @selector/executionScreenshots",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Execution viewer should be visible"
@@ -130,7 +130,7 @@
       },
       "data": {
         "label": "Check if Replay tab exists",
-        "expression": "(() => { const replayTab = document.querySelector('[data-testid=\"execution-tab-replay\"]'); return replayTab !== null; })()",
+        "expression": "(() => { const replayTab = document.querySelector('@selector/executionTabReplay'); return replayTab !== null; })()",
         "storeAs": "hasReplayTab"
       }
     },
@@ -143,7 +143,7 @@
       },
       "data": {
         "label": "Click Replay tab",
-        "selector": "[data-testid=\"execution-tab-replay\"]",
+        "selector": "@selector/executionTabReplay",
         "timeoutMs": 5000,
         "waitForMs": 1500,
         "continueOnError": true
@@ -171,7 +171,7 @@
       },
       "data": {
         "label": "Verify replay-related content exists",
-        "expression": "(() => { const screenshots = document.querySelectorAll('img[src*=\"screenshot\"], [data-testid*=\"screenshot\"], [data-testid*=\"timeline\"], [data-testid*=\"replay\"]'); const timeline = document.querySelector('[class*=\"timeline\"], [data-testid*=\"timeline\"], [class*=\"replay\"]'); return screenshots.length > 0 || timeline !== null; })()",
+        "expression": "(() => { const screenshots = document.querySelectorAll('@selector/executionScreenshot, @selector/replayScreenshot'); const timeline = document.querySelector('@selector/replayTimeline, @selector/replayViewer'); return screenshots.length > 0 || timeline !== null; })()",
         "storeAs": "hasReplayContent"
       }
     },

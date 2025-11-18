@@ -46,7 +46,7 @@
       },
       "data": {
         "label": "Click edit/pencil button",
-        "selector": "[data-testid=\"project-edit-button\"]",
+        "selector": "@selector/projectEditButton",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }
@@ -60,7 +60,7 @@
       },
       "data": {
         "label": "Edit modal is visible",
-        "selector": "[data-testid=\"project-modal\"]",
+        "selector": "@selector/projectModal",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Project edit modal should appear after clicking edit button"
@@ -88,7 +88,7 @@
       },
       "data": {
         "label": "Enter updated name",
-        "selector": "[data-testid=\"project-modal-name-input\"]",
+        "selector": "@selector/projectModalNameInput",
         "text": "{{updatedName}}",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -104,7 +104,7 @@
       },
       "data": {
         "label": "Update description",
-        "selector": "[data-testid=\"project-modal-description-input\"]",
+        "selector": "@selector/projectModalDescriptionInput",
         "text": "Updated description for integration test validation",
         "clearFirst": true,
         "timeoutMs": 5000,
@@ -120,7 +120,7 @@
       },
       "data": {
         "label": "Submit project updates",
-        "selector": "[data-testid=\"project-modal-submit\"]",
+        "selector": "@selector/projectModalSubmit",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -147,7 +147,7 @@
       },
       "data": {
         "label": "Modal is closed after save",
-        "selector": "[data-testid=\"project-modal\"] /*dup-1*/",
+        "selector": "@selector/projectModal /*dup-1*/",
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "Modal should close after successful project update"

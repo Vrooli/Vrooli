@@ -33,7 +33,7 @@
       },
       "data": {
         "label": "Wait for builder",
-        "selector": "[data-testid=\"workflow-builder-code-mode-button\"]",
+        "selector": "@selector/workflowBuilderCodeModeButton",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -48,7 +48,7 @@
       },
       "data": {
         "label": "Drag SetVariable node (camelCase test)",
-        "sourceSelector": "[data-testid=\"node-palette-setvariable-card\"], [data-testid=\"node-palette-setVariable-card\"]",
+        "sourceSelector": "@selector/nodePaletteSetvariableCard, @selector/nodePaletteSetVariableCard",
         "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
         "waitForMs": 2000
@@ -205,7 +205,7 @@
       },
       "data": {
         "label": "Drag UseVariable node (camelCase test)",
-        "sourceSelector": "[data-testid=\"node-palette-usevariable-card\"], [data-testid=\"node-palette-useVariable-card\"]",
+        "sourceSelector": "@selector/nodePaletteUsevariableCard, @selector/nodePaletteUseVariableCard",
         "targetSelector": ".react-flow__pane",
         "timeoutMs": 10000,
         "waitForMs": 2000

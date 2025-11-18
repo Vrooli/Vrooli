@@ -24,7 +24,7 @@
       "position": {"x": 200, "y": 0},
       "data": {
         "label": "Wait for projects grid",
-        "selector": "[data-testid=\"projects-grid\"]",
+        "selector": "@selector/projectsGrid",
         "timeoutMs": 15000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -36,7 +36,7 @@
       "position": {"x": 420, "y": 0},
       "data": {
         "label": "Select Demo Browser Automations",
-        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
+        "selector": "@selector/projectCard[data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }

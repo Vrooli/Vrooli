@@ -47,24 +47,6 @@ PY
     printf '%s\n' "$target"
 }
 
-_testing_suite_detect_selector_root() {
-    local scenario_dir="$1"
-    if [ -n "${WORKFLOW_LINT_SELECTOR_ROOT:-}" ]; then
-        printf '%s\n' "${WORKFLOW_LINT_SELECTOR_ROOT}"
-        return 0
-    fi
-    if [ -z "$scenario_dir" ]; then
-        printf '%s\n' ""
-        return 0
-    fi
-    local candidate="$scenario_dir/ui/src"
-    if [ -d "$candidate" ]; then
-        _testing_suite_realpath "$candidate"
-        return 0
-    fi
-    printf '%s\n' ""
-}
-
 _testing_suite_lint_workflows() {
     if [ "$TESTING_SUITE_LINT_PERFORMED" = true ]; then
         return 0
@@ -118,16 +100,10 @@ _testing_suite_lint_workflows() {
         return 0
     fi
 
-    local selector_root
-    selector_root=$(_testing_suite_detect_selector_root "$scenario_dir")
-
     local strict_env="${WORKFLOW_LINT_STRICT:-}" 
     local -a lint_cmd=(go run ./cmd/workflow-lint)
     if [[ "$strict_env" =~ ^(1|true|yes)$ ]]; then
         lint_cmd+=(--strict)
-    fi
-    if [ -n "$selector_root" ]; then
-        lint_cmd+=(--selector-root "$selector_root")
     fi
     lint_cmd+=(--json)
 

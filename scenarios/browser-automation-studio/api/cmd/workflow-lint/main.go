@@ -21,7 +21,6 @@ type fileResult struct {
 func main() {
 	strict := flag.Bool("strict", false, "Treat warnings as errors")
 	jsonOutput := flag.Bool("json", false, "Emit machine-readable JSON")
-	selectorRoot := flag.String("selector-root", "", "Override selector root directory")
 	flag.Parse()
 
 	inputs := flag.Args()
@@ -44,8 +43,7 @@ func main() {
 
 	ctx := context.Background()
 	options := workflowvalidator.Options{
-		Strict:       *strict,
-		SelectorRoot: *selectorRoot,
+		Strict: *strict,
 	}
 	var results []fileResult
 	exitCode := 0

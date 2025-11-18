@@ -39,7 +39,7 @@
       "data": {
         "label": "Wait for React app to hydrate",
         "waitType": "element",
-        "selector": "[data-testid=\"app-ready\"]",
+        "selector": "@selector/appReady",
         "timeoutMs": 30000,
         "waitForMs": 500
       }

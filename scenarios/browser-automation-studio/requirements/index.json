@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-17T20:48:10.558Z"
+    "last_synced_at": "2025-11-17T21:23:27.760Z"
   },
   "meta": {
     "scenario": "browser-automation-studio",
@@ -72,7 +72,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Persist normalized execution artifacts for replay & video rendering",
       "description": "Ensures replay artifacts are persisted, queryable, and exportable for downstream renderers.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "children": [
         "BAS-REPLAY-TIMELINE-PERSISTENCE",
@@ -98,7 +98,7 @@
       "prd_ref": "Autosave & Version History",
       "title": "Conflict-aware autosave with auditable version history",
       "description": "Captures autosave behaviour, version history presentation, and restore flows across UI and API.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "children": [
         "BAS-VERSION-AUTOSAVE",

@@ -2,41 +2,6 @@
 # Integration phase helper utilities
 set -euo pipefail
 
-# Resolve workflow selector root for the active scenario (override via WORKFLOW_LINT_SELECTOR_ROOT)
-testing::integration::detect_selector_root() {
-    local scenario_dir="$1"
-    if [ -n "${WORKFLOW_LINT_SELECTOR_ROOT:-}" ]; then
-        printf '%s\n' "${WORKFLOW_LINT_SELECTOR_ROOT}"
-        return 0
-    fi
-    if [ -z "$scenario_dir" ]; then
-        printf '\n'
-        return 0
-    fi
-    local candidate="$scenario_dir/ui/src"
-    if [ -d "$candidate" ]; then
-        testing::integration::realpath "$candidate"
-        return 0
-    fi
-    printf '\n'
-}
-
-testing::integration::realpath() {
-    local target="$1"
-    if command -v realpath >/dev/null 2>&1; then
-        realpath "$target"
-        return 0
-    fi
-    if command -v python3 >/dev/null 2>&1; then
-        python3 - "$target" <<'PY'
-import os, sys
-print(os.path.abspath(sys.argv[1]))
-PY
-        return 0
-    fi
-    printf '%s\n' "$target"
-}
-
 testing::integration::resolve_workflow_definition() {
     local workflow_path="$1"
     local scenario_dir="$2"
@@ -148,9 +113,6 @@ testing::integration::lint_workflows_via_api() {
 
     local api_base="http://localhost:${api_port}/api/v1"
     local lint_failed=0
-    local selector_root
-    selector_root=$(testing::integration::detect_selector_root "$scenario_dir")
-
     local probe_rc=0
     testing::integration::ensure_validate_endpoint "$api_base" || probe_rc=$?
     if [ "$probe_rc" -eq 1 ]; then
@@ -182,7 +144,7 @@ testing::integration::lint_workflows_via_api() {
         fi
 
             local payload
-            if ! payload=$(printf '%s' "$lint_source_json" | jq -c --argjson strict "$strict_flag" --arg selector "$selector_root" '{workflow: ., strict: $strict, selector_root: ($selector // "")}' 2>/dev/null); then
+            if ! payload=$(printf '%s' "$lint_source_json" | jq -c --argjson strict "$strict_flag" '{workflow: ., strict: $strict}' 2>/dev/null); then
                 echo "❌ Failed to build lint payload for $rel_path"
                 lint_failed=1
                 continue

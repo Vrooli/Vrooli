@@ -39,7 +39,7 @@
       "data": {
         "label": "Wait for React app to hydrate",
         "waitType": "element",
-        "selector": "[data-testid=\"app-ready\"]",
+        "selector": "@selector/appReady",
         "timeoutMs": 30000,
         "waitForMs": 500
       }
@@ -54,7 +54,7 @@
       "data": {
         "label": "Wait for demo project card",
         "waitType": "element",
-        "selector": "[data-project-name=\"Demo Browser Automations\"][data-testid=\"project-card\"]",
+        "selector": "[data-project-name=\"Demo Browser Automations\"]@selector/projectCard",
         "timeoutMs": 20000,
         "waitForMs": 1500
       }
@@ -96,7 +96,7 @@
       },
       "data": {
         "label": "Demo project card exists",
-        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]:where(:not(:root))",
+        "selector": "@selector/projectCard[data-project-name=\"Demo Browser Automations\"]:where(:not(:root))",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Demo Browser Automations project card should be visible on dashboard"
@@ -111,8 +111,8 @@
       },
       "data": {
         "label": "Open demo project",
-        "selector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
-        "waitForSelector": "[data-testid=\"project-card\"][data-project-name=\"Demo Browser Automations\"]",
+        "selector": "@selector/projectCard[data-project-name=\"Demo Browser Automations\"]",
+        "waitForSelector": "@selector/projectCard[data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 10000,
         "waitForMs": 500
       }

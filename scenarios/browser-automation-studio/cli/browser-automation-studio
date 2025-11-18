@@ -114,7 +114,7 @@ WORKFLOW COMMANDS:
         --from-file <file>   Import from JSON file
         --ai-prompt <text>   Generate from natural language
 
-    workflow lint <files...> [--strict] [--json] [--selector-root <path>]
+    workflow lint <files...> [--strict] [--json]
         Validate one or more workflow playbooks via /api/v1/workflows/validate
 
     workflow execute <workflow> [flags]
@@ -631,7 +631,7 @@ list_workflows() {
 
 lint_workflows_cli() {
     if [ $# -eq 0 ]; then
-        echo "Usage: browser-automation-studio workflow lint <files...> [--strict] [--json] [--selector-root <path>]" >&2
+        echo "Usage: browser-automation-studio workflow lint <files...> [--strict] [--json]" >&2
         return 1
     fi
 
@@ -642,7 +642,6 @@ lint_workflows_cli() {
 
     local strict=false
     local json_output=false
-    local selector_root="${WORKFLOW_LINT_SELECTOR_ROOT:-}"
     local -a files=()
 
     while [[ $# -gt 0 ]]; do
@@ -655,12 +654,8 @@ lint_workflows_cli() {
                 json_output=true
                 shift
                 ;;
-            --selector-root)
-                selector_root="$2"
-                shift 2
-                ;;
             -h|--help)
-                echo "Usage: browser-automation-studio workflow lint <files...> [--strict] [--json] [--selector-root <path>]" >&2
+                echo "Usage: browser-automation-studio workflow lint <files...> [--strict] [--json]" >&2
                 return 0
                 ;;
             --)
@@ -701,7 +696,7 @@ lint_workflows_cli() {
         fi
 
         local payload
-        if ! payload=$(jq -cs --argjson strict "$strict_value" --arg selector "$selector_root" '{workflow: .[0], strict: $strict, selector_root: ($selector // "")}' "$file_path" 2>/dev/null); then
+        if ! payload=$(jq -cs --argjson strict "$strict_value" '{workflow: .[0], strict: $strict}' "$file_path" 2>/dev/null); then
             if [ "$json_output" = true ]; then
                 json_results+=("$(jq -n --arg file "$file_path" --arg error "invalid JSON" '{file:$file,error:$error}')")
             else

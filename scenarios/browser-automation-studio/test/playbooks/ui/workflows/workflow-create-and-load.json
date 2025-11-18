@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for dashboard to load",
-        "selector": "[data-testid=\"projects-grid\"]",
+        "selector": "@selector/projectsGrid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -53,7 +53,7 @@
       },
       "data": {
         "label": "Open first project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "selector": "@selector/projectCard:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -82,7 +82,7 @@
       },
       "data": {
         "label": "Click New Workflow button",
-        "selector": "[data-testid=\"new-workflow-button\"], button[aria-label*='workflow'], button[aria-label*='new']",
+        "selector": "@selector/newWorkflowButton, button[aria-label*='workflow'], button[aria-label*='new']",
         "timeoutMs": 10000,
         "waitForMs": 1500
       }
@@ -109,7 +109,7 @@
       },
       "data": {
         "label": "Check if AI modal appeared",
-        "expression": "!!document.querySelector('[role=\"dialog\"], [data-testid*=\"ai\"], [data-testid*=\"modal\"]')",
+        "expression": "!!document.querySelector('@selector/aiPromptModal, @selector/dialogContent, @selector/responsiveDialogOverlay)')",
         "storeAs": "aiModalVisible"
       }
     },
@@ -122,7 +122,7 @@
       },
       "data": {
         "label": "Switch to manual builder",
-        "selector": "[data-testid=\"switch-to-manual-button\"], button[aria-label*='manual'], button[aria-label*='skip']",
+        "selector": "@selector/switchToManualButton, button[aria-label*='manual'], button[aria-label*='skip']",
         "timeoutMs": 5000,
         "waitForMs": 2000,
         "continueOnError": true

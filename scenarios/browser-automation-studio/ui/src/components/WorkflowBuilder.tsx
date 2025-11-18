@@ -65,7 +65,7 @@ import type {
   ExecutionViewportSettings,
   ViewportPreset,
 } from "../stores/workflowStore";
-import { testIds } from "../consts/selectors";
+import { dynamicTestIds, testIds } from "../consts/selectors";
 import { validateWorkflowDefinition } from "../utils/workflowValidation";
 import type {
   WorkflowDefinition,
@@ -1107,7 +1107,7 @@ function ViewportDialog({
                       ? "border-flow-accent bg-flow-accent/20 text-white"
                       : "border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white"
                   }`}
-                  data-testid={`viewport-dialog-preset-${id}-button`}
+                  data-testid={dynamicTestIds.viewportPresetButton(id)}
                 >
                   <span className="font-semibold text-sm">{label}</span>
                   <span className="mt-0.5 text-[11px] text-gray-400">

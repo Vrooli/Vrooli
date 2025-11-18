@@ -51,7 +51,7 @@
       },
       "data": {
         "label": "Open first project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "selector": "@selector/projectCard:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -78,7 +78,7 @@
       },
       "data": {
         "label": "Workflows tab is active by default",
-        "selector": "[data-testid=\"workflows-tab\"][class*=\"active\"], [data-testid=\"workflows-tab\"][aria-selected=\"true\"]",
+        "selector": "@selector/workflowsTab[class*=\"active\"], @selector/workflowsTab[aria-selected=\"true\"]",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Workflows tab should be active by default"
@@ -106,7 +106,7 @@
       },
       "data": {
         "label": "Verify workflow list/grid is visible",
-        "expression": "(() => { const workflows = document.querySelectorAll('[data-testid*=\"workflow\"], .workflow-card, [class*=\"workflow-item\"]'); return workflows.length > 0 || document.querySelector('[data-testid=\"workflow-search-input\"]') !== null; })()",
+        "expression": "(() => { const workflows = document.querySelectorAll('@selector/workflowCard'); return workflows.length > 0 || document.querySelector('@selector/workflowSearchInput') !== null; })()",
         "storeAs": "workflowContentVisible"
       }
     },
@@ -119,7 +119,7 @@
       },
       "data": {
         "label": "Click Executions tab",
-        "selector": "[data-testid=\"executions-tab\"]",
+        "selector": "@selector/executionsTab",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }
@@ -146,7 +146,7 @@
       },
       "data": {
         "label": "Executions tab is now active",
-        "selector": "[data-testid=\"executions-tab\"][class*=\"active\"], [data-testid=\"executions-tab\"][aria-selected=\"true\"]",
+        "selector": "@selector/executionsTab[class*=\"active\"], @selector/executionsTab[aria-selected=\"true\"]",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Executions tab should become active after clicking"
@@ -161,7 +161,7 @@
       },
       "data": {
         "label": "Workflows tab is now inactive",
-        "selector": "[data-testid=\"workflows-tab\"][aria-selected=\"true\"]",
+        "selector": "@selector/workflowsTab[aria-selected=\"true\"]",
         "assertMode": "not_exists",
         "timeoutMs": 3000,
         "failureMessage": "Workflows tab should be inactive when executions tab is active"
@@ -189,7 +189,7 @@
       },
       "data": {
         "label": "Verify execution history content is visible",
-        "expression": "(() => { return document.querySelector('[data-testid=\"execution-history\"], [data-testid=\"execution-filter-all\"], [data-testid=\"execution-history-refresh\"]') !== null; })()",
+        "expression": "(() => { return document.querySelector('@selector/executionHistory, @selector/executionFilterAll, @selector/executionHistoryRefresh') !== null; })()",
         "storeAs": "executionContentVisible"
       }
     },
@@ -202,7 +202,7 @@
       },
       "data": {
         "label": "Switch back to Workflows tab",
-        "selector": "[data-testid=\"workflows-tab\"]",
+        "selector": "@selector/workflowsTab",
         "timeoutMs": 5000,
         "waitForMs": 1500
       }
@@ -229,7 +229,7 @@
       },
       "data": {
         "label": "Workflows tab is active again",
-        "selector": "[data-testid=\"workflows-tab\"][class*=\"active\"], [data-testid=\"workflows-tab\"][aria-selected=\"true\"] /*dup-1*/",
+        "selector": "@selector/workflowsTab[class*=\"active\"], @selector/workflowsTab[aria-selected=\"true\"] /*dup-1*/",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Workflows tab should be active again after switching back"

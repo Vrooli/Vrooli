@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Wait for projects to load",
-        "selector": "[data-testid=\"projects-grid\"]",
+        "selector": "@selector/projectsGrid",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -67,9 +67,9 @@
       },
       "data": {
         "label": "Click New Project button",
-        "selector": "[data-testid=\"dashboard-new-project-button\"]",
+        "selector": "@selector/dashboardNewProjectButton",
         "timeoutMs": 15000,
-        "waitForSelector": "[data-testid=\"dashboard-new-project-button\"]",
+        "waitForSelector": "@selector/dashboardNewProjectButton",
         "waitForMs": 1500
       }
     },
@@ -82,7 +82,7 @@
       },
       "data": {
         "label": "Project modal appears",
-        "selector": "[data-testid=\"project-modal\"]",
+        "selector": "@selector/projectModal",
         "assertMode": "exists",
         "timeoutMs": 12000,
         "failureMessage": "Project modal should be visible after clicking the New Project button"

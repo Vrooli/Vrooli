@@ -38,7 +38,7 @@
       },
       "data": {
         "label": "Open project",
-        "selector": "[data-testid=\"project-card\"]:first-of-type",
+        "selector": "@selector/projectCard:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
       }
@@ -52,7 +52,7 @@
       },
       "data": {
         "label": "Wait for workflows to load",
-        "selector": "[data-testid=\"workflow-card\"]",
+        "selector": "@selector/workflowCard",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -67,7 +67,7 @@
       },
       "data": {
         "label": "Open workflow",
-        "selector": "[data-testid=\"workflow-card\"]:first-of-type",
+        "selector": "@selector/workflowCard:first-of-type",
         "timeoutMs": 10000,
         "waitForMs": 2000
       }
@@ -94,7 +94,7 @@
       },
       "data": {
         "label": "Save status visible",
-        "selector": "[data-testid=\"header-save-status-indicator\"]",
+        "selector": "@selector/headerSaveStatusIndicator",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Save status indicator should be visible"
@@ -122,7 +122,7 @@
       },
       "data": {
         "label": "Click navigate node",
-        "selector": "[data-testid=\"node-palette-navigate-card\"]",
+        "selector": "@selector/nodePaletteNavigateCard",
         "timeoutMs": 5000,
         "waitForMs": 500
       }
@@ -163,7 +163,7 @@
       },
       "data": {
         "label": "Check for saved indicator",
-        "expression": "(() => { const status = document.querySelector('[data-testid=\"header-save-status-indicator\"]'); return status ? status.textContent || status.innerHTML : ''; })()",
+        "expression": "(() => { const status = document.querySelector('@selector/headerSaveStatusIndicator'); return status ? status.textContent || status.innerHTML : ''; })()",
         "storeAs": "saveStatus"
       }
     },
