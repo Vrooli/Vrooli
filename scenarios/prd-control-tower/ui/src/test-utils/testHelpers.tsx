@@ -40,7 +40,7 @@ export function createMockTarget(overrides?: Partial<OperationalTarget>): Operat
     title: 'Test operational target',
     notes: 'Test notes',
     status: 'pending',
-    path: 'Functional Requirements > Must Have',
+    path: 'Operational Targets > P0 > OT-P0-001',
     linked_requirement_ids: [],
     ...overrides,
   }

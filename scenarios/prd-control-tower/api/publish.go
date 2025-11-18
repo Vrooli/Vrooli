@@ -313,7 +313,7 @@ func sortedTemplateKeys(vars map[string]templateVarDefinition) []string {
 // validateOperationalTargetsLinkage checks if P0/P1 operational targets have linkages to requirements
 func validateOperationalTargetsLinkage(entityType, entityName, content string) error {
 	// Get operational targets from draft content
-	targets := parseOperationalTargetsV2(content, entityType, entityName)
+	targets := parseOperationalTargets(content, entityType, entityName)
 	if len(targets) == 0 {
 		// No targets to validate
 		return nil

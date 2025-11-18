@@ -32,36 +32,34 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 5. All files now live at `{{PROJECT_PATH}}/scenarios/{{TARGET}}/`; run the rest of the steps from that directory.
 
 ## PRD Structure (Operational Targets Document)
-Capture **what outcomes** we expect, not implementation details. Recommended outline:
+Capture **what outcomes** we expect – no implementation notes. Follow this canonical layout (emojis included):
 ```
-# Overview
-  - Purpose, target users/verticals, intended usage, deployment surfaces
-  - Value proposition (qualitative impact, not revenue numbers)
+# Product Requirements Document (PRD)
+  > Metadata block from template (version, canonical reference)
 
-# Operational Targets
-  ## P0 – Must ship for viability
-    - OT-ID: Title — narrative description of the outcome
-      - Success signals / acceptance hints
-      - Dependencies (resources/scenarios)
-      - Linked technical requirement IDs
-  ## P1 – Should have post-launch
-  ## P2 – Future / expansion ideas
+## 🎯 Overview
+  - Purpose, target users/verticals, deployment surfaces
+  - Value proposition in plain language
 
-# Experience & Interfaces
-  - Primary workflows / personas
-  - Planned surfaces (UI screens, API endpoints, background jobs)
-  - Access patterns (iframe, standalone portal, automation hooks)
+## 🎯 Operational Targets
+### 🔴 P0 – Must ship for viability
+  - [ ] OT-P0-001 | Title | One-line description of the outcome
+### 🟠 P1 – Should have post-launch
+  - [ ] OT-P1-001 | …
+### 🟢 P2 – Future / expansion ideas
+  - [ ] OT-P2-001 | …
+(Keep each checklist item to a single line. Do not embed dependencies or requirement IDs.)
 
-# Tech Direction Snapshot
-  - Preferred stacks (UI defaults to React/TS/Vite/shadcn/lucide; note API/storage choices)
-  - Integration strategy with other scenarios/resources
-  - Non-goals / out-of-scope statements
+## 🧱 Tech Direction Snapshot
+  - Preferred stacks, storage expectations, integration strategy, non-goals
 
-# Dependencies & Launch Plan
-  - Required resources + scenario dependencies
-  - Operational risks / open questions
+## 🤝 Dependencies & Launch Plan
+  - Required resources, scenario dependencies, operational risks, launch sequencing
+
+## 🎨 UX & Branding
+  - Describe the desired look, feel, accessibility bar, and brand tone
 ```
-Each operational target must name its technical requirement IDs so improvers know what to implement.
+After generation the PRD becomes read-only (checkboxes may flip automatically based on requirement sync).
 
 ### Operational Target Tiers
 - **P0**: Without this outcome the scenario fails (core capability).

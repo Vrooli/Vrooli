@@ -367,7 +367,7 @@ See [ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md) for comprehensive archi
 
 ### 🚀 **Deployment Documentation** (`/docs/deployment/`)
 - **[Deployment Hub](deployment/README.md)** - Tiered deployment vision + roadmap
-- **[Tier 1 Direct Scenario Deployment](scenarios/DEPLOYMENT.md)** - Run scenarios on the full Vrooli stack
+- **[Tier 1 · Local / Developer Stack](deployment/tiers/tier-1-local-dev.md)** - How we access every scenario today via app-monitor + Cloudflare
 - **[Legacy References](deployment/history/)** - Archived Kubernetes/Vault packaging docs
 
 ### 🛠️ **DevOps Documentation** (`/docs/devops/`)

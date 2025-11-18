@@ -18,13 +18,13 @@ func TestExtractOperationalTargets(t *testing.T) {
 
 	prdContent := `# PRD
 
-### Functional Requirements
-- **Must Have (P0)**
-  - [ ] Implement user authentication
-  - [x] Add data persistence
+## 🎯 Operational Targets
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Implement user authentication | Handles login flows
+- [x] OT-P0-002 | Add data persistence | Stores workspace state
 
-- **Should Have (P1)**
-  - [ ] Email notifications
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | Email notifications | Notify users on status changes
 `
 
 	prdPath := filepath.Join(scenarioDir, "PRD.md")
@@ -94,11 +94,11 @@ func TestParseCategoryLabel(t *testing.T) {
 	}
 }
 
-func TestSplitTargetLine(t *testing.T) {
+func TestSplitLegacyTargetLine(t *testing.T) {
 	tests := []struct {
-		input      string
-		wantTitle  string
-		wantNotes  string
+		input     string
+		wantTitle string
+		wantNotes string
 	}{
 		{"- [ ] Implement feature", "Implement feature", ""},
 		{"- [ ] Task with notes _(P0)_", "Task with notes", "P0"},
@@ -109,12 +109,12 @@ func TestSplitTargetLine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			gotTitle, gotNotes := splitTargetLine(tt.input)
+			gotTitle, gotNotes := splitLegacyTargetLine(tt.input)
 			if gotTitle != tt.wantTitle {
-				t.Errorf("splitTargetLine(%q) title = %q, want %q", tt.input, gotTitle, tt.wantTitle)
+				t.Errorf("splitLegacyTargetLine(%q) title = %q, want %q", tt.input, gotTitle, tt.wantTitle)
 			}
 			if gotNotes != tt.wantNotes {
-				t.Errorf("splitTargetLine(%q) notes = %q, want %q", tt.input, gotNotes, tt.wantNotes)
+				t.Errorf("splitLegacyTargetLine(%q) notes = %q, want %q", tt.input, gotNotes, tt.wantNotes)
 			}
 		})
 	}
@@ -279,6 +279,11 @@ func TestLinkTargetsAndRequirements(t *testing.T) {
 					ID:     "REQ-002",
 					Title:  "User can sign up",
 					PRDRef: "Functional Requirements > Authentication > Sign up",
+				},
+				{
+					ID:     "REQ-003",
+					Title:  "Modern target link",
+					PRDRef: "Operational Targets > P0 > target-auth-login",
 				},
 			},
 		},
@@ -457,6 +462,21 @@ func TestParseOperationalTargetsEdgeCases(t *testing.T) {
 		wantCount int
 	}{
 		{
+			name: "modern layout",
+			content: `## 🎯 Operational Targets
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Feature A | Notes
+- [x] OT-P0-002 | Feature B | Notes
+
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | Feature C | Notes
+
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Feature D | Notes
+`,
+			wantCount: 4,
+		},
+		{
 			name: "multiple categories",
 			content: `### Functional Requirements
 - **Must Have (P0)**
@@ -573,3 +593,31 @@ func TestParseOperationalTargetsMetadata(t *testing.T) {
 	}
 }
 
+func TestParseModernOperationalTargetsMetadata(t *testing.T) {
+	content := "## 🎯 Operational Targets\n" +
+		"### 🔴 P0 – Must ship for viability\n" +
+		"- [x] OT-P0-001 | Completed feature | shipped\n" +
+		"- [ ] OT-P0-002 | Pending feature | with notes `[req:REQ-1,REQ-2]`\n"
+
+	targets := parseOperationalTargets(content, "scenario", "another")
+
+	if len(targets) != 2 {
+		t.Fatalf("expected 2 targets, got %d", len(targets))
+	}
+
+	if targets[0].ID != "OT-P0-001" {
+		t.Errorf("expected first target ID OT-P0-001, got %s", targets[0].ID)
+	}
+	if targets[0].Path != "Operational Targets > P0 > OT-P0-001" {
+		t.Errorf("unexpected path: %s", targets[0].Path)
+	}
+	if targets[0].Status != "complete" {
+		t.Errorf("expected status complete, got %s", targets[0].Status)
+	}
+	if targets[1].Notes != "with notes" {
+		t.Errorf("expected notes \"with notes\", got %s", targets[1].Notes)
+	}
+	if len(targets[1].LinkedRequirements) != 2 {
+		t.Fatalf("expected explicit requirement links, got %#v", targets[1].LinkedRequirements)
+	}
+}

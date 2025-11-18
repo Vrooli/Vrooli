@@ -32,7 +32,7 @@ interface OperationalTargetsEditorProps {
  * OperationalTargetsEditor
  *
  * Allows editing operational targets directly in a draft, including:
- * - Viewing all targets from Functional Requirements section
+ * - Viewing all targets from the Operational Targets section
  * - Editing title, notes, status
  * - Linking targets to requirements from requirements/ folder
  * - Validating that P0/P1 targets have linkages
@@ -253,7 +253,7 @@ export function OperationalTargetsEditor({
         <CardContent className="space-y-3">
           {targets.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No operational targets found in Functional Requirements section.
+              No operational targets found in the Operational Targets section.
             </p>
           ) : (
             targets.map(target => (

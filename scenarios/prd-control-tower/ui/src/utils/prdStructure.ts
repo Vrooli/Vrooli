@@ -2,38 +2,16 @@
 // This validation focuses on CORE required sections while making subsections optional/recommended
 
 const REQUIRED_SECTIONS = [
-  // Document structure
   { token: '# Product Requirements Document (PRD)', label: 'Document title', criticality: 'required' },
-
-  // Core sections (required)
-  { token: '## 🎯 Capability Definition', label: 'Capability Definition section', criticality: 'required' },
-  { token: '## 📊 Success Metrics', label: 'Success Metrics section', criticality: 'required' },
-  { token: '## 🏗️ Technical Architecture', label: 'Technical Architecture section', criticality: 'required' },
-  { token: '## 🖥️ CLI Interface Contract', label: 'CLI Interface Contract section', criticality: 'required' },
-  { token: '## 🔄 Integration Requirements', label: 'Integration Requirements section', criticality: 'required' },
-  { token: '## 💰 Value Proposition', label: 'Value Proposition section', criticality: 'required' },
-  { token: '## 🧬 Evolution Path', label: 'Evolution Path section', criticality: 'required' },
-  { token: '## 🔄 Scenario Lifecycle Integration', label: 'Scenario Lifecycle Integration section', criticality: 'required' },
-  { token: '## 🚨 Risk Mitigation', label: 'Risk Mitigation section', criticality: 'required' },
-  { token: '## ✅ Validation Criteria', label: 'Validation Criteria section', criticality: 'required' },
-  { token: '## 📝 Implementation Notes', label: 'Implementation Notes section', criticality: 'required' },
-  { token: '## 🔗 References', label: 'References section', criticality: 'required' },
-
-  // Important subsections (recommended but not required)
-  { token: '### Core Capability', label: 'Core Capability subsection', criticality: 'recommended' },
-  { token: '### Intelligence Amplification', label: 'Intelligence Amplification subsection', criticality: 'recommended' },
-  { token: '### Recursive Value', label: 'Recursive Value subsection', criticality: 'recommended' },
-  { token: '### Functional Requirements', label: 'Functional Requirements subsection', criticality: 'recommended' },
-  { token: '- **Must Have (P0)**', label: 'P0 requirements checklist', criticality: 'recommended' },
-  { token: '### Performance Criteria', label: 'Performance Criteria subsection', criticality: 'recommended' },
-  { token: '### Quality Gates', label: 'Quality Gates subsection', criticality: 'recommended' },
-  { token: '### Resource Dependencies', label: 'Resource Dependencies subsection', criticality: 'recommended' },
-  { token: '### Command Structure', label: 'CLI Command Structure subsection', criticality: 'recommended' },
-  { token: '### Business Value', label: 'Business Value subsection', criticality: 'recommended' },
-  { token: '### Version 1.0 (Current)', label: 'Version 1.0 subsection', criticality: 'recommended' },
-  { token: '### Technical Risks', label: 'Technical Risks subsection', criticality: 'recommended' },
-  { token: '### Design Decisions', label: 'Design Decisions subsection', criticality: 'recommended' },
-  { token: '### Documentation', label: 'Documentation references subsection', criticality: 'recommended' },
+  { token: '## 🎯 Overview', label: 'Overview section', criticality: 'required' },
+  { token: '## 🎯 Operational Targets', label: 'Operational Targets section', criticality: 'required' },
+  { token: '### 🔴 P0 – Must ship for viability', label: 'P0 checklist', criticality: 'required' },
+  { token: '### 🟠 P1 – Should have post-launch', label: 'P1 checklist', criticality: 'required' },
+  { token: '### 🟢 P2 – Future / expansion', label: 'P2 checklist', criticality: 'required' },
+  { token: '## 🧱 Tech Direction Snapshot', label: 'Tech Direction section', criticality: 'required' },
+  { token: '## 🤝 Dependencies & Launch Plan', label: 'Dependencies & Launch Plan section', criticality: 'required' },
+  { token: '## 🎨 UX & Branding', label: 'UX & Branding section', criticality: 'required' },
+  { token: '## 📎 Appendix', label: 'Appendix (optional)', criticality: 'recommended' },
 ] as const
 
 export interface SectionStatus {

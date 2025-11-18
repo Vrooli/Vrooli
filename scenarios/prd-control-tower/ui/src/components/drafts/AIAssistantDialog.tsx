@@ -7,13 +7,12 @@ import { DiffViewer } from './DiffViewer'
 import type { AIAction } from '../../hooks/useAIAssistant'
 
 const DEFAULT_SECTIONS = [
-  'Executive Summary',
-  'Functional Requirements',
-  'Performance Criteria',
-  'Quality Gates',
-  'Technical Architecture',
-  'Resource Dependencies',
-  'CLI Interface Contract',
+  '🎯 Overview',
+  '🎯 Operational Targets',
+  '🧱 Tech Direction Snapshot',
+  '🤝 Dependencies & Launch Plan',
+  '🎨 UX & Branding',
+  '📎 Appendix',
 ]
 
 interface AIAssistantDialogProps {

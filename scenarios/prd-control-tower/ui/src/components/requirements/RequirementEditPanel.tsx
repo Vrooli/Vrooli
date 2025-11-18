@@ -163,7 +163,7 @@ export function RequirementEditPanel({
             id="edit-prd-ref"
             value={formData.prd_ref}
             onChange={(e) => setFormData({ ...formData, prd_ref: e.target.value })}
-            placeholder="Functional Requirements > Must Have > ..."
+            placeholder="Operational Targets > P0 > OT-P0-001"
           />
           <p className="text-xs text-muted-foreground">
             Reference to the PRD section this requirement validates

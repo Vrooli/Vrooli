@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -14,10 +15,10 @@ type UpdateTargetsRequest struct {
 
 // OperationalTargetUpdate represents a target with editable fields
 type OperationalTargetUpdate struct {
-	ID                 string   `json:"id"`                   // Target ID for matching
-	Title              string   `json:"title"`                // Editable title
-	Notes              string   `json:"notes"`                // Editable notes
-	Status             string   `json:"status"`               // complete | pending
+	ID                 string   `json:"id"`                     // Target ID for matching
+	Title              string   `json:"title"`                  // Editable title
+	Notes              string   `json:"notes"`                  // Editable notes
+	Status             string   `json:"status"`                 // complete | pending
 	LinkedRequirements []string `json:"linked_requirement_ids"` // Explicit linkages
 }
 
@@ -60,7 +61,7 @@ func handleUpdateDraftTargets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse current operational targets from draft content
-	currentTargets := parseOperationalTargetsV2(draft.Content, draft.EntityType, draft.EntityName)
+	currentTargets := parseOperationalTargets(draft.Content, draft.EntityType, draft.EntityName)
 
 	// Build update map for efficient lookup
 	updateMap := make(map[string]OperationalTargetUpdate)
@@ -92,16 +93,25 @@ func handleUpdateDraftTargets(w http.ResponseWriter, r *http.Request) {
 		}
 		if !found {
 			// New target - create with defaults
+			criticality := "P0"
+			title := update.Title
+			if title == "" {
+				title = "Target"
+			}
+			pathID := update.ID
+			if pathID == "" {
+				pathID = title
+			}
 			updatedTargets = append(updatedTargets, OperationalTarget{
 				ID:                 update.ID,
 				EntityType:         draft.EntityType,
 				EntityName:         draft.EntityName,
-				Category:           "Must Have", // Default category
-				Criticality:        "P0",        // Default criticality
-				Title:              update.Title,
+				Category:           criticality,
+				Criticality:        criticality,
+				Title:              title,
 				Notes:              update.Notes,
 				Status:             update.Status,
-				Path:               "Functional Requirements > Must Have > " + update.Title,
+				Path:               fmt.Sprintf("Operational Targets > %s > %s", criticality, pathID),
 				LinkedRequirements: update.LinkedRequirements,
 			})
 		}
@@ -154,8 +164,8 @@ func handleGetDraftTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse operational targets with v2 parser (supports explicit linkages)
-	targets := parseOperationalTargetsV2(draft.Content, draft.EntityType, draft.EntityName)
+	// Parse operational targets (supports explicit linkages)
+	targets := parseOperationalTargets(draft.Content, draft.EntityType, draft.EntityName)
 
 	response := struct {
 		DraftID    string              `json:"draft_id"`

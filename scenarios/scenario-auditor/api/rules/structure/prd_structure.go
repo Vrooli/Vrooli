@@ -270,8 +270,14 @@ func CheckScenarioPRDStructure(content string, filePath string, _ string) ([]rul
 		}
 	}
 
+	useNewStructure := strings.Contains(strings.ToLower(content), "🎯 overview") || strings.Contains(strings.ToLower(content), "🎯 operational targets")
+	requiredHeadings := legacyScenarioPRDHeadings
+	if useNewStructure {
+		requiredHeadings = newScenarioPRDHeadings
+	}
+
 	var violations []rules.Violation
-	for _, requirement := range requiredScenarioPRDHeadings {
+	for _, requirement := range requiredHeadings {
 		if !headingExists(requirement.keys, headingLines) {
 			message := fmt.Sprintf("PRD.md must include the section heading '%s'", requirement.display)
 			violations = append(violations, newPRDStructureViolation(path, 1, message))
@@ -354,7 +360,21 @@ func newPRDStructureViolation(path string, line int, message string) rules.Viola
 	}
 }
 
-var requiredScenarioPRDHeadings = []struct {
+var newScenarioPRDHeadings = []struct {
+	display string
+	keys    []string
+}{
+	{display: "## 🎯 Overview", keys: []string{"🎯 overview", "overview"}},
+	{display: "## 🎯 Operational Targets", keys: []string{"🎯 operational targets", "operational targets"}},
+	{display: "### 🔴 P0 – Must ship for viability", keys: []string{"🔴 p0 – must ship for viability", "p0 – must ship for viability"}},
+	{display: "### 🟠 P1 – Should have post-launch", keys: []string{"🟠 p1 – should have post-launch", "p1 – should have post-launch"}},
+	{display: "### 🟢 P2 – Future / expansion", keys: []string{"🟢 p2 – future / expansion", "p2 – future / expansion"}},
+	{display: "## 🧱 Tech Direction Snapshot", keys: []string{"🧱 tech direction snapshot", "tech direction snapshot"}},
+	{display: "## 🤝 Dependencies & Launch Plan", keys: []string{"🤝 dependencies & launch plan", "dependencies & launch plan"}},
+	{display: "## 🎨 UX & Branding", keys: []string{"🎨 ux & branding", "ux & branding"}},
+}
+
+var legacyScenarioPRDHeadings = []struct {
 	display string
 	keys    []string
 }{

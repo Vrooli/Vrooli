@@ -11,85 +11,99 @@ import type { CatalogResponse, QualitySummary } from '../types'
 
 const TEMPLATE_SECTIONS = [
   {
-    title: 'Capability Narrative',
-    subtitle: '### Capability Narrative',
+    title: 'Overview',
+    subtitle: '## 🎯 Overview',
     description:
-      'Explain the permanent ability this scenario adds to Vrooli and how it compounds the rest of the ecosystem. This section sets context for why the work matters.',
+      'Set the context: what permanent capability are we adding, who benefits, and where does it run (CLI/API/UI/automation). Keep it non-technical.',
   },
   {
-    title: 'Why Now & Stakeholders',
-    subtitle: '### Why Now + ### Stakeholders',
+    title: 'Operational Targets',
+    subtitle: '## 🎯 Operational Targets',
     description:
-      'Spell out urgency, decision makers, and the personas impacted. These anchors drive prioritization and downstream validation.',
+      'Define P0/P1/P2 outcomes as single-line checklists. IDs stay stable forever; requirements link to these via `prd_ref`.',
   },
   {
-    title: 'User Journeys & Requirements',
-    subtitle: '### User Journeys + ### Requirements',
+    title: 'Tech Direction Snapshot',
+    subtitle: '## 🧱 Tech Direction Snapshot',
     description:
-      'Each checklist item becomes an operational target. Use requirement IDs so registries and tests can link back to the PRD with `prd_ref`.',
+      'Document preferred stacks, storage expectations, and non-goals without dropping into implementation detail.',
   },
   {
-    title: 'Launch Plan & Status',
-    subtitle: '### Launch Plan + ### Status',
+    title: 'Dependencies & Launch Plan',
+    subtitle: '## 🤝 Dependencies & Launch Plan',
     description:
-      'Map every milestone, attach owners, and keep the status marker accurate so the control tower reflects true delivery readiness.',
+      'List required resources, upstream scenarios, risks, and launch sequencing so ops knows how to deploy the capability.',
+  },
+  {
+    title: 'UX & Branding',
+    subtitle: '## 🎨 UX & Branding',
+    description:
+      'Describe intended look/feel, accessibility bar, and product voice so designers know what “done” looks like.',
   },
 ]
 
 const PRD_EXAMPLES: Record<'skeleton' | 'full', string> = {
   skeleton: `# Scenario Name
 
-## Capability Narrative
-## Why Now
-## Stakeholders
-## User Journeys
-## Requirements
-- [ ] PRD-001 | Requirement name
+## 🎯 Overview
+- **Purpose**: Describe the permanent capability
+- **Users**: Operators, admins
+- **Surfaces**: CLI, API, UI
 
-## Operational Targets
-- Target 1 (P0)
+## 🎯 Operational Targets
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Outcome title | One-line description
 
-## Launch Plan
-## Status
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | Outcome title | One-line description
+
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Outcome title | One-line description
+
+## 🧱 Tech Direction Snapshot
+- Preferred stacks, storage, integration strategy, non-goals
+
+## 🤝 Dependencies & Launch Plan
+- Required resources, scenario dependencies, risks, sequencing
+
+## 🎨 UX & Branding
+- Look/feel, accessibility, voice, branding hooks
 `,
   full: `# PRD Control Tower
 
-## Capability Narrative
-The PRD Control Tower gives Vrooli a permanent capability to inventory every scenario and resource, understand whether each one has a compliant PRD, and spin up a draft workspace the moment a gap is detected. It blends catalog intelligence, draft orchestration, and AI-assisted editing so documentation never lags behind product changes. Every improvement compounds: as soon as one scenario tightens its PRD, the validation rules become stricter for everyone else.
+## 🎯 Overview
+- **Purpose**: Keep every scenario/resource stocked with a compliant, machine-readable PRD and surface drift instantly.
+- **Users**: Product ops, scenario maintainers, ecosystem-manager agents.
+- **Surfaces**: React UI (draft workspace + catalog), Go API, Bash CLI, automation hooks.
 
-## Why Now
-- **Volume pressure**: Dozens of new scenarios are added weekly, overwhelming manual PRD reviews and leaving requirements untracked.
-- **Quality drift**: Existing PRDs were authored before the requirements/ folder conventions, so structural debt is spreading.
-- **Operational dependency**: Meta-scenarios such as ecosystem-manager and app-monitor require trustworthy PRD references to make automated decisions.
+## 🎯 Operational Targets
+### 🔴 P0 – Must ship for viability
+- [x] OT-P0-001 | Catalog coverage analytics | Track total entities, PRD coverage, draft backlog in real time.
+- [ ] OT-P0-002 | Draft validation autopilot | Run template + requirements checks in < 8s for 95th percentile drafts.
 
-## Stakeholders
-- **Product Operations** — owns the catalog, enforces the template, and reports coverage to leadership.
-- **Scenario Maintainers** — keep their scenario’s PRD healthy and rely on diagnostics to know what to fix.
-- **Ecosystem Manager Crew** — needs machine-readable PRDs to seed new automation tasks.
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | Diff-aware publish workflow | Human confirms rendered diff before PRD.md is replaced.
 
-## User Journeys
-1. Product ops opens the catalog, filters for "Missing PRD", and generates a draft shell for \`scenarios/prompt-manager\`.
-2. A maintainer receives a diagnostics alert from the Scenario Control Center, opens the draft editor, and fixes template violations inline.
-3. The maintainer publishes the draft which updates \`scenarios/prompt-manager/PRD.md\`, clears the draft, and refreshes operational target linkage reports.
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Tenant-specific PRD templates | Org-level overrides that stay machine-readable.
 
-## Requirements
-- [x] PRD-001 | Catalog coverage analytics — surfaces counts, filters, and quick actions for \`/requirements/catalog/coverage.md\`.
-- [x] PRD-002 | Draft workspace with AI assist — ties into \`/requirements/drafts/workspace.md\` with autosave + validation hooks.
-- [x] PRD-003 | Scenario Control Center — renders requirements + targets data from \`/requirements/requirements/command-center.md\`.
-- [ ] PRD-004 | Diff-aware publish review — block publish unless reviewer confirms the rendered diff.
+## 🧱 Tech Direction Snapshot
+- Preferred stacks: Go (API), React/TypeScript (UI), Bun/Vite tooling, Postgres for catalog metadata.
+- Data/storage: filesystem for drafts, Postgres for metadata, qdrant optional for semantic search.
+- Integration: reuse scenario-auditor for validation, ecosystem-manager for generation tasks, resource-openrouter for AI assists.
+- Non-goals: editing downstream requirements, generating business logic, or bypassing lifecycle commands.
 
-## Operational Targets
-- 95% of tracked entities have a published PRD (P0) | Metric: \`with_prd / total\` | Linked requirements: PRD-001, PRD-003.
-- Draft validation completes in < 8s for 95th percentile (P1) | Metric: auditor duration histogram | Linked requirements: PRD-002.
-- Every P0/P1 operational target references at least one requirement before publish (P0) | Metric: linkage checker | Linked requirements: PRD-003, PRD-004.
+## 🤝 Dependencies & Launch Plan
+- Required resources: postgres, scenario-auditor, resource-openrouter (optional AI), filesystem storage.
+- Scenario dependencies: ecosystem-manager (task dispatch), app-monitor (status ingest).
+- Risks: stale legacy PRDs, draft noise, AI hallucinations.
+- Launch sequencing: (1) bootstrap catalog scan, (2) ship draft workspace GA, (3) enable publish guardrails, (4) migrate legacy PRDs.
 
-## Launch Plan
-1. **Catalog health pulse** — Owner: Product Ops — Target: 2025-02-15 — Status: Done — shipped with live coverage stats.
-2. **Draft workspace GA** — Owner: Scenario Eng — Target: 2025-02-28 — Status: Done — autosave + AI shipped.
-3. **Diagnostics + publish guardrails** — Owner: Platform — Target: 2025-03-14 — Status: In progress — HTTP diagnostics live; diff review pending.
-
-## Status
-**Green**, because catalog coverage is 82% and diagnostics now auto-link targets. Remaining work: finish diff-based publish approval and run the migration to normalize legacy PRDs so template validation stops flagging historical debt.
+## 🎨 UX & Branding
+- Look & feel: bright, card-based workspace mirroring core Vrooli brand (violet/orange palette, rounded corners, generous whitespace).
+- Accessibility: keyboard-first editing, WCAG AA contrast for chips, screen-reader friendly descriptions for validation states.
+- Voice: confident operations voice with short, actionable copy (“Fix 3 missing sections”).
+- Branding hooks: sparkles + control tower iconography to reinforce guidance narrative.
 `,
 }
 
@@ -102,7 +116,7 @@ const WORKFLOW_STEPS = [
   {
     title: 'Draft & lock targets',
     description:
-      'Use the draft workspace, AI helpers, and validation panels to build the PRD spine and define operational targets plus requirement IDs.',
+      'Use the draft workspace, AI helpers, and validation panels to build the PRD spine, lock operational targets, then seed `requirements/` with matching entries.',
   },
   {
     title: 'Publish & scaffold scenario',
@@ -326,7 +340,7 @@ export default function Orientation() {
               <FileText size={20} /> Canonical PRD spine
             </CardTitle>
             <CardDescription>
-              These sections come directly from <code>docs/prd-template-spec.md</code> and are enforced by scenario-auditor.
+              These sections come directly from <code>scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md</code> and are enforced by scenario-auditor.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -391,7 +405,7 @@ export default function Orientation() {
               </div>
             ))}
             <div className="rounded-2xl border border-dashed bg-slate-50 p-4 text-sm text-slate-600">
-              🔗 Need deep dives? See <a className="text-primary underline" href="https://github.com/vrooli/Vrooli/blob/main/docs/prd-template-spec.md" target="_blank" rel="noreferrer">PRD Template Specification</a> and <a className="text-primary underline" href="https://github.com/vrooli/Vrooli/blob/main/docs/testing/architecture/REQUIREMENT_FLOW.md" target="_blank" rel="noreferrer">Requirement Flow</a>.
+              🔗 Need deep dives? See <a className="text-primary underline" href="https://github.com/vrooli/Vrooli/blob/main/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md" target="_blank" rel="noreferrer">Canonical PRD Template</a> and <a className="text-primary underline" href="https://github.com/vrooli/Vrooli/blob/main/docs/testing/architecture/REQUIREMENT_FLOW.md" target="_blank" rel="noreferrer">Requirement Flow</a>.
             </div>
             <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900">
               Close the loop by running the <Link to="/quality-scanner" className="font-semibold underline">Quality Scanner</Link> after each publish. It flags template drift, missing targets, and stale `prd_ref` links within seconds.
