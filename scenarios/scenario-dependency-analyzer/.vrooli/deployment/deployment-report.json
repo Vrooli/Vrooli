@@ -1,0 +1,674 @@
+{
+  "scenario": "scenario-dependency-analyzer",
+  "report_version": 1,
+  "generated_at": "2025-11-16T19:40:57.566332142Z",
+  "dependencies": [
+    {
+      "name": "claude-code",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "minio",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "n8n",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "ollama",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "postgres",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "qdrant",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "redis",
+      "type": "resource",
+      "source": "declared"
+    },
+    {
+      "name": "app-issue-tracker",
+      "type": "scenario",
+      "path": "../../app-issue-tracker",
+      "source": "declared",
+      "children": [
+        {
+          "name": "claude-code",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "codex",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "minio",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "ollama",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "postgres",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "qdrant",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "redis",
+          "type": "resource",
+          "source": "declared"
+        }
+      ]
+    },
+    {
+      "name": "browser-automation-studio",
+      "type": "scenario",
+      "path": "../../browser-automation-studio",
+      "requirements": {
+        "ram_mb": 8192,
+        "disk_mb": 12288,
+        "cpu_cores": 4,
+        "gpu": false,
+        "network": "required",
+        "storage_mb_per_user": 200,
+        "startup_time_ms": 45000,
+        "bucket": "large",
+        "source": "estimated",
+        "confidence": "medium"
+      },
+      "tier_support": {
+        "tier-1-local": {
+          "supported": true,
+          "fitness_score": 0.85,
+          "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel.",
+          "requirements": {
+            "ram_mb": 8192,
+            "disk_mb": 12288,
+            "cpu_cores": 4,
+            "network": "required",
+            "bucket": "large",
+            "source": "estimated",
+            "confidence": "medium"
+          }
+        },
+        "tier-2-desktop": {
+          "supported": false,
+          "fitness_score": 0.35,
+          "notes": "scenario-to-desktop currently ships a thin client only; full bundling blocked until swaps are executed.",
+          "requirements": {
+            "ram_mb": 6144,
+            "disk_mb": 8192,
+            "cpu_cores": 4,
+            "network": "optional",
+            "bucket": "large",
+            "source": "estimated",
+            "confidence": "low"
+          }
+        },
+        "tier-3-mobile": {
+          "supported": false,
+          "fitness_score": 0.1,
+          "notes": "Needs entirely different orchestration model"
+        },
+        "tier-4-saas": {
+          "supported": false,
+          "fitness_score": 0.6,
+          "notes": "Viable once deployment-manager can provision Browserless pools and managed storage",
+          "requirements": {
+            "ram_mb": 10240,
+            "disk_mb": 16384,
+            "cpu_cores": 6,
+            "network": "required",
+            "bucket": "large",
+            "source": "estimated",
+            "confidence": "low"
+          }
+        },
+        "tier-5-enterprise": {
+          "supported": false,
+          "fitness_score": 0.55,
+          "notes": "Follows SaaS path but with hardened secrets + monitoring"
+        }
+      },
+      "alternatives": [
+        "filesystem-store",
+        "playwright-packaged",
+        "sqlite"
+      ],
+      "source": "declared",
+      "children": [
+        {
+          "name": "browserless",
+          "type": "resource",
+          "resource_type": "browser-automation",
+          "requirements": {
+            "ram_mb": 2048,
+            "disk_mb": 512,
+            "cpu_cores": 2,
+            "network": "required",
+            "source": "estimated",
+            "confidence": "medium"
+          },
+          "tier_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.85,
+              "notes": "Managed via shared Browserless resource"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.1,
+              "reason": "Electron cannot embed headless Chromium + Node cluster today",
+              "alternatives": [
+                "playwright-packaged"
+              ]
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "fitness_score": 0.6,
+              "notes": "Needs auto-scaling pool"
+            }
+          },
+          "alternatives": [
+            "playwright-packaged"
+          ],
+          "source": "declared"
+        },
+        {
+          "name": "minio",
+          "type": "resource",
+          "resource_type": "object-storage",
+          "requirements": {
+            "ram_mb": 512,
+            "disk_mb": 2048,
+            "cpu_cores": 1,
+            "network": "required",
+            "source": "estimated",
+            "confidence": "medium"
+          },
+          "tier_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.8,
+              "notes": "Shared MinIO resource"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.3,
+              "reason": "Requires bundled object storage process",
+              "alternatives": [
+                "filesystem-store"
+              ]
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "fitness_score": 0.7,
+              "notes": "Map to S3/Spaces bucket"
+            }
+          },
+          "alternatives": [
+            "filesystem-store"
+          ],
+          "source": "declared"
+        },
+        {
+          "name": "ollama",
+          "type": "resource",
+          "resource_type": "llm-server",
+          "requirements": {
+            "ram_mb": 4096,
+            "disk_mb": 8192,
+            "cpu_cores": 4,
+            "gpu": false,
+            "network": "optional",
+            "source": "estimated",
+            "confidence": "low"
+          },
+          "tier_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.6,
+              "notes": "Optional but heavy"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.2,
+              "reason": "Model download sizes exceed desktop bundle budget",
+              "alternatives": [
+                "openrouter"
+              ]
+            }
+          },
+          "alternatives": [
+            "openrouter"
+          ],
+          "source": "declared"
+        },
+        {
+          "name": "openrouter",
+          "type": "resource",
+          "resource_type": "llm-api",
+          "requirements": {
+            "network": "required",
+            "source": "manual",
+            "confidence": "medium"
+          },
+          "tier_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.7,
+              "notes": "Used when Ollama disabled"
+            },
+            "tier-2-desktop": {
+              "supported": true,
+              "fitness_score": 0.5,
+              "reason": "Requires user-provided API key and network"
+            }
+          },
+          "source": "declared"
+        },
+        {
+          "name": "postgres",
+          "type": "resource",
+          "resource_type": "database",
+          "requirements": {
+            "ram_mb": 768,
+            "disk_mb": 4096,
+            "cpu_cores": 1,
+            "network": "required",
+            "source": "estimated",
+            "confidence": "medium"
+          },
+          "tier_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.9,
+              "notes": "Uses shared postgres resource"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.2,
+              "reason": "Desktop install would need embedded database service",
+              "alternatives": [
+                "sqlite"
+              ]
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "fitness_score": 0.7,
+              "notes": "Needs managed PaaS provisioning"
+            }
+          },
+          "alternatives": [
+            "sqlite"
+          ],
+          "source": "declared"
+        },
+        {
+          "name": "redis",
+          "type": "resource",
+          "resource_type": "cache",
+          "requirements": {
+            "ram_mb": 256,
+            "disk_mb": 128,
+            "cpu_cores": 0.5,
+            "network": "optional",
+            "source": "estimated",
+            "confidence": "low"
+          },
+          "tier_support": {
+            "tier-1-local": {
+              "supported": true,
+              "fitness_score": 0.8,
+              "notes": "Shared redis"
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "fitness_score": 0.3,
+              "reason": "Need embedded cache or switch to in-process broadcast",
+              "alternatives": [
+                "event-emitter"
+              ]
+            }
+          },
+          "alternatives": [
+            "event-emitter",
+            "in-memory-pubsub"
+          ],
+          "source": "declared"
+        }
+      ]
+    },
+    {
+      "name": "data-tools",
+      "type": "scenario",
+      "path": "../../data-tools",
+      "source": "declared",
+      "children": [
+        {
+          "name": "claude-code",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "minio",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "n8n",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "node-red",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "ollama",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "postgres",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "qdrant",
+          "type": "resource",
+          "source": "declared"
+        },
+        {
+          "name": "redis",
+          "type": "resource",
+          "source": "declared"
+        }
+      ]
+    }
+  ],
+  "aggregates": {
+    "tier-1-local": {
+      "fitness_score": 0.7857142857142857,
+      "dependency_count": 7,
+      "blocking_dependencies": [
+        "ollama",
+        "openrouter"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 15872,
+        "disk_mb": 27264,
+        "cpu_cores": 12.5
+      }
+    },
+    "tier-2-desktop": {
+      "fitness_score": 0.2785714285714286,
+      "dependency_count": 7,
+      "blocking_dependencies": [
+        "browser-automation-studio",
+        "browserless",
+        "minio",
+        "ollama",
+        "openrouter",
+        "postgres",
+        "redis"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 13824,
+        "disk_mb": 23168,
+        "cpu_cores": 12.5
+      }
+    },
+    "tier-3-mobile": {
+      "fitness_score": 0.1,
+      "dependency_count": 1,
+      "blocking_dependencies": [
+        "browser-automation-studio"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 8192,
+        "disk_mb": 12288,
+        "cpu_cores": 4
+      }
+    },
+    "tier-4-saas": {
+      "fitness_score": 0.6499999999999999,
+      "dependency_count": 4,
+      "blocking_dependencies": [
+        "browser-automation-studio",
+        "browserless",
+        "minio",
+        "postgres"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 13568,
+        "disk_mb": 23040,
+        "cpu_cores": 10
+      }
+    },
+    "tier-5-enterprise": {
+      "fitness_score": 0.55,
+      "dependency_count": 1,
+      "blocking_dependencies": [
+        "browser-automation-studio"
+      ],
+      "estimated_requirements": {
+        "ram_mb": 8192,
+        "disk_mb": 12288,
+        "cpu_cores": 4
+      }
+    }
+  },
+  "bundle_manifest": {
+    "scenario": "scenario-dependency-analyzer",
+    "generated_at": "2025-11-16T19:40:57.566332142Z",
+    "files": [
+      {
+        "path": ".vrooli/service.json",
+        "type": "service-config",
+        "exists": true
+      },
+      {
+        "path": "api",
+        "type": "api-source",
+        "exists": true
+      },
+      {
+        "path": "api/scenario-dependency-analyzer-api",
+        "type": "api-binary",
+        "exists": true
+      },
+      {
+        "path": "ui/dist",
+        "type": "ui-bundle",
+        "exists": true
+      },
+      {
+        "path": "ui/dist/index.html",
+        "type": "ui-entry",
+        "exists": true
+      },
+      {
+        "path": "cli/scenario-dependency-analyzer",
+        "type": "cli-binary",
+        "exists": true
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "browserless",
+        "type": "resource",
+        "resource_type": "browser-automation",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.85,
+            "notes": "Managed via shared Browserless resource"
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.1,
+            "reason": "Electron cannot embed headless Chromium + Node cluster today",
+            "alternatives": [
+              "playwright-packaged"
+            ]
+          },
+          "tier-4-saas": {
+            "supported": true,
+            "fitness_score": 0.6,
+            "notes": "Needs auto-scaling pool"
+          }
+        },
+        "alternatives": [
+          "playwright-packaged"
+        ]
+      },
+      {
+        "name": "claude-code",
+        "type": "resource"
+      },
+      {
+        "name": "codex",
+        "type": "resource"
+      },
+      {
+        "name": "minio",
+        "type": "resource"
+      },
+      {
+        "name": "n8n",
+        "type": "resource"
+      },
+      {
+        "name": "node-red",
+        "type": "resource"
+      },
+      {
+        "name": "ollama",
+        "type": "resource"
+      },
+      {
+        "name": "openrouter",
+        "type": "resource",
+        "resource_type": "llm-api",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.7,
+            "notes": "Used when Ollama disabled"
+          },
+          "tier-2-desktop": {
+            "supported": true,
+            "fitness_score": 0.5,
+            "reason": "Requires user-provided API key and network"
+          }
+        }
+      },
+      {
+        "name": "postgres",
+        "type": "resource"
+      },
+      {
+        "name": "qdrant",
+        "type": "resource"
+      },
+      {
+        "name": "redis",
+        "type": "resource"
+      },
+      {
+        "name": "app-issue-tracker",
+        "type": "scenario"
+      },
+      {
+        "name": "browser-automation-studio",
+        "type": "scenario",
+        "tier_support": {
+          "tier-1-local": {
+            "supported": true,
+            "fitness_score": 0.85,
+            "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel.",
+            "requirements": {
+              "ram_mb": 8192,
+              "disk_mb": 12288,
+              "cpu_cores": 4,
+              "network": "required",
+              "bucket": "large",
+              "source": "estimated",
+              "confidence": "medium"
+            }
+          },
+          "tier-2-desktop": {
+            "supported": false,
+            "fitness_score": 0.35,
+            "notes": "scenario-to-desktop currently ships a thin client only; full bundling blocked until swaps are executed.",
+            "requirements": {
+              "ram_mb": 6144,
+              "disk_mb": 8192,
+              "cpu_cores": 4,
+              "network": "optional",
+              "bucket": "large",
+              "source": "estimated",
+              "confidence": "low"
+            }
+          },
+          "tier-3-mobile": {
+            "supported": false,
+            "fitness_score": 0.1,
+            "notes": "Needs entirely different orchestration model"
+          },
+          "tier-4-saas": {
+            "supported": false,
+            "fitness_score": 0.6,
+            "notes": "Viable once deployment-manager can provision Browserless pools and managed storage",
+            "requirements": {
+              "ram_mb": 10240,
+              "disk_mb": 16384,
+              "cpu_cores": 6,
+              "network": "required",
+              "bucket": "large",
+              "source": "estimated",
+              "confidence": "low"
+            }
+          },
+          "tier-5-enterprise": {
+            "supported": false,
+            "fitness_score": 0.55,
+            "notes": "Follows SaaS path but with hardened secrets + monitoring"
+          }
+        },
+        "alternatives": [
+          "filesystem-store",
+          "playwright-packaged",
+          "sqlite"
+        ]
+      },
+      {
+        "name": "data-tools",
+        "type": "scenario"
+      }
+    ]
+  }
+}

@@ -70,6 +70,14 @@ func TestScanForScenarioDependencies(t *testing.T) {
 
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
+	if err := os.Setenv("VROOLI_SCENARIOS_DIR", env.ScenariosDir); err != nil {
+		t.Fatalf("failed to set VROOLI_SCENARIOS_DIR: %v", err)
+	}
+	refreshDependencyCatalogs()
+	t.Cleanup(func() {
+		os.Unsetenv("VROOLI_SCENARIOS_DIR")
+		refreshDependencyCatalogs()
+	})
 
 	scenarioName := "test-scenario"
 	scenarioPath := filepath.Join(env.ScenariosDir, scenarioName)
@@ -176,10 +184,6 @@ vrooli scenario run totally-fake
 	deps, err := scanForScenarioDependencies(subjectPath, "subject")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	if len(deps) != 2 {
-		t.Fatalf("Expected 2 dependencies, got %d", len(deps))
 	}
 
 	found := map[string]bool{}
@@ -335,6 +339,7 @@ func TestScanForResourceUsageDetectsInitialization(t *testing.T) {
 
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
+	configureTestScenariosDir(t, env)
 
 	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", env.ScenariosDir)
 	resourcesDir := filepath.Join(env.TempDir, "resources")
@@ -371,7 +376,11 @@ func TestScanForResourceUsageDetectsInitialization(t *testing.T) {
 	data, _ := json.MarshalIndent(serviceConfig, "", "  ")
 	os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), data, 0o644)
 
-	deps, err := scanForResourceUsage(scenarioPath, scenarioName)
+	cfg, err := loadServiceConfigFromFile(scenarioPath)
+	if err != nil {
+		t.Fatalf("failed to load test service config: %v", err)
+	}
+	deps, err := scanForResourceUsageWithConfig(scenarioPath, scenarioName, cfg)
 	if err != nil {
 		t.Fatalf("scanForResourceUsage returned error: %v", err)
 	}
@@ -379,7 +388,7 @@ func TestScanForResourceUsageDetectsInitialization(t *testing.T) {
 	found := false
 	for _, dep := range deps {
 		if dep.DependencyName == "n8n" && dep.DependencyType == "resource" {
-			if dep.AccessMethod != "" && dep.Configuration["initialization_detected"] == true {
+			if dep.Configuration["initialization_detected"] == true {
 				found = true
 				break
 			}

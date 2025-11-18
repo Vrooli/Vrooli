@@ -4,28 +4,93 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"scenario-dependency-analyzer/internal/app/services"
 	appconfig "scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
-func healthHandler(c *gin.Context) {
+type handler struct {
+	runtime  *Runtime
+	services services.Registry
+}
+
+func newHandler(rt *Runtime) *handler {
+	var reg services.Registry
+	if rt != nil && rt.Analyzer() != nil {
+		reg = rt.Analyzer().Services()
+	}
+	return &handler{runtime: rt, services: reg}
+}
+
+func (h *handler) dbConn() *sql.DB {
+	if h != nil && h.runtime != nil && h.runtime.DB() != nil {
+		return h.runtime.DB()
+	}
+	return db
+}
+
+func (h *handler) analysisService() services.AnalysisService {
+	if h != nil && h.services.Analysis != nil {
+		return h.services.Analysis
+	}
+	return analysisService{}
+}
+
+func (h *handler) scanService() services.ScanService {
+	if h != nil && h.services.Scan != nil {
+		return h.services.Scan
+	}
+	return &scanService{analysis: h.analysisService()}
+}
+
+func (h *handler) optimizationService() services.OptimizationService {
+	if h != nil && h.services.Optimization != nil {
+		return h.services.Optimization
+	}
+	return &optimizationService{analysis: h.analysisService()}
+}
+
+func (h *handler) graphService() services.GraphService {
+	if h != nil && h.services.Graph != nil {
+		return h.services.Graph
+	}
+	return &graphService{analyzer: analyzerInstance()}
+}
+
+func (h *handler) scenarioService() services.ScenarioService {
+	if h != nil && h.services.Scenarios != nil {
+		return h.services.Scenarios
+	}
+	return &scenarioService{cfg: appconfig.Load(), store: currentStore()}
+}
+
+func (h *handler) deploymentService() services.DeploymentService {
+	if h != nil && h.services.Deployment != nil {
+		return h.services.Deployment
+	}
+	return &deploymentService{cfg: appconfig.Load()}
+}
+
+func (h *handler) proposalService() services.ProposalService {
+	if h != nil && h.services.Proposal != nil {
+		return h.services.Proposal
+	}
+	return &proposalService{}
+}
+
+func (h *handler) health(c *gin.Context) {
 	dbConnected := false
 	var dbLatencyMs float64
-	if db != nil {
+	if conn := h.dbConn(); conn != nil {
 		start := time.Now()
-		err := db.Ping()
+		err := conn.Ping()
 		dbLatencyMs = float64(time.Since(start).Milliseconds())
 		dbConnected = err == nil
 	}
@@ -50,11 +115,40 @@ func healthHandler(c *gin.Context) {
 	})
 }
 
-func analyzeScenarioHandler(c *gin.Context) {
+func (h *handler) analysisHealth(c *gin.Context) {
+	graphSvc := h.graphService()
+	if _, err := graphSvc.GenerateGraph("combined"); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"status": "unhealthy",
+			"error":  "Analysis capability test failed",
+		})
+		return
+	}
+
+	payload := gin.H{
+		"status":       "healthy",
+		"capabilities": []string{"dependency_analysis", "graph_generation"},
+	}
+
+	metrics, metricsErr := collectAnalysisMetrics()
+	for k, v := range metrics {
+		payload[k] = v
+	}
+
+	if metricsErr != nil {
+		payload["status"] = "degraded"
+		payload["error"] = metricsErr.Error()
+	}
+
+	c.JSON(http.StatusOK, payload)
+}
+
+func (h *handler) analyzeScenario(c *gin.Context) {
 	scenarioName := c.Param("scenario")
 
 	if scenarioName == "all" {
-		results, err := analyzeAllScenarios()
+		analysisSvc := h.analysisService()
+		results, err := analysisSvc.AnalyzeAllScenarios()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -63,7 +157,8 @@ func analyzeScenarioHandler(c *gin.Context) {
 		return
 	}
 
-	result, err := analyzeScenario(scenarioName)
+	analysisSvc := h.analysisService()
+	result, err := analysisSvc.AnalyzeScenario(scenarioName)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -72,10 +167,15 @@ func analyzeScenarioHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-func getDependenciesHandler(c *gin.Context) {
+func (h *handler) getDependencies(c *gin.Context) {
 	scenarioName := c.Param("scenario")
 
-	rows, err := db.Query(`
+	conn := h.dbConn()
+	if conn == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database unavailable"})
+		return
+	}
+	rows, err := conn.Query(`
         SELECT id, scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration, discovered_at, last_verified
         FROM scenario_dependencies
         WHERE scenario_name = $1
@@ -127,7 +227,7 @@ func getDependenciesHandler(c *gin.Context) {
 	})
 }
 
-func getGraphHandler(c *gin.Context) {
+func (h *handler) getGraph(c *gin.Context) {
 	graphType := c.Param("type")
 
 	if !contains([]string{"resource", "scenario", "combined"}, graphType) {
@@ -135,7 +235,8 @@ func getGraphHandler(c *gin.Context) {
 		return
 	}
 
-	graph, err := generateDependencyGraph(graphType)
+	graphSvc := h.graphService()
+	graph, err := graphSvc.GenerateGraph(graphType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -144,14 +245,15 @@ func getGraphHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, graph)
 }
 
-func analyzeProposedHandler(c *gin.Context) {
+func (h *handler) analyzeProposed(c *gin.Context) {
 	var req types.ProposedScenarioRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	result, err := analyzeProposedScenario(req)
+	proposalSvc := h.proposalService()
+	result, err := proposalSvc.AnalyzeProposedScenario(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -160,7 +262,7 @@ func analyzeProposedHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-func optimizeHandler(c *gin.Context) {
+func (h *handler) optimize(c *gin.Context) {
 	var req types.OptimizationRequest
 	if c.Request.Body != nil {
 		if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
@@ -168,40 +270,11 @@ func optimizeHandler(c *gin.Context) {
 			return
 		}
 	}
-	scenario := strings.TrimSpace(req.Scenario)
-	if scenario == "" {
-		scenario = "all"
-	}
-	var targets []string
-	if scenario == "all" {
-		names, err := listScenarioNames()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		targets = names
-	} else {
-		if !isKnownScenario(scenario) {
-			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("scenario %s not found", scenario)})
-			return
-		}
-		targets = []string{scenario}
-	}
-	results := make(map[string]*types.OptimizationResult, len(targets))
-	for _, target := range targets {
-		result, err := runScenarioOptimization(target, req)
-		if err != nil {
-			results[target] = &types.OptimizationResult{
-				Scenario:          target,
-				Recommendations:   nil,
-				Summary:           types.OptimizationSummary{},
-				Applied:           false,
-				AnalysisTimestamp: time.Now().UTC(),
-				Error:             err.Error(),
-			}
-			continue
-		}
-		results[target] = result
+	optimizationSvc := h.optimizationService()
+	results, err := optimizationSvc.RunOptimization(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"results":      results,
@@ -209,135 +282,41 @@ func optimizeHandler(c *gin.Context) {
 	})
 }
 
-func listScenariosHandler(c *gin.Context) {
-	metadata, err := loadScenarioMetadataMap()
+func (h *handler) listScenarios(c *gin.Context) {
+	svc := h.scenarioService()
+	summaries, err := svc.ListScenarios()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	scenariosDir := appconfig.Load().ScenariosDir
-	entries, err := os.ReadDir(scenariosDir)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	summaries := []types.ScenarioSummary{}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		summary, ok := metadata[name]
-		if !ok {
-			scenarioPath := filepath.Join(scenariosDir, name)
-			cfg, err := loadServiceConfigFromFile(scenarioPath)
-			if err != nil {
-				continue
-			}
-			summary = types.ScenarioSummary{
-				Name:        name,
-				DisplayName: cfg.Service.DisplayName,
-				Description: cfg.Service.Description,
-				Tags:        cfg.Service.Tags,
-			}
-		}
-		summaries = append(summaries, summary)
-	}
-
-	sort.Slice(summaries, func(i, j int) bool { return summaries[i].Name < summaries[j].Name })
 	c.JSON(http.StatusOK, summaries)
 }
 
-func getScenarioDetailHandler(c *gin.Context) {
-	scenarioName := c.Param("scenario")
-	envCfg := appconfig.Load()
-	scenarioPath := filepath.Join(envCfg.ScenariosDir, scenarioName)
-	cfg, err := loadServiceConfigFromFile(scenarioPath)
+func (h *handler) getScenarioDetail(c *gin.Context) {
+	svc := h.scenarioService()
+	detail, err := svc.GetScenarioDetail(c.Param("scenario"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
-
-	stored, err := loadStoredDependencies(scenarioName)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	optRecs, err := loadOptimizationRecommendations(scenarioName)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	declaredResources := resolvedResourceMap(cfg)
-	declaredScenarios := cfg.Dependencies.Scenarios
-	if declaredScenarios == nil {
-		declaredScenarios = map[string]types.ScenarioDependencySpec{}
-	}
-
-	resourceDiff := buildResourceDiff(declaredResources, filterDetectedDependencies(stored["resources"]))
-	scenarioDiff := buildScenarioDiff(declaredScenarios, filterDetectedDependencies(stored["scenarios"]))
-
-	var lastScanned *time.Time
-	if db != nil {
-		row := db.QueryRow("SELECT last_scanned FROM scenario_metadata WHERE scenario_name = $1", scenarioName)
-		var ts sql.NullTime
-		if err := row.Scan(&ts); err == nil && ts.Valid {
-			lastScanned = &ts.Time
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "not found") {
+			status = http.StatusNotFound
 		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
 	}
-
-	detail := types.ScenarioDetailResponse{
-		Scenario:                    scenarioName,
-		DisplayName:                 cfg.Service.DisplayName,
-		Description:                 cfg.Service.Description,
-		LastScanned:                 lastScanned,
-		DeclaredResources:           declaredResources,
-		DeclaredScenarios:           declaredScenarios,
-		StoredDependencies:          stored,
-		ResourceDiff:                resourceDiff,
-		ScenarioDiff:                scenarioDiff,
-		OptimizationRecommendations: optRecs,
-	}
-
-	if report := buildDeploymentReport(scenarioName, scenarioPath, envCfg.ScenariosDir, cfg); report != nil {
-		detail.DeploymentReport = report
-	}
-
 	c.JSON(http.StatusOK, detail)
 }
 
-func getDeploymentReportHandler(c *gin.Context) {
-	scenarioName := c.Param("scenario")
-	envCfg := appconfig.Load()
-	scenarioPath := filepath.Join(envCfg.ScenariosDir, scenarioName)
-	cfg, err := loadServiceConfigFromFile(scenarioPath)
+func (h *handler) getDeploymentReport(c *gin.Context) {
+	deploymentSvc := h.deploymentService()
+	report, err := deploymentSvc.GetDeploymentReport(c.Param("scenario"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	report, err := loadPersistedDeploymentReport(scenarioPath)
-	if err != nil {
-		report = buildDeploymentReport(scenarioName, scenarioPath, envCfg.ScenariosDir, cfg)
-		if report != nil {
-			if persistErr := persistDeploymentReport(scenarioPath, report); persistErr != nil {
-				log.Printf("Warning: failed to persist deployment report for %s: %v", scenarioName, persistErr)
-			}
-		}
-	}
-
-	if report == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to build deployment report"})
-		return
-	}
-
 	c.JSON(http.StatusOK, report)
 }
 
-func scanScenarioHandler(c *gin.Context) {
+func (h *handler) scanScenario(c *gin.Context) {
 	scenarioName := c.Param("scenario")
 	var req types.ScanRequest
 	if c.Request.Body != nil {
@@ -347,35 +326,15 @@ func scanScenarioHandler(c *gin.Context) {
 		}
 	}
 
-	analysis, err := analyzeScenario(scenarioName)
+	scanSvc := h.scanService()
+	result, err := scanSvc.ScanScenario(scenarioName, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	applyResources := req.ApplyResources || req.Apply
-	applyScenarios := req.ApplyScenarios || req.Apply
-	var applySummary map[string]interface{}
-	applied := false
-	if applyResources || applyScenarios {
-		applySummary, err = applyDetectedDiffs(scenarioName, analysis, applyResources, applyScenarios)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "analysis": analysis})
-			return
-		}
-		if changed, ok := applySummary["changed"].(bool); ok && changed {
-			applied = true
-			analysis, err = analyzeScenario(scenarioName)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-		}
-	}
-
 	c.JSON(http.StatusOK, gin.H{
-		"analysis":      analysis,
-		"applied":       applied,
-		"apply_summary": applySummary,
+		"analysis":      result.Analysis,
+		"applied":       result.Applied,
+		"apply_summary": result.ApplySummary,
 	})
 }

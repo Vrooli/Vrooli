@@ -20,6 +20,15 @@ import (
 	types "scenario-dependency-analyzer/internal/types"
 )
 
+func ensureTestEnvVars() {
+	if os.Getenv("API_PORT") == "" {
+		os.Setenv("API_PORT", "0")
+	}
+	if os.Getenv("DATABASE_URL") == "" {
+		os.Setenv("DATABASE_URL", "postgres://test:test@localhost:5432/test_db?sslmode=disable")
+	}
+}
+
 // TestLogger provides controlled logging during tests
 type TestLogger struct {
 	originalOutput *os.File
@@ -50,8 +59,15 @@ type TestEnvironment struct {
 	Cleanup      func()
 }
 
+type mockGraphService struct{}
+
+func (mockGraphService) GenerateGraph(graphType string) (*types.DependencyGraph, error) {
+	return &types.DependencyGraph{Type: graphType}, nil
+}
+
 // setupTestDirectory creates an isolated test environment with proper cleanup
 func setupTestDirectory(t *testing.T) *TestEnvironment {
+	ensureTestEnvVars()
 	tempDir, err := ioutil.TempDir("", "scenario-dependency-analyzer-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
@@ -314,24 +330,22 @@ func assertErrorResponse(t *testing.T, recorder *httptest.ResponseRecorder, expe
 
 // setupTestRouter creates a configured Gin router for testing
 func setupTestRouter() *gin.Engine {
+	ensureTestEnvVars()
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
+	h := newHandler(nil)
+	h.services.Graph = mockGraphService{}
 
 	// Add test routes
-	router.GET("/health", healthHandler)
-	router.GET("/api/v1/health/analysis", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":       "healthy",
-			"capabilities": []string{"dependency_analysis", "graph_generation"},
-		})
-	})
+	router.GET("/health", h.health)
+	router.GET("/api/v1/health/analysis", h.analysisHealth)
 
 	api := router.Group("/api/v1")
 	{
-		api.GET("/analyze/:scenario", analyzeScenarioHandler)
-		api.GET("/scenarios/:scenario/dependencies", getDependenciesHandler)
-		api.GET("/graph/:type", getGraphHandler)
-		api.POST("/analyze/proposed", analyzeProposedHandler)
+		api.GET("/analyze/:scenario", h.analyzeScenario)
+		api.GET("/scenarios/:scenario/dependencies", h.getDependencies)
+		api.GET("/graph/:type", h.getGraph)
+		api.POST("/analyze/proposed", h.analyzeProposed)
 	}
 
 	return router
