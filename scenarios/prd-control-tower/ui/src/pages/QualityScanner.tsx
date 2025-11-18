@@ -1,9 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
   AlertTriangle,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Download,
@@ -29,6 +27,8 @@ import type {
   ScenarioQualityReport,
 } from '../types'
 import { formatDate } from '../utils/formatters'
+import { IssuesSummaryCard } from '../components/issues'
+import { buildQualityIssueCategories, STATUS_LABELS, STATUS_TONES } from '../components/prd-viewer/IssuesPanel'
 
 const SCAN_STORAGE_KEY = 'prd-control-tower:quality-scan'
 
@@ -794,69 +794,31 @@ function SortableHeader({
 
 function ReportDetails({ report }: { report: ScenarioQualityReport }) {
   const hasIssues = report.status !== 'healthy'
-  return (
-    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex flex-wrap gap-2 text-sm">
-        <Badge variant="outline">Template gaps: {report.issue_counts.missing_template_sections}</Badge>
-        <Badge variant="outline">Target coverage: {report.issue_counts.target_coverage}</Badge>
-        <Badge variant="outline">Reqs without targets: {report.issue_counts.requirement_coverage}</Badge>
-        <Badge variant="outline">PRD ref: {report.issue_counts.prd_ref}</Badge>
-      </div>
-
-      {!hasIssues && (
-        <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-          <CheckCircle2 size={16} /> Healthy · No issues detected
-        </div>
-      )}
-
-      {report.target_linkage_issues && report.target_linkage_issues.length > 0 && (
-        <IssueList
-          title="Operational targets"
-          items={report.target_linkage_issues.map((issue) => `${issue.criticality} · ${issue.title}`)}
-        />
-      )}
-
-      {report.requirements_without_targets && report.requirements_without_targets.length > 0 && (
-        <IssueList
-          title="Requirements missing targets"
-          items={report.requirements_without_targets.map((req) => `${req.id} · ${req.title}`)}
-        />
-      )}
-
-      {report.prd_ref_issues && report.prd_ref_issues.length > 0 && (
-        <IssueList
-          title="PRD references"
-          items={report.prd_ref_issues.map((issue) => `${issue.requirement_id} · ${issue.message}`)}
-        />
-      )}
-
-      <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-        <Link to={`/scenario/${report.entity_type}/${report.entity_name}?tab=prd`} className="text-primary hover:underline">
-          View PRD →
-        </Link>
-        <Link
-          to={`/scenario/${report.entity_type}/${report.entity_name}?tab=requirements`}
-          className="text-primary hover:underline"
-        >
-          Requirements dashboard →
-        </Link>
-      </div>
+  const categories = buildQualityIssueCategories(report)
+  const overviewBadges = (
+    <div className="flex flex-wrap gap-2 text-xs">
+      <Badge variant="outline">Template gaps: {report.issue_counts.missing_template_sections}</Badge>
+      <Badge variant="outline">Target coverage: {report.issue_counts.target_coverage}</Badge>
+      <Badge variant="outline">Reqs without targets: {report.issue_counts.requirement_coverage}</Badge>
+      <Badge variant="outline">PRD ref: {report.issue_counts.prd_ref}</Badge>
     </div>
   )
-}
 
-function IssueList({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-      <p className="flex items-center gap-2 font-semibold text-slate-900">
-        <AlertTriangle size={16} className="text-amber-600" /> {title}
-      </p>
-      <ul className="list-inside list-disc text-slate-700">
-        {items.slice(0, 5).map((item, idx) => (
-          <li key={`${title}-${idx}`}>{item}</li>
-        ))}
-        {items.length > 5 && <li className="text-xs text-muted-foreground">+{items.length - 5} more</li>}
-      </ul>
-    </div>
+    <IssuesSummaryCard
+      className="mt-0"
+      title="Issues overview"
+      subtitle={`${report.entity_type} · ${report.entity_name}`}
+      overview={overviewBadges}
+      statusLabel={STATUS_LABELS[report.status]}
+      statusTone={STATUS_TONES[report.status]}
+      issueCount={report.issue_counts.total}
+      statusMessage={!hasIssues ? 'Healthy · No issues detected' : undefined}
+      categories={categories}
+      footerActions={[
+        { label: 'View PRD →', to: `/scenario/${report.entity_type}/${report.entity_name}?tab=prd` },
+        { label: 'Requirements dashboard →', to: `/scenario/${report.entity_type}/${report.entity_name}?tab=requirements` },
+      ]}
+    />
   )
 }

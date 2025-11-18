@@ -2,6 +2,77 @@ import { useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import type { Location, NavigateFunction } from 'react-router-dom';
 import type { PreviewLocationState } from '@/types/preview';
+import { PREVIEW_TIMEOUTS } from './previewConstants';
+
+export const isIosSafariUserAgent = (): boolean => {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  const ua = navigator.userAgent || '';
+  const isTouchCapableMac = /Macintosh/i.test(ua)
+    && typeof navigator.maxTouchPoints === 'number'
+    && navigator.maxTouchPoints > 1;
+  const isClassicIos = /iP(ad|hone|od)/i.test(ua);
+  const isWebKit = /WebKit/i.test(ua);
+  const isExcludedBrowser = /CriOS|FxiOS|OPiOS|EdgiOS/i.test(ua);
+
+  return (isClassicIos || isTouchCapableMac) && isWebKit && !isExcludedBrowser;
+};
+
+type PreviewGuardState = NonNullable<Window['__appMonitorPreviewGuard']>;
+
+const createDefaultPreviewGuardState = (): PreviewGuardState => ({
+  active: false,
+  armedAt: 0,
+  ttl: PREVIEW_TIMEOUTS.IOS_AUTOBACK_GUARD,
+  key: null,
+  appId: null,
+  recoverPath: null,
+  ignoreNextPopstate: false,
+  lastSuppressedAt: 0,
+  recoverState: null,
+});
+
+export const ensurePreviewGuard = (): PreviewGuardState | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  if (!window.__appMonitorPreviewGuard) {
+    window.__appMonitorPreviewGuard = createDefaultPreviewGuardState();
+  }
+
+  return window.__appMonitorPreviewGuard as PreviewGuardState;
+};
+
+export const primePreviewGuardForNavigation = (params: {
+  appId: string | null;
+  recoverPath: string;
+  guardTtlMs?: number;
+  recoverState?: unknown;
+}) => {
+  const guard = ensurePreviewGuard();
+  if (!guard) {
+    return;
+  }
+
+  const now = Date.now();
+  const ttl = typeof params.guardTtlMs === 'number'
+    ? params.guardTtlMs
+    : PREVIEW_TIMEOUTS.IOS_AUTOBACK_GUARD;
+
+  guard.active = true;
+  guard.armedAt = now;
+  guard.ttl = ttl;
+  guard.key = null;
+  guard.appId = params.appId;
+  guard.recoverPath = params.recoverPath;
+  guard.recoverState = params.recoverState ?? null;
+  guard.ignoreNextPopstate = false;
+
+  window.__appMonitorPreviewGuard = guard;
+};
 
 interface ExtendedPreviewLocationState extends PreviewLocationState {
   fromAppsList?: boolean;
@@ -95,7 +166,17 @@ export const useIosAutobackGuard = ({
       return;
     }
 
-    if (!locationState?.fromAppsList || locationState?.suppressedAutoBack) {
+    const previewGuard = ensurePreviewGuard();
+    const recoverPath = `${location.pathname}${location.search ?? ''}`;
+    const guardMatchesRoute = Boolean(
+      previewGuard?.active
+      && typeof previewGuard.recoverPath === 'string'
+      && previewGuard.recoverPath === recoverPath,
+    );
+    const shouldArmFromState = Boolean(locationState?.fromAppsList && !locationState?.suppressedAutoBack);
+    const shouldArm = shouldArmFromState || guardMatchesRoute;
+
+    if (!shouldArm) {
       deactivateGuard(iosPopGuardRef.current, iosGuardedLocationKeyRef, updatePreviewGuard);
       return;
     }
@@ -125,7 +206,6 @@ export const useIosAutobackGuard = ({
       navTimestamp: locationState?.navTimestamp,
     });
 
-    const recoverPath = `${location.pathname}${location.search ?? ''}`;
     updatePreviewGuard({
       active: true,
       armedAt: Date.now(),

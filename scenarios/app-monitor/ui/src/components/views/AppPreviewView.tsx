@@ -36,7 +36,7 @@ import DeviceEmulationViewport from '../device-emulation/DeviceEmulationViewport
 import DeviceVisionFilterDefs from '../device-emulation/DeviceVisionFilterDefs';
 import { useAppLogs } from '@/hooks/useAppLogs';
 import AppLogsPanel from '../logs/AppLogsPanel';
-import { useIosAutobackGuard } from './useIosAutobackGuard';
+import { useIosAutobackGuard, isIosSafariUserAgent } from './useIosAutobackGuard';
 import { usePreviewCapture } from './usePreviewCapture';
 import { useScheduledTimeout } from '@/hooks/useTimeout';
 import { usePreviewOverlay } from '@/hooks/usePreviewOverlay';
@@ -75,16 +75,7 @@ const AppPreviewView = () => {
   const autoSelectedFromTabs = Boolean(locationState?.autoSelected);
   const overlayQuery = searchParams.get('overlay');
   const [isLogsPanelOpen, setIsLogsPanelOpen] = useState(() => overlayQuery === 'logs');
-  const isIosSafari = useMemo(() => {
-    if (typeof navigator === 'undefined') {
-      return false;
-    }
-    const ua = navigator.userAgent || '';
-    const isIOS = /iP(ad|hone|od)/i.test(ua);
-    const isWebKit = /WebKit/i.test(ua);
-    const isExcluded = /CriOS|FxiOS|OPiOS|EdgiOS/i.test(ua);
-    return isIOS && isWebKit && !isExcluded;
-  }, []);
+  const isIosSafari = useMemo(() => isIosSafariUserAgent(), []);
   const { schedule: scheduleAutoNextPrepare, clear: clearAutoNextPrepare } = useScheduledTimeout();
   useEffect(() => {
     setIsLogsPanelOpen(overlayQuery === 'logs');

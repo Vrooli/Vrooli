@@ -7,6 +7,7 @@ import { Separator } from '../ui/separator'
 import { buildApiUrl } from '../../utils/apiClient'
 import { flattenMissingTemplateSections } from '../../utils/prdStructure'
 import type { Violation, DraftValidationResult } from '../../types'
+import { IssueCategoryCard } from '../issues'
 
 interface PRDValidationPanelProps {
   draftId: string
@@ -197,69 +198,40 @@ export function PRDValidationPanel({
 
         {/* Missing Template Sections */}
         {missingSections.length > 0 && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-amber-900">
-              <AlertTriangle size={16} />
-              Missing Template Sections
-            </div>
-            <ul className="text-xs space-y-1 text-amber-800">
-              {missingSections.map((section, idx) => (
-                <li key={idx} className="flex items-start gap-2">
-                  <span className="text-amber-600">•</span>
-                  <span>{section}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <IssueCategoryCard
+            title="Missing template sections"
+            icon={<AlertTriangle size={16} />}
+            tone="warning"
+            items={missingSections}
+            maxVisible={6}
+          />
         )}
 
-        {/* Unexpected Template Sections */}
         {extraSections.length > 0 && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-blue-900">
-              <AlertTriangle size={16} />
-              Unexpected PRD Sections
-            </div>
-            <p className="text-xs text-blue-800">
-              These headings are not part of the canonical template and should be removed or migrated.
-            </p>
-            <ul className="text-xs space-y-1 text-blue-900">
-              {extraSections.map((section, idx) => (
-                <li key={idx} className="flex items-start gap-2">
-                  <span className="text-blue-600">•</span>
-                  <span>{section}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <IssueCategoryCard
+            title="Unexpected PRD sections"
+            icon={<AlertTriangle size={16} />}
+            tone="info"
+            description="These headings are not part of the canonical template and should be removed or migrated."
+            items={extraSections}
+            maxVisible={6}
+          />
         )}
 
-        {/* Linkage Issues */}
         {hasLinkageIssues && (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-amber-900">
-              <AlertTriangle size={16} />
-              Requirements Linkage Issues
-            </div>
-            <div className="space-y-1 text-xs text-amber-800">
-              {orphanedTargetsCount > 0 && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="destructive" className="text-xs">
-                    {orphanedTargetsCount}
-                  </Badge>
-                  <span>operational target(s) without requirements linkage</span>
-                </div>
-              )}
-              {unmatchedRequirementsCount > 0 && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="default" className="text-xs">
-                    {unmatchedRequirementsCount}
-                  </Badge>
-                  <span>requirement(s) without operational target reference</span>
-                </div>
-              )}
-            </div>
-          </div>
+          <IssueCategoryCard
+            title="Requirements linkage issues"
+            icon={<AlertTriangle size={16} />}
+            tone="warning"
+            items={[
+              orphanedTargetsCount > 0
+                ? `${orphanedTargetsCount} operational target${orphanedTargetsCount === 1 ? '' : 's'} without requirements`
+                : null,
+              unmatchedRequirementsCount > 0
+                ? `${unmatchedRequirementsCount} requirement${unmatchedRequirementsCount === 1 ? '' : 's'} missing operational targets`
+                : null,
+            ].filter(Boolean) as string[]}
+          />
         )}
 
         {/* Validation Results */}

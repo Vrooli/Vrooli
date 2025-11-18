@@ -1984,6 +1984,37 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
     options.onNav?.(payload.href);
   };
 
+  const handleSpaHooksDiagnostic = (payload: { id: string; token?: string }) => {
+    const originalHref = window.location.href;
+    const originalState = history.state;
+    const hashSuffix = typeof payload.token === 'string' && payload.token.length > 0
+      ? payload.token
+      : `bridge-diag-${Date.now().toString(16)}`;
+    const diagHash = hashSuffix.startsWith('#') ? hashSuffix : `#${hashSuffix}`;
+
+    try {
+      const diagUrl = new URL(originalHref);
+      diagUrl.hash = diagHash;
+      history.replaceState(originalState ?? {}, '', diagUrl.href);
+      history.replaceState(originalState ?? {}, '', originalHref);
+      post({ v: 1, t: 'DIAG_RESULT', kind: 'SPA_HOOKS', id: payload.id, ok: true });
+    } catch (error) {
+      try {
+        history.replaceState(originalState ?? {}, '', originalHref);
+      } catch (restoreError) {
+        console.warn('[BridgeChild] Failed to restore history during diagnostic', restoreError);
+      }
+      post({
+        v: 1,
+        t: 'DIAG_RESULT',
+        kind: 'SPA_HOOKS',
+        id: payload.id,
+        ok: false,
+        error: (error as Error)?.message ?? String(error),
+      });
+    }
+  };
+
   const handleMessage = (event: MessageEvent) => {
     if (resolvedOrigin !== '*' && event.origin !== resolvedOrigin) {
       return;
@@ -2015,6 +2046,13 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
         notify();
       } catch (error) {
         post({ v: 1, t: 'ERROR', code: 'NAV_FAILED', detail: String((error as Error)?.message ?? error) });
+      }
+      return;
+    }
+
+    if (message.t === 'DIAG') {
+      if (message.kind === 'SPA_HOOKS' && typeof message.id === 'string') {
+        handleSpaHooksDiagnostic({ id: message.id, token: typeof message.token === 'string' ? message.token : undefined });
       }
       return;
     }

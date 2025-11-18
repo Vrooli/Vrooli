@@ -9,6 +9,7 @@ import { Separator } from '../ui/separator'
 import toast from 'react-hot-toast'
 import type { RequirementGroup, RequirementRecord } from '../../types'
 import { buildApiUrl } from '../../utils/apiClient'
+import { IssueCategoryCard } from '../issues'
 
 interface OperationalTarget {
   id: string
@@ -213,26 +214,14 @@ export function OperationalTargetsEditor({
     <div className="space-y-4">
       {/* Validation warnings */}
       {orphanedCritical.length > 0 && (
-        <Card className="border-amber-300 bg-amber-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-900">
-              <AlertTriangle size={20} />
-              ⚠️ {orphanedCritical.length} Critical Target(s) Without Requirements
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-amber-800">
-            <p className="mb-2">
-              <strong>P0 and P1 targets MUST be linked to requirements from the requirements/ folder.</strong>
-            </p>
-            <ul className="list-disc list-inside space-y-1">
-              {orphanedCritical.map(t => (
-                <li key={t.id}>
-                  <strong>{t.title}</strong> ({t.criticality})
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <IssueCategoryCard
+          title={`⚠️ ${orphanedCritical.length} critical target${orphanedCritical.length === 1 ? '' : 's'} without requirements`}
+          icon={<AlertTriangle size={16} />}
+          tone="warning"
+          description="P0 and P1 targets must be linked to requirements from the requirements/ folder before publishing."
+          items={orphanedCritical.map((t) => `${t.title} (${t.criticality})`)}
+          maxVisible={6}
+        />
       )}
 
       {/* Targets list */}

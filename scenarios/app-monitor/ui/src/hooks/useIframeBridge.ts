@@ -133,6 +133,15 @@ type BridgeInspectErrorMessage = {
   error: string;
 };
 
+type BridgeDiagResultMessage = {
+  v: 1;
+  t: 'DIAG_RESULT';
+  kind: 'SPA_HOOKS';
+  id: string;
+  ok: boolean;
+  error?: string;
+};
+
 type BridgeChildToParentMessage =
   | BridgeHelloMessage
   | BridgeReadyMessage
@@ -150,7 +159,8 @@ type BridgeChildToParentMessage =
   | BridgeInspectResultMessage
   | BridgeInspectStateMessage
   | BridgeInspectCancelMessage
-  | BridgeInspectErrorMessage;
+  | BridgeInspectErrorMessage
+  | BridgeDiagResultMessage;
 
 type BridgeSnapshotRequestOptions = {
   since?: number;
@@ -183,6 +193,7 @@ type BridgeParentToChildMessage =
   | { v: 1; t: 'NAV'; cmd: 'BACK' }
   | { v: 1; t: 'NAV'; cmd: 'FWD' }
   | { v: 1; t: 'PING'; ts: number }
+  | { v: 1; t: 'DIAG'; kind: 'SPA_HOOKS'; id: string; token?: string }
   | { v: 1; t: 'CAPTURE'; cmd: 'SCREENSHOT'; id: string; options?: BridgeScreenshotOptions }
   | { v: 1; t: 'LOGS'; cmd: 'PULL'; requestId: string; options?: BridgeSnapshotRequestOptions }
   | { v: 1; t: 'LOGS'; cmd: 'SET'; enable?: boolean; streaming?: boolean; levels?: BridgeLogLevel[]; bufferSize?: number }
@@ -283,6 +294,7 @@ const LOG_BUFFER_LIMIT = 500;
 const NETWORK_BUFFER_LIMIT = 300;
 const LOG_REQUEST_TIMEOUT_MS = 5_000;
 const NETWORK_REQUEST_TIMEOUT_MS = 5_000;
+const DIAG_REQUEST_TIMEOUT_MS = 1_500;
 
 const generateRequestId = (prefix: string): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -611,6 +623,11 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
           break;
         }
 
+        case 'DIAG_RESULT': {
+          // Diagnostic acknowledgements are handled via waitForMessage callers.
+          break;
+        }
+
         default: {
           break;
         }
@@ -884,14 +901,35 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
     [childOrigin, iframeRef],
   );
 
+  const runSpaHooksDiagnostic = useCallback(async () => {
+    const diagId = generateRequestId('diag');
+    let diagOk = false;
+    let diagError: string | undefined;
+    const sent = postMessage({ v: 1, t: 'DIAG', kind: 'SPA_HOOKS', id: diagId, token: diagId });
+    if (!sent) {
+      throw new Error('diag-request-failed');
+    }
+
+    await waitForMessage(message => {
+      if (message.t === 'DIAG_RESULT' && message.id === diagId) {
+        diagOk = !!message.ok;
+        diagError = message.error;
+        return true;
+      }
+      return false;
+    }, DIAG_REQUEST_TIMEOUT_MS);
+
+    if (!diagOk) {
+      throw new Error(diagError || 'diag-failed');
+    }
+  }, [postMessage, waitForMessage]);
+
   const runComplianceCheck = useCallback(async (): Promise<BridgeComplianceResult> => {
     const failures: string[] = [];
 
     if (!childOrigin || !iframeRef.current) {
       return { ok: false, failures: ['NO_IFRAME'], checkedAt: Date.now() };
     }
-
-    const originalHref = lastHrefRef.current;
 
     const recordFailure = (label: string) => {
       if (!failures.includes(label)) {
@@ -915,30 +953,10 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
       }
     }
 
-    const randomHash = `#bridge-test-${Math.random().toString(16).slice(2)}`;
-    const navIssued = sendNav('GO', randomHash);
-    if (navIssued) {
-      try {
-        await waitForMessage(
-          message => message.t === 'LOCATION' && typeof message.href === 'string' && message.href.includes(randomHash),
-          700,
-        );
-      } catch (error) {
-        recordFailure('SPA hooks');
-      }
-    } else {
+    try {
+      await runSpaHooksDiagnostic();
+    } catch (error) {
       recordFailure('SPA hooks');
-    }
-
-    const backIssued = sendNav('BACK');
-    if (backIssued) {
-      try {
-        await waitForMessage(message => message.t === 'LOCATION', 700);
-      } catch (error) {
-        recordFailure('BACK/FWD');
-      }
-    } else {
-      recordFailure('BACK/FWD');
     }
 
     if (helloReceivedRef.current && !supportsLogsRef.current) {
@@ -949,12 +967,8 @@ export const useIframeBridge = ({ iframeRef, previewUrl, onLocation }: UseIframe
       recordFailure('CAP_NETWORK');
     }
 
-    if (originalHref) {
-      sendNav('GO', originalHref);
-    }
-
     return { ok: failures.length === 0, failures, checkedAt: Date.now() };
-  }, [childOrigin, iframeRef, sendNav, waitForMessage]);
+  }, [childOrigin, iframeRef, runSpaHooksDiagnostic, waitForMessage]);
 
   return {
     state: {

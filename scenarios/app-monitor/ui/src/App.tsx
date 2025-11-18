@@ -17,6 +17,7 @@ import './App.css';
 import { useAppsStore } from '@/state/appsStore';
 import { useResourcesStore } from '@/state/resourcesStore';
 import { logger } from '@/services/logger';
+import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 
 function TabOverlayRedirect({ segment }: { segment?: 'apps' | 'resources' }) {
   const location = useLocation();
@@ -46,10 +47,29 @@ function LogsAppRedirect() {
   params.set('overlay', 'logs');
   const search = params.toString();
   const targetSearch = search ? `?${search}` : '?overlay=logs';
+  const targetPath = `/apps/${encodeURIComponent(appId)}/preview${targetSearch}`;
+
+  useEffect(() => {
+    if (!isIosSafariUserAgent()) {
+      return;
+    }
+    primePreviewGuardForNavigation({
+      appId,
+      recoverPath: targetPath,
+    });
+  }, [appId, targetPath]);
+
+  const navigationState = {
+    fromAppsList: true,
+    originAppId: appId,
+    navTimestamp: Date.now(),
+    suppressedAutoBack: false,
+  } as const;
 
   return (
     <Navigate
-      to={`/apps/${encodeURIComponent(appId)}/preview${targetSearch}`}
+      to={targetPath}
+      state={navigationState}
       replace
     />
   );

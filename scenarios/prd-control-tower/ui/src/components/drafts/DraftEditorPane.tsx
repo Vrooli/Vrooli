@@ -32,6 +32,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/card'
 import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
 import { cn } from '../../lib/utils'
+import { IssueCategoryCard, type IssueCategorySection } from '../issues'
 
 interface DraftEditorPaneProps {
   draft: Draft
@@ -127,6 +128,24 @@ export function DraftEditorPane({
   const orphanedP0Targets = targets?.filter(t => t.criticality === 'P0' && (!t.linked_requirement_ids || t.linked_requirement_ids.length === 0)) ?? []
   const orphanedP1Targets = targets?.filter(t => t.criticality === 'P1' && (!t.linked_requirement_ids || t.linked_requirement_ids.length === 0)) ?? []
   const hasCriticalOrphans = orphanedP0Targets.length > 0 || orphanedP1Targets.length > 0
+  const criticalTargetSections: IssueCategorySection[] = [
+    orphanedP0Targets.length > 0
+      ? {
+          id: 'p0-targets',
+          title: 'P0 targets',
+          items: orphanedP0Targets.map((target) => target.title),
+          maxVisible: 4,
+        }
+      : null,
+    orphanedP1Targets.length > 0
+      ? {
+          id: 'p1-targets',
+          title: 'P1 targets',
+          items: orphanedP1Targets.map((target) => target.title),
+          maxVisible: 4,
+        }
+      : null,
+  ].filter(Boolean) as IssueCategorySection[]
 
   // AI Assistant hook handles all AI-related state and operations
   const {
@@ -171,61 +190,36 @@ export function DraftEditorPane({
 
       {/* CRITICAL: Unlinked Targets Alert Banner */}
       {hasCriticalOrphans && (
-        <div className="rounded-xl border-2 border-red-500 bg-gradient-to-r from-red-50 to-orange-50 p-6 shadow-lg">
-          <div className="flex items-start gap-4">
-            <div className="rounded-full bg-red-500 p-2 text-white shadow-md">
-              <AlertTriangle size={24} className="shrink-0" />
+        <IssueCategoryCard
+          title="⚠️ Blocking: Critical targets without requirements"
+          icon={<AlertTriangle size={18} />}
+          tone="critical"
+          description={
+            <span className="text-sm text-rose-900">
+              {orphanedP0Targets.length > 0 && (
+                <>
+                  <strong>{orphanedP0Targets.length} P0 target{orphanedP0Targets.length !== 1 ? 's' : ''}</strong> must have linked requirements before publishing.
+                </>
+              )}
+              {orphanedP0Targets.length > 0 && orphanedP1Targets.length > 0 && ' '}
+              {orphanedP1Targets.length > 0 && (
+                <>
+                  <strong>{orphanedP1Targets.length} P1 target{orphanedP1Targets.length !== 1 ? 's' : ''}</strong> should have linked requirements.
+                </>
+              )}
+            </span>
+          }
+          sections={criticalTargetSections}
+          footer={
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="text-xs text-rose-900">Action required: link these targets in the editor below.</span>
+              <Button onClick={scrollToTargetsEditor} size="sm" className="gap-2 bg-red-600 text-white hover:bg-red-700">
+                <AlertTriangle size={14} /> Fix now
+              </Button>
             </div>
-            <div className="flex-1 space-y-3">
-              <div>
-                <h3 className="text-lg font-bold text-red-900 mb-1">⚠️ BLOCKING: Critical Targets Without Requirements</h3>
-                <p className="text-sm text-red-800">
-                  {orphanedP0Targets.length > 0 && (
-                    <><strong className="text-red-900">{orphanedP0Targets.length} P0 target{orphanedP0Targets.length !== 1 ? 's' : ''}</strong> MUST have linked requirements before publishing. </>
-                  )}
-                  {orphanedP1Targets.length > 0 && (
-                    <><strong className="text-red-900">{orphanedP1Targets.length} P1 target{orphanedP1Targets.length !== 1 ? 's' : ''}</strong> SHOULD have linked requirements.</>
-                  )}
-                </p>
-              </div>
-              <div className="rounded-lg bg-white border border-red-200 p-4 space-y-2">
-                <p className="text-xs font-semibold text-red-900 mb-2">Unlinked Targets:</p>
-                <div className="grid gap-2 md:grid-cols-2">
-                  {orphanedP0Targets.slice(0, 4).map(target => (
-                    <div key={target.id} className="flex items-start gap-2 text-xs text-red-800 bg-red-50 rounded px-2 py-1.5 border border-red-200">
-                      <span className="font-semibold text-red-600 shrink-0">P0:</span>
-                      <span className="line-clamp-2">{target.title}</span>
-                    </div>
-                  ))}
-                  {orphanedP1Targets.slice(0, 4).map(target => (
-                    <div key={target.id} className="flex items-start gap-2 text-xs text-orange-800 bg-orange-50 rounded px-2 py-1.5 border border-orange-200">
-                      <span className="font-semibold text-orange-600 shrink-0">P1:</span>
-                      <span className="line-clamp-2">{target.title}</span>
-                    </div>
-                  ))}
-                  {(orphanedP0Targets.length + orphanedP1Targets.length > 8) && (
-                    <div className="col-span-2 text-xs text-red-700 italic">
-                      ...and {orphanedP0Targets.length + orphanedP1Targets.length - 8} more. Scroll down to "Operational Targets Editor" to link them.
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <p className="text-xs text-red-700 flex items-center gap-2">
-                  <strong>Action Required:</strong> Link these targets to requirements in the Targets Editor below.
-                </p>
-                <Button
-                  onClick={scrollToTargetsEditor}
-                  size="sm"
-                  className="bg-red-600 hover:bg-red-700 text-white shadow-md"
-                >
-                  <AlertTriangle size={14} className="mr-2" />
-                  Fix Now - Jump to Editor
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+          }
+          className="border-2 border-rose-200"
+        />
       )}
 
       {/* Main Editor Card */}

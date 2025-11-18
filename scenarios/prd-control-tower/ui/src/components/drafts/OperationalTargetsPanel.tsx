@@ -1,6 +1,7 @@
 import { AlertTriangle, Link as LinkIcon } from 'lucide-react'
 import type { OperationalTarget, RequirementRecord } from '../../types'
 import { Badge } from '../ui/badge'
+import { IssueCategoryCard, type IssueCategorySection } from '../issues'
 
 interface OperationalTargetsPanelProps {
   targets: OperationalTarget[] | null
@@ -38,6 +39,24 @@ export function OperationalTargetsPanel({ targets, unmatchedRequirements, loadin
   const coveragePercent = targets.length > 0 ? Math.round((targetsWithRequirements.length / targets.length) * 100) : 0
   const hasGaps = orphanedTargets.length > 0 || (unmatchedRequirements && unmatchedRequirements.length > 0)
   const hasCriticalGaps = orphanedP0.length > 0 || orphanedP1.length > 0
+  const criticalSections: IssueCategorySection[] = [
+    orphanedP0.length > 0
+      ? {
+          id: 'p0-orphans',
+          title: 'P0 targets',
+          items: orphanedP0.map((target) => `${target.title} · ${target.path}`),
+          maxVisible: 4,
+        }
+      : null,
+    orphanedP1.length > 0
+      ? {
+          id: 'p1-orphans',
+          title: 'P1 targets',
+          items: orphanedP1.map((target) => `${target.title} · ${target.path}`),
+          maxVisible: 4,
+        }
+      : null,
+  ].filter(Boolean) as IssueCategorySection[]
 
   return (
     <div className="space-y-4">
@@ -77,84 +96,25 @@ export function OperationalTargetsPanel({ targets, unmatchedRequirements, loadin
         )}
       </div>
 
-      {/* Critical Orphaned Targets Warning (P0/P1) */}
       {hasCriticalGaps && (
-        <div className="rounded-2xl border-2 border-red-400 bg-red-50 p-4">
-          <p className="flex items-center gap-2 text-sm font-bold text-red-900 mb-2">
-            <AlertTriangle size={18} className="shrink-0" />
-            ⚠️ BLOCKING: Critical Targets Without Requirements
-          </p>
-          <p className="text-xs text-red-800 mb-3">
-            {orphanedP0.length > 0 && <strong>P0 targets MUST have linked requirements before publishing.</strong>}
-            {orphanedP0.length > 0 && orphanedP1.length > 0 && ' '}
-            {orphanedP1.length > 0 && <strong>P1 targets SHOULD have linked requirements.</strong>}
-          </p>
-          <div className="space-y-2">
-            {orphanedP0.map(target => (
-              <div
-                key={target.id}
-                className="rounded-lg border-2 border-red-300 bg-white p-2.5 text-sm"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="font-semibold text-red-900">{target.title}</p>
-                    <p className="text-xs text-red-700">{target.path}</p>
-                  </div>
-                  <Badge variant="destructive" className="font-bold">
-                    P0
-                  </Badge>
-                </div>
-              </div>
-            ))}
-            {orphanedP1.map(target => (
-              <div
-                key={target.id}
-                className="rounded-lg border border-amber-300 bg-white p-2 text-sm"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="font-medium text-amber-900">{target.title}</p>
-                    <p className="text-xs text-amber-700">{target.path}</p>
-                  </div>
-                  <Badge variant="warning" className="font-semibold">
-                    P1
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <IssueCategoryCard
+          title="⚠️ Blocking: Critical targets without requirements"
+          icon={<AlertTriangle size={16} />}
+          tone="critical"
+          sections={criticalSections}
+          footer="Resolve these linkages before dispatching agents or publishing updates."
+        />
       )}
 
-      {/* Other Orphaned Targets (P2/Unknown) */}
       {orphanedP2.length > 0 && (
-        <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4">
-          <p className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-3">
-            <AlertTriangle size={16} />
-            {orphanedP2.length} Lower-Priority Target{orphanedP2.length === 1 ? '' : 's'} Without Requirements
-          </p>
-          <p className="text-xs text-slate-600 mb-3">
-            These P2 or unspecified targets don't have linked requirements yet. Consider adding them for full traceability.
-          </p>
-          <div className="space-y-2">
-            {orphanedP2.map(target => (
-              <div
-                key={target.id}
-                className="rounded-lg border border-slate-200 bg-white p-2 text-sm"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="font-medium text-slate-800">{target.title}</p>
-                    <p className="text-xs text-slate-600">{target.path}</p>
-                  </div>
-                  <Badge variant="outline">
-                    {target.criticality ?? 'Unknown'}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <IssueCategoryCard
+          title={`${orphanedP2.length} lower-priority target${orphanedP2.length === 1 ? '' : 's'} without requirements`}
+          icon={<AlertTriangle size={16} />}
+          tone="muted"
+          description="These P2 or unspecified targets lack PRD traceability—link them for full coverage."
+          items={orphanedP2.map((target) => `${target.title} · ${target.path}`)}
+          maxVisible={6}
+        />
       )}
 
       {/* All Targets List */}
@@ -201,19 +161,13 @@ export function OperationalTargetsPanel({ targets, unmatchedRequirements, loadin
       </div>
 
       {unmatchedRequirements && unmatchedRequirements.length > 0 && (
-        <div>
-          <p className="flex items-center gap-2 text-sm font-medium text-slate-700">
-            <AlertTriangle size={16} /> Requirements without operational targets
-          </p>
-          <ul className="mt-2 list-disc pl-5 text-xs text-muted-foreground">
-            {unmatchedRequirements.slice(0, 5).map(req => (
-              <li key={req.id}>
-                <span className="font-medium text-slate-800">{req.title}</span>
-                {req.prd_ref ? ` · ${req.prd_ref}` : ''}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <IssueCategoryCard
+          title="Requirements without operational targets"
+          icon={<AlertTriangle size={16} />}
+          tone="info"
+          items={unmatchedRequirements.map((req) => `${req.title}${req.prd_ref ? ` · ${req.prd_ref}` : ''}`)}
+          maxVisible={5}
+        />
       )}
     </div>
   )

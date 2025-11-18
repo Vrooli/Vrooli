@@ -1,11 +1,8 @@
-import { Link } from 'react-router-dom'
-import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, RefreshCw, ShieldAlert } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Button } from '../ui/button'
-import { Badge } from '../ui/badge'
+import { AlertTriangle } from 'lucide-react'
 import type { ScenarioQualityReport } from '../../types'
 import { formatDate } from '../../utils/formatters'
 import { flattenMissingTemplateSections } from '../../utils/prdStructure'
+import { IssuesSummaryCard, type IssueCategory, type IssueFooterAction, type IssueTone } from '../issues'
 
 interface IssuesPanelProps {
   report: ScenarioQualityReport | null
@@ -14,15 +11,7 @@ interface IssuesPanelProps {
   onRefresh?: () => void
 }
 
-const STATUS_STYLES: Record<ScenarioQualityReport['status'], string> = {
-  healthy: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-  needs_attention: 'bg-amber-50 text-amber-800 border border-amber-100',
-  blocked: 'bg-rose-50 text-rose-800 border border-rose-100',
-  missing_prd: 'bg-rose-50 text-rose-800 border border-rose-100',
-  error: 'bg-slate-100 text-slate-700 border border-slate-200',
-}
-
-const STATUS_LABELS: Record<ScenarioQualityReport['status'], string> = {
+export const STATUS_LABELS: Record<ScenarioQualityReport['status'], string> = {
   healthy: 'Healthy',
   needs_attention: 'Needs attention',
   blocked: 'Blocking issues',
@@ -30,190 +19,114 @@ const STATUS_LABELS: Record<ScenarioQualityReport['status'], string> = {
   error: 'Error',
 }
 
+export const STATUS_TONES: Record<ScenarioQualityReport['status'], IssueTone> = {
+  healthy: 'success',
+  needs_attention: 'warning',
+  blocked: 'critical',
+  missing_prd: 'critical',
+  error: 'warning',
+}
+
 export function IssuesPanel({ report, loading, error, onRefresh }: IssuesPanelProps) {
   const hasIssues = (report?.issue_counts.total ?? 0) > 0
-  const missingTemplateSections = report ? flattenMissingTemplateSections(report.template_compliance_v2) : []
-  const unexpectedSections = report?.template_compliance_v2?.unexpected_sections ?? []
+  const categories = report ? buildQualityIssueCategories(report) : []
+
+  const footerActions: IssueFooterAction[] = []
+  if (report?.entity_type && report.entity_name) {
+    footerActions.push({
+      label: 'Resolve in Scenario Control Center →',
+      to: `/scenario/${report.entity_type}/${report.entity_name}?tab=requirements`,
+    })
+  }
+  footerActions.push({ label: 'Open Quality Scanner', to: '/quality-scanner' })
 
   return (
-    <Card className="mt-6">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <div>
-          <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
-            <ShieldAlert size={18} className="text-violet-600" /> Issues
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Snapshot of structural compliance, requirement coverage, and PRD references.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {report?.validated_at && (
-            <span className="text-xs text-muted-foreground">
-              Last verified {formatDate(report.validated_at)}
-              {report.cache_used ? ' · cached' : ''}
-            </span>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onRefresh}
-            disabled={loading}
-            className="gap-2"
-          >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            {loading ? 'Refreshing' : 'Refresh scan'}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {error && (
-          <div className="flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
-            <AlertCircle size={16} className="mt-0.5" />
-            <div>
-              <p className="font-medium">Unable to load issues</p>
-              <p>{error}</p>
-            </div>
-          </div>
-        )}
-
-        {loading && !report && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 size={16} className="animate-spin" />
-            Gathering latest scan...
-          </div>
-        )}
-
-        {report && (
-          <div className="space-y-4">
-            <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${STATUS_STYLES[report.status]}`}>
-              <span>{STATUS_LABELS[report.status]}</span>
-              <Badge variant="secondary" className="bg-white text-slate-700">
-                {report.issue_counts.total} issue{report.issue_counts.total === 1 ? '' : 's'}
-              </Badge>
-            </div>
-
-            {!hasIssues && (
-              <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                <CheckCircle2 size={16} />
-                {report.message || 'No blocking issues detected.'}
-              </div>
-            )}
-
-            {hasIssues && (
-              <div className="grid gap-4 md:grid-cols-2">
-                {report.template_compliance_v2 && report.issue_counts.missing_template_sections > 0 && (
-                  <div className="space-y-4 rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm">
-                    <p className="flex items-center gap-2 font-semibold text-amber-900">
-                      <AlertTriangle size={16} /> PRD structure issues
-                    </p>
-                    {missingTemplateSections.length > 0 && (
-                      <div>
-                        <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide">Missing sections</p>
-                        <ul className="list-inside list-disc text-amber-800">
-                          {missingTemplateSections.slice(0, 4).map((section: string) => (
-                            <li key={`missing-${section}`}>{section}</li>
-                          ))}
-                          {missingTemplateSections.length > 4 && (
-                            <li className="text-xs text-muted-foreground">
-                              +{missingTemplateSections.length - 4} more missing section{missingTemplateSections.length - 4 === 1 ? '' : 's'}
-                            </li>
-                          )}
-                        </ul>
-                      </div>
-                    )}
-                    {unexpectedSections.length > 0 && (
-                      <div>
-                        <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide">Unexpected sections</p>
-                        <ul className="list-inside list-disc text-amber-800">
-                          {unexpectedSections.slice(0, 4).map((section: string) => (
-                            <li key={`extra-${section}`}>{section}</li>
-                          ))}
-                          {unexpectedSections.length > 4 && (
-                            <li className="text-xs text-muted-foreground">
-                              +{unexpectedSections.length - 4} more unexpected section{unexpectedSections.length - 4 === 1 ? '' : 's'}
-                            </li>
-                          )}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {report.target_linkage_issues && report.target_linkage_issues.length > 0 && (
-                  <div className="space-y-2 rounded-lg border border-rose-100 bg-rose-50 p-3 text-sm">
-                    <p className="flex items-center gap-2 font-semibold text-rose-900">
-                      <AlertTriangle size={16} /> Operational targets without requirements
-                    </p>
-                    <ul className="list-inside list-disc text-rose-800">
-                      {report.target_linkage_issues.slice(0, 4).map((issue, idx) => (
-                        <li key={`${issue.title}-${idx}`}>
-                          <span className="font-medium">{issue.criticality}</span>: {issue.title}
-                        </li>
-                      ))}
-                      {report.target_linkage_issues.length > 4 && (
-                        <li className="text-xs text-muted-foreground">
-                          +{report.target_linkage_issues.length - 4} more targets
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-
-                {report.requirements_without_targets && report.requirements_without_targets.length > 0 && (
-                  <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-                    <p className="flex items-center gap-2 font-semibold text-slate-900">
-                      <AlertTriangle size={16} /> Requirements missing PRD linkage
-                    </p>
-                    <ul className="list-inside list-disc text-slate-700">
-                      {report.requirements_without_targets.slice(0, 4).map((req) => (
-                        <li key={req.id}>
-                          <span className="font-medium">{req.id}</span> · {req.title}
-                        </li>
-                      ))}
-                      {report.requirements_without_targets.length > 4 && (
-                        <li className="text-xs text-muted-foreground">
-                          +{report.requirements_without_targets.length - 4} more requirements
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-
-                {report.prd_ref_issues && report.prd_ref_issues.length > 0 && (
-                  <div className="space-y-2 rounded-lg border border-purple-100 bg-purple-50 p-3 text-sm">
-                    <p className="flex items-center gap-2 font-semibold text-purple-900">
-                      <AlertTriangle size={16} /> PRD reference mismatches
-                    </p>
-                    <ul className="list-inside list-disc text-purple-800">
-                      {report.prd_ref_issues.slice(0, 4).map((issue, idx) => (
-                        <li key={`${issue.requirement_id}-${idx}`}>
-                          <span className="font-medium">{issue.requirement_id}</span> · {issue.message}
-                        </li>
-                      ))}
-                      {report.prd_ref_issues.length > 4 && (
-                        <li className="text-xs text-muted-foreground">
-                          +{report.prd_ref_issues.length - 4} more reference issues
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-              {report.entity_type && report.entity_name && (
-                <Link to={`/scenario/${report.entity_type}/${report.entity_name}?tab=requirements`} className="text-primary hover:underline">
-                  Resolve in Scenario Control Center →
-                </Link>
-              )}
-              <Link to="/quality-scanner" className="text-primary hover:underline">
-                Open Quality Scanner
-              </Link>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <IssuesSummaryCard
+      subtitle="Snapshot of structural compliance, requirement coverage, and PRD references."
+      metadata={
+        report?.validated_at ? (
+          <span>
+            Last verified {formatDate(report.validated_at)}
+            {report.cache_used ? ' · cached' : ''}
+          </span>
+        ) : undefined
+      }
+      loading={!report && loading}
+      error={error}
+      onRefresh={onRefresh}
+      refreshing={loading}
+      refreshLabel="Refresh scan"
+      statusLabel={report ? STATUS_LABELS[report.status] : undefined}
+      statusTone={report ? STATUS_TONES[report.status] : 'info'}
+      issueCount={report?.issue_counts.total}
+      statusMessage={report && !hasIssues ? report.message || 'No blocking issues detected.' : undefined}
+      categories={categories}
+      footerActions={footerActions}
+    />
   )
+}
+
+export function buildQualityIssueCategories(report: ScenarioQualityReport): IssueCategory[] {
+  const missingTemplateSections = flattenMissingTemplateSections(report.template_compliance_v2)
+  const unexpectedSections = report.template_compliance_v2?.unexpected_sections ?? []
+  const categories: IssueCategory[] = []
+
+  if (report.template_compliance_v2 && report.issue_counts.missing_template_sections > 0) {
+    const sections = []
+    if (missingTemplateSections.length > 0) {
+      sections.push({
+        id: 'missing-sections',
+        title: 'Missing sections',
+        items: missingTemplateSections,
+        maxVisible: 4,
+      })
+    }
+    if (unexpectedSections.length > 0) {
+      sections.push({
+        id: 'unexpected-sections',
+        title: 'Unexpected sections',
+        items: unexpectedSections,
+        maxVisible: 4,
+      })
+    }
+    categories.push({
+      id: 'structure',
+      title: (
+        <span className="flex items-center gap-2">
+          <AlertTriangle size={16} /> PRD structure issues
+        </span>
+      ),
+      tone: 'warning',
+      sections,
+    })
+  }
+
+  if (report.target_linkage_issues && report.target_linkage_issues.length > 0) {
+    categories.push({
+      id: 'targets',
+      title: 'Operational targets without requirements',
+      tone: 'critical',
+      items: report.target_linkage_issues.map((issue) => `${issue.criticality}: ${issue.title}`),
+    })
+  }
+
+  if (report.requirements_without_targets && report.requirements_without_targets.length > 0) {
+    categories.push({
+      id: 'requirements',
+      title: 'Requirements missing PRD linkage',
+      tone: 'info',
+      items: report.requirements_without_targets.map((req) => `${req.id} · ${req.title}`),
+    })
+  }
+
+  if (report.prd_ref_issues && report.prd_ref_issues.length > 0) {
+    categories.push({
+      id: 'references',
+      title: 'PRD reference mismatches',
+      tone: 'info',
+      items: report.prd_ref_issues.map((issue) => `${issue.requirement_id} · ${issue.message}`),
+    })
+  }
+
+  return categories
 }

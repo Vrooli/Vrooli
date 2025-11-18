@@ -14,6 +14,7 @@ import { resolveAppIdentifier } from '@/utils/appPreview';
 import { ensureDataUrl } from '@/utils/dataUrl';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useAutoNextScenario } from '@/hooks/useAutoNextScenario';
+import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 import type { App, Resource } from '@/types';
 import './TabSwitcherDialog.css';
 
@@ -262,14 +263,25 @@ export default function TabSwitcherDialog() {
       return;
     }
     closeOverlay({ replace: true });
-    navigate(`/apps/${encodeURIComponent(identifier)}/preview`, {
-      state: {
-        fromAppsList: true,
-        originAppId: app.id,
-        navTimestamp: Date.now(),
-        autoSelected: Boolean(options?.autoSelected),
-        autoSelectedAt: options?.autoSelected ? Date.now() : undefined,
-      },
+    const targetPath = `/apps/${encodeURIComponent(identifier)}/preview`;
+    const navigationState = {
+      fromAppsList: true,
+      originAppId: app.id,
+      navTimestamp: Date.now(),
+      autoSelected: Boolean(options?.autoSelected),
+      autoSelectedAt: options?.autoSelected ? Date.now() : undefined,
+    } as const;
+
+    if (isIosSafariUserAgent()) {
+      const guardAppId = app.id ?? identifier;
+      primePreviewGuardForNavigation({
+        appId: guardAppId,
+        recoverPath: targetPath,
+      });
+    }
+
+    navigate(targetPath, {
+      state: navigationState,
     });
   };
 
