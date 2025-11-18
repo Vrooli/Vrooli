@@ -60,6 +60,7 @@ export interface IssueCategory {
   badgeValue?: ReactNode
   footer?: ReactNode
   className?: string
+  action?: IssueCategoryAction
 }
 
 export interface IssueFooterAction {
@@ -67,6 +68,17 @@ export interface IssueFooterAction {
   to?: string
   href?: string
   onClick?: () => void
+}
+
+export interface IssuePrimaryAction {
+  label: string
+  onClick: () => void
+  icon?: ReactNode
+}
+
+export interface IssueCategoryAction {
+  label: string
+  onClick: () => void
 }
 
 interface IssuesSummaryCardProps {
@@ -88,6 +100,7 @@ interface IssuesSummaryCardProps {
   emptyState?: ReactNode
   footerActions?: IssueFooterAction[]
   className?: string
+  primaryAction?: IssuePrimaryAction
 }
 
 const DEFAULT_ICON = <ShieldAlert size={18} className="text-violet-600" />
@@ -111,6 +124,7 @@ export function IssuesSummaryCard({
   emptyState,
   footerActions,
   className,
+  primaryAction,
 }: IssuesSummaryCardProps) {
   const showCategories = (categories?.length ?? 0) > 0
   const tone = TONE_STYLES[statusTone]
@@ -137,9 +151,15 @@ export function IssuesSummaryCard({
             </CardTitle>
             {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
           </div>
-          {(metadata || onRefresh) && (
+          {(metadata || onRefresh || primaryAction) && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {metadata}
+              {primaryAction && (
+                <Button size="sm" onClick={primaryAction.onClick} className="gap-2 text-xs">
+                  {primaryAction.icon}
+                  {primaryAction.label}
+                </Button>
+              )}
               {onRefresh && (
                 <Button size="sm" variant="outline" onClick={onRefresh} disabled={refreshing} className="gap-2">
                   {refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
@@ -229,6 +249,7 @@ export function IssueCategoryCard({
   badgeValue,
   footer,
   className,
+  action,
 }: IssueCategory) {
   const toneStyles = TONE_STYLES[tone]
   const lists = sections?.length
@@ -239,11 +260,18 @@ export function IssueCategoryCard({
 
   return (
     <div className={cn('space-y-3 rounded-lg border p-3 text-sm', toneStyles.container, className)}>
-      <p className={cn('flex items-center gap-2 font-semibold', toneStyles.title)}>
-        {icon ?? <AlertTriangle size={16} />}
-        {title}
-        {badgeValue && <Badge variant="secondary">{badgeValue}</Badge>}
-      </p>
+      <div className={cn('flex items-center justify-between gap-2 font-semibold', toneStyles.title)}>
+        <p className="flex items-center gap-2">
+          {icon ?? <AlertTriangle size={16} />}
+          {title}
+          {badgeValue && <Badge variant="secondary">{badgeValue}</Badge>}
+        </p>
+        {action && (
+          <button type="button" onClick={action.onClick} className="text-xs font-normal text-primary underline-offset-2 hover:underline">
+            {action.label}
+          </button>
+        )}
+      </div>
       {description && <div className="text-xs text-muted-foreground">{description}</div>}
       {lists.length > 0 && (
         <div className="space-y-3">

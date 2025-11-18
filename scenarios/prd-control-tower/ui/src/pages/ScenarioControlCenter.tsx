@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { ListTree, Target, AlertTriangle, FileEdit, ArrowRight, RefreshCw, Loader2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -22,6 +23,8 @@ import { DiagnosticsPanel, IssuesPanel } from '../components/prd-viewer'
 import { fetchQualityReport } from '../utils/quality'
 import type { ScenarioQualityReport } from '../types'
 import { buildApiUrl } from '../utils/apiClient'
+import { useReportIssueActions } from '../components/issues/ReportIssueProvider'
+import { buildIssueReportSeedForCategories, buildIssueReportSeedFromQualityReport } from '../utils/issueReports'
 
 interface DiagnosticsState {
   entityType: string
@@ -89,6 +92,37 @@ export default function ScenarioControlCenter() {
   const [diagnostics, setDiagnostics] = useState<DiagnosticsState | null>(null)
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false)
   const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null)
+  const { openIssueDialog } = useReportIssueActions()
+
+  const handleReportIssues = useCallback(() => {
+    if (!qualityReport) return
+    const seed = buildIssueReportSeedFromQualityReport(qualityReport)
+    if (!seed.categories.length) {
+      toast.error('No actionable issues to report for this scenario')
+      return
+    }
+    openIssueDialog(seed)
+  }, [openIssueDialog, qualityReport])
+
+  const handleReportCategory = useCallback(
+    (categoryId: string) => {
+      if (!qualityReport) return
+      const categoryMap: Record<string, string | string[]> = {
+        structure: ['structure_missing', 'structure_unexpected'],
+        targets: ['target_linkage'],
+        requirements: ['requirements_without_targets'],
+        references: ['prd_reference'],
+      }
+      const targetIds = categoryMap[categoryId] ?? categoryId
+      const seed = buildIssueReportSeedForCategories(qualityReport, targetIds) ?? buildIssueReportSeedFromQualityReport(qualityReport)
+      if (!seed.categories.length) {
+        toast.error('No actionable issues found for this category')
+        return
+      }
+      openIssueDialog(seed)
+    },
+    [openIssueDialog, qualityReport],
+  )
 
   const loadQualityReport = useCallback(
     async (force = false) => {
@@ -410,6 +444,8 @@ export default function ScenarioControlCenter() {
               loading={qualityLoading}
               error={qualityError}
               onRefresh={() => loadQualityReport(true)}
+              onReportIssues={handleReportIssues}
+              onReportCategory={handleReportCategory}
             />
           )}
 

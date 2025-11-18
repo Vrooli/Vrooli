@@ -4,6 +4,7 @@ import { HashRouter, Routes, Route, Navigate, useParams } from 'react-router-dom
 import { Toaster } from 'react-hot-toast'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child'
 import { ConfirmDialogProvider } from './utils/confirmDialog'
+import { ReportIssueProvider } from './components/issues/ReportIssueProvider'
 import './styles/global.css'
 import './styles/legacy.css'
 
@@ -62,51 +63,53 @@ if (typeof window !== 'undefined' && window.parent !== window) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ConfirmDialogProvider>
-      <HashRouter>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<Orientation />} />
-            <Route path="/catalog" element={<Catalog />} />
-            <Route path="/drafts" element={<Drafts />} />
-            <Route path="/draft/:entityType/:entityName" element={<Drafts />} />
-            <Route path="/backlog" element={<Backlog />} />
-            <Route path="/requirements-registry" element={<RequirementsRegistry />} />
-            <Route path="/scenario/:entityType/:entityName" element={<ScenarioControlCenter />} />
-            {/* Legacy routes redirect to Scenario Control Center */}
-            <Route path="/prd/:entityType/:entityName" element={<LegacyScenarioRedirect />} />
-            <Route path="/requirements-dashboard/:entityType/:entityName" element={<LegacyScenarioRedirect />} />
-            <Route path="/requirements/:entityType/:entityName" element={<LegacyScenarioRedirect />} />
-            <Route path="/targets/:entityType/:entityName" element={<LegacyScenarioRedirect />} />
-            <Route path="/quality-scanner" element={<QualityScanner />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </HashRouter>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#fff',
-            color: '#1a202c',
-            padding: '16px',
-            borderRadius: '8px',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
+      <ReportIssueProvider>
+        <HashRouter>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Orientation />} />
+              <Route path="/catalog" element={<Catalog />} />
+              <Route path="/drafts" element={<Drafts />} />
+              <Route path="/draft/:entityType/:entityName" element={<Drafts />} />
+              <Route path="/backlog" element={<Backlog />} />
+              <Route path="/requirements-registry" element={<RequirementsRegistry />} />
+              <Route path="/scenario/:entityType/:entityName" element={<ScenarioControlCenter />} />
+              {/* Legacy routes redirect to Scenario Control Center */}
+              <Route path="/prd/:entityType/:entityName" element={<LegacyScenarioRedirect />} />
+              <Route path="/requirements-dashboard/:entityType/:entityName" element={<LegacyScenarioRedirect />} />
+              <Route path="/requirements/:entityType/:entityName" element={<LegacyScenarioRedirect />} />
+              <Route path="/targets/:entityType/:entityName" element={<LegacyScenarioRedirect />} />
+              <Route path="/quality-scanner" element={<QualityScanner />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </HashRouter>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#fff',
+              color: '#1a202c',
+              padding: '16px',
+              borderRadius: '8px',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
             },
-          },
-          error: {
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
             },
-          },
-        }}
-      />
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+      </ReportIssueProvider>
     </ConfirmDialogProvider>
   </StrictMode>,
 )

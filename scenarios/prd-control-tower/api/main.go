@@ -128,6 +128,10 @@ func main() {
 	apiV1.HandleFunc("/quality/scan", handleQualityScan).Methods("POST")
 	apiV1.HandleFunc("/quality/summary", handleQualitySummary).Methods("GET")
 
+	// Issue tracker integration endpoints
+	apiV1.HandleFunc("/issues/status", handleGetScenarioIssuesStatus).Methods("GET")
+	apiV1.HandleFunc("/issues/report", handleSubmitIssueReport).Methods("POST")
+
 	slog.Info("PRD Control Tower API starting", "port", port, "service", "prd-control-tower")
 	if err := http.ListenAndServe(":"+port, router); err != nil {
 		slog.Error("Failed to start server", "error", err)

@@ -122,6 +122,104 @@ export interface ScenarioTemplateListResponse {
   templates: ScenarioTemplate[]
 }
 
+export type IssueSeverity = 'info' | 'low' | 'medium' | 'high' | 'critical' | 'p0' | 'p1' | 'p2'
+
+export interface TrackerIssueSummary {
+  id: string
+  title: string
+  status: string
+  priority?: string
+  created_at?: string
+  updated_at?: string
+  reporter?: string
+  issue_url?: string
+  local_issue_url?: string
+}
+
+export interface ScenarioIssuesSummary {
+  entity_type: EntityType
+  entity_name: string
+  issues: TrackerIssueSummary[]
+  open_count: number
+  active_count: number
+  total_count: number
+  tracker_url?: string
+  local_tracker_url?: string
+  last_fetched: string
+  from_cache: boolean
+  stale: boolean
+}
+
+export interface IssueReportSelectionInput {
+  id: string
+  title: string
+  detail: string
+  category: string
+  severity: IssueSeverity
+  reference?: string
+  notes?: string
+}
+
+export interface IssueReportAttachmentInput {
+  name: string
+  content: string
+  content_type?: string
+  encoding?: string
+  category?: string
+  description?: string
+}
+
+export interface ScenarioIssueReportRequest {
+  entity_type: EntityType
+  entity_name: string
+  source: string
+  title: string
+  description: string
+  priority?: string
+  summary?: string
+  tags?: string[]
+  labels?: Record<string, string>
+  metadata?: Record<string, string>
+  selections: IssueReportSelectionInput[]
+  attachments?: IssueReportAttachmentInput[]
+}
+
+export interface ScenarioIssueReportResponse {
+  issue_id: string
+  issue_url?: string
+  message: string
+}
+
+export interface BulkIssueReportResult {
+  request: ScenarioIssueReportRequest
+  response?: ScenarioIssueReportResponse
+  error?: string
+}
+
+export interface IssueReportCategorySeed {
+  id: string
+  title: string
+  description?: string
+  severity?: IssueSeverity
+  defaultSelected?: boolean
+  items: IssueReportSelectionInput[]
+}
+
+export interface IssueReportSeed {
+  entity_type: EntityType
+  entity_name: string
+  source: string
+  title: string
+  description: string
+  summary?: string
+  display_name?: string
+  tags?: string[]
+  labels?: Record<string, string>
+  metadata?: Record<string, string>
+  attachments?: IssueReportAttachmentInput[]
+  categories: IssueReportCategorySeed[]
+}
+
 export interface ScenarioExistenceResponse {
   exists: boolean
   path?: string

@@ -28,7 +28,9 @@ import type {
 } from '../types'
 import { formatDate } from '../utils/formatters'
 import { IssuesSummaryCard } from '../components/issues'
+import { useReportIssueActions } from '../components/issues/ReportIssueProvider'
 import { buildQualityIssueCategories, STATUS_LABELS, STATUS_TONES } from '../components/prd-viewer/IssuesPanel'
+import { buildIssueReportSeedFromQualityReport } from '../utils/issueReports'
 
 const SCAN_STORAGE_KEY = 'prd-control-tower:quality-scan'
 
@@ -98,6 +100,7 @@ export default function QualityScanner() {
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [reports, setReports] = useState<ScenarioQualityReport[]>([])
+  const [selectedReports, setSelectedReports] = useState<Set<string>>(new Set())
   const [resultFilter, setResultFilter] = useState<ResultFilter>('all')
   const [lastRunAt, setLastRunAt] = useState<string | null>(null)
   const [qualitySummary, setQualitySummary] = useState<QualitySummary | null>(null)
@@ -109,6 +112,53 @@ export default function QualityScanner() {
   })
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'status', direction: 'asc' })
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null)
+  const { openIssueDialog, openBulkIssueDialog } = useReportIssueActions()
+  const selectedCount = selectedReports.size
+
+  const toggleReportSelection = useCallback((report: ScenarioQualityReport) => {
+    if (!canReportScenario(report)) {
+      return
+    }
+    const key = buildReportKey(report)
+    setSelectedReports((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }, [])
+
+  const handleReportSingle = useCallback(
+    (report: ScenarioQualityReport) => {
+      const seed = buildIssueReportSeedFromQualityReport(report)
+      if (!seed.categories.length) {
+        toast.error('No actionable issues to report for this scenario')
+        return
+      }
+      openIssueDialog(seed)
+    },
+    [openIssueDialog],
+  )
+
+  const handleBulkReport = useCallback(() => {
+    if (selectedReports.size === 0) {
+      return
+    }
+    const seeds = reports
+      .filter((report) => selectedReports.has(buildReportKey(report)))
+      .map((report) => buildIssueReportSeedFromQualityReport(report))
+      .filter((seed) => seed.categories.length > 0)
+
+    if (seeds.length === 0) {
+      toast.error('Selected scenarios do not have actionable issues')
+      return
+    }
+
+    openBulkIssueDialog(seeds)
+  }, [openBulkIssueDialog, reports, selectedReports])
 
   useEffect(() => {
     let mounted = true
@@ -159,6 +209,19 @@ export default function QualityScanner() {
       mounted = false
     }
   }, [])
+
+  useEffect(() => {
+    setSelectedReports((prev) => {
+      const next = new Set<string>()
+      reports.forEach((report) => {
+        const key = buildReportKey(report)
+        if (prev.has(key)) {
+          next.add(key)
+        }
+      })
+      return next
+    })
+  }, [reports])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -540,6 +603,14 @@ export default function QualityScanner() {
               <Button variant="outline" size="sm" className="gap-2" onClick={exportCSV}>
                 <Download size={14} /> Export CSV
               </Button>
+              <Button
+                size="sm"
+                className="gap-2"
+                disabled={selectedCount === 0}
+                onClick={handleBulkReport}
+              >
+                <ListChecks size={14} /> Report selected ({selectedCount})
+              </Button>
               <select
                 value={resultFilter}
                 onChange={(e) => setResultFilter(e.target.value as ResultFilter)}
@@ -575,6 +646,7 @@ export default function QualityScanner() {
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>
+                      <th className="px-4 py-3">Select</th>
                       <SortableHeader label="Entity" column="name" sortConfig={sortConfig} onSort={setSortConfig} />
                       <SortableHeader label="Status" column="status" sortConfig={sortConfig} onSort={setSortConfig} />
                       <SortableHeader
@@ -594,11 +666,22 @@ export default function QualityScanner() {
                   </thead>
                   <tbody>
                     {sortedReports.map((report) => {
-                      const id = `${report.entity_type}:${report.entity_name}`
+                      const id = buildReportKey(report)
                       const isExpanded = expandedReportId === id
+                      const isSelectable = canReportScenario(report)
+                      const isSelected = selectedReports.has(id)
                       return (
                         <Fragment key={id}>
                           <tr className="border-t text-slate-700">
+                            <td className="px-4 py-3">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={isSelected}
+                                disabled={!isSelectable}
+                                onChange={() => toggleReportSelection(report)}
+                              />
+                            </td>
                             <td className="px-4 py-3 font-semibold text-slate-900">
                               {report.entity_name}
                               <Badge variant="secondary" className="ml-2 uppercase">
@@ -618,21 +701,31 @@ export default function QualityScanner() {
                               {report.target_count} targets · {report.requirement_count} requirements
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <Button
-                                variant="link"
-                                className="px-0 text-sm"
-                                onClick={() =>
-                                  setExpandedReportId((prev) => (prev === id ? null : id))
-                                }
-                              >
-                                {isExpanded ? 'Hide details' : 'View details'}
-                              </Button>
+                              <div className="flex items-center justify-end gap-3">
+                                <Button
+                                  variant="link"
+                                  className="px-0 text-sm"
+                                  onClick={() =>
+                                    setExpandedReportId((prev) => (prev === id ? null : id))
+                                  }
+                                >
+                                  {isExpanded ? 'Hide details' : 'View details'}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={!isSelectable}
+                                  onClick={() => handleReportSingle(report)}
+                                >
+                                  Report
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                           {isExpanded && (
                             <tr>
-                              <td colSpan={5} className="bg-slate-50 px-4 py-4">
-                                <ReportDetails report={report} />
+                              <td colSpan={6} className="bg-slate-50 px-4 py-4">
+                                <ReportDetails report={report} onReport={handleReportSingle} />
                               </td>
                             </tr>
                           )}
@@ -653,6 +746,14 @@ export default function QualityScanner() {
 function persistScan(response: { generated_at: string; reports: ScenarioQualityReport[] }) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(SCAN_STORAGE_KEY, JSON.stringify(response))
+}
+
+function buildReportKey(report: ScenarioQualityReport) {
+  return `${report.entity_type}:${report.entity_name}`
+}
+
+function canReportScenario(report: ScenarioQualityReport) {
+  return report.status === 'missing_prd' || report.issue_counts.total > 0
 }
 
 function loadStoredScan(): StoredScanPayload | null {
@@ -792,7 +893,7 @@ function SortableHeader({
   )
 }
 
-function ReportDetails({ report }: { report: ScenarioQualityReport }) {
+function ReportDetails({ report, onReport }: { report: ScenarioQualityReport; onReport?: (report: ScenarioQualityReport) => void }) {
   const hasIssues = report.status !== 'healthy'
   const categories = buildQualityIssueCategories(report)
   const overviewBadges = (
@@ -819,6 +920,14 @@ function ReportDetails({ report }: { report: ScenarioQualityReport }) {
         { label: 'View PRD →', to: `/scenario/${report.entity_type}/${report.entity_name}?tab=prd` },
         { label: 'Requirements dashboard →', to: `/scenario/${report.entity_type}/${report.entity_name}?tab=requirements` },
       ]}
+      primaryAction={
+        onReport
+          ? {
+              label: 'Report issues',
+              onClick: () => onReport(report),
+            }
+          : undefined
+      }
     />
   )
 }

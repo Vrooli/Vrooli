@@ -9,6 +9,8 @@ interface IssuesPanelProps {
   loading: boolean
   error: string | null
   onRefresh?: () => void
+  onReportIssues?: () => void
+  onReportCategory?: (categoryId: string) => void
 }
 
 export const STATUS_LABELS: Record<ScenarioQualityReport['status'], string> = {
@@ -27,9 +29,9 @@ export const STATUS_TONES: Record<ScenarioQualityReport['status'], IssueTone> = 
   error: 'warning',
 }
 
-export function IssuesPanel({ report, loading, error, onRefresh }: IssuesPanelProps) {
+export function IssuesPanel({ report, loading, error, onRefresh, onReportIssues, onReportCategory }: IssuesPanelProps) {
   const hasIssues = (report?.issue_counts.total ?? 0) > 0
-  const categories = report ? buildQualityIssueCategories(report) : []
+  const categories = report ? buildQualityIssueCategories(report, { onReportCategory }) : []
 
   const footerActions: IssueFooterAction[] = []
   if (report?.entity_type && report.entity_name) {
@@ -62,11 +64,22 @@ export function IssuesPanel({ report, loading, error, onRefresh }: IssuesPanelPr
       statusMessage={report && !hasIssues ? report.message || 'No blocking issues detected.' : undefined}
       categories={categories}
       footerActions={footerActions}
+      primaryAction={
+        onReportIssues
+          ? {
+              label: 'Report issues',
+              onClick: onReportIssues,
+            }
+          : undefined
+      }
     />
   )
 }
 
-export function buildQualityIssueCategories(report: ScenarioQualityReport): IssueCategory[] {
+export function buildQualityIssueCategories(
+  report: ScenarioQualityReport,
+  options?: { onReportCategory?: (categoryId: string) => void },
+): IssueCategory[] {
   const missingTemplateSections = flattenMissingTemplateSections(report.template_compliance_v2)
   const unexpectedSections = report.template_compliance_v2?.unexpected_sections ?? []
   const categories: IssueCategory[] = []
@@ -98,6 +111,9 @@ export function buildQualityIssueCategories(report: ScenarioQualityReport): Issu
       ),
       tone: 'warning',
       sections,
+      action: options?.onReportCategory
+        ? { label: 'Report', onClick: () => options.onReportCategory?.('structure') }
+        : undefined,
     })
   }
 
@@ -107,6 +123,9 @@ export function buildQualityIssueCategories(report: ScenarioQualityReport): Issu
       title: 'Operational targets without requirements',
       tone: 'critical',
       items: report.target_linkage_issues.map((issue) => `${issue.criticality}: ${issue.title}`),
+      action: options?.onReportCategory
+        ? { label: 'Report', onClick: () => options.onReportCategory?.('targets') }
+        : undefined,
     })
   }
 
@@ -116,6 +135,9 @@ export function buildQualityIssueCategories(report: ScenarioQualityReport): Issu
       title: 'Requirements missing PRD linkage',
       tone: 'info',
       items: report.requirements_without_targets.map((req) => `${req.id} · ${req.title}`),
+      action: options?.onReportCategory
+        ? { label: 'Report', onClick: () => options.onReportCategory?.('requirements') }
+        : undefined,
     })
   }
 
@@ -125,6 +147,9 @@ export function buildQualityIssueCategories(report: ScenarioQualityReport): Issu
       title: 'PRD reference mismatches',
       tone: 'info',
       items: report.prd_ref_issues.map((issue) => `${issue.requirement_id} · ${issue.message}`),
+      action: options?.onReportCategory
+        ? { label: 'Report', onClick: () => options.onReportCategory?.('references') }
+        : undefined,
     })
   }
 
