@@ -30,12 +30,7 @@ CREATE TABLE IF NOT EXISTS secret_validations (
     validation_method VARCHAR(20) NOT NULL CHECK (validation_method IN ('env', 'vault', 'file', 'api')),
     validation_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     error_message TEXT,
-    validation_details JSONB,
-    
-    -- Index for efficient queries
-    INDEX(resource_secret_id),
-    INDEX(validation_timestamp),
-    INDEX(validation_status)
+    validation_details JSONB
 );
 
 -- Table for tracking scan operations
@@ -60,11 +55,7 @@ CREATE TABLE IF NOT EXISTS secret_provisions (
     provisioned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     provisioned_by VARCHAR(100),
     provision_status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (provision_status IN ('active', 'expired', 'revoked')),
-    expiration_date TIMESTAMP WITH TIME ZONE,
-    
-    INDEX(resource_secret_id),
-    INDEX(provisioned_at),
-    INDEX(provision_status)
+    expiration_date TIMESTAMP WITH TIME ZONE
 );
 
 -- View for current secret status summary
@@ -124,6 +115,7 @@ END;
 $$ language 'plpgsql';
 
 -- Trigger to automatically update updated_at on resource_secrets
+DROP TRIGGER IF EXISTS update_resource_secrets_updated_at ON resource_secrets;
 CREATE TRIGGER update_resource_secrets_updated_at 
 BEFORE UPDATE ON resource_secrets 
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -103,7 +103,7 @@ VALUES (
     (SELECT COUNT(*) FROM resource_secrets),
     0,
     'completed',
-    '{"type": "database_seed", "seeded_at": "' || CURRENT_TIMESTAMP || '"}'
+    jsonb_build_object('type', 'database_seed', 'seeded_at', CURRENT_TIMESTAMP)
 );
 
 -- Create a summary report for seeded data

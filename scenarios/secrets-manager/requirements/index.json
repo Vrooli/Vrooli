@@ -1,0 +1,294 @@
+{
+  "_metadata": {
+    "description": "Secrets Manager operational requirements aligned with the minimal PRD (v2.0)",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true,
+    "last_validated_at": null,
+    "last_synced_at": null
+  },
+  "meta": {
+    "scenario": "secrets-manager",
+    "version": "2024.11",
+    "generated": "2024-11-19",
+    "owners": [
+      {
+        "team": "Vrooli Security",
+        "contact": "security@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [],
+  "requirements": [
+    {
+      "id": "SEC-VLT-001",
+      "category": "vault-intelligence",
+      "title": "Repository secret manifest discovery",
+      "description": "Enumerate every config/secrets manifest across scenarios/resources and normalize keys + metadata for downstream validation.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "criticality": "P0",
+      "status": "in_progress",
+      "tags": ["vault", "discovery", "cli"],
+      "validation": []
+    },
+    {
+      "id": "SEC-VLT-002",
+      "category": "vault-intelligence",
+      "title": "Persist secret requirements in Postgres",
+      "description": "Create and maintain the resource_secrets / secret_validations tables plus seeding scripts that describe each required secret.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "criticality": "P0",
+      "status": "in_progress",
+      "tags": ["postgres", "schema"],
+      "validation": []
+    },
+    {
+      "id": "SEC-VLT-003",
+      "category": "vault-intelligence",
+      "title": "Vault CLI integration with graceful fallback",
+      "description": "Drive `resource-vault secrets validate/check` for canonical status and fall back to local parsing when CLI output is unavailable.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "criticality": "P0",
+      "status": "in_progress",
+      "tags": ["vault", "cli", "fallback"],
+      "validation": []
+    },
+    {
+      "id": "SEC-VLT-004",
+      "category": "vault-intelligence",
+      "title": "Vault health endpoint",
+      "description": "Expose `/api/v1/vault/secrets/status` with totals, missing secrets, timestamps, and per-resource health that other surfaces can consume.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "criticality": "P0",
+      "status": "in_progress",
+      "tags": ["api", "vault"],
+      "validation": []
+    },
+    {
+      "id": "SEC-SCAN-001",
+      "category": "security-scanning",
+      "title": "Cross-scenario code scanning",
+      "description": "Scan Go/TypeScript files for hardcoded secrets, SQL injection, and http misuse with component metadata for each finding.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "criticality": "P0",
+      "status": "in_progress",
+      "tags": ["scanner", "code", "security"],
+      "validation": []
+    },
+    {
+      "id": "SEC-SCAN-002",
+      "category": "security-scanning",
+      "title": "Risk scoring and severity weighting",
+      "description": "Calculate overall risk and per-vulnerability severity counts so compliance consumers see the weighted exposure.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "criticality": "P0",
+      "status": "in_progress",
+      "tags": ["scoring", "analytics"],
+      "validation": []
+    },
+    {
+      "id": "SEC-COMP-001",
+      "category": "compliance",
+      "title": "Unified compliance aggregator",
+      "description": "Blend vault coverage, vulnerability stats, and risk scores into `/security/compliance` for dashboard + CLI consumption.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "criticality": "P0",
+      "status": "in_progress",
+      "tags": ["compliance", "api"],
+      "validation": []
+    },
+    {
+      "id": "SEC-OPS-001",
+      "category": "operations",
+      "title": "Lifecycle health instrumentation",
+      "description": "Expose `/health` plus lifecycle metadata so the orchestrator can monitor API/UI availability and restart as needed.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "criticality": "P0",
+      "status": "in_progress",
+      "tags": ["lifecycle", "health"],
+      "validation": []
+    },
+    {
+      "id": "SEC-VLT-005",
+      "category": "vault-intelligence",
+      "title": "Guided provisioning API",
+      "description": "Enable `/vault/secrets/provision` (and CLI helper) to accept secret payloads, write to Vault, and trigger validation refreshes.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "criticality": "P1",
+      "status": "planned",
+      "tags": ["vault", "provisioning"],
+      "validation": []
+    },
+    {
+      "id": "SEC-CLI-001",
+      "category": "cli",
+      "title": "CLI status proxy",
+      "description": "`secrets-manager status` should call `/health`, respect env/config overrides, and emit JSON for automation.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "criticality": "P1",
+      "status": "in_progress",
+      "tags": ["cli", "health"],
+      "validation": []
+    },
+    {
+      "id": "SEC-CLI-002",
+      "category": "cli",
+      "title": "CLI wrappers for vault/compliance/vulnerabilities",
+      "description": "Expose thin commands that forward filters to the API instead of re-implementing parsing or data munging locally.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "criticality": "P1",
+      "status": "in_progress",
+      "tags": ["cli", "api"],
+      "validation": []
+    },
+    {
+      "id": "SEC-UI-001",
+      "category": "ui",
+      "title": "Dashboard hero metrics",
+      "description": "Show top-line counts (configured resources, risk score, missing secrets) sourced directly from compliance + vault endpoints.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "criticality": "P1",
+      "status": "in_progress",
+      "tags": ["ui", "dashboard"],
+      "validation": []
+    },
+    {
+      "id": "SEC-UI-002",
+      "category": "ui",
+      "title": "Vault coverage module",
+      "description": "Display per-resource coverage bars, severity badges, and missing secret callouts with automatic refresh via React Query.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "criticality": "P1",
+      "status": "in_progress",
+      "tags": ["ui", "vault"],
+      "validation": []
+    },
+    {
+      "id": "SEC-UI-003",
+      "category": "ui",
+      "title": "Vulnerability filter panel",
+      "description": "Allow filtering by severity, component, or type with responsive tables that mirror the `/vulnerabilities` API params.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "criticality": "P1",
+      "status": "in_progress",
+      "tags": ["ui", "filters"],
+      "validation": []
+    },
+    {
+      "id": "SEC-UI-004",
+      "category": "ui",
+      "title": "Compliance callout",
+      "description": "Highlight the blended risk score with textual guidance plus iconography that reflects severity thresholds.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "criticality": "P1",
+      "status": "in_progress",
+      "tags": ["ui", "compliance"],
+      "validation": []
+    },
+    {
+      "id": "SEC-UX-001",
+      "category": "ui",
+      "title": "Accessible dark-chrome theme",
+      "description": "Apply consistent typography, contrast, and motion guidelines so the cyberpunk aesthetic still passes WCAG AA.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "criticality": "P1",
+      "status": "in_progress",
+      "tags": ["ux", "branding"],
+      "validation": []
+    },
+    {
+      "id": "SEC-DATA-001",
+      "category": "data",
+      "title": "Historical validation telemetry",
+      "description": "Track secret validation runs + scan events over time to power compliance deltas and future analytics.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "criticality": "P1",
+      "status": "in_progress",
+      "tags": ["postgres", "telemetry"],
+      "validation": []
+    },
+    {
+      "id": "SEC-SCAN-003",
+      "category": "security-scanning",
+      "title": "File content gateway",
+      "description": "Provide a secure `/files/content` endpoint for reviewing snippets referenced by vulnerabilities with path safeguards.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "criticality": "P1",
+      "status": "planned",
+      "tags": ["security", "files"],
+      "validation": []
+    },
+    {
+      "id": "SEC-OPS-002",
+      "category": "operations",
+      "title": "Schema + seed automation",
+      "description": "Lifecycle `setup` must run schema + seed SQL files and remain idempotent so agents can reset environments quickly.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "criticality": "P1",
+      "status": "in_progress",
+      "tags": ["lifecycle", "database"],
+      "validation": []
+    },
+    {
+      "id": "SEC-TEST-001",
+      "category": "operations",
+      "title": "Phased testing alignment",
+      "description": "`test/run-tests.sh` must execute structure/unit/integration/performance phases and emit artifacts referencing `[REQ:ID]` tags.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "criticality": "P1",
+      "status": "in_progress",
+      "tags": ["testing", "phased"],
+      "validation": []
+    },
+    {
+      "id": "SEC-AUTO-001",
+      "category": "future",
+      "title": "Auto-remediation suggestions",
+      "description": "Surface remediation text or trigger claude-code agents that can automatically patch common vulnerability classes.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "criticality": "P2",
+      "status": "planned",
+      "tags": ["ai", "remediation"],
+      "validation": []
+    },
+    {
+      "id": "SEC-AUTO-002",
+      "category": "future",
+      "title": "Trend analytics",
+      "description": "Compute and display rolling averages plus anomaly detection for risk scores and vault coverage deltas.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "criticality": "P2",
+      "status": "planned",
+      "tags": ["analytics", "trend"],
+      "validation": []
+    },
+    {
+      "id": "SEC-POL-001",
+      "category": "future",
+      "title": "Policy gating hooks",
+      "description": "Expose an API/CLI to block deployments or scenario actions until secrets + security thresholds are satisfied.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "criticality": "P2",
+      "status": "planned",
+      "tags": ["policy", "integration"],
+      "validation": []
+    },
+    {
+      "id": "SEC-CLI-003",
+      "category": "future",
+      "title": "CI-friendly export",
+      "description": "Provide a CLI/API command that exports validated secrets and vulnerability summaries for CI pipelines without manual parsing.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "criticality": "P2",
+      "status": "planned",
+      "tags": ["cli", "ci"],
+      "validation": []
+    }
+  ],
+  "reporting": {
+    "phases": [
+      {"name": "structure", "runner": "test/phases/test-structure.sh"},
+      {"name": "unit", "runner": "api"},
+      {"name": "integration", "runner": "test/run-tests.sh"}
+    ]
+  }
+}
