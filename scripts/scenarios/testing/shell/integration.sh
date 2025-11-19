@@ -84,7 +84,7 @@ testing::integration::lint_workflows_via_api() {
         return 0
     fi
 
-    mapfile -t lint_files < <(find "$playbook_dir" -type f -name '*.json' | sort)
+    mapfile -t lint_files < <(find "$playbook_dir" -type f -name '*.json' ! -name 'registry.json' | sort)
     if [ ${#lint_files[@]} -eq 0 ]; then
         return 0
     fi
@@ -126,6 +126,10 @@ testing::integration::lint_workflows_via_api() {
         for file_path in "${lint_files[@]}"; do
             local rel_path
             rel_path="${file_path#$scenario_dir/}"
+
+            if [[ "$rel_path" == "test/playbooks/registry.json" ]]; then
+                continue
+            fi
             echo "🔍 Linting workflow ${rel_path}"
 
         local lint_source_json

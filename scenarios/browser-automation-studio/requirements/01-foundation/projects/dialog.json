@@ -1,0 +1,139 @@
+{
+  "_metadata": {
+    "description": "Project management UI behaviours",
+    "last_validated_at": "2025-11-04T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-19T05:43:59.825Z"
+  },
+  "requirements": [
+    {
+      "id": "BAS-PROJECT-DIALOG-OPEN",
+      "category": "projects.ui",
+      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+      "title": "New project dialog opens from primary entry points",
+      "description": "Verifies the modal opens via the \"Create Project\" button, keyboard shortcuts, and toolbar menu so operators can begin authoring without page reloads.",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/foundation/projects/new-project-dialog-open.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "BAS workflow asserting modal visibility for each trigger once exported."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/ProjectModal.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/ResponsiveDialog.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Auto-added from vitest evidence"
+        }
+      ]
+    },
+    {
+      "id": "BAS-PROJECT-DIALOG-CLOSE",
+      "category": "projects.ui",
+      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+      "title": "New project dialog closes through all affordances",
+      "description": "Ensures the modal dismisses through the X button, cancel button, backdrop click, and Escape key, restoring the underlying canvas state.",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/foundation/projects/new-project-dialog-close.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "BAS workflow covering dismissal affordances (pending export)."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/ProjectModal.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/ResponsiveDialog.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Auto-added from vitest evidence"
+        }
+      ]
+    },
+    {
+      "id": "BAS-PROJECT-CREATE-SUCCESS",
+      "category": "projects.ui",
+      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+      "title": "Operators can create a project from the dialog",
+      "description": "Confirms validated submissions persist projects, show success toasts, and refresh the project list with the new entry selected.",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/foundation/projects/new-project-create.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "BAS workflow seeds unique project and checks API/UI consistency (pending export)."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/ProjectModal.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/projectStore.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Auto-added from vitest evidence"
+        }
+      ]
+    },
+    {
+      "id": "BAS-PROJECT-CREATE-VALIDATION",
+      "category": "projects.ui",
+      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+      "title": "Project creation enforces inline validation rules",
+      "description": "Covers empty name, duplicate detection, and invalid characters with accessible error messaging surfaced inside the dialog.",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/foundation/projects/new-project-validation.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "BAS workflow submits failing payloads and asserts inline error copy (pending export)."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/ProjectModal.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Auto-added from vitest evidence"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/projectStore.test.ts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Auto-added from vitest evidence"
+        }
+      ]
+    }
+  ]
+}

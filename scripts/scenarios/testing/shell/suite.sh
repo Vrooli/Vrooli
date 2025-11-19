@@ -77,14 +77,14 @@ _testing_suite_lint_workflows() {
             log::error "❌ Invalid JSON in workflow playbook: ${file#$scenario_dir/}"
             invalid_found=1
         fi
-    done < <(find "$playbook_dir" -type f -name '*.json' -print0)
+    done < <(find "$playbook_dir" -type f -name '*.json' ! -name 'registry.json' -print0)
 
     if [ "$invalid_found" -ne 0 ]; then
         log::error "Fix invalid workflow JSON before rerunning tests."
         return 1
     fi
 
-    mapfile -t workflow_files < <(find "$playbook_dir" -type f -name '*.json' | sort)
+    mapfile -t workflow_files < <(find "$playbook_dir" -type f -name '*.json' ! -name 'registry.json' | sort)
     if [ ${#workflow_files[@]} -eq 0 ]; then
         return 0
     fi

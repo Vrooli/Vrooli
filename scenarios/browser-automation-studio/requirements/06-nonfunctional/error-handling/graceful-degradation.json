@@ -1,0 +1,29 @@
+{
+  "_metadata": {
+    "description": "Error handling and graceful degradation requirements",
+    "last_validated_at": "2025-11-15T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-17T20:48:10.559Z"
+  },
+  "requirements": [
+    {
+      "id": "BAS-ERROR-HANDLING",
+      "category": "error.handling",
+      "prd_ref": "Non-Functional Requirements > Reliability",
+      "title": "Graceful error handling with informative messages",
+      "description": "System handles invalid inputs, missing elements, and runtime errors gracefully without crashes, providing clear error messages to users",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/nonfunctional/error-handling/invalid-selector-graceful-degradation.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates graceful handling of invalid CSS selectors and malformed syntax with appropriate error messages"
+        }
+      ]
+    }
+  ]
+}

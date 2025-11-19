@@ -1,0 +1,83 @@
+{
+  "_metadata": {
+    "description": "Header and workflow management UI requirements",
+    "last_validated_at": "2025-11-15T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-17T19:54:35.401Z"
+  },
+  "requirements": [
+    {
+      "id": "BAS-HEADER-TITLE-EDIT",
+      "category": "ui.header",
+      "prd_ref": "Workflow Builder > Header",
+      "title": "Inline workflow title editing updates workflow name",
+      "description": "Users can click the edit icon next to the workflow title to edit the name inline, with changes persisted on save",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/builder/header/header-title-edit.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Validates inline title editing with save/cancel affordances"
+        }
+      ]
+    },
+    {
+      "id": "BAS-HEADER-EXECUTE",
+      "category": "ui.header",
+      "prd_ref": "Workflow Builder > Header",
+      "title": "Execute button runs current workflow",
+      "description": "Users can click the execute button in the header to run the current workflow and see execution feedback",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/builder/header/header-execute-workflow.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Validates execute button triggers workflow execution with loading/success states"
+        }
+      ]
+    },
+    {
+      "id": "BAS-HEADER-INFO-POPOVER",
+      "category": "ui.header",
+      "prd_ref": "Workflow Builder > Header",
+      "title": "Info button displays workflow metadata popover",
+      "description": "Users can click the info icon to view workflow metadata including creation date, last modified, folder path, and execution stats",
+      "status": "in_progress",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/builder/header/header-info-popover.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Validates info popover displays correct metadata and dismisses properly"
+        }
+      ]
+    },
+    {
+      "id": "BAS-HEADER-SAVE-STATUS",
+      "category": "ui.header",
+      "prd_ref": "Workflow Builder > Autosave",
+      "title": "Save status indicator shows autosave state",
+      "description": "The header displays real-time save status (saving, saved, error) to provide feedback on workflow persistence",
+      "status": "in_progress",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/builder/header/header-save-status.json",
+          "phase": "integration",
+          "status": "failing",
+          "notes": "Validates save status transitions through saving -> saved states"
+        }
+      ]
+    }
+  ]
+}

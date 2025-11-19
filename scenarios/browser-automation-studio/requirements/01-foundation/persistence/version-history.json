@@ -1,0 +1,89 @@
+{
+  "_metadata": {
+    "description": "Autosave and version history requirements",
+    "last_validated_at": "2025-11-04T00:00:00.000Z",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": "2025-11-17T20:48:10.559Z"
+  },
+  "requirements": [
+    {
+      "id": "BAS-VERSION-AUTOSAVE",
+      "category": "persistence",
+      "prd_ref": "Autosave & Version History",
+      "title": "Autosave prevents data loss and manages conflicts",
+      "description": "Debounced autosave writes workflow drafts, prevents overwrites when conflicts exist, and surfaces state to the UI header.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/stores/workflowStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers autosave, debounce saves, conflict suppression, and history refresh logic."
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-unit.sh",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unit phase captures autosave coverage thresholds."
+        },
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Header.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Header renders save state, conflict actions, and version history entry points."
+        }
+      ]
+    },
+    {
+      "id": "BAS-VERSION-RESTORE",
+      "category": "persistence",
+      "prd_ref": "Autosave & Version History",
+      "title": "Version history exposes restore flows across API, UI, and CLI",
+      "description": "Ensures version listing, diffing, and restore endpoints are available and parity exists between CLI and UI flows.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/handlers_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestListWorkflowVersionsHandlerSuccess, TestGetWorkflowVersionHandlerSuccess, TestRestoreWorkflowVersionConflict validate API endpoints."
+        },
+        {
+          "type": "test",
+          "ref": "api/services/workflow_service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestListWorkflowVersionsSummaries, TestRestoreWorkflowVersionAppliesHistoricDefinition validate service layer."
+        },
+        {
+          "type": "test",
+          "ref": "api/database/repository_extended_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TestWorkflowVersionOperations validates version CRUD operations at repository layer."
+        },
+        {
+          "type": "automation",
+          "ref": "test/playbooks/capabilities/foundation/workflows/workflow-version-restore.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "UI workflow validates version history modal, version listing, and restore functionality"
+        },
+        {
+          "type": "manual",
+          "ref": "cli/browser-automation-studio",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI restore commands documented and verified during operator workflows."
+        }
+      ]
+    }
+  ]
+}
