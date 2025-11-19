@@ -5,6 +5,8 @@ import { Keyboard, Globe, Target } from 'lucide-react';
 import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
 import ElementPickerModal from '../ElementPickerModal';
 import type { ElementInfo } from '../../types/elements';
+import ResiliencePanel from './ResiliencePanel';
+import type { ResilienceSettings } from '../../types/workflow';
 
 const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
   const upstreamUrl = useUpstreamUrl(id);
@@ -105,6 +107,8 @@ const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
     updateNodeData({ selector, elementInfo });
   };
 
+  const resilienceConfig = data?.resilience as ResilienceSettings | undefined;
+
   return (
     <>
       <div className={`workflow-node ${selected ? 'selected' : ''}`}>
@@ -185,6 +189,11 @@ const TypeNode: FC<NodeProps> = ({ data, selected, id }) => {
           onBlur={() => updateNodeData({ text })}
         />
         
+        <ResiliencePanel
+          value={resilienceConfig}
+          onChange={(next) => updateNodeData({ resilience: next ?? null })}
+        />
+
         <Handle type="source" position={Position.Bottom} className="node-handle" />
       </div>
       

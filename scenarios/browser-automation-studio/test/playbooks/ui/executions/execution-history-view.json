@@ -35,20 +35,10 @@
         "label": "Click Execution History tab",
         "selector": "@selector/projects.tabs.executions",
         "timeoutMs": 5000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-execution-list",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution history to load",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "waitForMs": 1500,
+        "resilience": {
+          "successSelector": "@selector/executions.list.root"
+        }
       }
     },
     {
@@ -62,20 +52,10 @@
         "label": "Filter to failed executions",
         "selector": "@selector/executions.filters.filter(filter=failed)",
         "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "wait-after-filter",
-      "type": "wait",
-      "position": {
-        "x": 1250,
-        "y": -120
-      },
-      "data": {
-        "label": "Wait for filtered list",
-        "durationMs": 1000,
-        "waitType": "duration"
+        "waitForMs": 1000,
+        "resilience": {
+          "successSelector": "@selector/executions.list.item"
+        }
       }
     },
     {
@@ -116,20 +96,10 @@
         "selector": "@selector/executions.list.item:first-of-type, @selector/executions.list.card:first-of-type, @selector/executions.actions.viewButton:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000,
-        "continueOnError": true
-      }
-    },
-    {
-      "id": "wait-for-execution-details",
-      "type": "wait",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution details to load",
-        "durationMs": 1500,
-        "waitType": "duration"
+        "continueOnError": true,
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.root"
+        }
       }
     },
     {
@@ -169,24 +139,12 @@
     {
       "id": "e5",
       "source": "click-executions-tab",
-      "target": "wait-for-execution-list",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "wait-for-execution-list",
       "target": "click-filter-failed",
       "type": "smoothstep"
     },
     {
       "id": "e6-filter",
       "source": "click-filter-failed",
-      "target": "wait-after-filter",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6-filter-wait",
-      "source": "wait-after-filter",
       "target": "capture-execution-history",
       "type": "smoothstep"
     },
@@ -205,12 +163,6 @@
     {
       "id": "e9",
       "source": "click-first-execution",
-      "target": "wait-for-execution-details",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "wait-for-execution-details",
       "target": "check-viewer-visible",
       "type": "smoothstep"
     },

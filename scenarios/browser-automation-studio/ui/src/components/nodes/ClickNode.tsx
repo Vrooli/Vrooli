@@ -9,6 +9,8 @@ import type { ElementInfo, BoundingBox, ElementHierarchyEntry, ElementCoordinate
 import { getConfig } from '../../config';
 import { logger } from '../../utils/logger';
 import { useWorkflowStore, type ExecutionViewportSettings } from '../../stores/workflowStore';
+import ResiliencePanel from './ResiliencePanel';
+import type { ResilienceSettings } from '../../types/workflow';
 
 const DEFAULT_ASPECT_RATIO = '16 / 9';
 
@@ -532,6 +534,8 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
     return `Preview from ${upstreamScreenshot.nodeType} node`;
   }, [upstreamScreenshot]);
 
+  const resilienceConfig = data?.resilience as ResilienceSettings | undefined;
+
   return (
     <>
       <div className={`workflow-node ${selected ? 'selected' : ''} w-80`}>
@@ -850,6 +854,11 @@ const ClickNode: FC<NodeProps> = ({ data, selected, id }) => {
             )}
           </div>
         )}
+
+        <ResiliencePanel
+          value={resilienceConfig}
+          onChange={(next) => updateNodeData({ resilience: next ?? null })}
+        />
 
         <Handle type="source" position={Position.Bottom} className="node-handle" />
       </div>

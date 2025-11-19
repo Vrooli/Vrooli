@@ -126,19 +126,6 @@
       }
     },
     {
-      "id": "wait-for-modal-close",
-      "type": "wait",
-      "position": {
-        "x": 2200,
-        "y": -80
-      },
-      "data": {
-        "label": "Wait for modal to close",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "assert-modal-closed",
       "type": "assert",
       "position": {
@@ -151,19 +138,6 @@
         "assertMode": "not_exists",
         "timeoutMs": 5000,
         "failureMessage": "Modal should close after successful project update"
-      }
-    },
-    {
-      "id": "verify-name-updated",
-      "type": "wait",
-      "position": {
-        "x": 2600,
-        "y": -80
-      },
-      "data": {
-        "label": "Wait for UI to reflect changes",
-        "durationMs": 1000,
-        "waitType": "duration"
       }
     },
     {
@@ -220,24 +194,12 @@
     {
       "id": "e11",
       "source": "submit-changes",
-      "target": "wait-for-modal-close",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e12",
-      "source": "wait-for-modal-close",
       "target": "assert-modal-closed",
       "type": "smoothstep"
     },
     {
-      "id": "e13",
+      "id": "e12",
       "source": "assert-modal-closed",
-      "target": "verify-name-updated",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e14",
-      "source": "verify-name-updated",
       "target": "capture-updated-state",
       "type": "smoothstep"
     }

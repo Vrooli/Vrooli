@@ -106,19 +106,6 @@
       }
     },
     {
-      "id": "wait-for-execution",
-      "type": "wait",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
-      "data": {
-        "label": "Allow execution to progress",
-        "durationMs": 5000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "capture-mid-execution",
       "type": "screenshot",
       "position": {
@@ -146,29 +133,18 @@
       }
     },
     {
-      "id": "wait-completion",
-      "type": "wait",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution completion",
-        "durationMs": 15000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "verify-completion-state",
-      "type": "evaluate",
+      "type": "wait",
       "position": {
         "x": 2800,
         "y": 0
       },
       "data": {
-        "label": "Check for completion indicators",
-        "expression": "!!document.querySelector('[class*=\"complete\"], [class*=\"success\"], [class*=\"finished\"], svg.lucide-check')",
-        "storeAs": "showsCompletion"
+        "label": "Wait for completion indicators",
+        "selector": "@selector/executions.viewer.statusCompleted, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCancelled",
+        "timeoutMs": 20000,
+        "waitForMs": 500,
+        "waitType": "element"
       }
     },
     {
@@ -238,41 +214,29 @@
     {
       "id": "e10",
       "source": "check-for-progress-elements",
-      "target": "wait-for-execution",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e11",
-      "source": "wait-for-execution",
       "target": "capture-mid-execution",
       "type": "smoothstep"
     },
     {
-      "id": "e12",
+      "id": "e11",
       "source": "capture-mid-execution",
       "target": "check-heartbeat-indicators",
       "type": "smoothstep"
     },
     {
-      "id": "e13",
+      "id": "e12",
       "source": "check-heartbeat-indicators",
-      "target": "wait-completion",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e14",
-      "source": "wait-completion",
       "target": "verify-completion-state",
       "type": "smoothstep"
     },
     {
-      "id": "e15",
+      "id": "e13",
       "source": "verify-completion-state",
       "target": "capture-final-state",
       "type": "smoothstep"
     },
     {
-      "id": "e16",
+      "id": "e14",
       "source": "capture-final-state",
       "target": "verify-progress-tracking-complete",
       "type": "smoothstep"

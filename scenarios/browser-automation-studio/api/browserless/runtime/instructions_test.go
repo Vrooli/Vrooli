@@ -73,6 +73,116 @@ func TestInstructionFromStepURLFallback(t *testing.T) {
 	}
 }
 
+func TestInstructionFromStepResilienceConfig(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  1,
+		NodeID: "click-1",
+		Type:   compiler.StepClick,
+		Params: map[string]any{
+			"selector": "#submit",
+			"resilience": map[string]any{
+				"maxAttempts":           4,
+				"delayMs":               750,
+				"backoffFactor":         2.0,
+				"preconditionSelector":  ".ready",
+				"preconditionTimeoutMs": 9000,
+				"preconditionWaitMs":    150,
+				"successSelector":       ".complete",
+				"successTimeoutMs":      12000,
+				"successWaitMs":         400,
+			},
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("instructionFromStep returned error: %v", err)
+	}
+
+	if inst.Params.RetryAttempts != 3 {
+		t.Fatalf("expected retryAttempts 3, got %d", inst.Params.RetryAttempts)
+	}
+	if inst.Params.RetryDelayMs != 750 {
+		t.Fatalf("expected retryDelayMs 750, got %d", inst.Params.RetryDelayMs)
+	}
+	if inst.Params.RetryBackoffFactor != 2.0 {
+		t.Fatalf("expected retryBackoffFactor 2.0, got %f", inst.Params.RetryBackoffFactor)
+	}
+	if inst.Params.PreconditionSelector != ".ready" {
+		t.Fatalf("expected precondition selector .ready, got %s", inst.Params.PreconditionSelector)
+	}
+	if inst.Params.PreconditionTimeoutMs != 9000 {
+		t.Fatalf("expected precondition timeout 9000, got %d", inst.Params.PreconditionTimeoutMs)
+	}
+	if inst.Params.PreconditionWaitMs != 150 {
+		t.Fatalf("expected precondition wait 150, got %d", inst.Params.PreconditionWaitMs)
+	}
+	if inst.Params.SuccessSelector != ".complete" {
+		t.Fatalf("expected success selector .complete, got %s", inst.Params.SuccessSelector)
+	}
+	if inst.Params.SuccessTimeoutMs != 12000 {
+		t.Fatalf("expected success timeout 12000, got %d", inst.Params.SuccessTimeoutMs)
+	}
+	if inst.Params.SuccessWaitMs != 400 {
+		t.Fatalf("expected success wait 400, got %d", inst.Params.SuccessWaitMs)
+	}
+}
+
+func TestInstructionFromStepClickDefaultResilience(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  2,
+		NodeID: "click-default",
+		Type:   compiler.StepClick,
+		Params: map[string]any{
+			"selector":  "#submit",
+			"timeoutMs": 4000,
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating click instruction: %v", err)
+	}
+
+	if inst.Params.RetryAttempts != defaultResilienceMaxAttempts-1 {
+		t.Fatalf("expected default retry attempts %d, got %d", defaultResilienceMaxAttempts-1, inst.Params.RetryAttempts)
+	}
+	if inst.Params.RetryDelayMs != defaultResilienceRetryDelayMs {
+		t.Fatalf("expected default retry delay %d, got %d", defaultResilienceRetryDelayMs, inst.Params.RetryDelayMs)
+	}
+	if inst.Params.PreconditionSelector != "#submit" {
+		t.Fatalf("expected precondition selector to default to primary selector, got %q", inst.Params.PreconditionSelector)
+	}
+	if inst.Params.PreconditionTimeoutMs != 4000 {
+		t.Fatalf("expected precondition timeout to reuse node timeout, got %d", inst.Params.PreconditionTimeoutMs)
+	}
+}
+
+func TestInstructionFromStepClickResilienceOptOut(t *testing.T) {
+	step := compiler.ExecutionStep{
+		Index:  3,
+		NodeID: "click-manual-resilience",
+		Type:   compiler.StepClick,
+		Params: map[string]any{
+			"selector": "#submit",
+			"resilience": map[string]any{
+				"maxAttempts": 1,
+			},
+		},
+	}
+
+	inst, err := instructionFromStep(context.Background(), step)
+	if err != nil {
+		t.Fatalf("unexpected error creating click instruction: %v", err)
+	}
+	if inst.Params.RetryAttempts != 0 {
+		t.Fatalf("expected opt-out retry attempts to remain 0, got %d", inst.Params.RetryAttempts)
+	}
+	if inst.Params.PreconditionSelector != "#submit" {
+		t.Fatalf("expected precondition selector fallback even when resilience configured, got %q", inst.Params.PreconditionSelector)
+	}
+}
+
 func TestInstructionFromStepEvaluateSuccess(t *testing.T) {
 	step := compiler.ExecutionStep{
 		Index:  3,

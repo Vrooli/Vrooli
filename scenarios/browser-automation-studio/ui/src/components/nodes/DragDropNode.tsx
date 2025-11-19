@@ -1,6 +1,8 @@
 import { memo, FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
 import { Hand } from 'lucide-react';
+import ResiliencePanel from './ResiliencePanel';
+import type { ResilienceSettings } from '../../types/workflow';
 
 const MIN_STEPS = 1;
 const MAX_STEPS = 60;
@@ -65,6 +67,8 @@ const DragDropNode: FC<NodeProps> = ({ data, selected, id }) => {
       return { ...node, data: nextData };
     }));
   }, [getNodes, setNodes, id]);
+
+  const resilienceConfig = nodeData.resilience as ResilienceSettings | undefined;
 
   const movementSummary = useMemo(() => {
     if (steps <= 5) {
@@ -257,6 +261,11 @@ const DragDropNode: FC<NodeProps> = ({ data, selected, id }) => {
           </div>
         </div>
       </div>
+
+      <ResiliencePanel
+        value={resilienceConfig}
+        onChange={(next) => updateNodeData({ resilience: next ?? null })}
+      />
 
       <Handle type="source" position={Position.Bottom} className="node-handle" />
     </div>

@@ -40,19 +40,6 @@
       }
     },
     {
-      "id": "wait-executions-view",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for executions view",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "capture-executions-list",
       "type": "screenshot",
       "position": {
@@ -91,28 +78,17 @@
         "label": "Open execution details",
         "selector": "@selector/executions.actions.viewButton",
         "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "wait-execution-viewer",
-      "type": "wait",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution viewer",
-        "selector": "@selector/executions.viewer.root",
-        "timeoutMs": 10000,
-        "waitType": "element"
+        "waitForMs": 1000,
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.root"
+        }
       }
     },
     {
       "id": "capture-execution-viewer",
       "type": "screenshot",
       "position": {
-        "x": 2000,
+        "x": 1900,
         "y": 0
       },
       "data": {
@@ -184,12 +160,6 @@
     {
       "id": "e5",
       "source": "navigate-to-executions",
-      "target": "wait-executions-view",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "wait-executions-view",
       "target": "capture-executions-list",
       "type": "smoothstep"
     },
@@ -208,12 +178,6 @@
     {
       "id": "e9",
       "source": "click-execution",
-      "target": "wait-execution-viewer",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "wait-execution-viewer",
       "target": "capture-execution-viewer",
       "type": "smoothstep"
     },

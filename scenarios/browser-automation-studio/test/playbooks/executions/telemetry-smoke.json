@@ -13,64 +13,15 @@
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
-      "type": "navigate",
+      "id": "call-open-project",
+      "type": "workflowCall",
       "position": {
-        "x": 0,
+        "x": 300,
         "y": 0
       },
       "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 45000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-demo-project",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for demo project card",
-        "selector": "[data-project-name=\"Demo Browser Automations\"]@selector/projects.card",
-        "timeoutMs": 15000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "click-demo-project",
-      "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
-      "data": {
-        "label": "Open demo project",
-        "selector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]",
-        "timeoutMs": 10000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "wait-for-demo-workflow",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for demo workflow",
-        "selector": "div[data-workflow-header]",
-        "timeoutMs": 15000,
-        "waitForMs": 1000,
-        "waitType": "element"
+        "label": "Open Demo project via fixture",
+        "workflowId": "@fixture/open-demo-project"
       }
     },
     {
@@ -85,21 +36,6 @@
         "selector": "@selector/workflowBuilder.executeButton",
         "timeoutMs": 10000,
         "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-execution-viewer",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution viewer",
-        "selector": "@selector/executions.viewer.root",
-        "timeoutMs": 20000,
-        "waitForMs": 2000,
-        "waitType": "element"
       }
     },
     {
@@ -151,37 +87,13 @@
   "edges": [
     {
       "id": "e1",
-      "source": "navigate-dashboard",
-      "target": "wait-for-demo-project",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-for-demo-project",
-      "target": "click-demo-project",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e3",
-      "source": "click-demo-project",
-      "target": "wait-for-demo-workflow",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-demo-workflow",
+      "source": "call-open-project",
       "target": "click-execute-workflow",
       "type": "smoothstep"
     },
     {
       "id": "e5",
       "source": "click-execute-workflow",
-      "target": "wait-for-execution-viewer",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6a",
-      "source": "wait-for-execution-viewer",
       "target": "assert-execution-progress",
       "type": "smoothstep"
     },

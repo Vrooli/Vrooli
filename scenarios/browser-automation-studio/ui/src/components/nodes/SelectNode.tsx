@@ -1,6 +1,8 @@
 import { memo, FC, useState, useEffect, useCallback, ChangeEvent } from 'react';
 import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
 import { ListFilter } from 'lucide-react';
+import ResiliencePanel from './ResiliencePanel';
+import type { ResilienceSettings } from '../../types/workflow';
 
 const SELECT_BY_OPTIONS = [
   { value: 'value', label: 'Option value' },
@@ -75,6 +77,8 @@ const SelectNode: FC<NodeProps> = ({ data, selected, id }) => {
   useEffect(() => {
     setWaitForMs(Number(nodeData.waitForMs ?? 0) || 0);
   }, [nodeData.waitForMs]);
+
+  const resilienceConfig = nodeData.resilience as ResilienceSettings | undefined;
 
   const updateNodeData = useCallback((updates: Record<string, unknown>) => {
     const nodes = getNodes();
@@ -296,6 +300,11 @@ const SelectNode: FC<NodeProps> = ({ data, selected, id }) => {
           Dispatches change/input events after updating the element so downstream nodes can rely on the new value.
         </p>
       </div>
+
+      <ResiliencePanel
+        value={resilienceConfig}
+        onChange={(next) => updateNodeData({ resilience: next ?? null })}
+      />
 
       <Handle type="source" position={Position.Bottom} className="node-handle" />
     </div>

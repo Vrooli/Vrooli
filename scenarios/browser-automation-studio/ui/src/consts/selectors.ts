@@ -11,6 +11,7 @@
  */
 
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
+type LiteralNode = string | LiteralSelectorTree;
 
 type ParamType = "string" | "number" | "enum";
 
@@ -62,8 +63,11 @@ type SelectorTreeResult<
   D extends DynamicSelectorTree,
 > = {
   [K in keyof L]: L[K] extends string
-  ? string
-  : SelectorTreeResult<L[K], K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree>;
+    ? string
+    : SelectorTreeResult<
+        Extract<L[K], LiteralSelectorTree>,
+        K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
+      >;
 } & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
@@ -156,7 +160,7 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {});
+      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
@@ -187,7 +191,7 @@ const mergeLiteralAndDynamicNodes = (
   ]);
 
   keys.forEach((key) => {
-    const literalValue = literalNode?.[key];
+    const literalValue: LiteralNode | undefined = literalNode?.[key];
     const dynamicValue = dynamicNode?.[key];
     const nextPath = [...path, key];
 
@@ -197,7 +201,11 @@ const mergeLiteralAndDynamicNodes = (
     }
 
     if (literalValue && typeof literalValue === "object") {
-      merged[key] = mergeLiteralAndDynamicNodes(literalValue as LiteralSelectorTree, isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined), nextPath);
+      merged[key] = mergeLiteralAndDynamicNodes(
+        literalValue as LiteralSelectorTree,
+        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
+        nextPath,
+      );
       return;
     }
 

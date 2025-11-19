@@ -30,46 +30,18 @@
       }
     },
     {
-      "id": "wait-for-projects",
-      "type": "wait",
+      "id": "assert-projects-visible",
+      "type": "assert",
       "position": {
-        "x": 200,
+        "x": 300,
         "y": 0
       },
       "data": {
-        "label": "Wait for projects grid",
-        "selector": "@selector/projects.grid",
+        "label": "Projects render on dashboard",
+        "selector": "@selector/projects.card",
+        "assertMode": "exists",
         "timeoutMs": 10000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "count-initial-projects",
-      "type": "evaluate",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
-      "data": {
-        "label": "Count initial project cards",
-        "expression": "document.querySelectorAll('@selector/projects.card').length",
-        "storeAs": "initialCount"
-      }
-    },
-    {
-      "id": "find-search-input",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for search input",
-        "selector": "input[type=\"text\"][placeholder*=\"Search\"], input[id=\"project-search\"]",
-        "timeoutMs": 5000,
-        "waitForMs": 500,
-        "waitType": "element"
+        "failureMessage": "Projects grid should be visible before searching"
       }
     },
     {
@@ -102,19 +74,6 @@
       }
     },
     {
-      "id": "wait-after-no-results",
-      "type": "wait",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait to verify stable state",
-        "durationMs": 800,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "clear-search",
       "type": "click",
       "position": {
@@ -126,19 +85,6 @@
         "selector": "@selector/projects.search.clearButton",
         "timeoutMs": 5000,
         "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-restore",
-      "type": "wait",
-      "position": {
-        "x": 1500,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for projects to restore",
-        "durationMs": 1000,
-        "waitType": "duration"
       }
     },
     {
@@ -174,24 +120,12 @@
     {
       "id": "e1",
       "source": "navigate-dashboard",
-      "target": "wait-for-projects",
+      "target": "assert-projects-visible",
       "type": "smoothstep"
     },
     {
       "id": "e2",
-      "source": "wait-for-projects",
-      "target": "count-initial-projects",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e3",
-      "source": "count-initial-projects",
-      "target": "find-search-input",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "find-search-input",
+      "source": "assert-projects-visible",
       "target": "type-nonexistent-search",
       "type": "smoothstep"
     },
@@ -204,24 +138,12 @@
     {
       "id": "e6",
       "source": "assert-no-results",
-      "target": "wait-after-no-results",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "wait-after-no-results",
       "target": "clear-search",
       "type": "smoothstep"
     },
     {
       "id": "e8",
       "source": "clear-search",
-      "target": "wait-for-restore",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e8b",
-      "source": "wait-for-restore",
       "target": "assert-projects-restored",
       "type": "smoothstep"
     },

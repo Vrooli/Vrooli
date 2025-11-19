@@ -30,21 +30,6 @@
       }
     },
     {
-      "id": "wait-for-projects",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for projects grid to load",
-        "selector": "@selector/projects.grid",
-        "timeoutMs": 10000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
       "id": "assert-projects-visible",
       "type": "assert",
       "position": {
@@ -102,44 +87,31 @@
       }
     },
     {
-      "id": "wait-for-url-change",
-      "type": "wait",
+      "id": "assert-project-detail-visible",
+      "type": "assert",
       "position": {
-        "x": 1200,
+        "x": 1400,
         "y": 0
       },
       "data": {
-        "label": "Wait for navigation to complete",
-        "durationMs": 1500,
-        "waitType": "duration"
+        "label": "Project detail heading appears",
+        "selector": "h1, [role=\"heading\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Project detail heading should render after selecting a project"
       }
     },
     {
       "id": "assert-url-changed",
       "type": "evaluate",
       "position": {
-        "x": 1400,
+        "x": 1600,
         "y": 0
       },
       "data": {
         "label": "Verify URL contains /projects/",
         "expression": "window.location.pathname.includes('/projects/')",
         "storeAs": "urlChanged"
-      }
-    },
-    {
-      "id": "assert-project-detail-visible",
-      "type": "wait",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project detail elements",
-        "selector": "h1, [role=\"heading\"]",
-        "timeoutMs": 5000,
-        "waitForMs": 500,
-        "waitType": "element"
       }
     },
     {
@@ -160,12 +132,6 @@
     {
       "id": "e1",
       "source": "navigate-dashboard",
-      "target": "wait-for-projects",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-for-projects",
       "target": "assert-projects-visible",
       "type": "smoothstep"
     },
@@ -190,24 +156,18 @@
     {
       "id": "e6",
       "source": "click-first-project",
-      "target": "wait-for-url-change",
+      "target": "assert-project-detail-visible",
       "type": "smoothstep"
     },
     {
       "id": "e7",
-      "source": "wait-for-url-change",
+      "source": "assert-project-detail-visible",
       "target": "assert-url-changed",
       "type": "smoothstep"
     },
     {
       "id": "e8",
       "source": "assert-url-changed",
-      "target": "assert-project-detail-visible",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "assert-project-detail-visible",
       "target": "capture-project-detail",
       "type": "smoothstep"
     }

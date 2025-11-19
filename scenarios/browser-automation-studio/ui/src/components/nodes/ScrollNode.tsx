@@ -1,6 +1,8 @@
 import { FC, memo, useCallback, useEffect, useState } from 'react';
 import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
 import { ScrollText } from 'lucide-react';
+import ResiliencePanel from './ResiliencePanel';
+import type { ResilienceSettings } from '../../types/workflow';
 
 const MIN_AMOUNT = 10;
 const MAX_AMOUNT = 5000;
@@ -92,15 +94,22 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
       if (node.id !== id) {
         return node;
       }
+      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === undefined || value === null) {
+          delete nextData[key];
+        } else {
+          nextData[key] = value;
+        }
+      }
       return {
         ...node,
-        data: {
-          ...(node.data ?? {}),
-          ...updates,
-        },
+        data: nextData,
       };
     }));
   }, [getNodes, setNodes, id]);
+
+  const resilienceConfig = nodeData.resilience as ResilienceSettings | undefined;
 
   const handleTypeChange = (value: string) => {
     setScrollType(value);
@@ -338,6 +347,11 @@ const ScrollNode: FC<NodeProps> = ({ data, selected, id }) => {
           Scroll nodes unlock lazy-loaded content, infinite lists, and stable viewport positioning for assertions and screenshots.
         </p>
       </div>
+
+      <ResiliencePanel
+        value={resilienceConfig}
+        onChange={(next) => updateNodeData({ resilience: next ?? null })}
+      />
 
       <Handle type="source" position={Position.Bottom} className="node-handle" />
     </div>

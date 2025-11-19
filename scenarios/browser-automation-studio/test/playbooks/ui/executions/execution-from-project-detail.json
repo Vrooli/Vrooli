@@ -25,19 +25,6 @@
       }
     },
     {
-      "id": "wait-for-workflows",
-      "type": "wait",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for workflow list to load",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "capture-before-execution",
       "type": "screenshot",
       "position": {
@@ -65,21 +52,6 @@
       }
     },
     {
-      "id": "find-execute-button",
-      "type": "wait",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execute button to appear after hover",
-        "selector": "@selector/workflowBuilder.executeButton",
-        "timeoutMs": 5000,
-        "waitForMs": 500,
-        "waitType": "element"
-      }
-    },
-    {
       "id": "click-execute",
       "type": "click",
       "position": {
@@ -91,19 +63,6 @@
         "selector": "@selector/workflowBuilder.executeButton:first-of-type",
         "timeoutMs": 5000,
         "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-execution-start",
-      "type": "wait",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution to start",
-        "durationMs": 2500,
-        "waitType": "duration"
       }
     },
     {
@@ -133,19 +92,6 @@
       }
     },
     {
-      "id": "wait-for-completion",
-      "type": "wait",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution to complete or stabilize",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "capture-final-state",
       "type": "screenshot",
       "position": {
@@ -161,14 +107,8 @@
   ],
   "edges": [
     {
-      "id": "call-open-project-to-wait-for-workflows",
+      "id": "call-open-project-to-capture-before-execution",
       "source": "call-open-project",
-      "target": "wait-for-workflows",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e5",
-      "source": "wait-for-workflows",
       "target": "capture-before-execution",
       "type": "smoothstep"
     },
@@ -181,24 +121,12 @@
     {
       "id": "e7",
       "source": "hover-workflow-card",
-      "target": "find-execute-button",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e8",
-      "source": "find-execute-button",
       "target": "click-execute",
       "type": "smoothstep"
     },
     {
       "id": "e9",
       "source": "click-execute",
-      "target": "wait-for-execution-start",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "wait-for-execution-start",
       "target": "check-execution-indicator",
       "type": "smoothstep"
     },
@@ -211,12 +139,6 @@
     {
       "id": "e12",
       "source": "capture-execution-started",
-      "target": "wait-for-completion",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e13",
-      "source": "wait-for-completion",
       "target": "capture-final-state",
       "type": "smoothstep"
     }

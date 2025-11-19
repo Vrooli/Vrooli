@@ -1,6 +1,8 @@
 import { memo, FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
 import { MousePointer } from 'lucide-react';
+import ResiliencePanel from './ResiliencePanel';
+import type { ResilienceSettings } from '../../types/workflow';
 
 const MIN_STEPS = 1;
 const MAX_STEPS = 50;
@@ -52,15 +54,22 @@ const HoverNode: FC<NodeProps> = ({ data, selected, id }) => {
       if (node.id !== id) {
         return node;
       }
+      const nextData = { ...(node.data ?? {}) } as Record<string, unknown>;
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === undefined || value === null) {
+          delete nextData[key];
+        } else {
+          nextData[key] = value;
+        }
+      }
       return {
         ...node,
-        data: {
-          ...(node.data ?? {}),
-          ...updates,
-        },
+        data: nextData,
       };
     }));
   }, [getNodes, setNodes, id]);
+
+  const resilienceConfig = nodeData.resilience as ResilienceSettings | undefined;
 
   const stepsHint = useMemo(() => {
     if (steps <= 3) {
@@ -180,6 +189,11 @@ const HoverNode: FC<NodeProps> = ({ data, selected, id }) => {
           Hover nodes move the cursor without clicking so menus, tooltips, and other hover-only UI remain open for following nodes.
         </p>
       </div>
+
+      <ResiliencePanel
+        value={resilienceConfig}
+        onChange={(next) => updateNodeData({ resilience: next ?? null })}
+      />
 
       <Handle type="source" position={Position.Bottom} className="node-handle" />
     </div>

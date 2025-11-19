@@ -30,6 +30,13 @@ const (
 )
 
 const (
+	defaultResilienceMaxAttempts                   = 3
+	defaultResilienceRetryDelayMs                  = 750
+	defaultResilienceBackoffFactor         float64 = 1.5
+	defaultResiliencePreconditionTimeoutMs         = 15000
+)
+
+const (
 	rotateOrientationPortrait  = "portrait"
 	rotateOrientationLandscape = "landscape"
 )
@@ -151,6 +158,12 @@ type InstructionParam struct {
 	RetryAttempts           int               `json:"retryAttempts,omitempty"`
 	RetryDelayMs            int               `json:"retryDelayMs,omitempty"`
 	RetryBackoffFactor      float64           `json:"retryBackoffFactor,omitempty"`
+	PreconditionSelector    string            `json:"preconditionSelector,omitempty"`
+	PreconditionTimeoutMs   int               `json:"preconditionTimeoutMs,omitempty"`
+	PreconditionWaitMs      int               `json:"preconditionWaitMs,omitempty"`
+	SuccessSelector         string            `json:"successSelector,omitempty"`
+	SuccessTimeoutMs        int               `json:"successTimeoutMs,omitempty"`
+	SuccessWaitMs           int               `json:"successWaitMs,omitempty"`
 	ProbeX                  int               `json:"probeX,omitempty"`
 	ProbeY                  int               `json:"probeY,omitempty"`
 	ProbeRadius             int               `json:"probeRadius,omitempty"`
@@ -681,6 +694,8 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		base.Params.ContinueOnFailure = boolPtr(allowFailure)
 	}
 
+	resilienceState := applyResilienceConfig(step.Params, &base)
+
 	switch step.Type {
 	case compiler.StepNavigate:
 		var cfg navigateConfig
@@ -826,6 +841,11 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if trimmed := strings.TrimSpace(cfg.WaitForSelector); trimmed != "" {
 			base.Params.WaitForSelector = trimmed
 		}
+		preconditionSelector := base.Params.WaitForSelector
+		if preconditionSelector == "" {
+			preconditionSelector = selector
+		}
+		applyDefaultInteractiveResilience(&base, preconditionSelector, resilienceState)
 	case compiler.StepFocus, compiler.StepBlur:
 		// [REQ:BAS-NODE-FOCUS-INPUT] [REQ:BAS-NODE-BLUR-VALIDATION]
 		var cfg focusConfig
@@ -866,6 +886,7 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if cfg.Submit != nil {
 			base.Params.Submit = cfg.Submit
 		}
+		applyDefaultInteractiveResilience(&base, selector, resilienceState)
 	case compiler.StepShortcut:
 		var cfg shortcutConfig
 		if err := decodeParams(step.Params, &cfg); err != nil {
@@ -944,6 +965,7 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		}
 		base.Params.MovementSteps = clampHoverSteps(cfg.Steps)
 		base.Params.DurationMs = clampHoverDuration(cfg.DurationMs)
+		applyDefaultInteractiveResilience(&base, selector, resilienceState)
 	case compiler.StepDragDrop:
 		// [REQ:BAS-NODE-DRAG-DROP]
 		var cfg dragDropConfig
@@ -971,6 +993,7 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if cfg.WaitForMs > 0 {
 			base.Params.WaitForMs = cfg.WaitForMs
 		}
+		applyDefaultInteractiveResilience(&base, source, resilienceState)
 	case compiler.StepScroll:
 		// [REQ:BAS-NODE-SCROLL-NAVIGATION]
 		var cfg scrollConfig
@@ -995,12 +1018,14 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		}
 		selector := strings.TrimSpace(cfg.Selector)
 		targetSelector := strings.TrimSpace(cfg.TargetSelector)
+		scrollPreconditionSelector := ""
 		switch scrollType {
 		case "element":
 			if selector == "" {
 				return Instruction{}, fmt.Errorf("scroll node %s requires selector for element mode", step.NodeID)
 			}
 			base.Params.Selector = selector
+			scrollPreconditionSelector = selector
 		case "position":
 			// coordinates already captured
 		case "untilVisible":
@@ -1014,6 +1039,7 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 			if base.Params.ScrollDirection == "" {
 				base.Params.ScrollDirection = "down"
 			}
+			scrollPreconditionSelector = targetSelector
 			attempts := clampScrollAttempts(cfg.MaxScrolls)
 			if attempts == 0 {
 				attempts = defaultScrollAttempts
@@ -1024,6 +1050,7 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 				base.Params.ScrollDirection = "down"
 			}
 		}
+		applyDefaultInteractiveResilience(&base, scrollPreconditionSelector, resilienceState)
 	case compiler.StepSelect:
 		// [REQ:BAS-NODE-SELECT-DROPDOWN]
 		var cfg selectConfig
@@ -1133,6 +1160,7 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 				base.Params.OptionIndex = cfg.Index
 			}
 		}
+		applyDefaultInteractiveResilience(&base, selector, resilienceState)
 	case compiler.StepConditional:
 		var cfg conditionalConfig
 		if err := decodeParams(step.Params, &cfg); err != nil {
@@ -2272,6 +2300,179 @@ func normalizeStringSlice(values []string) []string {
 		return nil
 	}
 	return normalized
+}
+
+type resilienceConfigState struct {
+	maxAttemptsConfigured bool
+	delayConfigured       bool
+	backoffConfigured     bool
+}
+
+func applyResilienceConfig(params map[string]any, instruction *Instruction) resilienceConfigState {
+	state := resilienceConfigState{}
+	if params == nil || instruction == nil {
+		return state
+	}
+	raw, ok := params["resilience"]
+	if !ok {
+		return state
+	}
+	config, ok := normalizeMap(raw)
+	if !ok || len(config) == 0 {
+		return state
+	}
+
+	if maxAttempts, ok := toIntValue(config["maxAttempts"]); ok {
+		if maxAttempts < 1 {
+			maxAttempts = 1
+		}
+		instruction.Params.RetryAttempts = maxAttempts - 1
+		state.maxAttemptsConfigured = true
+	}
+	if delayMs, ok := toIntValue(config["delayMs"]); ok && delayMs >= 0 {
+		instruction.Params.RetryDelayMs = delayMs
+		state.delayConfigured = true
+	}
+	if backoff, ok := toFloatValue(config["backoffFactor"]); ok && backoff > 0 {
+		instruction.Params.RetryBackoffFactor = backoff
+		state.backoffConfigured = true
+	}
+
+	if selector, ok := toStringValue(config["preconditionSelector"]); ok && selector != "" {
+		instruction.Params.PreconditionSelector = selector
+		if timeout, ok := toIntValue(config["preconditionTimeoutMs"]); ok && timeout >= 0 {
+			instruction.Params.PreconditionTimeoutMs = timeout
+		}
+		if waitMs, ok := toIntValue(config["preconditionWaitMs"]); ok && waitMs > 0 {
+			instruction.Params.PreconditionWaitMs = waitMs
+		}
+	}
+
+	if selector, ok := toStringValue(config["successSelector"]); ok && selector != "" {
+		instruction.Params.SuccessSelector = selector
+		if timeout, ok := toIntValue(config["successTimeoutMs"]); ok && timeout >= 0 {
+			instruction.Params.SuccessTimeoutMs = timeout
+		}
+		if waitMs, ok := toIntValue(config["successWaitMs"]); ok && waitMs > 0 {
+			instruction.Params.SuccessWaitMs = waitMs
+		}
+	}
+
+	return state
+}
+
+func applyDefaultInteractiveResilience(
+	instruction *Instruction,
+	fallbackSelector string,
+	state resilienceConfigState,
+) {
+	if instruction == nil {
+		return
+	}
+	if !state.maxAttemptsConfigured && instruction.Params.RetryAttempts <= 0 {
+		instruction.Params.RetryAttempts = defaultResilienceMaxAttempts - 1
+	}
+	if !state.delayConfigured && instruction.Params.RetryDelayMs <= 0 {
+		instruction.Params.RetryDelayMs = defaultResilienceRetryDelayMs
+	}
+	if !state.backoffConfigured && instruction.Params.RetryBackoffFactor <= 0 {
+		instruction.Params.RetryBackoffFactor = defaultResilienceBackoffFactor
+	}
+
+	if trimmed := strings.TrimSpace(fallbackSelector); trimmed != "" && instruction.Params.PreconditionSelector == "" {
+		instruction.Params.PreconditionSelector = trimmed
+		if instruction.Params.PreconditionTimeoutMs <= 0 {
+			timeout := instruction.Params.TimeoutMs
+			if timeout <= 0 {
+				timeout = defaultResiliencePreconditionTimeoutMs
+			}
+			instruction.Params.PreconditionTimeoutMs = timeout
+		}
+	}
+}
+
+func normalizeMap(value any) (map[string]any, bool) {
+	switch typed := value.(type) {
+	case map[string]any:
+		return typed, true
+	default:
+		return nil, false
+	}
+}
+
+func toIntValue(value any) (int, bool) {
+	switch v := value.(type) {
+	case int:
+		return v, true
+	case int32:
+		return int(v), true
+	case int64:
+		return int(v), true
+	case float32:
+		return int(v), true
+	case float64:
+		return int(v), true
+	case json.Number:
+		if parsed, err := v.Int64(); err == nil {
+			return int(parsed), true
+		}
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0, false
+		}
+		if parsed, err := strconv.Atoi(trimmed); err == nil {
+			return parsed, true
+		}
+	}
+	return 0, false
+}
+
+func toFloatValue(value any) (float64, bool) {
+	switch v := value.(type) {
+	case float32:
+		return float64(v), true
+	case float64:
+		return v, true
+	case int:
+		return float64(v), true
+	case int32:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case json.Number:
+		if parsed, err := v.Float64(); err == nil {
+			return parsed, true
+		}
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0, false
+		}
+		if parsed, err := strconv.ParseFloat(trimmed, 64); err == nil {
+			return parsed, true
+		}
+	}
+	return 0, false
+}
+
+func toStringValue(value any) (string, bool) {
+	switch v := value.(type) {
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return "", false
+		}
+		return trimmed, true
+	case fmt.Stringer:
+		trimmed := strings.TrimSpace(v.String())
+		if trimmed == "" {
+			return "", false
+		}
+		return trimmed, true
+	default:
+		return "", false
+	}
 }
 
 func hasParam(params map[string]any, keys ...string) bool {

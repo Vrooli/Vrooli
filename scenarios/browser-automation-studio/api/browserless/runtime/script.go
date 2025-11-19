@@ -125,6 +125,49 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
     await new Promise((resolve) => setTimeout(resolve, duration));
   };
 
+  const resolveTimeout = (candidate, fallback) => {
+    if (Number.isFinite(candidate) && candidate > 0) {
+      return candidate;
+    }
+    if (Number.isFinite(fallback) && fallback > 0) {
+      return fallback;
+    }
+    return __DEFAULT_TIMEOUT__;
+  };
+
+  const hasPrecondition = typeof params.preconditionSelector === 'string' && params.preconditionSelector.trim().length > 0;
+  const hasSuccessCheck = typeof params.successSelector === 'string' && params.successSelector.trim().length > 0;
+
+  async function ensurePreconditionReady() {
+    if (!hasPrecondition) {
+      return;
+    }
+    const timeout = resolveTimeout(params.preconditionTimeoutMs, params.timeoutMs);
+    const element = await page
+      .waitForSelector(params.preconditionSelector, { timeout, state: 'visible' })
+      .catch(() => null);
+    if (!element) {
+      throw new Error('Precondition selector ' + params.preconditionSelector + ' not found');
+    }
+    if (typeof element.dispose === 'function') {
+      await element.dispose();
+    }
+    if (Number.isFinite(params.preconditionWaitMs) && params.preconditionWaitMs > 0) {
+      await waitForTime(params.preconditionWaitMs);
+    }
+  }
+
+  async function verifySuccessState() {
+    if (!hasSuccessCheck) {
+      return;
+    }
+    const timeout = resolveTimeout(params.successTimeoutMs, params.timeoutMs);
+    await page.waitForSelector(params.successSelector, { timeout });
+    if (Number.isFinite(params.successWaitMs) && params.successWaitMs > 0) {
+      await waitForTime(params.successWaitMs);
+    }
+  }
+
   // Rehydration must run in the page context to access document/window
   if (preloadHTML) {
     try {
@@ -595,6 +638,10 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
   };
 
   try {
+    if (hasPrecondition) {
+      await ensurePreconditionReady();
+    }
+
     switch (step.type) {
       case 'navigate': {
         if (!params.url) {
@@ -2088,6 +2135,10 @@ const stepScriptTemplate = `export default async ({ page, context }) => {
       default: {
         throw new Error('Unsupported step type: ' + step.type);
       }
+    }
+
+    if (hasSuccessCheck) {
+      await verifySuccessState();
     }
 
     await ensureReplayScreenshot();

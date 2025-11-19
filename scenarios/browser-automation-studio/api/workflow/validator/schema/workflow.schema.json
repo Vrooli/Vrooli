@@ -67,13 +67,34 @@
         "id": { "type": "string", "minLength": 1 },
         "type": { "type": "string", "minLength": 1 },
         "position": { "$ref": "#/definitions/position" },
-        "data": { "type": "object" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "resilience": { "$ref": "#/definitions/resilience" }
+          },
+          "additionalProperties": true
+        },
         "width": { "type": "number" },
         "height": { "type": "number" },
         "selected": { "type": "boolean" },
         "dragging": { "type": "boolean" }
       },
       "additionalProperties": true
+    },
+    "resilience": {
+      "type": "object",
+      "properties": {
+        "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 25 },
+        "delayMs": { "type": "integer", "minimum": 0, "maximum": 120000 },
+        "backoffFactor": { "type": "number", "exclusiveMinimum": 0 },
+        "preconditionSelector": { "type": "string", "minLength": 1 },
+        "preconditionTimeoutMs": { "type": "integer", "minimum": 0 },
+        "preconditionWaitMs": { "type": "integer", "minimum": 0 },
+        "successSelector": { "type": "string", "minLength": 1 },
+        "successTimeoutMs": { "type": "integer", "minimum": 0 },
+        "successWaitMs": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
     },
     "edge": {
       "type": "object",

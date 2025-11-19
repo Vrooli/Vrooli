@@ -47,3 +47,15 @@ export interface WorkflowValidationResult {
   checked_at: string;
   duration_ms: number;
 }
+
+export interface ResilienceSettings {
+  maxAttempts?: number;
+  delayMs?: number;
+  backoffFactor?: number;
+  preconditionSelector?: string;
+  preconditionTimeoutMs?: number;
+  preconditionWaitMs?: number;
+  successSelector?: string;
+  successTimeoutMs?: number;
+  successWaitMs?: number;
+}
