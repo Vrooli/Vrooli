@@ -1,0 +1,233 @@
+{
+  "_metadata": {
+    "description": "Audio Intelligence Platform requirement registry - Maps operational targets to implementation requirements",
+    "last_validated_at": null,
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0",
+    "last_synced_at": null
+  },
+  "meta": {
+    "scenario": "audio-intelligence-platform",
+    "version": "1.0.0",
+    "generated": "2025-11-18",
+    "owners": [
+      {
+        "platform": "audio-intelligence-platform",
+        "contact": "audio-team@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [],
+  "requirements": [
+    {
+      "id": "AIP-P0-001",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Multi-format audio upload",
+      "description": "Support MP3, WAV, M4A, OGG, FLAC formats with drag-and-drop interface",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "AIP-P0-002",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Real-time transcription",
+      "description": "Automatic speech-to-text using Whisper AI with progress indicators",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "AIP-P0-003",
+      "category": "analysis",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "AI-powered summarization",
+      "description": "Generate concise summaries and key insights from transcribed content",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "AIP-P0-004",
+      "category": "search",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Semantic search capability",
+      "description": "Vector-based search across all transcriptions using embeddings",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "AIP-P0-005",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Waveform visualization",
+      "description": "Canvas-based audio visualization with playback controls",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "AIP-P0-006",
+      "category": "storage",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Transcription history",
+      "description": "Persistent storage and retrieval of processed audio files",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "AIP-P0-007",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "Professional dashboard UI",
+      "description": "Data-dense analytics interface with dark theme optimized for audio work",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "AIP-P1-001",
+      "category": "processing",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Batch processing",
+      "description": "Handle multiple audio files simultaneously with queue management",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "AIP-P1-002",
+      "category": "analysis",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Custom analysis prompts",
+      "description": "User-defined analytical queries for specific insights",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "AIP-P1-003",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Multi-language support",
+      "description": "Process and transcribe audio in various languages",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "AIP-P1-004",
+      "category": "search",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Advanced search filters",
+      "description": "Filter by date, duration, language, confidence score",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "AIP-P1-005",
+      "category": "export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Export capabilities",
+      "description": "Export transcriptions and analyses to PDF, TXT, JSON formats",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "AIP-P1-006",
+      "category": "analysis",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Speaker identification",
+      "description": "Detect and label different speakers in audio content",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "AIP-P1-007",
+      "category": "analysis",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "title": "Sentiment analysis",
+      "description": "Analyze emotional tone and sentiment in transcribed content",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "AIP-P2-001",
+      "category": "processing",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Real-time streaming",
+      "description": "Live audio transcription and analysis",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "AIP-P2-002",
+      "category": "analysis",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Speaker diarization",
+      "description": "Advanced speaker separation and identification",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "AIP-P2-003",
+      "category": "processing",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Audio filtering",
+      "description": "Noise reduction and quality enhancement preprocessing",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "AIP-P2-004",
+      "category": "api",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "API extensions",
+      "description": "Public API for third-party integrations",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "AIP-P2-005",
+      "category": "automation",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "Webhook automation",
+      "description": "Event-driven notifications for completed transcriptions",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "AIP-P2-006",
+      "category": "foundation",
+      "prd_ref": "Operational Targets > P2 > OT-P2-006",
+      "title": "Custom vocabulary",
+      "description": "Domain-specific terminology training for improved accuracy",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "AIP-P2-007",
+      "category": "collaboration",
+      "prd_ref": "Operational Targets > P2 > OT-P2-007",
+      "title": "Collaborative annotations",
+      "description": "Multi-user highlighting and note-taking on transcripts",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    }
+  ]
+}

@@ -55,35 +55,25 @@
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-project-detail",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project detail",
-        "selector": "h1",
-        "timeoutMs": 5000,
-        "waitForMs": 1000,
-        "waitType": "element"
+        "resilience": {
+          "successSelector": "@selector/workflows.card",
+          "successTimeoutMs": 15000
+        }
       }
     },
     {
       "id": "ensure-workflows-exist",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 800,
         "y": -100
       },
       "data": {
-        "label": "Check if workflows exist",
-        "expression": "document.querySelectorAll('@selector/workflows.card').length > 0",
-        "storeAs": "hasWorkflows"
+        "label": "Workflows exist in list",
+        "selector": "@selector/workflows.card",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Expected workflows in project detail view"
       }
     },
     {
@@ -97,34 +87,26 @@
         "label": "Open first workflow",
         "selector": "@selector/workflows.card:first-of-type",
         "timeoutMs": 10000,
-        "waitForMs": 2000,
-        "continueOnError": true
-      }
-    },
-    {
-      "id": "wait-for-builder-load",
-      "type": "wait",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for workflow builder",
-        "durationMs": 4000,
-        "waitType": "duration"
+        "continueOnFailure": true,
+        "resilience": {
+          "successSelector": "@selector/workflowBuilder.canvas.root",
+          "successTimeoutMs": 20000
+        }
       }
     },
     {
       "id": "look-for-version-button",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 1400,
         "y": -100
       },
       "data": {
-        "label": "Check for version history button",
-        "expression": "!!document.querySelector('@selector/header.buttons.versionHistory, @selector/header.versionHistory.closeButton)')",
-        "storeAs": "versionButtonExists"
+        "label": "Version history button visible",
+        "selector": "@selector/header.buttons.versionHistory",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Version history button should exist in builder header"
       }
     },
     {
@@ -138,33 +120,25 @@
         "label": "Open version history",
         "selector": "@selector/header.buttons.versionHistory",
         "timeoutMs": 5000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-version-list",
-      "type": "wait",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for version list to appear",
-        "durationMs": 1500,
-        "waitType": "duration"
+        "resilience": {
+          "successSelector": "@selector/header.versionHistory.dialog",
+          "successTimeoutMs": 10000
+        }
       }
     },
     {
       "id": "check-version-list-visible",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 2000,
         "y": 0
       },
       "data": {
-        "label": "Verify version list is visible",
-        "expression": "document.querySelector('@selector/header.versionHistory.dialog, @selector/header.versionHistory.closeButton)') !== null",
-        "storeAs": "versionListVisible"
+        "label": "Version list dialog visible",
+        "selector": "@selector/header.versionHistory.dialog",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Version history dialog should be visible"
       }
     },
     {
@@ -182,15 +156,17 @@
     },
     {
       "id": "check-restore-buttons",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 2400,
         "y": 0
       },
       "data": {
-        "label": "Check for restore buttons",
-        "expression": "document.querySelectorAll('@selector/header.buttons.versionHistory, @selector/header.buttons.versionConflictRefresh, @selector/header.buttons.versionConflictForceSave').length > 0",
-        "storeAs": "hasRestoreButtons"
+        "label": "Restore controls visible",
+        "selector": "@selector/header.versionHistory.closeButton",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Restore/close controls should exist in version dialog"
       }
     },
     {
@@ -202,7 +178,6 @@
       },
       "data": {
         "label": "Close version dialog with Escape",
-        "waitForMs": 500,
         "keys": [
           "Escape"
         ]
@@ -238,71 +213,53 @@
     {
       "id": "e3",
       "source": "click-project",
-      "target": "wait-for-project-detail",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-project-detail",
       "target": "ensure-workflows-exist",
       "type": "smoothstep"
     },
     {
-      "id": "e5",
+      "id": "e4",
       "source": "ensure-workflows-exist",
       "target": "click-workflow",
       "type": "smoothstep"
     },
     {
-      "id": "e6",
+      "id": "e5",
       "source": "click-workflow",
-      "target": "wait-for-builder-load",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "wait-for-builder-load",
       "target": "look-for-version-button",
       "type": "smoothstep"
     },
     {
-      "id": "e8",
+      "id": "e6",
       "source": "look-for-version-button",
       "target": "click-version-history",
       "type": "smoothstep"
     },
     {
-      "id": "e9",
+      "id": "e7",
       "source": "click-version-history",
-      "target": "wait-for-version-list",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "wait-for-version-list",
       "target": "check-version-list-visible",
       "type": "smoothstep"
     },
     {
-      "id": "e11",
+      "id": "e8",
       "source": "check-version-list-visible",
       "target": "capture-version-history",
       "type": "smoothstep"
     },
     {
-      "id": "e12",
+      "id": "e9",
       "source": "capture-version-history",
       "target": "check-restore-buttons",
       "type": "smoothstep"
     },
     {
-      "id": "e13",
+      "id": "e10",
       "source": "check-restore-buttons",
       "target": "close-version-dialog",
       "type": "smoothstep"
     },
     {
-      "id": "e14",
+      "id": "e11",
       "source": "close-version-dialog",
       "target": "capture-final-state",
       "type": "smoothstep"

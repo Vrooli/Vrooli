@@ -1,0 +1,207 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for algorithm-library scenario",
+    "domain": "algorithms",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "ALGO-P0-001",
+      "category": "algorithms.storage",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Multi-language storage",
+      "description": "Store algorithm implementations in Python, JavaScript, Go, Java, C++",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/algorithm_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Schema supports multi-language, 58 algorithms seeded, 31 implementations"
+        }
+      ]
+    },
+    {
+      "id": "ALGO-P0-002",
+      "category": "algorithms.execution",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Algorithm execution",
+      "description": "Execute and validate algorithms using Judge0 resource",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/executor_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Local executor fallback for Python/JS/Go/Java/C++ when Judge0 unavailable"
+        }
+      ]
+    },
+    {
+      "id": "ALGO-P0-003",
+      "category": "algorithms.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Search capability",
+      "description": "Provide search by algorithm name, category, and complexity",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/search_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Search API working with filters, supports both 'q' and 'query' parameters"
+        }
+      ]
+    },
+    {
+      "id": "ALGO-P0-004",
+      "category": "algorithms.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "API endpoints",
+      "description": "API endpoints for algorithm retrieval and validation",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "All endpoints functional including improved validation"
+        }
+      ]
+    },
+    {
+      "id": "ALGO-P0-005",
+      "category": "algorithms.cli",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "CLI tool",
+      "description": "CLI for testing custom implementations against library",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/cli_test.sh",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI working with all commands: search, get, categories, stats, health"
+        }
+      ]
+    },
+    {
+      "id": "ALGO-P0-006",
+      "category": "algorithms.storage",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "PostgreSQL storage",
+      "description": "PostgreSQL storage for algorithms, metadata, and test results",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "initialization/postgres/schema.sql",
+          "phase": "setup",
+          "status": "implemented",
+          "notes": "Database populated with 35 algorithms, 48 test cases"
+        }
+      ]
+    },
+    {
+      "id": "ALGO-P1-001",
+      "category": "algorithms.performance",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Performance benchmarking",
+      "description": "Performance benchmarking with time/space complexity analysis",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/benchmark_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Benchmark endpoint and CLI command implemented"
+        }
+      ]
+    },
+    {
+      "id": "ALGO-P1-002",
+      "category": "algorithms.debugging",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Execution trace",
+      "description": "Visual algorithm execution trace for debugging",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/trace_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Trace endpoint implemented with step-by-step execution visualization"
+        }
+      ]
+    },
+    {
+      "id": "ALGO-P1-003",
+      "category": "algorithms.contribution",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Contribution system",
+      "description": "Contribution system for adding new algorithms",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/contribution_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Full contribution API with submit, review, and approval workflow"
+        }
+      ]
+    },
+    {
+      "id": "ALGO-P1-004",
+      "category": "algorithms.comparison",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Algorithm comparison",
+      "description": "Algorithm comparison tool (multiple implementations side-by-side)",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/compare_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Compare API endpoint implemented with summary statistics"
+        }
+      ]
+    },
+    {
+      "id": "ALGO-P1-005",
+      "category": "algorithms.workflow",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "n8n integration",
+      "description": "Integration with n8n for automated testing workflows",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "initialization/n8n/algorithm-executor.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "n8n workflow created with fallback to local execution"
+        }
+      ]
+    }
+  ]
+}

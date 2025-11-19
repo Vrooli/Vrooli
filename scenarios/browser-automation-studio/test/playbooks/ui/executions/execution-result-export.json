@@ -35,8 +35,11 @@
         "label": "Navigate to Executions tab",
         "selector": "@selector/projects.tabs.executions",
         "timeoutMs": 5000,
-        "waitForMs": 2000,
-        "continueOnError": true
+        "continueOnError": true,
+        "resilience": {
+          "successSelector": "@selector/executions.list.root",
+          "successTimeoutMs": 10000
+        }
       }
     },
     {
@@ -78,7 +81,6 @@
         "label": "Open execution details",
         "selector": "@selector/executions.actions.viewButton",
         "timeoutMs": 5000,
-        "waitForMs": 1000,
         "resilience": {
           "successSelector": "@selector/executions.viewer.root"
         }
@@ -99,15 +101,17 @@
     },
     {
       "id": "find-export-button",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 2200,
         "y": 0
       },
       "data": {
-        "label": "Check for export/download button",
-        "expression": "!!document.querySelector('@selector/executions.actions.exportReplayButton')",
-        "storeAs": "hasExportButton"
+        "label": "Export button visible",
+        "selector": "@selector/executions.actions.exportReplayButton",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Export replay button should be visible in execution viewer"
       }
     },
     {
@@ -125,15 +129,17 @@
     },
     {
       "id": "check-replay-artifacts",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 2600,
         "y": 0
       },
       "data": {
-        "label": "Verify replay artifacts available",
-        "expression": "!!document.querySelector('[class*=\"replay\"], [class*=\"artifact\"], [class*=\"screenshot\"]')",
-        "storeAs": "hasReplayArtifacts"
+        "label": "Replay artifacts visible",
+        "selector": "@selector/replay.player, @selector/executions.viewer.screenshots",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Replay artifacts should be listed in execution viewer"
       }
     },
     {

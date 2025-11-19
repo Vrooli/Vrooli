@@ -55,20 +55,10 @@
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-project-detail",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project detail",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "resilience": {
+          "successSelector": "@selector/workflows.card",
+          "successTimeoutMs": 10000
+        }
       }
     },
     {
@@ -82,20 +72,10 @@
         "label": "Open workflow",
         "selector": "@selector/workflows.card:first-of-type",
         "timeoutMs": 10000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-builder",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for builder to load",
-        "durationMs": 3000,
-        "waitType": "duration"
+        "resilience": {
+          "successSelector": "@selector/workflowBuilder.canvas.root",
+          "successTimeoutMs": 15000
+        }
       }
     },
     {
@@ -124,7 +104,10 @@
         "label": "Click info button to open popover",
         "selector": "@selector/header.buttons.info",
         "timeoutMs": 5000,
-        "waitForMs": 1500
+        "resilience": {
+          "successSelector": "@selector/header.info.popover",
+          "successTimeoutMs": 8000
+        }
       }
     },
     {
@@ -187,47 +170,35 @@
     {
       "id": "e3",
       "source": "click-project",
-      "target": "wait-for-project-detail",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-project-detail",
       "target": "click-workflow",
       "type": "smoothstep"
     },
     {
-      "id": "e5",
+      "id": "e4",
       "source": "click-workflow",
-      "target": "wait-for-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "wait-for-builder",
       "target": "find-info-button",
       "type": "smoothstep"
     },
     {
-      "id": "e7",
+      "id": "e5",
       "source": "find-info-button",
       "target": "click-info-button",
       "type": "smoothstep"
     },
     {
-      "id": "e8",
+      "id": "e6",
       "source": "click-info-button",
       "target": "assert-popover-visible",
       "type": "smoothstep"
     },
     {
-      "id": "e9",
+      "id": "e7",
       "source": "assert-popover-visible",
       "target": "capture-popover",
       "type": "smoothstep"
     },
     {
-      "id": "e10",
+      "id": "e8",
       "source": "capture-popover",
       "target": "close-popover",
       "type": "smoothstep"

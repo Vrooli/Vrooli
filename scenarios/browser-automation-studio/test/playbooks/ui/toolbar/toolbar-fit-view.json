@@ -89,27 +89,17 @@
         "label": "Click fit view button",
         "selector": "@selector/toolbar.fitViewButton, @selector/toolbar.fitViewMenuItem",
         "timeoutMs": 5000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-fit-animation",
-      "type": "wait",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for fit view animation",
-        "durationMs": 1000,
-        "waitType": "duration"
+        "resilience": {
+          "successSelector": ".react-flow__node",
+          "successTimeoutMs": 5000
+        }
       }
     },
     {
       "id": "assert-nodes-visible",
       "type": "assert",
       "position": {
-        "x": 1800,
+        "x": 1600,
         "y": 0
       },
       "data": {
@@ -168,17 +158,11 @@
     {
       "id": "e8",
       "source": "click-fit-view",
-      "target": "wait-for-fit-animation",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "wait-for-fit-animation",
       "target": "assert-nodes-visible",
       "type": "smoothstep"
     },
     {
-      "id": "e10",
+      "id": "e9",
       "source": "assert-nodes-visible",
       "target": "capture-after-fit",
       "type": "smoothstep"

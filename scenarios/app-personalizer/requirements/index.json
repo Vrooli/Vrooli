@@ -1,0 +1,142 @@
+{
+  "schema_version": "1.0",
+  "scenario": "app-personalizer",
+  "last_updated": "2025-11-18",
+  "requirements": [
+    {
+      "id": "AP-P0-001",
+      "title": "Core personalization API",
+      "description": "POST /api/personalize accepts app path, persona ID, and brand ID; returns personalized app version",
+      "priority": "P0",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "validation_methods": ["integration"]
+    },
+    {
+      "id": "AP-P0-002",
+      "title": "Backup and versioning system",
+      "description": "Creates timestamped backups before modifications; supports rollback to previous versions",
+      "priority": "P0",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "validation_methods": ["test", "integration"]
+    },
+    {
+      "id": "AP-P0-003",
+      "title": "Digital twin integration",
+      "description": "Fetches persona data from personal-digital-twin scenario; applies preferences to app configuration",
+      "priority": "P0",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "validation_methods": ["integration"]
+    },
+    {
+      "id": "AP-P0-004",
+      "title": "Brand asset application",
+      "description": "Applies colors, fonts, logos from brand-manager; updates theme files and static assets",
+      "priority": "P0",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "validation_methods": ["test", "integration"]
+    },
+    {
+      "id": "AP-P0-005",
+      "title": "AI-powered code modification",
+      "description": "Uses Claude Code or Ollama to intelligently modify source files based on customization intent",
+      "priority": "P0",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "validation_methods": ["test", "integration"]
+    },
+    {
+      "id": "AP-P0-006",
+      "title": "Validation and testing",
+      "description": "Runs app tests post-modification; ensures critical functionality remains intact",
+      "priority": "P0",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "validation_methods": ["test"]
+    },
+    {
+      "id": "AP-P1-001",
+      "title": "Multi-deployment mode support",
+      "description": "Implements copy, patch, and multi-tenant deployment strategies",
+      "priority": "P1",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "validation_methods": ["integration"]
+    },
+    {
+      "id": "AP-P1-002",
+      "title": "Personalization history tracking",
+      "description": "Stores modification history in PostgreSQL; enables analytics and auditing",
+      "priority": "P1",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "validation_methods": ["test", "integration"]
+    },
+    {
+      "id": "AP-P1-003",
+      "title": "CLI orchestration commands",
+      "description": "Provides app-personalizer personalize, brand, list-personalizations commands",
+      "priority": "P1",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "validation_methods": ["manual"]
+    },
+    {
+      "id": "AP-P1-004",
+      "title": "n8n workflow templates",
+      "description": "Pre-built pipelines for common personalization patterns",
+      "priority": "P1",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "validation_methods": ["manual"]
+    },
+    {
+      "id": "AP-P1-005",
+      "title": "MinIO artifact storage",
+      "description": "Stores app versions, backups, and modification artifacts in object storage",
+      "priority": "P1",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "validation_methods": ["integration"]
+    },
+    {
+      "id": "AP-P2-001",
+      "title": "A/B testing framework",
+      "description": "Compare personalized versions; measure engagement and preference metrics",
+      "priority": "P2",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "validation_methods": ["manual"]
+    },
+    {
+      "id": "AP-P2-002",
+      "title": "Collaborative personalization",
+      "description": "Multiple stakeholders review and approve customizations before deployment",
+      "priority": "P2",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "validation_methods": ["manual"]
+    },
+    {
+      "id": "AP-P2-003",
+      "title": "Visual preview system",
+      "description": "Screenshot-based diff comparison before applying modifications",
+      "priority": "P2",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "validation_methods": ["manual"]
+    },
+    {
+      "id": "AP-P2-004",
+      "title": "Personalization marketplace",
+      "description": "Share and monetize custom themes, personas, and modification templates",
+      "priority": "P2",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "validation_methods": ["manual"]
+    }
+  ]
+}

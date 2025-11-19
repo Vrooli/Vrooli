@@ -1,0 +1,210 @@
+{
+  "_metadata": {
+    "description": "accessibility-compliance-hub operational requirements mapped to canonical PRD v2.0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true,
+    "last_validated_at": "2025-11-18",
+    "last_synced_at": "2025-11-18"
+  },
+  "meta": {
+    "scenario": "accessibility-compliance-hub",
+    "version": "2025.11",
+    "generated": "2025-11-18",
+    "owners": [
+      {
+        "team": "Vrooli Platform",
+        "contact": "platform@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [],
+  "requirements": [
+    {
+      "id": "ACH-P0-001",
+      "category": "scanning",
+      "title": "WCAG 2.1 AA compliance scanning",
+      "description": "Automated scanning engine for all scenario UIs using axe-core integration.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["wcag", "scanning", "axe-core"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P0-002",
+      "category": "api",
+      "title": "API endpoints for on-demand audits",
+      "description": "REST API accepting scenario ID and WCAG level for triggering accessibility audits.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["api", "audit"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P0-003",
+      "category": "remediation",
+      "title": "Auto-remediation for common issues",
+      "description": "Automatic fixes for contrast, alt text, ARIA labels and other common accessibility issues.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["remediation", "automation"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P0-004",
+      "category": "integration",
+      "title": "Browserless visual regression testing",
+      "description": "Integration with Browserless for DOM analysis and visual testing.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["browserless", "testing"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P0-005",
+      "category": "ui",
+      "title": "Compliance dashboard",
+      "description": "Dashboard showing all scenarios' accessibility scores and violation details.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["dashboard", "ui"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P0-006",
+      "category": "cli",
+      "title": "CLI audit commands",
+      "description": "CLI commands for audit, fix, and report generation.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["cli", "tooling"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P1-001",
+      "category": "ml",
+      "title": "Machine learning for pattern recognition",
+      "description": "ML model training on successful fixes to improve auto-remediation.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["ml", "learning"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P1-002",
+      "category": "components",
+      "title": "Accessible component library",
+      "description": "Reusable library of accessible UI patterns for other scenarios.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["components", "library"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P1-003",
+      "category": "automation",
+      "title": "Scheduled audit workflows",
+      "description": "N8n workflows for automated periodic audits.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["n8n", "scheduler"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P1-004",
+      "category": "reporting",
+      "title": "VPAT documentation generator",
+      "description": "Automated VPAT/compliance report generation for enterprise compliance.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["vpat", "reporting"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P1-005",
+      "category": "integration",
+      "title": "Git hook integration",
+      "description": "Pre-deployment validation via git hooks.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["git", "validation"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P1-006",
+      "category": "monitoring",
+      "title": "Real-time monitoring",
+      "description": "Continuous accessibility monitoring for live scenarios.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["monitoring", "realtime"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P2-001",
+      "category": "testing",
+      "title": "Screen reader testing simulation",
+      "description": "Automated screen reader compatibility testing.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "criticality": "P2",
+      "status": "pending",
+      "tags": ["screen-reader", "testing"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P2-002",
+      "category": "testing",
+      "title": "Keyboard navigation flow analysis",
+      "description": "Automated keyboard nav path validation.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "criticality": "P2",
+      "status": "pending",
+      "tags": ["keyboard", "navigation"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P2-003",
+      "category": "rules",
+      "title": "Custom Vrooli accessibility rules",
+      "description": "Custom rules specific to Vrooli UI patterns.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "criticality": "P2",
+      "status": "pending",
+      "tags": ["rules", "custom"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P2-004",
+      "category": "i18n",
+      "title": "Multi-language accessibility support",
+      "description": "Accessibility checks for internationalized content.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "criticality": "P2",
+      "status": "pending",
+      "tags": ["i18n", "language"],
+      "validation": []
+    },
+    {
+      "id": "ACH-P2-005",
+      "category": "testing",
+      "title": "Voice navigation testing",
+      "description": "Voice control compatibility validation.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "criticality": "P2",
+      "status": "pending",
+      "tags": ["voice", "testing"],
+      "validation": []
+    }
+  ]
+}

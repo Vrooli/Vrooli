@@ -1,0 +1,210 @@
+{
+  "_metadata": {
+    "description": "agent-metareasoning-manager operational requirements mapped to canonical PRD v2.0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true,
+    "last_validated_at": "2025-11-18",
+    "last_synced_at": "2025-11-18"
+  },
+  "meta": {
+    "scenario": "agent-metareasoning-manager",
+    "version": "2025.11",
+    "generated": "2025-11-18",
+    "owners": [
+      {
+        "team": "Vrooli Platform",
+        "contact": "platform@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [],
+  "requirements": [
+    {
+      "id": "AMM-P0-001",
+      "category": "monitoring",
+      "title": "Live reasoning session monitoring",
+      "description": "Display active agent reasoning processes with real-time updates via WebSocket.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["monitoring", "realtime"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P0-002",
+      "category": "visualization",
+      "title": "Decision tree visualization",
+      "description": "Visual representation of reasoning chains and decision paths.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["visualization", "decision-tree"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P0-003",
+      "category": "metrics",
+      "title": "Performance metrics dashboard",
+      "description": "Live charts for reasoning speed, accuracy, resource utilization.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["metrics", "charts"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P0-004",
+      "category": "monitoring",
+      "title": "Agent health status display",
+      "description": "System vitals for each active reasoning agent.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["health", "status"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P0-005",
+      "category": "control",
+      "title": "Pattern selection interface",
+      "description": "Quick access to reasoning patterns (SWOT, Pros/Cons, Risk Assessment).",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["patterns", "selection"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P0-006",
+      "category": "orchestration",
+      "title": "Execution queue management",
+      "description": "Manage pending and active reasoning tasks in queue.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "criticality": "P0",
+      "status": "pending",
+      "tags": ["queue", "orchestration"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P1-001",
+      "category": "resources",
+      "title": "Resource allocation monitoring",
+      "description": "Monitor and control CPU, memory, model usage for reasoning agents.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["resources", "allocation"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P1-002",
+      "category": "history",
+      "title": "History browser",
+      "description": "Search and review past reasoning sessions with filtering.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["history", "search"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P1-003",
+      "category": "analytics",
+      "title": "Decision quality metrics",
+      "description": "Track reasoning accuracy over time with trend analysis.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["quality", "analytics"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P1-004",
+      "category": "analytics",
+      "title": "Pattern effectiveness comparison",
+      "description": "Compare success rates of different reasoning frameworks.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["patterns", "comparison"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P1-005",
+      "category": "visualization",
+      "title": "Performance heatmaps",
+      "description": "Visualize system load and bottlenecks across reasoning processes.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["heatmap", "visualization"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P1-006",
+      "category": "analytics",
+      "title": "Trend analysis",
+      "description": "Long-term patterns in agent decision-making with statistical insights.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "criticality": "P1",
+      "status": "pending",
+      "tags": ["trends", "analytics"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P2-001",
+      "category": "orchestration",
+      "title": "Multi-agent orchestration",
+      "description": "Coordinate reasoning across multiple agents with dependency management.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "criticality": "P2",
+      "status": "pending",
+      "tags": ["multi-agent", "coordination"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P2-002",
+      "category": "customization",
+      "title": "Custom reasoning patterns",
+      "description": "Create and save custom reasoning frameworks for reuse.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "criticality": "P2",
+      "status": "pending",
+      "tags": ["custom", "patterns"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P2-003",
+      "category": "collaboration",
+      "title": "Real-time collaboration",
+      "description": "Multi-user monitoring and control with conflict resolution.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "criticality": "P2",
+      "status": "pending",
+      "tags": ["collaboration", "multi-user"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P2-004",
+      "category": "export",
+      "title": "Advanced analytics export",
+      "description": "Export reasoning data for external analysis in multiple formats.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "criticality": "P2",
+      "status": "pending",
+      "tags": ["export", "analytics"],
+      "validation": []
+    },
+    {
+      "id": "AMM-P2-005",
+      "category": "optimization",
+      "title": "Automated optimization",
+      "description": "AI-driven reasoning workflow optimization based on performance data.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "criticality": "P2",
+      "status": "pending",
+      "tags": ["optimization", "ai"],
+      "validation": []
+    }
+  ]
+}

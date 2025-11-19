@@ -30,54 +30,10 @@
       }
     },
     {
-      "id": "wait-app-ready",
-      "type": "wait",
-      "position": {
-        "x": 140,
-        "y": -80
-      },
-      "data": {
-        "label": "Wait for React app to hydrate",
-        "waitType": "element",
-        "selector": "@selector/app.shell.ready",
-        "timeoutMs": 30000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "wait-for-demo-project",
-      "type": "wait",
-      "position": {
-        "x": 280,
-        "y": -120
-      },
-      "data": {
-        "label": "Wait for demo project card",
-        "waitType": "element",
-        "selector": "[data-project-name=\"Demo Browser Automations\"]@selector/projects.card",
-        "timeoutMs": 20000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "debug-screenshot-1",
-      "type": "screenshot",
-      "position": {
-        "x": 420,
-        "y": -140
-      },
-      "data": {
-        "label": "Debug: Before assertion",
-        "fullPage": true,
-        "captureDomSnapshot": true,
-        "waitForMs": 500
-      }
-    },
-    {
       "id": "capture-dashboard",
       "type": "screenshot",
       "position": {
-        "x": 420,
+        "x": 300,
         "y": -60
       },
       "data": {
@@ -114,27 +70,17 @@
         "selector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]",
         "waitForSelector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]",
         "timeoutMs": 10000,
-        "waitForMs": 500
-      }
-    },
-    {
-      "id": "wait-project",
-      "type": "wait",
-      "position": {
-        "x": 820,
-        "y": 80
-      },
-      "data": {
-        "label": "Wait for project detail",
-        "durationMs": 1500,
-        "waitType": "duration"
+        "resilience": {
+          "successSelector": "@selector/workflows.card",
+          "successTimeoutMs": 15000
+        }
       }
     },
     {
       "id": "assert-demo-workflow",
       "type": "assert",
       "position": {
-        "x": 1020,
+        "x": 920,
         "y": 120
       },
       "data": {
@@ -148,26 +94,8 @@
   ],
   "edges": [
     {
-      "id": "edge-nav-app-ready",
+      "id": "edge-nav-capture",
       "source": "navigate-dashboard",
-      "target": "wait-app-ready",
-      "type": "smoothstep"
-    },
-    {
-      "id": "edge-app-ready-wait-project",
-      "source": "wait-app-ready",
-      "target": "wait-for-demo-project",
-      "type": "smoothstep"
-    },
-    {
-      "id": "edge-wait-debug",
-      "source": "wait-for-demo-project",
-      "target": "debug-screenshot-1",
-      "type": "smoothstep"
-    },
-    {
-      "id": "edge-debug-capture",
-      "source": "debug-screenshot-1",
       "target": "capture-dashboard",
       "type": "smoothstep"
     },
@@ -186,12 +114,6 @@
     {
       "id": "edge-click-wait",
       "source": "click-demo-card",
-      "target": "wait-project",
-      "type": "smoothstep"
-    },
-    {
-      "id": "edge-wait-assert",
-      "source": "wait-project",
       "target": "assert-demo-workflow",
       "type": "smoothstep"
     }

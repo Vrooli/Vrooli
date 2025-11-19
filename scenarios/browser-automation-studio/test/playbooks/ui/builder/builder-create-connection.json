@@ -25,20 +25,6 @@
       }
     },
     {
-      "id": "wait-for-builder",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for builder to load",
-        "selector": "@selector/workflowBuilder.code.modeButton",
-        "timeoutMs": 15000,
-        "waitType": "element"
-      }
-    },
-    {
       "id": "assert-builder-ready",
       "type": "assert",
       "position": {
@@ -148,19 +134,6 @@
       }
     },
     {
-      "id": "wait-for-connection",
-      "type": "wait",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for connection to be created",
-        "durationMs": 1500,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "count-final-edges",
       "type": "evaluate",
       "position": {
@@ -217,14 +190,8 @@
   ],
   "edges": [
     {
-      "id": "call-open-demo-workflow-to-wait-for-builder",
+      "id": "call-open-demo-workflow-to-assert-builder-ready",
       "source": "call-open-demo-workflow",
-      "target": "wait-for-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e5a",
-      "source": "wait-for-builder",
       "target": "assert-builder-ready",
       "type": "smoothstep"
     },
@@ -273,12 +240,6 @@
     {
       "id": "e13",
       "source": "drag-connection",
-      "target": "wait-for-connection",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e14",
-      "source": "wait-for-connection",
       "target": "count-final-edges",
       "type": "smoothstep"
     },

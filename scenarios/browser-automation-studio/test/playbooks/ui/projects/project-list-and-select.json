@@ -83,7 +83,10 @@
         "label": "Click first project card",
         "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
-        "waitForMs": 2000
+        "resilience": {
+          "successSelector": "@selector/workflows.card",
+          "successTimeoutMs": 15000
+        }
       }
     },
     {

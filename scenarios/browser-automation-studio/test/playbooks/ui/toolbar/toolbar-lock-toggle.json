@@ -25,19 +25,6 @@
       }
     },
     {
-      "id": "wait-builder",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for builder",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "find-lock-button",
       "type": "assert",
       "position": {
@@ -76,7 +63,10 @@
         "label": "Click lock to lock canvas",
         "selector": "@selector/toolbar.lockButton",
         "timeoutMs": 5000,
-        "waitForMs": 1000
+        "resilience": {
+          "successSelector": "@selector/toolbar.unlockButton",
+          "successTimeoutMs": 8000
+        }
       }
     },
     {
@@ -101,9 +91,12 @@
       },
       "data": {
         "label": "Click lock to unlock canvas",
-        "selector": "@selector/toolbar.lockButton",
+        "selector": "@selector/toolbar.unlockButton",
         "timeoutMs": 5000,
-        "waitForMs": 1000
+        "resilience": {
+          "successSelector": "@selector/toolbar.lockButton",
+          "successTimeoutMs": 8000
+        }
       }
     },
     {
@@ -135,14 +128,8 @@
   ],
   "edges": [
     {
-      "id": "call-open-demo-workflow-to-wait-builder",
+      "id": "call-open-demo-workflow-to-find-lock",
       "source": "call-open-demo-workflow",
-      "target": "wait-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "wait-builder",
       "target": "find-lock-button",
       "type": "smoothstep"
     },

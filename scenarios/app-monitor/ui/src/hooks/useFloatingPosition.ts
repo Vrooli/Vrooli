@@ -69,14 +69,24 @@ export const useFloatingPosition = (options: FloatingPositionOptions = {}) => {
 
     // Vertical positioning with flip
     let top = anchorRect.bottom + menuOffset;
+    let placeBelow = true;
     if (typeof viewportHeight === 'number') {
-      const spaceBelow = viewportHeight - anchorRect.bottom - menuOffset;
-      const shouldPlaceBelow = popHeight === 0
-        ? anchorRect.top + anchorRect.height / 2 < viewportHeight / 2
-        : spaceBelow >= popHeight + floatingMargin;
-      if (!shouldPlaceBelow) {
-        top = anchorRect.top - menuOffset - popHeight;
+      const anchorCenterY = anchorRect.top + anchorRect.height / 2;
+      const wouldOverflowBottom = anchorRect.bottom + menuOffset + popHeight + floatingMargin > viewportHeight;
+      const wouldOverflowTop = anchorRect.top - menuOffset - popHeight - floatingMargin < 0;
+
+      if (wouldOverflowBottom && !wouldOverflowTop) {
+        placeBelow = false;
+      } else if (!wouldOverflowBottom && wouldOverflowTop) {
+        placeBelow = true;
+      } else {
+        placeBelow = anchorCenterY < viewportHeight / 2;
       }
+
+      top = placeBelow
+        ? anchorRect.bottom + menuOffset
+        : anchorRect.top - menuOffset - popHeight;
+
       const maxTop = viewportHeight - floatingMargin - popHeight;
       const minTop = floatingMargin;
       top = Math.min(Math.max(top, minTop), maxTop);
@@ -94,6 +104,7 @@ export const useFloatingPosition = (options: FloatingPositionOptions = {}) => {
       top: `${Math.round(top)}px`,
       left: `${Math.round(left)}px`,
       transform: 'translateX(-100%)',
+      transformOrigin: placeBelow ? 'top right' : 'bottom right',
     } satisfies CSSProperties;
   }, [floatingMargin, menuOffset]);
 

@@ -25,19 +25,6 @@
       }
     },
     {
-      "id": "wait-for-builder",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for builder",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "click-zoom-in-twice",
       "type": "click",
       "position": {
@@ -48,7 +35,10 @@
         "label": "Zoom in twice first",
         "selector": "@selector/toolbar.zoomInButton",
         "timeoutMs": 5000,
-        "waitForMs": 500
+        "resilience": {
+          "successSelector": "@selector/workflowBuilder.canvas.root",
+          "successTimeoutMs": 8000
+        }
       }
     },
     {
@@ -62,7 +52,10 @@
         "label": "Zoom in again",
         "selector": "@selector/toolbar.zoomInButton /*dup-1*/",
         "timeoutMs": 5000,
-        "waitForMs": 500
+        "resilience": {
+          "successSelector": "@selector/workflowBuilder.canvas.root",
+          "successTimeoutMs": 8000
+        }
       }
     },
     {
@@ -89,7 +82,10 @@
         "label": "Click zoom out button",
         "selector": "@selector/toolbar.zoomOutButton",
         "timeoutMs": 5000,
-        "waitForMs": 1000
+        "resilience": {
+          "successSelector": "@selector/workflowBuilder.canvas.root",
+          "successTimeoutMs": 8000
+        }
       }
     },
     {
@@ -121,14 +117,8 @@
   ],
   "edges": [
     {
-      "id": "call-open-demo-workflow-to-wait-for-builder",
+      "id": "call-open-demo-workflow-to-zoom-in",
       "source": "call-open-demo-workflow",
-      "target": "wait-for-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-builder",
       "target": "click-zoom-in-twice",
       "type": "smoothstep"
     },

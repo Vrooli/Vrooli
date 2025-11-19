@@ -1,23 +1,23 @@
+import ErrorBoundary from '@/components/ErrorBoundary';
+import Shell from '@/components/Shell';
+import AppPreviewView from '@/components/views/AppPreviewView';
+import HomeView from '@/components/views/HomeView';
+import ResourceDetailView from '@/components/views/ResourceDetailView';
+import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
+import { useAppWebSocket } from '@/hooks/useWebSocket';
+import { logger } from '@/services/logger';
+import { useAppsStore } from '@/state/appsStore';
+import { useResourcesStore } from '@/state/resourcesStore';
 import { useEffect, useState } from 'react';
 import {
+  Navigate,
+  Route,
   BrowserRouter as Router,
   Routes,
-  Route,
-  Navigate,
   useLocation,
   useParams,
 } from 'react-router-dom';
-import Shell from '@/components/Shell';
-import AppPreviewView from '@/components/views/AppPreviewView';
-import ResourceDetailView from '@/components/views/ResourceDetailView';
-import HomeView from '@/components/views/HomeView';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import { useAppWebSocket } from '@/hooks/useWebSocket';
 import './App.css';
-import { useAppsStore } from '@/state/appsStore';
-import { useResourcesStore } from '@/state/resourcesStore';
-import { logger } from '@/services/logger';
-import { isIosSafariUserAgent, primePreviewGuardForNavigation } from '@/components/views/useIosAutobackGuard';
 
 function TabOverlayRedirect({ segment }: { segment?: 'apps' | 'resources' }) {
   const location = useLocation();
@@ -39,18 +39,14 @@ function LogsAppRedirect() {
   const { appId } = useParams<{ appId?: string }>();
   const location = useLocation();
 
-  if (!appId) {
-    return <TabOverlayRedirect segment="apps" />;
-  }
-
   const params = new URLSearchParams(location.search);
   params.set('overlay', 'logs');
   const search = params.toString();
   const targetSearch = search ? `?${search}` : '?overlay=logs';
-  const targetPath = `/apps/${encodeURIComponent(appId)}/preview${targetSearch}`;
+  const targetPath = appId ? `/apps/${encodeURIComponent(appId)}/preview${targetSearch}` : '';
 
   useEffect(() => {
-    if (!isIosSafariUserAgent()) {
+    if (!appId || !isIosSafariUserAgent()) {
       return;
     }
     primePreviewGuardForNavigation({
@@ -58,6 +54,10 @@ function LogsAppRedirect() {
       recoverPath: targetPath,
     });
   }, [appId, targetPath]);
+
+  if (!appId) {
+    return <TabOverlayRedirect segment="apps" />;
+  }
 
   const navigationState = {
     fromAppsList: true,

@@ -55,22 +55,10 @@
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-project-detail",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project detail",
-        "selector": "h1",
-        "timeoutMs": 5000,
-        "waitForMs": 1000,
-        "waitType": "element"
+        "resilience": {
+          "successSelector": "@selector/workflows.card",
+          "successTimeoutMs": 15000
+        }
       }
     },
     {
@@ -83,21 +71,7 @@
       "data": {
         "label": "Click New Workflow button",
         "selector": "@selector/workflows.newButton",
-        "timeoutMs": 10000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-ai-modal-or-builder",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for AI modal or builder",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "timeoutMs": 10000
       }
     },
     {
@@ -124,47 +98,23 @@
         "label": "Switch to manual builder",
         "selector": "@selector/ai.modal.switchToManualButton",
         "timeoutMs": 5000,
-        "waitForMs": 2000,
-        "continueOnError": true
-      }
-    },
-    {
-      "id": "wait-for-builder",
-      "type": "wait",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for workflow builder to load",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "continueOnError": false,
+        "continueOnFailure": true
       }
     },
     {
       "id": "assert-builder-visible",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 1800,
         "y": 0
       },
       "data": {
         "label": "Verify builder elements exist",
-        "expression": "document.querySelector('@selector/workflowBuilder.canvas.root') !== null",
-        "storeAs": "builderLoaded"
-      }
-    },
-    {
-      "id": "wait-for-stable",
-      "type": "wait",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for UI to stabilize",
-        "durationMs": 1500,
-        "waitType": "duration"
+        "selector": "@selector/workflowBuilder.canvas.root",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Workflow builder should render after creating a workflow"
       }
     },
     {
@@ -197,54 +147,30 @@
     {
       "id": "e3",
       "source": "click-project",
-      "target": "wait-for-project-detail",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-project-detail",
       "target": "click-new-workflow",
       "type": "smoothstep"
     },
     {
-      "id": "e5",
+      "id": "e4",
       "source": "click-new-workflow",
-      "target": "wait-for-ai-modal-or-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "wait-for-ai-modal-or-builder",
       "target": "check-if-ai-modal",
       "type": "smoothstep"
     },
     {
-      "id": "e7",
+      "id": "e5",
       "source": "check-if-ai-modal",
       "target": "switch-to-manual",
       "type": "smoothstep"
     },
     {
-      "id": "e8",
+      "id": "e6",
       "source": "switch-to-manual",
-      "target": "wait-for-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "wait-for-builder",
       "target": "assert-builder-visible",
       "type": "smoothstep"
     },
     {
-      "id": "e10",
+      "id": "e7",
       "source": "assert-builder-visible",
-      "target": "wait-for-stable",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e11",
-      "source": "wait-for-stable",
       "target": "capture-builder",
       "type": "smoothstep"
     }

@@ -25,59 +25,21 @@
       }
     },
     {
-      "id": "find-execute-button",
-      "type": "assert",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
-      "data": {
-        "label": "Execute button exists",
-        "selector": "@selector/workflowBuilder.executeButton",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Execute button should be visible"
-      }
-    },
-    {
       "id": "click-execute",
       "type": "click",
       "position": {
-        "x": 1000,
+        "x": 900,
         "y": 0
       },
       "data": {
         "label": "Start workflow execution",
         "selector": "@selector/workflowBuilder.executeButton",
         "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-viewer",
-      "type": "wait",
-      "position": {
-        "x": 1100,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution viewer",
-        "selector": "@selector/executions.viewer.stopButton",
-        "timeoutMs": 15000,
-        "waitType": "element"
-      }
-    },
-    {
-      "id": "wait-execution-start",
-      "type": "wait",
-      "position": {
-        "x": 1250,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution to start",
-        "durationMs": 3000,
-        "waitType": "duration"
+        "waitForMs": 2000,
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.stopButton",
+          "successTimeoutMs": 15000
+        }
       }
     },
     {
@@ -107,30 +69,15 @@
       }
     },
     {
-      "id": "find-stop-button",
-      "type": "assert",
-      "position": {
-        "x": 1850,
-        "y": -100
-      },
-      "data": {
-        "label": "Stop button is available",
-        "selector": "@selector/executions.viewer.stopButton /*dup-1*/",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Stop button should appear while execution running"
-      }
-    },
-    {
       "id": "click-stop",
       "type": "click",
       "position": {
-        "x": 2050,
+        "x": 1900,
         "y": 0
       },
       "data": {
         "label": "Click stop/cancel button",
-        "selector": "@selector/executions.viewer.stopButton /*dup-2*/",
+        "selector": "@selector/executions.viewer.stopButton",
         "timeoutMs": 5000,
         "waitForMs": 2000,
         "continueOnError": true
@@ -145,8 +92,9 @@
       },
       "data": {
         "label": "Wait for execution to stop",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "selector": "@selector/executions.viewer.statusCancelled, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCompleted",
+        "timeoutMs": 20000,
+        "waitType": "element"
       }
     },
     {
@@ -178,32 +126,14 @@
   ],
   "edges": [
     {
-      "id": "call-open-project-to-find-execute-button",
-      "source": "call-open-project",
-      "target": "find-execute-button",
-      "type": "smoothstep"
-    },
-    {
       "id": "e5",
-      "source": "find-execute-button",
+      "source": "call-open-project",
       "target": "click-execute",
       "type": "smoothstep"
     },
     {
       "id": "e5a",
       "source": "click-execute",
-      "target": "wait-viewer",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "wait-viewer",
-      "target": "wait-execution-start",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e7",
-      "source": "wait-execution-start",
       "target": "check-running",
       "type": "smoothstep"
     },
@@ -216,12 +146,6 @@
     {
       "id": "e9",
       "source": "capture-running",
-      "target": "find-stop-button",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "find-stop-button",
       "target": "click-stop",
       "type": "smoothstep"
     },

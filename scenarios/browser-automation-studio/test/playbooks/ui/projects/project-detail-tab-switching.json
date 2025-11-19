@@ -76,7 +76,10 @@
         "label": "Click Executions tab",
         "selector": "@selector/projects.tabs.executions",
         "timeoutMs": 5000,
-        "waitForMs": 1500
+        "resilience": {
+          "successSelector": "@selector/projects.tabs.executions[class*=\\\"active\\\"], @selector/projects.tabs.executions[aria-selected=\\\"true\\\"]",
+          "successTimeoutMs": 10000
+        }
       }
     },
     {
@@ -146,7 +149,10 @@
         "label": "Switch back to Workflows tab",
         "selector": "@selector/workflows.tab",
         "timeoutMs": 5000,
-        "waitForMs": 1500
+        "resilience": {
+          "successSelector": "@selector/workflows.tab[class*=\\\"active\\\"], @selector/workflows.tab[aria-selected=\\\"true\\\"]",
+          "successTimeoutMs": 10000
+        }
       }
     },
     {

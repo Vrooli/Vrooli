@@ -35,6 +35,14 @@ import { PREVIEW_UI } from './views/previewConstants';
 
 import './AppPreviewToolbar.css';
 
+type PointerMoveLike = Pick<PointerEvent, 'clientX' | 'clientY' | 'pointerId'> & {
+  preventDefault?: () => void;
+};
+
+type PointerEndLike = Pick<PointerEvent, 'pointerId'> & {
+  preventDefault?: () => void;
+};
+
 export type AppPreviewToolbarPendingAction = 'start' | 'stop' | 'restart' | null;
 
 export interface AppPreviewToolbarProps {
@@ -128,7 +136,7 @@ const AppPreviewToolbar = ({
   const { clampPosition, computeMenuStyle, computeBottomRightPosition } = useFloatingPosition();
 
   // Coordinate mutually-exclusive menus
-  const { handleMenuOpenChange, closeAll: closeMenus } = useMenuCoordinator();
+  const { handleMenuOpenChange, closeAll: closeMenus, registerMenu } = useMenuCoordinator();
 
   // Create menu instances with consolidated hook
   const lifecycleMenu = useToolbarMenu({
@@ -148,6 +156,10 @@ const AppPreviewToolbar = ({
     computeMenuStyle,
     onOpenChange: handleMenuOpenChange,
   });
+
+  useEffect(() => registerMenu('lifecycle', lifecycleMenu.close), [lifecycleMenu.close, registerMenu]);
+  useEffect(() => registerMenu('dev', devMenu.close), [devMenu.close, registerMenu]);
+  useEffect(() => registerMenu('nav', navMenu.close), [navMenu.close, registerMenu]);
 
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{
@@ -374,7 +386,7 @@ const AppPreviewToolbar = ({
     setIsDragging(false);
   }, [isFullView]);
 
-  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+  const processPointerMove = useCallback((event: PointerMoveLike) => {
     const state = dragStateRef.current;
     if (!state || state.pointerId !== event.pointerId) {
       return;
@@ -408,7 +420,7 @@ const AppPreviewToolbar = ({
       return;
     }
 
-    event.preventDefault();
+    event.preventDefault?.();
     const next = clampPosition(
       event.clientX - state.offsetX,
       event.clientY - state.offsetY,
@@ -419,7 +431,11 @@ const AppPreviewToolbar = ({
     ));
   }, [clampPosition, closeMenus]);
 
-  const endDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    processPointerMove(event);
+  }, [processPointerMove]);
+
+  const processPointerEnd = useCallback((event: PointerEndLike) => {
     const state = dragStateRef.current;
     if (!state || state.pointerId !== event.pointerId) {
       return;
@@ -435,7 +451,7 @@ const AppPreviewToolbar = ({
     }
 
     if (state.dragging) {
-      event.preventDefault();
+      event.preventDefault?.();
       suppressClickRef.current = true;
       if (typeof window !== 'undefined') {
         window.setTimeout(() => {
@@ -449,6 +465,30 @@ const AppPreviewToolbar = ({
     dragStateRef.current = null;
     setIsDragging(false);
   }, []);
+
+  const endDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    processPointerEnd(event);
+  }, [processPointerEnd]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleWindowPointerMove = (event: PointerEvent) => processPointerMove(event);
+    const handleWindowPointerUp = (event: PointerEvent) => processPointerEnd(event);
+    const handleWindowPointerCancel = (event: PointerEvent) => processPointerEnd(event);
+
+    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false });
+    window.addEventListener('pointerup', handleWindowPointerUp, { passive: false });
+    window.addEventListener('pointercancel', handleWindowPointerCancel, { passive: false });
+
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+      window.removeEventListener('pointercancel', handleWindowPointerCancel);
+    };
+  }, [processPointerEnd, processPointerMove]);
 
   const handleClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
     if (suppressClickRef.current) {

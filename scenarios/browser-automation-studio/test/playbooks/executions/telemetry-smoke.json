@@ -35,7 +35,10 @@
         "label": "Execute demo workflow",
         "selector": "@selector/workflowBuilder.executeButton",
         "timeoutMs": 10000,
-        "waitForMs": 1500
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.status",
+          "successTimeoutMs": 15000
+        }
       }
     },
     {

@@ -1,0 +1,213 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for ai-chatbot-manager scenario",
+    "domain": "chatbot",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "CHATBOT-P0-001",
+      "category": "chatbot.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Multi-chatbot management",
+      "description": "Create and configure multiple chatbots with custom personalities and knowledge bases",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/chatbot_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P0-002",
+      "category": "chatbot.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Widget embedding",
+      "description": "Generate embeddable JavaScript widgets for website integration",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/widget_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P0-003",
+      "category": "chatbot.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Real-time conversations",
+      "description": "Real-time WebSocket-powered conversations with Ollama AI models",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/websocket_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P0-004",
+      "category": "chatbot.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Conversation storage",
+      "description": "Conversation storage and retrieval with full chat history",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/conversation_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P0-005",
+      "category": "chatbot.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Lead capture",
+      "description": "Lead capture and contact information collection",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/lead_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P0-006",
+      "category": "chatbot.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Basic analytics",
+      "description": "Basic analytics dashboard showing conversation volume and engagement",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/analytics_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P1-001",
+      "category": "chatbot.advanced",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Multi-tenancy",
+      "description": "Multi-tenant architecture supporting different client configurations",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/tenant_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P1-002",
+      "category": "chatbot.advanced",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "A/B testing",
+      "description": "A/B testing different chatbot personalities and conversation flows",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ab_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P1-003",
+      "category": "chatbot.advanced",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "CRM integration",
+      "description": "Integration with external CRMs and lead management systems",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/crm_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P1-004",
+      "category": "chatbot.advanced",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Advanced analytics",
+      "description": "Advanced analytics with conversion tracking and user journey mapping",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/analytics_advanced_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P1-005",
+      "category": "chatbot.advanced",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Human escalation",
+      "description": "Automated escalation to human agents when AI confidence is low",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/escalation_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "CHATBOT-P1-006",
+      "category": "chatbot.advanced",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Widget branding",
+      "description": "Custom branding and styling for chat widgets",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/widget_branding_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

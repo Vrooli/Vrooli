@@ -25,19 +25,6 @@
       }
     },
     {
-      "id": "wait-for-builder",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for workflow builder",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "assert-toolbar-visible",
       "type": "assert",
       "position": {
@@ -89,7 +76,10 @@
         "label": "Click zoom in button",
         "selector": "@selector/toolbar.zoomInButton",
         "timeoutMs": 5000,
-        "waitForMs": 1000
+        "resilience": {
+          "successSelector": "@selector/workflowBuilder.canvas.root",
+          "successTimeoutMs": 8000
+        }
       }
     },
     {
@@ -136,14 +126,8 @@
   ],
   "edges": [
     {
-      "id": "call-open-demo-workflow-to-wait-for-builder",
+      "id": "call-open-demo-workflow-to-assert-toolbar",
       "source": "call-open-demo-workflow",
-      "target": "wait-for-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-builder",
       "target": "assert-toolbar-visible",
       "type": "smoothstep"
     },

@@ -55,22 +55,10 @@
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
         "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-project-detail",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project detail to load",
-        "selector": "h1",
-        "timeoutMs": 5000,
-        "waitForMs": 1500,
-        "waitType": "element"
+        "resilience": {
+          "successSelector": "@selector/workflows.card",
+          "successTimeoutMs": 15000
+        }
       }
     },
     {
@@ -87,29 +75,18 @@
       }
     },
     {
-      "id": "wait-for-workflows-load",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for workflow list to load",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "check-workflows-exist",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 1200,
         "y": -100
       },
       "data": {
         "label": "Verify workflows are listed",
-        "expression": "document.querySelectorAll('@selector/workflows.card').length > 0",
-        "storeAs": "hasWorkflows"
+        "selector": "@selector/workflows.card",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Workflows should be visible after opening a project"
       }
     },
     {
@@ -136,20 +113,10 @@
         "label": "Click first workflow in list",
         "selector": "@selector/workflows.card:first-of-type",
         "timeoutMs": 5000,
-        "waitForMs": 2500
-      }
-    },
-    {
-      "id": "wait-for-builder",
-      "type": "wait",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for workflow builder to load",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "resilience": {
+          "successSelector": "@selector/workflowBuilder.canvas.reactFlow",
+          "successTimeoutMs": 20000
+        }
       }
     },
     {
@@ -167,15 +134,17 @@
     },
     {
       "id": "verify-builder-loaded",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 2200,
         "y": 0
       },
       "data": {
         "label": "Verify builder elements exist",
-        "expression": "document.querySelector('.react-flow, [class*=\"flow\"], canvas') !== null",
-        "storeAs": "builderLoaded"
+        "selector": "@selector/workflowBuilder.canvas.reactFlow",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Workflow builder should render after selecting a workflow"
       }
     },
     {
@@ -208,24 +177,12 @@
     {
       "id": "e3",
       "source": "click-project",
-      "target": "wait-for-project-detail",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-project-detail",
       "target": "ensure-on-workflows-tab",
       "type": "smoothstep"
     },
     {
-      "id": "e5",
+      "id": "e4",
       "source": "ensure-on-workflows-tab",
-      "target": "wait-for-workflows-load",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "wait-for-workflows-load",
       "target": "check-workflows-exist",
       "type": "smoothstep"
     },
@@ -244,23 +201,17 @@
     {
       "id": "e9",
       "source": "click-first-workflow",
-      "target": "wait-for-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e10",
-      "source": "wait-for-builder",
       "target": "verify-url-changed",
       "type": "smoothstep"
     },
     {
-      "id": "e11",
+      "id": "e10",
       "source": "verify-url-changed",
       "target": "verify-builder-loaded",
       "type": "smoothstep"
     },
     {
-      "id": "e12",
+      "id": "e11",
       "source": "verify-builder-loaded",
       "target": "capture-builder",
       "type": "smoothstep"

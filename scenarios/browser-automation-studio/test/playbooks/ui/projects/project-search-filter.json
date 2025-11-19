@@ -56,8 +56,7 @@
         "selector": "input[type=\"text\"][placeholder*=\"Search\"], input[id=\"project-search\"] /*dup-1*/",
         "text": "xyznonexistentproject12345",
         "clearFirst": true,
-        "timeoutMs": 5000,
-        "waitForMs": 1000
+        "timeoutMs": 5000
       }
     },
     {
@@ -84,7 +83,10 @@
         "label": "Click clear search button",
         "selector": "@selector/projects.search.clearButton",
         "timeoutMs": 5000,
-        "waitForMs": 1500
+        "resilience": {
+          "successSelector": "@selector/projects.card",
+          "successTimeoutMs": 10000
+        }
       }
     },
     {

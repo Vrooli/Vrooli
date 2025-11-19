@@ -63,20 +63,25 @@
         "label": "Start workflow execution",
         "selector": "@selector/workflowBuilder.executeButton",
         "timeoutMs": 5000,
-        "waitForMs": 3000
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.status",
+          "successTimeoutMs": 20000
+        }
       }
     },
     {
       "id": "verify-execution-started",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 1400,
         "y": 0
       },
       "data": {
-        "label": "Check execution indicator appears",
-        "expression": "!!document.querySelector('[class*=\"executing\"], [class*=\"running\"], [class*=\"progress\"], svg.lucide-loader')",
-        "storeAs": "executionIndicatorVisible"
+        "label": "Execution indicator appears",
+        "selector": "@selector/executions.viewer.status",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Execution status indicator should appear after starting a run"
       }
     },
     {
@@ -94,15 +99,17 @@
     },
     {
       "id": "check-for-progress-elements",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 1800,
         "y": 0
       },
       "data": {
-        "label": "Verify progress UI elements exist",
-        "expression": "document.querySelectorAll('[class*=\"execution\"], [class*=\"progress\"], [role=\"progressbar\"]').length > 0",
-        "storeAs": "hasProgressUI"
+        "label": "Progress UI elements exist",
+        "selector": "@selector/executions.viewer.status, @selector/heartbeat.indicator",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Progress UI should render while execution is running"
       }
     },
     {
@@ -120,31 +127,33 @@
     },
     {
       "id": "check-heartbeat-indicators",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 2400,
         "y": 0
       },
       "data": {
-        "label": "Verify heartbeat/telemetry indicators",
-        "expression": "!!document.querySelector('[class*=\"heartbeat\"], [class*=\"telemetry\"], [class*=\"live\"]')",
-        "storeAs": "hasHeartbeatIndicators",
-        "continueOnError": true
+        "label": "Heartbeat indicators visible",
+        "selector": "@selector/heartbeat.indicator",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Heartbeat indicator should render during execution",
+        "continueOnFailure": true
       }
     },
     {
-      "id": "verify-completion-state",
-      "type": "wait",
+      "id": "assert-completion-state",
+      "type": "assert",
       "position": {
         "x": 2800,
         "y": 0
       },
       "data": {
-        "label": "Wait for completion indicators",
+        "label": "Execution reaches terminal state",
         "selector": "@selector/executions.viewer.statusCompleted, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCancelled",
+        "assertMode": "exists",
         "timeoutMs": 20000,
-        "waitForMs": 500,
-        "waitType": "element"
+        "failureMessage": "Execution should complete or fail within expected timeout"
       }
     },
     {
@@ -159,86 +168,67 @@
         "fullPage": true,
         "waitForMs": 1000
       }
-    },
-    {
-      "id": "verify-progress-tracking-complete",
-      "type": "evaluate",
-      "position": {
-        "x": 3200,
-        "y": 0
-      },
-      "data": {
-        "label": "Confirm progress tracking workflow complete",
-        "expression": "true",
-        "storeAs": "progressTrackingComplete"
-      }
     }
   ],
   "edges": [
     {
-      "id": "call-open-project-to-find-workflow",
+      "id": "e1",
       "source": "call-open-project",
       "target": "find-workflow",
       "type": "smoothstep"
     },
     {
-      "id": "e5",
+      "id": "e2",
       "source": "find-workflow",
       "target": "capture-before-execution",
       "type": "smoothstep"
     },
     {
-      "id": "e6",
+      "id": "e3",
       "source": "capture-before-execution",
       "target": "start-execution",
       "type": "smoothstep"
     },
     {
-      "id": "e7",
+      "id": "e4",
       "source": "start-execution",
       "target": "verify-execution-started",
       "type": "smoothstep"
     },
     {
-      "id": "e8",
+      "id": "e5",
       "source": "verify-execution-started",
       "target": "capture-execution-progress",
       "type": "smoothstep"
     },
     {
-      "id": "e9",
+      "id": "e6",
       "source": "capture-execution-progress",
       "target": "check-for-progress-elements",
       "type": "smoothstep"
     },
     {
-      "id": "e10",
+      "id": "e7",
       "source": "check-for-progress-elements",
       "target": "capture-mid-execution",
       "type": "smoothstep"
     },
     {
-      "id": "e11",
+      "id": "e8",
       "source": "capture-mid-execution",
       "target": "check-heartbeat-indicators",
       "type": "smoothstep"
     },
     {
-      "id": "e12",
+      "id": "e9",
       "source": "check-heartbeat-indicators",
-      "target": "verify-completion-state",
+      "target": "assert-completion-state",
       "type": "smoothstep"
     },
     {
-      "id": "e13",
-      "source": "verify-completion-state",
+      "id": "e10",
+      "source": "assert-completion-state",
       "target": "capture-final-state",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e14",
-      "source": "capture-final-state",
-      "target": "verify-progress-tracking-complete",
       "type": "smoothstep"
     }
   ]

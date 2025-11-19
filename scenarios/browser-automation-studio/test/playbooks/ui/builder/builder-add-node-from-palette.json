@@ -25,19 +25,6 @@
       }
     },
     {
-      "id": "wait-for-builder-load",
-      "type": "wait",
-      "position": {
-        "x": 1300,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for builder to load after modal close",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "assert-canvas-visible",
       "type": "assert",
       "position": {
@@ -135,19 +122,6 @@
       }
     },
     {
-      "id": "wait-for-node-added",
-      "type": "wait",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for node to be added",
-        "durationMs": 1500,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "count-final-nodes",
       "type": "evaluate",
       "position": {
@@ -242,12 +216,6 @@
     {
       "id": "e15",
       "source": "drag-navigate-node",
-      "target": "wait-for-node-added",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e16",
-      "source": "wait-for-node-added",
       "target": "count-final-nodes",
       "type": "smoothstep"
     },

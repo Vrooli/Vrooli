@@ -35,20 +35,10 @@
         "label": "Click Executions tab",
         "selector": "@selector/projects.tabs.executions",
         "timeoutMs": 5000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-executions",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution history",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "resilience": {
+          "successSelector": "@selector/executions.list.item, @selector/executions.actions.viewButton",
+          "successTimeoutMs": 10000
+        }
       }
     },
     {
@@ -77,20 +67,10 @@
         "label": "Click View button on first execution",
         "selector": "@selector/executions.actions.viewButton:first-of-type",
         "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-execution-viewer",
-      "type": "wait",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for execution viewer to load",
-        "durationMs": 2500,
-        "waitType": "duration"
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.root",
+          "successTimeoutMs": 10000
+        }
       }
     },
     {
@@ -145,21 +125,11 @@
         "label": "Click Replay tab",
         "selector": "@selector/executions.tabs.replay",
         "timeoutMs": 5000,
-        "waitForMs": 1500,
+        "resilience": {
+          "successSelector": "@selector/replay.player, @selector/replay.timeline, @selector/executions.viewer.screenshots",
+          "successTimeoutMs": 10000
+        },
         "continueOnError": true
-      }
-    },
-    {
-      "id": "wait-for-replay-load",
-      "type": "wait",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for replay content to load",
-        "durationMs": 2000,
-        "waitType": "duration"
       }
     },
     {
@@ -225,12 +195,6 @@
     {
       "id": "e5",
       "source": "click-executions-tab",
-      "target": "wait-for-executions",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "wait-for-executions",
       "target": "assert-executions-exist",
       "type": "smoothstep"
     },
@@ -243,12 +207,6 @@
     {
       "id": "e8",
       "source": "click-view-execution",
-      "target": "wait-for-execution-viewer",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e9",
-      "source": "wait-for-execution-viewer",
       "target": "assert-execution-viewer-visible",
       "type": "smoothstep"
     },
@@ -273,17 +231,11 @@
     {
       "id": "e13",
       "source": "click-replay-tab",
-      "target": "wait-for-replay-load",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e14",
-      "source": "wait-for-replay-load",
       "target": "verify-replay-content",
       "type": "smoothstep"
     },
     {
-      "id": "e15",
+      "id": "e14",
       "source": "verify-replay-content",
       "target": "capture-replay-tab",
       "type": "smoothstep"

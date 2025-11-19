@@ -55,19 +55,6 @@
       }
     },
     {
-      "id": "wait-first-node",
-      "type": "wait",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for SetVariable node",
-        "durationMs": 1500,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "verify-setvariable-node",
       "type": "assert",
       "position": {
@@ -340,12 +327,6 @@
     {
       "id": "e7",
       "source": "drag-setvariable-node",
-      "target": "wait-first-node",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e8",
-      "source": "wait-first-node",
       "target": "verify-setvariable-node",
       "type": "smoothstep"
     },

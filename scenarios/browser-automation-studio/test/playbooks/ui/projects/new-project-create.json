@@ -30,21 +30,6 @@
       }
     },
     {
-      "id": "wait-for-projects",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for projects grid",
-        "selector": "@selector/projects.grid",
-        "timeoutMs": 10000,
-        "waitForMs": 1000,
-        "waitType": "element"
-      }
-    },
-    {
       "id": "click-new-project",
       "type": "click",
       "position": {
@@ -55,7 +40,10 @@
         "label": "Open new project modal",
         "selector": "@selector/dashboard.newProjectButton",
         "timeoutMs": 15000,
-        "waitForMs": 1500
+        "resilience": {
+          "successSelector": "@selector/dialogs.project.root",
+          "successTimeoutMs": 10000
+        }
       }
     },
     {
@@ -97,8 +85,7 @@
         "selector": "@selector/dialogs.project.nameInput",
         "text": "{{projectName}}",
         "clearFirst": true,
-        "timeoutMs": 5000,
-        "waitForMs": 300
+        "timeoutMs": 5000
       }
     },
     {
@@ -113,8 +100,7 @@
         "selector": "@selector/dialogs.project.descriptionInput",
         "text": "Automated test project created by workflow validation",
         "clearFirst": true,
-        "timeoutMs": 5000,
-        "waitForMs": 300
+        "timeoutMs": 5000
       }
     },
     {
@@ -128,7 +114,10 @@
         "label": "Click Create button",
         "selector": "@selector/dialogs.project.submitButton",
         "timeoutMs": 5000,
-        "waitForMs": 2000
+        "resilience": {
+          "successSelector": "@selector/projects.grid",
+          "successTimeoutMs": 15000
+        }
       }
     },
     {
@@ -164,12 +153,6 @@
     {
       "id": "e1",
       "source": "navigate-dashboard",
-      "target": "wait-for-projects",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-for-projects",
       "target": "click-new-project",
       "type": "smoothstep"
     },

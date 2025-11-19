@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
-import type { MutableRefObject } from 'react';
-import type { Location, NavigateFunction } from 'react-router-dom';
 import type { PreviewLocationState } from '@/types/preview';
+import type { MutableRefObject } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import type { Location, NavigateFunction } from 'react-router-dom';
 import { PREVIEW_TIMEOUTS } from './previewConstants';
 
 export const isIosSafariUserAgent = (): boolean => {
@@ -155,10 +155,12 @@ export const useIosAutobackGuard = ({
   const iosGuardedLocationKeyRef = useRef<string | null>(null);
 
   // Compute preview location from current appId
-  const previewLocation = appId ? {
-    pathname: `/apps/${encodeURIComponent(appId)}/preview`,
-    search: location.search || '',
-  } : null;
+  const previewLocation = useMemo(() => {
+    return appId ? {
+      pathname: `/apps/${encodeURIComponent(appId)}/preview`,
+      search: location.search || '',
+    } : null;
+  }, [appId, location.search]);
 
   useEffect(() => {
     if (!isIosSafari) {
@@ -230,7 +232,7 @@ export const useIosAutobackGuard = ({
 
   useEffect(() => {
     if (!isIosSafari || typeof window === 'undefined') {
-      return () => {};
+      return () => { };
     }
 
     const guard = iosPopGuardRef.current;

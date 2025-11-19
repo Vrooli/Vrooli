@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-18T02:51:05.031Z"
+    "last_synced_at": "2025-11-19T04:26:42.712Z"
   },
   "requirements": [
     {
@@ -31,14 +31,14 @@
       "prd_ref": "Project Management",
       "title": "Project search filters the project list",
       "description": "Users can search for projects by name or description, with results updating in real-time",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/project-search-filter.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tests search filtering and clearing search to restore full list"
         }
       ]

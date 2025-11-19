@@ -1,0 +1,264 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for ai-model-orchestra-controller scenario",
+    "domain": "ai_orchestration",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "ORCHESTRA-P0-001",
+      "category": "orchestration.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Intelligent model selection",
+      "description": "Intelligent model selection based on task type, complexity, and resource availability",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/orchestrator_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P0-002",
+      "category": "orchestration.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Memory pressure monitoring",
+      "description": "Real-time memory pressure monitoring and resource-aware routing",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/memory_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P0-003",
+      "category": "orchestration.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Automatic failover",
+      "description": "Automatic failover with graceful degradation chains",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/failover_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P0-004",
+      "category": "orchestration.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Cost-aware routing",
+      "description": "Cost-aware routing with budget controls and optimization",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cost_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P0-005",
+      "category": "orchestration.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Performance monitoring",
+      "description": "Performance monitoring and response time optimization",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/performance_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P0-006",
+      "category": "orchestration.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Circuit breakers",
+      "description": "Circuit breakers for automatic failure detection and isolation",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/circuit_breaker_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P0-007",
+      "category": "orchestration.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "REST API",
+      "description": "REST API exposing all orchestration capabilities",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/api_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P0-008",
+      "category": "orchestration.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "Real-time dashboard",
+      "description": "Real-time dashboard for monitoring system health and performance",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/dashboard.html",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P1-001",
+      "category": "orchestration.ml",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "ML model prediction",
+      "description": "Machine learning model prediction for optimal routing",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ml_prediction_test.go",
+          "phase": "integration",
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P1-002",
+      "category": "orchestration.ml",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Adaptive learning",
+      "description": "Adaptive learning from usage patterns and performance history",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/adaptive_learning_test.go",
+          "phase": "integration",
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P1-003",
+      "category": "orchestration.deployment",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Multi-region support",
+      "description": "Multi-region deployment support with geo-routing",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/multi_region_test.go",
+          "phase": "integration",
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P1-004",
+      "category": "orchestration.analytics",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Advanced analytics",
+      "description": "Advanced analytics and cost optimization insights",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/analytics_test.go",
+          "phase": "integration",
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P1-005",
+      "category": "orchestration.events",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Webhook notifications",
+      "description": "Webhook notifications for critical system events",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/webhook_test.go",
+          "phase": "integration",
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P1-006",
+      "category": "orchestration.api",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "API rate limiting",
+      "description": "API rate limiting and quota management",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/rate_limit_test.go",
+          "phase": "integration",
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "ORCHESTRA-P1-007",
+      "category": "orchestration.compliance",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "title": "Audit logging",
+      "description": "Comprehensive audit logging and compliance features",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/audit_log_test.go",
+          "phase": "integration",
+          "status": "planned"
+        }
+      ]
+    }
+  ]
+}

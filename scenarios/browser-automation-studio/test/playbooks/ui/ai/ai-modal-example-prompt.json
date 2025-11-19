@@ -30,19 +30,6 @@
       }
     },
     {
-      "id": "wait-for-dashboard",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for dashboard",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "click-project",
       "type": "click",
       "position": {
@@ -52,55 +39,29 @@
       "data": {
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-project-detail",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project detail",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "timeoutMs": 10000,
+        "waitForMs": 500
       }
     },
     {
       "id": "click-new-workflow",
       "type": "click",
       "position": {
-        "x": 800,
+        "x": 700,
         "y": 0
       },
       "data": {
         "label": "Click New Workflow button",
         "selector": "@selector/workflows.newButton",
         "timeoutMs": 10000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-ai-modal",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for AI modal to appear",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "waitForMs": 500
       }
     },
     {
       "id": "assert-ai-modal-visible",
       "type": "assert",
       "position": {
-        "x": 1200,
+        "x": 900,
         "y": 0
       },
       "data": {
@@ -125,45 +86,20 @@
       }
     },
     {
-      "id": "assert-example-prompts-visible",
-      "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
-      "data": {
-        "label": "Example prompts section is visible",
-        "selector": "@selector/ai.modal.promptExample(index=0)",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Example prompts should be displayed in AI modal"
-      }
-    },
-    {
       "id": "click-example-prompt",
       "type": "click",
       "position": {
-        "x": 1800,
+        "x": 1500,
         "y": 0
       },
       "data": {
         "label": "Click first example prompt",
-        "selector": "@selector/ai.modal.promptExample(index=0) /*dup-1*/",
+        "selector": "@selector/ai.modal.promptExample(index=0)",
         "timeoutMs": 5000,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "wait-for-prompt-populate",
-      "type": "wait",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for prompt to populate",
-        "durationMs": 1000,
-        "waitType": "duration"
+        "resilience": {
+          "successSelector": "textarea[placeholder*=\"prompt\"], textarea[placeholder*=\"describe\"], textarea",
+          "successWaitMs": 1000
+        }
       }
     },
     {
@@ -223,36 +159,18 @@
     {
       "id": "e1",
       "source": "navigate-dashboard",
-      "target": "wait-for-dashboard",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-for-dashboard",
       "target": "click-project",
       "type": "smoothstep"
     },
     {
       "id": "e3",
       "source": "click-project",
-      "target": "wait-for-project-detail",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-project-detail",
       "target": "click-new-workflow",
       "type": "smoothstep"
     },
     {
-      "id": "e5",
-      "source": "click-new-workflow",
-      "target": "wait-for-ai-modal",
-      "type": "smoothstep"
-    },
-    {
       "id": "e6",
-      "source": "wait-for-ai-modal",
+      "source": "click-new-workflow",
       "target": "assert-ai-modal-visible",
       "type": "smoothstep"
     },
@@ -263,26 +181,14 @@
       "type": "smoothstep"
     },
     {
-      "id": "e8",
-      "source": "capture-ai-modal",
-      "target": "assert-example-prompts-visible",
-      "type": "smoothstep"
-    },
-    {
       "id": "e9",
-      "source": "assert-example-prompts-visible",
+      "source": "capture-ai-modal",
       "target": "click-example-prompt",
       "type": "smoothstep"
     },
     {
-      "id": "e10",
-      "source": "click-example-prompt",
-      "target": "wait-for-prompt-populate",
-      "type": "smoothstep"
-    },
-    {
       "id": "e11",
-      "source": "wait-for-prompt-populate",
+      "source": "click-example-prompt",
       "target": "verify-prompt-populated",
       "type": "smoothstep"
     },

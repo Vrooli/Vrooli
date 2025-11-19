@@ -30,19 +30,6 @@
       }
     },
     {
-      "id": "wait-for-dashboard",
-      "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for dashboard",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "click-project",
       "type": "click",
       "position": {
@@ -52,48 +39,22 @@
       "data": {
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
-        "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-project-detail",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for project detail",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "timeoutMs": 10000,
+        "waitForMs": 500
       }
     },
     {
       "id": "click-new-workflow",
       "type": "click",
       "position": {
-        "x": 800,
+        "x": 700,
         "y": 0
       },
       "data": {
         "label": "Click New Workflow button",
         "selector": "@selector/workflows.newButton",
         "timeoutMs": 10000,
-        "waitForMs": 1500
-      }
-    },
-    {
-      "id": "wait-for-ai-modal",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for AI modal",
-        "durationMs": 2000,
-        "waitType": "duration"
+        "waitForMs": 500
       }
     },
     {
@@ -125,52 +86,28 @@
       }
     },
     {
-      "id": "assert-manual-button-visible",
-      "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
-      "data": {
-        "label": "Manual builder button is visible",
-        "selector": "@selector/ai.modal.switchToManualButton",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Switch to Manual Builder button should be visible"
-      }
-    },
-    {
       "id": "click-manual-button",
       "type": "click",
       "position": {
-        "x": 1800,
+        "x": 1700,
         "y": 0
       },
       "data": {
         "label": "Click Switch to Manual Builder",
-        "selector": "@selector/ai.modal.switchToManualButton /*dup-1*/",
+        "selector": "@selector/ai.modal.switchToManualButton",
         "timeoutMs": 5000,
-        "waitForMs": 2000
-      }
-    },
-    {
-      "id": "wait-for-modal-close",
-      "type": "wait",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for modal to close",
-        "durationMs": 1500,
-        "waitType": "duration"
+        "resilience": {
+          "successSelector": "@selector/workflowBuilder.canvas.root",
+          "successTimeoutMs": 15000,
+          "successWaitMs": 500
+        }
       }
     },
     {
       "id": "assert-modal-closed",
       "type": "assert",
       "position": {
-        "x": 2200,
+        "x": 2000,
         "y": 0
       },
       "data": {
@@ -182,23 +119,10 @@
       }
     },
     {
-      "id": "wait-for-builder-load",
-      "type": "wait",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for builder to load",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "assert-builder-visible",
       "type": "assert",
       "position": {
-        "x": 2600,
+        "x": 2200,
         "y": 0
       },
       "data": {
@@ -255,36 +179,18 @@
     {
       "id": "e1",
       "source": "navigate-dashboard",
-      "target": "wait-for-dashboard",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-for-dashboard",
       "target": "click-project",
       "type": "smoothstep"
     },
     {
       "id": "e3",
       "source": "click-project",
-      "target": "wait-for-project-detail",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-project-detail",
       "target": "click-new-workflow",
       "type": "smoothstep"
     },
     {
-      "id": "e5",
-      "source": "click-new-workflow",
-      "target": "wait-for-ai-modal",
-      "type": "smoothstep"
-    },
-    {
       "id": "e6",
-      "source": "wait-for-ai-modal",
+      "source": "click-new-workflow",
       "target": "assert-ai-modal-visible",
       "type": "smoothstep"
     },
@@ -295,38 +201,20 @@
       "type": "smoothstep"
     },
     {
-      "id": "e8",
-      "source": "capture-ai-modal",
-      "target": "assert-manual-button-visible",
-      "type": "smoothstep"
-    },
-    {
       "id": "e9",
-      "source": "assert-manual-button-visible",
+      "source": "capture-ai-modal",
       "target": "click-manual-button",
       "type": "smoothstep"
     },
     {
-      "id": "e10",
-      "source": "click-manual-button",
-      "target": "wait-for-modal-close",
-      "type": "smoothstep"
-    },
-    {
       "id": "e11",
-      "source": "wait-for-modal-close",
+      "source": "click-manual-button",
       "target": "assert-modal-closed",
       "type": "smoothstep"
     },
     {
-      "id": "e12",
-      "source": "assert-modal-closed",
-      "target": "wait-for-builder-load",
-      "type": "smoothstep"
-    },
-    {
       "id": "e13",
-      "source": "wait-for-builder-load",
+      "source": "assert-modal-closed",
       "target": "assert-builder-visible",
       "type": "smoothstep"
     },

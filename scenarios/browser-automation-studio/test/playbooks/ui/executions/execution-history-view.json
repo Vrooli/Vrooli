@@ -35,7 +35,6 @@
         "label": "Click Execution History tab",
         "selector": "@selector/projects.tabs.executions",
         "timeoutMs": 5000,
-        "waitForMs": 1500,
         "resilience": {
           "successSelector": "@selector/executions.list.root"
         }
@@ -52,7 +51,6 @@
         "label": "Filter to failed executions",
         "selector": "@selector/executions.filters.filter(filter=failed)",
         "timeoutMs": 5000,
-        "waitForMs": 1000,
         "resilience": {
           "successSelector": "@selector/executions.list.item"
         }
@@ -73,15 +71,17 @@
     },
     {
       "id": "check-executions-exist",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 1400,
         "y": 0
       },
       "data": {
-        "label": "Check if executions are visible",
-        "expression": "document.querySelectorAll('@selector/executions.list.item, @selector/executions.list.card, @selector/executions.actions.viewButton').length > 0",
-        "storeAs": "hasExecutions"
+        "label": "Executions visible",
+        "selector": "@selector/executions.list.item, @selector/executions.list.card",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Expected executions to appear after opening tab"
       }
     },
     {
@@ -95,7 +95,6 @@
         "label": "Click first execution (if exists)",
         "selector": "@selector/executions.list.item:first-of-type, @selector/executions.list.card:first-of-type, @selector/executions.actions.viewButton:first-of-type",
         "timeoutMs": 5000,
-        "waitForMs": 2000,
         "continueOnError": true,
         "resilience": {
           "successSelector": "@selector/executions.viewer.root"
@@ -104,15 +103,17 @@
     },
     {
       "id": "check-viewer-visible",
-      "type": "evaluate",
+      "type": "assert",
       "position": {
         "x": 2000,
         "y": 0
       },
       "data": {
-        "label": "Check if execution viewer is visible",
-        "expression": "document.querySelector('@selector/executions.viewer.root, @selector/executions.viewer.logs, @selector/executions.viewer.screenshots') !== null",
-        "storeAs": "viewerVisible"
+        "label": "Execution viewer visible",
+        "selector": "@selector/executions.viewer.root",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Execution viewer should render after selecting an execution"
       }
     },
     {
