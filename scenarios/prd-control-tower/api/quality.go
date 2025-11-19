@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -92,6 +93,28 @@ type QualitySummaryEntity struct {
 	IssueCounts QualityIssueCounts `json:"issue_counts"`
 }
 
+// StandardsViolation describes a standards-compatible violation payload that other
+// scenarios (like scenario-auditor) can consume directly.
+type StandardsViolation struct {
+	RuleID         string         `json:"rule_id"`
+	Severity       string         `json:"severity"`
+	Title          string         `json:"title"`
+	Description    string         `json:"description"`
+	FilePath       string         `json:"file_path,omitempty"`
+	Recommendation string         `json:"recommendation,omitempty"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
+}
+
+// QualityStandardsResponse is served on /quality/{type}/{name}/standards.
+type QualityStandardsResponse struct {
+	EntityType  string               `json:"entity_type"`
+	EntityName  string               `json:"entity_name"`
+	Status      string               `json:"status"`
+	Message     string               `json:"message,omitempty"`
+	GeneratedAt time.Time            `json:"generated_at"`
+	Violations  []StandardsViolation `json:"violations"`
+}
+
 var (
 	qualityCacheTTL = time.Minute
 	qualityCache    sync.Map
@@ -121,6 +144,34 @@ func handleGetQualityReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, report)
+}
+
+func handleGetQualityStandards(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	entityType := vars["type"]
+	entityName := vars["name"]
+
+	if !isValidEntityType(entityType) {
+		respondInvalidEntityType(w)
+		return
+	}
+
+	useCache := parseBoolQuery(r, "use_cache", false)
+	report, err := buildQualityReport(entityType, entityName, useCache)
+	if err != nil {
+		slog.Warn("quality standards report generated with warnings", "entity", entityName, "error", err)
+	}
+
+	response := QualityStandardsResponse{
+		EntityType:  entityType,
+		EntityName:  entityName,
+		Status:      report.Status,
+		Message:     firstNonEmpty(report.Message, report.Error),
+		GeneratedAt: time.Now(),
+		Violations:  buildStandardsViolationsFromReport(report),
+	}
+
+	respondJSON(w, http.StatusOK, response)
 }
 
 func handleQualityScan(w http.ResponseWriter, r *http.Request) {
@@ -481,4 +532,153 @@ func buildQualitySummary(useCache bool) (QualitySummary, error) {
 	qualitySummaryMu.Unlock()
 
 	return summary, nil
+}
+
+func buildStandardsViolationsFromReport(report ScenarioQualityReport) []StandardsViolation {
+	var violations []StandardsViolation
+	appendViolation := func(v StandardsViolation) {
+		violations = append(violations, v)
+	}
+
+	if !report.HasPRD {
+		appendViolation(StandardsViolation{
+			RuleID:         "prd_missing_prd",
+			Severity:       "critical",
+			Title:          "PRD.md missing",
+			Description:    "Every scenario must include a PRD.md that follows the standard template.",
+			FilePath:       report.PRDPath,
+			Recommendation: "Add PRD.md using the canonical template before shipping the scenario.",
+		})
+		return violations
+	}
+
+	if !report.HasRequirements {
+		appendViolation(StandardsViolation{
+			RuleID:         "prd_missing_requirements",
+			Severity:       "high",
+			Title:          "requirements/index.json missing",
+			Description:    "Operational targets must be backed by requirements definitions.",
+			FilePath:       report.RequirementsPath,
+			Recommendation: "Create requirements/index.json with P0/P1/P2 groupings and link each requirement to the PRD.",
+		})
+	}
+
+	if tmpl := report.TemplateComplianceV2; tmpl != nil {
+		for _, section := range tmpl.MissingSections {
+			appendViolation(StandardsViolation{
+				RuleID:         "prd_template_sections",
+				Severity:       "high",
+				Title:          fmt.Sprintf("Missing PRD section: %s", section),
+				Description:    fmt.Sprintf("Section '%s' is required by the PRD template.", section),
+				FilePath:       report.PRDPath,
+				Recommendation: fmt.Sprintf("Add section '%s' to PRD.md", section),
+				Metadata: map[string]any{
+					"section": section,
+					"issue":   "missing_section",
+				},
+			})
+		}
+		for parent, subsections := range tmpl.MissingSubsections {
+			for _, subsection := range subsections {
+				appendViolation(StandardsViolation{
+					RuleID:         "prd_template_sections",
+					Severity:       "high",
+					Title:          fmt.Sprintf("Missing PRD subsection: %s", subsection),
+					Description:    fmt.Sprintf("Subsection '%s' is required under '%s'.", subsection, parent),
+					FilePath:       report.PRDPath,
+					Recommendation: fmt.Sprintf("Add subsection '%s' beneath '%s' using checklist formatting.", subsection, parent),
+					Metadata: map[string]any{
+						"section":    parent,
+						"subsection": subsection,
+						"issue":      "missing_subsection",
+					},
+				})
+			}
+		}
+		for _, unexpected := range tmpl.UnexpectedSections {
+			appendViolation(StandardsViolation{
+				RuleID:      "prd_template_unexpected_sections",
+				Severity:    "low",
+				Title:       fmt.Sprintf("Unexpected PRD section: %s", unexpected),
+				Description: fmt.Sprintf("Section '%s' is not part of the official PRD template.", unexpected),
+				FilePath:    report.PRDPath,
+				Metadata: map[string]any{
+					"section": unexpected,
+				},
+			})
+		}
+		for _, issue := range tmpl.ContentIssues {
+			severity := strings.ToLower(strings.TrimSpace(issue.Severity))
+			if severity == "" {
+				severity = "medium"
+			}
+			appendViolation(StandardsViolation{
+				RuleID:         "prd_template_content",
+				Severity:       severity,
+				Title:          fmt.Sprintf("Content issue in %s", issue.Section),
+				Description:    issue.Message,
+				FilePath:       report.PRDPath,
+				Recommendation: issue.Suggestion,
+				Metadata: map[string]any{
+					"section": issue.Section,
+					"issue":   issue.IssueType,
+				},
+			})
+		}
+	}
+
+	for _, issue := range report.TargetLinkageIssues {
+		severity := "high"
+		if strings.EqualFold(issue.Criticality, "P0") {
+			severity = "critical"
+		}
+		appendViolation(StandardsViolation{
+			RuleID:         "prd_operational_target_linkage",
+			Severity:       severity,
+			Title:          fmt.Sprintf("%s target missing requirements", issue.Criticality),
+			Description:    issue.Message,
+			FilePath:       report.RequirementsPath,
+			Recommendation: "Link each P0/P1 operational target to at least one requirement before publishing.",
+			Metadata: map[string]any{
+				"criticality": issue.Criticality,
+			},
+		})
+	}
+
+	for _, summary := range report.RequirementsWithoutTargets {
+		appendViolation(StandardsViolation{
+			RuleID:         "prd_requirements_without_targets",
+			Severity:       "medium",
+			Title:          fmt.Sprintf("Requirement %s missing operational target linkage", summary.ID),
+			Description:    "Requirements must reference at least one operational target to document coverage.",
+			FilePath:       summary.FilePath,
+			Recommendation: "Update operational targets to reference this requirement or adjust criticality.",
+			Metadata: map[string]any{
+				"requirement_id": summary.ID,
+				"criticality":    summary.Criticality,
+			},
+		})
+	}
+
+	for _, issue := range report.PRDRefIssues {
+		severity := "medium"
+		if issue.IssueType == "missing_section" {
+			severity = "high"
+		}
+		appendViolation(StandardsViolation{
+			RuleID:         "prd_prd_ref_integrity",
+			Severity:       severity,
+			Title:          fmt.Sprintf("Requirement %s references missing PRD content", issue.RequirementID),
+			Description:    issue.Message,
+			FilePath:       report.RequirementsPath,
+			Recommendation: "Update prd_ref to point to an existing PRD section or checklist item.",
+			Metadata: map[string]any{
+				"requirement_id": issue.RequirementID,
+				"issue_type":     issue.IssueType,
+				"suggestions":    issue.Suggestions,
+			},
+		})
+	}
+
+	return violations
 }

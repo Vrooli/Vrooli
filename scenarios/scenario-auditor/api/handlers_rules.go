@@ -175,6 +175,17 @@ type Rule struct {
 	Implementation re.ImplementationStatus `json:"implementation"`
 }
 
+func ensureRuleIsInternal(w http.ResponseWriter, ruleID, action string) bool {
+	if !isExternalRule(ruleID) {
+		return true
+	}
+	if action == "" {
+		action = "be modified"
+	}
+	HTTPError(w, fmt.Sprintf("Rule %s is managed by an external provider and cannot %s via scenario-auditor", ruleID, action), http.StatusBadRequest, nil)
+	return false
+}
+
 type RuleCategory = re.Category
 
 type RuleTestStatus struct {
@@ -197,16 +208,18 @@ func getRulesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ruleInfos, err := svc.Load()
+	internalRuleInfos, err := svc.Load()
 	if err != nil {
 		logger.Error("Failed to load rules from service", err)
 		HTTPError(w, "Failed to load rules", http.StatusInternalServerError, err)
 		return
 	}
 
+	allRuleInfos := mergeWithExternalRules(internalRuleInfos)
+
 	rules := make(map[string]Rule)
 	states := ruleStateStore.GetAllStates()
-	for id, info := range ruleInfos {
+	for id, info := range allRuleInfos {
 		rule := convertInfoToRule(info)
 		if enabled, exists := states[id]; exists {
 			rule.Enabled = enabled
@@ -214,15 +227,22 @@ func getRulesHandler(w http.ResponseWriter, r *http.Request) {
 		rules[id] = rule
 	}
 
-	testStatuses := computeRuleTestStatuses(svc, ruleInfos)
+	testStatuses := computeRuleTestStatuses(svc, internalRuleInfos)
 	ruleStatusMap := make(map[string]RuleTestStatus)
 	for id, rule := range rules {
 		status, ok := testStatuses[id]
 		if !ok {
-			// If we couldn't compute a status (e.g. metadata only), mark as needing attention
-			status = RuleTestStatus{
-				Warning:   "Rule metadata missing source file",
-				HasIssues: true,
+			if isExternalRule(id) {
+				status = RuleTestStatus{
+					Warning:   "Managed by external provider",
+					HasIssues: false,
+				}
+			} else {
+				// Metadata missing from local filesystem
+				status = RuleTestStatus{
+					Warning:   "Rule metadata missing source file",
+					HasIssues: true,
+				}
 			}
 		}
 
@@ -418,6 +438,15 @@ func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
 		HTTPError(w, "Rule ID is required", http.StatusBadRequest, nil)
 		return
 	}
+	if !ensureRuleIsInternal(w, ruleID, "be validated") {
+		return
+	}
+	if !ensureRuleIsInternal(w, ruleID, "be tested") {
+		return
+	}
+	if !ensureRuleIsInternal(w, ruleID, "be edited") {
+		return
+	}
 
 	// Parse request body
 	var toggleReq struct {
@@ -480,11 +509,34 @@ func getRuleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ruleInfo, exists := ruleInfos[ruleID]
-	if !exists {
+	if _, exists := ruleInfos[ruleID]; !exists {
+		if externalInfo, ok := loadExternalRuleInfos()[ruleID]; ok {
+			rule := convertInfoToRule(externalInfo)
+			if enabled, ok := ruleStateStore.GetState(ruleID); ok {
+				rule.Enabled = enabled
+			}
+			providerName := "external provider"
+			if provider, ok := externalRuleProviderFor(ruleID); ok && provider != nil {
+				providerName = provider.Name()
+			}
+			response := map[string]any{
+				"rule":           rule,
+				"file_content":   "",
+				"file_path":      "",
+				"execution_info": map[string]any{"notes": []string{fmt.Sprintf("Managed by %s", providerName)}},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				logger.Error("Failed to encode rule response", err)
+				HTTPError(w, "Failed to encode response", http.StatusInternalServerError, err)
+			}
+			return
+		}
 		HTTPError(w, "Rule not found", http.StatusNotFound, nil)
 		return
 	}
+
+	ruleInfo := ruleInfos[ruleID]
 
 	// Read the file content
 	fileContent := ""
@@ -794,6 +846,9 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 	ruleID := strings.TrimSpace(vars["ruleId"])
 	if ruleID == "" {
 		HTTPError(w, "Rule ID is required", http.StatusBadRequest, nil)
+		return
+	}
+	if !ensureRuleIsInternal(w, ruleID, "be executed across scenarios") {
 		return
 	}
 

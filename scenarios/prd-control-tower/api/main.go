@@ -125,6 +125,7 @@ func main() {
 
 	// Quality insights endpoints
 	apiV1.HandleFunc("/quality/{type}/{name}", handleGetQualityReport).Methods("GET")
+	apiV1.HandleFunc("/quality/{type}/{name}/standards", handleGetQualityStandards).Methods("GET")
 	apiV1.HandleFunc("/quality/scan", handleQualityScan).Methods("POST")
 	apiV1.HandleFunc("/quality/summary", handleQualitySummary).Methods("GET")
 

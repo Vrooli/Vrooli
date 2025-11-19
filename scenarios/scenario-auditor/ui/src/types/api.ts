@@ -147,6 +147,8 @@ export interface StandardsViolation {
   recommendation: string
   standard: string
   discovered_at: string
+  source?: string
+  metadata?: Record<string, any>
 }
 
 export interface StandardsCheckResult {

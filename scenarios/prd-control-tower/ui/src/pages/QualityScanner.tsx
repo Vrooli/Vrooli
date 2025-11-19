@@ -2,6 +2,8 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   ChevronDown,
   ChevronRight,
   Download,
@@ -13,7 +15,6 @@ import {
 import { TopNav } from '../components/ui/top-nav'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
 import { Badge } from '../components/ui/badge'
 import { cn } from '../lib/utils'
 import { buildApiUrl } from '../utils/apiClient'
@@ -34,83 +35,28 @@ import { buildIssueReportSeedFromQualityReport } from '../utils/issueReports'
 
 const SCAN_STORAGE_KEY = 'prd-control-tower:quality-scan'
 
-type ScanFilter = 'all' | 'scenario' | 'resource'
-type PRDFilter = 'all' | 'with' | 'missing'
-type ResultFilter = 'all' | 'issues' | 'healthy'
-type SortKey = 'status' | 'issues' | 'name' | 'targets'
+type ResultGroupKey = 'scenarios' | 'resources'
 
 type StoredScanPayload = {
   generated_at: string
   reports: ScenarioQualityReport[]
 }
 
-type GroupKey = 'missing' | 'has_prd' | 'resources'
-
-type GroupConfig = {
-  key: GroupKey
-  title: string
-  description: string
-  highlight?: boolean
-  predicate: (entry: CatalogEntry) => boolean
-}
-
-type SortConfig = {
-  key: SortKey
-  direction: 'asc' | 'desc'
-}
-
-const GROUPS: GroupConfig[] = [
-  {
-    key: 'missing',
-    title: 'Missing PRDs',
-    description: 'Highest priority scenarios to unblock this week.',
-    highlight: true,
-    predicate: (entry) => entry.type === 'scenario' && !entry.has_prd,
-  },
-  {
-    key: 'has_prd',
-    title: 'Published PRDs',
-    description: 'Healthy coverage but worth rescan before launches.',
-    predicate: (entry) => entry.type === 'scenario' && entry.has_prd,
-  },
-  {
-    key: 'resources',
-    title: 'Resources',
-    description: 'Shared infrastructure that still needs documentation discipline.',
-    predicate: (entry) => entry.type === 'resource',
-  },
-]
-
-const STATUS_ORDER: Record<ScenarioQualityReport['status'], number> = {
-  blocked: 0,
-  missing_prd: 0,
-  error: 1,
-  needs_attention: 2,
-  healthy: 3,
-}
 
 export default function QualityScanner() {
   const [entries, setEntries] = useState<CatalogEntry[]>([])
-  const [loadingCatalog, setLoadingCatalog] = useState(true)
   const [catalogError, setCatalogError] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState<ScanFilter>('all')
-  const [prdFilter, setPrdFilter] = useState<PRDFilter>('missing')
-  const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [reports, setReports] = useState<ScenarioQualityReport[]>([])
   const [selectedReports, setSelectedReports] = useState<Set<string>>(new Set())
-  const [resultFilter, setResultFilter] = useState<ResultFilter>('all')
   const [lastRunAt, setLastRunAt] = useState<string | null>(null)
   const [qualitySummary, setQualitySummary] = useState<QualitySummary | null>(null)
   const [hasStoredScan, setHasStoredScan] = useState(false)
-  const [expandedGroups, setExpandedGroups] = useState<Record<GroupKey, boolean>>({
-    missing: true,
-    has_prd: false,
-    resources: false,
+  const [expandedResultGroups, setExpandedResultGroups] = useState<Record<ResultGroupKey, boolean>>({
+    scenarios: true,
+    resources: true,
   })
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'status', direction: 'asc' })
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null)
   const { openIssueDialog, openBulkIssueDialog } = useReportIssueActions()
   const selectedCount = selectedReports.size
@@ -163,7 +109,6 @@ export default function QualityScanner() {
   useEffect(() => {
     let mounted = true
     const loadCatalog = async () => {
-      setLoadingCatalog(true)
       setCatalogError(null)
       try {
         const response = await fetch(buildApiUrl('/catalog'))
@@ -177,10 +122,6 @@ export default function QualityScanner() {
       } catch (err) {
         if (mounted) {
           setCatalogError(err instanceof Error ? err.message : 'Failed to load catalog')
-        }
-      } finally {
-        if (mounted) {
-          setLoadingCatalog(false)
         }
       }
     }
@@ -230,34 +171,9 @@ export default function QualityScanner() {
     setHasStoredScan(Boolean(window.localStorage.getItem(SCAN_STORAGE_KEY)))
   }, [])
 
-  const filteredEntries = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return entries.filter((entry) => {
-      if (typeFilter !== 'all' && entry.type !== typeFilter) return false
-      if (!q) return true
-      return entry.name.toLowerCase().includes(q) || entry.description.toLowerCase().includes(q)
-    })
-  }, [entries, search, typeFilter])
-
-  const groupedEntries = useMemo(() => {
-    return GROUPS.map((group) => ({
-      ...group,
-      entries: filteredEntries.filter(group.predicate),
-    }))
-  }, [filteredEntries])
-
-  const visibleGroups = useMemo(() => {
-    if (prdFilter === 'all') return groupedEntries
-    if (prdFilter === 'missing') return groupedEntries.filter((group) => group.key === 'missing')
-    if (prdFilter === 'with') return groupedEntries.filter((group) => group.key === 'has_prd')
-    return groupedEntries
-  }, [groupedEntries, prdFilter])
-
-  const selectedEntities: QualityScanEntity[] = useMemo(() => {
-    return entries
-      .filter((entry) => selected[`${entry.type}:${entry.name}`])
-      .map((entry) => ({ type: entry.type, name: entry.name }))
-  }, [entries, selected])
+  const allEntities: QualityScanEntity[] = useMemo(() => {
+    return entries.map((entry) => ({ type: entry.type, name: entry.name }))
+  }, [entries])
 
   const runScanForEntities = useCallback(
     async (entities: QualityScanEntity[], label?: string) => {
@@ -287,9 +203,9 @@ export default function QualityScanner() {
     [],
   )
 
-  const handleScan = useCallback(() => {
-    void runScanForEntities(selectedEntities)
-  }, [selectedEntities, runScanForEntities])
+  const handleScanAll = useCallback(() => {
+    void runScanForEntities(allEntities, 'full catalog scan')
+  }, [allEntities, runScanForEntities])
 
   const loadPreviousScan = () => {
     const payload = loadStoredScan()
@@ -310,24 +226,16 @@ export default function QualityScanner() {
       toast.success('No missing PRDs detected right now')
       return
     }
-    setSelected((prev) => {
-      const next = { ...prev }
-      missing.forEach((entity) => {
-        next[`${entity.type}:${entity.name}`] = true
-      })
-      return next
-    })
     void runScanForEntities(missing, 'missing PRDs')
   }, [entries, runScanForEntities])
 
   const filteredReports = useMemo(() => {
     return reports.filter((report) => {
-      if (resultFilter === 'all') return true
+      // Always exclude scenarios/resources without issues
       const hasIssues = report.issue_counts.total > 0 || report.status === 'missing_prd'
-      if (resultFilter === 'issues') return hasIssues
-      return !hasIssues
+      return hasIssues
     })
-  }, [reports, resultFilter])
+  }, [reports])
 
   const visibleSelectableReportIds = useMemo(() => {
     return filteredReports.filter((report) => canReportScenario(report)).map((report) => buildReportKey(report))
@@ -339,10 +247,6 @@ export default function QualityScanner() {
 
   const allVisibleSelected = visibleSelectableReportIds.length > 0 && visibleSelectedCount === visibleSelectableReportIds.length
 
-  const sortedReports = useMemo(() => {
-    return sortReports(filteredReports, sortConfig)
-  }, [filteredReports, sortConfig])
-
   const qualityStats = qualitySummary
     ? [
         { label: 'Tracked', value: qualitySummary.total_entities },
@@ -351,26 +255,17 @@ export default function QualityScanner() {
       ]
     : []
 
-  const toggleGroupExpansion = (key: GroupKey) => {
-    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
+  const groupedReports = useMemo(() => {
+    const scenarios = filteredReports.filter((r) => r.entity_type === 'scenario')
+    const resources = filteredReports.filter((r) => r.entity_type === 'resource')
+    return {
+      scenarios,
+      resources,
+    }
+  }, [filteredReports])
 
-  const applySelectionForGroup = (entriesInGroup: CatalogEntry[], shouldSelect: boolean) => {
-    if (entriesInGroup.length === 0) return
-    setSelected((prev) => {
-      const next = { ...prev }
-      entriesInGroup.forEach((entry) => {
-        next[`${entry.type}:${entry.name}`] = shouldSelect
-      })
-      return next
-    })
-  }
-
-  const countSelectedForGroup = (entriesInGroup: CatalogEntry[]) => {
-    return entriesInGroup.reduce((acc, entry) => {
-      const key = `${entry.type}:${entry.name}`
-      return acc + (selected[key] ? 1 : 0)
-    }, 0)
+  const toggleResultGroupExpansion = (key: ResultGroupKey) => {
+    setExpandedResultGroups((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
   const toggleVisibleReportSelection = useCallback(
@@ -411,8 +306,6 @@ export default function QualityScanner() {
     downloadBlob(csv, 'quality-scan.csv', 'text/csv')
   }
 
-  const totalSelected = selectedEntities.length
-
   return (
     <div className="app-container space-y-6">
       <TopNav />
@@ -428,7 +321,7 @@ export default function QualityScanner() {
               Quality Scanner
             </div>
             <p className="max-w-2xl text-base text-muted-foreground">
-              Select cohorts, scan for PRD + requirements drift, and export reports. The layout keeps stats, selection, and results inline so you never lose context.
+              Scan all scenarios and resources for PRD + requirements drift. Only entities with issues are shown in the results.
             </p>
             {qualityStats.length > 0 && (
               <div className="flex flex-wrap gap-4 text-sm text-slate-600">
@@ -454,13 +347,9 @@ export default function QualityScanner() {
               <ShieldAlert size={16} />
               Quick scan missing PRDs
             </Button>
-            <Button className="gap-2" onClick={handleScan} disabled={scanning || totalSelected === 0}>
+            <Button className="gap-2" onClick={handleScanAll} disabled={scanning || allEntities.length === 0}>
               {scanning ? <Loader2 size={16} className="animate-spin" /> : <ScanSearch size={16} />}
-              {scanning
-                ? 'Scanning...'
-                : totalSelected > 0
-                  ? `Scan ${totalSelected} selected`
-                  : 'Select entities to scan'}
+              {scanning ? 'Scanning...' : `Scan all (${allEntities.length})`}
             </Button>
           </div>
         </div>
@@ -478,143 +367,6 @@ export default function QualityScanner() {
       </header>
 
       <section className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Choose what to scan</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Filter the catalog, review cohorts, and select everything needed with one click.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
-              <Input placeholder="Search scenarios..." value={search} onChange={(e) => setSearch(e.target.value)} />
-              <div className="flex gap-2 text-sm">
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as ScanFilter)}
-                  className="flex-1 rounded border px-3 py-2"
-                >
-                  <option value="all">All types</option>
-                  <option value="scenario">Scenarios</option>
-                  <option value="resource">Resources</option>
-                </select>
-                <select
-                  value={prdFilter}
-                  onChange={(e) => setPrdFilter(e.target.value as PRDFilter)}
-                  className="flex-1 rounded border px-3 py-2"
-                >
-                  <option value="missing">Focus: Missing PRDs</option>
-                  <option value="with">Focus: Published PRDs</option>
-                  <option value="all">Focus: All coverage</option>
-                </select>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {totalSelected} selected · {filteredEntries.length} visible of {entries.length}
-            </div>
-            <div className="space-y-4">
-              {loadingCatalog ? (
-                <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-                  <Loader2 size={16} className="animate-spin" /> Loading catalog...
-                </div>
-              ) : (
-                visibleGroups.map((group) => {
-                  const isExpanded = expandedGroups[group.key]
-                  const selectedCount = countSelectedForGroup(group.entries)
-                  return (
-                    <div
-                      key={group.key}
-                      className={cn('rounded-2xl border p-4', group.highlight ? 'border-rose-200 bg-rose-50/60' : 'bg-white')}
-                    >
-                      <button
-                        type="button"
-                        className="flex w-full items-center justify-between"
-                        onClick={() => toggleGroupExpansion(group.key)}
-                      >
-                        <div className="text-left">
-                          <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                            {group.title}
-                            <Badge variant="secondary">
-                              {group.entries.length} {group.entries.length === 1 ? 'entity' : 'entities'}
-                            </Badge>
-                          </p>
-                          <p className="text-xs text-muted-foreground">{group.description}</p>
-                        </div>
-                        <p className="text-xs text-slate-600">{selectedCount} selected</p>
-                      </button>
-                      {isExpanded && (
-                        <div className="mt-3 space-y-3">
-                          <div className="flex gap-2 text-xs">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => applySelectionForGroup(group.entries, true)}
-                              disabled={group.entries.length === 0}
-                            >
-                              Select all in group
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => applySelectionForGroup(group.entries, false)}
-                              disabled={group.entries.length === 0}
-                            >
-                              Clear group
-                            </Button>
-                          </div>
-                          <div className="divide-y rounded-xl border">
-                            {group.entries.length === 0 && (
-                              <p className="p-3 text-xs text-muted-foreground">No entries in this group.</p>
-                            )}
-                            {group.entries.map((entry) => {
-                              const key = `${entry.type}:${entry.name}`
-                              const isSelected = Boolean(selected[key])
-                              return (
-                                <label
-                                  key={key}
-                                  className={cn(
-                                    'flex cursor-pointer items-start gap-3 px-3 py-3 text-sm',
-                                    isSelected ? 'bg-violet-50' : '',
-                                  )}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() =>
-                                      setSelected((prev) => ({ ...prev, [key]: !prev[key] }))
-                                    }
-                                    className="mt-1"
-                                  />
-                                  <div className="space-y-1">
-                                    <div className="font-medium text-slate-900">
-                                      {entry.name}
-                                      {!entry.has_prd && (
-                                        <Badge variant="destructive" className="ml-2">
-                                          No PRD
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground line-clamp-2">
-                                      {entry.description || 'No description'}
-                                    </p>
-                                  </div>
-                                </label>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Scan results</CardTitle>
@@ -648,15 +400,6 @@ export default function QualityScanner() {
               >
                 <ListChecks size={14} /> Report selected ({selectedCount})
               </Button>
-              <select
-                value={resultFilter}
-                onChange={(e) => setResultFilter(e.target.value as ResultFilter)}
-                className="ml-auto rounded border px-3 py-2 text-sm"
-              >
-                <option value="all">Show: All</option>
-                <option value="issues">Show: Issues only</option>
-                <option value="healthy">Show: Healthy only</option>
-              </select>
             </div>
 
             {scanError && (
@@ -674,103 +417,75 @@ export default function QualityScanner() {
                 <p>
                   {reports.length} entities scanned · latest run {lastRunAt ? formatDate(lastRunAt) : 'just now'}
                 </p>
-                <p className="text-xs">Showing {sortedReports.length} results</p>
+                <p className="text-xs">
+                  Showing {filteredReports.length} results ({groupedReports.scenarios.length} scenarios, {groupedReports.resources.length} resources)
+                </p>
               </div>
             )}
 
-            {sortedReports.length > 0 && (
-              <div className="overflow-x-auto rounded-2xl border">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">Select</th>
-                      <SortableHeader label="Entity" column="name" sortConfig={sortConfig} onSort={setSortConfig} />
-                      <SortableHeader label="Status" column="status" sortConfig={sortConfig} onSort={setSortConfig} />
-                      <SortableHeader
-                        label="Template gaps"
-                        column="issues"
-                        sortConfig={sortConfig}
-                        onSort={setSortConfig}
-                      />
-                      <SortableHeader
-                        label="Targets"
-                        column="targets"
-                        sortConfig={sortConfig}
-                        onSort={setSortConfig}
-                      />
-                      <th className="px-4 py-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedReports.map((report) => {
-                      const id = buildReportKey(report)
-                      const isExpanded = expandedReportId === id
-                      const isSelectable = canReportScenario(report)
-                      const isSelected = selectedReports.has(id)
-                      return (
-                        <Fragment key={id}>
-                          <tr className="border-t text-slate-700">
-                            <td className="px-4 py-3">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4"
-                                checked={isSelected}
-                                disabled={!isSelectable}
-                                onChange={() => toggleReportSelection(report)}
-                              />
-                            </td>
-                            <td className="px-4 py-3 font-semibold text-slate-900">
-                              {report.entity_name}
-                              <Badge variant="secondary" className="ml-2 uppercase">
-                                {report.entity_type}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-3">
-                              <StatusPill status={report.status} />
-                            </td>
-                            <td className="px-4 py-3">
-                              {report.issue_counts.missing_template_sections + report.issue_counts.target_coverage +
-                                report.issue_counts.requirement_coverage +
-                                report.issue_counts.prd_ref}{' '}
-                              issues
-                            </td>
-                            <td className="px-4 py-3">
-                              {report.target_count} targets · {report.requirement_count} requirements
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-3">
-                                <Button
-                                  variant="link"
-                                  className="px-0 text-sm"
-                                  onClick={() =>
-                                    setExpandedReportId((prev) => (prev === id ? null : id))
-                                  }
-                                >
-                                  {isExpanded ? 'Hide details' : 'View details'}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={!isSelectable}
-                                  onClick={() => handleReportSingle(report)}
-                                >
-                                  Report
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                          {isExpanded && (
-                            <tr>
-                              <td colSpan={6} className="bg-slate-50 px-4 py-4">
-                                <ReportDetails report={report} onReport={handleReportSingle} />
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      )
-                    })}
-                  </tbody>
-                </table>
+            {reports.length > 0 && (
+              <div className="space-y-4">
+                {/* Scenarios Group */}
+                {groupedReports.scenarios.length > 0 && (
+                  <div className="rounded-2xl border bg-white">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between p-4"
+                      onClick={() => toggleResultGroupExpansion('scenarios')}
+                    >
+                      <div className="flex items-center gap-2 text-left">
+                        {expandedResultGroups.scenarios ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        <span className="text-lg font-semibold text-slate-900">Scenarios</span>
+                        <Badge variant="secondary">
+                          {groupedReports.scenarios.length} {groupedReports.scenarios.length === 1 ? 'result' : 'results'}
+                        </Badge>
+                      </div>
+                    </button>
+                    {expandedResultGroups.scenarios && (
+                      <div className="border-t">
+                        <ReportTable
+                          reports={groupedReports.scenarios}
+                          expandedReportId={expandedReportId}
+                          setExpandedReportId={setExpandedReportId}
+                          selectedReports={selectedReports}
+                          toggleReportSelection={toggleReportSelection}
+                          handleReportSingle={handleReportSingle}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Resources Group */}
+                {groupedReports.resources.length > 0 && (
+                  <div className="rounded-2xl border bg-white">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between p-4"
+                      onClick={() => toggleResultGroupExpansion('resources')}
+                    >
+                      <div className="flex items-center gap-2 text-left">
+                        {expandedResultGroups.resources ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        <span className="text-lg font-semibold text-slate-900">Resources</span>
+                        <Badge variant="secondary">
+                          {groupedReports.resources.length} {groupedReports.resources.length === 1 ? 'result' : 'results'}
+                        </Badge>
+                      </div>
+                    </button>
+                    {expandedResultGroups.resources && (
+                      <div className="border-t">
+                        <ReportTable
+                          reports={groupedReports.resources}
+                          expandedReportId={expandedReportId}
+                          setExpandedReportId={setExpandedReportId}
+                          selectedReports={selectedReports}
+                          toggleReportSelection={toggleReportSelection}
+                          handleReportSingle={handleReportSingle}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -805,31 +520,6 @@ function loadStoredScan(): StoredScanPayload | null {
   }
 }
 
-function sortReports(reports: ScenarioQualityReport[], sortConfig: SortConfig) {
-  const direction = sortConfig.direction === 'asc' ? 1 : -1
-  return [...reports].sort((a, b) => {
-    switch (sortConfig.key) {
-      case 'name':
-        return a.entity_name.localeCompare(b.entity_name) * direction
-      case 'issues':
-        return (getIssueScore(a) - getIssueScore(b)) * direction
-      case 'targets':
-        return (a.target_count - b.target_count) * direction
-      case 'status':
-      default:
-        return (STATUS_ORDER[a.status] - STATUS_ORDER[b.status]) * direction
-    }
-  })
-}
-
-function getIssueScore(report: ScenarioQualityReport) {
-  const baseIssues =
-    report.issue_counts.missing_template_sections +
-    report.issue_counts.target_coverage +
-    report.issue_counts.requirement_coverage +
-    report.issue_counts.prd_ref
-  return report.status === 'missing_prd' ? baseIssues + 10 : baseIssues
-}
 
 function buildCsv(reports: ScenarioQualityReport[]) {
   const header = ['entity_type', 'entity_name', 'status', 'issue_type', 'detail']
@@ -903,30 +593,201 @@ function StatusPill({ status }: { status: ScenarioQualityReport['status'] }) {
   return <span className={cn('rounded-full px-3 py-1 text-xs font-semibold', statusClasses[status])}>{status.replace('_', ' ')}</span>
 }
 
-function SortableHeader({
-  label,
-  column,
-  sortConfig,
-  onSort,
+type SortColumn = 'entity' | 'status' | 'issues' | 'targets' | 'requirements'
+type SortDirection = 'asc' | 'desc'
+
+function ReportTable({
+  reports,
+  expandedReportId,
+  setExpandedReportId,
+  selectedReports,
+  toggleReportSelection,
+  handleReportSingle,
 }: {
-  label: string
-  column: SortKey
-  sortConfig: SortConfig
-  onSort: (config: SortConfig) => void
+  reports: ScenarioQualityReport[]
+  expandedReportId: string | null
+  setExpandedReportId: (id: string | null) => void
+  selectedReports: Set<string>
+  toggleReportSelection: (report: ScenarioQualityReport) => void
+  handleReportSingle: (report: ScenarioQualityReport) => void
 }) {
-  const isActive = sortConfig.key === column
-  const nextDirection = isActive && sortConfig.direction === 'asc' ? 'desc' : 'asc'
+  const [sortColumn, setSortColumn] = useState<SortColumn>('issues')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('desc')
+    }
+  }
+
+  const sortedReports = useMemo(() => {
+    const sorted = [...reports]
+    sorted.sort((a, b) => {
+      let comparison = 0
+      switch (sortColumn) {
+        case 'entity':
+          comparison = a.entity_name.localeCompare(b.entity_name)
+          break
+        case 'status':
+          comparison = a.status.localeCompare(b.status)
+          break
+        case 'issues':
+          comparison = a.issue_counts.total - b.issue_counts.total
+          break
+        case 'targets':
+          comparison = a.target_count - b.target_count
+          break
+        case 'requirements':
+          comparison = a.requirement_count - b.requirement_count
+          break
+      }
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+    return sorted
+  }, [reports, sortColumn, sortDirection])
+
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortColumn !== column) {
+      return <ArrowDown size={14} className="ml-1 inline opacity-30" />
+    }
+    return sortDirection === 'asc' ? (
+      <ArrowUp size={14} className="ml-1 inline" />
+    ) : (
+      <ArrowDown size={14} className="ml-1 inline" />
+    )
+  }
+
   return (
-    <th
-      scope="col"
-      className={cn('px-4 py-3 cursor-pointer select-none', isActive ? 'text-slate-900' : '')}
-      onClick={() => onSort({ key: column, direction: isActive ? nextDirection : 'asc' })}
-    >
-      <span className="flex items-center gap-1">
-        {label}
-        {isActive && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-      </span>
-    </th>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <tr>
+            <th className="px-4 py-3">Select</th>
+            <th className="px-4 py-3">
+              <button
+                type="button"
+                className="flex items-center hover:text-slate-700"
+                onClick={() => handleSort('entity')}
+              >
+                Entity
+                <SortIcon column="entity" />
+              </button>
+            </th>
+            <th className="px-4 py-3">
+              <button
+                type="button"
+                className="flex items-center hover:text-slate-700"
+                onClick={() => handleSort('status')}
+              >
+                Status
+                <SortIcon column="status" />
+              </button>
+            </th>
+            <th className="px-4 py-3">
+              <button
+                type="button"
+                className="flex items-center hover:text-slate-700"
+                onClick={() => handleSort('issues')}
+              >
+                Issues
+                <SortIcon column="issues" />
+              </button>
+            </th>
+            <th className="px-4 py-3">
+              <button
+                type="button"
+                className="flex items-center hover:text-slate-700"
+                onClick={() => handleSort('targets')}
+              >
+                Targets
+                <SortIcon column="targets" />
+              </button>
+            </th>
+            <th className="px-4 py-3">
+              <button
+                type="button"
+                className="flex items-center hover:text-slate-700"
+                onClick={() => handleSort('requirements')}
+              >
+                Requirements
+                <SortIcon column="requirements" />
+              </button>
+            </th>
+            <th className="px-4 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedReports.map((report) => {
+            const id = buildReportKey(report)
+            const isExpanded = expandedReportId === id
+            const isSelectable = canReportScenario(report)
+            const isSelected = selectedReports.has(id)
+            return (
+              <Fragment key={id}>
+                <tr className="border-t text-slate-700">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={isSelected}
+                      disabled={!isSelectable}
+                      onChange={() => toggleReportSelection(report)}
+                    />
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-slate-900">
+                    {report.entity_name}
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusPill status={report.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {report.issue_counts.missing_template_sections +
+                      report.issue_counts.target_coverage +
+                      report.issue_counts.requirement_coverage +
+                      report.issue_counts.prd_ref}
+                  </td>
+                  <td className="px-4 py-3">
+                    {report.target_count}
+                  </td>
+                  <td className="px-4 py-3">
+                    {report.requirement_count}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                      <Button
+                        variant="link"
+                        className="px-0 text-sm"
+                        onClick={() => setExpandedReportId(isExpanded ? null : id)}
+                      >
+                        {isExpanded ? 'Hide details' : 'View details'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!isSelectable}
+                        onClick={() => handleReportSingle(report)}
+                      >
+                        Report
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+                {isExpanded && (
+                  <tr>
+                    <td colSpan={7} className="bg-slate-50 px-4 py-4">
+                      <ReportDetails report={report} onReport={handleReportSingle} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

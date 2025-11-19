@@ -22,18 +22,20 @@ import (
 )
 
 type StandardsViolation struct {
-	ID             string `json:"id"`
-	ScenarioName   string `json:"scenario_name"`
-	Type           string `json:"type"`
-	Severity       string `json:"severity"`
-	Title          string `json:"title"`
-	Description    string `json:"description"`
-	FilePath       string `json:"file_path"`
-	LineNumber     int    `json:"line_number"`
-	CodeSnippet    string `json:"code_snippet,omitempty"`
-	Recommendation string `json:"recommendation"`
-	Standard       string `json:"standard"`
-	DiscoveredAt   string `json:"discovered_at"`
+	ID             string         `json:"id"`
+	ScenarioName   string         `json:"scenario_name"`
+	Type           string         `json:"type"`
+	Severity       string         `json:"severity"`
+	Title          string         `json:"title"`
+	Description    string         `json:"description"`
+	FilePath       string         `json:"file_path"`
+	LineNumber     int            `json:"line_number"`
+	CodeSnippet    string         `json:"code_snippet,omitempty"`
+	Recommendation string         `json:"recommendation"`
+	Standard       string         `json:"standard"`
+	DiscoveredAt   string         `json:"discovered_at"`
+	Source         string         `json:"source,omitempty"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
 }
 
 type StandardsCheckResult struct {
@@ -302,7 +304,7 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 			})
 		}
 
-		violations, filesScanned, err := performStandardsCheck(ctx, target.Path, scanType, specificStandards, forceDisabled, onFile)
+		violations, filesScanned, err := performStandardsCheck(ctx, target.Path, target.Name, specificStandards, forceDisabled, onFile)
 		if err != nil {
 			if errors.Is(err, errStandardsScanCancelled) || errors.Is(err, context.Canceled) {
 				job.markCancelled()
@@ -495,14 +497,15 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStandards []string, forceDisabled bool, onFile func(string, string)) ([]StandardsViolation, int, error) {
+func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, specificStandards []string, forceDisabled bool, onFile func(string, string)) ([]StandardsViolation, int, error) {
 
-	ruleInfos, err := LoadRulesFromFiles()
+	internalRules, err := LoadRulesFromFiles()
 	if err != nil {
 		return nil, 0, err
 	}
-
-	ruleBuckets, activeRules, disabledRequested, missingRequested := buildRuleBuckets(ruleInfos, specificStandards, forceDisabled)
+	ruleInfos := mergeWithExternalRules(internalRules)
+	normalizedStandards := normalizeRuleIDs(specificStandards)
+	ruleBuckets, activeRules, disabledRequested, missingRequested := buildRuleBuckets(ruleInfos, normalizedStandards, forceDisabled)
 	if len(missingRequested) > 0 {
 		return nil, 0, fmt.Errorf("requested rules not found: %s", strings.Join(missingRequested, ", "))
 	}
@@ -539,6 +542,11 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 	if rootScenario != "" {
 		ensureStructureScenario(rootScenario)
 		structurePaths[rootScenario] = scanPath
+	}
+
+	requestedSet := make(map[string]struct{}, len(normalizedStandards))
+	for _, id := range normalizedStandards {
+		requestedSet[id] = struct{}{}
 	}
 
 	var violations []StandardsViolation
@@ -679,6 +687,21 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 				}
 			}
 		}
+	}
+
+	effectiveScenario := scenarioName
+	if strings.TrimSpace(effectiveScenario) == "" {
+		effectiveScenario = filepath.Base(scanPath)
+	}
+
+	externalViolations, err := runExternalRuleChecks(ctx, effectiveScenario, requestedSet, forceDisabled)
+	if err != nil {
+		logger.Warn("External standards checks failed", map[string]any{
+			"scenario": effectiveScenario,
+			"error":    err.Error(),
+		})
+	} else if len(externalViolations) > 0 {
+		violations = append(violations, externalViolations...)
 	}
 
 	return violations, filesScanned, nil
@@ -1007,11 +1030,12 @@ func validateTargetedStandards(ruleIDs []string, forceDisabled bool) error {
 	if len(normalized) == 0 {
 		return nil
 	}
-	ruleInfos, err := LoadRulesFromFiles()
+	internalRules, err := LoadRulesFromFiles()
 	if err != nil {
 		return err
 	}
-	_, activeRules, disabledRequested, missingRequested := buildRuleBuckets(ruleInfos, normalized, forceDisabled)
+	allRules := mergeWithExternalRules(internalRules)
+	_, activeRules, disabledRequested, missingRequested := buildRuleBuckets(allRules, normalized, forceDisabled)
 	if len(missingRequested) > 0 {
 		return &ruleSelectionError{MissingRules: missingRequested}
 	}
@@ -1162,6 +1186,7 @@ func convertRuleViolationToStandards(rule RuleInfo, violation rulespkg.Violation
 		Recommendation: recommendation,
 		Standard:       standard,
 		DiscoveredAt:   time.Now().Format(time.RFC3339),
+		Source:         "scenario-auditor",
 	}
 }
 

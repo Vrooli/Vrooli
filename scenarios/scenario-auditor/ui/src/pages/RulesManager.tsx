@@ -88,10 +88,13 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
   const testStatus: RuleTestStatus | undefined = status || rule?.test_status
   const implementationStatus: RuleImplementationStatus | undefined = rule?.implementation
   const displayTargets: string[] = Array.isArray(rule.displayTargets) ? rule.displayTargets : Array.isArray(rule.targets) ? rule.targets : []
+  const isExternalRule = displayTargets.includes('external') || (Array.isArray(rule.targets) && rule.targets.includes('external'))
+  const externalProviderName = isExternalRule ? (implementationStatus?.details || implementationStatus?.error || 'External provider') : ''
+  const externalNotice = isExternalRule ? (testStatus?.warning || 'Managed outside scenario-auditor') : ''
   const missingTargets = Boolean(rule.missingTargets)
-  const implementationError = Boolean(implementationStatus && implementationStatus.valid === false)
-  const showWarning = Boolean(testStatus?.has_issues || implementationError || missingTargets)
-  const isToggleDisabled = implementationError
+  const implementationError = Boolean(implementationStatus && implementationStatus.valid === false && !isExternalRule)
+  const showWarning = Boolean((!isExternalRule && testStatus?.has_issues) || implementationError || missingTargets)
+  const isToggleDisabled = implementationError || isExternalRule
   const tooltipLines: string[] = []
   if (testStatus?.warning) {
     tooltipLines.push(testStatus.warning)
@@ -130,6 +133,15 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
               <p className="mt-2 text-xs text-red-600">
                 Implementation error: {implementationStatus?.error || 'Rule implementation unavailable'}
               </p>
+            )}
+            {isExternalRule && (
+              <div className="mt-3 flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                <Info className="h-4 w-4 text-slate-500 mt-0.5" />
+                <div className="text-xs text-slate-600">
+                  <p className="font-semibold text-slate-700">External Provider: {externalProviderName}</p>
+                  <p className="mt-0.5">{externalNotice || 'Configure this rule from the provider scenario.'}</p>
+                </div>
+              </div>
             )}
           </div>
           <div className="ml-4 flex items-center space-x-2">
@@ -197,6 +209,7 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
             <label
               className="relative inline-flex items-center cursor-pointer"
               onClick={(event) => event.stopPropagation()}
+              title={isExternalRule ? 'Managed by external provider' : undefined}
             >
               <input
                 type="checkbox"

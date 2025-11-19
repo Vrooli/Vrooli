@@ -226,7 +226,7 @@ func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
 
 	t.Setenv("VROOLI_ROOT", root)
 
-	violations, _, err := performStandardsCheck(context.Background(), scenarioPath, "", nil, false, nil)
+	violations, _, err := performStandardsCheck(context.Background(), scenarioPath, filepath.Base(scenarioPath), nil, false, nil)
 	if err != nil {
 		t.Fatalf("performStandardsCheck returned error: %v", err)
 	}

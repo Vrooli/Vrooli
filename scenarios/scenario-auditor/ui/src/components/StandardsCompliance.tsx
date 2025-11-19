@@ -410,6 +410,16 @@ export default function StandardsCompliance() {
     return `${identifiers.length}:${identifiers.join('|')}`
   }, [bulkSelection])
 
+  const formatSourceLabel = useCallback((source?: string | null) => {
+    if (!source || source === 'scenario-auditor') {
+      return null
+    }
+    if (source === 'prd-control-tower') {
+      return 'PRD Control Tower'
+    }
+    return source
+  }, [])
+
   const stats = allViolations.reduce(
     (acc, violation) => {
       acc.total += 1
@@ -1155,47 +1165,52 @@ export default function StandardsCompliance() {
                         </div>
                       )}
                       <div className="divide-y divide-dark-100">
-                        {scenarioViolations.map((violation, idx) => (
-                          <button
-                            key={`${violation.id}-${violation.scenario_name}-${violation.line_number}-${idx}`}
-                            onClick={() => {
-                              setSelectedViolation(violation)
-                              // Open dialog on mobile/tablet (< lg breakpoint)
-                              if (window.innerWidth < 1024) {
-                                setShowViolationDialog(true)
-                              }
-                            }}
-                            className="w-full px-4 py-3 hover:bg-dark-50 transition-colors text-left"
-                          >
-                            <div className="flex items-start gap-3">
-                              {getSeverityIcon(violation.severity)}
-                              <div className="flex-1">
-                                <div className="flex items-start justify-between">
-                                  <div>
-                                    <p className="font-medium text-dark-900">{violation.title}</p>
-                                    <p className="text-sm text-dark-600 mt-1 line-clamp-2">
-                                      {violation.description}
-                                    </p>
-                                    <div className="flex items-center gap-4 mt-2">
-                                      <div className="flex items-center gap-1 text-xs text-dark-500">
-                                        <FileCode className="h-3 w-3" />
-                                        {violation.file_path}:{violation.line_number}
+                        {scenarioViolations.map((violation, idx) => {
+                          const sourceLabel = formatSourceLabel(violation.source)
+                          return (
+                            <button
+                              key={`${violation.id}-${violation.scenario_name}-${violation.line_number}-${idx}`}
+                              onClick={() => {
+                                setSelectedViolation(violation)
+                                if (window.innerWidth < 1024) {
+                                  setShowViolationDialog(true)
+                                }
+                              }}
+                              className="w-full px-4 py-3 hover:bg-dark-50 transition-colors text-left"
+                            >
+                              <div className="flex items-start gap-3">
+                                {getSeverityIcon(violation.severity)}
+                                <div className="flex-1">
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <p className="font-medium text-dark-900">{violation.title}</p>
+                                      <p className="text-sm text-dark-600 mt-1 line-clamp-2">
+                                        {violation.description}
+                                      </p>
+                                      <div className="flex items-center gap-4 mt-2">
+                                        <div className="flex items-center gap-1 text-xs text-dark-500">
+                                          <FileCode className="h-3 w-3" />
+                                          {violation.file_path}:{violation.line_number}
+                                        </div>
+                                        <div className="flex items-center gap-1 text-xs text-dark-500">
+                                          {getStandardIcon(violation.standard || violation.type || '')}
+                                          {violation.standard || violation.type || 'Standard'}
+                                        </div>
+                                        <Badge variant={violation.severity === 'critical' ? 'danger' : violation.severity === 'high' ? 'warning' : 'default'} size="sm">
+                                          {violation.type || violation.standard || 'Rule'}
+                                        </Badge>
+                                        {sourceLabel && (
+                                          <span className="text-xs text-dark-500">via {sourceLabel}</span>
+                                        )}
                                       </div>
-                                      <div className="flex items-center gap-1 text-xs text-dark-500">
-                                        {getStandardIcon(violation.standard || violation.type || '')}
-                                        {violation.standard || violation.type || 'Standard'}
-                                      </div>
-                                      <Badge variant={violation.severity === 'critical' ? 'danger' : violation.severity === 'high' ? 'warning' : 'default'} size="sm">
-                                        {violation.type || violation.standard || 'Rule'}
-                                      </Badge>
                                     </div>
+                                    <ChevronRight className="h-4 w-4 text-dark-400 flex-shrink-0" />
                                   </div>
-                                  <ChevronRight className="h-4 w-4 text-dark-400 flex-shrink-0" />
                                 </div>
                               </div>
-                            </div>
-                          </button>
-                        ))}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   </div>
@@ -1478,7 +1493,16 @@ export default function StandardsCompliance() {
                   {bulkSelection.slice(0, 10).map((violation, index) => (
                     <li key={`${violation.id}-${index}`} className="text-xs text-dark-600 flex flex-col">
                       <span className="font-medium text-dark-800">{violation.scenario_name || 'Unknown scenario'}</span>
-                      <span>{violation.title}</span>
+                      <span>
+                        {violation.title}
+                        {(() => {
+                          const sourceLabel = formatSourceLabel(violation.source)
+                          if (!sourceLabel) {
+                            return null
+                          }
+                          return <span className="ml-1 text-[11px] text-dark-500">· via {sourceLabel}</span>
+                        })()}
+                      </span>
                       <span className="text-[0.7rem] text-dark-400">
                         {violation.file_path}:{violation.line_number} · {violation.standard || violation.type || 'standard'}
                       </span>
