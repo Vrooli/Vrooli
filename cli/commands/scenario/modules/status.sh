@@ -481,6 +481,8 @@ scenario::status::display_diagnostic_data() {
         scenario::status::display_running_diagnostics "$diagnostic_data" "$scenario_name"
     fi
 
+    scenario::status::display_ui_smoke "$diagnostic_data"
+
     if command -v scenario::requirements::display_summary >/dev/null 2>&1; then
         if [[ -z "${SCENARIO_STATUS_REQUIREMENTS_SUMMARY:-}" ]] && command -v scenario::requirements::quick_check >/dev/null 2>&1; then
             SCENARIO_STATUS_REQUIREMENTS_SUMMARY=$(scenario::requirements::quick_check "$scenario_name")
@@ -828,5 +830,54 @@ scenario::status::display_test_infrastructure() {
         if [[ -n "$validation_result" ]]; then
             scenario::test::display_validation "$scenario_name" "$validation_result"
         fi
+    fi
+}
+
+scenario::status::display_ui_smoke() {
+    local diagnostic_data="$1"
+
+    if ! command -v jq >/dev/null 2>&1; then
+        return
+    fi
+
+    local smoke_json
+    smoke_json=$(echo "$diagnostic_data" | jq -c '.ui_smoke // empty' 2>/dev/null || echo '')
+    if [[ -z "$smoke_json" || "$smoke_json" == "null" ]]; then
+        return
+    fi
+
+    local status message timestamp duration handshake handshake_duration handshake_error bundle_fresh bundle_reason screenshot_path handshake_present
+    status=$(echo "$smoke_json" | jq -r '.status // "unknown"')
+    message=$(echo "$smoke_json" | jq -r '.message // ""')
+    timestamp=$(echo "$smoke_json" | jq -r '.timestamp // ""')
+    duration=$(echo "$smoke_json" | jq -r '.duration_ms // 0')
+    handshake=$(echo "$smoke_json" | jq -r '.raw.handshake.signaled // false')
+    handshake_duration=$(echo "$smoke_json" | jq -r '.raw.handshake.durationMs // 0')
+    handshake_error=$(echo "$smoke_json" | jq -r '.raw.handshake.error // ""')
+    handshake_present=$(echo "$smoke_json" | jq -r 'if (.raw? and .raw.handshake?) then "true" else "false" end' 2>/dev/null || echo "false")
+    bundle_fresh=$(echo "$smoke_json" | jq -r '.bundle.fresh // true')
+    bundle_reason=$(echo "$smoke_json" | jq -r '.bundle.reason // ""')
+    screenshot_path=$(echo "$smoke_json" | jq -r '.artifacts.screenshot // ""')
+
+    echo ""
+    echo "UI Smoke: $status (${duration}ms${timestamp:+, $timestamp})"
+    if [[ -n "$message" && "$message" != "null" ]]; then
+        echo "  ↳ $message"
+    fi
+    if [[ "$handshake_present" = "true" ]]; then
+        if [[ "$handshake" = "true" ]]; then
+            echo "  ↳ Handshake: ✅ ${handshake_duration}ms"
+        else
+            local detail="${handshake_error:-Bridge never signaled ready}"
+            echo "  ↳ Handshake: ❌ $detail"
+        fi
+    elif [[ "$status" = "skipped" ]]; then
+        echo "  ↳ Handshake: (skipped)"
+    fi
+    if [[ "$bundle_fresh" != "true" ]]; then
+        echo "  ↳ Bundle Status: ⚠️  ${bundle_reason:-UI bundle stale}"
+    fi
+    if [[ -n "$screenshot_path" && "$screenshot_path" != "null" ]]; then
+        echo "  ↳ Screenshot: $screenshot_path"
     fi
 }

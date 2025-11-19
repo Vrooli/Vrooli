@@ -7,6 +7,7 @@ set -euo pipefail
 SHELL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SHELL_DIR/config.sh"
 source "$SHELL_DIR/phase-helpers.sh"
+source "$SHELL_DIR/ui-smoke.sh"
 
 # Standard scenario structure (convention)
 # All scenarios MUST have these files/directories unless explicitly excluded
@@ -43,9 +44,10 @@ testing::structure::validate_all() {
 
   testing::phase::auto_lifecycle_start \
     --phase-name "structure" \
-    --default-target-time "30s" \
+    --default-target-time "120s" \
     --summary "$summary" \
     --config-phase-key "structure" \
+    --require-runtime \
     || true
 
   while [[ $# -gt 0 ]]; do
@@ -174,11 +176,77 @@ testing::structure::validate_all() {
   # Validate selector registry wiring when present
   _validate_selector_registry "$scenario_dir"
 
+  # UI smoke harness (auto-skips for non-UI scenarios)
+  testing::structure::run_ui_smoke "$scenario_name" "$scenario_dir"
+
   echo ""
-  local total_checks=$((${#dirs_to_check[@]} + ${#files_to_check[@]} + 3))
+  local total_checks=$((${#dirs_to_check[@]} + ${#files_to_check[@]} + 4))
   echo "✅ Structure validation completed ($total_checks checks)"
 
   testing::phase::auto_lifecycle_end "$summary"
+}
+
+testing::structure::run_ui_smoke() {
+  local scenario_name="$1"
+  local scenario_dir="$2"
+
+  local helper="${APP_ROOT}/scripts/scenarios/testing/shell/ui-smoke.sh"
+  if [[ ! -f "$helper" ]]; then
+    testing::phase::add_warning "UI smoke helper missing; skipping"
+    return 0
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    testing::phase::add_warning "jq not available; skipping UI smoke"
+    return 0
+  fi
+
+  local summary_json
+  if ! summary_json=$(bash "$helper" --scenario "$scenario_name" --scenario-dir "$scenario_dir" --json); then
+    testing::structure::_log_ui_smoke "$summary_json"
+    testing::phase::add_test failed
+    return 1
+  fi
+
+  local status
+  status=$(echo "$summary_json" | jq -r '.status // "failed"' 2>/dev/null || echo "failed")
+  testing::structure::_log_ui_smoke "$summary_json"
+
+  case "$status" in
+    passed)
+      testing::phase::add_test passed
+      ;;
+    skipped)
+      testing::phase::add_test skipped
+      ;;
+    *)
+      testing::phase::add_test failed
+      return 1
+      ;;
+  esac
+}
+
+testing::structure::_log_ui_smoke() {
+  local summary_json="$1"
+
+  if ! command -v jq >/dev/null 2>&1 || [[ -z "$summary_json" ]]; then
+    log::info "UI smoke: summary unavailable"
+    return
+  fi
+
+  local status message duration screenshot_path
+  status=$(echo "$summary_json" | jq -r '.status // "unknown"')
+  message=$(echo "$summary_json" | jq -r '.message // ""')
+  duration=$(echo "$summary_json" | jq -r '.duration_ms // 0')
+  screenshot_path=$(echo "$summary_json" | jq -r '.artifacts.screenshot // empty')
+
+  log::info "UI smoke: ${status} (${duration}ms)"
+  if [[ -n "$message" && "$message" != "null" ]]; then
+    log::info "  ↳ $message"
+  fi
+  if [[ -n "$screenshot_path" && "$screenshot_path" != "null" ]]; then
+    log::info "  ↳ Screenshot: $screenshot_path"
+  fi
 }
 
 # Private helper: Validate service.json name matches directory

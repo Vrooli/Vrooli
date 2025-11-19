@@ -124,6 +124,29 @@
             ["ui", "initialization"]
           ]
         },
+        "ui_smoke": {
+          "type": "object",
+          "description": "Browserless-backed UI smoke harness configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable or disable the shared UI smoke check"
+            },
+            "timeout_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "default": 90000,
+              "description": "Navigation timeout passed to Browserless (milliseconds)"
+            },
+            "handshake_timeout_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "default": 15000,
+              "description": "How long to wait for iframe-bridge readiness (milliseconds)"
+            }
+          }
+        },
         "validations": {
           "type": "object",
           "description": "Additional validation checks",

@@ -46,6 +46,7 @@ SUBCOMMANDS:
     status [name] [--json]  Show scenario status (includes test infrastructure validation)
     open <name> [options]   Open scenario in browser
     port <name> [port]      Get port number(s) for scenario (use --json for JSON output)
+    ui-smoke <name> [--json] Run Browserless UI smoke harness for a scenario
     template [cmd]          Manage scenario templates (list/show)
     generate <template>     Scaffold a scenario from a template
     requirements <subcommand> Manage scenario requirements (run `vrooli scenario requirements help`)
@@ -133,6 +134,9 @@ main() {
             ;;
         requirements)
             scenario::requirements::dispatch "$@"
+            ;;
+        ui-smoke)
+            scenario::smoke::run "$@"
             ;;
         template)
             scenario::template::dispatch "$@"

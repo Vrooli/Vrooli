@@ -7,7 +7,7 @@ source "$SHELL_DIR/runner.sh"
 
 # Default phase metadata
 declare -Ag TESTING_SUITE_DEFAULT_TIMEOUTS=(
-    [structure]=30
+    [structure]=120
     [dependencies]=60
     [unit]=120
     [integration]=600
@@ -16,6 +16,7 @@ declare -Ag TESTING_SUITE_DEFAULT_TIMEOUTS=(
 )
 
 declare -Ag TESTING_SUITE_DEFAULT_RUNTIME=(
+    [structure]=true
     [integration]=true
     [performance]=true
 )

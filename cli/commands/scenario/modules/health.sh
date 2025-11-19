@@ -26,6 +26,12 @@ scenario::health::collect_all_diagnostic_data() {
     if [[ "$status" == "stopped" ]]; then
         health_data=$(scenario::health::collect_failure_diagnostics "$scenario_name" "$health_data")
     fi
+
+    local ui_smoke_data
+    ui_smoke_data=$(scenario::health::read_ui_smoke_summary "$scenario_name")
+    if [[ -n "$ui_smoke_data" ]]; then
+        health_data=$(echo "$health_data" | jq --argjson smoke "$ui_smoke_data" '.ui_smoke = $smoke')
+    fi
     
     echo "$health_data"
 }
@@ -173,6 +179,18 @@ scenario::health::check_ui_health() {
     fi
     
     echo "$health_issues_found"
+}
+
+scenario::health::read_ui_smoke_summary() {
+    local scenario_name="$1"
+    local scenario_dir="${APP_ROOT}/scenarios/${scenario_name}"
+    local summary_file="$scenario_dir/coverage/${scenario_name}/ui-smoke/latest.json"
+
+    if [[ -f "$summary_file" ]]; then
+        cat "$summary_file"
+    else
+        printf ''
+    fi
 }
 
 # Check API health with schema validation

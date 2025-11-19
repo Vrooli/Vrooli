@@ -1,0 +1,442 @@
+{
+  "_metadata": {
+    "description": "Audio-tools requirements registry with operational target linkage",
+    "domain": "audio-processing",
+    "last_updated": "2025-11-18",
+    "template_version": "2.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AT-P0-001",
+      "category": "audio.editing",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Audio editing operations",
+      "description": "Trim, merge, split, fade in/out, volume adjustment with proper timeout handling",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/audio_operations_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "All editing operations tested with multipart support"
+        }
+      ]
+    },
+    {
+      "id": "AT-P0-002",
+      "category": "audio.enhancement",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Audio normalization and quality enhancement",
+      "description": "Noise reduction, auto-leveling tested successfully",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/audio_operations_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Normalize and enhance operations validated"
+        }
+      ]
+    },
+    {
+      "id": "AT-P0-003",
+      "category": "audio.conversion",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Format conversion",
+      "description": "Convert between MP3, WAV, FLAC, AAC, OGG with quality settings",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/audio_operations_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Multi-format conversion with quality settings tested"
+        }
+      ]
+    },
+    {
+      "id": "AT-P0-004",
+      "category": "audio.manipulation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Speed and pitch modification",
+      "description": "Quality preservation using FFmpeg filters for tempo and pitch shifts",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/audio_operations_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "FFmpeg filters implemented for tempo and pitch shifts"
+        }
+      ]
+    },
+    {
+      "id": "AT-P0-005",
+      "category": "audio.filtering",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Equalization and filtering",
+      "description": "Low-pass, high-pass, band-pass, notch filters with frequency control",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/audio_operations_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "FFmpeg EQ filters with frequency control tested"
+        }
+      ]
+    },
+    {
+      "id": "AT-P0-006",
+      "category": "audio.metadata",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Audio metadata extraction",
+      "description": "ID3 tags, duration, bitrate supporting both file upload and ID-based extraction",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/audio_operations_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Enhanced to support both file upload and ID-based extraction"
+        }
+      ]
+    },
+    {
+      "id": "AT-P0-007",
+      "category": "audio.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "RESTful API",
+      "description": "Comprehensive audio processing endpoints with proper error handling",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/audio_operations_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "All endpoints functional with proper error handling"
+        }
+      ]
+    },
+    {
+      "id": "AT-P0-008",
+      "category": "audio.cli",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "CLI interface",
+      "description": "Full feature parity with batch processing support and audio-specific commands",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/cli_test.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Customized CLI with audio-specific commands and batch processing"
+        }
+      ]
+    },
+    {
+      "id": "AT-P1-001",
+      "category": "audio.transcription",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Audio transcription",
+      "description": "Multiple language support with confidence scoring",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Planned implementation",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires Whisper or similar AI model integration"
+        }
+      ]
+    },
+    {
+      "id": "AT-P1-002",
+      "category": "audio.diarization",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Speaker diarization",
+      "description": "Speaker identification with timeline tracking",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Planned implementation",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires speaker identification AI models"
+        }
+      ]
+    },
+    {
+      "id": "AT-P1-003",
+      "category": "audio.separation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Music and speech separation",
+      "description": "Source isolation for music/speech separation",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Planned implementation",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires source separation models like Demucs"
+        }
+      ]
+    },
+    {
+      "id": "AT-P1-004",
+      "category": "audio.emotion",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Emotion detection",
+      "description": "Sentiment analysis from voice patterns",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Planned implementation",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires emotion detection AI models"
+        }
+      ]
+    },
+    {
+      "id": "AT-P1-005",
+      "category": "audio.language",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Language detection",
+      "description": "Confidence scoring with dialect recognition",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Planned implementation",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires language detection models"
+        }
+      ]
+    },
+    {
+      "id": "AT-P1-006",
+      "category": "audio.analysis",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Audio quality analysis",
+      "description": "Noise floor measurement with spectral analysis",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Planned implementation",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires advanced audio analysis algorithms"
+        }
+      ]
+    },
+    {
+      "id": "AT-P1-007",
+      "category": "audio.streaming",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "title": "Real-time audio processing",
+      "description": "Streaming support for live processing",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Planned implementation",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires WebSocket or streaming protocol implementation"
+        }
+      ]
+    },
+    {
+      "id": "AT-P1-008",
+      "category": "audio.vad",
+      "prd_ref": "Operational Targets > P1 > OT-P1-008",
+      "title": "Voice activity detection",
+      "description": "Silence removal and speech segmentation implemented",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/audio_operations_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "VAD and silence removal endpoints implemented"
+        }
+      ]
+    },
+    {
+      "id": "AT-P2-001",
+      "category": "audio.synthesis",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Voice cloning and synthesis",
+      "description": "Custom voice training and AI-powered voice generation",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Future enhancement",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires TTS and voice cloning models"
+        }
+      ]
+    },
+    {
+      "id": "AT-P2-002",
+      "category": "audio.generation",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "AI-powered music generation",
+      "description": "Style and genre control for music creation",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Future enhancement",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires music generation models like MusicGen"
+        }
+      ]
+    },
+    {
+      "id": "AT-P2-003",
+      "category": "audio.podcast",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Advanced podcast tools",
+      "description": "Chapter markers, intro/outro automation, sponsor detection",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Future enhancement",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires content analysis and automation"
+        }
+      ]
+    },
+    {
+      "id": "AT-P2-004",
+      "category": "audio.fingerprint",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Audio fingerprinting",
+      "description": "Content identification and duplicate detection",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Future enhancement",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires audio fingerprinting algorithms"
+        }
+      ]
+    },
+    {
+      "id": "AT-P2-005",
+      "category": "audio.spatial",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "Spatial audio processing",
+      "description": "3D audio experiences and immersive soundscapes",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Future enhancement",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires spatial audio algorithms and binaural rendering"
+        }
+      ]
+    },
+    {
+      "id": "AT-P2-006",
+      "category": "audio.accessibility",
+      "prd_ref": "Operational Targets > P2 > OT-P2-006",
+      "title": "Voice enhancement for accessibility",
+      "description": "Hearing aid optimization, clarity improvement",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Future enhancement",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires accessibility-focused audio processing"
+        }
+      ]
+    },
+    {
+      "id": "AT-P2-007",
+      "category": "audio.mixing",
+      "prd_ref": "Operational Targets > P2 > OT-P2-007",
+      "title": "Multi-track audio mixing",
+      "description": "Automated mastering for professional quality",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Future enhancement",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires multi-track mixing and mastering algorithms"
+        }
+      ]
+    },
+    {
+      "id": "AT-P2-008",
+      "category": "audio.acoustics",
+      "prd_ref": "Operational Targets > P2 > OT-P2-008",
+      "title": "Acoustic analysis",
+      "description": "Room acoustics and audio environment assessment",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Future enhancement",
+          "phase": "future",
+          "status": "pending",
+          "notes": "Requires acoustic measurement and analysis tools"
+        }
+      ]
+    }
+  ]
+}

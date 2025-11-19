@@ -1,0 +1,10 @@
+{
+  "proxy_url": "https://google.com/",
+  "server_url": "https://google.com/",
+  "api_url": "https://google.com/api",
+  "deployment_mode": "external-server",
+  "auto_manage_vrooli": false,
+  "vrooli_binary_path": "vrooli",
+  "server_type": "external",
+  "updated_at": "2025-11-18T05:14:59.035794406Z"
+}

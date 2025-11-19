@@ -5,6 +5,28 @@ set -euo pipefail
 SHELL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SHELL_DIR/core.sh"
 
+# Allow callers to silence runtime helper logs (useful when commands must emit pure JSON)
+TESTING_RUNTIME_QUIET="${TESTING_RUNTIME_QUIET:-false}"
+
+testing::runtime::_log() {
+    local logger="$1"
+    shift
+
+    if [[ "$TESTING_RUNTIME_QUIET" == "true" ]]; then
+        if command -v "$logger" >/dev/null 2>&1; then
+            "$logger" "$@" >&2
+        else
+            printf '%s\n' "$*" >&2
+        fi
+    else
+        if command -v "$logger" >/dev/null 2>&1; then
+            "$logger" "$@"
+        else
+            printf '%s\n' "$*"
+        fi
+    fi
+}
+
 # Internal state
 TESTING_RUNTIME_SCENARIO_NAME=""
 TESTING_RUNTIME_ENABLED=false
@@ -63,65 +85,42 @@ testing::runtime::ensure_available() {
     if testing::core::is_scenario_running "$TESTING_RUNTIME_SCENARIO_NAME"; then
         TESTING_RUNTIME_MANAGED=true
         TESTING_RUNTIME_WAS_RUNNING=true
-        if command -v log::info >/dev/null 2>&1; then
-            log::info "🟢 Scenario '$TESTING_RUNTIME_SCENARIO_NAME' already running; leaving lifecycle untouched"
-        else
-            echo "🟢 Scenario '$TESTING_RUNTIME_SCENARIO_NAME' already running; leaving lifecycle untouched"
-        fi
+        testing::runtime::_log log::info "🟢 Scenario '$TESTING_RUNTIME_SCENARIO_NAME' already running; leaving lifecycle untouched"
         return 0
     fi
 
     if [ "$TESTING_RUNTIME_DRY_RUN" = "true" ]; then
         TESTING_RUNTIME_MANAGED=true
         TESTING_RUNTIME_WAS_RUNNING=true
-        if command -v log::warning >/dev/null 2>&1; then
-            log::warning "⚠️  [DRY RUN] Would auto-start scenario '$TESTING_RUNTIME_SCENARIO_NAME' before '$item_name'"
-        else
-            echo "⚠️  [DRY RUN] Would auto-start scenario '$TESTING_RUNTIME_SCENARIO_NAME' before '$item_name'"
-        fi
+        testing::runtime::_log log::warning "⚠️  [DRY RUN] Would auto-start scenario '$TESTING_RUNTIME_SCENARIO_NAME' before '$item_name'"
         return 0
     fi
 
     if ! command -v vrooli >/dev/null 2>&1; then
-        if command -v log::error >/dev/null 2>&1; then
-            log::error "❌ Cannot auto-start scenario; 'vrooli' CLI not available"
-        else
-            echo "❌ Cannot auto-start scenario; 'vrooli' CLI not available" >&2
-        fi
+        testing::runtime::_log log::error "❌ Cannot auto-start scenario; 'vrooli' CLI not available"
         return 1
     fi
 
-    if command -v log::info >/dev/null 2>&1; then
-        log::info "🚚 Auto-starting scenario '$TESTING_RUNTIME_SCENARIO_NAME' for '$item_name'"
-    else
-        echo "🚚 Auto-starting scenario '$TESTING_RUNTIME_SCENARIO_NAME' for '$item_name'"
-    fi
+    testing::runtime::_log log::info "🚚 Auto-starting scenario '$TESTING_RUNTIME_SCENARIO_NAME' for '$item_name'"
 
-    if ! vrooli scenario start "$TESTING_RUNTIME_SCENARIO_NAME"; then
-        if command -v log::error >/dev/null 2>&1; then
-            log::error "❌ Failed to auto-start scenario '$TESTING_RUNTIME_SCENARIO_NAME'"
-        else
-            echo "❌ Failed to auto-start scenario '$TESTING_RUNTIME_SCENARIO_NAME'" >&2
+    if [[ "$TESTING_RUNTIME_QUIET" == "true" ]]; then
+        if ! vrooli scenario start "$TESTING_RUNTIME_SCENARIO_NAME" >&2; then
+            testing::runtime::_log log::error "❌ Failed to auto-start scenario '$TESTING_RUNTIME_SCENARIO_NAME'"
+            return 1
         fi
+    elif ! vrooli scenario start "$TESTING_RUNTIME_SCENARIO_NAME"; then
+        testing::runtime::_log log::error "❌ Failed to auto-start scenario '$TESTING_RUNTIME_SCENARIO_NAME'"
         return 1
     fi
 
     if ! testing::core::wait_for_scenario "$TESTING_RUNTIME_SCENARIO_NAME" 90 >/dev/null 2>&1; then
-        if command -v log::error >/dev/null 2>&1; then
-            log::error "❌ Scenario '$TESTING_RUNTIME_SCENARIO_NAME' did not become ready after auto-start"
-        else
-            echo "❌ Scenario '$TESTING_RUNTIME_SCENARIO_NAME' did not become ready after auto-start" >&2
-        fi
+        testing::runtime::_log log::error "❌ Scenario '$TESTING_RUNTIME_SCENARIO_NAME' did not become ready after auto-start"
         return 1
     fi
 
     TESTING_RUNTIME_MANAGED=true
     TESTING_RUNTIME_WAS_RUNNING=false
-    if command -v log::success >/dev/null 2>&1; then
-        log::success "✅ Scenario '$TESTING_RUNTIME_SCENARIO_NAME' ready for runtime-dependent tests"
-    else
-        echo "✅ Scenario '$TESTING_RUNTIME_SCENARIO_NAME' ready for runtime-dependent tests"
-    fi
+    testing::runtime::_log log::success "✅ Scenario '$TESTING_RUNTIME_SCENARIO_NAME' ready for runtime-dependent tests"
     return 0
 }
 
@@ -144,33 +143,17 @@ testing::runtime::cleanup() {
     fi
 
     if ! command -v vrooli >/dev/null 2>&1; then
-        if command -v log::warning >/dev/null 2>&1; then
-            log::warning "⚠️  Skipping auto-stop; 'vrooli' CLI not available"
-        else
-            echo "⚠️  Skipping auto-stop; 'vrooli' CLI not available"
-        fi
+        testing::runtime::_log log::warning "⚠️  Skipping auto-stop; 'vrooli' CLI not available"
         return
     fi
 
-    if command -v log::info >/dev/null 2>&1; then
-        log::info "🛑 Auto-stopping scenario '$TESTING_RUNTIME_SCENARIO_NAME'"
-    else
-        echo "🛑 Auto-stopping scenario '$TESTING_RUNTIME_SCENARIO_NAME'"
-    fi
+    testing::runtime::_log log::info "🛑 Auto-stopping scenario '$TESTING_RUNTIME_SCENARIO_NAME'"
 
     if vrooli scenario stop "$TESTING_RUNTIME_SCENARIO_NAME"; then
         TESTING_RUNTIME_STOPPED=true
-        if command -v log::success >/dev/null 2>&1; then
-            log::success "✅ Scenario '$TESTING_RUNTIME_SCENARIO_NAME' stopped"
-        else
-            echo "✅ Scenario '$TESTING_RUNTIME_SCENARIO_NAME' stopped"
-        fi
+        testing::runtime::_log log::success "✅ Scenario '$TESTING_RUNTIME_SCENARIO_NAME' stopped"
     else
-        if command -v log::warning >/dev/null 2>&1; then
-            log::warning "⚠️  Failed to stop scenario '$TESTING_RUNTIME_SCENARIO_NAME' automatically"
-        else
-            echo "⚠️  Failed to stop scenario '$TESTING_RUNTIME_SCENARIO_NAME' automatically" >&2
-        fi
+        testing::runtime::_log log::warning "⚠️  Failed to stop scenario '$TESTING_RUNTIME_SCENARIO_NAME' automatically"
     fi
 }
 
