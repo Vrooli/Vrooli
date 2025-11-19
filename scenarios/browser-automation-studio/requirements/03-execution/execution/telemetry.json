@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-19T05:43:59.824Z"
+    "last_synced_at": "2025-11-19T18:06:20.035Z"
   },
   "requirements": [
     {
@@ -80,7 +80,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Telemetry smoke automation validates live streaming",
       "description": "Runs an end-to-end workflow that asserts screenshots, highlight metadata, console, and network events are captured and export packages are generated.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
@@ -94,7 +94,7 @@
           "type": "test",
           "ref": "test/phases/test-integration.sh",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Integration phase invokes the telemetry smoke automation through run_workflow_yaml."
         },
         {
@@ -112,7 +112,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Heartbeat stalls trigger operator alerts",
       "description": "Ensures the CLI and automation surface stalled heartbeat warnings when telemetry pauses beyond the configured threshold.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
@@ -126,7 +126,7 @@
           "type": "test",
           "ref": "test/phases/test-integration.sh",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Integration phase records requirement state after running heartbeat automation."
         },
         {
@@ -169,28 +169,28 @@
       "prd_ref": "Execution Management > Control",
       "title": "Stop/cancel running workflow executions",
       "description": "Users can stop or cancel a running workflow execution from the UI, with the execution status updated to 'cancelled' and resources properly cleaned up",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/execution/ui/execution-stop-control.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates stop button appears for running executions and successfully cancels them"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/replay/ui/execution-result-export.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates execution result export and replay artifacts availability"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/execution/ui/execution-progress-tracking.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates execution progress tracking with state transitions and completion indicators"
         }
       ]

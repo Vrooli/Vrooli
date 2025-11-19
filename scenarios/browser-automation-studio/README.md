@@ -293,7 +293,7 @@ cd api && go test ./...
 cd ../ui && pnpm test        # runs sharded Vitest suites (stores + component smoke tests)
 
 # Optional: heavyweight WorkflowBuilder Vitest suite (requires lots of RAM)
-pnpm test:workflow-builder   # still memory hungry; consider Playwright for end-to-end coverage
+pnpm test:workflow-builder   # still memory hungry; pair with Browserless workflow smoke checks for end-to-end coverage
 
 > Note: The WorkflowBuilder Vitest suite currently requires >10GB of heap because of React Flow + Monaco mocks. The default `pnpm test` command runs the lighter shards and skips the builder suite to keep CI stable.
 

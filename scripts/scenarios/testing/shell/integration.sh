@@ -66,6 +66,22 @@ testing::integration::ensure_validate_endpoint() {
     esac
 }
 
+testing::integration::build_playbook_registry() {
+    local scenario_dir="${1:-${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}}"
+    local playbook_root="$scenario_dir/test/playbooks"
+    local registry_builder="${APP_ROOT}/scripts/scenarios/testing/playbooks/build-registry.mjs"
+
+    if [ ! -d "$playbook_root" ] || [ ! -f "$registry_builder" ]; then
+        return 0
+    fi
+
+    if command -v node >/dev/null 2>&1; then
+        node "$registry_builder" --scenario "$scenario_dir" >/dev/null || true
+    else
+        echo "⚠️  Node.js not available; skipping playbook registry generation"
+    fi
+}
+
 # Run workflow linting against the BAS API before executing playbooks
 testing::integration::lint_workflows_via_api() {
     if [[ "${WORKFLOW_LINT_API:-1}" =~ ^(0|false|no)$ ]]; then
@@ -236,6 +252,8 @@ testing::integration::validate_all() {
 
     local scenario_dir="${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}"
     local scenario_name="$(basename "$scenario_dir")"
+
+    testing::integration::build_playbook_registry "$scenario_dir"
 
     if ! testing::integration::lint_workflows_via_api "$scenario_name"; then
         testing::phase::add_error "Workflow linting failed"

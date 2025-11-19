@@ -222,6 +222,45 @@ func TestValidatorScreenshotRequiresTarget(t *testing.T) {
 	}
 }
 
+func TestValidatorAllowsNodesWithoutPosition(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "navigate",
+				"type": "navigate",
+				"data": map[string]any{
+					"destinationType": "scenario",
+					"scenario":        "browser-automation-studio",
+					"scenarioPath":    "/",
+				},
+			},
+			map[string]any{
+				"id":   "shot",
+				"type": "screenshot",
+				"data": map[string]any{
+					"fullPage": true,
+				},
+			},
+		},
+		"edges": []any{
+			map[string]any{"id": "edge-1", "source": "navigate", "target": "shot"},
+		},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+	if !res.Valid {
+		t.Fatalf("expected workflow without explicit positions to validate; errors: %+v", res.Errors)
+	}
+}
+
 func TestValidatorWorkflowCallRequiresTarget(t *testing.T) {
 	v, err := NewValidator()
 	if err != nil {

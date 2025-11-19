@@ -35,3 +35,4 @@ browser-automation-studio execution create \
 - Keep this README under 100 lines; link to shared docs for deep dives (`docs/testing/guides/ui-automation-with-bas.md`).
 - No compatibility shims: move files directly into this layout even if it causes short-term failures.
 - Upcoming automation ideas referenced in requirements should point to `test/playbooks/journeys/...` using the final desired path.
+- Regenerate the registry after edits: `node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario scenarios/browser-automation-studio` (run from repo root).

@@ -111,7 +111,11 @@
           "minLength": 1
         },
         "position": {
-          "$ref": "#/definitions/position"
+          "description": "Optional: omit or set to null for auto-layout workflows",
+          "anyOf": [
+            { "$ref": "#/definitions/position" },
+            { "type": "null" }
+          ]
         },
         "data": {
           "type": "object",

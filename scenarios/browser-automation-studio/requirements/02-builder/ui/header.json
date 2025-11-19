@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-17T19:54:35.401Z"
+    "last_synced_at": "2025-11-19T18:06:20.034Z"
   },
   "requirements": [
     {
@@ -13,14 +13,14 @@
       "prd_ref": "Workflow Builder > Header",
       "title": "Inline workflow title editing updates workflow name",
       "description": "Users can click the edit icon next to the workflow title to edit the name inline, with changes persisted on save",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/builder/header/header-title-edit.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates inline title editing with save/cancel affordances"
         }
       ]
@@ -31,14 +31,14 @@
       "prd_ref": "Workflow Builder > Header",
       "title": "Execute button runs current workflow",
       "description": "Users can click the execute button in the header to run the current workflow and see execution feedback",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/builder/header/header-execute-workflow.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates execute button triggers workflow execution with loading/success states"
         }
       ]
@@ -67,14 +67,14 @@
       "prd_ref": "Workflow Builder > Autosave",
       "title": "Save status indicator shows autosave state",
       "description": "The header displays real-time save status (saving, saved, error) to provide feedback on workflow persistence",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/builder/header/header-save-status.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates save status transitions through saving -> saved states"
         }
       ]

@@ -17,7 +17,7 @@ import (
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v5"
 )
 
-const schemaVersion = "2025.11.16"
+const schemaVersion = "2025.11.20"
 
 //go:embed schema/workflow.schema.json
 var workflowSchemaBytes []byte

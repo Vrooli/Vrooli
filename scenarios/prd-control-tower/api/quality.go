@@ -21,8 +21,11 @@ type ScenarioQualityReport struct {
 	EntityName                 string                       `json:"entity_name"`
 	HasPRD                     bool                         `json:"has_prd"`
 	HasRequirements            bool                         `json:"has_requirements"`
+	HasRequirementsReadme      bool                         `json:"has_requirements_readme"`
 	PRDPath                    string                       `json:"prd_path,omitempty"`
 	RequirementsPath           string                       `json:"requirements_path,omitempty"`
+	RequirementsReadmePath     string                       `json:"requirements_readme_path,omitempty"`
+	RequirementsReadmeIssues   []string                     `json:"requirements_readme_issues,omitempty"`
 	ValidatedAt                time.Time                    `json:"validated_at"`
 	CacheUsed                  bool                         `json:"cache_used"`
 	Status                     string                       `json:"status"`
@@ -55,6 +58,7 @@ type QualityIssueCounts struct {
 	TargetCoverage          int `json:"target_coverage"`
 	RequirementCoverage     int `json:"requirement_coverage"`
 	PRDRef                  int `json:"prd_ref"`
+	Documentation           int `json:"documentation"`
 	Total                   int `json:"total"`
 	Blocking                int `json:"blocking"`
 }
@@ -324,10 +328,42 @@ func computeQualityReport(entityType, entityName string) (ScenarioQualityReport,
 	unexpectedSections := len(tmplV2.UnexpectedSections)
 	structureIssues := missingSections + unexpectedSections
 
-	requirementsPath := filepath.Join(vrooliRoot, entityDir, entityName, "requirements", "index.json")
+	requirementsDir := filepath.Join(vrooliRoot, entityDir, entityName, "requirements")
+	requirementsPath := filepath.Join(requirementsDir, "index.json")
 	if _, err := os.Stat(requirementsPath); err == nil {
 		report.HasRequirements = true
 		report.RequirementsPath = requirementsPath
+	}
+
+	requirementsReadmePath := filepath.Join(requirementsDir, "README.md")
+	report.RequirementsReadmePath = requirementsReadmePath
+	if content, err := os.ReadFile(requirementsReadmePath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			report.RequirementsReadmeIssues = append(report.RequirementsReadmeIssues, "requirements/README.md missing")
+			report.IssueCounts.Documentation++
+		} else {
+			report.Status = "error"
+			report.Error = fmt.Sprintf("failed to read requirements README: %v", err)
+			return report, err
+		}
+	} else {
+		report.HasRequirementsReadme = true
+		lower := strings.ToLower(string(content))
+		type keywordCheck struct {
+			phrase string
+			issue  string
+		}
+		required := []keywordCheck{
+			{phrase: "operational target", issue: "requirements README missing Operational Targets section"},
+			{phrase: "auto-sync", issue: "requirements README missing Auto-sync guidance"},
+			{phrase: "validation", issue: "requirements README missing validation/command guidance"},
+		}
+		for _, check := range required {
+			if !strings.Contains(lower, check.phrase) {
+				report.RequirementsReadmeIssues = append(report.RequirementsReadmeIssues, check.issue)
+				report.IssueCounts.Documentation++
+			}
+		}
 	}
 
 	groups, err := loadRequirementsForEntity(entityType, entityName)
@@ -361,7 +397,7 @@ func computeQualityReport(entityType, entityName string) (ScenarioQualityReport,
 	report.IssueCounts.TargetCoverage = len(targetIssues)
 	report.IssueCounts.RequirementCoverage = len(unmatched)
 	report.IssueCounts.PRDRef = len(prdIssues)
-	report.IssueCounts.Total = report.IssueCounts.MissingTemplateSections + report.IssueCounts.TargetCoverage + report.IssueCounts.RequirementCoverage + report.IssueCounts.PRDRef
+	report.IssueCounts.Total = report.IssueCounts.MissingTemplateSections + report.IssueCounts.TargetCoverage + report.IssueCounts.RequirementCoverage + report.IssueCounts.PRDRef + report.IssueCounts.Documentation
 
 	report.IssueCounts.Blocking = report.IssueCounts.MissingPRD
 	if structureIssues > 0 {
@@ -561,6 +597,23 @@ func buildStandardsViolationsFromReport(report ScenarioQualityReport) []Standard
 			FilePath:       report.RequirementsPath,
 			Recommendation: "Create requirements/index.json with P0/P1/P2 groupings and link each requirement to the PRD.",
 		})
+	}
+
+	if len(report.RequirementsReadmeIssues) > 0 {
+		for _, issue := range report.RequirementsReadmeIssues {
+			severity := "medium"
+			if strings.Contains(strings.ToLower(issue), "missing") {
+				severity = "high"
+			}
+			appendViolation(StandardsViolation{
+				RuleID:         "requirements_readme",
+				Severity:       severity,
+				Title:          "requirements/README.md issues",
+				Description:    issue,
+				FilePath:       report.RequirementsReadmePath,
+				Recommendation: "Document operational targets, auto-sync behavior, and validation commands in requirements/README.md.",
+			})
+		}
 	}
 
 	if tmpl := report.TemplateComplianceV2; tmpl != nil {

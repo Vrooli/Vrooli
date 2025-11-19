@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-19T05:47:06.128Z"
+    "last_synced_at": "2025-11-19T18:14:43.432Z"
   },
   "meta": {
     "scenario": "browser-automation-studio",
@@ -18,20 +18,20 @@
     ]
   },
   "imports": [
-    "projects/dialog.json",
-    "ui/user-flows.json",
-    "ui/header.json",
-    "ui/composite-flows.json",
-    "workflow-builder/core.json",
-    "workflow-builder/interactions.json",
-    "workflow-builder/toolbar.json",
-    "workflow-builder/palette.json",
-    "execution/telemetry.json",
-    "replay/core.json",
-    "ai/generation.json",
-    "persistence/version-history.json",
-    "performance/lighthouse.json",
-    "error-handling/graceful-degradation.json"
+    "01-foundation/projects/dialog.json",
+    "01-foundation/ui/user-flows.json",
+    "01-foundation/persistence/version-history.json",
+    "02-builder/ui/header.json",
+    "02-builder/ui/composite-flows.json",
+    "02-builder/workflow-builder/core.json",
+    "02-builder/workflow-builder/interactions.json",
+    "02-builder/workflow-builder/toolbar.json",
+    "02-builder/workflow-builder/palette.json",
+    "03-execution/execution/telemetry.json",
+    "04-ai/ai/generation.json",
+    "05-replay/replay/core.json",
+    "06-nonfunctional/performance/lighthouse.json",
+    "06-nonfunctional/error-handling/graceful-degradation.json"
   ],
   "requirements": [
     {
@@ -57,7 +57,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Stream execution telemetry (screenshots, progress, logs) while runs are active",
       "description": "Aggregates execution runtime behaviours, including websocket telemetry, CLI observability, and automation coverage.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "children": [
         "BAS-EXEC-TELEMETRY-STREAM",
@@ -72,7 +72,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Persist normalized execution artifacts for replay & video rendering",
       "description": "Ensures replay artifacts are persisted, queryable, and exportable for downstream renderers.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "children": [
         "BAS-REPLAY-TIMELINE-PERSISTENCE",

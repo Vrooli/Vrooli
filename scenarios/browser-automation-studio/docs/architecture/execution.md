@@ -57,7 +57,7 @@ Responsibilities:
 **Location:** `api/browserless/runtime`
 
 Responsibilities:
-- Manage a long-lived Playwright session per execution (`browserless` function API + context reuse) to reduce cold starts and retain state between steps.
+- Manage a long-lived Browserless session per execution (`/chrome/function` + context reuse) to reduce cold starts and retain state between steps.
 - Attach instrumentation before navigation:
   - `page.on('console', ...)` → streamed as console events.
   - `page.on('request')`, `page.on('response')`, `page.on('requestfailed')` → network events.

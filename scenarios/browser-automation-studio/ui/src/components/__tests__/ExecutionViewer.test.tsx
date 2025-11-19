@@ -21,7 +21,7 @@
  * **RECOMMENDED TESTING APPROACH:**
  * - ✅ Unit tests: ExecutionHistory component (separate file) - fully testable
  * - ✅ Unit tests: Store logic (executionStore.test.ts) - comprehensive coverage
- * - 🔄 Integration tests: Use Playwright/Cypress for ExecutionViewer workflows:
+ * - 🔄 Integration tests: Use Browserless-driven workflows for ExecutionViewer end-to-end coverage:
  *   * Tab navigation (replay/screenshots/logs/executions)
  *   * Timeline rendering with different frame types
  *   * Log filtering by level

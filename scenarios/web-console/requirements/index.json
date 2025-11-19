@@ -1,0 +1,130 @@
+{
+  "requirements": [
+    {
+      "id": "WC-P0-001",
+      "title": "Session Lifecycle API",
+      "description": "Go API providing session lifecycle endpoints, WebSocket streaming, and transcript persistence.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "priority": "P0",
+      "status": "completed",
+      "validation": ["test", "manual"]
+    },
+    {
+      "id": "WC-P0-002",
+      "title": "Configurable Default Commands",
+      "description": "Configurable default command (`WEB_CONSOLE_DEFAULT_COMMAND`) plus per-session overrides via API.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "priority": "P0",
+      "status": "completed",
+      "validation": ["test", "manual"]
+    },
+    {
+      "id": "WC-P0-003",
+      "title": "Browser UI with Shortcuts",
+      "description": "Browser UI (vanilla JS + xterm.js) with shortcut buttons for Codex, Claude, and `vrooli status` that queue commands until the PTY is ready.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "priority": "P0",
+      "status": "completed",
+      "validation": ["test", "manual"]
+    },
+    {
+      "id": "WC-P0-004",
+      "title": "Iframe Bridge Protocol",
+      "description": "iframe bridge that publishes status/metadata via `postMessage` and responds to transcript/log/screenshot requests.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "priority": "P0",
+      "status": "completed",
+      "validation": ["manual"]
+    },
+    {
+      "id": "WC-P0-005",
+      "title": "Proxy Guard Enforcement",
+      "description": "Proxy guard enforcement that rejects requests lacking authenticated forwarding headers.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "priority": "P0",
+      "status": "completed",
+      "validation": ["test"]
+    },
+    {
+      "id": "WC-P0-006",
+      "title": "Security Documentation",
+      "description": "Documentation emphasizing proxy-only deployment and shortcut behavior.",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "priority": "P0",
+      "status": "completed",
+      "validation": ["manual"]
+    },
+    {
+      "id": "WC-P1-001",
+      "title": "Concurrent Session Handling",
+      "description": "Concurrent session handling with queueing when capacity is exhausted.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "priority": "P1",
+      "status": "pending",
+      "validation": ["test"]
+    },
+    {
+      "id": "WC-P1-002",
+      "title": "Prometheus Metrics",
+      "description": "Prometheus metrics endpoint for session counters and failure modes.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "priority": "P1",
+      "status": "pending",
+      "validation": ["test"]
+    },
+    {
+      "id": "WC-P1-003",
+      "title": "Panic-Stop Endpoint",
+      "description": "Panic-stop endpoint/UI control to terminate runaway commands.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "priority": "P1",
+      "status": "pending",
+      "validation": ["test", "manual"]
+    },
+    {
+      "id": "WC-P1-004",
+      "title": "Mobile-First UI",
+      "description": "Mobile-first UI with reconnect/resume flows and quick command access.",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "priority": "P1",
+      "status": "completed",
+      "validation": ["manual"]
+    },
+    {
+      "id": "WC-P2-001",
+      "title": "Configurable Shortcut Palette",
+      "description": "Configurable shortcut palette provided by parent scenario or service config.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "priority": "P2",
+      "status": "pending",
+      "validation": ["manual"]
+    },
+    {
+      "id": "WC-P2-002",
+      "title": "Distributed Transcript Storage",
+      "description": "Redis/Postgres adapters for distributed transcript storage.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "priority": "P2",
+      "status": "pending",
+      "validation": ["test"]
+    },
+    {
+      "id": "WC-P2-003",
+      "title": "Voice Dictation/TTS Integration",
+      "description": "Voice dictation/TTS hooks that leverage shared resources.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "priority": "P2",
+      "status": "pending",
+      "validation": ["manual"]
+    },
+    {
+      "id": "WC-P2-004",
+      "title": "Parent Callbacks",
+      "description": "Parent callbacks for automated post-session archiving or compliance workflows.",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "priority": "P2",
+      "status": "pending",
+      "validation": ["test"]
+    }
+  ]
+}

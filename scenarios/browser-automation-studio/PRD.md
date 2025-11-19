@@ -8,7 +8,7 @@ Browser Automation Studio provides a visual workflow builder and execution envir
 
 ### Intelligence Amplification
 **How does this capability make future agents smarter?**
-This capability transforms browser automation from code-based scripts to visual, AI-assisted workflows. Agents can now validate UIs, collect web data, and automate browser tasks without writing Puppeteer/Playwright code. The AI debugging loop means workflows self-heal when websites change, and successful patterns get shared across all scenarios.
+This capability transforms browser automation from code-based scripts to visual, AI-assisted workflows. Agents can now validate UIs, collect web data, and automate browser tasks without writing low-level browser automation code. The AI debugging loop means workflows self-heal when websites change, and successful patterns get shared across all scenarios.
 
 ### Recursive Value
 **What new scenarios become possible after this exists?**
@@ -439,7 +439,7 @@ style_profile:
 style_references:
   technical:
     - "n8n workflow editor - node-based visual programming"
-    - "Playwright Inspector - browser automation debugging"
+    - "Browserless dashboard - headless automation introspection"
     - "GitHub Actions - workflow visualization"
     - "Postman - API testing interface"
 ```
@@ -613,7 +613,7 @@ node ../../scripts/requirements/report.js \
   - Fallback: Enhanced AI workflow generation to lower barriers
 
 - **Browserless Dependency**: Core functionality depends on single resource
-  - Mitigation: Support for alternative browser automation backends (Playwright, Puppeteer)
+  - Mitigation: Support multiple Browserless pools/tenants plus resilient queueing to survive outages
   - Monitoring: Browserless health and availability metrics
   - Fallback: Direct CDP integration for resilience
 
@@ -637,7 +637,6 @@ node ../../scripts/requirements/report.js \
 
 ### Similar Tools & Inspiration
 - [n8n](https://n8n.io/) - Workflow automation platform with visual builder
-- [Playwright Inspector](https://playwright.dev/docs/inspector) - Browser automation debugging
 - [GitHub Actions](https://github.com/features/actions) - Workflow visualization patterns
 
 ---

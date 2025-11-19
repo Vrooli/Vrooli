@@ -26,7 +26,7 @@
  * - ✅ Unit tests: NodePalette (NodePalette.test.tsx) - drag-drop preparation logic
  * - ✅ Unit tests: Node components (NavigateNode, ClickNode, etc.) - props/data handling
  * - ✅ Unit tests: Store logic (workflowStore.test.ts) - autosave, undo/redo, persistence
- * - 🔄 Integration tests: Use Playwright/Cypress for WorkflowBuilder interactions:
+ * - 🔄 Integration tests: Use Browserless-driven workflows for WorkflowBuilder interactions:
  *   * Drag node from palette onto canvas
  *   * Connect nodes by dragging from handles
  *   * Select and delete nodes/edges
@@ -527,7 +527,7 @@ describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
    * - Selection state tracking
    * - Integration test environment with real ReactFlow instance
    *
-   * Recommendation: Test these behaviors at integration level with Playwright/Cypress
+   * Recommendation: Test these behaviors at integration level with Browserless workflows
    * or with more sophisticated ReactFlow testing utilities.
    */
 });
