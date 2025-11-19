@@ -15,10 +15,6 @@
     {
       "id": "call-open-builder",
       "type": "workflowCall",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Open builder via fixture",
         "workflowId": "@fixture/open-builder-from-demo"
@@ -27,10 +23,6 @@
     {
       "id": "wait-for-builder",
       "type": "wait",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Wait for workflow builder",
         "durationMs": 3000,
@@ -40,10 +32,6 @@
     {
       "id": "assert-node-card-visible",
       "type": "assert",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Node cards are visible in palette",
         "selector": "@selector/nodePalette.cards.navigate",
@@ -55,10 +43,6 @@
     {
       "id": "find-favorite-button",
       "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Favorite button exists on node card",
         "selector": "@selector/nodePalette.favoriteButton(type=\"navigate\")",
@@ -70,10 +54,6 @@
     {
       "id": "capture-before-favorite",
       "type": "screenshot",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Capture before favoriting",
         "fullPage": true,
@@ -83,10 +63,6 @@
     {
       "id": "click-favorite-button",
       "type": "click",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Click favorite button to toggle",
         "selector": "@selector/nodePalette.favoriteButton(type=\"navigate\")",
@@ -97,10 +73,6 @@
     {
       "id": "capture-after-favorite",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture after favoriting",
         "fullPage": true,
@@ -110,10 +82,6 @@
     {
       "id": "verify-favorite-toggled",
       "type": "evaluate",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Verify favorite was toggled",
         "expression": "true",

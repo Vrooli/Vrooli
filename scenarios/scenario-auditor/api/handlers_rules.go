@@ -438,15 +438,8 @@ func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
 		HTTPError(w, "Rule ID is required", http.StatusBadRequest, nil)
 		return
 	}
-	if !ensureRuleIsInternal(w, ruleID, "be validated") {
-		return
-	}
-	if !ensureRuleIsInternal(w, ruleID, "be tested") {
-		return
-	}
-	if !ensureRuleIsInternal(w, ruleID, "be edited") {
-		return
-	}
+	// External rules CAN be toggled, so we don't check ensureRuleIsInternal here
+
 
 	// Parse request body
 	var toggleReq struct {

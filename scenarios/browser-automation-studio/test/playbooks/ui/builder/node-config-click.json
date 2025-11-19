@@ -15,10 +15,6 @@
     {
       "id": "call-open-builder",
       "type": "workflowCall",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Open builder via fixture",
         "workflowId": "@fixture/open-builder-from-demo"
@@ -27,10 +23,6 @@
     {
       "id": "wait-builder",
       "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Wait for builder",
         "selector": "@selector/workflowBuilder.code.modeButton",
@@ -42,10 +34,6 @@
     {
       "id": "drag-click-node",
       "type": "dragDrop",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Drag Click node onto canvas",
         "sourceSelector": "@selector/nodePalette.cards.click",
@@ -57,10 +45,6 @@
     {
       "id": "wait-node-render",
       "type": "wait",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Wait for node to render",
         "durationMs": 1500,
@@ -70,10 +54,6 @@
     {
       "id": "verify-click-node",
       "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Verify Click node exists",
         "selector": ".react-flow__node",
@@ -85,10 +65,6 @@
     {
       "id": "click-node-to-select",
       "type": "click",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Click node to select",
         "selector": ".react-flow__node:first-of-type",
@@ -99,10 +75,6 @@
     {
       "id": "verify-selected",
       "type": "assert",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Node is selected",
         "selector": ".react-flow__node.selected",
@@ -114,10 +86,6 @@
     {
       "id": "capture-before-edit",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture before editing",
         "fullPage": true,
@@ -127,10 +95,6 @@
     {
       "id": "find-selector-input",
       "type": "assert",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Selector input exists",
         "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
@@ -142,10 +106,6 @@
     {
       "id": "click-selector-input",
       "type": "click",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Click selector input",
         "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-1*/",
@@ -156,10 +116,6 @@
     {
       "id": "clear-selector",
       "type": "keyboard",
-      "position": {
-        "x": 2800,
-        "y": 0
-      },
       "data": {
         "label": "Clear existing selector",
         "keys": [
@@ -172,10 +128,6 @@
     {
       "id": "type-selector",
       "type": "type",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Type test selector",
         "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-2*/",
@@ -187,10 +139,6 @@
     {
       "id": "trigger-blur",
       "type": "click",
-      "position": {
-        "x": 3200,
-        "y": 0
-      },
       "data": {
         "label": "Click canvas to blur input",
         "selector": ".react-flow__pane",
@@ -201,10 +149,6 @@
     {
       "id": "capture-after-edit",
       "type": "screenshot",
-      "position": {
-        "x": 3400,
-        "y": 0
-      },
       "data": {
         "label": "Capture after editing selector",
         "fullPage": true,
@@ -214,10 +158,6 @@
     {
       "id": "re-select-node",
       "type": "click",
-      "position": {
-        "x": 3600,
-        "y": 0
-      },
       "data": {
         "label": "Re-select node to verify persistence",
         "selector": ".react-flow__node:first-of-type /*dup-1*/",
@@ -228,10 +168,6 @@
     {
       "id": "verify-selector-persisted",
       "type": "evaluate",
-      "position": {
-        "x": 3800,
-        "y": 0
-      },
       "data": {
         "label": "Verify selector persisted",
         "expression": "document.querySelector('.react-flow__node.selected input[placeholder*=\"Selector\" i]')?.value === '#test-button'",
@@ -241,10 +177,6 @@
     {
       "id": "assert-selector-saved",
       "type": "assert",
-      "position": {
-        "x": 4000,
-        "y": 0
-      },
       "data": {
         "label": "Assert selector was saved",
         "selector": ".react-flow__node.selected input[value=\"#test-button\"]",

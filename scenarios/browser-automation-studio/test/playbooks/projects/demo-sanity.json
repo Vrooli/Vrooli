@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "capture-dashboard",
       "type": "screenshot",
-      "position": {
-        "x": 300,
-        "y": -60
-      },
       "data": {
         "label": "Capture dashboard",
         "fullPage": true,
@@ -46,10 +38,6 @@
     {
       "id": "assert-demo-project",
       "type": "assert",
-      "position": {
-        "x": 500,
-        "y": -40
-      },
       "data": {
         "label": "Demo project card exists",
         "selector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]:where(:not(:root))",
@@ -61,10 +49,6 @@
     {
       "id": "click-demo-card",
       "type": "click",
-      "position": {
-        "x": 680,
-        "y": 20
-      },
       "data": {
         "label": "Open demo project",
         "selector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]",
@@ -79,10 +63,6 @@
     {
       "id": "assert-demo-workflow",
       "type": "assert",
-      "position": {
-        "x": 920,
-        "y": 120
-      },
       "data": {
         "label": "Demo workflow visible",
         "selector": "div[data-workflow-header] h3[title=\"Demo: Capture Example.com Hero\"]",

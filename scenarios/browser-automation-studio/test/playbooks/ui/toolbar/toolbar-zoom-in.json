@@ -15,10 +15,6 @@
     {
       "id": "call-open-demo-workflow",
       "type": "workflowCall",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open seeded workflow via fixture",
         "workflowId": "@fixture/open-demo-workflow"
@@ -27,10 +23,6 @@
     {
       "id": "assert-toolbar-visible",
       "type": "assert",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Workflow toolbar is visible",
         "selector": "@selector/toolbar.root",
@@ -42,10 +34,6 @@
     {
       "id": "get-initial-zoom",
       "type": "evaluate",
-      "position": {
-        "x": 1000,
-        "y": -100
-      },
       "data": {
         "label": "Get initial zoom level",
         "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
@@ -55,10 +43,6 @@
     {
       "id": "capture-before-zoom",
       "type": "screenshot",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Capture canvas before zoom",
         "fullPage": true,
@@ -68,10 +52,6 @@
     {
       "id": "click-zoom-in",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Click zoom in button",
         "selector": "@selector/toolbar.zoomInButton",
@@ -85,10 +65,6 @@
     {
       "id": "get-zoomed-level",
       "type": "evaluate",
-      "position": {
-        "x": 1600,
-        "y": -100
-      },
       "data": {
         "label": "Get zoom level after zoom in",
         "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
@@ -98,10 +74,6 @@
     {
       "id": "verify-zoom-increased",
       "type": "assert",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Zoom level increased",
         "selector": ".react-flow__viewport[style*=\"scale\"]",
@@ -113,10 +85,6 @@
     {
       "id": "capture-after-zoom",
       "type": "screenshot",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Capture canvas after zoom",
         "fullPage": true,

@@ -15,10 +15,6 @@
     {
       "id": "call-open-builder",
       "type": "workflowCall",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Open builder via fixture",
         "workflowId": "@fixture/open-builder-from-demo"
@@ -27,10 +23,6 @@
     {
       "id": "wait-builder",
       "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Wait for workflow builder",
         "selector": "@selector/workflowBuilder.code.modeButton",
@@ -42,10 +34,6 @@
     {
       "id": "capture-before",
       "type": "screenshot",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Capture builder before adding node",
         "fullPage": true,
@@ -55,10 +43,6 @@
     {
       "id": "drag-navigate-node",
       "type": "dragDrop",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Drag Navigate node onto canvas",
         "sourceSelector": "@selector/nodePalette.cards.navigate",
@@ -70,10 +54,6 @@
     {
       "id": "wait-node-added",
       "type": "wait",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Wait for node to appear",
         "durationMs": 1500,
@@ -83,10 +63,6 @@
     {
       "id": "verify-navigate-node",
       "type": "assert",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Verify Navigate node exists",
         "selector": ".react-flow__node[data-type=\"navigate\"]",
@@ -98,10 +74,6 @@
     {
       "id": "capture-node-added",
       "type": "screenshot",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Capture Navigate node on canvas",
         "fullPage": true,
@@ -111,10 +83,6 @@
     {
       "id": "click-navigate-node",
       "type": "click",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Click Navigate node to select it",
         "selector": ".react-flow__node[data-type=\"navigate\"] /*dup-1*/",
@@ -125,10 +93,6 @@
     {
       "id": "verify-node-selected",
       "type": "assert",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Verify node is selected",
         "selector": ".react-flow__node.selected[data-type=\"navigate\"]",
@@ -140,10 +104,6 @@
     {
       "id": "find-url-input",
       "type": "assert",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Verify URL input is visible in node",
         "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]",
@@ -155,10 +115,6 @@
     {
       "id": "click-url-mode",
       "type": "click",
-      "position": {
-        "x": 2800,
-        "y": 0
-      },
       "data": {
         "label": "Switch to URL mode",
         "selector": ".react-flow__node.selected[data-type=\"navigate\"] button@selector/nodeProperties.urlModeButton",
@@ -170,10 +126,6 @@
     {
       "id": "click-url-input",
       "type": "click",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Click URL input field",
         "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"] /*dup-1*/",
@@ -184,10 +136,6 @@
     {
       "id": "clear-url-input",
       "type": "keyboard",
-      "position": {
-        "x": 3200,
-        "y": 0
-      },
       "data": {
         "label": "Clear URL input",
         "keys": [
@@ -200,10 +148,6 @@
     {
       "id": "type-url",
       "type": "type",
-      "position": {
-        "x": 3400,
-        "y": 0
-      },
       "data": {
         "label": "Type test URL",
         "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"] /*dup-2*/",
@@ -215,10 +159,6 @@
     {
       "id": "blur-url-input",
       "type": "click",
-      "position": {
-        "x": 3600,
-        "y": 0
-      },
       "data": {
         "label": "Click outside to trigger blur/save",
         "selector": ".react-flow__pane",
@@ -229,10 +169,6 @@
     {
       "id": "capture-url-configured",
       "type": "screenshot",
-      "position": {
-        "x": 3800,
-        "y": 0
-      },
       "data": {
         "label": "Capture after URL configuration",
         "fullPage": true,
@@ -242,10 +178,6 @@
     {
       "id": "verify-url-persisted",
       "type": "evaluate",
-      "position": {
-        "x": 4000,
-        "y": 0
-      },
       "data": {
         "label": "Verify URL value persisted",
         "expression": "document.querySelector('.react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]')?.value.includes('example.com/test-page') ?? false",
@@ -255,10 +187,6 @@
     {
       "id": "assert-url-saved",
       "type": "assert",
-      "position": {
-        "x": 4200,
-        "y": 0
-      },
       "data": {
         "label": "Assert URL was saved",
         "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[value*=\"example.com\"]",

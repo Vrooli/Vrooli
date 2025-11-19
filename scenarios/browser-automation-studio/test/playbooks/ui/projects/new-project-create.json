@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "click-new-project",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open new project modal",
         "selector": "@selector/dashboard.newProjectButton",
@@ -49,10 +41,6 @@
     {
       "id": "assert-modal-visible",
       "type": "assert",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Project modal visible",
         "selector": "@selector/dialogs.project.root",
@@ -63,10 +51,6 @@
     {
       "id": "generate-project-name",
       "type": "evaluate",
-      "position": {
-        "x": 800,
-        "y": -60
-      },
       "data": {
         "label": "Generate unique project name",
         "expression": "`Test Project ${Date.now()}`",
@@ -76,10 +60,6 @@
     {
       "id": "fill-project-name",
       "type": "type",
-      "position": {
-        "x": 1000,
-        "y": -60
-      },
       "data": {
         "label": "Enter project name",
         "selector": "@selector/dialogs.project.nameInput",
@@ -91,10 +71,6 @@
     {
       "id": "fill-project-description",
       "type": "type",
-      "position": {
-        "x": 1200,
-        "y": -60
-      },
       "data": {
         "label": "Enter project description",
         "selector": "@selector/dialogs.project.descriptionInput",
@@ -106,10 +82,6 @@
     {
       "id": "click-create",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": -60
-      },
       "data": {
         "label": "Click Create button",
         "selector": "@selector/dialogs.project.submitButton",
@@ -123,10 +95,6 @@
     {
       "id": "wait-for-project-list-update",
       "type": "wait",
-      "position": {
-        "x": 2000,
-        "y": -60
-      },
       "data": {
         "label": "Wait for project list refresh",
         "durationMs": 2000,
@@ -136,10 +104,6 @@
     {
       "id": "assert-project-in-list",
       "type": "assert",
-      "position": {
-        "x": 2200,
-        "y": -60
-      },
       "data": {
         "label": "New project appears in list",
         "selector": "@selector/projects.card",

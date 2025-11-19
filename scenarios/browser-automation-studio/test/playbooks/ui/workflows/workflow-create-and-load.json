@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "wait-for-dashboard",
       "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
       "data": {
         "label": "Wait for dashboard to load",
         "selector": "@selector/projects.grid",
@@ -47,10 +39,6 @@
     {
       "id": "click-project",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
@@ -64,10 +52,6 @@
     {
       "id": "click-new-workflow",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Click New Workflow button",
         "selector": "@selector/workflows.newButton",
@@ -77,10 +61,6 @@
     {
       "id": "check-if-ai-modal",
       "type": "evaluate",
-      "position": {
-        "x": 1200,
-        "y": -100
-      },
       "data": {
         "label": "Check if AI modal appeared",
         "expression": "!!document.querySelector('@selector/ai.modal.root, @selector/dialogs.base.content, @selector/dialogs.responsive.overlay)')",
@@ -90,10 +70,6 @@
     {
       "id": "switch-to-manual",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": -100
-      },
       "data": {
         "label": "Switch to manual builder",
         "selector": "@selector/ai.modal.switchToManualButton",
@@ -105,10 +81,6 @@
     {
       "id": "assert-builder-visible",
       "type": "assert",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Verify builder elements exist",
         "selector": "@selector/workflowBuilder.canvas.root",
@@ -120,10 +92,6 @@
     {
       "id": "capture-builder",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture workflow builder",
         "fullPage": true,

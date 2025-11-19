@@ -180,7 +180,9 @@ const rewriteLoopbackUrl = (url: URL): string => {
     return url.toString();
   }
 
-  const origin = window.location.origin.replace(/\/$/, "");
+  // Use canonical info (proxy-aware) instead of window.location.origin
+  const canonical = getCanonicalInfo();
+  const origin = canonical?.origin ?? window.location.origin.replace(/\/$/, "");
   const pathname = url.pathname.startsWith("/")
     ? url.pathname
     : `/${url.pathname}`;

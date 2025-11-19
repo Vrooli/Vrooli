@@ -201,7 +201,7 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/calendar.*npm run dev\" || true; pkill -f \"scenarios/calendar.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/calendar.*vite\" 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/calendar/ui/server.cjs\" || pkill -f \"calendar-ui.*server.cjs\" || true; sleep 1; pkill -9 -f \"scenarios/calendar/ui/server.cjs\" 2>/dev/null || pkill -9 -f \"calendar-ui.*server.cjs\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

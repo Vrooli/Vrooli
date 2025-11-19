@@ -18,12 +18,12 @@ import {
   resolveAuthenticatorLoginUrl
 } from '@/utils/auth'
 
-const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '18000'
+const explicitApiUrlEnv = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
+const explicitApiUrl = explicitApiUrlEnv ? explicitApiUrlEnv : undefined
 
 const API_BASE_URL = resolveApiBase({
-  explicitUrl: import.meta.env.VITE_API_BASE_URL as string | undefined,
-  defaultPort: DEFAULT_API_PORT,
   appendSuffix: true,
+  explicitUrl: explicitApiUrl,
 })
 
 class CalendarAPI {
@@ -75,6 +75,18 @@ class CalendarAPI {
   // Auth
   validateToken = async (): Promise<User> => {
     const response = await this.client.get('/auth/validate')
+    return response.data
+  }
+
+  login = async (credentials: { email: string; password: string }): Promise<{
+    success: boolean
+    token: string
+    refresh_token?: string
+    refreshToken?: string
+    user?: User
+    message?: string
+  }> => {
+    const response = await this.client.post('/auth/login', credentials)
     return response.data
   }
 

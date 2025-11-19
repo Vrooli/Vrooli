@@ -369,6 +369,48 @@ export const clearStoredAuth = (): void => {
   }
 }
 
+const writeToStorages = (entries: Record<string, string | null | undefined>): void => {
+  for (const storage of getStorageChain()) {
+    for (const [key, value] of Object.entries(entries)) {
+      try {
+        if (!value) {
+          storage.removeItem(key)
+          continue
+        }
+        storage.setItem(key, value)
+      } catch (error) {
+        console.warn('[Calendar] Failed to persist auth key', key, error)
+      }
+    }
+  }
+}
+
+export const storeAuthSession = (options: {
+  token: string
+  refreshToken?: string | null
+  user?: Record<string, unknown> | null
+}): void => {
+  if (!options?.token) {
+    return
+  }
+
+  const serializedUser = options.user ? JSON.stringify(options.user) : null
+  const serializedPayload = JSON.stringify({
+    token: options.token,
+    refreshToken: options.refreshToken ?? null,
+    user: options.user ?? null
+  })
+
+  writeToStorages({
+    auth_token: options.token,
+    authToken: options.token,
+    refresh_token: options.refreshToken ?? null,
+    refreshToken: options.refreshToken ?? null,
+    user: serializedUser,
+    authData: serializedPayload
+  })
+}
+
 export const extractUserIdentifiers = (
   user: Record<string, unknown> | null
 ): { userId?: string; email?: string } => {

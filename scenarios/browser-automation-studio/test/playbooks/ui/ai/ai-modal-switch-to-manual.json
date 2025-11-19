@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "click-project",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
@@ -46,10 +38,6 @@
     {
       "id": "click-new-workflow",
       "type": "click",
-      "position": {
-        "x": 700,
-        "y": 0
-      },
       "data": {
         "label": "Click New Workflow button",
         "selector": "@selector/workflows.newButton",
@@ -60,10 +48,6 @@
     {
       "id": "assert-ai-modal-visible",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "AI modal is visible",
         "selector": "[role=\"dialog\"]",
@@ -75,10 +59,6 @@
     {
       "id": "capture-ai-modal",
       "type": "screenshot",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Capture AI modal",
         "fullPage": true,
@@ -88,10 +68,6 @@
     {
       "id": "click-manual-button",
       "type": "click",
-      "position": {
-        "x": 1700,
-        "y": 0
-      },
       "data": {
         "label": "Click Switch to Manual Builder",
         "selector": "@selector/ai.modal.switchToManualButton",
@@ -106,10 +82,6 @@
     {
       "id": "assert-modal-closed",
       "type": "assert",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "AI modal is closed",
         "selector": "[role=\"dialog\"] h2",
@@ -121,10 +93,6 @@
     {
       "id": "assert-builder-visible",
       "type": "assert",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Workflow builder canvas is visible",
         "selector": "@selector/workflowBuilder.canvas.root",
@@ -136,10 +104,6 @@
     {
       "id": "verify-url-changed",
       "type": "evaluate",
-      "position": {
-        "x": 2800,
-        "y": -100
-      },
       "data": {
         "label": "Verify URL changed to workflow view",
         "expression": "window.location.pathname.includes('/workflows/')",
@@ -149,10 +113,6 @@
     {
       "id": "assert-palette-visible",
       "type": "assert",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Node palette is visible",
         "selector": "@selector/nodePalette.container",
@@ -164,10 +124,6 @@
     {
       "id": "capture-builder",
       "type": "screenshot",
-      "position": {
-        "x": 3200,
-        "y": 0
-      },
       "data": {
         "label": "Capture workflow builder",
         "fullPage": true,

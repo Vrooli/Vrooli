@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Open Demo project via fixture",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "find-workflow",
       "type": "assert",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Workflow exists",
         "selector": "@selector/workflows.card",
@@ -42,10 +34,6 @@
     {
       "id": "capture-before-execution",
       "type": "screenshot",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Capture before execution",
         "fullPage": true,
@@ -55,10 +43,6 @@
     {
       "id": "start-execution",
       "type": "click",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Start workflow execution",
         "selector": "@selector/workflowBuilder.executeButton",
@@ -72,10 +56,6 @@
     {
       "id": "verify-execution-started",
       "type": "assert",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Execution indicator appears",
         "selector": "@selector/executions.viewer.status",
@@ -87,10 +67,6 @@
     {
       "id": "capture-execution-progress",
       "type": "screenshot",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Capture execution in progress",
         "fullPage": true,
@@ -100,10 +76,6 @@
     {
       "id": "check-for-progress-elements",
       "type": "assert",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Progress UI elements exist",
         "selector": "@selector/executions.viewer.status, @selector/heartbeat.indicator",
@@ -115,10 +87,6 @@
     {
       "id": "capture-mid-execution",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture mid-execution state",
         "fullPage": true,
@@ -128,10 +96,6 @@
     {
       "id": "check-heartbeat-indicators",
       "type": "assert",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Heartbeat indicators visible",
         "selector": "@selector/heartbeat.indicator",
@@ -144,10 +108,6 @@
     {
       "id": "assert-completion-state",
       "type": "assert",
-      "position": {
-        "x": 2800,
-        "y": 0
-      },
       "data": {
         "label": "Execution reaches terminal state",
         "selector": "@selector/executions.viewer.statusCompleted, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCancelled",
@@ -159,10 +119,6 @@
     {
       "id": "capture-final-state",
       "type": "screenshot",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Capture execution completed state",
         "fullPage": true,

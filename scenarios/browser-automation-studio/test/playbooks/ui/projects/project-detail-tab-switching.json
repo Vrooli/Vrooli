@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
       "data": {
         "label": "Open Demo project via fixture",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "assert-workflows-tab-active",
       "type": "assert",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Workflows tab is active by default",
         "selector": "@selector/workflows.tab[class*=\"active\"], @selector/workflows.tab[aria-selected=\"true\"]",
@@ -42,10 +34,6 @@
     {
       "id": "capture-workflows-tab",
       "type": "screenshot",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Capture workflows tab view",
         "fullPage": true,
@@ -55,10 +43,6 @@
     {
       "id": "verify-workflow-content-visible",
       "type": "evaluate",
-      "position": {
-        "x": 1200,
-        "y": -100
-      },
       "data": {
         "label": "Verify workflow list/grid is visible",
         "expression": "(() => { const workflows = document.querySelectorAll('@selector/workflows.card'); return workflows.length > 0 || document.querySelector('@selector/workflowBuilder.search.input') !== null; })()",
@@ -68,10 +52,6 @@
     {
       "id": "click-executions-tab",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Click Executions tab",
         "selector": "@selector/projects.tabs.executions",
@@ -85,10 +65,6 @@
     {
       "id": "assert-executions-tab-active",
       "type": "assert",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Executions tab is now active",
         "selector": "@selector/projects.tabs.executions[class*=\"active\"], @selector/projects.tabs.executions[aria-selected=\"true\"]",
@@ -100,10 +76,6 @@
     {
       "id": "assert-workflows-tab-inactive",
       "type": "assert",
-      "position": {
-        "x": 2000,
-        "y": -100
-      },
       "data": {
         "label": "Workflows tab is now inactive",
         "selector": "@selector/workflows.tab[aria-selected=\"true\"]",
@@ -115,10 +87,6 @@
     {
       "id": "capture-executions-tab",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture executions tab view",
         "fullPage": true,
@@ -128,10 +96,6 @@
     {
       "id": "verify-execution-content-visible",
       "type": "evaluate",
-      "position": {
-        "x": 2400,
-        "y": -100
-      },
       "data": {
         "label": "Verify execution history content is visible",
         "expression": "(() => { return document.querySelector('@selector/executions.list.root, @selector/executions.filters.all, @selector/executions.list.refreshButton') !== null; })()",
@@ -141,10 +105,6 @@
     {
       "id": "click-workflows-tab-again",
       "type": "click",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Switch back to Workflows tab",
         "selector": "@selector/workflows.tab",
@@ -158,10 +118,6 @@
     {
       "id": "assert-workflows-tab-active-again",
       "type": "assert",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Workflows tab is active again",
         "selector": "@selector/workflows.tab[class*=\"active\"], @selector/workflows.tab[aria-selected=\"true\"] /*dup-1*/",
@@ -173,10 +129,6 @@
     {
       "id": "capture-workflows-tab-again",
       "type": "screenshot",
-      "position": {
-        "x": 3200,
-        "y": 0
-      },
       "data": {
         "label": "Capture workflows tab after switching back",
         "fullPage": true,

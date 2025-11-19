@@ -7,7 +7,6 @@
     {
       "id": "fixture-call-open-project",
       "type": "workflowCall",
-      "position": {"x": 0, "y": 0},
       "data": {
         "label": "Open Demo project",
         "workflowId": "@fixture/open-demo-project"
@@ -16,7 +15,6 @@
     {
       "id": "fixture-click-demo-workflow",
       "type": "click",
-      "position": {"x": 220, "y": 0},
       "data": {
         "label": "Open seeded workflow",
         "selector": "@selector/workflows.card[data-workflow-name=\"Demo: Capture Example.com Hero\"]",
@@ -30,7 +28,6 @@
     {
       "id": "fixture-assert-nodes",
       "type": "assert",
-      "position": {"x": 440, "y": 0},
       "data": {
         "label": "Seeded nodes are visible",
         "selector": ".react-flow__node",
@@ -41,7 +38,17 @@
     }
   ],
   "edges": [
-    {"id": "fixture-open-project", "source": "fixture-call-open-project", "target": "fixture-click-demo-workflow", "type": "smoothstep"},
-    {"id": "fixture-builder-ready", "source": "fixture-click-demo-workflow", "target": "fixture-assert-nodes", "type": "smoothstep"}
+    {
+      "id": "fixture-open-project",
+      "source": "fixture-call-open-project",
+      "target": "fixture-click-demo-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-builder-ready",
+      "source": "fixture-click-demo-workflow",
+      "target": "fixture-assert-nodes",
+      "type": "smoothstep"
+    }
   ]
 }

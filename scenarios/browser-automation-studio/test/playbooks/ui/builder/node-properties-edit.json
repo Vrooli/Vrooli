@@ -15,10 +15,6 @@
     {
       "id": "call-open-demo-workflow",
       "type": "workflowCall",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Open seeded workflow via fixture",
         "workflowId": "@fixture/open-demo-workflow"
@@ -27,10 +23,6 @@
     {
       "id": "wait-builder",
       "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Wait for builder",
         "selector": "@selector/workflowBuilder.code.modeButton",
@@ -42,10 +34,6 @@
     {
       "id": "assert-nodes-exist",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Nodes exist on canvas",
         "selector": ".react-flow__node",
@@ -57,10 +45,6 @@
     {
       "id": "capture-before-edit",
       "type": "screenshot",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Capture before opening properties",
         "fullPage": true,
@@ -70,10 +54,6 @@
     {
       "id": "double-click-node",
       "type": "click",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Double-click node to open properties",
         "selector": ".react-flow__node:first-of-type",
@@ -85,10 +65,6 @@
     {
       "id": "wait-for-properties",
       "type": "wait",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Wait for properties panel/dialog",
         "durationMs": 1500,
@@ -98,10 +74,6 @@
     {
       "id": "check-properties-visible",
       "type": "evaluate",
-      "position": {
-        "x": 2000,
-        "y": -100
-      },
       "data": {
         "label": "Check if properties UI appeared",
         "expression": "document.querySelector('[role=\"dialog\"], [class*=\"properties\"], [class*=\"config\"], [class*=\"settings\"]') !== null || document.querySelector('input, textarea, select') !== null",
@@ -111,10 +83,6 @@
     {
       "id": "capture-properties",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture properties UI",
         "fullPage": true,
@@ -124,10 +92,6 @@
     {
       "id": "close-properties",
       "type": "keyboard",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Close properties with Escape",
         "waitForMs": 500,

@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open Demo project",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "get-original-name",
       "type": "evaluate",
-      "position": {
-        "x": 800,
-        "y": -80
-      },
       "data": {
         "label": "Store original project name",
         "expression": "document.querySelector('h1')?.textContent?.trim() || 'Unknown'",
@@ -40,10 +32,6 @@
     {
       "id": "click-edit-button",
       "type": "click",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Click edit/pencil button",
         "selector": "@selector/projects.editButton",
@@ -54,10 +42,6 @@
     {
       "id": "assert-edit-modal-visible",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Edit modal is visible",
         "selector": "@selector/dialogs.project.root",
@@ -69,10 +53,6 @@
     {
       "id": "generate-new-name",
       "type": "evaluate",
-      "position": {
-        "x": 1400,
-        "y": -80
-      },
       "data": {
         "label": "Generate updated project name",
         "expression": "`Updated Project ${Date.now()}`",
@@ -82,10 +62,6 @@
     {
       "id": "update-name",
       "type": "type",
-      "position": {
-        "x": 1600,
-        "y": -80
-      },
       "data": {
         "label": "Enter updated name",
         "selector": "@selector/dialogs.project.nameInput",
@@ -98,10 +74,6 @@
     {
       "id": "update-description",
       "type": "type",
-      "position": {
-        "x": 1800,
-        "y": -80
-      },
       "data": {
         "label": "Update description",
         "selector": "@selector/dialogs.project.descriptionInput",
@@ -114,10 +86,6 @@
     {
       "id": "submit-changes",
       "type": "click",
-      "position": {
-        "x": 2000,
-        "y": -80
-      },
       "data": {
         "label": "Submit project updates",
         "selector": "@selector/dialogs.project.submitButton",
@@ -128,10 +96,6 @@
     {
       "id": "assert-modal-closed",
       "type": "assert",
-      "position": {
-        "x": 2400,
-        "y": -80
-      },
       "data": {
         "label": "Modal is closed after save",
         "selector": "@selector/dialogs.project.root /*dup-1*/",
@@ -143,10 +107,6 @@
     {
       "id": "capture-updated-state",
       "type": "screenshot",
-      "position": {
-        "x": 2800,
-        "y": -80
-      },
       "data": {
         "label": "Capture updated project detail",
         "fullPage": true,

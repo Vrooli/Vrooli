@@ -15,10 +15,6 @@
     {
       "id": "call-open-builder",
       "type": "workflowCall",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Open builder via fixture",
         "workflowId": "@fixture/open-builder-from-demo"
@@ -27,10 +23,6 @@
     {
       "id": "wait-builder",
       "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Wait for builder",
         "selector": "@selector/workflowBuilder.code.modeButton",
@@ -42,10 +34,6 @@
     {
       "id": "drag-dragdrop-node",
       "type": "dragDrop",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Drag DragDrop node (camelCase compiler bug regression test)",
         "sourceSelector": "@selector/nodePalette.cards.dragDrop",
@@ -57,10 +45,6 @@
     {
       "id": "wait-node-render",
       "type": "wait",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Wait for DragDrop node",
         "durationMs": 1500,
@@ -70,10 +54,6 @@
     {
       "id": "verify-dragdrop-node",
       "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Verify DragDrop node exists (CRITICAL: this failed before compiler fix)",
         "selector": ".react-flow__node",
@@ -85,10 +65,6 @@
     {
       "id": "select-dragdrop",
       "type": "click",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Select DragDrop node",
         "selector": ".react-flow__node:first-of-type",
@@ -99,10 +75,6 @@
     {
       "id": "capture-initial",
       "type": "screenshot",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Capture DragDrop node initial state",
         "fullPage": true,
@@ -112,10 +84,6 @@
     {
       "id": "find-source-selector-input",
       "type": "assert",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Source selector input exists",
         "selector": ".react-flow__node.selected input[placeholder*=\"source\" i], .react-flow__node.selected input:first-of-type",
@@ -127,10 +95,6 @@
     {
       "id": "enter-source-selector",
       "type": "type",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Enter source selector",
         "selector": ".react-flow__node.selected input:first-of-type",
@@ -142,10 +106,6 @@
     {
       "id": "find-target-selector-input",
       "type": "assert",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Target selector input exists",
         "selector": ".react-flow__node.selected input[placeholder*=\"target\" i], .react-flow__node.selected input:nth-of-type(2)",
@@ -157,10 +117,6 @@
     {
       "id": "enter-target-selector",
       "type": "type",
-      "position": {
-        "x": 2800,
-        "y": 0
-      },
       "data": {
         "label": "Enter target selector",
         "selector": ".react-flow__node.selected input:nth-of-type(2)",
@@ -172,10 +128,6 @@
     {
       "id": "save-configuration",
       "type": "click",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Click canvas to save",
         "selector": ".react-flow__pane",
@@ -186,10 +138,6 @@
     {
       "id": "capture-configured",
       "type": "screenshot",
-      "position": {
-        "x": 3200,
-        "y": 0
-      },
       "data": {
         "label": "Capture configured DragDrop node",
         "fullPage": true,
@@ -199,10 +147,6 @@
     {
       "id": "re-select-node",
       "type": "click",
-      "position": {
-        "x": 3400,
-        "y": 0
-      },
       "data": {
         "label": "Re-select to verify persistence",
         "selector": ".react-flow__node:first-of-type /*dup-1*/",
@@ -213,10 +157,6 @@
     {
       "id": "verify-source-persisted",
       "type": "assert",
-      "position": {
-        "x": 3600,
-        "y": 0
-      },
       "data": {
         "label": "Source selector persisted",
         "selector": ".react-flow__node.selected input[value=\".draggable-item\"]",
@@ -228,10 +168,6 @@
     {
       "id": "verify-target-persisted",
       "type": "assert",
-      "position": {
-        "x": 3800,
-        "y": 0
-      },
       "data": {
         "label": "Target selector persisted",
         "selector": ".react-flow__node.selected input[value=\".drop-zone\"]",
@@ -243,10 +179,6 @@
     {
       "id": "verify-final-state",
       "type": "screenshot",
-      "position": {
-        "x": 4000,
-        "y": 0
-      },
       "data": {
         "label": "Final DragDrop configuration confirmed",
         "fullPage": true,

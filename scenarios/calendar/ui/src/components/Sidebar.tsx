@@ -66,7 +66,7 @@ export function Sidebar() {
     <aside
       className={`${
         sidebarCollapsed ? 'w-16' : 'w-64'
-      } relative flex h-full flex-shrink-0 flex-col border-r border-gray-200 bg-white transition-all duration-300 dark:border-gray-700 dark:bg-gray-800`}
+      } hidden md:flex relative h-full flex-shrink-0 flex-col border-r border-gray-200 bg-white transition-all duration-300 dark:border-gray-700 dark:bg-gray-800`}
     >
       <button
         type="button"

@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "wait-for-projects",
       "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
       "data": {
         "label": "Wait for projects grid",
         "selector": "@selector/projects.grid",
@@ -47,10 +39,6 @@
     {
       "id": "open-modal-x-test",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": -100
-      },
       "data": {
         "label": "Open project modal (X button test)",
         "selector": "@selector/dashboard.newProjectButton",
@@ -61,10 +49,6 @@
     {
       "id": "assert-modal-visible-1",
       "type": "assert",
-      "position": {
-        "x": 600,
-        "y": -100
-      },
       "data": {
         "label": "Modal is visible",
         "selector": "@selector/dialogs.project.root",
@@ -75,10 +59,6 @@
     {
       "id": "close-with-x",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": -100
-      },
       "data": {
         "label": "Click X button",
         "selector": "@selector/dialogs.base.closeButton",
@@ -89,10 +69,6 @@
     {
       "id": "assert-closed-x",
       "type": "assert",
-      "position": {
-        "x": 1000,
-        "y": -100
-      },
       "data": {
         "label": "Modal closed (X button)",
         "selector": "@selector/dialogs.project.root /*dup-1*/",
@@ -104,10 +80,6 @@
     {
       "id": "open-modal-cancel-test",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open project modal (Cancel button test)",
         "selector": "@selector/dashboard.newProjectButton /*dup-1*/",
@@ -118,10 +90,6 @@
     {
       "id": "assert-modal-visible-2",
       "type": "assert",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Modal is visible",
         "selector": "@selector/dialogs.project.root /*dup-2*/",
@@ -132,10 +100,6 @@
     {
       "id": "close-with-cancel",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Click Cancel button",
         "selector": "@selector/dialogs.project.cancelButton",
@@ -146,10 +110,6 @@
     {
       "id": "assert-closed-cancel",
       "type": "assert",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Modal closed (Cancel button)",
         "selector": "@selector/dialogs.project.root /*dup-3*/",
@@ -161,10 +121,6 @@
     {
       "id": "open-modal-escape-test",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": 100
-      },
       "data": {
         "label": "Open project modal (Escape key test)",
         "selector": "@selector/dashboard.newProjectButton /*dup-2*/",
@@ -175,10 +131,6 @@
     {
       "id": "assert-modal-visible-3",
       "type": "assert",
-      "position": {
-        "x": 600,
-        "y": 100
-      },
       "data": {
         "label": "Modal is visible",
         "selector": "@selector/dialogs.project.root /*dup-4*/",
@@ -189,10 +141,6 @@
     {
       "id": "close-with-escape",
       "type": "keyboard",
-      "position": {
-        "x": 800,
-        "y": 100
-      },
       "data": {
         "label": "Press Escape key",
         "waitForMs": 500,
@@ -204,10 +152,6 @@
     {
       "id": "assert-closed-escape",
       "type": "assert",
-      "position": {
-        "x": 1000,
-        "y": 100
-      },
       "data": {
         "label": "Modal closed (Escape key)",
         "selector": "@selector/dialogs.project.root /*dup-5*/",

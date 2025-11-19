@@ -1,10 +1,10 @@
+import react from '@vitejs/plugin-react';
+import RequirementReporter from '@vrooli/vitest-requirement-reporter';
+import http from 'http';
+import path from 'path';
+import type { Connect, Plugin, ViteDevServer } from 'vite';
 import { defineConfig } from 'vite';
 import { defineProject } from 'vitest/config';
-import type { ViteDevServer, Plugin, Connect } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-import http from 'http';
-import RequirementReporter from '@vrooli/vitest-requirement-reporter';
 
 // Get environment variables with fallbacks for build time
 // AUDITOR NOTE: These fallbacks are intentional for development mode.
@@ -263,8 +263,8 @@ export default defineConfig({
             'src/components/__tests__/WorkflowToolbar.test.tsx',
             'src/components/ProjectDetail.test.tsx',
           ],
-        pool: 'threads',
-        poolOptions: THREADS_TWO,
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
         },
       }),
       defineProject({
@@ -287,6 +287,16 @@ export default defineConfig({
           pool: 'forks',
           poolOptions: FORKS_ONE,
           reuseWorkers: false,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'utils',
+          include: ['src/utils/**/*.test.{ts,tsx}'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
         },
       }),
     ],
@@ -337,16 +347,16 @@ export default defineConfig({
         manualChunks: (id) => {
           // ReactFlow and related packages (largest dependency)
           if (id.includes('node_modules/reactflow') ||
-              id.includes('node_modules/@reactflow') ||
-              id.includes('node_modules/@xyflow')) {
+            id.includes('node_modules/@reactflow') ||
+            id.includes('node_modules/@xyflow')) {
             return 'reactflow';
           }
           // UI component libraries
           if (id.includes('node_modules/lucide-react') ||
-              id.includes('node_modules/react-hot-toast') ||
-              id.includes('node_modules/react-markdown') ||
-              id.includes('node_modules/react-syntax-highlighter') ||
-              id.includes('node_modules/react-split')) {
+            id.includes('node_modules/react-hot-toast') ||
+            id.includes('node_modules/react-markdown') ||
+            id.includes('node_modules/react-syntax-highlighter') ||
+            id.includes('node_modules/react-split')) {
             return 'ui-vendor';
           }
           // State management
@@ -355,8 +365,8 @@ export default defineConfig({
           }
           // Utility libraries
           if (id.includes('node_modules/clsx') ||
-              id.includes('node_modules/date-fns') ||
-              id.includes('node_modules/tailwind-merge')) {
+            id.includes('node_modules/date-fns') ||
+            id.includes('node_modules/tailwind-merge')) {
             return 'utils-vendor';
           }
           // All other node_modules

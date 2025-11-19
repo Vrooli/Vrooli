@@ -1,0 +1,513 @@
+{
+  "_metadata": {
+    "description": "Brand Manager requirements registry linking operational targets to implementation validation",
+    "domain": "brand-generation",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "BM-P0-001",
+      "category": "core.generation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Complete brand generation pipeline",
+      "description": "Generate logos, color palettes, typography, slogans, and marketing copy through AI-powered workflows",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "End-to-end brand generation test with all asset types"
+        }
+      ]
+    },
+    {
+      "id": "BM-P0-002",
+      "category": "ui.management",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Professional web UI for brand management",
+      "description": "Provide interactive interface for creating, viewing, and managing brand assets",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/index.html",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "UI accessible and functional for brand CRUD operations"
+        }
+      ]
+    },
+    {
+      "id": "BM-P0-003",
+      "category": "integration.comfyui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "ComfyUI integration for visual assets",
+      "description": "Generate logos, icons, and favicons using AI image generation workflows",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/comfyui_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "ComfyUI workflow execution and asset retrieval"
+        }
+      ]
+    },
+    {
+      "id": "BM-P0-004",
+      "category": "integration.claude",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Automated Claude Code app integration",
+      "description": "Apply generated brands to existing Vrooli applications through automated agent workflows",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/integration_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Claude Code session spawning and brand application verification"
+        }
+      ]
+    },
+    {
+      "id": "BM-P0-005",
+      "category": "storage.assets",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Brand asset storage and export",
+      "description": "Store brand data in PostgreSQL and assets in MinIO with export packaging system",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/storage_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Database and MinIO operations for brand persistence"
+        }
+      ]
+    },
+    {
+      "id": "BM-P0-006",
+      "category": "integration.n8n",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "N8n workflow orchestration",
+      "description": "Coordinate brand generation and integration processes through automated workflows",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "initialization/automation/n8n/brand-pipeline.json",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "N8n workflow imports and executes successfully"
+        }
+      ]
+    },
+    {
+      "id": "BM-P0-007",
+      "category": "api.endpoints",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "API endpoints for brand operations",
+      "description": "Provide REST API for creating, retrieving, and integrating brand identities",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "HTTP handler tests for all brand API endpoints"
+        }
+      ]
+    },
+    {
+      "id": "BM-P0-008",
+      "category": "storage.schema",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "Database schema for brand storage",
+      "description": "Store brand metadata, color systems, typography, and integration tracking",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "initialization/storage/postgres/schema.sql",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Schema migration runs successfully with all required tables"
+        }
+      ]
+    },
+    {
+      "id": "BM-P0-009",
+      "category": "storage.assets",
+      "prd_ref": "Operational Targets > P0 > OT-P0-009",
+      "title": "Asset management system",
+      "description": "Handle multiple asset formats (PNG, SVG, ICO) with version tracking",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/assets_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Asset format conversion and versioning logic"
+        }
+      ]
+    },
+    {
+      "id": "BM-P0-010",
+      "category": "integration.ollama",
+      "prd_ref": "Operational Targets > P0 > OT-P0-010",
+      "title": "Ollama integration for copy generation",
+      "description": "Generate brand copy, slogans, and marketing text using local LLM",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ollama_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Ollama text generation through N8n workflow"
+        }
+      ]
+    },
+    {
+      "id": "BM-P1-001",
+      "category": "templates.library",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Brand template library",
+      "description": "Provide industry-specific templates for common verticals",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "data/templates/",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Template catalog with industry variations"
+        }
+      ]
+    },
+    {
+      "id": "BM-P1-002",
+      "category": "analysis.color",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Color palette analyzer",
+      "description": "Analyze color harmony and accessibility compliance",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/color_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Color harmony algorithms and WCAG contrast checking"
+        }
+      ]
+    },
+    {
+      "id": "BM-P1-003",
+      "category": "export.guidelines",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Brand guideline generation",
+      "description": "Auto-generate comprehensive brand guideline documents",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/guidelines_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "PDF/HTML guideline document generation"
+        }
+      ]
+    },
+    {
+      "id": "BM-P1-004",
+      "category": "assets.variants",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Multi-format asset variants",
+      "description": "Generate logos in multiple sizes and formats automatically",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/variants_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Asset resizing and format conversion pipeline"
+        }
+      ]
+    },
+    {
+      "id": "BM-P1-005",
+      "category": "storage.versioning",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Brand asset versioning",
+      "description": "Track brand evolution with version history and rollback capability",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/versioning_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Version tracking and rollback operations"
+        }
+      ]
+    },
+    {
+      "id": "BM-P1-006",
+      "category": "integration.backup",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Integration backup system",
+      "description": "Create app backups before applying brand changes",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/backup_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Automated backup creation before brand application"
+        }
+      ]
+    },
+    {
+      "id": "BM-P1-007",
+      "category": "ui.preview",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "title": "Real-time preview system",
+      "description": "Show live brand asset previews during generation",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/PreviewPanel.tsx",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "WebSocket or polling for live asset updates"
+        }
+      ]
+    },
+    {
+      "id": "BM-P1-008",
+      "category": "integration.qdrant",
+      "prd_ref": "Operational Targets > P1 > OT-P1-008",
+      "title": "Qdrant semantic search",
+      "description": "Find similar brands using vector embeddings for differentiation",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/qdrant_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Vector embedding and similarity search operations"
+        }
+      ]
+    },
+    {
+      "id": "BM-P1-009",
+      "category": "integration.vault",
+      "prd_ref": "Operational Targets > P1 > OT-P1-009",
+      "title": "Vault integration for secrets",
+      "description": "Securely manage API keys and integration tokens",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/vault_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Vault secret storage and retrieval with fallback"
+        }
+      ]
+    },
+    {
+      "id": "BM-P1-010",
+      "category": "export.packaging",
+      "prd_ref": "Operational Targets > P1 > OT-P1-010",
+      "title": "Brand export packaging",
+      "description": "Package complete brand assets with guidelines for distribution",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/export_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "ZIP archive creation with all brand assets and docs"
+        }
+      ]
+    },
+    {
+      "id": "BM-P2-001",
+      "category": "validation.consistency",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Brand consistency checker",
+      "description": "Validate brand application across multiple applications",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/consistency/",
+          "phase": "end-to-end",
+          "status": "planned",
+          "notes": "Multi-app brand compliance scanning"
+        }
+      ]
+    },
+    {
+      "id": "BM-P2-002",
+      "category": "testing.ab",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "A/B testing for variants",
+      "description": "Test multiple brand versions with performance tracking",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/ab-testing/",
+          "phase": "end-to-end",
+          "status": "planned",
+          "notes": "Brand variant testing framework"
+        }
+      ]
+    },
+    {
+      "id": "BM-P2-003",
+      "category": "analytics.dashboard",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Brand analytics dashboard",
+      "description": "Track brand usage and performance metrics",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Analytics.tsx",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Analytics visualization and reporting UI"
+        }
+      ]
+    },
+    {
+      "id": "BM-P2-004",
+      "category": "integration.external",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "External design tool integration",
+      "description": "Connect with Figma, Adobe tools for advanced workflows",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/external_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Figma/Adobe API integration for asset sync"
+        }
+      ]
+    },
+    {
+      "id": "BM-P2-005",
+      "category": "ml.optimization",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "ML-based brand optimization",
+      "description": "Learn from feedback to improve future brand generation",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ml_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Feedback collection and model retraining pipeline"
+        }
+      ]
+    },
+    {
+      "id": "BM-P2-006",
+      "category": "enterprise.multi-brand",
+      "prd_ref": "Operational Targets > P2 > OT-P2-006",
+      "title": "Multi-brand management",
+      "description": "Handle multiple brand identities for enterprise scenarios",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/multi_brand_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Brand hierarchy and organization management"
+        }
+      ]
+    },
+    {
+      "id": "BM-P2-007",
+      "category": "automation.evolution",
+      "prd_ref": "Operational Targets > P2 > OT-P2-007",
+      "title": "Automated brand evolution",
+      "description": "Adapt brands based on market feedback and trends",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/evolution/",
+          "phase": "end-to-end",
+          "status": "planned",
+          "notes": "Trend analysis and automatic brand refresh"
+        }
+      ]
+    },
+    {
+      "id": "BM-P2-008",
+      "category": "monitoring.consistency",
+      "prd_ref": "Operational Targets > P2 > OT-P2-008",
+      "title": "Real-time consistency monitoring",
+      "description": "Alert on brand guideline violations across deployments",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "test/monitoring/",
+          "phase": "end-to-end",
+          "status": "planned",
+          "notes": "Continuous compliance checking with alerts"
+        }
+      ]
+    }
+  ]
+}

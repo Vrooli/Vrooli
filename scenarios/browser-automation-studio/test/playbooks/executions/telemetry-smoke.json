@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 300,
-        "y": 0
-      },
       "data": {
         "label": "Open Demo project via fixture",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "click-execute-workflow",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Execute demo workflow",
         "selector": "@selector/workflowBuilder.executeButton",
@@ -44,10 +36,6 @@
     {
       "id": "assert-execution-progress",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": -60
-      },
       "data": {
         "label": "Execution progress visible",
         "selector": "@selector/executions.viewer.status, @selector/heartbeat.indicator",
@@ -59,10 +47,6 @@
     {
       "id": "assert-execution-has-status",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Execution has status indicator",
         "selector": "@selector/executions.viewer.status",
@@ -74,10 +58,6 @@
     {
       "id": "assert-viewer-functional",
       "type": "assert",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Execution viewer is functional",
         "selector": "@selector/executions.tabs.logs, @selector/executions.tabs.screenshots",

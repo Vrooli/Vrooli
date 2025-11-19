@@ -15,10 +15,6 @@
     {
       "id": "nav",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "proj",
       "type": "click",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
       "data": {
         "label": "Open project",
         "selector": "@selector/projects.card:first-of-type",
@@ -46,10 +38,6 @@
     {
       "id": "wait-workflows",
       "type": "wait",
-      "position": {
-        "x": 400,
-        "y": -100
-      },
       "data": {
         "label": "Wait for workflows",
         "selector": "@selector/workflows.card",
@@ -61,10 +49,6 @@
     {
       "id": "work",
       "type": "click",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Open workflow",
         "selector": "@selector/workflows.card:first-of-type",
@@ -75,10 +59,6 @@
     {
       "id": "wait1",
       "type": "wait",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Wait",
         "durationMs": 3000,
@@ -88,10 +68,6 @@
     {
       "id": "get-original",
       "type": "evaluate",
-      "position": {
-        "x": 800,
-        "y": -100
-      },
       "data": {
         "label": "Get original title",
         "expression": "document.querySelector('@selector/header.title.text')?.textContent?.trim() || ''",
@@ -101,10 +77,6 @@
     {
       "id": "click-edit",
       "type": "click",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Click edit button",
         "selector": "@selector/header.title.editButton",
@@ -115,10 +87,6 @@
     {
       "id": "assert-input",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Input visible",
         "selector": "@selector/header.title.input",
@@ -130,10 +98,6 @@
     {
       "id": "type-new",
       "type": "type",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Type new title",
         "selector": "@selector/header.title.input /*dup-1*/",
@@ -146,10 +110,6 @@
     {
       "id": "click-save",
       "type": "click",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Save title",
         "selector": "@selector/header.title.saveButton",
@@ -160,10 +120,6 @@
     {
       "id": "wait2",
       "type": "wait",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Wait for save",
         "durationMs": 1500,
@@ -173,10 +129,6 @@
     {
       "id": "verify-saved",
       "type": "assert",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Input hidden",
         "selector": "@selector/header.title.input /*dup-2*/",
@@ -188,10 +140,6 @@
     {
       "id": "cap",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture",
         "fullPage": true,

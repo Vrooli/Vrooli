@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "assert-projects-visible",
       "type": "assert",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Projects grid is visible",
         "selector": "@selector/projects.grid /*dup-1*/",
@@ -47,10 +39,6 @@
     {
       "id": "assert-project-cards-exist",
       "type": "assert",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "At least one project card exists",
         "selector": "@selector/projects.card",
@@ -62,10 +50,6 @@
     {
       "id": "capture-dashboard",
       "type": "screenshot",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Capture dashboard with projects",
         "fullPage": true,
@@ -75,10 +59,6 @@
     {
       "id": "click-first-project",
       "type": "click",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Click first project card",
         "selector": "@selector/projects.card:first-of-type",
@@ -92,10 +72,6 @@
     {
       "id": "assert-project-detail-visible",
       "type": "assert",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Project detail heading appears",
         "selector": "h1, [role=\"heading\"]",
@@ -107,10 +83,6 @@
     {
       "id": "assert-url-changed",
       "type": "evaluate",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Verify URL contains /projects/",
         "expression": "window.location.pathname.includes('/projects/')",
@@ -120,10 +92,6 @@
     {
       "id": "capture-project-detail",
       "type": "screenshot",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Capture project detail view",
         "fullPage": true,

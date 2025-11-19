@@ -15,35 +15,14 @@
     {
       "id": "call-open-demo-workflow",
       "type": "workflowCall",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open seeded workflow via fixture",
         "workflowId": "@fixture/open-demo-workflow"
       }
     },
     {
-      "id": "wait1",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "click-palette",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Click navigate node",
         "selector": "@selector/nodePalette.cards.navigate",
@@ -54,10 +33,6 @@
     {
       "id": "click-canvas",
       "type": "click",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Click canvas to add",
         "selector": ".react-flow__pane",
@@ -68,10 +43,6 @@
     {
       "id": "wait2",
       "type": "wait",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Wait",
         "durationMs": 1000,
@@ -81,10 +52,6 @@
     {
       "id": "count-after-add",
       "type": "evaluate",
-      "position": {
-        "x": 1200,
-        "y": -100
-      },
       "data": {
         "label": "Count after add",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -94,10 +61,6 @@
     {
       "id": "undo",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Undo",
         "selector": "@selector/toolbar.undoButton",
@@ -108,10 +71,6 @@
     {
       "id": "count-after-undo",
       "type": "evaluate",
-      "position": {
-        "x": 1600,
-        "y": -100
-      },
       "data": {
         "label": "Count after undo",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -121,10 +80,6 @@
     {
       "id": "redo",
       "type": "click",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Redo",
         "selector": "@selector/toolbar.redoButton",
@@ -135,10 +90,6 @@
     {
       "id": "count-after-redo",
       "type": "evaluate",
-      "position": {
-        "x": 2000,
-        "y": -100
-      },
       "data": {
         "label": "Count after redo",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -148,10 +99,6 @@
     {
       "id": "cap",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture",
         "fullPage": true,
@@ -161,14 +108,8 @@
   ],
   "edges": [
     {
-      "id": "call-open-demo-workflow-to-wait1",
+      "id": "call-open-demo-workflow-to-click-palette",
       "source": "call-open-demo-workflow",
-      "target": "wait1",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait1",
       "target": "click-palette",
       "type": "smoothstep"
     },

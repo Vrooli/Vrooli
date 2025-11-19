@@ -15,10 +15,6 @@
     {
       "id": "call-open-demo-workflow",
       "type": "workflowCall",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open seeded workflow via fixture",
         "workflowId": "@fixture/open-demo-workflow"
@@ -27,10 +23,6 @@
     {
       "id": "click-zoom-in-twice",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Zoom in twice first",
         "selector": "@selector/toolbar.zoomInButton",
@@ -44,10 +36,6 @@
     {
       "id": "click-zoom-in-again",
       "type": "click",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Zoom in again",
         "selector": "@selector/toolbar.zoomInButton /*dup-1*/",
@@ -61,10 +49,6 @@
     {
       "id": "get-zoomed-in-level",
       "type": "evaluate",
-      "position": {
-        "x": 1200,
-        "y": -100
-      },
       "data": {
         "label": "Get zoomed in level",
         "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
@@ -74,10 +58,6 @@
     {
       "id": "click-zoom-out",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Click zoom out button",
         "selector": "@selector/toolbar.zoomOutButton",
@@ -91,10 +71,6 @@
     {
       "id": "get-zoomed-out-level",
       "type": "evaluate",
-      "position": {
-        "x": 1600,
-        "y": -100
-      },
       "data": {
         "label": "Get zoom out level",
         "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
@@ -104,10 +80,6 @@
     {
       "id": "capture-after-zoom-out",
       "type": "screenshot",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Capture after zoom out",
         "fullPage": true,

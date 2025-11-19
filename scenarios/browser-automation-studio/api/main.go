@@ -175,6 +175,7 @@ func main() {
 		r.Get("/screenshots/thumbnail/*", handler.ServeThumbnail)
 
 		// Preview route for taking screenshots of URLs
+		// POST /api/v1/preview-screenshot
 		r.Post("/preview-screenshot", handler.TakePreviewScreenshot)
 
 		// Element analysis route for intelligent selector detection

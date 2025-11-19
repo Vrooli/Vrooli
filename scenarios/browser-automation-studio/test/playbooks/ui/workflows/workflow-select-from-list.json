@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "wait-for-dashboard",
       "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
       "data": {
         "label": "Wait for dashboard",
         "selector": "@selector/projects.grid",
@@ -47,10 +39,6 @@
     {
       "id": "click-project",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
@@ -64,10 +52,6 @@
     {
       "id": "ensure-on-workflows-tab",
       "type": "evaluate",
-      "position": {
-        "x": 800,
-        "y": -100
-      },
       "data": {
         "label": "Check if on workflows tab",
         "expression": "document.querySelector('@selector/workflows.card, @selector/workflowBuilder.search.input, @selector/toolbar.root)') !== null",
@@ -77,10 +61,6 @@
     {
       "id": "check-workflows-exist",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": -100
-      },
       "data": {
         "label": "Verify workflows are listed",
         "selector": "@selector/workflows.card",
@@ -92,10 +72,6 @@
     {
       "id": "capture-workflow-list",
       "type": "screenshot",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Capture workflow list",
         "fullPage": true,
@@ -105,10 +81,6 @@
     {
       "id": "click-first-workflow",
       "type": "click",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Click first workflow in list",
         "selector": "@selector/workflows.card:first-of-type",
@@ -122,10 +94,6 @@
     {
       "id": "verify-url-changed",
       "type": "evaluate",
-      "position": {
-        "x": 2000,
-        "y": -100
-      },
       "data": {
         "label": "Verify URL contains /workflows/",
         "expression": "window.location.pathname.includes('/workflows/')",
@@ -135,10 +103,6 @@
     {
       "id": "verify-builder-loaded",
       "type": "assert",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Verify builder elements exist",
         "selector": "@selector/workflowBuilder.canvas.reactFlow",
@@ -150,10 +114,6 @@
     {
       "id": "capture-builder",
       "type": "screenshot",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Capture loaded workflow builder",
         "fullPage": true,

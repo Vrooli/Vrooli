@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Open Demo project via fixture",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "click-executions-tab",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Click Execution History tab",
         "selector": "@selector/projects.tabs.executions",
@@ -43,10 +35,6 @@
     {
       "id": "click-filter-failed",
       "type": "click",
-      "position": {
-        "x": 1100,
-        "y": -120
-      },
       "data": {
         "label": "Filter to failed executions",
         "selector": "@selector/executions.filters.filter(filter=failed)",
@@ -59,10 +47,6 @@
     {
       "id": "capture-execution-history",
       "type": "screenshot",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Capture execution history view",
         "fullPage": true,
@@ -72,10 +56,6 @@
     {
       "id": "check-executions-exist",
       "type": "assert",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Executions visible",
         "selector": "@selector/executions.list.item, @selector/executions.list.card",
@@ -87,10 +67,6 @@
     {
       "id": "click-first-execution",
       "type": "click",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Click first execution (if exists)",
         "selector": "@selector/executions.list.item:first-of-type, @selector/executions.list.card:first-of-type, @selector/executions.actions.viewButton:first-of-type",
@@ -104,10 +80,6 @@
     {
       "id": "check-viewer-visible",
       "type": "assert",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Execution viewer visible",
         "selector": "@selector/executions.viewer.root",
@@ -119,10 +91,6 @@
     {
       "id": "capture-execution-viewer",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture execution viewer",
         "fullPage": true,

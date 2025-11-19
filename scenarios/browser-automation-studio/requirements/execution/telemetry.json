@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-19T04:26:42.711Z"
+    "last_synced_at": "2025-11-19T05:43:59.824Z"
   },
   "requirements": [
     {
@@ -13,7 +13,7 @@
       "prd_ref": "Functional Requirements > Must Have > Real-time screenshot display",
       "title": "Telemetry stream includes screenshots, console, and network events",
       "description": "Confirms the execution service emits complete telemetry payloads within latency targets and the UI processors consume heartbeat and assertion events correctly.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
@@ -55,21 +55,21 @@
           "type": "automation",
           "ref": "test/playbooks/executions/telemetry-smoke.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "E2E validation of telemetry stream with screenshots, console, and network events"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/ui/executions/execution-progress-tracking.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates real-time execution progress tracking UI with indicators and state transitions"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/ui/executions/execution-telemetry-display.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates real-time telemetry display including screenshots, console, network tabs, and heartbeat timestamps"
         }
       ]
@@ -87,7 +87,7 @@
           "type": "automation",
           "ref": "test/playbooks/executions/telemetry-smoke.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow validating telemetry stream (JSON export pending)."
         },
         {
@@ -119,7 +119,7 @@
           "type": "automation",
           "ref": "test/playbooks/executions/heartbeat-stall.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow validating heartbeat stall detection once exported."
         },
         {
@@ -144,21 +144,21 @@
       "prd_ref": "Functional Requirements > Must Have > Execute workflows via API and CLI",
       "title": "CLI execution watch surfaces telemetry and heartbeat state",
       "description": "Confirms the CLI reflects progress, warning, and recovery events while tailing live executions.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "manual",
           "ref": "cli/browser-automation-studio",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI emits heartbeat lag/stall notices during manual verification sessions."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/executions/telemetry-smoke.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Extend smoke workflow to assert CLI output once scripted checks are in place."
         }
       ]

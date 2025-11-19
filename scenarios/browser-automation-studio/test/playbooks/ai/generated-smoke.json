@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "wait-app-ready",
       "type": "wait",
-      "position": {
-        "x": 140,
-        "y": -80
-      },
       "data": {
         "label": "Wait for React app to hydrate",
         "waitType": "element",
@@ -47,10 +39,6 @@
     {
       "id": "wait-for-page",
       "type": "wait",
-      "position": {
-        "x": 280,
-        "y": 0
-      },
       "data": {
         "label": "Wait for page load",
         "durationMs": 2000,
@@ -60,10 +48,6 @@
     {
       "id": "debug-screenshot-pre-assert",
       "type": "screenshot",
-      "position": {
-        "x": 400,
-        "y": -80
-      },
       "data": {
         "label": "Debug: Capture state before assertion",
         "fullPage": true,
@@ -74,10 +58,6 @@
     {
       "id": "assert-dashboard",
       "type": "assert",
-      "position": {
-        "x": 540,
-        "y": 0
-      },
       "data": {
         "label": "Dashboard loaded",
         "selector": "body",

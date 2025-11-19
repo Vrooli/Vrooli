@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "description": "Complete new user journey: Create project \u2192 Create workflow \u2192 Execute \u2192 View results. This validates the primary use case and marketing demo flow.",
+    "description": "Complete new user journey: Create project → Create workflow → Execute → View results. This validates the primary use case and marketing demo flow.",
     "requirement": "BAS-COMPOSITE-HAPPY-PATH",
     "version": 1,
     "tags": [
@@ -21,10 +21,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS Dashboard",
         "destinationType": "scenario",
@@ -38,10 +34,6 @@
     {
       "id": "capture-dashboard",
       "type": "screenshot",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
       "data": {
         "label": "Capture initial dashboard state",
         "fullPage": true,
@@ -51,10 +43,6 @@
     {
       "id": "wait-for-dashboard",
       "type": "wait",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Wait for projects grid to load",
         "selector": "@selector/projects.grid",
@@ -66,10 +54,6 @@
     {
       "id": "click-new-project",
       "type": "click",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Click New Project button",
         "selector": "@selector/dashboard.newProjectButton",
@@ -80,10 +64,6 @@
     {
       "id": "wait-for-project-modal",
       "type": "wait",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Wait for project creation modal",
         "selector": "@selector/dialogs.project.root",
@@ -95,10 +75,6 @@
     {
       "id": "generate-project-name",
       "type": "evaluate",
-      "position": {
-        "x": 1000,
-        "y": -100
-      },
       "data": {
         "label": "Generate unique project name",
         "expression": "`E2E Test Project ${Date.now()}`",
@@ -108,10 +84,6 @@
     {
       "id": "fill-project-name",
       "type": "type",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Enter project name",
         "selector": "@selector/dialogs.project.nameInput",
@@ -124,10 +96,6 @@
     {
       "id": "fill-project-description",
       "type": "type",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Enter project description",
         "selector": "@selector/dialogs.project.descriptionInput",
@@ -140,10 +108,6 @@
     {
       "id": "submit-project",
       "type": "click",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Submit project creation form",
         "selector": "@selector/dialogs.project.submitButton",
@@ -154,10 +118,6 @@
     {
       "id": "wait-for-project-detail",
       "type": "wait",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Wait for project detail page to load",
         "selector": "@selector/header.title.text",
@@ -169,10 +129,6 @@
     {
       "id": "capture-project-created",
       "type": "screenshot",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Capture project detail page",
         "fullPage": true,
@@ -182,10 +138,6 @@
     {
       "id": "click-new-workflow",
       "type": "click",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Click New Workflow button",
         "selector": "@selector/workflows.newButton",
@@ -196,10 +148,6 @@
     {
       "id": "wait-for-workflow-modal",
       "type": "wait",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Wait for AI prompt modal to appear",
         "durationMs": 2000,
@@ -209,10 +157,6 @@
     {
       "id": "click-manual-builder",
       "type": "click",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Switch to manual builder (skip AI for deterministic test)",
         "selector": "@selector/ai.modal.switchToManualButton",
@@ -224,10 +168,6 @@
     {
       "id": "wait-for-canvas",
       "type": "wait",
-      "position": {
-        "x": 2800,
-        "y": 0
-      },
       "data": {
         "label": "Wait for workflow builder canvas",
         "selector": "@selector/workflowBuilder.code.modeButton",
@@ -239,10 +179,6 @@
     {
       "id": "capture-empty-canvas",
       "type": "screenshot",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Capture empty workflow canvas",
         "fullPage": true,
@@ -252,10 +188,6 @@
     {
       "id": "drag-navigate-node",
       "type": "dragDrop",
-      "position": {
-        "x": 3200,
-        "y": 0
-      },
       "data": {
         "label": "Add Navigate node to canvas",
         "sourceSelector": "@selector/nodePalette.cards.navigate",
@@ -267,10 +199,6 @@
     {
       "id": "wait-after-drag",
       "type": "wait",
-      "position": {
-        "x": 3400,
-        "y": 0
-      },
       "data": {
         "label": "Wait for node to be added",
         "durationMs": 1500,
@@ -280,10 +208,6 @@
     {
       "id": "click-navigate-node",
       "type": "click",
-      "position": {
-        "x": 3600,
-        "y": 0
-      },
       "data": {
         "label": "Select Navigate node for configuration",
         "selector": ".react-flow__node[data-node-type=\"navigate\"]",
@@ -295,10 +219,6 @@
     {
       "id": "wait-for-properties-panel",
       "type": "wait",
-      "position": {
-        "x": 3800,
-        "y": 0
-      },
       "data": {
         "label": "Wait for properties panel to open",
         "durationMs": 1000,
@@ -308,10 +228,6 @@
     {
       "id": "fill-navigate-url",
       "type": "type",
-      "position": {
-        "x": 4000,
-        "y": 0
-      },
       "data": {
         "label": "Set navigate URL to example.com",
         "selector": "@selector/nodeProperties.urlInput",
@@ -325,10 +241,6 @@
     {
       "id": "drag-screenshot-node",
       "type": "dragDrop",
-      "position": {
-        "x": 4200,
-        "y": 0
-      },
       "data": {
         "label": "Add Screenshot node to canvas",
         "sourceSelector": "@selector/nodePalette.cards.screenshot",
@@ -340,10 +252,6 @@
     {
       "id": "wait-after-screenshot-drag",
       "type": "wait",
-      "position": {
-        "x": 4400,
-        "y": 0
-      },
       "data": {
         "label": "Wait for screenshot node",
         "durationMs": 1500,
@@ -353,10 +261,6 @@
     {
       "id": "capture-workflow-built",
       "type": "screenshot",
-      "position": {
-        "x": 4600,
-        "y": 0
-      },
       "data": {
         "label": "Capture completed workflow",
         "fullPage": true,
@@ -366,10 +270,6 @@
     {
       "id": "save-workflow",
       "type": "keyboard",
-      "position": {
-        "x": 4800,
-        "y": 0
-      },
       "data": {
         "label": "Save workflow (Ctrl+S)",
         "timeoutMs": 5000,
@@ -384,10 +284,6 @@
     {
       "id": "wait-for-save",
       "type": "wait",
-      "position": {
-        "x": 5000,
-        "y": 0
-      },
       "data": {
         "label": "Wait for autosave to complete",
         "durationMs": 2000,
@@ -397,10 +293,6 @@
     {
       "id": "click-execute-button",
       "type": "click",
-      "position": {
-        "x": 5200,
-        "y": 0
-      },
       "data": {
         "label": "Execute workflow from header",
         "selector": "@selector/header.buttons.execute",
@@ -411,10 +303,6 @@
     {
       "id": "wait-for-execution-start",
       "type": "wait",
-      "position": {
-        "x": 5400,
-        "y": 0
-      },
       "data": {
         "label": "Wait for execution to start",
         "durationMs": 3000,
@@ -424,10 +312,6 @@
     {
       "id": "capture-execution-in-progress",
       "type": "screenshot",
-      "position": {
-        "x": 5600,
-        "y": 0
-      },
       "data": {
         "label": "Capture execution in progress",
         "fullPage": true,
@@ -437,10 +321,6 @@
     {
       "id": "wait-for-execution-complete",
       "type": "wait",
-      "position": {
-        "x": 5800,
-        "y": 0
-      },
       "data": {
         "label": "Wait for execution to complete (max 30s)",
         "durationMs": 30000,
@@ -450,10 +330,6 @@
     {
       "id": "navigate-to-project",
       "type": "click",
-      "position": {
-        "x": 6000,
-        "y": 0
-      },
       "data": {
         "label": "Navigate back to project detail",
         "selector": "@selector/breadcrumbs.project",
@@ -465,10 +341,6 @@
     {
       "id": "click-executions-tab",
       "type": "click",
-      "position": {
-        "x": 6200,
-        "y": 0
-      },
       "data": {
         "label": "Switch to Executions tab",
         "selector": "@selector/projects.tabs.executions",
@@ -479,10 +351,6 @@
     {
       "id": "wait-for-executions-list",
       "type": "wait",
-      "position": {
-        "x": 6400,
-        "y": 0
-      },
       "data": {
         "label": "Wait for executions list to load",
         "selector": "@selector/executions.list.card",
@@ -494,10 +362,6 @@
     {
       "id": "assert-execution-exists",
       "type": "assert",
-      "position": {
-        "x": 6600,
-        "y": 0
-      },
       "data": {
         "label": "Verify execution appears in history",
         "selector": "@selector/executions.list.card",
@@ -509,10 +373,6 @@
     {
       "id": "capture-execution-history",
       "type": "screenshot",
-      "position": {
-        "x": 6800,
-        "y": 0
-      },
       "data": {
         "label": "Capture execution history",
         "fullPage": true,
@@ -522,10 +382,6 @@
     {
       "id": "click-first-execution",
       "type": "click",
-      "position": {
-        "x": 7000,
-        "y": 0
-      },
       "data": {
         "label": "Open first execution details",
         "selector": "@selector/executions.list.card:first-of-type",
@@ -536,10 +392,6 @@
     {
       "id": "wait-for-execution-viewer",
       "type": "wait",
-      "position": {
-        "x": 7200,
-        "y": 0
-      },
       "data": {
         "label": "Wait for execution viewer to load",
         "selector": "@selector/executions.viewer.root",
@@ -551,10 +403,6 @@
     {
       "id": "assert-replay-tab-exists",
       "type": "assert",
-      "position": {
-        "x": 7400,
-        "y": 0
-      },
       "data": {
         "label": "Verify Replay tab is available",
         "selector": "@selector/executions.tabs.replay",
@@ -566,10 +414,6 @@
     {
       "id": "click-replay-tab",
       "type": "click",
-      "position": {
-        "x": 7600,
-        "y": 0
-      },
       "data": {
         "label": "Open Replay tab",
         "selector": "@selector/executions.tabs.replay /*dup-1*/",
@@ -580,10 +424,6 @@
     {
       "id": "wait-for-replay-player",
       "type": "wait",
-      "position": {
-        "x": 7800,
-        "y": 0
-      },
       "data": {
         "label": "Wait for replay player to load",
         "selector": "@selector/replay.player, @selector/replay.timeline",
@@ -595,10 +435,6 @@
     {
       "id": "assert-replay-screenshot-exists",
       "type": "assert",
-      "position": {
-        "x": 8000,
-        "y": 0
-      },
       "data": {
         "label": "Verify replay screenshots are displayed",
         "selector": "@selector/replay.screenshot",
@@ -610,10 +446,6 @@
     {
       "id": "capture-final-replay",
       "type": "screenshot",
-      "position": {
-        "x": 8200,
-        "y": 0
-      },
       "data": {
         "label": "Capture final replay view - SUCCESS!",
         "fullPage": true,

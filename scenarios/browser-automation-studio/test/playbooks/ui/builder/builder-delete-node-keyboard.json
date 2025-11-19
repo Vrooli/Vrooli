@@ -15,10 +15,6 @@
     {
       "id": "call-open-demo-workflow",
       "type": "workflowCall",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Open seeded workflow via fixture",
         "workflowId": "@fixture/open-demo-workflow"
@@ -27,10 +23,6 @@
     {
       "id": "wait-for-builder",
       "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Wait for builder to load",
         "selector": "@selector/workflowBuilder.code.modeButton",
@@ -41,10 +33,6 @@
     {
       "id": "assert-nodes-exist",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Workflow has nodes to delete",
         "selector": ".react-flow__node",
@@ -56,10 +44,6 @@
     {
       "id": "count-initial-nodes",
       "type": "evaluate",
-      "position": {
-        "x": 1400,
-        "y": -100
-      },
       "data": {
         "label": "Count initial nodes",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -69,10 +53,6 @@
     {
       "id": "capture-before-delete",
       "type": "screenshot",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Capture canvas before delete",
         "fullPage": true,
@@ -82,10 +62,6 @@
     {
       "id": "click-first-node",
       "type": "click",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Click first node to select it",
         "selector": ".react-flow__node:first-of-type",
@@ -96,10 +72,6 @@
     {
       "id": "verify-node-selected",
       "type": "assert",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Node is selected (has selected class)",
         "selector": ".react-flow__node.selected, .react-flow__node[data-selected=\"true\"]",
@@ -111,10 +83,6 @@
     {
       "id": "press-delete-key",
       "type": "keyboard",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Press Delete key",
         "keys": [
@@ -127,10 +95,6 @@
     {
       "id": "wait-for-delete",
       "type": "wait",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Wait for node removal",
         "durationMs": 1500,
@@ -140,10 +104,6 @@
     {
       "id": "count-final-nodes",
       "type": "evaluate",
-      "position": {
-        "x": 2600,
-        "y": -100
-      },
       "data": {
         "label": "Count remaining nodes",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -153,10 +113,6 @@
     {
       "id": "verify-node-deleted",
       "type": "evaluate",
-      "position": {
-        "x": 2800,
-        "y": -100
-      },
       "data": {
         "label": "Verify node count decreased",
         "expression": "(() => { const initial = Number({{initialNodeCount}} || 0); const final = Number({{finalNodeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final < initial; })()",
@@ -166,10 +122,6 @@
     {
       "id": "capture-after-delete",
       "type": "screenshot",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Capture canvas after delete",
         "fullPage": true,

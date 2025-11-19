@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Open Demo project via fixture",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "navigate-to-executions",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Navigate to Executions tab",
         "selector": "@selector/projects.tabs.executions",
@@ -45,10 +37,6 @@
     {
       "id": "capture-executions-list",
       "type": "screenshot",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Capture executions list",
         "fullPage": true,
@@ -58,10 +46,6 @@
     {
       "id": "find-execution-entry",
       "type": "assert",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Verify execution entries exist",
         "selector": "@selector/executions.list.item",
@@ -73,10 +57,6 @@
     {
       "id": "click-execution",
       "type": "click",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Open execution details",
         "selector": "@selector/executions.actions.viewButton",
@@ -89,10 +69,6 @@
     {
       "id": "capture-execution-viewer",
       "type": "screenshot",
-      "position": {
-        "x": 1900,
-        "y": 0
-      },
       "data": {
         "label": "Capture execution viewer",
         "fullPage": true,
@@ -102,10 +78,6 @@
     {
       "id": "find-export-button",
       "type": "assert",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Export button visible",
         "selector": "@selector/executions.actions.exportReplayButton",
@@ -117,10 +89,6 @@
     {
       "id": "capture-export-controls",
       "type": "screenshot",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Capture export controls",
         "fullPage": true,
@@ -130,10 +98,6 @@
     {
       "id": "check-replay-artifacts",
       "type": "assert",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Replay artifacts visible",
         "selector": "@selector/replay.player, @selector/executions.viewer.screenshots",
@@ -145,10 +109,6 @@
     {
       "id": "verify-export-flow",
       "type": "screenshot",
-      "position": {
-        "x": 2800,
-        "y": 0
-      },
       "data": {
         "label": "Final export flow verification",
         "fullPage": true,

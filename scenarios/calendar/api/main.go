@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -154,6 +155,88 @@ func getAuthenticatedUser(r *http.Request) (*User, bool) {
 	}
 
 	return user, true
+}
+
+type authLoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type authLoginResponse struct {
+	Success      bool            `json:"success"`
+	Token        string          `json:"token"`
+	RefreshToken string          `json:"refresh_token"`
+	User         json.RawMessage `json:"user"`
+	Message      string          `json:"message"`
+}
+
+func authLoginProxyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	var req authLoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		errorHandler.HandleError(w, r, BadRequestError("Invalid login payload", map[string]string{"parse_error": err.Error()}))
+		return
+	}
+
+	validations := ValidationErrors{}
+	if strings.TrimSpace(req.Email) == "" {
+		validations = append(validations, NewValidationError("email", "", "Email is required"))
+	}
+	if strings.TrimSpace(req.Password) == "" {
+		validations = append(validations, NewValidationError("password", "", "Password is required"))
+	}
+	if len(validations) > 0 {
+		errorHandler.HandleError(w, r, validations)
+		return
+	}
+
+	authServiceURL := strings.TrimSpace(os.Getenv("AUTH_SERVICE_URL"))
+	if authServiceURL == "" {
+		errorHandler.HandleError(w, r, ServiceUnavailableError("authentication"))
+		return
+	}
+
+	loginURL := strings.TrimRight(authServiceURL, "/") + "/api/v1/auth/login"
+	payload, err := json.Marshal(req)
+	if err != nil {
+		errorHandler.HandleError(w, r, InternalServerError("Failed to encode login payload", map[string]string{"error": err.Error()}))
+		return
+	}
+
+	forwardReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost, loginURL, bytes.NewReader(payload))
+	if err != nil {
+		errorHandler.HandleError(w, r, InternalServerError("Failed to contact authentication service", map[string]string{"error": err.Error()}))
+		return
+	}
+	forwardReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(forwardReq)
+	if err != nil {
+		errorHandler.HandleError(w, r, ExternalServiceError("authentication", err))
+		return
+	}
+	defer resp.Body.Close()
+
+	for k, values := range resp.Header {
+		if strings.EqualFold(k, "Content-Length") {
+			continue
+		}
+		for _, v := range values {
+			w.Header().Add(k, v)
+		}
+	}
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	w.WriteHeader(resp.StatusCode)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		log.Printf("Failed to stream auth service response: %v", err)
+	}
 }
 
 // Initialize configuration
@@ -3816,7 +3899,11 @@ func main() {
 	// Health check (no auth required)
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
-	// API routes (with auth middleware)
+	// Public API routes (no auth required)
+	publicAPI := router.PathPrefix("/api/v1").Subrouter()
+	publicAPI.HandleFunc("/auth/login", authLoginProxyHandler).Methods("POST", "OPTIONS")
+
+	// Authenticated API routes
 	api := router.PathPrefix("/api/v1").Subrouter()
 	api.Use(authMiddleware)
 
@@ -4004,4 +4091,5 @@ func generateRecurringEvents(parentID string, recurrence *RecurrenceRequest, sta
 	log.Printf("Generated %d recurring events for parent %s", occurrences, parentID)
 	return nil
 }
+
 // Test change for calendar

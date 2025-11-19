@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Open Demo project via fixture",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "click-executions-tab",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Click Executions tab",
         "selector": "@selector/projects.tabs.executions",
@@ -44,10 +36,6 @@
     {
       "id": "assert-executions-exist",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "At least one execution exists",
         "selector": "@selector/executions.list.item, @selector/executions.actions.viewButton",
@@ -59,10 +47,6 @@
     {
       "id": "click-view-execution",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Click View button on first execution",
         "selector": "@selector/executions.actions.viewButton:first-of-type",
@@ -76,10 +60,6 @@
     {
       "id": "assert-execution-viewer-visible",
       "type": "assert",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Execution viewer is visible",
         "selector": "@selector/executions.viewer.root, @selector/executions.viewer.logs, @selector/executions.viewer.screenshots",
@@ -91,10 +71,6 @@
     {
       "id": "capture-execution-viewer",
       "type": "screenshot",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Capture execution viewer initial state",
         "fullPage": true,
@@ -104,10 +80,6 @@
     {
       "id": "look-for-replay-tab",
       "type": "evaluate",
-      "position": {
-        "x": 2200,
-        "y": -100
-      },
       "data": {
         "label": "Check if Replay tab exists",
         "expression": "(() => { const replayTab = document.querySelector('@selector/executions.tabs.replay'); return replayTab !== null; })()",
@@ -117,10 +89,6 @@
     {
       "id": "click-replay-tab",
       "type": "click",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Click Replay tab",
         "selector": "@selector/executions.tabs.replay",
@@ -135,10 +103,6 @@
     {
       "id": "verify-replay-content",
       "type": "evaluate",
-      "position": {
-        "x": 2800,
-        "y": -100
-      },
       "data": {
         "label": "Verify replay-related content exists",
         "expression": "(() => { const screenshots = document.querySelectorAll('@selector/executions.viewer.screenshot, @selector/replay.screenshot'); const timeline = document.querySelector('@selector/replay.timeline, @selector/replay.viewer'); return screenshots.length > 0 || timeline !== null; })()",
@@ -148,10 +112,6 @@
     {
       "id": "capture-replay-tab",
       "type": "screenshot",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Capture replay tab view",
         "fullPage": true,
@@ -161,10 +121,6 @@
     {
       "id": "check-for-screenshot",
       "type": "evaluate",
-      "position": {
-        "x": 3200,
-        "y": -100
-      },
       "data": {
         "label": "Check if screenshots are displayed",
         "expression": "(() => { const images = document.querySelectorAll('img[src*=\"screenshot\"], img[src*=\"execution\"], img[alt*=\"screenshot\"]'); return images.length > 0; })()",
@@ -174,10 +130,6 @@
     {
       "id": "check-for-timeline",
       "type": "evaluate",
-      "position": {
-        "x": 3400,
-        "y": -100
-      },
       "data": {
         "label": "Check if timeline/controls exist",
         "expression": "(() => { return document.querySelector('@selector/replay.player') !== null; })()",

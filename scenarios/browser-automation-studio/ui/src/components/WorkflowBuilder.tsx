@@ -1,76 +1,76 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { logger } from "../utils/logger";
-import { Eye, Code } from "lucide-react";
 import Editor from "@monaco-editor/react";
+import { Code, Eye } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import ReactFlow, {
-  Node,
-  Edge,
-  MiniMap,
+  addEdge,
   Background,
   BackgroundVariant,
-  useNodesState,
-  useEdgesState,
-  addEdge,
   Connection,
   ConnectionMode,
+  Edge,
+  EdgeChange,
   MarkerType,
+  MiniMap,
+  Node,
+  NodeChange,
   NodeTypes,
   ReactFlowProvider,
-  NodeChange,
-  EdgeChange,
+  useEdgesState,
+  useNodesState,
   useReactFlow,
 } from "reactflow";
-import { useWorkflowStore } from "../stores/workflowStore";
-import { normalizeNodes, normalizeEdges } from "../utils/workflowNormalizers";
-import BrowserActionNode from "./nodes/BrowserActionNode";
-import NavigateNode from "./nodes/NavigateNode";
-import ClickNode from "./nodes/ClickNode";
-import TypeNode from "./nodes/TypeNode";
-import ShortcutNode from "./nodes/ShortcutNode";
-import ScreenshotNode from "./nodes/ScreenshotNode";
-import WaitNode from "./nodes/WaitNode";
-import ExtractNode from "./nodes/ExtractNode";
-import AssertNode from "./nodes/AssertNode";
-import WorkflowCallNode from "./nodes/WorkflowCallNode";
-import ScriptNode from "./nodes/ScriptNode";
-import KeyboardNode from "./nodes/KeyboardNode";
-import HoverNode from "./nodes/HoverNode";
-import DragDropNode from "./nodes/DragDropNode";
-import FocusNode from "./nodes/FocusNode";
-import BlurNode from "./nodes/BlurNode";
-import ScrollNode from "./nodes/ScrollNode";
-import RotateNode from "./nodes/RotateNode";
-import GestureNode from "./nodes/GestureNode";
-import SelectNode from "./nodes/SelectNode";
-import SetVariableNode from "./nodes/SetVariableNode";
-import UseVariableNode from "./nodes/UseVariableNode";
-import UploadFileNode from "./nodes/UploadFileNode";
-import TabSwitchNode from "./nodes/TabSwitchNode";
-import FrameSwitchNode from "./nodes/FrameSwitchNode";
-import SetCookieNode from "./nodes/SetCookieNode";
-import GetCookieNode from "./nodes/GetCookieNode";
-import ClearCookieNode from "./nodes/ClearCookieNode";
-import SetStorageNode from "./nodes/SetStorageNode";
-import GetStorageNode from "./nodes/GetStorageNode";
-import ClearStorageNode from "./nodes/ClearStorageNode";
-import NetworkMockNode from "./nodes/NetworkMockNode";
-import ConditionalNode from "./nodes/ConditionalNode";
-import LoopNode from "./nodes/LoopNode";
-import WorkflowToolbar from "./WorkflowToolbar";
-import CustomConnectionLine from "./CustomConnectionLine";
 import "reactflow/dist/style.css";
-import toast from "react-hot-toast";
-import ResponsiveDialog from "./ResponsiveDialog";
+import { selectors } from "../consts/selectors";
 import type {
   ExecutionViewportSettings,
   ViewportPreset,
 } from "../stores/workflowStore";
-import { selectors } from "../consts/selectors";
-import { validateWorkflowDefinition } from "../utils/workflowValidation";
+import { useWorkflowStore } from "../stores/workflowStore";
 import type {
   WorkflowDefinition,
   WorkflowValidationResult,
 } from "../types/workflow";
+import { logger } from "../utils/logger";
+import { autoLayoutNodes, normalizeEdges, normalizeNodes } from "../utils/workflowNormalizers";
+import { validateWorkflowDefinition } from "../utils/workflowValidation";
+import CustomConnectionLine from "./CustomConnectionLine";
+import AssertNode from "./nodes/AssertNode";
+import BlurNode from "./nodes/BlurNode";
+import BrowserActionNode from "./nodes/BrowserActionNode";
+import ClearCookieNode from "./nodes/ClearCookieNode";
+import ClearStorageNode from "./nodes/ClearStorageNode";
+import ClickNode from "./nodes/ClickNode";
+import ConditionalNode from "./nodes/ConditionalNode";
+import DragDropNode from "./nodes/DragDropNode";
+import ExtractNode from "./nodes/ExtractNode";
+import FocusNode from "./nodes/FocusNode";
+import FrameSwitchNode from "./nodes/FrameSwitchNode";
+import GestureNode from "./nodes/GestureNode";
+import GetCookieNode from "./nodes/GetCookieNode";
+import GetStorageNode from "./nodes/GetStorageNode";
+import HoverNode from "./nodes/HoverNode";
+import KeyboardNode from "./nodes/KeyboardNode";
+import LoopNode from "./nodes/LoopNode";
+import NavigateNode from "./nodes/NavigateNode";
+import NetworkMockNode from "./nodes/NetworkMockNode";
+import RotateNode from "./nodes/RotateNode";
+import ScreenshotNode from "./nodes/ScreenshotNode";
+import ScriptNode from "./nodes/ScriptNode";
+import ScrollNode from "./nodes/ScrollNode";
+import SelectNode from "./nodes/SelectNode";
+import SetCookieNode from "./nodes/SetCookieNode";
+import SetStorageNode from "./nodes/SetStorageNode";
+import SetVariableNode from "./nodes/SetVariableNode";
+import ShortcutNode from "./nodes/ShortcutNode";
+import TabSwitchNode from "./nodes/TabSwitchNode";
+import TypeNode from "./nodes/TypeNode";
+import UploadFileNode from "./nodes/UploadFileNode";
+import UseVariableNode from "./nodes/UseVariableNode";
+import WaitNode from "./nodes/WaitNode";
+import WorkflowCallNode from "./nodes/WorkflowCallNode";
+import ResponsiveDialog from "./ResponsiveDialog";
+import WorkflowToolbar from "./WorkflowToolbar";
 
 const nodeTypes: NodeTypes = {
   browserAction: BrowserActionNode,
@@ -217,8 +217,8 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   const executionViewport = useWorkflowStore(
     (state) =>
       state.currentWorkflow?.executionViewport as
-        | ExecutionViewportSettings
-        | undefined,
+      | ExecutionViewportSettings
+      | undefined,
   );
   const effectiveViewport = useMemo(
     () => normalizeViewportSetting(executionViewport),
@@ -402,8 +402,9 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
       let parsedDefinition: WorkflowDefinition = { nodes: [], edges: [] };
       try {
         parsedDefinition = JSON.parse(codeValue || "{}") as WorkflowDefinition;
-        parsedNodes = normalizeNodes(parsedDefinition?.nodes ?? []);
+        const initialNodes = normalizeNodes(parsedDefinition?.nodes ?? []);
         parsedEdges = normalizeEdges(parsedDefinition?.edges ?? []);
+        parsedNodes = autoLayoutNodes(initialNodes, parsedEdges);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invalid JSON";
         setCodeError(message);
@@ -1065,9 +1066,9 @@ function ViewportDialog({
     label: string;
     viewport: ExecutionViewportSettings;
   }> = [
-    { id: "desktop", label: "Desktop", viewport: DEFAULT_DESKTOP_VIEWPORT },
-    { id: "mobile", label: "Mobile", viewport: DEFAULT_MOBILE_VIEWPORT },
-  ];
+      { id: "desktop", label: "Desktop", viewport: DEFAULT_DESKTOP_VIEWPORT },
+      { id: "mobile", label: "Mobile", viewport: DEFAULT_MOBILE_VIEWPORT },
+    ];
 
   return (
     <ResponsiveDialog
@@ -1102,11 +1103,10 @@ function ViewportDialog({
                   type="button"
                   key={id}
                   onClick={() => handlePresetSelect(viewport)}
-                  className={`flex flex-col rounded-md border px-3 py-2 text-left text-xs transition-colors ${
-                    isActive
-                      ? "border-flow-accent bg-flow-accent/20 text-white"
-                      : "border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white"
-                  }`}
+                  className={`flex flex-col rounded-md border px-3 py-2 text-left text-xs transition-colors ${isActive
+                    ? "border-flow-accent bg-flow-accent/20 text-white"
+                    : "border-gray-700 text-gray-300 hover:border-flow-accent hover:text-white"
+                    }`}
                   data-testid={selectors.viewport.dialog.presetButton({
                     preset: id,
                   })}

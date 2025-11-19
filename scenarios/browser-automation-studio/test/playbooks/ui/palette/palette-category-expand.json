@@ -15,10 +15,6 @@
     {
       "id": "call-open-builder",
       "type": "workflowCall",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Open builder via fixture",
         "workflowId": "@fixture/open-builder-from-demo"
@@ -27,10 +23,6 @@
     {
       "id": "wait-for-builder",
       "type": "wait",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Wait for workflow builder",
         "selector": "@selector/workflowBuilder.code.modeButton",
@@ -41,10 +33,6 @@
     {
       "id": "assert-palette-visible",
       "type": "assert",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Node palette is visible",
         "selector": "@selector/nodePalette.container",
@@ -56,10 +44,6 @@
     {
       "id": "capture-palette-initial",
       "type": "screenshot",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Capture initial palette state",
         "fullPage": true,
@@ -69,10 +53,6 @@
     {
       "id": "find-category-header",
       "type": "evaluate",
-      "position": {
-        "x": 1800,
-        "y": -100
-      },
       "data": {
         "label": "Check for expandable category headers",
         "expression": "document.querySelector('@selector/nodePalette.category(category=navigation)') !== null",
@@ -82,10 +62,6 @@
     {
       "id": "click-first-category",
       "type": "click",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Click first category to toggle",
         "selector": "@selector/nodePalette.categories.navigationToggle",
@@ -97,10 +73,6 @@
     {
       "id": "capture-palette-toggled",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture palette after category toggle",
         "fullPage": true,
@@ -110,10 +82,6 @@
     {
       "id": "verify-category-interaction",
       "type": "evaluate",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Verify categories can be interacted with",
         "expression": "true",

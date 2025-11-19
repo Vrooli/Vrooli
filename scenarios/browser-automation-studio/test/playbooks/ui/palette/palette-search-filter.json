@@ -15,10 +15,6 @@
     {
       "id": "call-open-builder",
       "type": "workflowCall",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open builder via fixture",
         "workflowId": "@fixture/open-builder-from-demo"
@@ -27,10 +23,6 @@
     {
       "id": "wait1",
       "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Wait",
         "durationMs": 3000,
@@ -40,10 +32,6 @@
     {
       "id": "assert-palette",
       "type": "assert",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Palette visible",
         "selector": "@selector/nodePalette.container",
@@ -55,10 +43,6 @@
     {
       "id": "count-before",
       "type": "evaluate",
-      "position": {
-        "x": 1000,
-        "y": -100
-      },
       "data": {
         "label": "Count all nodes",
         "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
@@ -68,10 +52,6 @@
     {
       "id": "search",
       "type": "type",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Search 'navigate'",
         "selector": "@selector/nodePalette.searchInput",
@@ -84,10 +64,6 @@
     {
       "id": "count-after",
       "type": "evaluate",
-      "position": {
-        "x": 1400,
-        "y": -100
-      },
       "data": {
         "label": "Count filtered",
         "expression": "document.querySelectorAll('@selector/nodePalette.visibleCardList').length",
@@ -97,10 +73,6 @@
     {
       "id": "assert-navigate-visible",
       "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Navigate node visible",
         "selector": "@selector/nodePalette.cards.navigate",
@@ -112,10 +84,6 @@
     {
       "id": "cap",
       "type": "screenshot",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Capture filtered",
         "fullPage": true,
@@ -125,10 +93,6 @@
     {
       "id": "clear",
       "type": "type",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Clear search",
         "selector": "@selector/nodePalette.searchInput /*dup-1*/",
@@ -141,10 +105,6 @@
     {
       "id": "count-cleared",
       "type": "evaluate",
-      "position": {
-        "x": 2200,
-        "y": -100
-      },
       "data": {
         "label": "Count after clear",
         "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",

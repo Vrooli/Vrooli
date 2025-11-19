@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "wait-for-dashboard",
       "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
       "data": {
         "label": "Wait for dashboard",
         "selector": "@selector/projects.grid",
@@ -47,10 +39,6 @@
     {
       "id": "click-project",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
@@ -64,10 +52,6 @@
     {
       "id": "ensure-workflows-exist",
       "type": "assert",
-      "position": {
-        "x": 800,
-        "y": -100
-      },
       "data": {
         "label": "Workflows exist in list",
         "selector": "@selector/workflows.card",
@@ -79,10 +63,6 @@
     {
       "id": "click-workflow",
       "type": "click",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Open first workflow",
         "selector": "@selector/workflows.card:first-of-type",
@@ -97,10 +77,6 @@
     {
       "id": "look-for-version-button",
       "type": "assert",
-      "position": {
-        "x": 1400,
-        "y": -100
-      },
       "data": {
         "label": "Version history button visible",
         "selector": "@selector/header.buttons.versionHistory",
@@ -112,10 +88,6 @@
     {
       "id": "click-version-history",
       "type": "click",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Open version history",
         "selector": "@selector/header.buttons.versionHistory",
@@ -129,10 +101,6 @@
     {
       "id": "check-version-list-visible",
       "type": "assert",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Version list dialog visible",
         "selector": "@selector/header.versionHistory.dialog",
@@ -144,10 +112,6 @@
     {
       "id": "capture-version-history",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture version history UI",
         "fullPage": true,
@@ -157,10 +121,6 @@
     {
       "id": "check-restore-buttons",
       "type": "assert",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Restore controls visible",
         "selector": "@selector/header.versionHistory.closeButton",
@@ -172,10 +132,6 @@
     {
       "id": "close-version-dialog",
       "type": "keyboard",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Close version dialog with Escape",
         "keys": [
@@ -186,10 +142,6 @@
     {
       "id": "capture-final-state",
       "type": "screenshot",
-      "position": {
-        "x": 2800,
-        "y": 0
-      },
       "data": {
         "label": "Capture final workflow builder state",
         "fullPage": true,

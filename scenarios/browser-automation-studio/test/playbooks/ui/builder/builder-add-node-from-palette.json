@@ -15,10 +15,6 @@
     {
       "id": "call-open-builder",
       "type": "workflowCall",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open builder via fixture",
         "workflowId": "@fixture/open-builder-from-demo"
@@ -27,10 +23,6 @@
     {
       "id": "assert-canvas-visible",
       "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Canvas is visible",
         "selector": ".react-flow, .react-flow__renderer",
@@ -42,10 +34,6 @@
     {
       "id": "count-initial-nodes",
       "type": "evaluate",
-      "position": {
-        "x": 1800,
-        "y": -100
-      },
       "data": {
         "label": "Count initial nodes on canvas",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -55,10 +43,6 @@
     {
       "id": "assert-palette-visible",
       "type": "assert",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Node palette is visible",
         "selector": "@selector/nodePalette.container",
@@ -70,10 +54,6 @@
     {
       "id": "capture-before-drag",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture canvas before adding node",
         "fullPage": true,
@@ -83,10 +63,6 @@
     {
       "id": "get-navigate-node-position",
       "type": "evaluate",
-      "position": {
-        "x": 2400,
-        "y": -100
-      },
       "data": {
         "label": "Get navigate node card position",
         "expression": "(() => { const card = document.querySelector('@selector/nodePalette.cards.navigate'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
@@ -96,10 +72,6 @@
     {
       "id": "get-canvas-drop-position",
       "type": "evaluate",
-      "position": {
-        "x": 2600,
-        "y": -100
-      },
       "data": {
         "label": "Calculate canvas drop position",
         "expression": "(() => { const canvas = document.querySelector('@selector/workflowBuilder.canvas.root'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
@@ -109,10 +81,6 @@
     {
       "id": "drag-navigate-node",
       "type": "dragDrop",
-      "position": {
-        "x": 2800,
-        "y": 0
-      },
       "data": {
         "label": "Drag navigate node from palette to canvas",
         "sourceSelector": "@selector/nodePalette.cards.navigate",
@@ -124,10 +92,6 @@
     {
       "id": "count-final-nodes",
       "type": "evaluate",
-      "position": {
-        "x": 3200,
-        "y": -100
-      },
       "data": {
         "label": "Count nodes after drag",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -137,10 +101,6 @@
     {
       "id": "verify-node-count-increased",
       "type": "evaluate",
-      "position": {
-        "x": 3400,
-        "y": -100
-      },
       "data": {
         "label": "Verify node count increased",
         "expression": "(() => { const initial = Number({{initialNodeCount}} || 0); const final = Number({{finalNodeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
@@ -150,10 +110,6 @@
     {
       "id": "check-navigate-node-exists",
       "type": "assert",
-      "position": {
-        "x": 3600,
-        "y": 0
-      },
       "data": {
         "label": "Navigate node exists on canvas",
         "selector": ".react-flow__node[data-type=\"navigate\"]",
@@ -165,10 +121,6 @@
     {
       "id": "capture-after-drag",
       "type": "screenshot",
-      "position": {
-        "x": 3800,
-        "y": 0
-      },
       "data": {
         "label": "Capture canvas with new node",
         "fullPage": true,

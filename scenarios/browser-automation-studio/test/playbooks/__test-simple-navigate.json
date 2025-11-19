@@ -8,7 +8,6 @@
     {
       "id": "navigate-google",
       "type": "navigate",
-      "position": { "x": 0, "y": 0 },
       "data": {
         "label": "Navigate to Google",
         "destinationType": "url",
@@ -21,7 +20,6 @@
     {
       "id": "assert-google",
       "type": "assert",
-      "position": { "x": 200, "y": 0 },
       "data": {
         "label": "Google body renders",
         "selector": "body",

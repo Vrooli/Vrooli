@@ -1,26 +1,32 @@
-const express = require('express');
-const path = require('path');
+const path = require('path')
 
-const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT || 3000;
-const API_PORT = process.env.API_PORT;
+async function start() {
+  const uiPort = Number(process.env.UI_PORT || process.env.PORT || 3000)
+  const apiPort = process.env.API_PORT
 
-// Serve static files from dist directory
-app.use(express.static(path.join(__dirname, 'dist')));
+  if (!apiPort) {
+    console.error('❌ API_PORT environment variable is required to start calendar UI server')
+    process.exit(1)
+  }
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'healthy', service: 'calendar-ui' });
-});
+  const { createScenarioServer } = await import('@vrooli/api-base/server')
 
-// Catch all route - serve index.html for SPA routing
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+  const app = createScenarioServer({
+    uiPort,
+    apiPort,
+    distDir: path.join(__dirname, 'dist'),
+    serviceName: 'calendar',
+    version: process.env.npm_package_version || '1.0.0',
+    corsOrigins: '*'
+  })
 
-app.listen(PORT, () => {
-    console.log(`Calendar UI running on http://localhost:${PORT}`);
-    if (API_PORT) {
-        console.log(`API available at http://localhost:${API_PORT}`);
-    }
-});
+  app.listen(uiPort, () => {
+    console.log(`Calendar UI running on http://localhost:${uiPort}`)
+    console.log(`Proxying API requests to http://localhost:${apiPort}`)
+  })
+}
+
+start().catch((error) => {
+  console.error('❌ Failed to start calendar UI server:', error)
+  process.exit(1)
+})

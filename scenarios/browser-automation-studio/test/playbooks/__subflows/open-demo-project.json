@@ -7,7 +7,6 @@
     {
       "id": "fixture-navigate-dashboard",
       "type": "navigate",
-      "position": {"x": 0, "y": 0},
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -21,7 +20,6 @@
     {
       "id": "fixture-click-demo",
       "type": "click",
-      "position": {"x": 420, "y": 0},
       "data": {
         "label": "Select Demo Browser Automations",
         "selector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]",
@@ -35,7 +33,6 @@
     {
       "id": "fixture-assert-demo-heading",
       "type": "assert",
-      "position": {"x": 860, "y": 0},
       "data": {
         "label": "Verify demo project header",
         "selector": "h1",
@@ -47,7 +44,17 @@
     }
   ],
   "edges": [
-    {"id": "fixture-edge-1", "source": "fixture-navigate-dashboard", "target": "fixture-click-demo", "type": "smoothstep"},
-    {"id": "fixture-edge-2", "source": "fixture-click-demo", "target": "fixture-assert-demo-heading", "type": "smoothstep"}
+    {
+      "id": "fixture-edge-1",
+      "source": "fixture-navigate-dashboard",
+      "target": "fixture-click-demo",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-edge-2",
+      "source": "fixture-click-demo",
+      "target": "fixture-assert-demo-heading",
+      "type": "smoothstep"
+    }
   ]
 }

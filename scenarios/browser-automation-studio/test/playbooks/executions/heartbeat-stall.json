@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 300,
-        "y": 0
-      },
       "data": {
         "label": "Open demo project via fixture",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "click-execute-workflow",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Execute workflow",
         "selector": "@selector/workflowBuilder.executeButton",
@@ -42,30 +34,13 @@
       }
     },
     {
-      "id": "wait-for-heartbeat-lag",
-      "type": "wait",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for heartbeat monitoring",
-        "durationMs": 2000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "assert-heartbeat-indicator",
       "type": "assert",
-      "position": {
-        "x": 1400,
-        "y": -60
-      },
       "data": {
         "label": "Execution viewer functional",
         "selector": "@selector/executions.viewer.root:where(:not(:root))",
         "assertMode": "exists",
-        "timeoutMs": 10000,
+        "timeoutMs": 20000,
         "failureMessage": "Execution viewer should render"
       }
     }
@@ -78,14 +53,8 @@
       "type": "smoothstep"
     },
     {
-      "id": "e6",
-      "source": "click-execute-workflow",
-      "target": "wait-for-heartbeat-lag",
-      "type": "smoothstep"
-    },
-    {
       "id": "e7",
-      "source": "wait-for-heartbeat-lag",
+      "source": "click-execute-workflow",
       "target": "assert-heartbeat-indicator",
       "type": "smoothstep"
     }

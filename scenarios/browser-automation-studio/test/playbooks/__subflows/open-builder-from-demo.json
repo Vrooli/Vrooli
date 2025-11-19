@@ -7,7 +7,6 @@
     {
       "id": "fixture-call-open-project",
       "type": "workflowCall",
-      "position": {"x": 0, "y": 0},
       "data": {
         "label": "Open Demo project",
         "workflowId": "@fixture/open-demo-project"
@@ -16,7 +15,6 @@
     {
       "id": "fixture-click-new-workflow",
       "type": "click",
-      "position": {"x": 220, "y": 0},
       "data": {
         "label": "Click New Workflow",
         "selector": "@selector/workflows.newButton",
@@ -30,7 +28,6 @@
     {
       "id": "fixture-switch-to-manual",
       "type": "click",
-      "position": {"x": 440, "y": 0},
       "data": {
         "label": "Switch to manual builder",
         "selector": "@selector/ai.modal.switchToManualButton",
@@ -45,7 +42,6 @@
     {
       "id": "fixture-assert-builder",
       "type": "assert",
-      "position": {"x": 660, "y": 0},
       "data": {
         "label": "Builder canvas visible",
         "selector": ".react-flow__renderer, .react-flow",
@@ -56,8 +52,23 @@
     }
   ],
   "edges": [
-    {"id": "fixture-builder-edge-1", "source": "fixture-call-open-project", "target": "fixture-click-new-workflow", "type": "smoothstep"},
-    {"id": "fixture-builder-edge-2", "source": "fixture-click-new-workflow", "target": "fixture-switch-to-manual", "type": "smoothstep"},
-    {"id": "fixture-builder-edge-3", "source": "fixture-switch-to-manual", "target": "fixture-assert-builder", "type": "smoothstep"}
+    {
+      "id": "fixture-builder-edge-1",
+      "source": "fixture-call-open-project",
+      "target": "fixture-click-new-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-builder-edge-2",
+      "source": "fixture-click-new-workflow",
+      "target": "fixture-switch-to-manual",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-builder-edge-3",
+      "source": "fixture-switch-to-manual",
+      "target": "fixture-assert-builder",
+      "type": "smoothstep"
+    }
   ]
 }

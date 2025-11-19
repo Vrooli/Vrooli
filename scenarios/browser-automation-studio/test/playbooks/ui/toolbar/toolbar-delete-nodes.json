@@ -15,35 +15,14 @@
     {
       "id": "call-open-demo-workflow",
       "type": "workflowCall",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Open seeded workflow via fixture",
         "workflowId": "@fixture/open-demo-workflow"
       }
     },
     {
-      "id": "wait-builder",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for builder",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "assert-nodes-exist",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Workflow has nodes",
         "selector": ".react-flow__node",
@@ -55,10 +34,6 @@
     {
       "id": "count-initial-nodes",
       "type": "evaluate",
-      "position": {
-        "x": 1400,
-        "y": -100
-      },
       "data": {
         "label": "Count initial nodes",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -68,10 +43,6 @@
     {
       "id": "click-first-node",
       "type": "click",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Select first node",
         "selector": ".react-flow__node:first-of-type",
@@ -82,10 +53,6 @@
     {
       "id": "capture-before-delete",
       "type": "screenshot",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Capture before delete",
         "fullPage": true,
@@ -95,10 +62,6 @@
     {
       "id": "click-delete-button",
       "type": "click",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Click toolbar delete button",
         "selector": "@selector/toolbar.deleteButton",
@@ -109,10 +72,6 @@
     {
       "id": "count-final-nodes",
       "type": "evaluate",
-      "position": {
-        "x": 2200,
-        "y": -100
-      },
       "data": {
         "label": "Count nodes after delete",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -122,10 +81,6 @@
     {
       "id": "verify-node-deleted",
       "type": "evaluate",
-      "position": {
-        "x": 2400,
-        "y": -100
-      },
       "data": {
         "label": "Verify node count decreased",
         "expression": "(() => { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final < initial; })()",
@@ -135,10 +90,6 @@
     {
       "id": "capture-after-delete",
       "type": "screenshot",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Capture after delete",
         "fullPage": true,
@@ -148,14 +99,8 @@
   ],
   "edges": [
     {
-      "id": "call-open-demo-workflow-to-wait-builder",
+      "id": "call-open-demo-workflow-to-assert-nodes-exist",
       "source": "call-open-demo-workflow",
-      "target": "wait-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "wait-builder",
       "target": "assert-nodes-exist",
       "type": "smoothstep"
     },

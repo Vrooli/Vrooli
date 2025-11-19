@@ -15,10 +15,6 @@
     {
       "id": "call-open-builder",
       "type": "workflowCall",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Open builder via fixture",
         "workflowId": "@fixture/open-builder-from-demo"
@@ -27,10 +23,6 @@
     {
       "id": "wait-builder",
       "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Wait for builder",
         "selector": "@selector/workflowBuilder.code.modeButton",
@@ -42,10 +34,6 @@
     {
       "id": "drag-wait-node",
       "type": "dragDrop",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Drag Wait node onto canvas",
         "sourceSelector": "@selector/nodePalette.cards.wait",
@@ -57,10 +45,6 @@
     {
       "id": "wait-node-render",
       "type": "wait",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Wait for node to render",
         "durationMs": 1500,
@@ -70,10 +54,6 @@
     {
       "id": "verify-wait-node",
       "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Verify Wait node exists",
         "selector": ".react-flow__node",
@@ -85,10 +65,6 @@
     {
       "id": "click-wait-node",
       "type": "click",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Select Wait node",
         "selector": ".react-flow__node:first-of-type",
@@ -99,10 +75,6 @@
     {
       "id": "capture-initial-state",
       "type": "screenshot",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Capture Wait node initial state",
         "fullPage": true,
@@ -112,10 +84,6 @@
     {
       "id": "find-type-selector",
       "type": "assert",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Verify wait type selector exists",
         "selector": ".react-flow__node.selected select",
@@ -127,10 +95,6 @@
     {
       "id": "switch-to-element-wait",
       "type": "select",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Change wait type to 'element'",
         "selector": ".react-flow__node.selected select /*dup-1*/",
@@ -142,10 +106,6 @@
     {
       "id": "verify-selector-input-appears",
       "type": "assert",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Selector input should appear for element wait",
         "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i]",
@@ -157,10 +117,6 @@
     {
       "id": "capture-element-mode",
       "type": "screenshot",
-      "position": {
-        "x": 2800,
-        "y": 0
-      },
       "data": {
         "label": "Capture element wait mode",
         "fullPage": true,
@@ -170,10 +126,6 @@
     {
       "id": "type-selector",
       "type": "type",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Type selector value",
         "selector": ".react-flow__node.selected input[placeholder*=\"Selector\" i] /*dup-1*/",
@@ -185,10 +137,6 @@
     {
       "id": "blur-selector-input",
       "type": "click",
-      "position": {
-        "x": 3200,
-        "y": 0
-      },
       "data": {
         "label": "Click canvas to save",
         "selector": ".react-flow__pane",
@@ -199,10 +147,6 @@
     {
       "id": "switch-to-time-wait",
       "type": "click",
-      "position": {
-        "x": 3400,
-        "y": 0
-      },
       "data": {
         "label": "Re-select node",
         "selector": ".react-flow__node:first-of-type /*dup-1*/",
@@ -213,10 +157,6 @@
     {
       "id": "change-to-time-mode",
       "type": "select",
-      "position": {
-        "x": 3600,
-        "y": 0
-      },
       "data": {
         "label": "Switch back to time mode",
         "selector": ".react-flow__node.selected select /*dup-2*/",
@@ -228,10 +168,6 @@
     {
       "id": "verify-duration-input-appears",
       "type": "assert",
-      "position": {
-        "x": 3800,
-        "y": 0
-      },
       "data": {
         "label": "Duration input should appear for time wait",
         "selector": ".react-flow__node.selected input[type=\"number\"]",
@@ -243,10 +179,6 @@
     {
       "id": "capture-time-mode",
       "type": "screenshot",
-      "position": {
-        "x": 4000,
-        "y": 0
-      },
       "data": {
         "label": "Capture time wait mode",
         "fullPage": true,
@@ -256,10 +188,6 @@
     {
       "id": "enter-duration",
       "type": "type",
-      "position": {
-        "x": 4200,
-        "y": 0
-      },
       "data": {
         "label": "Enter duration value",
         "selector": ".react-flow__node.selected input[type=\"number\"] /*dup-1*/",
@@ -271,10 +199,6 @@
     {
       "id": "save-duration",
       "type": "click",
-      "position": {
-        "x": 4400,
-        "y": 0
-      },
       "data": {
         "label": "Click canvas to save duration",
         "selector": ".react-flow__pane /*dup-1*/",
@@ -285,10 +209,6 @@
     {
       "id": "verify-config-complete",
       "type": "screenshot",
-      "position": {
-        "x": 4600,
-        "y": 0
-      },
       "data": {
         "label": "Capture final Wait node configuration",
         "fullPage": true,

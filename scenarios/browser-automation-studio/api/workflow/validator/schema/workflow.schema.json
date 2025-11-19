@@ -4,20 +4,30 @@
   "title": "Browser Automation Studio Workflow",
   "description": "Canonical schema for Browser Automation Studio workflow definitions",
   "type": "object",
-  "required": ["nodes", "edges"],
+  "required": [
+    "nodes",
+    "edges"
+  ],
   "properties": {
     "metadata": {
       "type": "object",
       "properties": {
-        "description": { "type": "string" },
+        "description": {
+          "type": "string"
+        },
         "requirement": {
           "type": "string",
           "pattern": "^[A-Za-z0-9-_:\\.]+$"
         },
         "version": {
-          "type": ["number", "string"]
+          "type": [
+            "number",
+            "string"
+          ]
         },
-        "owner": { "type": "string" }
+        "owner": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     },
@@ -27,14 +37,27 @@
         "executionViewport": {
           "type": "object",
           "properties": {
-            "width": { "type": "number", "minimum": 200 },
-            "height": { "type": "number", "minimum": 200 },
+            "width": {
+              "type": "number",
+              "minimum": 200
+            },
+            "height": {
+              "type": "number",
+              "minimum": 200
+            },
             "preset": {
               "type": "string",
-              "enum": ["desktop", "mobile", "custom"]
+              "enum": [
+                "desktop",
+                "mobile",
+                "custom"
+              ]
             }
           },
-          "required": ["width", "height"],
+          "required": [
+            "width",
+            "height"
+          ],
           "additionalProperties": true
         }
       },
@@ -43,71 +66,156 @@
     "nodes": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/definitions/node" }
+      "items": {
+        "$ref": "#/definitions/node"
+      }
     },
     "edges": {
       "type": "array",
-      "items": { "$ref": "#/definitions/edge" }
+      "items": {
+        "$ref": "#/definitions/edge"
+      }
     }
   },
   "definitions": {
     "position": {
       "type": "object",
-      "required": ["x", "y"],
+      "required": [
+        "x",
+        "y"
+      ],
       "properties": {
-        "x": { "type": "number" },
-        "y": { "type": "number" }
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
       },
       "additionalProperties": true
     },
     "node": {
       "type": "object",
-      "required": ["id", "type", "data", "position"],
+      "required": [
+        "id",
+        "type",
+        "data"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "type": { "type": "string", "minLength": 1 },
-        "position": { "$ref": "#/definitions/position" },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "position": {
+          "$ref": "#/definitions/position"
+        },
         "data": {
           "type": "object",
           "properties": {
-            "resilience": { "$ref": "#/definitions/resilience" }
+            "resilience": {
+              "$ref": "#/definitions/resilience"
+            }
           },
           "additionalProperties": true
         },
-        "width": { "type": "number" },
-        "height": { "type": "number" },
-        "selected": { "type": "boolean" },
-        "dragging": { "type": "boolean" }
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "selected": {
+          "type": "boolean"
+        },
+        "dragging": {
+          "type": "boolean"
+        }
       },
       "additionalProperties": true
     },
     "resilience": {
       "type": "object",
       "properties": {
-        "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 25 },
-        "delayMs": { "type": "integer", "minimum": 0, "maximum": 120000 },
-        "backoffFactor": { "type": "number", "exclusiveMinimum": 0 },
-        "preconditionSelector": { "type": "string", "minLength": 1 },
-        "preconditionTimeoutMs": { "type": "integer", "minimum": 0 },
-        "preconditionWaitMs": { "type": "integer", "minimum": 0 },
-        "successSelector": { "type": "string", "minLength": 1 },
-        "successTimeoutMs": { "type": "integer", "minimum": 0 },
-        "successWaitMs": { "type": "integer", "minimum": 0 }
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 25
+        },
+        "delayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 120000
+        },
+        "backoffFactor": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "preconditionSelector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "preconditionTimeoutMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "preconditionWaitMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "successSelector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "successTimeoutMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "successWaitMs": {
+          "type": "integer",
+          "minimum": 0
+        }
       },
       "additionalProperties": false
     },
     "edge": {
       "type": "object",
-      "required": ["id", "source", "target"],
+      "required": [
+        "id",
+        "source",
+        "target"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "source": { "type": "string", "minLength": 1 },
-        "target": { "type": "string", "minLength": 1 },
-        "sourceHandle": { "type": "string" },
-        "targetHandle": { "type": "string" },
-        "type": { "type": "string" },
-        "animated": { "type": "boolean" },
-        "label": { "type": "string" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceHandle": {
+          "type": "string"
+        },
+        "targetHandle": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "animated": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        }
       },
       "additionalProperties": true
     }

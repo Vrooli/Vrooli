@@ -15,35 +15,14 @@
     {
       "id": "call-open-demo-workflow",
       "type": "workflowCall",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open seeded workflow via fixture",
         "workflowId": "@fixture/open-demo-workflow"
       }
     },
     {
-      "id": "wait-for-builder",
-      "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for builder",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "zoom-out-far",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Zoom out far to offset view",
         "selector": "@selector/toolbar.zoomOutButton",
@@ -54,10 +33,6 @@
     {
       "id": "zoom-out-more",
       "type": "click",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Zoom out more",
         "selector": "@selector/toolbar.zoomOutButton /*dup-1*/",
@@ -68,10 +43,6 @@
     {
       "id": "capture-before-fit",
       "type": "screenshot",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Capture before fit view",
         "fullPage": true,
@@ -81,10 +52,6 @@
     {
       "id": "click-fit-view",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Click fit view button",
         "selector": "@selector/toolbar.fitViewButton, @selector/toolbar.fitViewMenuItem",
@@ -98,10 +65,6 @@
     {
       "id": "assert-nodes-visible",
       "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "All nodes should be visible",
         "selector": ".react-flow__node",
@@ -113,10 +76,6 @@
     {
       "id": "capture-after-fit",
       "type": "screenshot",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Capture after fit view",
         "fullPage": true,
@@ -126,14 +85,8 @@
   ],
   "edges": [
     {
-      "id": "call-open-demo-workflow-to-wait-for-builder",
+      "id": "call-open-demo-workflow-to-zoom-out-far",
       "source": "call-open-demo-workflow",
-      "target": "wait-for-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "wait-for-builder",
       "target": "zoom-out-far",
       "type": "smoothstep"
     },

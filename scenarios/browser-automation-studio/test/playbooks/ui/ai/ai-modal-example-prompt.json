@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "click-project",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
@@ -46,10 +38,6 @@
     {
       "id": "click-new-workflow",
       "type": "click",
-      "position": {
-        "x": 700,
-        "y": 0
-      },
       "data": {
         "label": "Click New Workflow button",
         "selector": "@selector/workflows.newButton",
@@ -60,10 +48,6 @@
     {
       "id": "assert-ai-modal-visible",
       "type": "assert",
-      "position": {
-        "x": 900,
-        "y": 0
-      },
       "data": {
         "label": "AI Workflow Generator modal is visible",
         "selector": "[role=\"dialog\"]",
@@ -75,10 +59,6 @@
     {
       "id": "capture-ai-modal",
       "type": "screenshot",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Capture AI modal initial state",
         "fullPage": true,
@@ -88,10 +68,6 @@
     {
       "id": "click-example-prompt",
       "type": "click",
-      "position": {
-        "x": 1500,
-        "y": 0
-      },
       "data": {
         "label": "Click first example prompt",
         "selector": "@selector/ai.modal.promptExample(index=0)",
@@ -105,10 +81,6 @@
     {
       "id": "verify-prompt-populated",
       "type": "evaluate",
-      "position": {
-        "x": 2200,
-        "y": -100
-      },
       "data": {
         "label": "Verify prompt textarea has content",
         "expression": "(() => { const textarea = document.querySelector('textarea[placeholder*=\"prompt\"], textarea[placeholder*=\"describe\"], textarea'); if (!textarea) return false; return textarea.value.length > 10; })()",
@@ -118,10 +90,6 @@
     {
       "id": "verify-workflow-name-populated",
       "type": "evaluate",
-      "position": {
-        "x": 2400,
-        "y": -100
-      },
       "data": {
         "label": "Verify workflow name input has content",
         "expression": "(() => { const input = document.querySelector('input[placeholder*=\"name\"], input[type=\"text\"]'); if (!input) return false; return input.value.length > 0; })()",
@@ -131,10 +99,6 @@
     {
       "id": "capture-populated-modal",
       "type": "screenshot",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Capture modal with populated prompt",
         "fullPage": true,
@@ -144,10 +108,6 @@
     {
       "id": "assert-generate-button-enabled",
       "type": "evaluate",
-      "position": {
-        "x": 2800,
-        "y": -100
-      },
       "data": {
         "label": "Generate button should be enabled",
         "expression": "(() => { const button = document.querySelector('@selector/ai.modal.generateButton'); if (!button) return false; return !button.disabled && !button.hasAttribute('disabled'); })()",

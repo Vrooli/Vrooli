@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-19T04:26:42.711Z"
+    "last_synced_at": "2025-11-19T05:43:59.825Z"
   },
   "requirements": [
     {
@@ -13,28 +13,28 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "New project dialog opens from primary entry points",
       "description": "Verifies the modal opens via the \"Create Project\" button, keyboard shortcuts, and toolbar menu so operators can begin authoring without page reloads.",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/ui/projects/new-project-dialog-open.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "BAS workflow asserting modal visibility for each trigger once exported."
         },
         {
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/components/ResponsiveDialog.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]
@@ -59,14 +59,14 @@
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/components/ResponsiveDialog.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Auto-added from vitest evidence"
         }
       ]

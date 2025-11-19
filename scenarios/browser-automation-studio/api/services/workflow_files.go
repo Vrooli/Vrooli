@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
 )
 
@@ -571,6 +572,21 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 		fileWF := snapshot.Workflow
 		existing, exists := dbByID[id]
 		if !exists {
+			// Check if a workflow with the same name/folder_path already exists
+			// This can happen if the ID in the file doesn't match the DB record
+			conflictingWF, conflictErr := s.repo.GetWorkflowByName(ctx, fileWF.Name, fileWF.FolderPath)
+			if conflictErr == nil && conflictingWF != nil {
+				// Skip this file - there's already a workflow with this name/folder
+				s.log.WithFields(logrus.Fields{
+					"file_id":        id,
+					"file_name":      fileWF.Name,
+					"file_path":      snapshot.RelativePath,
+					"existing_id":    conflictingWF.ID,
+					"existing_name":  conflictingWF.Name,
+				}).Warn("Skipping workflow file that conflicts with existing workflow name/folder_path")
+				continue
+			}
+
 			// Create new workflow from file.
 			now := time.Now().UTC()
 			fileWF.Version = max(fileWF.Version, defaultVersionIncrement)

@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
       "data": {
         "label": "Open Demo project via fixture",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "click-execute",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Execute workflow",
         "selector": "@selector/workflowBuilder.executeButton",
@@ -44,10 +36,6 @@
     {
       "id": "assert-execution-complete",
       "type": "assert",
-      "position": {
-        "x": 1040,
-        "y": -40
-      },
       "data": {
         "label": "Execution finished",
         "selector": "@selector/executions.viewer.statusCompleted, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCancelled",
@@ -59,10 +47,6 @@
     {
       "id": "capture-final-state",
       "type": "screenshot",
-      "position": {
-        "x": 1240,
-        "y": -20
-      },
       "data": {
         "label": "Capture final replay state",
         "fullPage": true,

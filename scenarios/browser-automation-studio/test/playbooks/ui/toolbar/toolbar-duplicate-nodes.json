@@ -15,35 +15,14 @@
     {
       "id": "call-open-demo-workflow",
       "type": "workflowCall",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Open seeded workflow via fixture",
         "workflowId": "@fixture/open-demo-workflow"
       }
     },
     {
-      "id": "wait-builder",
-      "type": "wait",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
-      "data": {
-        "label": "Wait for builder",
-        "durationMs": 3000,
-        "waitType": "duration"
-      }
-    },
-    {
       "id": "count-initial",
       "type": "evaluate",
-      "position": {
-        "x": 1200,
-        "y": -100
-      },
       "data": {
         "label": "Count initial nodes",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -53,10 +32,6 @@
     {
       "id": "click-node",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Select node",
         "selector": ".react-flow__node:first-of-type",
@@ -67,10 +42,6 @@
     {
       "id": "capture-before",
       "type": "screenshot",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Capture before duplicate",
         "fullPage": true,
@@ -80,10 +51,6 @@
     {
       "id": "click-duplicate",
       "type": "click",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Click duplicate button",
         "selector": "@selector/toolbar.duplicateButton",
@@ -94,10 +61,6 @@
     {
       "id": "count-final",
       "type": "evaluate",
-      "position": {
-        "x": 2000,
-        "y": -100
-      },
       "data": {
         "label": "Count nodes after duplicate",
         "expression": "document.querySelectorAll('.react-flow__node').length",
@@ -107,10 +70,6 @@
     {
       "id": "verify-increased",
       "type": "evaluate",
-      "position": {
-        "x": 2200,
-        "y": -100
-      },
       "data": {
         "label": "Verify node count increased",
         "expression": "(() => { const initial = parseInt(localStorage.getItem('initialCount') || '0'); const final = parseInt(localStorage.getItem('finalCount') || '0'); return final > initial; })()",
@@ -120,10 +79,6 @@
     {
       "id": "capture-after",
       "type": "screenshot",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Capture after duplicate",
         "fullPage": true,
@@ -133,14 +88,8 @@
   ],
   "edges": [
     {
-      "id": "call-open-demo-workflow-to-wait-builder",
+      "id": "call-open-demo-workflow-to-count-initial",
       "source": "call-open-demo-workflow",
-      "target": "wait-builder",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e6",
-      "source": "wait-builder",
       "target": "count-initial",
       "type": "smoothstep"
     },

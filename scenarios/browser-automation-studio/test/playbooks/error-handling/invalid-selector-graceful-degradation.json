@@ -15,7 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {"x": 0, "y": 0},
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -29,13 +28,15 @@
     {
       "id": "wait-dashboard",
       "type": "wait",
-      "position": {"x": 200, "y": 0},
-      "data": {"label": "Wait for dashboard", "durationMs": 2000, "waitType": "duration"}
+      "data": {
+        "label": "Wait for dashboard",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
     },
     {
       "id": "click-invalid-selector",
       "type": "click",
-      "position": {"x": 400, "y": 0},
       "data": {
         "label": "Attempt click with invalid selector (should fail gracefully)",
         "selector": ".this-element-does-not-exist-at-all",
@@ -47,19 +48,24 @@
     {
       "id": "wait-after-error",
       "type": "wait",
-      "position": {"x": 600, "y": 0},
-      "data": {"label": "Wait after expected error", "durationMs": 1500, "waitType": "duration"}
+      "data": {
+        "label": "Wait after expected error",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
     },
     {
       "id": "capture-error-state",
       "type": "screenshot",
-      "position": {"x": 800, "y": 0},
-      "data": {"label": "Capture error handling UI", "fullPage": true, "waitForMs": 500}
+      "data": {
+        "label": "Capture error handling UI",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "verify-error-displayed",
       "type": "evaluate",
-      "position": {"x": 1000, "y": 0},
       "data": {
         "label": "Check if error message is displayed",
         "expression": "!!document.querySelector('[class*=\"error\"], [role=\"alert\"], [class*=\"toast\"]')",
@@ -70,7 +76,6 @@
     {
       "id": "verify-workflow-continues",
       "type": "assert",
-      "position": {"x": 1200, "y": 0},
       "data": {
         "label": "Workflow should continue (not crash)",
         "selector": "body",
@@ -82,7 +87,6 @@
     {
       "id": "test-malformed-selector",
       "type": "click",
-      "position": {"x": 1400, "y": 0},
       "data": {
         "label": "Test malformed selector syntax",
         "selector": "[[[invalid---syntax",
@@ -94,19 +98,24 @@
     {
       "id": "wait-after-malformed",
       "type": "wait",
-      "position": {"x": 1600, "y": 0},
-      "data": {"label": "Wait after malformed selector", "durationMs": 1500, "waitType": "duration"}
+      "data": {
+        "label": "Wait after malformed selector",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
     },
     {
       "id": "capture-malformed-error",
       "type": "screenshot",
-      "position": {"x": 1800, "y": 0},
-      "data": {"label": "Capture malformed selector error", "fullPage": true, "waitForMs": 500}
+      "data": {
+        "label": "Capture malformed selector error",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     },
     {
       "id": "verify-graceful-recovery",
       "type": "evaluate",
-      "position": {"x": 2000, "y": 0},
       "data": {
         "label": "System should recover gracefully",
         "expression": "true",
@@ -116,21 +125,79 @@
     {
       "id": "final-verification",
       "type": "screenshot",
-      "position": {"x": 2200, "y": 0},
-      "data": {"label": "Final graceful degradation verification", "fullPage": true, "waitForMs": 500}
+      "data": {
+        "label": "Final graceful degradation verification",
+        "fullPage": true,
+        "waitForMs": 500
+      }
     }
   ],
   "edges": [
-    {"id": "e1", "source": "navigate-dashboard", "target": "wait-dashboard", "type": "smoothstep"},
-    {"id": "e2", "source": "wait-dashboard", "target": "click-invalid-selector", "type": "smoothstep"},
-    {"id": "e3", "source": "click-invalid-selector", "target": "wait-after-error", "type": "smoothstep"},
-    {"id": "e4", "source": "wait-after-error", "target": "capture-error-state", "type": "smoothstep"},
-    {"id": "e5", "source": "capture-error-state", "target": "verify-error-displayed", "type": "smoothstep"},
-    {"id": "e6", "source": "verify-error-displayed", "target": "verify-workflow-continues", "type": "smoothstep"},
-    {"id": "e7", "source": "verify-workflow-continues", "target": "test-malformed-selector", "type": "smoothstep"},
-    {"id": "e8", "source": "test-malformed-selector", "target": "wait-after-malformed", "type": "smoothstep"},
-    {"id": "e9", "source": "wait-after-malformed", "target": "capture-malformed-error", "type": "smoothstep"},
-    {"id": "e10", "source": "capture-malformed-error", "target": "verify-graceful-recovery", "type": "smoothstep"},
-    {"id": "e11", "source": "verify-graceful-recovery", "target": "final-verification", "type": "smoothstep"}
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-dashboard",
+      "target": "click-invalid-selector",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-invalid-selector",
+      "target": "wait-after-error",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait-after-error",
+      "target": "capture-error-state",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "capture-error-state",
+      "target": "verify-error-displayed",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "verify-error-displayed",
+      "target": "verify-workflow-continues",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "verify-workflow-continues",
+      "target": "test-malformed-selector",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "test-malformed-selector",
+      "target": "wait-after-malformed",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "wait-after-malformed",
+      "target": "capture-malformed-error",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "capture-malformed-error",
+      "target": "verify-graceful-recovery",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "verify-graceful-recovery",
+      "target": "final-verification",
+      "type": "smoothstep"
+    }
   ]
 }

@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Open Demo project via fixture",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "capture-before-execution",
       "type": "screenshot",
-      "position": {
-        "x": 1000,
-        "y": -100
-      },
       "data": {
         "label": "Capture workflow list before execution",
         "fullPage": true,
@@ -40,10 +32,6 @@
     {
       "id": "hover-workflow-card",
       "type": "hover",
-      "position": {
-        "x": 1200,
-        "y": -100
-      },
       "data": {
         "label": "Hover over workflow card to reveal actions",
         "selector": "@selector/workflows.card:first-of-type",
@@ -54,10 +42,6 @@
     {
       "id": "click-execute",
       "type": "click",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Click execute button",
         "selector": "@selector/workflowBuilder.executeButton:first-of-type",
@@ -68,10 +52,6 @@
     {
       "id": "check-execution-indicator",
       "type": "evaluate",
-      "position": {
-        "x": 2000,
-        "y": -100
-      },
       "data": {
         "label": "Check for execution indicators",
         "expression": "document.querySelector('@selector/executions.list.item, @selector/executions.viewer.status, @selector/executions.viewer.stopButton)') !== null",
@@ -81,10 +61,6 @@
     {
       "id": "capture-execution-started",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture execution in progress",
         "fullPage": true,
@@ -94,10 +70,6 @@
     {
       "id": "capture-final-state",
       "type": "screenshot",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Capture final state",
         "fullPage": true,

@@ -4,7 +4,9 @@ import { logger } from './utils/logger';
 
 // Initialize iframe communication bridge when embedded within App Monitor
 if (window.top !== window.self) {
-  initIframeBridgeChild();
+  initIframeBridgeChild({
+    appId: 'browser-automation-studio',
+  });
 }
 
 const container = document.getElementById('root');

@@ -15,10 +15,6 @@
     {
       "id": "call-open-project",
       "type": "workflowCall",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Open Demo project via fixture",
         "workflowId": "@fixture/open-demo-project"
@@ -27,10 +23,6 @@
     {
       "id": "start-execution",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Start execution to observe telemetry",
         "selector": "@selector/workflowBuilder.executeButton",
@@ -41,10 +33,6 @@
     {
       "id": "verify-execution-view",
       "type": "assert",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Execution viewer should open",
         "selector": "@selector/executions.viewer.root",
@@ -57,10 +45,6 @@
     {
       "id": "wait-telemetry-start",
       "type": "wait",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Wait for telemetry stream to start",
         "durationMs": 3000,
@@ -70,10 +54,6 @@
     {
       "id": "capture-initial-telemetry",
       "type": "screenshot",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Capture telemetry start",
         "fullPage": true,
@@ -83,10 +63,6 @@
     {
       "id": "check-screenshot-display",
       "type": "evaluate",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Verify screenshot display area exists",
         "expression": "!!document.querySelector('img[src*=\"data:image\"], canvas, [class*=\"screenshot\"]')",
@@ -96,10 +72,6 @@
     {
       "id": "check-console-tab",
       "type": "evaluate",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Verify console tab exists",
         "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"console\"]')).some(el => el.textContent?.includes('Console'))",
@@ -110,10 +82,6 @@
     {
       "id": "check-network-tab",
       "type": "evaluate",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Verify network tab exists",
         "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"network\"]')).some(el => el.textContent?.includes('Network'))",
@@ -124,10 +92,6 @@
     {
       "id": "capture-telemetry-ui",
       "type": "screenshot",
-      "position": {
-        "x": 2200,
-        "y": 0
-      },
       "data": {
         "label": "Capture telemetry UI components",
         "fullPage": true,
@@ -137,10 +101,6 @@
     {
       "id": "wait-more-telemetry",
       "type": "wait",
-      "position": {
-        "x": 2400,
-        "y": 0
-      },
       "data": {
         "label": "Allow telemetry to stream",
         "durationMs": 5000,
@@ -150,10 +110,6 @@
     {
       "id": "check-telemetry-updates",
       "type": "evaluate",
-      "position": {
-        "x": 2600,
-        "y": 0
-      },
       "data": {
         "label": "Verify telemetry data is updating",
         "expression": "document.querySelectorAll('[class*=\"telemetry\"], [class*=\"event\"], [class*=\"log\"]').length > 0",
@@ -163,10 +119,6 @@
     {
       "id": "capture-live-telemetry",
       "type": "screenshot",
-      "position": {
-        "x": 2800,
-        "y": 0
-      },
       "data": {
         "label": "Capture live telemetry stream",
         "fullPage": true,
@@ -176,10 +128,6 @@
     {
       "id": "verify-heartbeat-timestamp",
       "type": "evaluate",
-      "position": {
-        "x": 3000,
-        "y": 0
-      },
       "data": {
         "label": "Verify heartbeat/timestamp display",
         "expression": "!!document.querySelector('[class*=\"timestamp\"], [class*=\"time\"], time')",
@@ -189,10 +137,6 @@
     {
       "id": "verify-telemetry-complete",
       "type": "screenshot",
-      "position": {
-        "x": 3200,
-        "y": 0
-      },
       "data": {
         "label": "Final telemetry display verification",
         "fullPage": true,

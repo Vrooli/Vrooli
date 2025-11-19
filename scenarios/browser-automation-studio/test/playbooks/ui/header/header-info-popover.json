@@ -15,10 +15,6 @@
     {
       "id": "navigate-dashboard",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS dashboard",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "wait-for-dashboard",
       "type": "wait",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
       "data": {
         "label": "Wait for projects grid",
         "selector": "@selector/projects.grid",
@@ -47,10 +39,6 @@
     {
       "id": "click-project",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open first project",
         "selector": "@selector/projects.card:first-of-type",
@@ -64,10 +52,6 @@
     {
       "id": "click-workflow",
       "type": "click",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Open workflow",
         "selector": "@selector/workflows.card:first-of-type",
@@ -81,10 +65,6 @@
     {
       "id": "find-info-button",
       "type": "assert",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Info button exists in header",
         "selector": "@selector/header.buttons.info",
@@ -96,10 +76,6 @@
     {
       "id": "click-info-button",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Click info button to open popover",
         "selector": "@selector/header.buttons.info",
@@ -113,10 +89,6 @@
     {
       "id": "assert-popover-visible",
       "type": "assert",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Info popover is visible",
         "selector": "@selector/header.info.popover",
@@ -128,10 +100,6 @@
     {
       "id": "capture-popover",
       "type": "screenshot",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Capture info popover",
         "fullPage": true,
@@ -141,10 +109,6 @@
     {
       "id": "close-popover",
       "type": "keyboard",
-      "position": {
-        "x": 2000,
-        "y": 0
-      },
       "data": {
         "label": "Close popover with Escape",
         "waitForMs": 500,

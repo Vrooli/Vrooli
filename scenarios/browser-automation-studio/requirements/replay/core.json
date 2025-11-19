@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-19T04:26:42.712Z"
+    "last_synced_at": "2025-11-19T05:43:59.825Z"
   },
   "requirements": [
     {
@@ -13,7 +13,7 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Timeline artifacts persist normalized execution events",
       "description": "Ensures execution artifacts are normalized, stored, and queryable so the replay UI and marketing renderer consume consistent payloads.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "validation": [
         {
@@ -34,7 +34,7 @@
           "type": "automation",
           "ref": "test/playbooks/replay/render-check.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "E2E validation that replay artifacts are persisted and accessible for rendering"
         }
       ]
@@ -45,14 +45,14 @@
       "prd_ref": "Functional Requirements > Should Have > Replay & marketing renderer",
       "title": "Replay exports portable bundles for marketing and sharing",
       "description": "Confirms the export endpoint generates self-contained bundles (screenshots, timeline JSON, metadata) that work offline.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "validation": [
         {
           "type": "test",
           "ref": "api/services/exporter.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Exporter generates ReplayMovieSpec with execution metadata."
         },
         {
@@ -66,21 +66,21 @@
           "type": "test",
           "ref": "api/services/replay_renderer.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "ReplayRenderer generates video/gif from replay specs via Browserless (tested in unit phase)."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/replay/render-check.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "End-to-end validation of replay export and rendering workflow."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/ui/executions/execution-result-export.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates execution result export functionality and replay artifact availability in the UI"
         }
       ]

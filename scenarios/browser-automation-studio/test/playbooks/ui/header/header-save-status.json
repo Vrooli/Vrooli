@@ -15,10 +15,6 @@
     {
       "id": "nav",
       "type": "navigate",
-      "position": {
-        "x": 0,
-        "y": 0
-      },
       "data": {
         "label": "Open BAS",
         "destinationType": "scenario",
@@ -32,10 +28,6 @@
     {
       "id": "proj",
       "type": "click",
-      "position": {
-        "x": 200,
-        "y": 0
-      },
       "data": {
         "label": "Open project",
         "selector": "@selector/projects.card:first-of-type",
@@ -46,10 +38,6 @@
     {
       "id": "wait-workflows",
       "type": "wait",
-      "position": {
-        "x": 200,
-        "y": -100
-      },
       "data": {
         "label": "Wait for workflows to load",
         "selector": "@selector/workflows.card",
@@ -61,10 +49,6 @@
     {
       "id": "work",
       "type": "click",
-      "position": {
-        "x": 400,
-        "y": 0
-      },
       "data": {
         "label": "Open workflow",
         "selector": "@selector/workflows.card:first-of-type",
@@ -75,10 +59,6 @@
     {
       "id": "wait1",
       "type": "wait",
-      "position": {
-        "x": 600,
-        "y": 0
-      },
       "data": {
         "label": "Wait for builder",
         "durationMs": 3000,
@@ -88,10 +68,6 @@
     {
       "id": "assert-status",
       "type": "assert",
-      "position": {
-        "x": 800,
-        "y": 0
-      },
       "data": {
         "label": "Save status visible",
         "selector": "@selector/header.saveStatus.indicator",
@@ -103,10 +79,6 @@
     {
       "id": "cap-initial",
       "type": "screenshot",
-      "position": {
-        "x": 1000,
-        "y": 0
-      },
       "data": {
         "label": "Capture initial state",
         "fullPage": true,
@@ -116,10 +88,6 @@
     {
       "id": "click-palette",
       "type": "click",
-      "position": {
-        "x": 1200,
-        "y": 0
-      },
       "data": {
         "label": "Click navigate node",
         "selector": "@selector/nodePalette.cards.navigate",
@@ -130,10 +98,6 @@
     {
       "id": "click-canvas",
       "type": "click",
-      "position": {
-        "x": 1400,
-        "y": 0
-      },
       "data": {
         "label": "Click canvas to add",
         "selector": ".react-flow__pane",
@@ -144,10 +108,6 @@
     {
       "id": "wait-autosave",
       "type": "wait",
-      "position": {
-        "x": 1600,
-        "y": 0
-      },
       "data": {
         "label": "Wait for autosave",
         "durationMs": 3000,
@@ -157,10 +117,6 @@
     {
       "id": "check-saved-state",
       "type": "evaluate",
-      "position": {
-        "x": 1600,
-        "y": -100
-      },
       "data": {
         "label": "Check for saved indicator",
         "expression": "(() => { const status = document.querySelector('@selector/header.saveStatus.indicator'); return status ? status.textContent || status.innerHTML : ''; })()",
@@ -170,10 +126,6 @@
     {
       "id": "cap-after-save",
       "type": "screenshot",
-      "position": {
-        "x": 1800,
-        "y": 0
-      },
       "data": {
         "label": "Capture after autosave",
         "fullPage": true,

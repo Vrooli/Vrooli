@@ -114,9 +114,9 @@ function App() {
         {authRequired && authLoginUrl && <AuthPrompt loginUrl={authLoginUrl} />}
 
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-          {/* Sidebar */}
+          {/* Sidebar - hidden on mobile */}
           <ErrorBoundary fallback={
-            <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex items-center justify-center">
+            <div className="hidden md:flex w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 items-center justify-center">
               <p className="text-sm text-gray-500">Sidebar unavailable</p>
             </div>
           }>
@@ -159,12 +159,8 @@ function App() {
             </main>
           </div>
 
-          {/* Chat Panel */}
-          <ErrorBoundary fallback={
-            <div className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex items-center justify-center">
-              <p className="text-sm text-gray-500">Chat unavailable</p>
-            </div>
-          }>
+          {/* Chat Panel - always use floating version on mobile */}
+          <ErrorBoundary fallback={null}>
             <ChatPanel />
           </ErrorBoundary>
 
