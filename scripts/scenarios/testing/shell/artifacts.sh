@@ -73,11 +73,23 @@ testing::artifacts::cleanup() {
     if [ -n "$phase" ]; then
         pattern="${phase}-*.log"
     fi
+
+    local reserved_dir=""
+    if [ -n "${TESTING_RUNNER_SCENARIO_DIR:-}" ]; then
+        reserved_dir="${TESTING_RUNNER_SCENARIO_DIR}/coverage/requirements-sync"
+    fi
     
     # Remove logs older than retention days
     if [ "$TESTING_ARTIFACTS_RETENTION_DAYS" -gt 0 ]; then
-        find "$TESTING_ARTIFACTS_DIR" -name "$pattern" -type f -mtime +$TESTING_ARTIFACTS_RETENTION_DAYS -delete 2>/dev/null || true
-        find "$TESTING_ARTIFACTS_DIR" -name "${pattern}.gz" -type f -mtime +$TESTING_ARTIFACTS_RETENTION_DAYS -delete 2>/dev/null || true
+        if [ -n "$reserved_dir" ]; then
+            find "$TESTING_ARTIFACTS_DIR" -path "$reserved_dir" -prune -o \
+                -name "$pattern" -type f -mtime +$TESTING_ARTIFACTS_RETENTION_DAYS -delete 2>/dev/null || true
+            find "$TESTING_ARTIFACTS_DIR" -path "$reserved_dir" -prune -o \
+                -name "${pattern}.gz" -type f -mtime +$TESTING_ARTIFACTS_RETENTION_DAYS -delete 2>/dev/null || true
+        else
+            find "$TESTING_ARTIFACTS_DIR" -name "$pattern" -type f -mtime +$TESTING_ARTIFACTS_RETENTION_DAYS -delete 2>/dev/null || true
+            find "$TESTING_ARTIFACTS_DIR" -name "${pattern}.gz" -type f -mtime +$TESTING_ARTIFACTS_RETENTION_DAYS -delete 2>/dev/null || true
+        fi
     fi
     
     # Keep only the most recent logs per phase
@@ -97,8 +109,11 @@ testing::artifacts::cleanup() {
                 # Sort all logs by modification time (newest first)
                 local sorted_logs=($(ls -t "$TESTING_ARTIFACTS_DIR/${phase_prefix}-"*.log* 2>/dev/null || true))
                 local to_process=("${sorted_logs[@]:$TESTING_ARTIFACTS_MAX_LOGS}")
-                
+
                 for old_log in "${to_process[@]}"; do
+                    if [ -n "$reserved_dir" ] && [[ "$old_log" == "$reserved_dir"* ]]; then
+                        continue
+                    fi
                     if [[ "$old_log" == *.log.gz ]]; then
                         # Already compressed, just delete
                         rm -f "$old_log"

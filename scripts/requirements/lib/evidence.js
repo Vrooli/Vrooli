@@ -9,6 +9,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { normalizeRequirementStatus } = require('./utils');
+const manual = require('./manual');
 
 /**
  * Detect the source of a validation entry
@@ -48,6 +49,10 @@ function detectValidationSource(validation) {
     }
   }
 
+  if (validation.type === 'manual') {
+    return { kind: 'manual', name: 'manual' };
+  }
+
   return null;
 }
 
@@ -68,6 +73,7 @@ function loadPhaseResults(scenarioRoot) {
 
   for (const file of files) {
     const fullPath = path.join(resultsDir, file);
+    const relativePath = path.relative(scenarioRoot, fullPath);
     try {
       const parsed = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
       if (parsed && typeof parsed.phase === 'string') {
@@ -89,6 +95,7 @@ function loadPhaseResults(scenarioRoot) {
               evidence: entry.evidence || null,
               updated_at: entry.updated_at || parsed.updated_at || null,
               duration_seconds: entry.duration_seconds || parsed.duration_seconds || parsed.duration || null,
+              source_path: relativePath,
             };
             if (!requirementEvidence[requirementId]) {
               requirementEvidence[requirementId] = [];
@@ -241,4 +248,29 @@ module.exports = {
   loadPhaseResults,
   extractVitestFilesFromPhaseResults,
   collectValidationsForPhase,
+  loadManualManifest: manual.loadManifest,
+  applyManualManifest(requirementEvidence, manualManifest) {
+    if (!manualManifest || !manualManifest.latestByRequirement) {
+      return;
+    }
+    const entries = manualManifest.latestByRequirement;
+    const relativePath = manualManifest.relativePath || manualManifest.manifestPath || 'coverage/manual-validations/log.jsonl';
+    entries.forEach((entry, requirementId) => {
+      if (!requirementEvidence[requirementId]) {
+        requirementEvidence[requirementId] = [];
+      }
+      requirementEvidence[requirementId].push({
+        id: requirementId,
+        status: entry.status === 'failed' ? 'failed' : 'passed',
+        phase: 'manual',
+        evidence: entry.notes || entry.artifact_path || 'Manual validation',
+        updated_at: entry.validated_at || entry.recorded_at || null,
+        duration_seconds: null,
+        source_path: relativePath,
+        metadata: {
+          manual: entry,
+        },
+      });
+    });
+  },
 };

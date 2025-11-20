@@ -25,6 +25,8 @@ const evidence = require('./lib/evidence');
 const enrichment = require('./lib/enrichment');
 const sync = require('./lib/sync');
 const output = require('./lib/output');
+const snapshot = require('./lib/snapshot');
+const prdParser = require('../prd/parser');
 
 /**
  * Parse command line arguments
@@ -40,6 +42,8 @@ function parseArgs(argv) {
     mode: 'report',
     phase: '',
     pruneStale: false,
+    testCommands: [],
+    allowPartialSync: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -79,8 +83,23 @@ function parseArgs(argv) {
       case '--prune-stale':
         options.pruneStale = true;
         break;
+      case '--allow-partial-sync':
+        options.allowPartialSync = true;
+        break;
       default:
         break;
+    }
+  }
+
+  const envCommands = process.env.REQUIREMENTS_SYNC_TEST_COMMANDS;
+  if (envCommands) {
+    try {
+      const parsed = JSON.parse(envCommands);
+      if (Array.isArray(parsed)) {
+        options.testCommands = parsed;
+      }
+    } catch (error) {
+      console.warn(`requirements/report: unable to parse REQUIREMENTS_SYNC_TEST_COMMANDS - ${error.message}`);
     }
   }
 
@@ -89,6 +108,58 @@ function parseArgs(argv) {
   }
 
   return options;
+}
+
+function evaluatePhaseStatus(rawPayload) {
+  if (!rawPayload) {
+    return { ok: false, reason: 'missing_metadata', message: 'Phase execution metadata missing (set REQUIREMENTS_SYNC_PHASE_STATUS) or rerun via test/run-tests.sh.' };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(rawPayload);
+  } catch (error) {
+    return { ok: false, reason: 'invalid_metadata', message: `Unable to parse REQUIREMENTS_SYNC_PHASE_STATUS (${error.message})` };
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    return { ok: false, reason: 'empty_metadata', message: 'Phase execution metadata empty; rerun the full suite before syncing requirements.' };
+  }
+
+  const missing = [];
+  const skipped = [];
+  parsed.forEach((entry) => {
+    if (!entry || entry.optional === true) {
+      return;
+    }
+    const recorded = entry.recorded === true;
+    const normalizedStatus = (entry.status || '').toLowerCase();
+    if (!recorded) {
+      missing.push(entry.phase || 'unknown');
+      return;
+    }
+    if (['skipped', 'missing', 'not_executable', 'not_run', 'unknown'].includes(normalizedStatus)) {
+      skipped.push(entry.phase || 'unknown');
+    }
+  });
+
+  if (missing.length === 0 && skipped.length === 0) {
+    return { ok: true, phases: parsed };
+  }
+
+  const problems = [];
+  if (missing.length) {
+    problems.push(`missing phases: ${missing.join(', ')}`);
+  }
+  if (skipped.length) {
+    problems.push(`skipped phases: ${skipped.join(', ')}`);
+  }
+
+  return {
+    ok: false,
+    reason: 'partial_suite',
+    missing,
+    skipped,
+    message: `Partial suite detected (${problems.join('; ')}). Run the full test suite before syncing requirements or pass --allow-partial-sync to override.`,
+  };
 }
 
 /**
@@ -163,16 +234,62 @@ function main() {
 
   // Load phase results and enrich requirements with live evidence
   const { phaseResults, requirementEvidence } = evidence.loadPhaseResults(scenarioRoot);
+  const manualManifest = evidence.loadManualManifest(scenarioRoot);
+  if (manualManifest && manualManifest.latestByRequirement.size > 0) {
+    evidence.applyManualManifest(requirementEvidence, manualManifest);
+  }
   enrichment.enrichValidationResults(requirements, { phaseResults, requirementEvidence });
   enrichment.aggregateRequirementStatuses(requirements, requirementIndex);
 
   // Handle sync mode
   if (options.mode === 'sync') {
+    const allowPartialSync = options.allowPartialSync || process.env.REQUIREMENTS_SYNC_ALLOW_PARTIAL === '1';
+    if (!allowPartialSync) {
+      const phaseGuard = evaluatePhaseStatus(process.env.REQUIREMENTS_SYNC_PHASE_STATUS || '');
+      if (!phaseGuard.ok) {
+        throw new Error(phaseGuard.message || 'Run the full test suite before syncing requirements.');
+      }
+    }
+
     const syncResult = sync.syncRequirementRegistry(
       fileRequirementMap,
       scenarioRoot,
-      options
+      options,
+      { manualManifest }
     );
+
+    const summary = enrichment.computeSummary(requirements);
+    const manifestEntry = snapshot.parseManifestEntry(
+      process.env.REQUIREMENTS_SYNC_MANIFEST_ENTRY,
+      process.env.REQUIREMENTS_SYNC_RUN_LOG
+    );
+
+    const snapshotResult = snapshot.writeSnapshot({
+      scenarioRoot,
+      scenarioName: options.scenario,
+      summary,
+      testCommands: options.testCommands,
+      fileSnapshots: syncResult.fileSnapshots,
+      manifestEntry,
+      manifestPath: process.env.REQUIREMENTS_SYNC_RUN_LOG || null,
+      manualManifest,
+    });
+
+    if (snapshotResult && snapshotResult.payload) {
+      const statusMap = new Map();
+      const targets = snapshotResult.payload.operational_targets || [];
+      targets.forEach((target) => {
+        if (target && target.target_id) {
+          statusMap.set(target.target_id.toUpperCase(), target.status || 'pending');
+        }
+      });
+      if (statusMap.size > 0) {
+        const prdSyncResult = prdParser.syncOperationalTargetCheckboxes(scenarioRoot, statusMap);
+        if (prdSyncResult && prdSyncResult.updated) {
+          console.log(`🔄 PRD checkboxes updated (${prdSyncResult.changedTargets.length} target(s))`);
+        }
+      }
+    }
 
     sync.printSyncSummary(syncResult);
     return;

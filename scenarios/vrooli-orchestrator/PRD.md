@@ -1,504 +1,180 @@
 # Product Requirements Document (PRD)
 
-## 🎯 Capability Definition
+> **Version**: 2.0.0
+> **Last Updated**: 2025-11-19
+> **Status**: Active
+> **Template**: Canonical PRD Template v2.0.0
 
-### Core Capability
+## 🎯 Overview
+
 **What permanent capability does this scenario add to Vrooli?**
+
 Vrooli-orchestrator adds **contextual intelligence adaptation** - the ability to automatically configure Vrooli's entire environment (resources, scenarios, and UI) for specific user contexts, use cases, and organizational needs. Instead of a one-size-fits-all startup, Vrooli becomes infinitely customizable through startup profiles that define exactly what runs and how.
 
-### Intelligence Amplification
-**How does this capability make future agents smarter?**
-- **Dynamic Environment Optimization**: Agents can programmatically switch Vrooli configurations based on current tasks (e.g., load development tools for coding, creative tools for content creation)
-- **Context-Aware Resource Management**: Smart resource allocation based on workload patterns and user preferences
-- **Cross-Scenario Orchestration**: Other scenarios can preemptively load dependencies before showing users content
-- **Adaptive Learning**: System learns usage patterns and optimizes profile recommendations over time
+**Primary users**: System administrators, power users, developers, business users, and different household types who need quick environment switching.
 
-### Recursive Value
-**What new scenarios become possible after this exists?**
-- **app-monitor**: Can intelligently preload auto-next scenarios before displaying them
-- **morning-vision-walk**: Can activate productivity profiles automatically for work sessions
-- **deployment-manager**: Can create customer-specific minimal profiles for app delivery
-- **usage-analytics**: Can track which profiles are most effective for different user types
-- **smart-workspace**: Can automatically switch profiles based on calendar events or project contexts
+**Deployment surfaces**: CLI (`vrooli-orchestrator`), REST API, Web UI dashboard, and integration with main `vrooli` CLI.
 
-## 📊 Success Metrics
+**How this makes agents smarter**: Agents can programmatically switch Vrooli configurations based on current tasks (e.g., load development tools for coding, creative tools for content creation). Other scenarios can preemptively load dependencies before showing content. The system learns usage patterns and optimizes profile recommendations over time.
 
-### Functional Requirements
-- **Must Have (P0)**
-  - [ ] Create, edit, and delete startup profiles via CLI and UI
-  - [ ] Activate profiles that start/stop specific resources and scenarios
-  - [ ] Profile persistence in local configuration files
-  - [ ] CLI interface: `vrooli-orchestrator activate <profile-name>`
-  - [ ] Basic profile metadata (name, description, target_audience)
-  - [ ] Integration with main `vrooli` CLI for resource/scenario lifecycle
-  
-- **Should Have (P1)**
-  - [ ] Profile templates for common use cases (developer, business, household)
-  - [ ] Auto-open browser tabs for configured dashboards
-  - [ ] Idle shutdown timers for resource management
-  - [ ] Environment variable overrides per profile
-  - [ ] Profile validation and dependency checking
-  - [ ] Web UI dashboard for visual profile management
-  
-- **Nice to Have (P2)**
-  - [ ] Usage analytics and profile optimization recommendations
-  - [ ] Profile sharing and versioning
-  - [ ] Conditional activation based on time/context
-  - [ ] Integration with calendar for automatic profile switching
-  - [ ] Resource usage monitoring and optimization
+## 🎯 Operational Targets
 
-### Performance Criteria
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| Profile Activation Time | < 30s for typical profile | CLI timing measurement |
-| Profile Switch Time | < 15s between profiles | System monitoring |
-| Configuration Load Time | < 2s for profile list/display | API monitoring |
-| Resource Cleanup Time | < 10s for profile deactivation | Process monitoring |
+### 🔴 P0 – Must ship for viability
 
-### Quality Gates
-- [ ] All P0 requirements implemented and tested
-- [ ] Can manage profiles for 5+ different user contexts
-- [ ] Graceful handling of resource conflicts and failures
-- [ ] Complete CLI-API parity for all operations
-- [ ] Profile activation/deactivation is idempotent
+- [ ] OT-P0-001 | Create, edit, and delete startup profiles via CLI and UI | Users can define custom profiles with specific resources and scenarios
+- [ ] OT-P0-002 | Activate profiles that start/stop specific resources and scenarios | Profile activation orchestrates full environment setup
+- [ ] OT-P0-003 | Profile persistence in local configuration files | Profiles survive system restarts and can be version controlled
+- [ ] OT-P0-004 | CLI interface: `vrooli-orchestrator activate <profile-name>` | Command-line activation for scripting and automation
+- [ ] OT-P0-005 | Basic profile metadata (name, description, target_audience) | Profiles are self-documenting and discoverable
+- [ ] OT-P0-006 | Integration with main `vrooli` CLI for resource/scenario lifecycle | Orchestrator uses standard Vrooli lifecycle management
 
-## 🏗️ Technical Architecture
+### 🟠 P1 – Should have post-launch
 
-### Resource Dependencies
-```yaml
-required:
-  - resource_name: postgres
-    purpose: Store profile configurations, activation history, and analytics
-    integration_pattern: Shared workflow + CLI
-    access_method: resource-postgres CLI and n8n workflow
-    
-optional:
-  - resource_name: browserless
-    purpose: Auto-open browser tabs for dashboard URLs
-    fallback: Manual URL display to user
-    access_method: resource-browserless CLI
-```
+- [ ] OT-P1-001 | Profile templates for common use cases (developer, business, household) | Reduces setup friction with pre-built profiles
+- [ ] OT-P1-002 | Auto-open browser tabs for configured dashboards | Profiles can launch web interfaces automatically
+- [ ] OT-P1-003 | Idle shutdown timers for resource management | Automatic cleanup saves resources when idle
+- [ ] OT-P1-004 | Environment variable overrides per profile | Profiles can customize scenario behavior
+- [ ] OT-P1-005 | Profile validation and dependency checking | Pre-activation checks prevent runtime errors
+- [ ] OT-P1-006 | Web UI dashboard for visual profile management | Non-technical users can manage profiles visually
 
-### Resource Integration Standards
-```yaml
-integration_priorities:
-  1_shared_workflows:
-    - workflow: config-manager.json
-      location: initialization/n8n/
-      purpose: CRUD operations for profile configurations
-  
-  2_resource_cli:
-    - command: resource-postgres query/update
-      purpose: Profile persistence and retrieval
-    - command: vrooli resource start/stop
-      purpose: Resource lifecycle management
-    - command: vrooli scenario run/stop
-      purpose: Scenario lifecycle management
-  
-  3_direct_api:
-    - justification: Need real-time status of resources/scenarios
-      endpoint: Various vrooli internal APIs
-```
+### 🟢 P2 – Future / expansion
+
+- [ ] OT-P2-001 | Usage analytics and profile optimization recommendations | System learns which profiles work best for different contexts
+- [ ] OT-P2-002 | Profile sharing and versioning | Teams can share and iterate on profile configurations
+- [ ] OT-P2-003 | Conditional activation based on time/context | Profiles activate automatically based on calendar or system state
+- [ ] OT-P2-004 | Integration with calendar for automatic profile switching | Work/personal mode switching based on schedule
+- [ ] OT-P2-005 | Resource usage monitoring and optimization | Profiles adapt to available system resources
+
+## 🧱 Tech Direction Snapshot
+
+**Architecture approach**: Go API backend with Postgres persistence, React web UI, and native CLI binary. Integrates with core Vrooli lifecycle system for resource/scenario management.
+
+**Data storage**: Postgres for profile configurations, activation history, and analytics. Profile data structures allow composition and dependency tracking.
+
+**Integration strategy**:
+- Primary: Shared workflows (n8n) for config management CRUD
+- Secondary: Resource CLI (`resource-postgres`, `vrooli resource`, `vrooli scenario`) for lifecycle
+- Tertiary: Direct API calls only when real-time status needed
+
+**API contract**: RESTful endpoints at `/api/v1/profiles` for CRUD, activation, and status. Target SLA: <200ms for list/get, <30s for activation.
+
+**CLI design**: Native binary `vrooli-orchestrator` with commands mirroring API endpoints. Supports JSON output for automation and human-readable tables for interactive use.
+
+**Non-goals**: Multi-tenant isolation (single-user local system), distributed orchestration (local-only for v1.0), GUI configuration editor (CLI-first, UI is read-only monitoring for v1.0).
+
+## 🤝 Dependencies & Launch Plan
+
+**Required resources**:
+- `postgres`: Profile storage, activation history, and analytics
+- Vrooli core CLI: Must support `vrooli resource start/stop` and `vrooli scenario run/stop` commands
+
+**Optional resources**:
+- `browserless`: Auto-open browser tabs for dashboard URLs (fallback: print URLs to console)
+
+**Scenario dependencies**: None (foundational capability that others will consume)
+
+**Launch sequencing**:
+1. Implement core profile CRUD API and CLI
+2. Add profile activation/deactivation logic
+3. Integrate with Vrooli lifecycle system
+4. Seed default profiles (developer, business, minimal)
+5. Add web UI for profile monitoring
+6. Document profile creation and usage patterns
+
+**Known risks**:
+- Resource conflicts during activation (mitigation: pre-activation validation)
+- Profile corruption/inconsistency (mitigation: schema validation and backups)
+- Activation timeout/failure (mitigation: graceful fallbacks and partial activation support)
+
+## 🎨 UX & Branding
+
+**Visual style**: Professional mission control dashboard aesthetic. Dark color scheme with modern typography. Layout emphasizes status visibility and quick actions. Subtle animations for state transitions.
+
+**Personality**: Technical and focused. Conveys control and confidence over complex systems. Similar aesthetic to system-monitor and app-debugger (infrastructure reliability).
+
+**Accessibility**: WCAG AA compliance required. Keyboard navigation essential for power users. Clear visual hierarchy separating status, actions, and configuration.
+
+**Responsive design**: Desktop-first (command center feel) with mobile support for status monitoring. CLI remains primary interface for power users.
+
+**Information architecture**:
+- Status dashboard: Current active profile, running resources/scenarios
+- Profile library: Browse and filter available profiles
+- Activation controls: One-click or one-command activation
+- Configuration: Create/edit profiles with validation feedback
+
+## 📎 Appendix
+
+### Related Scenarios
+
+This capability enables:
+- **app-monitor**: Preload auto-next scenarios before displaying them
+- **morning-vision-walk**: Activate productivity profiles automatically for work sessions
+- **deployment-manager**: Create customer-specific minimal profiles for app delivery
+- **usage-analytics**: Track which profiles are most effective for different user types
+
+### Performance Targets
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Profile Activation | <30s | CLI timing |
+| Profile Switch | <15s | System monitoring |
+| Config Load | <2s | API monitoring |
+| Resource Cleanup | <10s | Process monitoring |
 
 ### Data Models
-```yaml
-primary_entities:
-  - name: Profile
-    storage: postgres
-    schema: |
-      {
-        id: UUID,
-        name: string,
-        display_name: string,
-        description: string,
-        metadata: {
-          target_audience: string,
-          resource_footprint: "low|medium|high",
-          use_case: string,
-          created_by: string,
-          created_at: timestamp
-        },
-        resources: [string], // resource names to start
-        scenarios: [string], // scenario names to run
-        auto_browser: [string], // URLs to open
-        environment_vars: object,
-        idle_shutdown_minutes: integer,
-        dependencies: [string], // other profiles this depends on
-        status: "active|inactive|error"
-      }
-    relationships: Profile can depend on other profiles for composition
 
-  - name: ProfileActivation
-    storage: postgres
-    schema: |
-      {
-        id: UUID,
-        profile_id: UUID,
-        activated_at: timestamp,
-        deactivated_at: timestamp,
-        user_context: string,
-        success: boolean,
-        error_details: string
-      }
-    relationships: Many activations per profile for analytics
+**Profile Schema**:
+```json
+{
+  "id": "UUID",
+  "name": "string (kebab-case)",
+  "display_name": "string",
+  "description": "string",
+  "metadata": {
+    "target_audience": "string",
+    "resource_footprint": "low|medium|high",
+    "use_case": "string",
+    "created_by": "string",
+    "created_at": "timestamp"
+  },
+  "resources": ["string"],
+  "scenarios": ["string"],
+  "auto_browser": ["string"],
+  "environment_vars": "object",
+  "idle_shutdown_minutes": "integer",
+  "dependencies": ["string"],
+  "status": "active|inactive|error"
+}
 ```
 
-### API Contract
-```yaml
-endpoints:
-  - method: GET
-    path: /api/v1/profiles
-    purpose: List all available profiles
-    output_schema: |
-      {
-        profiles: [Profile]
-      }
-    sla:
-      response_time: 200ms
-      availability: 99.9%
-      
-  - method: POST
-    path: /api/v1/profiles
-    purpose: Create new startup profile
-    input_schema: |
-      {
-        name: string,
-        display_name: string,
-        description: string,
-        resources: [string],
-        scenarios: [string],
-        auto_browser: [string],
-        metadata: object
-      }
-    sla:
-      response_time: 500ms
-      availability: 99.9%
-      
-  - method: POST
-    path: /api/v1/profiles/{id}/activate
-    purpose: Activate a specific profile (start resources/scenarios)
-    output_schema: |
-      {
-        profile_id: string,
-        activation_id: string,
-        status: "activating|active|error",
-        started_resources: [string],
-        started_scenarios: [string],
-        opened_urls: [string]
-      }
-    sla:
-      response_time: 30000ms  # 30s for full activation
-      availability: 99.5%
+**ProfileActivation Schema**:
+```json
+{
+  "id": "UUID",
+  "profile_id": "UUID",
+  "activated_at": "timestamp",
+  "deactivated_at": "timestamp",
+  "user_context": "string",
+  "success": "boolean",
+  "error_details": "string"
+}
 ```
 
-### Event Interface
-```yaml
-published_events:
-  - name: orchestrator.profile.activated
-    payload: { profile_id, activation_id, resources, scenarios }
-    subscribers: [usage-analytics, morning-vision-walk]
-    
-  - name: orchestrator.profile.deactivated
-    payload: { profile_id, deactivation_reason }
-    subscribers: [cleanup-manager, usage-analytics]
-    
-consumed_events:
-  - name: scenario.*.started
-    action: Update profile activation status
-  - name: resource.*.health_changed
-    action: Update profile health monitoring
-```
+### Test Strategy
 
-## 🖥️ CLI Interface Contract
+Shared test runner (`test/run-tests.sh`) orchestrates phased suite:
+- **Structure**: Validates directory layout and critical assets
+- **Dependencies**: Checks Go tooling, npm packages, and CLI availability
+- **Unit**: Go tests with coverage thresholds (warn ≥80%, fail <50%)
+- **Integration**: Auto-managed runtime tests for API and UI endpoints
+- **Business**: Validates seeded profiles and CLI workflow with bats
+- **Performance**: Tracks throughput benchmarks (pending implementation)
 
-### Command Structure
-```yaml
-cli_binary: vrooli-orchestrator
-install_script: cli/install.sh
+Run via `vrooli scenario test vrooli-orchestrator` or `./test/run-tests.sh`.
 
-required_commands:
-  - name: status
-    description: Show current active profile and system status
-    flags: [--json, --verbose]
-    
-  - name: help
-    description: Display command help and usage
-    flags: [--all, --command <name>]
-    
-  - name: version
-    description: Show CLI and API version information
-    flags: [--json]
+### References
 
-custom_commands:
-  - name: list-profiles
-    description: Show all available startup profiles
-    api_endpoint: /api/v1/profiles
-    flags:
-      - name: --json
-        description: Output in JSON format
-      - name: --category
-        description: Filter by target audience
-    output: Table or JSON list of profiles
-    
-  - name: create-profile
-    description: Create new startup profile
-    api_endpoint: /api/v1/profiles
-    arguments:
-      - name: name
-        type: string
-        required: true
-        description: Profile name (kebab-case)
-    flags:
-      - name: --resources
-        description: Comma-separated list of resources
-      - name: --scenarios  
-        description: Comma-separated list of scenarios
-      - name: --auto-browser
-        description: Comma-separated list of URLs
-    output: Created profile details
-    
-  - name: activate
-    description: Activate a startup profile
-    api_endpoint: /api/v1/profiles/{name}/activate
-    arguments:
-      - name: profile_name
-        type: string
-        required: true
-        description: Name of profile to activate
-    flags:
-      - name: --force
-        description: Force activation even if conflicts exist
-    output: Activation status and started services
-    
-  - name: deactivate
-    description: Deactivate current profile and stop services
-    api_endpoint: /api/v1/profiles/current/deactivate
-    output: Deactivation status
-    
-  - name: edit-profile
-    description: Edit existing profile configuration
-    api_endpoint: /api/v1/profiles/{name}
-    arguments:
-      - name: profile_name
-        type: string
-        required: true
-        description: Profile to edit
-    output: Interactive editor or JSON update confirmation
-```
-
-## 🔄 Integration Requirements
-
-### Upstream Dependencies
-**What capabilities must exist before this can function?**
-- **Vrooli Core CLI**: Must be able to call `vrooli resource start/stop` and `vrooli scenario run/stop`
-- **Postgres Resource**: For persistent profile storage and activation history
-- **Basic Resource Management**: Resources must expose health/status endpoints
-
-### Downstream Enablement
-**What future capabilities does this unlock?**
-- **Intelligent Scenario Surfing**: app-monitor can preload before showing content
-- **Context-Aware Morning Briefings**: morning-vision-walk can switch to productivity mode
-- **Customer-Specific Deployments**: deployment-manager can create minimal customer profiles
-- **Automated Workflow Optimization**: System can learn and optimize profile effectiveness
-
-### Cross-Scenario Interactions
-```yaml
-provides_to:
-  - scenario: app-monitor
-    capability: Preload auto-next scenarios before display
-    interface: CLI command `vrooli-orchestrator activate development-profile`
-    
-  - scenario: morning-vision-walk  
-    capability: Context-aware environment switching
-    interface: API call to activate productivity-profile
-    
-  - scenario: deployment-manager
-    capability: Customer-specific minimal configurations
-    interface: Profile templates for deployment
-    
-consumes_from:
-  - scenario: usage-analytics
-    capability: Profile effectiveness data
-    fallback: Basic time-based analytics only
-```
-
-## 🎨 Style and Branding Requirements
-
-### UI/UX Style Guidelines
-```yaml
-style_profile:
-  category: professional
-  inspiration: Mission control dashboard + modern dev tools
-  
-  visual_style:
-    color_scheme: dark
-    typography: modern
-    layout: dashboard
-    animations: subtle
-  
-  personality:
-    tone: technical
-    mood: focused
-    target_feeling: Control and confidence over complex systems
-```
-
-### Target Audience Alignment
-- **Primary Users**: System administrators, power users, different household/business types
-- **User Expectations**: Clean, efficient interface that doesn't get in the way
-- **Accessibility**: WCAG AA compliance, keyboard navigation essential
-- **Responsive Design**: Desktop-first (command center feel), mobile for monitoring
-
-### Brand Consistency Rules
-- **Professional Design**: This is infrastructure - must feel reliable and trustworthy
-- **Technical Aesthetic**: Similar to system-monitor and app-debugger 
-- **Clear Information Hierarchy**: Status, actions, and configuration clearly separated
-
-## 💰 Value Proposition
-
-### Business Value
-- **Primary Value**: Makes Vrooli adaptable to any customer context without configuration complexity
-- **Revenue Potential**: $15K - $40K per deployment (enables custom customer experiences)
-- **Cost Savings**: Eliminates need for manual environment setup and reduces resource waste
-- **Market Differentiator**: First AI platform that automatically adapts to user context
-
-### Technical Value
-- **Reusability Score**: 9/10 - Every scenario can benefit from contextual environment control
-- **Complexity Reduction**: Transforms complex startup procedures into one-command activation
-- **Innovation Enablement**: Unlocks context-aware computing patterns for all scenarios
-
-## 🧬 Evolution Path
-
-### Version 1.0 (Current)
-- Profile CRUD operations
-- Basic resource/scenario lifecycle management
-- CLI and web UI interfaces
-- Manual profile activation
-
-### Version 2.0 (Planned)
-- Automatic profile recommendations based on usage patterns
-- Calendar integration for time-based activation
-- Profile composition (profiles that extend other profiles)
-- Resource usage optimization and idle management
-
-### Long-term Vision
-- AI-driven profile optimization based on productivity metrics
-- Predictive profile switching based on user behavior
-- Integration with external systems (calendar, project management, etc.)
-- Self-healing profiles that adapt to resource availability
-
-## 🔄 Scenario Lifecycle Integration
-
-### Direct Scenario Deployment
-```yaml
-direct_execution:
-  supported: true
-  structure_compliance:
-    - .vrooli/service.json with orchestration metadata
-    - Profile management API and UI
-    - CLI for profile operations
-    - Health monitoring for activated profiles
-    
-  deployment_targets:
-    - local: Full orchestration capabilities
-    - kubernetes: Distributed profile management
-    - cloud: Multi-tenant profile isolation
-    
-  revenue_model:
-    - type: subscription
-    - pricing_tiers: Based on number of profiles and automation features
-    - trial_period: 30 days
-```
-
-### Capability Discovery
-```yaml
-discovery:
-  registry_entry:
-    name: vrooli-orchestrator
-    category: automation
-    capabilities: [profile-management, environment-orchestration, context-switching]
-    interfaces:
-      - api: http://localhost:${API_PORT}/api/v1
-      - cli: vrooli-orchestrator
-      - events: orchestrator.*
-      
-  metadata:
-    description: Contextual environment orchestration and profile management
-    keywords: [orchestration, profiles, automation, context, environment]
-    dependencies: [postgres]
-    enhances: [app-monitor, morning-vision-walk, deployment-manager]
-```
-
-## 🚨 Risk Mitigation
-
-### Technical Risks
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| Resource conflicts during activation | Medium | High | Pre-activation validation and conflict resolution |
-| Profile corruption/inconsistency | Low | Medium | Schema validation and backup/restore |
-| Activation timeout/failure | Medium | Medium | Graceful fallbacks and partial activation support |
-
-### Operational Risks
-- **Profile Drift**: Regular validation ensures profiles match their intended configurations
-- **Resource Exhaustion**: Built-in resource monitoring prevents overallocation
-- **User Confusion**: Clear profile naming and description standards prevent misuse
-
-## ✅ Validation Criteria
-
-### Declarative Test Specification
-- **Shared runner**: `test/run-tests.sh` orchestrates the phased suite through the common runner (`scripts/scenarios/testing/shell/runner.sh`) and is wired into `.vrooli/service.json`, so `vrooli scenario test vrooli-orchestrator` executes identical logic locally and in CI.
-- **Structure phase** (`test/phases/test-structure.sh`) ensures the expected directories (`api`, `cli`, `initialization/*`, `ui`, `data`) and critical assets (`cli/vrooli-orchestrator`, `cli/vrooli-orchestrator.bats`, seeded SQL files, documentation) remain in place.
-- **Dependencies phase** (`test/phases/test-dependencies.sh`) validates Go tooling (`go list ./...`), performs an npm dry-run for the UI package, and exercises the local CLI help command to confirm core toolchains resolve without modifying state.
-- **Unit phase** (`test/phases/test-unit.sh`) reuses `scripts/scenarios/testing/unit/run-all.sh` with Go coverage thresholds (warn ≥80%, fail <50%) to execute the comprehensive test suite described in `TEST_IMPLEMENTATION_SUMMARY.md`.
-- **Integration phase** (`test/phases/test-integration.sh`) auto-manages the scenario runtime, calls `/health` and `/api/v1/profiles`, creates and retrieves a temporary profile, checks the UI `/health` endpoint, and exercises the CLI help/list commands.
-- **Business phase** (`test/phases/test-business.sh`) asserts the seeded `developer` profile is available via API and CLI, verifies the status contract, and—when `bats` is available—runs `cli/vrooli-orchestrator.bats` for workflow coverage.
-- **Performance phase** (`test/phases/test-performance.sh`) tracks outstanding performance/throughput benchmarks and currently emits a targeted warning until real measurements are added.
-
-> Run `./test/run-tests.sh`, individual phases (e.g. `./test/phases/test-structure.sh`), or presets such as `./test/run-tests.sh core` for focused iterations.
-
-## 📝 Implementation Notes
-
-### Design Decisions
-**Profile Storage**: Postgres chosen over file-based storage for ACID properties and analytics capabilities
-- Alternative considered: JSON files in ~/.vrooli/profiles/
-- Decision driver: Need for concurrent access and historical tracking
-- Trade-offs: Slight complexity increase for better reliability and analytics
-
-**CLI-First Design**: CLI commands mirror API endpoints exactly  
-- Alternative considered: Web UI as primary interface
-- Decision driver: Power users prefer CLI for automation and scripting
-- Trade-offs: Web UI becomes secondary but still fully functional
-
-### Known Limitations
-- **Single Active Profile**: v1.0 only supports one active profile at a time
-  - Workaround: Manual resource/scenario management for complex setups
-  - Future fix: v2.0 will support profile composition and layering
-
-### Security Considerations
-- **Profile Access Control**: Profiles stored per-user, no cross-user access
-- **Resource Authorization**: Inherits existing vrooli resource permissions
-- **Audit Trail**: All profile activations logged for security monitoring
-
-## 🔗 References
-
-### Documentation
-- README.md - User-facing overview and quick start
-- docs/api.md - Complete API specification  
-- docs/cli.md - CLI command reference
-- docs/profiles.md - Profile configuration guide
-
-### Related PRDs
-- app-monitor: Will use orchestrator for preloading scenarios
-- morning-vision-walk: Will use orchestrator for context switching
-- deployment-manager: Will use orchestrator for customer configurations
-
-### External Resources
-- Docker Compose documentation for understanding service orchestration patterns
-- Kubernetes documentation for distributed orchestration concepts
-- System service management best practices
-
----
-
-**Last Updated**: 2025-09-08
-**Status**: Draft  
-**Owner**: AI Agent (Claude)  
-**Review Cycle**: Validated against implementation weekly
+- [README.md](README.md) - User-facing overview and quick start
+- [TEST_IMPLEMENTATION_SUMMARY.md](TEST_IMPLEMENTATION_SUMMARY.md) - Test coverage details
+- Docker Compose documentation for orchestration patterns
+- Kubernetes documentation for distributed concepts

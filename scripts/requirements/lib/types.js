@@ -50,6 +50,8 @@
  * @property {string|null} evidence - Evidence description
  * @property {string|null} updated_at - ISO timestamp of last update
  * @property {number|null} duration_seconds - Test execution duration
+ * @property {string|null} [source_path] - Relative phase-results JSON path that produced the evidence
+ * @property {Object|null} [metadata] - Additional metadata (manual log entries, lighthouse scores, etc.)
  */
 
 /**
@@ -77,11 +79,26 @@
  * @typedef {Object} RequirementMetadata
  * @property {string} filePath - Path to source JSON file
  * @property {string} originalStatus - Original status before enrichment
+ * @property {Object|null} [originalSyncMetadata] - Original `_sync_metadata` snapshot from disk
  */
 
 /**
  * @typedef {Object} ValidationMetadata
  * @property {string} filePath - Path to source JSON file
+ * @property {Object|null} [originalSyncMetadata] - Original `_sync_metadata` snapshot for the validation
+ * @property {Object|null} [manual] - Manual validation metadata (validated_at, expires_at, etc.)
+ */
+
+/**
+ * @typedef {Object} ManualManifestEntry
+ * @property {string} requirement_id - Requirement identifier
+ * @property {string} status - Manual validation status (passed/failed/skipped)
+ * @property {string|null} validated_at - Timestamp when manual validation executed
+ * @property {string|null} expires_at - Timestamp when the manual validation expires
+ * @property {string|null} validated_by - Who performed the validation
+ * @property {string|null} artifact_path - Optional artifact reference
+ * @property {string|null} notes - Optional notes
+ * @property {string|null} manifest_path - Absolute manifest path
  */
 
 /**

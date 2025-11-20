@@ -51,6 +51,7 @@ function parseRequirementFile(filePath) {
       const meta = {
         filePath,
         originalStatus: requirement.status,
+        originalSyncMetadata: req._sync_metadata || null,
       };
       Object.defineProperty(requirement, '__meta', {
         value: meta,
@@ -58,9 +59,10 @@ function parseRequirementFile(filePath) {
       });
 
       // Add metadata to validations
-      requirement.validations.forEach((validation) => {
+      requirement.validations.forEach((validation, index) => {
         const validationMeta = {
           filePath,
+          originalSyncMetadata: (req.validation && req.validation[index] && req.validation[index]._sync_metadata) || null,
         };
         Object.defineProperty(validation, '__meta', {
           value: validationMeta,

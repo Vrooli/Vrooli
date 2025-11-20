@@ -8,8 +8,160 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { deriveValidationStatus, deriveRequirementStatus } = require('./utils');
 const { extractVitestFilesFromPhaseResults } = require('./evidence');
+
+function normalizeTestCommands(commands) {
+  if (!Array.isArray(commands)) {
+    return [];
+  }
+  return commands
+    .map((cmd) => (typeof cmd === 'string' ? cmd.trim() : ''))
+    .filter((cmd) => cmd.length > 0);
+}
+
+function metadataEqual(previous, next) {
+  const prevString = JSON.stringify(previous || null);
+  const nextString = JSON.stringify(next || null);
+  return prevString === nextString;
+}
+
+function buildEvidenceLookup(records) {
+  const lookup = new Map();
+  if (!Array.isArray(records)) {
+    return lookup;
+  }
+  records.forEach((record) => {
+    if (!record || !record.phase) {
+      return;
+    }
+    const existing = lookup.get(record.phase);
+    if (!existing) {
+      lookup.set(record.phase, record);
+      return;
+    }
+    const existingTime = existing.updated_at ? Date.parse(existing.updated_at) : 0;
+    const recordTime = record.updated_at ? Date.parse(record.updated_at) : 0;
+    if (recordTime >= existingTime) {
+      lookup.set(record.phase, record);
+    }
+  });
+  return lookup;
+}
+
+function buildRequirementSyncMetadata(requirement, existingMetadata, testsRunCommands) {
+  const evidenceRecords = Array.isArray(requirement.liveEvidence)
+    ? requirement.liveEvidence.filter(Boolean)
+    : [];
+  let newestTimestamp = existingMetadata && existingMetadata.last_updated ? existingMetadata.last_updated : null;
+  const phaseResults = new Set();
+
+  evidenceRecords.forEach((record) => {
+    if (record.source_path) {
+      phaseResults.add(record.source_path);
+    }
+    if (record.updated_at) {
+      if (!newestTimestamp || Date.parse(record.updated_at) > Date.parse(newestTimestamp)) {
+        newestTimestamp = record.updated_at;
+      }
+    }
+  });
+
+  const normalizedCommands = testsRunCommands.length
+    ? [...testsRunCommands]
+    : (existingMetadata && Array.isArray(existingMetadata.tests_run) ? [...existingMetadata.tests_run] : []);
+
+  const implementedCount = Array.isArray(requirement.validations)
+    ? requirement.validations.filter((validation) => validation && validation.status === 'implemented').length
+    : 0;
+  const hasFailingValidation = Array.isArray(requirement.validations)
+    ? requirement.validations.some((validation) => validation && validation.status === 'failing')
+    : false;
+
+  const metadata = {
+    last_updated: newestTimestamp || (existingMetadata && existingMetadata.last_updated) || new Date().toISOString(),
+    updated_by: 'auto-sync',
+    test_coverage_count: implementedCount,
+    all_tests_passing: !hasFailingValidation,
+    phase_results: phaseResults.size
+      ? Array.from(phaseResults).sort()
+      : (existingMetadata && Array.isArray(existingMetadata.phase_results) ? existingMetadata.phase_results : []),
+    tests_run: normalizedCommands,
+  };
+
+  return metadata;
+}
+
+function buildValidationSyncMetadata(validation, existingMetadata, testsRunCommands, evidenceLookup, manualEntry, manualManifestRelative) {
+  const prevMeta = existingMetadata || {};
+  const normalizedCommands = testsRunCommands.length
+    ? [...testsRunCommands]
+    : (Array.isArray(prevMeta.tests_run) ? [...prevMeta.tests_run] : []);
+
+  const metadata = {
+    last_test_run: prevMeta.last_test_run || null,
+    test_duration_ms: typeof prevMeta.test_duration_ms === 'number' ? prevMeta.test_duration_ms : null,
+    auto_updated: prevMeta.auto_updated || false,
+    test_names: Array.isArray(prevMeta.test_names) ? prevMeta.test_names : [],
+    phase_result: prevMeta.phase_result || null,
+    source_phase: prevMeta.source_phase || null,
+    tests_run: normalizedCommands,
+  };
+
+  const liveDetails = validation && validation.liveDetails ? validation.liveDetails : null;
+  if (liveDetails && liveDetails.updated_at) {
+    metadata.last_test_run = liveDetails.updated_at;
+  }
+  if (liveDetails && typeof liveDetails.duration_seconds === 'number') {
+    metadata.test_duration_ms = Math.round(liveDetails.duration_seconds * 1000);
+  }
+
+  let sourcePhase = metadata.source_phase;
+  if (validation && validation.liveSource && validation.liveSource.kind === 'phase' && validation.liveSource.name) {
+    sourcePhase = validation.liveSource.name;
+  } else if (validation && validation.phase) {
+    sourcePhase = validation.phase;
+  } else if (liveDetails && liveDetails.requirement && liveDetails.requirement.phase) {
+    sourcePhase = liveDetails.requirement.phase;
+  }
+
+  if (sourcePhase) {
+    metadata.source_phase = sourcePhase;
+    const evidenceRecord = evidenceLookup.get(sourcePhase);
+    if (evidenceRecord && evidenceRecord.source_path) {
+      metadata.phase_result = evidenceRecord.source_path;
+    }
+  }
+
+  if (liveDetails || sourcePhase) {
+    metadata.auto_updated = true;
+  }
+
+  if (validation && validation.type === 'manual') {
+    if (manualEntry) {
+      metadata.manual = {
+        status: manualEntry.status || 'unknown',
+        validated_at: manualEntry.validated_at || manualEntry.recorded_at || null,
+        validated_by: manualEntry.validated_by || null,
+        expires_at: manualEntry.expires_at || null,
+        artifact_path: manualEntry.artifact_path || null,
+        manifest_path: manualManifestRelative || manualEntry.manifest_path || null,
+        notes: manualEntry.notes || null,
+      };
+      if (!metadata.last_test_run && metadata.manual.validated_at) {
+        metadata.last_test_run = metadata.manual.validated_at;
+      }
+      metadata.auto_updated = true;
+    } else if (metadata.manual) {
+      metadata.manual = null;
+    }
+  } else if (metadata.manual) {
+    metadata.manual = null;
+  }
+
+  return metadata;
+}
 
 /**
  * Sync requirement file with live test results
@@ -17,17 +169,82 @@ const { extractVitestFilesFromPhaseResults } = require('./evidence');
  * @param {import('./types').Requirement[]} requirements - Requirements to sync
  * @returns {import('./types').SyncUpdate[]} Array of updates made
  */
-function syncRequirementFile(filePath, requirements) {
+function computeContentHash(content) {
+  if (typeof content !== 'string') {
+    return null;
+  }
+  return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+}
+
+function normalizeRelativePath(baseDir, filePath) {
+  if (!baseDir) {
+    return filePath;
+  }
+  return path.relative(baseDir, filePath) || filePath;
+}
+
+function captureFileSnapshot(filePath, parsed, serializedContent, context) {
+  if (!context || !Array.isArray(context.snapshotFiles)) {
+    return;
+  }
+
+  const effectiveContent = typeof serializedContent === 'string'
+    ? serializedContent
+    : `${JSON.stringify(parsed, null, 2)}\n`;
+  const hash = computeContentHash(effectiveContent);
+  let mtime = null;
+  try {
+    const stats = fs.statSync(filePath);
+    mtime = stats.mtime.toISOString();
+  } catch (error) {
+    mtime = null;
+  }
+
+  const relativePath = normalizeRelativePath(context.scenarioRoot, filePath);
+  const fileRequirements = Array.isArray(parsed.requirements) ? parsed.requirements : [];
+  const moduleName = parsed._metadata && parsed._metadata.module ? parsed._metadata.module : null;
+
+  const requirementSnapshots = fileRequirements.map((req) => ({
+    id: req.id,
+    status: req.status,
+    criticality: req.criticality || null,
+    prd_ref: req.prd_ref || null,
+    module: moduleName,
+    sync_metadata: req._sync_metadata || null,
+    validations: Array.isArray(req.validation)
+      ? req.validation.map((validation) => ({
+        type: validation.type || null,
+        ref: validation.ref || null,
+        status: validation.status || null,
+        phase: validation.phase || null,
+        workflow_id: validation.workflow_id || null,
+        sync_metadata: validation._sync_metadata || null,
+      }))
+      : [],
+  }));
+
+  context.snapshotFiles.push({
+    relative_path: relativePath,
+    hash,
+    mtime,
+    module: moduleName,
+    requirement_count: requirementSnapshots.length,
+    requirements: requirementSnapshots,
+  });
+}
+
+function syncRequirementFile(filePath, requirements, context = {}) {
   if (!requirements || requirements.length === 0) {
     return [];
   }
 
-  // Read the original JSON file
   const originalContent = fs.readFileSync(filePath, 'utf8');
   const parsed = JSON.parse(originalContent);
+  let finalContent = originalContent;
   const updates = [];
+  let metadataChanged = false;
+  const testsRunCommands = normalizeTestCommands(context.testCommands);
 
-  // Create a map of requirement IDs to their index in the file
   const requirementMap = new Map();
   (parsed.requirements || []).forEach((req, idx) => {
     requirementMap.set(req.id, idx);
@@ -40,7 +257,6 @@ function syncRequirementFile(filePath, requirements) {
       ? requirementMeta.originalStatus
       : requirement.status;
 
-    // Update validation statuses
     if (Array.isArray(requirement.validations)) {
       requirement.validations.forEach((validation, index) => {
         const derivedStatus = deriveValidationStatus(validation);
@@ -59,7 +275,6 @@ function syncRequirementFile(filePath, requirements) {
       });
     }
 
-    // Update requirement status based on validation rollup
     const nextStatus = deriveRequirementStatus(requirement.status, validationStatuses);
     if (nextStatus && nextStatus !== originalStatus) {
       requirement.status = nextStatus;
@@ -74,33 +289,72 @@ function syncRequirementFile(filePath, requirements) {
       });
     }
 
-    // Update the parsed JSON with new statuses
     const reqIndex = requirementMap.get(requirement.id);
-    if (reqIndex !== undefined && parsed.requirements[reqIndex]) {
-      parsed.requirements[reqIndex].status = requirement.status;
+    if (reqIndex === undefined || !parsed.requirements[reqIndex]) {
+      return;
+    }
 
-      // Update validation statuses in parsed JSON
-      if (Array.isArray(requirement.validations) && Array.isArray(parsed.requirements[reqIndex].validation)) {
-        requirement.validations.forEach((validation, idx) => {
-          if (parsed.requirements[reqIndex].validation[idx]) {
-            parsed.requirements[reqIndex].validation[idx].status = validation.status;
-          }
-        });
-      }
+    const parsedRequirement = parsed.requirements[reqIndex];
+    parsedRequirement.status = requirement.status;
+
+    if (Array.isArray(requirement.validations) && Array.isArray(parsedRequirement.validation)) {
+      requirement.validations.forEach((validation, idx) => {
+        if (parsedRequirement.validation[idx]) {
+          parsedRequirement.validation[idx].status = validation.status;
+        }
+      });
+    }
+
+    const evidenceLookup = buildEvidenceLookup(requirement.liveEvidence || []);
+    const previousRequirementMetadata = (requirementMeta && requirementMeta.originalSyncMetadata)
+      || parsedRequirement._sync_metadata
+      || null;
+    const nextRequirementMetadata = buildRequirementSyncMetadata(
+      requirement,
+      previousRequirementMetadata,
+      testsRunCommands,
+    );
+
+    if (!metadataEqual(previousRequirementMetadata, nextRequirementMetadata)) {
+      parsedRequirement._sync_metadata = nextRequirementMetadata;
+      metadataChanged = true;
+    }
+
+    if (Array.isArray(requirement.validations) && Array.isArray(parsedRequirement.validation)) {
+      requirement.validations.forEach((validation, idx) => {
+        const parsedValidation = parsedRequirement.validation[idx];
+        if (!parsedValidation) {
+          return;
+        }
+        const validationMeta = validation && validation.__meta ? validation.__meta.originalSyncMetadata : null;
+        const previousValidationMetadata = validationMeta || parsedValidation._sync_metadata || null;
+        const manualEntry = context.manualEntries ? context.manualEntries.get(requirement.id) : null;
+        const nextValidationMetadata = buildValidationSyncMetadata(
+          validation,
+          previousValidationMetadata,
+          testsRunCommands,
+          evidenceLookup,
+          manualEntry,
+          context.manualManifestRelative,
+        );
+        if (!metadataEqual(previousValidationMetadata, nextValidationMetadata)) {
+          parsedValidation._sync_metadata = nextValidationMetadata;
+          metadataChanged = true;
+        }
+      });
     }
   });
 
-  // Write back to file if there were updates
-  if (updates.length > 0) {
-    // Update metadata
+  if (updates.length > 0 || metadataChanged) {
     if (!parsed._metadata) {
       parsed._metadata = {};
     }
     parsed._metadata.last_synced_at = new Date().toISOString();
-
-    // Write with 2-space indentation
-    fs.writeFileSync(filePath, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
+    finalContent = `${JSON.stringify(parsed, null, 2)}\n`;
+    fs.writeFileSync(filePath, finalContent, 'utf8');
   }
+
+  captureFileSnapshot(filePath, parsed, finalContent, context);
 
   return updates;
 }
@@ -279,11 +533,26 @@ function detectOrphanedValidations(filePath, scenarioRoot, options) {
  * @param {import('./types').ParseOptions} options - Sync options
  * @returns {import('./types').SyncResult} Sync results
  */
-function syncRequirementRegistry(fileRequirementMap, scenarioRoot, options) {
+function syncRequirementRegistry(fileRequirementMap, scenarioRoot, options, extras = {}) {
   const updates = [];
   const addedValidations = [];
   const orphanedValidations = [];
   const removedValidations = [];
+  const manualManifest = extras && extras.manualManifest ? extras.manualManifest : null;
+  const manualEntries = manualManifest && manualManifest.latestByRequirement
+    ? manualManifest.latestByRequirement
+    : new Map();
+  const manualManifestPath = manualManifest && manualManifest.manifestPath ? manualManifest.manifestPath : null;
+  const manualManifestRelative = manualManifest && manualManifest.relativePath
+    ? manualManifest.relativePath
+    : (manualManifestPath ? normalizeRelativePath(scenarioRoot, manualManifestPath) : null);
+  const syncContext = {
+    testCommands: normalizeTestCommands(options && options.testCommands ? options.testCommands : []),
+    snapshotFiles: [],
+    scenarioRoot,
+    manualEntries,
+    manualManifestRelative,
+  };
 
   // Extract live vitest evidence once (from phase-results)
   const vitestFiles = extractVitestFilesFromPhaseResults(scenarioRoot);
@@ -299,7 +568,7 @@ function syncRequirementRegistry(fileRequirementMap, scenarioRoot, options) {
     addedValidations.push(...added);
 
     // Phase 3: Update status fields (existing logic)
-    updates.push(...syncRequirementFile(filePath, requirements));
+    updates.push(...syncRequirementFile(filePath, requirements, syncContext));
   }
 
   return {
@@ -307,6 +576,7 @@ function syncRequirementRegistry(fileRequirementMap, scenarioRoot, options) {
     addedValidations,
     orphanedValidations,
     removedValidations,
+    fileSnapshots: syncContext.snapshotFiles,
   };
 }
 

@@ -469,20 +469,10 @@ func (db *DB) seedDemoWorkflow() error {
 	}
 
 	var project projectRow
-	err = db.GetContext(ctx, &project, `SELECT id, folder_path FROM projects WHERE name = $1 LIMIT 1`, demoProjectName)
+	err = db.GetContext(ctx, &project, `SELECT id, folder_path FROM projects WHERE folder_path = $1 LIMIT 1`, absDemoProjectFolder)
 	switch {
 	case err == nil:
-		if filepath.Clean(project.FolderPath) != filepath.Clean(absDemoProjectFolder) {
-			if _, err := db.ExecContext(
-				ctx,
-				`UPDATE projects SET folder_path = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-				absDemoProjectFolder,
-				project.ID,
-			); err != nil {
-				return fmt.Errorf("failed to update demo project folder: %w", err)
-			}
-			project.FolderPath = absDemoProjectFolder
-		}
+		// Project already exists with this folder_path, use it
 	case err == sql.ErrNoRows:
 		project = projectRow{ID: uuid.New(), FolderPath: absDemoProjectFolder}
 		if _, err := db.ExecContext(
@@ -498,7 +488,7 @@ func (db *DB) seedDemoWorkflow() error {
 			return fmt.Errorf("failed to seed demo project: %w", err)
 		}
 
-		if err := db.GetContext(ctx, &project, `SELECT id, folder_path FROM projects WHERE name = $1 LIMIT 1`, demoProjectName); err != nil {
+		if err := db.GetContext(ctx, &project, `SELECT id, folder_path FROM projects WHERE folder_path = $1 LIMIT 1`, absDemoProjectFolder); err != nil {
 			return fmt.Errorf("failed to confirm demo project id: %w", err)
 		}
 

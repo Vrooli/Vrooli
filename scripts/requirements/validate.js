@@ -62,13 +62,9 @@ function resolveScenarioRoot(baseDir, scenario) {
 }
 
 function collectRequirementFiles(scenarioRoot) {
-  const docsPath = path.join(scenarioRoot, 'docs', 'requirements.json');
-  if (fs.existsSync(docsPath)) {
-    return [{ path: docsPath, isIndex: true }];
-  }
   const requirementsDir = path.join(scenarioRoot, 'requirements');
   if (!fs.existsSync(requirementsDir)) {
-    throw new Error('No requirements registry found (expected docs/requirements.json or requirements/ folder).');
+    throw new Error('No requirements registry found (expected requirements/ folder).');
   }
   const results = [];
   const stack = [requirementsDir];

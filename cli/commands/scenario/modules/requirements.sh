@@ -33,6 +33,21 @@ scenario::requirements::dispatch() {
             scenario::requirements::sync "$@"
             return
             ;;
+        manual-log)
+            shift
+            scenario::requirements::manual_log "$@"
+            return
+            ;;
+        snapshot)
+            shift
+            scenario::requirements::snapshot "$@"
+            return
+            ;;
+        lint-prd)
+            shift
+            scenario::requirements::lint_prd "$@"
+            return
+            ;;
         phase|phase-inspect)
             shift
             scenario::requirements::phase_inspect "$@"
@@ -186,6 +201,11 @@ Subcommands:
   phase <name> --phase <phase> [--output path]
                                     Inspect expected validations for a single phase (phase-inspect mode)
 
+  manual-log <name> <requirement> [options]
+                                    Record manual validation evidence (writes coverage/manual-validations/log.jsonl)
+  snapshot <name>                    Print the latest requirements snapshot summary (coverage/requirements-sync/latest.json)
+  lint-prd <name> [--json]           Ensure every PRD operational target maps to at least one requirement (and vice versa)
+
   init <name> [--force] [--template modular] [--owner contact@example.com]
                                     Scaffold the modular requirements/ registry template
 
@@ -196,6 +216,282 @@ Examples:
   vrooli scenario requirements phase browser-automation-studio --phase integration | jq
   vrooli scenario requirements init browser-automation-studio --force
 __REQ_HELP__
+}
+
+scenario::requirements::manual_log() {
+    local scenario_name=""
+    local requirement_id=""
+    local status="passed"
+    local notes=""
+    local artifact=""
+    local validated_by="${VROOLI_AGENT_ID:-${USER:-manual-validator}}"
+    local validated_at=""
+    local expires_in_days="30"
+    local expires_at=""
+    local manifest_override=""
+    local dry_run=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --status)
+                status="${2:-passed}"
+                shift 2
+                ;;
+            --notes)
+                notes="${2:-}"
+                shift 2
+                ;;
+            --artifact)
+                artifact="${2:-}"
+                shift 2
+                ;;
+            --validated-by)
+                validated_by="${2:-$validated_by}"
+                shift 2
+                ;;
+            --validated-at)
+                validated_at="${2:-}"
+                shift 2
+                ;;
+            --expires-in)
+                expires_in_days="${2:-30}"
+                shift 2
+                ;;
+            --expires-at)
+                expires_at="${2:-}"
+                shift 2
+                ;;
+            --manifest)
+                manifest_override="${2:-}"
+                shift 2
+                ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            --requirement)
+                requirement_id="${2:-}"
+                shift 2
+                ;;
+            --help|-h)
+                log::info "Usage: vrooli scenario requirements manual-log <scenario> <requirement> [options]"
+                return 0
+                ;;
+            --*)
+                log::error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                if [[ -z "$scenario_name" ]]; then
+                    scenario_name="$1"
+                elif [[ -z "$requirement_id" ]]; then
+                    requirement_id="$1"
+                else
+                    log::error "Unexpected argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario_name" ]] || [[ -z "$requirement_id" ]]; then
+        log::error "Usage: vrooli scenario requirements manual-log <scenario> <requirement> [options]"
+        return 1
+    fi
+
+    if ! command -v node >/dev/null 2>&1; then
+        log::error "Node.js is required to log manual validations"
+        return 1
+    fi
+
+    local scenario_dir="${APP_ROOT}/scenarios/${scenario_name}"
+    if [[ ! -d "$scenario_dir" ]]; then
+        log::error "Scenario directory not found: $scenario_dir"
+        return 1
+    fi
+
+    local manual_logger="${APP_ROOT}/scripts/requirements/manual-log.js"
+    if [[ ! -f "$manual_logger" ]]; then
+        log::error "Manual validation logger not found at $manual_logger"
+        return 1
+    fi
+
+    local cmd=(node "$manual_logger" --scenario "$scenario_name" --requirement "$requirement_id" --status "$status" --validated-by "$validated_by")
+    if [[ -n "$notes" ]]; then
+        cmd+=(--notes "$notes")
+    fi
+    if [[ -n "$artifact" ]]; then
+        cmd+=(--artifact "$artifact")
+    fi
+    if [[ -n "$validated_at" ]]; then
+        cmd+=(--validated-at "$validated_at")
+    fi
+    if [[ -n "$expires_at" ]]; then
+        cmd+=(--expires-at "$expires_at")
+    else
+        cmd+=(--expires-in "$expires_in_days")
+    fi
+    if [[ -n "$manifest_override" ]]; then
+        cmd+=(--manifest "$manifest_override")
+    fi
+    if [[ "$dry_run" == true ]]; then
+        cmd+=(--dry-run)
+    fi
+
+    (cd "$scenario_dir" && "${cmd[@]}")
+}
+
+scenario::requirements::snapshot() {
+    local scenario_name=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --help|-h)
+                echo "Usage: vrooli scenario requirements snapshot <name>"
+                return 0
+                ;;
+            *)
+                if [ -z "$scenario_name" ]; then
+                    scenario_name="$1"
+                    shift
+                else
+                    log::error "Unexpected argument: $1"
+                    return 1
+                fi
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario_name" ]; then
+        log::error "Scenario name is required"
+        return 1
+    fi
+
+    local scenario_dir
+    scenario_dir=$(scenario::requirements::_ensure_scenario_dir "$scenario_name") || return 1
+
+    local snapshot_path="$scenario_dir/coverage/requirements-sync/latest.json"
+    if [ ! -f "$snapshot_path" ]; then
+        log::error "Snapshot not found: ${snapshot_path#$scenario_dir/}"
+        log::info "Run the scenario test suite to regenerate requirements metadata."
+        return 1
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        log::info "Snapshot path: ${snapshot_path}"
+        log::warning "Install jq to view a structured snapshot summary"
+        return 0
+    fi
+
+    local snapshot_rel="${snapshot_path#$scenario_dir/}"
+    local synced_at
+    synced_at=$(jq -r '.synced_at // "unknown"' "$snapshot_path")
+    local manifest_log
+    manifest_log=$(jq -r '.manifest_log // empty' "$snapshot_path")
+
+    log::info "Requirements snapshot (${scenario_name})"
+    echo "  File: ${snapshot_rel}"
+    echo "  Synced at: ${synced_at}"
+    if [ -n "$manifest_log" ]; then
+        echo "  Run log: ${manifest_log}"
+    fi
+
+    mapfile -t snapshot_commands < <(jq -r '.tests_run[]? | select(length > 0)' "$snapshot_path")
+    if [ ${#snapshot_commands[@]} -gt 0 ]; then
+        echo "  Tests run:"
+        for cmd in "${snapshot_commands[@]}"; do
+            echo "    • $cmd"
+        done
+    fi
+
+    local total_targets
+    total_targets=$(jq -r '(.operational_targets // []) | length' "$snapshot_path")
+    if [ "$total_targets" -gt 0 ]; then
+        local complete_targets
+        complete_targets=$(jq -r '(.operational_targets // []) | map(select(((.status // "") | ascii_downcase) == "complete")) | length' "$snapshot_path")
+        echo "  Operational targets: ${complete_targets}/${total_targets} complete"
+        mapfile -t incomplete_targets < <(jq -r '(.operational_targets // []) | map(select(((.status // "") | ascii_downcase) != "complete")) | map((.target_id // .folder_hint // .key // "unmapped") + " – " + (.status // "unknown")) | .[]?' "$snapshot_path")
+        if [ ${#incomplete_targets[@]} -gt 0 ]; then
+            echo "    Remaining targets:"
+            for entry in "${incomplete_targets[@]}"; do
+                echo "      - $entry"
+            done
+        fi
+    fi
+
+    local manual_total
+    manual_total=$(jq -r '.manual_validations.total // 0' "$snapshot_path")
+    if [ "$manual_total" -gt 0 ]; then
+        local manual_manifest
+        manual_manifest=$(jq -r '.manual_validations.manifest_path // empty' "$snapshot_path")
+        echo "  Manual validations: ${manual_total}${manual_manifest:+ (manifest: ${manual_manifest})}"
+        local now_epoch
+        now_epoch=$(date -u +%s)
+        local manual_expired
+        manual_expired=$(jq -r --argjson now "$now_epoch" '(.manual_validations.entries // []) | map(select(.expires_at and ((try (.expires_at | fromdateiso8601) catch 0) < $now))) | length' "$snapshot_path" 2>/dev/null || echo "0")
+        if [ "$manual_expired" -gt 0 ]; then
+            local expired_list
+            expired_list=$(jq -r --argjson now "$now_epoch" '(.manual_validations.entries // [])
+                | map(select(.expires_at and ((try (.expires_at | fromdateiso8601) catch 0) < $now)))
+                | map(.requirement_id)
+                | join(", ")' "$snapshot_path")
+            echo "    ↳ Expired entries (${manual_expired}): ${expired_list}"
+        fi
+    fi
+}
+
+scenario::requirements::lint_prd() {
+    local scenario_name=""
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: vrooli scenario requirements lint-prd <name> [--json]"
+                return 0
+                ;;
+            *)
+                if [ -z "$scenario_name" ]; then
+                    scenario_name="$1"
+                    shift
+                else
+                    log::error "Unexpected argument: $1"
+                    return 1
+                fi
+                ;;
+        esac
+    done
+
+    if [ -z "$scenario_name" ]; then
+        log::error "Scenario name is required"
+        return 1
+    fi
+
+    local scenario_dir
+    scenario_dir=$(scenario::requirements::_ensure_scenario_dir "$scenario_name") || return 1
+
+    if ! command -v node >/dev/null 2>&1; then
+        log::error "Node.js is required for linting PRD mappings"
+        return 1
+    fi
+
+    local lint_script="${APP_ROOT}/scripts/requirements/lint-prd.js"
+    if [ ! -f "$lint_script" ]; then
+        log::error "Lint script not found at $lint_script"
+        return 1
+    fi
+
+    local cmd=(node "$lint_script" --scenario "$scenario_name")
+    if [ "$json_output" = true ]; then
+        cmd+=(--format json)
+    fi
+
+    (cd "$scenario_dir" && "${cmd[@]}")
 }
 
 scenario::requirements::_ensure_scenario_dir() {
@@ -526,6 +822,16 @@ scenario::requirements::quick_check() {
     } | .coverage_ratio = (if .total == 0 then 0 else (.complete / (.total)) end)
       | .status = (if .total == 0 then "empty" elif .criticality_gap > 0 then "critical_gap" elif .complete == .total then "complete" else "incomplete" end)')
 
+    local drift_json="null"
+    if [ -d "${scenario_dir}/requirements" ] && command -v node >/dev/null 2>&1; then
+        local drift_raw
+        if drift_raw=$(cd "$scenario_dir" && node "$APP_ROOT/scripts/requirements/drift-check.js" --scenario "$scenario_name" 2>/dev/null); then
+            if echo "$drift_raw" | jq -e . >/dev/null 2>&1; then
+                drift_json="$drift_raw"
+            fi
+        fi
+    fi
+
     local status
     status=$(echo "$metrics" | jq -r '.status')
 
@@ -573,7 +879,8 @@ scenario::requirements::quick_check() {
         --arg schema_status "$schema_status" \
         --arg schema_message "$schema_message" \
         --argjson summary "$(echo "$metrics" | jq '{total,complete,in_progress,pending,criticality_gap,coverage_ratio}')" \
-        '{status:$status,message:$message,recommendation:$recommendation,summary:$summary,schema:{status:$schema_status,message:$schema_message}}'
+        --argjson drift "$drift_json" \
+        '{status:$status,message:$message,recommendation:$recommendation,summary:$summary,schema:{status:$schema_status,message:$schema_message},drift:$drift}'
 }
 
 scenario::requirements::display_summary() {
@@ -696,4 +1003,102 @@ scenario::requirements::display_summary() {
             fi
             ;;
     esac
+
+    local drift_section
+    drift_section=$(echo "$summary_json" | jq -c '.drift // null' 2>/dev/null || echo 'null')
+    if [ "$drift_section" != "null" ]; then
+        local drift_status
+        drift_status=$(echo "$drift_section" | jq -r '.status // empty')
+        local drift_issues
+        drift_issues=$(echo "$drift_section" | jq -r '.issue_count // 0')
+        case "$drift_status" in
+            missing_snapshot)
+                log::warning "Requirements: ⚠️  Drift snapshot missing; run test/run-tests.sh to regenerate requirements metadata"
+                ;;
+            drift_detected)
+                log::error "Requirements: 🔴 Drift detected (${drift_issues} issue(s))"
+                ;;
+        esac
+
+        local file_drift
+        file_drift=$(echo "$drift_section" | jq -r '.file_drift.has_drift // false')
+        if [ "$file_drift" = "true" ]; then
+            local mismatch_count new_count missing_count
+            mismatch_count=$(echo "$drift_section" | jq -r '.file_drift.mismatched | length')
+            new_count=$(echo "$drift_section" | jq -r '.file_drift.new_files | length')
+            missing_count=$(echo "$drift_section" | jq -r '.file_drift.missing_from_disk | length')
+            echo "  • Requirement files changed outside auto-sync (mismatched: ${mismatch_count}, new: ${new_count}, missing: ${missing_count})"
+        fi
+
+        local artifact_stale
+        artifact_stale=$(echo "$drift_section" | jq -r '.artifact_stale // false')
+        if [ "$artifact_stale" = "true" ]; then
+            local latest_artifact
+            latest_artifact=$(echo "$drift_section" | jq -r '.latest_artifact_at // empty')
+            echo "  • Newer coverage artifacts detected (${latest_artifact}); rerun auto-sync"
+        fi
+
+        local prd_has_drift
+        prd_has_drift=$(echo "$drift_section" | jq -r '.prd.has_drift // false')
+        if [ "$prd_has_drift" = "true" ]; then
+            local prd_mismatches
+            prd_mismatches=$(echo "$drift_section" | jq -r '.prd.mismatches | length')
+            local prd_missing
+            prd_missing=$(echo "$drift_section" | jq -r '.prd.missing_in_snapshot | length')
+            echo "  • PRD mismatch (${prd_mismatches} status differences, ${prd_missing} missing targets)"
+        fi
+
+        local manual_info
+        manual_info=$(echo "$drift_section" | jq -c '.manual // null' 2>/dev/null || echo 'null')
+        if [ "$manual_info" != "null" ]; then
+            local manual_total manual_issue_count
+            manual_total=$(echo "$manual_info" | jq -r '.total // 0')
+            manual_issue_count=$(echo "$manual_info" | jq -r '.issue_count // 0')
+            if [ "$manual_total" != "0" ]; then
+                echo "  • Manual validations: ${manual_total} tracked"
+            fi
+            local manual_manifest_missing
+            manual_manifest_missing=$(echo "$manual_info" | jq -r '.manifest_missing // false')
+            if [ "$manual_manifest_missing" = "true" ]; then
+                echo "    ↳ Manifest missing; run manual validations via 'vrooli scenario requirements manual-log'"
+            fi
+            local manual_expired_count
+            manual_expired_count=$(echo "$manual_info" | jq -r '.expired | length')
+            if [ "$manual_expired_count" != "0" ]; then
+                local expired_list
+                expired_list=$(echo "$manual_info" | jq -r '.expired | join(", ")')
+                echo "    ↳ Expired entries (${manual_expired_count}): ${expired_list}"
+            fi
+            local manual_missing_meta
+            manual_missing_meta=$(echo "$manual_info" | jq -r '.missing_metadata | length')
+            if [ "$manual_missing_meta" != "0" ]; then
+                local missing_list
+                missing_list=$(echo "$manual_info" | jq -r '.missing_metadata | join(", ")')
+                echo "    ↳ Manual validations missing metadata: ${missing_list}"
+            fi
+            local manual_unsynced
+            manual_unsynced=$(echo "$manual_info" | jq -r '.unsynced | length')
+            if [ "$manual_unsynced" != "0" ]; then
+                local unsynced_list
+                unsynced_list=$(echo "$manual_info" | jq -r '.unsynced | join(", ")')
+                echo "    ↳ Manual logs newer than requirements: ${unsynced_list} (rerun tests + sync)"
+            fi
+            local manual_missing_entries
+            manual_missing_entries=$(echo "$manual_info" | jq -r '.manifest_missing_entries | length')
+            if [ "$manual_missing_entries" != "0" ]; then
+                local missing_entries_list
+                missing_entries_list=$(echo "$manual_info" | jq -r '.manifest_missing_entries | join(", ")')
+                echo "    ↳ Manifest missing entries for: ${missing_entries_list}"
+            fi
+            if [ "$manual_issue_count" != "0" ]; then
+                printf -v SCENARIO_STATUS_EXTRA_RECOMMENDATIONS "%sRevalidate manual requirements or replace them with automated workflows (use 'vrooli scenario requirements manual-log').\n" "${SCENARIO_STATUS_EXTRA_RECOMMENDATIONS}"
+            fi
+        fi
+
+        local drift_recommendation
+        drift_recommendation=$(echo "$drift_section" | jq -r '.recommendation // empty')
+        if [ -n "$drift_recommendation" ]; then
+            printf -v SCENARIO_STATUS_EXTRA_RECOMMENDATIONS "%s%s\n" "${SCENARIO_STATUS_EXTRA_RECOMMENDATIONS}" "$drift_recommendation"
+        fi
+    fi
 }

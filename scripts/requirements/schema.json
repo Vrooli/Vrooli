@@ -151,6 +151,16 @@
             },
             "all_tests_passing": {
               "type": "boolean"
+            },
+            "phase_results": {
+              "type": "array",
+              "description": "Relative coverage/phase-results JSON files that produced this state",
+              "items": {"type": "string"}
+            },
+            "tests_run": {
+              "type": "array",
+              "description": "Commands used to execute the validating test suites",
+              "items": {"type": "string"}
             }
           }
         }
@@ -217,6 +227,32 @@
               "type": "array",
               "description": "Full test names that validate this requirement",
               "items": {"type": "string"}
+            },
+            "phase_result": {
+              "type": "string",
+              "description": "Relative coverage/phase-results JSON file that supplied this validation"
+            },
+            "source_phase": {
+              "type": "string",
+              "description": "Name of the phase or automation source for this validation"
+            },
+            "tests_run": {
+              "type": "array",
+              "description": "Commands that produced the current validation evidence",
+              "items": {"type": "string"}
+            },
+            "manual": {
+              "type": "object",
+              "description": "Manual validation metadata (only for type=manual)",
+              "properties": {
+                "status": {"type": "string"},
+                "validated_at": {"type": "string"},
+                "expires_at": {"type": "string"},
+                "validated_by": {"type": "string"},
+                "artifact_path": {"type": "string"},
+                "manifest_path": {"type": "string"},
+                "notes": {"type": "string"}
+              }
             }
           }
         }

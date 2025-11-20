@@ -1,0 +1,329 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for vrooli-orchestrator scenario",
+    "domain": "orchestration",
+    "last_updated": "2025-11-19"
+  },
+  "requirements": [
+    {
+      "id": "VO-P0-001",
+      "category": "core.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Create, edit, and delete startup profiles via CLI and UI",
+      "description": "Users can define custom profiles specifying resources and scenarios through both command-line and web interfaces",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/profiles_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "CRUD operations for profile management"
+        },
+        {
+          "type": "manual",
+          "ref": "ui/src/pages/Profiles.tsx",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "UI profile editor and list view"
+        }
+      ]
+    },
+    {
+      "id": "VO-P0-002",
+      "category": "core.orchestration",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Activate profiles that start/stop specific resources and scenarios",
+      "description": "Profile activation orchestrates full environment setup including resource startup and scenario deployment",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/activation_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Profile activation and deactivation logic"
+        },
+        {
+          "type": "test",
+          "ref": "test/phases/test-business.sh",
+          "phase": "business",
+          "status": "pending",
+          "notes": "End-to-end profile activation workflow"
+        }
+      ]
+    },
+    {
+      "id": "VO-P0-003",
+      "category": "core.persistence",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Profile persistence in local configuration files",
+      "description": "Profiles survive system restarts and can be version controlled through Postgres storage",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/persistence_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Database persistence and retrieval"
+        }
+      ]
+    },
+    {
+      "id": "VO-P0-004",
+      "category": "core.cli",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "CLI interface: vrooli-orchestrator activate <profile-name>",
+      "description": "Command-line activation enables scripting and automation workflows",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/vrooli-orchestrator.bats",
+          "phase": "business",
+          "status": "pending",
+          "notes": "CLI activation command tests"
+        }
+      ]
+    },
+    {
+      "id": "VO-P0-005",
+      "category": "core.metadata",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Basic profile metadata (name, description, target_audience)",
+      "description": "Profiles are self-documenting and discoverable through metadata fields",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/profiles_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Metadata validation and retrieval"
+        }
+      ]
+    },
+    {
+      "id": "VO-P0-006",
+      "category": "core.integration",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Integration with main vrooli CLI for resource/scenario lifecycle",
+      "description": "Orchestrator uses standard Vrooli lifecycle management commands",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/lifecycle_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Integration with vrooli resource and scenario commands"
+        }
+      ]
+    },
+    {
+      "id": "VO-P1-001",
+      "category": "templates",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Profile templates for common use cases (developer, business, household)",
+      "description": "Pre-built profiles reduce setup friction for common scenarios",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "initialization/storage/postgres/seed.sql",
+          "phase": "business",
+          "status": "pending",
+          "notes": "Seeded profile templates validation"
+        }
+      ]
+    },
+    {
+      "id": "VO-P1-002",
+      "category": "automation.browser",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Auto-open browser tabs for configured dashboards",
+      "description": "Profiles can launch web interfaces automatically using browserless",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/browser_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Browser automation integration"
+        }
+      ]
+    },
+    {
+      "id": "VO-P1-003",
+      "category": "automation.shutdown",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Idle shutdown timers for resource management",
+      "description": "Automatic cleanup saves resources when profiles are idle",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/shutdown_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Idle detection and shutdown logic"
+        }
+      ]
+    },
+    {
+      "id": "VO-P1-004",
+      "category": "configuration.env",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Environment variable overrides per profile",
+      "description": "Profiles can customize scenario behavior through environment variables",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/env_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Environment variable injection"
+        }
+      ]
+    },
+    {
+      "id": "VO-P1-005",
+      "category": "validation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Profile validation and dependency checking",
+      "description": "Pre-activation checks prevent runtime errors",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/validation_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Profile schema and dependency validation"
+        }
+      ]
+    },
+    {
+      "id": "VO-P1-006",
+      "category": "ui.dashboard",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Web UI dashboard for visual profile management",
+      "description": "Non-technical users can manage profiles visually",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/pages/Dashboard.tsx",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Visual profile management interface"
+        }
+      ]
+    },
+    {
+      "id": "VO-P2-001",
+      "category": "analytics",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Usage analytics and profile optimization recommendations",
+      "description": "System learns which profiles work best for different contexts",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/analytics_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Usage tracking and recommendation engine"
+        }
+      ]
+    },
+    {
+      "id": "VO-P2-002",
+      "category": "sharing",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Profile sharing and versioning",
+      "description": "Teams can share and iterate on profile configurations",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/sharing_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Profile export/import and versioning"
+        }
+      ]
+    },
+    {
+      "id": "VO-P2-003",
+      "category": "automation.conditional",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Conditional activation based on time/context",
+      "description": "Profiles activate automatically based on calendar or system state",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/conditional_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Context detection and automatic activation"
+        }
+      ]
+    },
+    {
+      "id": "VO-P2-004",
+      "category": "automation.calendar",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Integration with calendar for automatic profile switching",
+      "description": "Work/personal mode switching based on schedule",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/calendar_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Calendar integration and automated switching"
+        }
+      ]
+    },
+    {
+      "id": "VO-P2-005",
+      "category": "monitoring",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "Resource usage monitoring and optimization",
+      "description": "Profiles adapt to available system resources",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/monitoring_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Resource monitoring and adaptive optimization"
+        }
+      ]
+    }
+  ]
+}
