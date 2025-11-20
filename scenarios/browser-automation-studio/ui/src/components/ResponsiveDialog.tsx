@@ -68,12 +68,6 @@ export default function ResponsiveDialog({
     onDismiss();
   };
 
-  // Extract data-testid from contentProps if provided, otherwise use default
-  const { "data-testid": dataTestId, ...otherContentProps } =
-    contentProps as Record<string, unknown>;
-  const testId =
-    (dataTestId as string | undefined) || selectors.dialogs.responsive.content;
-
   return (
     <div
       className={clsx("responsive-dialog__overlay", overlayClassName)}
@@ -92,8 +86,8 @@ export default function ResponsiveDialog({
           sizeClassMap[size],
           className,
         )}
-        data-testid={testId}
-        {...otherContentProps}
+        data-testid={selectors.dialogs.responsive.content}
+        {...contentProps}
       >
         {children}
       </div>

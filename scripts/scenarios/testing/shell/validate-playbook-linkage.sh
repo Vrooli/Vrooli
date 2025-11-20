@@ -304,11 +304,11 @@ if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
         if [ "$rel_path" = "test/playbooks/registry.json" ]; then
             continue
         fi
-        placeholders=$(rg -o '@fixture/[A-Za-z0-9_.:-]+' -N "$playbook_file" 2>/dev/null | sort -u || true)
+        placeholders=$(grep -oP '@fixture/[A-Za-z0-9_-]+' "$playbook_file" 2>/dev/null | sed 's|@fixture/||' | sort -u || true)
         if [ -n "$placeholders" ]; then
             while IFS= read -r placeholder; do
                 [ -z "$placeholder" ] && continue
-                slug="${placeholder#@fixture/}"
+                slug="$placeholder"
                 if [ -z "${FIXTURE_FILES[$slug]:-}" ]; then
                     FIXTURE_UNKNOWN_REFERENCES+=("$rel_path|$slug")
                     continue
@@ -322,11 +322,11 @@ fi
 if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
     for fixture_slug in "${!FIXTURE_FILES[@]}"; do
         fixture_path="$SCENARIO_DIR/${FIXTURE_FILES[$fixture_slug]}"
-        placeholders=$(rg -o '@fixture/[A-Za-z0-9_.:-]+' -N "$fixture_path" 2>/dev/null | sort -u || true)
+        placeholders=$(grep -oP '@fixture/[A-Za-z0-9_-]+' "$fixture_path" 2>/dev/null | sed 's|@fixture/||' | sort -u || true)
         if [ -n "$placeholders" ]; then
             while IFS= read -r placeholder; do
                 [ -z "$placeholder" ] && continue
-                slug="${placeholder#@fixture/}"
+                slug="$placeholder"
                 if [ -z "${FIXTURE_FILES[$slug]:-}" ]; then
                     FIXTURE_UNKNOWN_REFERENCES+=("${FIXTURE_FILES[$fixture_slug]}|$slug")
                     continue

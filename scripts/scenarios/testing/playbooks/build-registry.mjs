@@ -34,14 +34,9 @@ function collectRequirementValidations(requirementsDir) {
         if (!validation.ref.startsWith('test/playbooks/')) continue;
         const key = validation.ref;
         if (!validationsByFile.has(key)) {
-          validationsByFile.set(key, []);
+          validationsByFile.set(key, new Set());
         }
-        validationsByFile.get(key).push({
-          requirement: req.id,
-          requirementTitle: req.title,
-          phase: validation.phase || 'unknown',
-          status: validation.status || 'unknown'
-        });
+        validationsByFile.get(key).add(req.id);
       }
     }
   }
@@ -70,103 +65,34 @@ function getFixtures(playbook) {
   return Array.from(fixtures).sort();
 }
 
-function collectFixtureMetadata(fixturesDir) {
-  const metadataMap = new Map();
-  if (!fs.existsSync(fixturesDir)) {
-    return metadataMap;
-  }
-  const files = [];
-  const stack = [fixturesDir];
-  while (stack.length) {
-    const current = stack.pop();
-    if (!fs.existsSync(current)) continue;
-    const stat = fs.statSync(current);
-    if (stat.isDirectory()) {
-      for (const child of fs.readdirSync(current)) {
-        stack.push(path.join(current, child));
-      }
-    } else if (path.extname(current) === '.json') {
-      files.push(current);
-    }
-  }
-
-  for (const filePath of files) {
-    try {
-      const data = readJSON(filePath);
-      const metadata = data.metadata || {};
-      const fixtureId = metadata.fixture_id || metadata.fixtureId;
-      if (!fixtureId || typeof fixtureId !== 'string') {
-        continue;
-      }
-      const description = typeof metadata.description === 'string' ? metadata.description : '';
-      const requirements = Array.isArray(metadata.requirements)
-        ? metadata.requirements.filter((req) => typeof req === 'string')
-        : [];
-      const parameters = Array.isArray(metadata.parameters)
-        ? metadata.parameters
-            .map((param) => {
-              if (!param || typeof param !== 'object') {
-                return null;
-              }
-              const name = typeof param.name === 'string' ? param.name : '';
-              if (!name) {
-                return null;
-              }
-              const type = typeof param.type === 'string' ? param.type : 'string';
-              const paramInfo = {
-                name,
-                type,
-                required: Boolean(param.required),
-                default: Object.prototype.hasOwnProperty.call(param, 'default') ? param.default : undefined,
-                enumValues: Array.isArray(param.enumValues)
-                  ? param.enumValues
-                  : Array.isArray(param.enum_values)
-                  ? param.enum_values
-                  : undefined,
-                description: typeof param.description === 'string' ? param.description : '',
-              };
-              return paramInfo;
-            })
-            .filter(Boolean)
-        : [];
-
-      metadataMap.set(fixtureId, {
-        description,
-        requirements,
-        parameters,
-      });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(`[playbook-registry] Failed parsing fixture metadata ${filePath}: ${err.message}`);
-    }
-  }
-
-  return metadataMap;
-}
-
 function collectPlaybooks(playbooksRoot) {
-  const targets = [
-    path.join(playbooksRoot, 'capabilities'),
-    path.join(playbooksRoot, 'journeys')
-  ];
-  const files = [];
-  for (const target of targets) {
-    if (!fs.existsSync(target)) continue;
-    const stack = [target];
-    while (stack.length) {
-      const current = stack.pop();
-      if (!fs.existsSync(current)) continue;
-      const stat = fs.statSync(current);
-      if (stat.isDirectory()) {
-        for (const child of fs.readdirSync(current)) {
-          stack.push(path.join(current, child));
+  const collected = [];
+
+  const traverse = (dir, segments) => {
+    if (!fs.existsSync(dir)) return;
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => !entry.name.startsWith('__'))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    let index = 1;
+    for (const entry of entries) {
+      const segment = String(index).padStart(2, '0');
+      const nextSegments = [...segments, segment];
+      const absPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        traverse(absPath, nextSegments);
+      } else if (entry.isFile() && path.extname(entry.name) === '.json') {
+        if (segments.length === 0 && entry.name === 'registry.json') {
+          continue;
         }
-      } else if (path.extname(current) === '.json') {
-        files.push(current);
+        collected.push({ path: absPath, order: nextSegments.join('.') });
       }
+      index += 1;
     }
-  }
-  return files;
+  };
+
+  traverse(playbooksRoot, []);
+  return collected;
 }
 
 function parseArgs() {
@@ -205,7 +131,6 @@ function ensureDirExists(dir, label) {
 
   const validationsByFile = collectRequirementValidations(requirementsDir);
   const playbookFiles = collectPlaybooks(playbooksRoot);
-  const fixtureMetadata = collectFixtureMetadata(fixturesDir);
 
   const registry = {
     _note: 'AUTO-GENERATED by scripts/scenarios/testing/playbooks/build-registry.mjs — run this script (or make test) to refresh. Do not edit manually.',
@@ -214,42 +139,22 @@ function ensureDirExists(dir, label) {
     playbooks: []
   };
 
-  for (const absPath of playbookFiles.sort()) {
-    const relPath = normalizePlaybookPath(scenarioRoot, absPath);
-    const data = readJSON(absPath);
+  for (const entry of playbookFiles) {
+    const relPath = normalizePlaybookPath(scenarioRoot, entry.path);
+    const data = readJSON(entry.path);
     const fixtures = getFixtures(data);
     const metadata = data.metadata || {};
-    const validations = validationsByFile.get(relPath) || [];
-    const fixtureDetails = fixtures.map((id) => ({
-      id,
-      description: fixtureMetadata.get(id)?.description || '',
-      requirements: fixtureMetadata.get(id)?.requirements || [],
-      parameters: fixtureMetadata.get(id)?.parameters || [],
-    }));
-
-    const fixtureRequirementSet = new Set();
-    const inheritedRequirements = Array.isArray(metadata.requirementsFromFixtures)
-      ? metadata.requirementsFromFixtures.filter((req) => typeof req === 'string')
-      : [];
-    inheritedRequirements.forEach((req) => fixtureRequirementSet.add(req));
-    for (const detail of fixtureDetails) {
-      for (const req of detail.requirements || []) {
-        if (typeof req === 'string') {
-          fixtureRequirementSet.add(req);
-        }
-      }
-    }
-    const fixtureRequirements = Array.from(fixtureRequirementSet);
+    const requirementSet = validationsByFile.get(relPath) || new Set();
+    const requirementIds = Array.from(requirementSet.values()).sort();
+    const resetRequirement = typeof metadata.reset === 'string' ? metadata.reset : 'project';
 
     registry.playbooks.push({
       file: relPath,
-      requirement: metadata.requirement || null,
       description: metadata.description || '',
-      version: metadata.version ?? null,
+      order: entry.order,
+      requirements: requirementIds,
       fixtures,
-      fixture_details: fixtureDetails,
-      fixture_requirements: fixtureRequirements,
-      validations,
+      reset: resetRequirement,
     });
   }
 

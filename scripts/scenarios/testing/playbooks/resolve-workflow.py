@@ -23,6 +23,8 @@ NUMBER_PATTERN = re.compile(r"^-?\d+(?:\.\d+)?$")
 BOOLEAN_TRUE = {"true", "1", "yes", "on"}
 BOOLEAN_FALSE = {"false", "0", "no", "off"}
 SEED_STATE_RELATIVE_PATH = Path("test") / "artifacts" / "runtime" / "seed-state.json"
+RESET_LEVELS = {"none": 0, "project": 1, "global": 2}
+DEFAULT_RESET_LEVEL = "project"
 
 
 @dataclass(frozen=True)
@@ -41,6 +43,7 @@ class FixtureMetadata:
     fixture_id: str
     requirements: List[str]
     parameters: List[FixtureParameterDefinition]
+    reset: Optional[str]
 
 
 def parse_args() -> argparse.Namespace:
@@ -146,12 +149,49 @@ def normalize_fixture_metadata(path: Path, metadata: Dict[str, Any]) -> FixtureM
                 )
             requirements.append(req)
     parameters = normalize_fixture_parameters(metadata, path)
+    reset_value = metadata.get("reset")
+    if reset_value is not None and not isinstance(reset_value, str):
+        raise RuntimeError(f"Fixture {path} metadata.reset must be a string if provided")
+    if isinstance(reset_value, str):
+        normalized_reset = reset_value.strip().lower()
+        if normalized_reset not in RESET_LEVELS:
+            allowed = ", ".join(sorted(RESET_LEVELS.keys()))
+            raise RuntimeError(
+                f"Fixture {path} metadata.reset must be one of: {allowed}"
+            )
+        reset_value = normalized_reset
+
     return FixtureMetadata(
         description=description,
         fixture_id=fixture_id,
         requirements=requirements,
         parameters=parameters,
+        reset=reset_value,
     )
+
+
+def normalize_reset_value(raw: Optional[str], context: str) -> Optional[str]:
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        raise RuntimeError(f"Reset metadata at {context} must be a string")
+    normalized = raw.strip().lower()
+    if not normalized:
+        return None
+    if normalized not in RESET_LEVELS:
+        allowed = ", ".join(sorted(RESET_LEVELS.keys()))
+        raise RuntimeError(f"Reset metadata at {context} must be one of: {allowed}")
+    return normalized
+
+
+def merge_reset_values(current: Optional[str], candidate: Optional[str]) -> Optional[str]:
+    if candidate is None:
+        return current
+    if current is None:
+        return candidate
+    if RESET_LEVELS[candidate] > RESET_LEVELS[current]:
+        return candidate
+    return current
 
 
 def load_fixtures(directory: Path) -> Dict[str, Dict[str, Any]]:
@@ -421,6 +461,7 @@ def resolve_definition(
     nodes = definition.get("nodes")
     if not isinstance(nodes, list):
         return
+    aggregated_reset = None
     for index, node in enumerate(nodes):
         if not isinstance(node, dict):
             continue
@@ -448,13 +489,47 @@ def resolve_definition(
             metadata: FixtureMetadata = fixture.get("metadata")
             if metadata and metadata.requirements:
                 fixture_requirements.update(metadata.requirements)
+            if metadata and metadata.reset:
+                aggregated_reset = merge_reset_values(
+                    aggregated_reset,
+                    normalize_reset_value(metadata.reset, f"{node_pointer}/data/workflowId"),
+                )
             resolve_definition(nested, fixtures, used, fixture_requirements, seed_state, node_pointer)
             data["workflowDefinition"] = nested
             data.pop("workflowId", None)
+            nested_reset = None
+            nested_metadata = nested.get("metadata")
+            if isinstance(nested_metadata, dict):
+                nested_reset = normalize_reset_value(
+                    nested_metadata.get("reset"), f"{node_pointer}/data/workflowDefinition"
+                )
+            aggregated_reset = merge_reset_values(aggregated_reset, nested_reset)
         elif isinstance(data.get("workflowDefinition"), dict):
             resolve_definition(
                 data["workflowDefinition"], fixtures, used, fixture_requirements, seed_state, node_pointer
             )
+            nested = data.get("workflowDefinition")
+            nested_metadata = nested.get("metadata") if isinstance(nested, dict) else None
+            if isinstance(nested_metadata, dict):
+                aggregated_reset = merge_reset_values(
+                    aggregated_reset,
+                    normalize_reset_value(
+                        nested_metadata.get("reset"), f"{node_pointer}/data/workflowDefinition"
+                    ),
+                )
+
+    metadata = definition.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+        definition["metadata"] = metadata
+    base_context = f"{pointer}/metadata/reset" if pointer else "/metadata/reset"
+    base_reset = None
+    if "reset" in metadata:
+        base_reset = normalize_reset_value(metadata.get("reset"), base_context)
+    final_reset = merge_reset_values(base_reset, aggregated_reset)
+    if final_reset is None:
+        final_reset = DEFAULT_RESET_LEVEL
+    metadata["reset"] = final_reset
 
 
 def load_selector_registry(scenario_dir: Path) -> Dict[str, Any]:

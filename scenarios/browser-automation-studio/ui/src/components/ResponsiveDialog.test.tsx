@@ -57,7 +57,7 @@ describe("ResponsiveDialog [REQ:BAS-PROJECT-DIALOG-OPEN] [REQ:BAS-PROJECT-DIALOG
         onDismiss={handleDismiss}
         ariaLabel="Test Dialog"
       >
-        <div data-testid={selectors.dialogs.responsive.content}>Dialog Content</div>
+        <div>Dialog Content</div>
       </ResponsiveDialog>,
     );
 

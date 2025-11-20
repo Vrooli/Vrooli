@@ -34,7 +34,6 @@ export interface WorkflowValidationStats {
   unique_selector_count: number;
   element_wait_count: number;
   has_metadata: boolean;
-  has_requirement: boolean;
   has_execution_viewport: boolean;
 }
 

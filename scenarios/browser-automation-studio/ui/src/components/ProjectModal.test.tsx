@@ -19,13 +19,19 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Setup default store mock
+    // Setup default store mock with an existing project to enable folder_path auto-detection
     (useProjectStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       createProject: mockCreateProject,
       updateProject: mockUpdateProject,
       isLoading: false,
       error: null,
-      projects: [],
+      projects: [{
+        id: 'existing-project-id',
+        name: 'Existing Project',
+        folder_path: '/home/user/Vrooli/scenarios/browser-automation-studio/data/projects/existing',
+        created_at: '2025-01-01',
+        updated_at: '2025-01-01',
+      }],
     });
   });
 
@@ -139,8 +145,10 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
       });
     });
 
-    expect(mockOnSuccess).toHaveBeenCalledWith(newProject);
-    expect(mockOnClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockOnSuccess).toHaveBeenCalledWith(newProject);
+      expect(mockOnClose).toHaveBeenCalled();
+    });
   });
 
   it('updates existing project successfully [REQ:BAS-PROJECT-CREATE-SUCCESS]', async () => {
@@ -181,8 +189,10 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
       });
     });
 
-    expect(mockOnSuccess).toHaveBeenCalledWith(updatedProject);
-    expect(mockOnClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockOnSuccess).toHaveBeenCalledWith(updatedProject);
+      expect(mockOnClose).toHaveBeenCalled();
+    });
   });
 
   it('closes dialog when cancel button is clicked [REQ:BAS-PROJECT-DIALOG-CLOSE]', async () => {

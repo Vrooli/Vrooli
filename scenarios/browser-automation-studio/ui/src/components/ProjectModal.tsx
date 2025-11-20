@@ -225,10 +225,10 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
       ariaLabelledBy={titleId}
       size="default"
       className="bg-flow-node border border-gray-700 shadow-2xl"
-      data-testid={selectors.dialogs.project.root}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-700">
+      <div data-testid={selectors.dialogs.project.root}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-700">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-flow-accent/20 rounded-lg flex items-center justify-center">
             <FolderOpen size={16} className="text-flow-accent" />
@@ -386,6 +386,7 @@ function ProjectModal({ onClose, project, onSuccess }: ProjectModalProps) {
           </button>
         </div>
       </form>
+      </div>
     </ResponsiveDialog>
   );
 }

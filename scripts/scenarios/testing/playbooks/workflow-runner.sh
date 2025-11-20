@@ -10,11 +10,14 @@ TESTING_PLAYBOOKS_APP_ROOT="$(cd "${TESTING_PLAYBOOKS_DIR}/../../../../" && pwd)
 declare -g _TESTING_PLAYBOOKS_SEEDS_APPLIED=false
 declare -g _TESTING_PLAYBOOKS_SEEDS_DIR=""
 declare -g _TESTING_PLAYBOOKS_SEEDS_SCENARIO_DIR=""
+declare -ga TESTING_PLAYBOOKS_LAST_PROGRESS_LINES=()
 
 declare -g TESTING_PLAYBOOKS_LAST_WORKFLOW_ID=""
 declare -g TESTING_PLAYBOOKS_LAST_EXECUTION_ID=""
 declare -g TESTING_PLAYBOOKS_LAST_SCENARIO=""
 declare -g TESTING_PLAYBOOKS_LAST_FIXTURE_REQUIREMENTS=""
+declare -g TESTING_PLAYBOOKS_LAST_WORKFLOW_PATH=""
+declare -g TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE=""
 
 _testing_playbooks__require_tools() {
     local missing=()
@@ -95,6 +98,71 @@ _testing_playbooks__cleanup_seeds() {
     _TESTING_PLAYBOOKS_SEEDS_SCENARIO_DIR=""
 }
 
+_testing_playbooks__persist_failure_artifacts() {
+    local scenario_dir="$1"
+    local workflow_rel="$2"
+    local execution_id="$3"
+    local api_base="$4"
+    local timeline_payload="$5"
+
+    if [ -z "$scenario_dir" ] || [ -z "$workflow_rel" ] || [ -z "$execution_id" ]; then
+        return 0
+    fi
+
+    local artifact_root="$scenario_dir/coverage/automation"
+    local sanitized="${workflow_rel#./}"
+    if [ -z "$sanitized" ]; then
+        sanitized="$(basename "$workflow_rel")"
+    fi
+    local base_no_ext="${sanitized%.*}"
+    local base_path="$artifact_root/${base_no_ext}"
+    local target_dir
+    target_dir=$(dirname "$base_path")
+    mkdir -p "$target_dir"
+
+    if [ -n "$timeline_payload" ]; then
+        printf '%s\n' "$timeline_payload" >"${base_path}.timeline.json"
+    fi
+
+    if command -v jq >/dev/null 2>&1; then
+        local screenshot_resp
+        screenshot_resp=$(curl -s --max-time 10 "$api_base/executions/${execution_id}/screenshots" || true)
+        local screenshot_url
+        screenshot_url=$(printf '%s' "$screenshot_resp" | jq -r '.screenshots | last | (.storage_url // .thumbnail_url // empty)' 2>/dev/null || echo '')
+        if [ -n "$screenshot_url" ]; then
+            local base_host="${api_base%/api/v1}"
+            local resolved_url="$screenshot_url"
+            if [[ "$resolved_url" != http*://* ]]; then
+                resolved_url="$base_host$resolved_url"
+            fi
+            curl -s --max-time 30 "$resolved_url" -o "${base_path}.png" >/dev/null 2>&1 || true
+        fi
+    fi
+
+    local recorded_paths=()
+    if [ -s "${base_path}.timeline.json" ]; then
+        recorded_paths+=("${base_path}.timeline.json")
+    fi
+    if [ -s "${base_path}.png" ]; then
+        recorded_paths+=("${base_path}.png")
+    fi
+
+    if [ ${#recorded_paths[@]} -gt 0 ]; then
+        local rel_paths=()
+        local path_entry
+        for path_entry in "${recorded_paths[@]}"; do
+            if [[ "$path_entry" == "$scenario_dir/"* ]]; then
+                rel_paths+=("${path_entry#$scenario_dir/}")
+            else
+                rel_paths+=("$path_entry")
+            fi
+        done
+        TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE=$(IFS=', '; echo "${rel_paths[*]}")
+    else
+        TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE=""
+    fi
+}
+
 _testing_playbooks__resolve_api_port() {
     local scenario_name="$1"
     local resolved
@@ -128,6 +196,8 @@ _testing_playbooks__wait_for_execution() {
     local last_status=""
     local last_progress=-1
     local poll_count=0
+    local verbose_logging="${TESTING_PLAYBOOKS_VERBOSE:-0}"
+    TESTING_PLAYBOOKS_LAST_PROGRESS_LINES=()
 
     while true; do
         local exec_resp
@@ -142,10 +212,16 @@ _testing_playbooks__wait_for_execution() {
         # Log progress updates (every 5 polls or when status/progress changes)
         poll_count=$((poll_count + 1))
         if [ "$status" != "$last_status" ] || [ "$progress" != "$last_progress" ] || [ $((poll_count % 5)) -eq 0 ]; then
+            local message
             if [ -n "$current_step" ] && [ "$current_step" != "null" ]; then
-                echo "   [${status}] ${progress}% - ${current_step}" >&2
+                message="   [${status}] ${progress}% - ${current_step}"
             else
-                echo "   [${status}] ${progress}%" >&2
+                message="   [${status}] ${progress}%"
+            fi
+            if [ "$verbose_logging" = "1" ]; then
+                echo "$message" >&2
+            else
+                TESTING_PLAYBOOKS_LAST_PROGRESS_LINES+=("$message")
             fi
             last_status="$status"
             last_progress="$progress"
@@ -241,6 +317,7 @@ testing::playbooks::run_workflow() {
     local manage_runtime="auto"
     local readiness_timeout=120
     local allow_missing=false
+    local verbose_logging="${TESTING_PLAYBOOKS_VERBOSE:-0}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -279,6 +356,7 @@ testing::playbooks::run_workflow() {
     TESTING_PLAYBOOKS_LAST_EXECUTION_ID=""
     TESTING_PLAYBOOKS_LAST_SCENARIO=""
     TESTING_PLAYBOOKS_LAST_FIXTURE_REQUIREMENTS=""
+    TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE=""
 
     local scenario_dir="${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}"
 
@@ -308,6 +386,16 @@ testing::playbooks::run_workflow() {
         echo "❌ workflow is empty: $workflow_path" >&2
         return 1
     fi
+
+    local artifact_rel_path="$workflow_path"
+    if [[ "$artifact_rel_path" == "$scenario_dir/"* ]]; then
+        artifact_rel_path="${artifact_rel_path#$scenario_dir/}"
+    fi
+    artifact_rel_path="${artifact_rel_path#./}"
+    if [ -z "$artifact_rel_path" ]; then
+        artifact_rel_path="$(basename "$workflow_path")"
+    fi
+    TESTING_PLAYBOOKS_LAST_WORKFLOW_PATH="$artifact_rel_path"
 
     _testing_playbooks__require_tools
 
@@ -413,22 +501,21 @@ testing::playbooks::run_workflow() {
 
     # Fetch assertion and step statistics from timeline
     local stats_output=""
+    local timeline_json=""
     if command -v jq >/dev/null 2>&1; then
-        local timeline
-        timeline=$(curl -s --max-time 5 "$api_base/executions/${execution_id}/timeline" 2>/dev/null || echo '{"frames":[]}')
-
+        timeline_json=$(curl -s --max-time 5 "$api_base/executions/${execution_id}/timeline" 2>/dev/null || echo '{"frames":[]}')
         local total_steps=0
         local assert_total=0
         local assert_passed=0
         local assert_failed=0
 
         # Count total steps (all frames are steps)
-        total_steps=$(printf '%s' "$timeline" | jq '.frames | length' 2>/dev/null || echo "0")
+        total_steps=$(printf '%s' "$timeline_json" | jq '.frames | length' 2>/dev/null || echo "0")
 
         # Count assertions by status (step_type == "assert")
-        assert_total=$(printf '%s' "$timeline" | jq '[.frames[] | select(.step_type == "assert")] | length' 2>/dev/null || echo "0")
-        assert_passed=$(printf '%s' "$timeline" | jq '[.frames[] | select(.step_type == "assert" and .status == "completed")] | length' 2>/dev/null || echo "0")
-        assert_failed=$(printf '%s' "$timeline" | jq '[.frames[] | select(.step_type == "assert" and .status == "failed")] | length' 2>/dev/null || echo "0")
+        assert_total=$(printf '%s' "$timeline_json" | jq '[.frames[] | select(.step_type == "assert")] | length' 2>/dev/null || echo "0")
+        assert_passed=$(printf '%s' "$timeline_json" | jq '[.frames[] | select(.step_type == "assert" and .status == "completed")] | length' 2>/dev/null || echo "0")
+        assert_failed=$(printf '%s' "$timeline_json" | jq '[.frames[] | select(.step_type == "assert" and .status == "failed")] | length' 2>/dev/null || echo "0")
 
         # Build stats output
         if [ "$assert_total" -gt 0 ]; then
@@ -443,8 +530,19 @@ testing::playbooks::run_workflow() {
         return 0
     fi
 
+    if [ "$verbose_logging" != "1" ]; then
+        for line in "${TESTING_PLAYBOOKS_LAST_PROGRESS_LINES[@]}"; do
+            echo "$line" >&2
+        done
+    fi
+
     echo "❌ Workflow ${workflow_name} failed after ${duration}s${stats_output}" >&2
     printf '%s\n' "$execution_summary" >&2
+
+    _testing_playbooks__persist_failure_artifacts "$scenario_dir" "$artifact_rel_path" "$execution_id" "$api_base" "$timeline_json"
+    if [ -n "${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}" ]; then
+        echo "   ↳ Failure artifacts: ${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}" >&2
+    fi
 
     if [ $wait_rc -eq 2 ] && [ "$duration" -ge "$workflow_timeout" ]; then
         echo "⚠️ [WF_RUNTIME_SLOW] Workflow ${workflow_name} timed out after ${duration}s (execution stalled)" >&2
@@ -454,3 +552,87 @@ testing::playbooks::run_workflow() {
 }
 
 export -f testing::playbooks::run_workflow
+
+testing::playbooks::reset_seed_state() {
+    local reset_mode="project"
+    local scenario_dir="${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}"
+    local scenario_name="${TESTING_PLAYBOOKS_LAST_SCENARIO:-${TESTING_PHASE_SCENARIO_NAME:-browser-automation-studio}}"
+    local readiness_timeout="${TESTING_PLAYBOOKS_RESET_TIMEOUT:-150}"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --mode)
+                reset_mode="$2"
+                shift 2
+                ;;
+            --scenario-dir)
+                scenario_dir="$2"
+                shift 2
+                ;;
+            --scenario-name)
+                scenario_name="$2"
+                shift 2
+                ;;
+            --timeout)
+                readiness_timeout="$2"
+                shift 2
+                ;;
+            *)
+                echo "Unknown option to testing::playbooks::reset_seed_state: $1" >&2
+                return 1
+                ;;
+        esac
+    done
+
+    if [ "$reset_mode" = "none" ]; then
+        return 0
+    fi
+
+    case "$reset_mode" in
+        project|global)
+            :
+            ;;
+        *)
+            reset_mode="project"
+            ;;
+    esac
+
+    if [ -n "$scenario_dir" ]; then
+        scenario_dir="$(cd "$scenario_dir" && pwd)"
+    fi
+
+    local previous_scenario_env="${SCENARIO_NAME:-}"
+    if [ -n "$scenario_name" ]; then
+        export SCENARIO_NAME="$scenario_name"
+    fi
+
+    _testing_playbooks__cleanup_seeds || true
+
+    if [ "$reset_mode" = "global" ] && [ -n "$scenario_name" ] && command -v vrooli >/dev/null 2>&1; then
+        if ! vrooli scenario restart "$scenario_name" --clean-stale >/dev/null 2>&1; then
+            vrooli scenario stop "$scenario_name" >/dev/null 2>&1 || true
+            vrooli scenario start "$scenario_name" --clean-stale >/dev/null 2>&1 || true
+        fi
+        if declare -F testing::core::wait_for_scenario >/dev/null 2>&1; then
+            testing::core::wait_for_scenario "$scenario_name" "$readiness_timeout" >/dev/null 2>&1 || true
+        else
+            sleep 3
+        fi
+    fi
+
+    local apply_status=0
+    if [ -n "$scenario_dir" ]; then
+        if ! _testing_playbooks__apply_seeds_if_needed "$scenario_dir"; then
+            apply_status=$?
+        fi
+    fi
+
+    if [ -n "$previous_scenario_env" ]; then
+        export SCENARIO_NAME="$previous_scenario_env"
+    else
+        unset SCENARIO_NAME || true
+    fi
+
+    return $apply_status
+}
+export -f testing::playbooks::reset_seed_state

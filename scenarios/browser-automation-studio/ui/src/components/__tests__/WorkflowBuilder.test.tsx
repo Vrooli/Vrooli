@@ -51,7 +51,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import type { Node, Edge } from "reactflow";
-import { selectors } from "../consts/selectors";
+import { selectors } from "../../consts/selectors";
 
 const useWorkflowStoreMock = vi.hoisted(() => vi.fn());
 
@@ -233,7 +233,6 @@ const mockValidationResponse = () => ({
     unique_selector_count: 0,
     element_wait_count: 0,
     has_metadata: false,
-    has_requirement: false,
     has_execution_viewport: false,
   },
   schema_version: "test",
