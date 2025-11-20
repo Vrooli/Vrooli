@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-20T02:46:38.357Z"
+    "last_synced_at": "2025-11-20T14:01:07.071Z"
   },
   "requirements": [
     {
@@ -18,12 +18,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/foundation/projects/project-list-and-select.json",
+          "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-list-and-select.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Validates project grid rendering and navigation to project detail view"
+          "notes": "Validates project grid rendering and navigation to project detail view",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 1,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-PROJECT-SEARCH",
@@ -36,12 +59,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/foundation/projects/project-search-filter.json",
+          "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-search-filter.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Tests search filtering and clearing search to restore full list"
+          "notes": "Tests search filtering and clearing search to restore full list",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 1,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-PROJECT-EDIT",
@@ -54,12 +100,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/foundation/projects/project-edit.json",
+          "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-edit.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Validates opening edit modal, updating fields, and persisting changes"
+          "notes": "Validates opening edit modal, updating fields, and persisting changes",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 1,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-WORKFLOW-CREATE-LOAD",
@@ -72,12 +141,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/foundation/workflows/workflow-create-and-load.json",
+          "ref": "test/playbooks/capabilities/01-foundation/02-workflows/workflow-create-and-load.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Tests workflow creation flow including AI modal bypass and builder loading"
+          "notes": "Tests workflow creation flow including AI modal bypass and builder loading",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-WORKFLOW-SELECT",
@@ -90,12 +182,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/foundation/workflows/workflow-select-from-list.json",
+          "ref": "test/playbooks/capabilities/01-foundation/02-workflows/workflow-select-from-list.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates workflow list display and navigation to builder with selected workflow"
+          "notes": "Validates workflow list display and navigation to builder with selected workflow",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-EXEC-HISTORY-VIEW",
@@ -108,12 +223,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/foundation/executions/execution-history-view.json",
+          "ref": "test/playbooks/capabilities/01-foundation/03-executions/execution-history-view.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Tests tab navigation, execution list rendering, and execution viewer opening"
+          "notes": "Tests tab navigation, execution list rendering, and execution viewer opening",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-EXEC-FROM-PROJECT",
@@ -126,12 +264,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/foundation/executions/execution-from-project-detail.json",
+          "ref": "test/playbooks/capabilities/01-foundation/03-executions/execution-from-project-detail.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates execute button functionality and execution status feedback"
+          "notes": "Validates execute button functionality and execution status feedback",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-PROJECT-TAB-SWITCH",
@@ -144,12 +305,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/foundation/projects/project-detail-tab-switching.json",
+          "ref": "test/playbooks/capabilities/01-foundation/01-projects/project-detail-tab-switching.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates tab switching between workflows and executions in project detail view"
+          "notes": "Validates tab switching between workflows and executions in project detail view",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-EXEC-REPLAY-TAB",
@@ -162,12 +346,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/foundation/executions/execution-viewer-replay-tab.json",
+          "ref": "test/playbooks/capabilities/01-foundation/03-executions/execution-viewer-replay-tab.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Validates replay tab display with timeline, screenshots, and controls"
+          "notes": "Validates replay tab display with timeline, screenshots, and controls",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 1,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     }
   ]
 }

@@ -1,0 +1,227 @@
+{
+  "metadata": {
+    "description": "Validates real-time telemetry display including screenshots, console, and network events",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-project",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open Demo project via fixture",
+        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+      }
+    },
+    {
+      "id": "start-execution",
+      "type": "click",
+      "data": {
+        "label": "Start execution to observe telemetry",
+        "selector": "@selector/workflowBuilder.executeButton",
+        "timeoutMs": 5000,
+        "waitForMs": 3000
+      }
+    },
+    {
+      "id": "verify-execution-view",
+      "type": "assert",
+      "data": {
+        "label": "Execution viewer should open",
+        "selector": "@selector/executions.viewer.root",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Execution viewer should appear",
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "wait-telemetry-start",
+      "type": "wait",
+      "data": {
+        "label": "Wait for telemetry stream to start",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "capture-initial-telemetry",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture telemetry start",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "check-screenshot-display",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify screenshot display area exists",
+        "expression": "!!document.querySelector('img[src*=\"data:image\"], canvas, [class*=\"screenshot\"]')",
+        "storeAs": "hasScreenshotDisplay"
+      }
+    },
+    {
+      "id": "check-console-tab",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify console tab exists",
+        "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"console\"]')).some(el => el.textContent?.includes('Console'))",
+        "storeAs": "hasConsoleTab",
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "check-network-tab",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify network tab exists",
+        "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"network\"]')).some(el => el.textContent?.includes('Network'))",
+        "storeAs": "hasNetworkTab",
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "capture-telemetry-ui",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture telemetry UI components",
+        "fullPage": true,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "wait-more-telemetry",
+      "type": "wait",
+      "data": {
+        "label": "Allow telemetry to stream",
+        "durationMs": 5000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "check-telemetry-updates",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify telemetry data is updating",
+        "expression": "document.querySelectorAll('[class*=\"telemetry\"], [class*=\"event\"], [class*=\"log\"]').length > 0",
+        "storeAs": "hasTelemetryData"
+      }
+    },
+    {
+      "id": "capture-live-telemetry",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture live telemetry stream",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "verify-heartbeat-timestamp",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify heartbeat/timestamp display",
+        "expression": "!!document.querySelector('[class*=\"timestamp\"], [class*=\"time\"], time')",
+        "storeAs": "hasTimestamps"
+      }
+    },
+    {
+      "id": "verify-telemetry-complete",
+      "type": "screenshot",
+      "data": {
+        "label": "Final telemetry display verification",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-project-to-start-execution",
+      "source": "call-open-project",
+      "target": "start-execution",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "start-execution",
+      "target": "verify-execution-view",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "verify-execution-view",
+      "target": "wait-telemetry-start",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "wait-telemetry-start",
+      "target": "capture-initial-telemetry",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "capture-initial-telemetry",
+      "target": "check-screenshot-display",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "check-screenshot-display",
+      "target": "check-console-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "check-console-tab",
+      "target": "check-network-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "check-network-tab",
+      "target": "capture-telemetry-ui",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "capture-telemetry-ui",
+      "target": "wait-more-telemetry",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "wait-more-telemetry",
+      "target": "check-telemetry-updates",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "check-telemetry-updates",
+      "target": "capture-live-telemetry",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "capture-live-telemetry",
+      "target": "verify-heartbeat-timestamp",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "verify-heartbeat-timestamp",
+      "target": "verify-telemetry-complete",
+      "type": "smoothstep"
+    }
+  ]
+}

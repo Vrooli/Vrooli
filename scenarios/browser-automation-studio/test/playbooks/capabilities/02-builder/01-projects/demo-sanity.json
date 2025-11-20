@@ -1,0 +1,58 @@
+{
+  "metadata": {
+    "description": "Ensures the demo project and default workflow remain available after boot.",
+    "version": 2,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-demo-workflow",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open seeded workflow",
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowName=@seed/workflowName)"
+      }
+    },
+    {
+      "id": "assert-builder",
+      "type": "assert",
+      "data": {
+        "label": "Builder is visible",
+        "selector": "@selector/workflowBuilder.canvas.root",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Workflow builder should render after loading the seeded workflow"
+      }
+    },
+    {
+      "id": "capture-builder",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture builder state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-open-assert",
+      "source": "call-open-demo-workflow",
+      "target": "assert-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-assert-capture",
+      "source": "assert-builder",
+      "target": "capture-builder",
+      "type": "smoothstep"
+    }
+  ]
+}

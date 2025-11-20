@@ -1,0 +1,145 @@
+{
+  "metadata": {
+    "description": "Validates execution history tab displays execution list and allows selecting executions to view details",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-project",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open Demo project via fixture",
+        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+      }
+    },
+    {
+      "id": "click-executions-tab",
+      "type": "click",
+      "data": {
+        "label": "Click Execution History tab",
+        "selector": "@selector/projects.tabs.executions",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/executions.list.root"
+        }
+      }
+    },
+    {
+      "id": "click-filter-failed",
+      "type": "click",
+      "data": {
+        "label": "Filter to failed executions",
+        "selector": "@selector/executions.filters.failed",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/executions.list.item"
+        }
+      }
+    },
+    {
+      "id": "capture-execution-history",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture execution history view",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "check-executions-exist",
+      "type": "assert",
+      "data": {
+        "label": "Executions visible",
+        "selector": "@selector/executions.list.item, @selector/executions.list.card",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Expected executions to appear after opening tab"
+      }
+    },
+    {
+      "id": "click-first-execution",
+      "type": "click",
+      "data": {
+        "label": "Click first execution (if exists)",
+        "selector": "@selector/executions.list.item:first-of-type, @selector/executions.list.card:first-of-type, @selector/executions.actions.viewButton:first-of-type",
+        "timeoutMs": 5000,
+        "continueOnError": true,
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.root"
+        }
+      }
+    },
+    {
+      "id": "check-viewer-visible",
+      "type": "assert",
+      "data": {
+        "label": "Execution viewer visible",
+        "selector": "@selector/executions.viewer.root",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Execution viewer should render after selecting an execution"
+      }
+    },
+    {
+      "id": "capture-execution-viewer",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture execution viewer",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-project-to-click-executions-tab",
+      "source": "call-open-project",
+      "target": "click-executions-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-executions-tab",
+      "target": "click-filter-failed",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6-filter",
+      "source": "click-filter-failed",
+      "target": "capture-execution-history",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "capture-execution-history",
+      "target": "check-executions-exist",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "check-executions-exist",
+      "target": "click-first-execution",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "click-first-execution",
+      "target": "check-viewer-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "check-viewer-visible",
+      "target": "capture-execution-viewer",
+      "type": "smoothstep"
+    }
+  ]
+}

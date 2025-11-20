@@ -1,0 +1,131 @@
+{
+  "metadata": {
+    "description": "Validates project search and filtering functionality on the dashboard",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "assert-projects-visible",
+      "type": "assert",
+      "data": {
+        "label": "Projects render on dashboard",
+        "selector": "@selector/projects.card",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Projects grid should be visible before searching"
+      }
+    },
+    {
+      "id": "type-nonexistent-search",
+      "type": "type",
+      "data": {
+        "label": "Search for nonexistent project",
+        "selector": "input[type=\"text\"][placeholder*=\"Search\"], input[id=\"project-search\"] /*dup-1*/",
+        "text": "xyznonexistentproject12345",
+        "clearFirst": true,
+        "timeoutMs": 5000
+      }
+    },
+    {
+      "id": "assert-no-results",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify no projects shown",
+        "expression": "document.querySelectorAll('@selector/projects.card').length === 0",
+        "storeAs": "noResults"
+      }
+    },
+    {
+      "id": "clear-search",
+      "type": "click",
+      "data": {
+        "label": "Click clear search button",
+        "selector": "@selector/projects.search.clearButton",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/projects.card",
+          "successTimeoutMs": 10000
+        }
+      }
+    },
+    {
+      "id": "assert-projects-restored",
+      "type": "assert",
+      "data": {
+        "label": "Projects reappear after clearing",
+        "selector": "@selector/projects.card:not([data-dedupe=\"restored\"])",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Projects should reappear when search is cleared"
+      }
+    },
+    {
+      "id": "capture-final-state",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture final dashboard state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "assert-projects-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "assert-projects-visible",
+      "target": "type-nonexistent-search",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "type-nonexistent-search",
+      "target": "assert-no-results",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "assert-no-results",
+      "target": "clear-search",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "clear-search",
+      "target": "assert-projects-restored",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "assert-projects-restored",
+      "target": "capture-final-state",
+      "type": "smoothstep"
+    }
+  ]
+}

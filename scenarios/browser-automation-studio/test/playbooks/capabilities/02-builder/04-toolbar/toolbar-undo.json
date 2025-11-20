@@ -1,0 +1,149 @@
+{
+  "metadata": {
+    "description": "Validates undo button reverts the last canvas change",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-demo-workflow",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open seeded workflow via fixture",
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowName=@seed/workflowName)"
+      }
+    },
+    {
+      "id": "count1",
+      "type": "evaluate",
+      "data": {
+        "label": "Count initial nodes",
+        "expression": "document.querySelectorAll('.react-flow__node').length",
+        "storeAs": "initialCount"
+      }
+    },
+    {
+      "id": "click-palette",
+      "type": "click",
+      "data": {
+        "label": "Click navigate node",
+        "selector": "@selector/nodePalette.cards.navigate",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-canvas",
+      "type": "click",
+      "data": {
+        "label": "Click canvas to add",
+        "selector": ".react-flow__pane",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait2",
+      "type": "wait",
+      "data": {
+        "label": "Wait for node added",
+        "durationMs": 1000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "count2",
+      "type": "evaluate",
+      "data": {
+        "label": "Count after add",
+        "expression": "document.querySelectorAll('.react-flow__node').length",
+        "storeAs": "afterAddCount"
+      }
+    },
+    {
+      "id": "undo",
+      "type": "click",
+      "data": {
+        "label": "Click undo",
+        "selector": "@selector/toolbar.undoButton",
+        "timeoutMs": 5000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "count3",
+      "type": "evaluate",
+      "data": {
+        "label": "Count after undo",
+        "expression": "document.querySelectorAll('.react-flow__node').length",
+        "storeAs": "afterUndoCount"
+      }
+    },
+    {
+      "id": "cap",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture after undo",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-demo-workflow-to-count1",
+      "source": "call-open-demo-workflow",
+      "target": "count1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "count1",
+      "target": "click-palette",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "click-palette",
+      "target": "click-canvas",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "click-canvas",
+      "target": "wait2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "wait2",
+      "target": "count2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "count2",
+      "target": "undo",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "undo",
+      "target": "count3",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "count3",
+      "target": "cap",
+      "type": "smoothstep"
+    }
+  ]
+}

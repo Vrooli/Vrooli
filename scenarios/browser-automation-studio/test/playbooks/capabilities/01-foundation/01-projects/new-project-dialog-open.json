@@ -1,0 +1,110 @@
+{
+  "metadata": {
+    "description": "Opens the dashboard and verifies that the New Project modal becomes visible.",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-projects",
+      "type": "wait",
+      "data": {
+        "label": "Wait for projects to load",
+        "selector": "@selector/projects.grid",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "capture-dashboard",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture dashboard state",
+        "fullPage": true,
+        "waitForMs": 1000,
+        "captureDomSnapshot": true
+      }
+    },
+    {
+      "id": "click-new-project",
+      "type": "click",
+      "data": {
+        "label": "Click New Project button",
+        "selector": "@selector/dashboard.newProjectButton",
+        "timeoutMs": 15000,
+        "waitForSelector": "@selector/dashboard.newProjectButton",
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "assert-modal-visible",
+      "type": "assert",
+      "data": {
+        "label": "Project modal appears",
+        "selector": "@selector/dialogs.project.root",
+        "assertMode": "exists",
+        "timeoutMs": 12000,
+        "failureMessage": "Project modal should be visible after clicking the New Project button"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-nav-wait",
+      "source": "navigate-dashboard",
+      "target": "wait-for-projects",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-wait-capture",
+      "source": "wait-for-projects",
+      "target": "capture-dashboard",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-capture-click",
+      "source": "capture-dashboard",
+      "target": "click-new-project",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    },
+    {
+      "id": "edge-click-assert",
+      "source": "click-new-project",
+      "target": "assert-modal-visible",
+      "sourceHandle": "source",
+      "targetHandle": "target",
+      "type": "smoothstep",
+      "data": {}
+    }
+  ]
+}

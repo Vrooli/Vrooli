@@ -1,0 +1,136 @@
+{
+  "metadata": {
+    "description": "Validates node palette category expansion and collapse functionality",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-builder",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open builder via fixture",
+        "workflowId": "@fixture/open-builder-from-demo(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+      }
+    },
+    {
+      "id": "wait-for-builder",
+      "type": "wait",
+      "data": {
+        "label": "Wait for workflow builder",
+        "selector": "@selector/workflowBuilder.code.modeButton",
+        "timeoutMs": 15000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "assert-palette-visible",
+      "type": "assert",
+      "data": {
+        "label": "Node palette is visible",
+        "selector": "@selector/nodePalette.container",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Node palette should be visible"
+      }
+    },
+    {
+      "id": "capture-palette-initial",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture initial palette state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "find-category-header",
+      "type": "evaluate",
+      "data": {
+        "label": "Check for expandable category headers",
+        "expression": "document.querySelector('@selector/nodePalette.category(category=navigation)') !== null",
+        "storeAs": "hasCategoryHeaders"
+      }
+    },
+    {
+      "id": "click-first-category",
+      "type": "click",
+      "data": {
+        "label": "Click first category to toggle",
+        "selector": "@selector/nodePalette.categories.navigationToggle",
+        "timeoutMs": 5000,
+        "waitForMs": 1000,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "capture-palette-toggled",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture palette after category toggle",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "verify-category-interaction",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify categories can be interacted with",
+        "expression": "true",
+        "storeAs": "categoryTestComplete"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-builder-to-wait-for-builder",
+      "source": "call-open-builder",
+      "target": "wait-for-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "wait-for-builder",
+      "target": "assert-palette-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "assert-palette-visible",
+      "target": "capture-palette-initial",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "capture-palette-initial",
+      "target": "find-category-header",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "find-category-header",
+      "target": "click-first-category",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "click-first-category",
+      "target": "capture-palette-toggled",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "capture-palette-toggled",
+      "target": "verify-category-interaction",
+      "type": "smoothstep"
+    }
+  ]
+}

@@ -47,7 +47,7 @@ Create or edit `requirements/index.json` (or modular file like `requirements/pro
     {
       "id": "MY-PROJECT-CREATE",
       "category": "projects.core",
-      "prd_ref": "Functional Requirements > Must Have > Project Management",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "title": "Users can create projects from the dashboard",
       "description": "Validates end-to-end project creation including API, database, and UI",
       "status": "planned",
@@ -64,6 +64,8 @@ Create or edit `requirements/index.json` (or modular file like `requirements/pro
 - `status`: `planned` (will auto-update to `in_progress` when first test runs)
 - `criticality`: `P0` (critical), `P1` (important), `P2` (nice-to-have)
 - `validation`: Empty initially (auto-populated by sync)
+
+> 📁 **Folder layout**: keep requirement modules under numbered operational-target folders (e.g., `01-foundation/`, `02-builder/`, …) and document the mapping in `requirements/README.md`. This mirrors PRD operational targets and avoids duplicate compatibility shims; temporary alias directories are not allowed.
 
 ---
 

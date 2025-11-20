@@ -1,0 +1,124 @@
+{
+  "metadata": {
+    "description": "Validates fit view centers and sizes canvas to show all nodes",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-demo-workflow",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open seeded workflow via fixture",
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowName=@seed/workflowName)"
+      }
+    },
+    {
+      "id": "zoom-out-far",
+      "type": "click",
+      "data": {
+        "label": "Zoom out far to offset view",
+        "selector": "@selector/toolbar.zoomOutButton",
+        "timeoutMs": 5000,
+        "waitForMs": 300
+      }
+    },
+    {
+      "id": "zoom-out-more",
+      "type": "click",
+      "data": {
+        "label": "Zoom out more",
+        "selector": "@selector/toolbar.zoomOutButton /*dup-1*/",
+        "timeoutMs": 5000,
+        "waitForMs": 300
+      }
+    },
+    {
+      "id": "capture-before-fit",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture before fit view",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-fit-view",
+      "type": "click",
+      "data": {
+        "label": "Click fit view button",
+        "selector": "@selector/toolbar.fitViewButton, @selector/toolbar.fitViewMenuItem",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": ".react-flow__node",
+          "successTimeoutMs": 5000
+        }
+      }
+    },
+    {
+      "id": "assert-nodes-visible",
+      "type": "assert",
+      "data": {
+        "label": "All nodes should be visible",
+        "selector": ".react-flow__node",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "Nodes should be visible after fit view"
+      }
+    },
+    {
+      "id": "capture-after-fit",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture after fit view",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-demo-workflow-to-zoom-out-far",
+      "source": "call-open-demo-workflow",
+      "target": "zoom-out-far",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "zoom-out-far",
+      "target": "zoom-out-more",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "zoom-out-more",
+      "target": "capture-before-fit",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "capture-before-fit",
+      "target": "click-fit-view",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-fit-view",
+      "target": "assert-nodes-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "assert-nodes-visible",
+      "target": "capture-after-fit",
+      "type": "smoothstep"
+    }
+  ]
+}

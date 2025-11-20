@@ -608,156 +608,118 @@ testing::phase::run_workflow_validations() {
         log::warning "browser-automation-studio CLI missing; automation validations will be skipped"
     fi
 
+    local scenario_dir="${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}"
+    local registry_path="$scenario_dir/test/playbooks/registry.json"
+    if [ ! -f "$registry_path" ]; then
+        log::error "Playbook registry missing at $registry_path"
+        return 1
+    fi
+
+    local playbook_count
+    playbook_count=$(jq '.playbooks | length' "$registry_path" 2>/dev/null || echo 0)
+    if [ "$playbook_count" -eq 0 ]; then
+        log::warning "No playbooks discovered in registry; skipping workflow validations"
+        return 0
+    fi
+
     local overall_status=0
-    local req_id
-    for req_id in "${TESTING_PHASE_EXPECTED_REQUIREMENTS[@]}"; do
-        local validations_json
-        validations_json=$(testing::phase::expected_validations_for "$req_id")
-        if [ -z "$validations_json" ] || [ "$validations_json" = "[]" ]; then
+    local index=0
+    while IFS= read -r entry; do
+        [ -z "$entry" ] && continue
+        index=$((index + 1))
+        local rel_path
+        rel_path=$(printf '%s' "$entry" | jq -r '.file // empty')
+        if [ -z "$rel_path" ]; then
+            log::warning "Registry entry $index missing file path"
             continue
         fi
 
-        local automation_entries
-        automation_entries=$(printf '%s\n' "$validations_json" | jq -c '.[] | select((.type // "") == "automation")' 2>/dev/null || true)
-        if [ -z "$automation_entries" ]; then
+        local workflow_label="$rel_path"
+        local order_key
+        order_key=$(printf '%s' "$entry" | jq -r '.order // ""')
+        local reset_requirement
+        reset_requirement=$(printf '%s' "$entry" | jq -r '.reset // "project"')
+
+        local requirements_json
+        requirements_json=$(printf '%s' "$entry" | jq -c '.requirements // []')
+        local requirements=()
+        if [ -n "$requirements_json" ] && [ "$requirements_json" != "null" ]; then
+            while IFS= read -r req; do
+                [ -z "$req" ] && continue
+                requirements+=("$req")
+            done < <(printf '%s' "$requirements_json" | jq -r '.[]?')
+        fi
+
+        if [ "$reset_requirement" != "none" ]; then
+            testing::playbooks::reset_seed_state \
+                --mode "$reset_requirement" \
+                --scenario-dir "$scenario_dir" \
+                --scenario-name "$default_scenario" \
+                >/dev/null 2>&1 || true
+        fi
+
+        if [ "$bas_cli_available" = false ]; then
+            testing::phase::add_warning "BAS CLI unavailable; skipping ${workflow_label}"
+            testing::phase::add_test skipped
+            for req_id in "${requirements[@]}"; do
+                testing::phase::add_requirement --id "$req_id" --status skipped --evidence "BAS CLI unavailable for ${workflow_label}"
+            done
             continue
         fi
 
-        while IFS= read -r entry; do
-            [ -z "$entry" ] && continue
+        local args=(--scenario "$default_scenario" --manage-runtime "$manage_runtime" --file "$rel_path")
+        if [ "$allow_missing" = true ]; then
+            args+=(--allow-missing)
+        fi
 
-            local ref
-            ref=$(printf '%s\n' "$entry" | jq -r '.ref // ""')
-            if [ -z "$ref" ] || [ "$ref" = "null" ]; then
-                log::warning "Automation validation for $req_id is missing a ref"
-                continue
-            fi
+        local status_label
+        local evidence_prefix="Workflow ${workflow_label}"
+        if [ -n "$order_key" ]; then
+            evidence_prefix+=" (order ${order_key})"
+        fi
 
-            local target_scenario
-            target_scenario=$(printf '%s\n' "$entry" | jq -r '.scenario // ""')
-            if [ -z "$target_scenario" ] || [ "$target_scenario" = "null" ]; then
-                target_scenario="$default_scenario"
-            fi
-
-            local workflow_label="$ref"
-            local folder
-            folder=$(printf '%s\n' "$entry" | jq -r '.folder // ""')
-            if [ "$folder" = "null" ]; then
-                folder=""
-            fi
-
-            local workflow_id
-            workflow_id=$(printf '%s\n' "$entry" | jq -r '.workflow_id // ""')
-            if [ "$workflow_id" = "null" ]; then
-                workflow_id=""
-            fi
-
-            local validation_timeout
-            validation_timeout=$(printf '%s\n' "$entry" | jq -r '.timeout_seconds // ""')
-            if [ "$validation_timeout" = "null" ]; then
-                validation_timeout=""
-            fi
-            local validation_timeout_int=0
-            if [[ "$validation_timeout" =~ ^[0-9]+$ ]]; then
-                validation_timeout_int="$validation_timeout"
-            fi
-
-            local validation_manage_runtime
-            validation_manage_runtime=$(printf '%s\n' "$entry" | jq -r '.manage_runtime // ""')
-            if [ "$validation_manage_runtime" = "null" ]; then
-                validation_manage_runtime=""
-            fi
-
-            local validation_keep_workflow
-            validation_keep_workflow=$(printf '%s\n' "$entry" | jq -r '.keep_workflow // ""')
-            if [ "$validation_keep_workflow" = "null" ]; then
-                validation_keep_workflow=""
-            fi
-
-            local validation_allow_missing
-            validation_allow_missing=$(printf '%s\n' "$entry" | jq -r '.allow_missing // ""')
-            if [ "$validation_allow_missing" = "null" ]; then
-                validation_allow_missing=""
-            fi
-
-            if [ "$bas_cli_available" = false ]; then
-                testing::phase::add_warning "BAS CLI unavailable; skipping $workflow_label"
+        if testing::playbooks::run_workflow "${args[@]}"; then
+            status_label=passed
+            testing::phase::add_test passed
+        else
+            local rc=$?
+            if [ "$allow_missing" = true ] && [ "$rc" -eq 210 ]; then
+                status_label=skipped
                 testing::phase::add_test skipped
-                testing::phase::add_requirement --id "$req_id" --status skipped --evidence "BAS CLI unavailable for $workflow_label"
-                continue
-            fi
-
-            local args=(--scenario "$target_scenario")
-            local runtime_mode="$manage_runtime"
-            if [ -n "$validation_manage_runtime" ]; then
-                runtime_mode="$validation_manage_runtime"
-            fi
-            args+=(--manage-runtime "$runtime_mode")
-
-            local effective_allow_missing="$allow_missing"
-            if [ -n "$validation_allow_missing" ]; then
-                if [[ "$validation_allow_missing" =~ ^(true|1)$ ]]; then
-                    effective_allow_missing=true
-                else
-                    effective_allow_missing=false
-                fi
-            fi
-
-            if [ -n "$workflow_id" ]; then
-                args+=(--workflow-id "$workflow_id")
-                workflow_label="${workflow_label:-$workflow_id}"
-            elif [ -n "$ref" ]; then
-                args+=(--file "$ref")
-                if [ "$effective_allow_missing" = true ]; then
-                    args+=(--allow-missing)
-                fi
-            fi
-
-            if [ -n "$folder" ]; then
-                args+=(--folder "$folder")
-            fi
-            if [ -n "$validation_timeout" ]; then
-                args+=(--timeout "$validation_timeout")
-            fi
-            if [[ "$validation_keep_workflow" =~ ^(true|1)$ ]]; then
-                args+=(--keep-workflow)
-            fi
-
-            if [ "$validation_timeout_int" -gt 90 ]; then
-                if command -v log::warning >/dev/null 2>&1; then
-                    log::warning "⚠️ [WF_TIMEOUT_HIGH] Workflow ${workflow_label} configured with timeout ${validation_timeout_int}s (>90s)"
-                else
-                    echo "⚠️ [WF_TIMEOUT_HIGH] Workflow ${workflow_label} configured with timeout ${validation_timeout_int}s (>90s)"
-                fi
-            fi
-
-            if testing::playbooks::run_workflow "${args[@]}"; then
-                testing::phase::add_test passed
-                local evidence="Workflow ${workflow_label} executed"
-                if [ -n "${TESTING_PLAYBOOKS_LAST_EXECUTION_ID:-}" ]; then
-                    evidence+=" (execution ${TESTING_PLAYBOOKS_LAST_EXECUTION_ID})"
-                fi
-                if [ -n "${TESTING_PLAYBOOKS_LAST_SCENARIO:-}" ]; then
-                    evidence+=" via ${TESTING_PLAYBOOKS_LAST_SCENARIO}"
-                fi
-                testing::phase::add_requirement --id "$req_id" --status passed --evidence "$evidence"
-                testing::phase::_record_fixture_requirements passed "$workflow_label" "$req_id"
+                testing::phase::add_warning "Workflow ${workflow_label} missing; export pending"
             else
-                local rc=$?
-                if [ "$effective_allow_missing" = true ] && [ "$rc" -eq 210 ]; then
-                    testing::phase::add_warning "Workflow ${workflow_label} not found; export pending"
-                    testing::phase::add_test skipped
-                    testing::phase::add_requirement --id "$req_id" --status skipped --evidence "Workflow ${workflow_label} missing"
-                    testing::phase::_record_fixture_requirements skipped "$workflow_label" "$req_id"
-                else
-                    testing::phase::add_test failed
-                    testing::phase::add_requirement --id "$req_id" --status failed --evidence "Workflow ${workflow_label} failed"
-                    testing::phase::_record_fixture_requirements failed "$workflow_label" "$req_id"
-                    overall_status=1
-                fi
+                status_label=failed
+                testing::phase::add_test failed
+                overall_status=1
             fi
-        done <<< "$automation_entries"
-    done
+        fi
+
+        if [ ${#requirements[@]} -eq 0 ]; then
+            testing::phase::add_warning "Workflow ${workflow_label} is not linked to any requirement IDs"
+        fi
+
+        local artifact_note=""
+        if [ "$status_label" = "failed" ] && [ -n "${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}" ]; then
+            artifact_note="; artifacts: ${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}"
+        fi
+
+        local fixture_status="$status_label"
+        for req_id in "${requirements[@]}"; do
+            local evidence="$evidence_prefix"
+            if [ -n "${TESTING_PLAYBOOKS_LAST_EXECUTION_ID:-}" ]; then
+                evidence+=" (execution ${TESTING_PLAYBOOKS_LAST_EXECUTION_ID})"
+            fi
+            if [ -n "$artifact_note" ]; then
+                evidence+="$artifact_note"
+            fi
+            testing::phase::add_requirement --id "$req_id" --status "$status_label" --evidence "$evidence"
+            testing::phase::_record_fixture_requirements "$fixture_status" "$workflow_label" "$req_id"
+        done
+
+        if [ ${#requirements[@]} -eq 0 ]; then
+            testing::phase::_record_fixture_requirements "$fixture_status" "$workflow_label" ""
+        fi
+    done < <(jq -c '.playbooks[]?' "$registry_path")
 
     return $overall_status
 }

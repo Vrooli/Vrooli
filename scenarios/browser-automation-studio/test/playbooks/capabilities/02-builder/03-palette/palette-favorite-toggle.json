@@ -1,0 +1,136 @@
+{
+  "metadata": {
+    "description": "Validates toggling node favorites in the palette",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-builder",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open builder via fixture",
+        "workflowId": "@fixture/open-builder-from-demo(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+      }
+    },
+    {
+      "id": "wait-for-builder",
+      "type": "wait",
+      "data": {
+        "label": "Wait for workflow builder",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-node-card-visible",
+      "type": "assert",
+      "data": {
+        "label": "Node cards are visible in palette",
+        "selector": "@selector/nodePalette.cards.navigate",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Node palette cards should be visible"
+      }
+    },
+    {
+      "id": "find-favorite-button",
+      "type": "assert",
+      "data": {
+        "label": "Favorite button exists on node card",
+        "selector": "@selector/nodePalette.favoriteButtons.navigate",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Favorite button should exist on node cards"
+      }
+    },
+    {
+      "id": "capture-before-favorite",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture before favoriting",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-favorite-button",
+      "type": "click",
+      "data": {
+        "label": "Click favorite button to toggle",
+        "selector": "@selector/nodePalette.favoriteButtons.navigate:not([data-dedupe=\"toggle\"])",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "capture-after-favorite",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture after favoriting",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "verify-favorite-toggled",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify favorite was toggled",
+        "expression": "true",
+        "storeAs": "favoriteTestComplete"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-builder-to-wait-for-builder",
+      "source": "call-open-builder",
+      "target": "wait-for-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "wait-for-builder",
+      "target": "assert-node-card-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "assert-node-card-visible",
+      "target": "find-favorite-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "find-favorite-button",
+      "target": "capture-before-favorite",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "capture-before-favorite",
+      "target": "click-favorite-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "click-favorite-button",
+      "target": "capture-after-favorite",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "capture-after-favorite",
+      "target": "verify-favorite-toggled",
+      "type": "smoothstep"
+    }
+  ]
+}

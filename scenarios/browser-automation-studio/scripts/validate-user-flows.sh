@@ -83,16 +83,6 @@ while IFS= read -r req_entry; do
             continue
         fi
 
-        # Validate playbook has correct metadata
-        if ! jq -e '.metadata.requirement' "$playbook_path" >/dev/null 2>&1; then
-            echo -e "${YELLOW}⚠️  $req_id${NC} - Playbook missing metadata.requirement field"
-        else
-            playbook_req=$(jq -r '.metadata.requirement' "$playbook_path")
-            if [ "$playbook_req" != "$req_id" ]; then
-                echo -e "${YELLOW}⚠️  $req_id${NC} - Playbook requirement mismatch: $playbook_req"
-            fi
-        fi
-
         has_valid_test=true
         echo -e "${GREEN}✅ $req_id${NC} - $val_ref"
 

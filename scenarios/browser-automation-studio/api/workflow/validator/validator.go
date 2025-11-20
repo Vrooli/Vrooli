@@ -70,7 +70,6 @@ type Stats struct {
 	UniqueSelectorCount  int  `json:"unique_selector_count"`
 	ElementWaitCount     int  `json:"element_wait_count"`
 	HasMetadata          bool `json:"has_metadata"`
-	HasRequirement       bool `json:"has_requirement"`
 	HasExecutionViewport bool `json:"has_execution_viewport"`
 }
 
@@ -415,18 +414,8 @@ func runLint(definition map[string]any) (Stats, []Issue, []Issue) {
 		}
 	}
 
-	if metadata, ok := toMap(definition["metadata"]); ok {
+	if _, ok := toMap(definition["metadata"]); ok {
 		stats.HasMetadata = true
-		if requirement := strings.TrimSpace(getString(metadata["requirement"])); requirement != "" {
-			stats.HasRequirement = true
-		} else {
-			warningsList = append(warningsList, Issue{
-				Severity: SeverityWarning,
-				Code:     "WF_METADATA_REQUIREMENT_MISSING",
-				Message:  "Metadata does not specify a requirement id; link to requirements/index.json for traceability",
-				Pointer:  "/metadata/requirement",
-			})
-		}
 	}
 
 	if settings, ok := toMap(definition["settings"]); ok {

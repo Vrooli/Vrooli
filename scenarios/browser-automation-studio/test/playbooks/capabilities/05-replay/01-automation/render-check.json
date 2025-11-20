@@ -1,0 +1,78 @@
+{
+  "metadata": {
+    "description": "Validates that execution replay artifacts are persisted and can be accessed for rendering",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-project",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open Demo project via fixture",
+        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+      }
+    },
+    {
+      "id": "click-execute",
+      "type": "click",
+      "data": {
+        "label": "Execute workflow",
+        "selector": "@selector/workflowBuilder.executeButton",
+        "timeoutMs": 10000,
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.status",
+          "successTimeoutMs": 15000
+        }
+      }
+    },
+    {
+      "id": "assert-execution-complete",
+      "type": "assert",
+      "data": {
+        "label": "Execution finished",
+        "selector": "@selector/executions.viewer.statusCompleted, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCancelled",
+        "assertMode": "exists",
+        "timeoutMs": 45000,
+        "failureMessage": "Execution should reach terminal state (completed, failed, or cancelled)"
+      }
+    },
+    {
+      "id": "capture-final-state",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture final replay state",
+        "fullPage": true,
+        "captureDomSnapshot": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "call-open-project",
+      "target": "click-execute",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "click-execute",
+      "target": "assert-execution-complete",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "assert-execution-complete",
+      "target": "capture-final-state",
+      "type": "smoothstep"
+    }
+  ]
+}

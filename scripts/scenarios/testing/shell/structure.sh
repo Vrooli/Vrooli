@@ -204,6 +204,12 @@ testing::structure::validate_all() {
   # Validate playbook-requirement linkage
   _validate_playbook_linkage "$scenario_dir"
 
+  # Ensure playbooks declare reset metadata for reseed orchestration
+  _validate_playbook_reset_metadata "$scenario_dir"
+
+  # Reject legacy metadata.requirement fields (BAS playbooks only)
+  _validate_playbook_requirement_metadata "$scenario_dir"
+
   # Validate selector registry wiring when present
   _validate_selector_registry "$scenario_dir"
 
@@ -410,6 +416,109 @@ _validate_playbook_linkage() {
     testing::phase::add_test failed
     return 1
   fi
+}
+
+_validate_playbook_reset_metadata() {
+  local scenario_dir="$1"
+  local playbook_root="$scenario_dir/test/playbooks"
+
+  if [ ! -d "$playbook_root" ]; then
+    return 0
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    testing::phase::add_warning "jq not available; skipping playbook reset validation"
+    return 0
+  fi
+
+  local -a missing=()
+  local -a invalid=()
+  while IFS= read -r file_path; do
+    [ -z "$file_path" ] && continue
+    local reset_value
+    reset_value=$(jq -r '.metadata.reset // empty' "$file_path" 2>/dev/null || echo "")
+    local rel_path="${file_path#$scenario_dir/}"
+    case "$reset_value" in
+      none|project|global)
+        :
+        ;;
+      "")
+        missing+=("$rel_path")
+        ;;
+      *)
+        invalid+=("$rel_path:$reset_value")
+        ;;
+    esac
+  done < <(find "$playbook_root" -type f -name '*.json' ! -name 'registry.json' ! -path '*/__seeds/*' | sort)
+
+  if [ ${#missing[@]} -eq 0 ] && [ ${#invalid[@]} -eq 0 ]; then
+    log::success "✅ All playbooks declare metadata.reset"
+    testing::phase::add_test passed
+    return 0
+  fi
+
+  if [ ${#missing[@]} -gt 0 ]; then
+    log::error "Playbooks missing metadata.reset (${#missing[@]})"
+    for rel in "${missing[@]}"; do
+      echo "   • ${rel}" >&2
+    done
+    testing::phase::add_error "${#missing[@]} playbook(s) missing metadata.reset"
+  fi
+
+  if [ ${#invalid[@]} -gt 0 ]; then
+    log::error "Playbooks with invalid metadata.reset values (${#invalid[@]})"
+    for entry in "${invalid[@]}"; do
+      echo "   • ${entry}" >&2
+    done
+    testing::phase::add_error "${#invalid[@]} playbook(s) use invalid reset values"
+  fi
+
+  testing::phase::add_test failed
+  return 1
+}
+
+_validate_playbook_requirement_metadata() {
+  local scenario_dir="$1"
+  local scenario_name="${TESTING_PHASE_SCENARIO_NAME:-$(basename "$scenario_dir")}"
+
+  # Only Browser Automation Studio has fully migrated requirement metadata
+  if [ "$scenario_name" != "browser-automation-studio" ]; then
+    return 0
+  fi
+
+  local playbook_root="$scenario_dir/test/playbooks"
+  if [ ! -d "$playbook_root" ]; then
+    return 0
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    testing::phase::add_warning "jq not available; skipping metadata.requirement validation"
+    return 0
+  fi
+
+  local -a flagged=()
+  while IFS= read -r file_path; do
+    [ -z "$file_path" ] && continue
+    local value
+    value=$(jq -r '.metadata.requirement // empty' "$file_path" 2>/dev/null || echo "")
+    [ -z "$value" ] && continue
+    local rel_path="${file_path#$scenario_dir/}"
+    flagged+=("$rel_path -> $value")
+  done < <(find "$playbook_root" -type f -name '*.json' ! -name 'registry.json' | sort)
+
+  if [ ${#flagged[@]} -eq 0 ]; then
+    log::success "✅ metadata.requirement removed from BAS playbooks"
+    testing::phase::add_test passed
+    return 0
+  fi
+
+  log::error "Playbooks still declare deprecated metadata.requirement (${#flagged[@]})"
+  for entry in "${flagged[@]}"; do
+    echo "   • ${entry}" >&2
+  done
+  testing::phase::add_error "Remove metadata.requirement from BAS playbooks (use requirements/*.json instead)"
+  testing::phase::add_test failed
+  return 1
 }
 
 _validate_selector_registry() {

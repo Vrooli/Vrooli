@@ -1,0 +1,96 @@
+{
+  "metadata": {
+    "description": "Smoke test for AI workflow generation feature - verifies UI elements are present",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 30000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "wait-app-ready",
+      "type": "wait",
+      "data": {
+        "label": "Wait for React app to hydrate",
+        "waitType": "element",
+        "selector": "@selector/app.shell.ready",
+        "timeoutMs": 30000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "wait-for-page",
+      "type": "wait",
+      "data": {
+        "label": "Wait for page load",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "debug-screenshot-pre-assert",
+      "type": "screenshot",
+      "data": {
+        "label": "Debug: Capture state before assertion",
+        "fullPage": true,
+        "captureDomSnapshot": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "assert-dashboard",
+      "type": "assert",
+      "data": {
+        "label": "Dashboard loaded",
+        "selector": "body",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Dashboard body should be visible"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-nav-app-ready",
+      "source": "navigate-dashboard",
+      "target": "wait-app-ready",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-app-ready-wait",
+      "source": "wait-app-ready",
+      "target": "wait-for-page",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-wait-screenshot",
+      "source": "wait-for-page",
+      "target": "debug-screenshot-pre-assert",
+      "type": "smoothstep"
+    },
+    {
+      "id": "edge-screenshot-assert",
+      "source": "debug-screenshot-pre-assert",
+      "target": "assert-dashboard",
+      "type": "smoothstep"
+    }
+  ]
+}

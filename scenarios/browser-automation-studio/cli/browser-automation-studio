@@ -11,6 +11,7 @@ else
     SCRIPT_PATH="${BASH_SOURCE[0]}"
 fi
 SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
+SCENARIO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Colors for output
 RED='\033[0;31m'
@@ -90,6 +91,9 @@ USAGE:
 
 COMMANDS:
     status                    Show operational status and resource health
+    playbooks order           Show registry-defined execution order/reset summary
+    playbooks scaffold        Scaffold a new workflow JSON in test/playbooks/
+    playbooks verify          Validate playbook folder prefixes/order metadata
     workflow create          Create a workflow from file or AI prompt
     workflow execute         Execute a workflow by ID or name
     workflow lint           Validate workflow JSON files via the API
@@ -183,6 +187,311 @@ EXAMPLES:
     browser-automation-studio execution export abc123 --output bas-export.json
 
 EOF
+}
+
+show_playbook_order() {
+    local scenario_dir="$SCENARIO_ROOT"
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                if [ -z "${2:-}" ]; then
+                    echo -e "${RED}Error: --scenario requires a path${NC}"
+                    return 1
+                fi
+                scenario_dir="$(cd "${2}" && pwd)"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: browser-automation-studio playbooks order [--scenario <dir>] [--json]"
+                echo "  --scenario <dir>  Override scenario directory (defaults to CLI parent)"
+                echo "  --json            Print the processed playbook list as JSON"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${NC}"
+                return 1
+                ;;
+        esac
+    done
+
+    local registry_path="$scenario_dir/test/playbooks/registry.json"
+    if [ ! -f "$registry_path" ]; then
+        echo -e "${RED}Registry not found at ${registry_path}${NC}"
+        return 1
+    fi
+
+    if [ "$json_output" = true ]; then
+        if command -v jq >/dev/null 2>&1; then
+            jq '{playbooks: [.playbooks[] | {order, reset: (.reset // "project"), requirements, file, description}]}' "$registry_path"
+        else
+            cat "$registry_path"
+        fi
+        return 0
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo -e "${RED}Error: jq is required to render the playbook order${NC}"
+        echo "Install jq or rerun with --json to view the raw registry"
+        return 1
+    fi
+
+    printf "%-12s %-8s %-4s %s\n" "ORDER" "RESET" "REQ" "PLAYBOOK"
+    jq -r '.playbooks[] | [.order, (.reset // "project"), ((.requirements // []) | length), .file, (.description // "")] | @tsv' "$registry_path" | while IFS=$'\t' read -r order reset reqs file desc; do
+        if [ -n "$desc" ] && [ "$desc" != "null" ]; then
+            printf "%-12s %-8s %-4s %s - %s\n" "$order" "$reset" "$reqs" "$file" "$desc"
+        else
+            printf "%-12s %-8s %-4s %s\n" "$order" "$reset" "$reqs" "$file"
+        fi
+    done
+}
+
+scaffold_playbook() {
+    local scenario_dir="$SCENARIO_ROOT"
+    local reset_mode="project"
+    local description=""
+    local -a positional=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                if [ -z "${2:-}" ]; then
+                    echo -e "${RED}Error: --scenario requires a path${NC}"
+                    return 1
+                fi
+                scenario_dir="$(cd "${2}" && pwd)"
+                shift 2
+                ;;
+            --reset)
+                reset_mode="${2:-}"
+                shift 2
+                ;;
+            --description)
+                description="${2:-}"
+                shift 2
+                ;;
+            --help|-h)
+                cat <<'EOF'
+Usage: browser-automation-studio playbooks scaffold <folder> <name> [--reset <mode>] [--description <text>]
+
+Positional arguments:
+  folder   Path under test/playbooks (e.g., capabilities/01-foundation/projects)
+  name     Human-friendly workflow name used for metadata/slug
+
+Options:
+  --reset <mode>       Reset mode (none|project|global). Defaults to project.
+  --description <text> Optional description, defaults to the workflow name.
+  --scenario <dir>     Override scenario directory (defaults to CLI root).
+EOF
+                return 0
+                ;;
+            --*)
+                echo -e "${RED}Unknown option: $1${NC}"
+                return 1
+                ;;
+            *)
+                positional+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [ ${#positional[@]} -lt 2 ]; then
+        echo -e "${RED}Error: provide a folder and workflow name${NC}"
+        echo "Example: browser-automation-studio playbooks scaffold capabilities/01-foundation/projects \"Toast visibility\""
+        return 1
+    fi
+
+    local target_folder="${positional[0]#/}"
+    target_folder="${target_folder%/}"
+    local workflow_name="${positional[1]}"
+
+    if [[ -z "$target_folder" ]]; then
+        echo -e "${RED}Error: folder must not be empty${NC}"
+        return 1
+    fi
+    if [[ "$target_folder" == *"../"* ]] || [[ "$target_folder" == ".." ]] || [[ "$target_folder" == */.. ]] || [[ "$target_folder" == ../* ]]; then
+        echo -e "${RED}Error: folder must not contain '..' segments${NC}"
+        return 1
+    fi
+
+    local normalized_reset
+    normalized_reset=$(printf '%s' "$reset_mode" | tr '[:upper:]' '[:lower:]')
+    case "$normalized_reset" in
+        none|project|global)
+            reset_mode="$normalized_reset"
+            ;;
+        *)
+            echo -e "${YELLOW}Warning:${NC} Unknown reset mode '${reset_mode}', defaulting to project"
+            reset_mode="project"
+            ;;
+    esac
+
+    local slug
+    slug=$(printf '%s' "$workflow_name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\{1,\}/-/g; s/^-//; s/-$//')
+    if [ -z "$slug" ]; then
+        slug="workflow"
+    fi
+
+    local base_dir="$scenario_dir/test/playbooks"
+    local target_dir="$base_dir/$target_folder"
+    local target_file="$target_dir/${slug}.json"
+
+    mkdir -p "$target_dir"
+    if [ -e "$target_file" ]; then
+        echo -e "${RED}Error:${NC} ${target_file} already exists"
+        return 1
+    fi
+
+    local template_desc="$workflow_name"
+    if [ -n "$description" ]; then
+        template_desc="$description"
+    fi
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo -e "${RED}python3 is required to scaffold workflows${NC}"
+        return 1
+    fi
+
+    local json_payload
+    if ! json_payload=$(python3 - "$workflow_name" "$template_desc" "$reset_mode" <<'PY'
+import json
+import sys
+
+name, desc, reset = sys.argv[1:4]
+template = {
+    "metadata": {
+        "name": name,
+        "description": desc,
+        "version": 1,
+        "reset": reset
+    },
+    "settings": {
+        "executionViewport": {
+            "width": 1440,
+            "height": 900,
+            "preset": "desktop"
+        }
+    },
+    "nodes": [
+        {
+            "id": "navigate-app",
+            "type": "navigate",
+            "data": {
+                "label": "Open BAS homepage",
+                "destinationType": "scenario",
+                "scenario": "browser-automation-studio",
+                "scenarioPath": "/",
+                "waitUntil": "networkidle0",
+                "timeoutMs": 45000,
+                "waitForMs": 2000
+            }
+        },
+        {
+            "id": "wait-for-ui",
+            "type": "wait",
+            "data": {
+                "label": "Wait for UI to settle",
+                "waitType": "duration",
+                "durationMs": 1000
+            }
+        }
+    ],
+    "edges": [
+        {
+            "id": "edge-initial",
+            "source": "navigate-app",
+            "target": "wait-for-ui",
+            "type": "smoothstep"
+        }
+    ]
+}
+print(json.dumps(template, indent=2))
+PY
+); then
+        echo -e "${RED}Failed to build workflow template${NC}"
+        return 1
+    fi
+
+    printf '%s\n' "$json_payload" >"$target_file"
+    echo -e "${GREEN}✓ Created ${target_file}${NC}"
+    echo "Next steps:"
+    echo "  • Edit the JSON to add real nodes and selectors"
+    echo "  • Link the workflow from requirements/*.json"
+    echo "  • Regenerate the registry (node scripts/.../build-registry.mjs --scenario ${scenario_dir})"
+}
+
+verify_playbook_prefixes() {
+    local scenario_dir="$SCENARIO_ROOT"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario)
+                if [ -z "${2:-}" ]; then
+                    echo -e "${RED}Error: --scenario requires a path${NC}"
+                    return 1
+                fi
+                scenario_dir="$(cd "${2}" && pwd)"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: browser-automation-studio playbooks verify [--scenario <dir>]"
+                echo "Checks that every directory under test/playbooks (excluding __*) begins with a two-digit prefix"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${NC}"
+                return 1
+                ;;
+        esac
+    done
+
+    local base_dir="$scenario_dir/test/playbooks"
+    if [ ! -d "$base_dir" ]; then
+        echo -e "${RED}Playbooks directory not found at ${base_dir}${NC}"
+        return 1
+    fi
+
+    local issues=0
+
+    verify_prefix_tree() {
+        local root="$1"
+        local rel="$2"
+        if [ ! -d "$root" ]; then
+            return 0
+        fi
+        local entries=()
+        while IFS= read -r -d '' entry; do
+            entries+=("$entry")
+        done < <(find "$root" -maxdepth 1 -mindepth 1 -type d ! -name '__*' -printf '%f\0' | sort -z)
+
+        local name
+        for name in "${entries[@]}"; do
+            [ -z "$name" ] && continue
+            local full_path="$root/$name"
+            if [[ ! "$name" =~ ^[0-9]{2}- ]]; then
+                echo -e "${YELLOW}⚠ ${rel}${name}${NC} is missing a two-digit prefix"
+                issues=$((issues + 1))
+            fi
+            verify_prefix_tree "$full_path" "${rel}${name}/"
+        done
+    }
+
+    verify_prefix_tree "$base_dir/capabilities" "capabilities/"
+    verify_prefix_tree "$base_dir/journeys" "journeys/"
+
+    if [ "$issues" -eq 0 ]; then
+        echo -e "${GREEN}✓ All playbook folders include numeric prefixes${NC}"
+        return 0
+    fi
+
+    echo -e "${RED}${issues} folder(s) missing numeric prefixes${NC}"
+    return 1
 }
 
 check_api_health() {
@@ -915,6 +1224,24 @@ PY
 case "${1:-}" in
     status)
         show_status "${@:2}"
+        ;;
+    playbooks)
+        case "${2:-}" in
+            order)
+                show_playbook_order "${@:3}"
+                ;;
+            scaffold)
+                scaffold_playbook "${@:3}"
+                ;;
+            verify)
+                verify_playbook_prefixes "${@:3}"
+                ;;
+            *)
+                echo -e "${RED}Unknown playbooks command: ${2:-}${NC}"
+                echo "Available subcommands: order, scaffold, verify"
+                exit 1
+                ;;
+        esac
         ;;
     workflow)
         case "${2:-}" in

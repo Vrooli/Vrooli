@@ -1,0 +1,244 @@
+{
+  "metadata": {
+    "description": "Verifies the New Project modal closes through all affordances (X, Cancel, Escape, backdrop click)",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-projects",
+      "type": "wait",
+      "data": {
+        "label": "Wait for projects grid",
+        "selector": "@selector/projects.grid",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "open-modal-x-test",
+      "type": "click",
+      "data": {
+        "label": "Open project modal (X button test)",
+        "selector": "@selector/dashboard.newProjectButton",
+        "timeoutMs": 15000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "assert-modal-visible-1",
+      "type": "assert",
+      "data": {
+        "label": "Modal is visible",
+        "selector": "@selector/dialogs.project.root",
+        "assertMode": "exists",
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "close-with-x",
+      "type": "click",
+      "data": {
+        "label": "Click X button",
+        "selector": "@selector/dialogs.base.closeButton",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "assert-closed-x",
+      "type": "assert",
+      "data": {
+        "label": "Modal closed (X button)",
+        "selector": "@selector/dialogs.project.root /*dup-1*/",
+        "assertMode": "not_exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Modal should close when X button is clicked"
+      }
+    },
+    {
+      "id": "open-modal-cancel-test",
+      "type": "click",
+      "data": {
+        "label": "Open project modal (Cancel button test)",
+        "selector": "@selector/dashboard.newProjectButton /*dup-1*/",
+        "timeoutMs": 15000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "assert-modal-visible-2",
+      "type": "assert",
+      "data": {
+        "label": "Modal is visible",
+        "selector": "@selector/dialogs.project.root /*dup-2*/",
+        "assertMode": "exists",
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "close-with-cancel",
+      "type": "click",
+      "data": {
+        "label": "Click Cancel button",
+        "selector": "@selector/dialogs.project.cancelButton",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "assert-closed-cancel",
+      "type": "assert",
+      "data": {
+        "label": "Modal closed (Cancel button)",
+        "selector": "@selector/dialogs.project.root /*dup-3*/",
+        "assertMode": "not_exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Modal should close when Cancel button is clicked"
+      }
+    },
+    {
+      "id": "open-modal-escape-test",
+      "type": "click",
+      "data": {
+        "label": "Open project modal (Escape key test)",
+        "selector": "@selector/dashboard.newProjectButton /*dup-2*/",
+        "timeoutMs": 15000,
+        "waitForMs": 1500
+      }
+    },
+    {
+      "id": "assert-modal-visible-3",
+      "type": "assert",
+      "data": {
+        "label": "Modal is visible",
+        "selector": "@selector/dialogs.project.root /*dup-4*/",
+        "assertMode": "exists",
+        "timeoutMs": 10000
+      }
+    },
+    {
+      "id": "close-with-escape",
+      "type": "keyboard",
+      "data": {
+        "label": "Press Escape key",
+        "waitForMs": 500,
+        "keys": [
+          "Escape"
+        ]
+      }
+    },
+    {
+      "id": "assert-closed-escape",
+      "type": "assert",
+      "data": {
+        "label": "Modal closed (Escape key)",
+        "selector": "@selector/dialogs.project.root /*dup-5*/",
+        "assertMode": "not_exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Modal should close when Escape key is pressed"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-projects",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-projects",
+      "target": "open-modal-x-test",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "open-modal-x-test",
+      "target": "assert-modal-visible-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "assert-modal-visible-1",
+      "target": "close-with-x",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "close-with-x",
+      "target": "assert-closed-x",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "assert-closed-x",
+      "target": "open-modal-cancel-test",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "open-modal-cancel-test",
+      "target": "assert-modal-visible-2",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "assert-modal-visible-2",
+      "target": "close-with-cancel",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "close-with-cancel",
+      "target": "assert-closed-cancel",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-closed-cancel",
+      "target": "open-modal-escape-test",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "open-modal-escape-test",
+      "target": "assert-modal-visible-3",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "assert-modal-visible-3",
+      "target": "close-with-escape",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "close-with-escape",
+      "target": "assert-closed-escape",
+      "type": "smoothstep"
+    }
+  ]
+}

@@ -1,8 +1,10 @@
 {
   "metadata": {
     "description": "Navigates to the BAS dashboard and opens the seeded demo project",
-    "requirement": "BAS-WORKFLOW-DEMO-SEED",
     "fixture_id": "open-demo-project",
+    "requirements": [
+      "BAS-WORKFLOW-DEMO-SEED"
+    ],
     "parameters": [
       {
         "name": "projectId",
@@ -25,7 +27,8 @@
         "default": "@seed/projectFolder",
         "description": "Seed project folder path"
       }
-    ]
+    ],
+    "reset": "project"
   },
   "nodes": [
     {

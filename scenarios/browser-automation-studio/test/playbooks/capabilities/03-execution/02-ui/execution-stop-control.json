@@ -1,0 +1,127 @@
+{
+  "metadata": {
+    "description": "Validates stopping a running execution from the UI",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-project",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open Demo project via fixture",
+        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+      }
+    },
+    {
+      "id": "click-execute",
+      "type": "click",
+      "data": {
+        "label": "Start workflow execution",
+        "selector": "@selector/workflowBuilder.executeButton",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.stopButton",
+          "successTimeoutMs": 15000
+        }
+      }
+    },
+    {
+      "id": "check-running",
+      "type": "evaluate",
+      "data": {
+        "label": "Check execution is running",
+        "expression": "document.querySelector('[class*=\"running\"], [class*=\"executing\"], svg.lucide-loader') !== null",
+        "storeAs": "executionRunning"
+      }
+    },
+    {
+      "id": "capture-running",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture execution running",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-stop",
+      "type": "click",
+      "data": {
+        "label": "Click stop/cancel button",
+        "selector": "@selector/executions.viewer.stopButton",
+        "timeoutMs": 5000,
+        "continueOnError": true,
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.statusCancelled, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCompleted",
+          "successTimeoutMs": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-execution-stopped",
+      "type": "assert",
+      "data": {
+        "label": "Execution moves to terminal state",
+        "selector": "@selector/executions.viewer.statusCancelled, @selector/executions.viewer.statusFailed, @selector/executions.viewer.statusCompleted",
+        "assertMode": "exists",
+        "timeoutMs": 20000,
+        "failureMessage": "Execution status should reflect stop request"
+      }
+    },
+    {
+      "id": "capture-stopped",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture after stop",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e5",
+      "source": "call-open-project",
+      "target": "click-execute",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5a",
+      "source": "click-execute",
+      "target": "check-running",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "check-running",
+      "target": "capture-running",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "capture-running",
+      "target": "click-stop",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "click-stop",
+      "target": "assert-execution-stopped",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "assert-execution-stopped",
+      "target": "capture-stopped",
+      "type": "smoothstep"
+    }
+  ]
+}

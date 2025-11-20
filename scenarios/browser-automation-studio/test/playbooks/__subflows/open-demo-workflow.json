@@ -1,16 +1,51 @@
 {
   "metadata": {
     "description": "Loads the demo project and opens the seeded workflow for builder interactions",
-    "requirement": "BAS-WORKFLOW-DEMO-SEED",
     "fixture_id": "open-demo-workflow",
-    "parameters": [
-      {"name": "projectId", "type": "string", "required": true, "default": "@seed/projectId", "description": "Project identifier containing the workflow"},
-      {"name": "projectName", "type": "string", "required": true, "default": "@seed/projectName", "description": "Project containing the workflow"},
-      {"name": "projectFolder", "type": "string", "required": true, "default": "@seed/projectFolder", "description": "Folder path for the seeded project"},
-      {"name": "workflowId", "type": "string", "required": true, "default": "@seed/workflowId", "description": "Seed workflow identifier"},
-      {"name": "workflowName", "type": "string", "required": true, "default": "@seed/workflowName", "description": "Seed workflow to open"}
+    "requirements": [
+      "BAS-WORKFLOW-DEMO-SEED"
     ],
-    "requirements": ["BAS-WORKFLOW-DEMO-SEED"]
+    "parameters": [
+      {
+        "name": "projectId",
+        "type": "string",
+        "required": true,
+        "default": "@seed/projectId",
+        "description": "Project identifier containing the workflow"
+      },
+      {
+        "name": "projectName",
+        "type": "string",
+        "required": true,
+        "default": "@seed/projectName",
+        "description": "Project containing the workflow"
+      },
+      {
+        "name": "projectFolder",
+        "type": "string",
+        "required": true,
+        "default": "@seed/projectFolder",
+        "description": "Folder path for the seeded project"
+      },
+      {
+        "name": "workflowId",
+        "type": "string",
+        "required": true,
+        "default": "@seed/workflowId",
+        "description": "Seed workflow identifier"
+      },
+      {
+        "name": "workflowName",
+        "type": "string",
+        "required": true,
+        "default": "@seed/workflowName",
+        "description": "Seed workflow to open"
+      }
+    ],
+    "requirements": [
+      "BAS-WORKFLOW-DEMO-SEED"
+    ],
+    "reset": "project"
   },
   "nodes": [
     {

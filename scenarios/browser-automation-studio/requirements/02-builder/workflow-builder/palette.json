@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-17T19:54:35.401Z"
+    "last_synced_at": "2025-11-20T14:01:07.072Z"
   },
   "requirements": [
     {
@@ -18,12 +18,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/builder/palette/palette-search-filter.json",
+          "ref": "test/playbooks/capabilities/02-builder/03-palette/palette-search-filter.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates search filtering reduces visible nodes to matches only"
+          "notes": "Validates search filtering reduces visible nodes to matches only",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-PALETTE-FAVORITE-TOGGLE",
@@ -36,12 +59,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/builder/palette/palette-favorite-toggle.json",
+          "ref": "test/playbooks/capabilities/02-builder/03-palette/palette-favorite-toggle.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates favoriting adds node to favorites section and persists across sessions"
+          "notes": "Validates favoriting adds node to favorites section and persists across sessions",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-PALETTE-CATEGORY-EXPAND",
@@ -54,12 +100,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/builder/palette/palette-category-expand.json",
+          "ref": "test/playbooks/capabilities/02-builder/03-palette/palette-category-expand.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates category expand/collapse toggles node visibility"
+          "notes": "Validates category expand/collapse toggles node visibility",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     }
   ]
 }

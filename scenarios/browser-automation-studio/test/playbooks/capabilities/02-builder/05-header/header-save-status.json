@@ -1,0 +1,204 @@
+{
+  "metadata": {
+    "description": "Validates save status indicator shows autosave state transitions",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "nav",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "proj",
+      "type": "click",
+      "data": {
+        "label": "Open project",
+        "selector": "@selector/projects.card:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-workflows",
+      "type": "wait",
+      "data": {
+        "label": "Wait for workflows to load",
+        "selector": "@selector/workflows.card",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "work",
+      "type": "click",
+      "data": {
+        "label": "Open workflow",
+        "selector": "@selector/workflows.card:first-of-type",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait1",
+      "type": "wait",
+      "data": {
+        "label": "Wait for builder",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-status",
+      "type": "assert",
+      "data": {
+        "label": "Save status visible",
+        "selector": "@selector/header.saveStatus.indicator",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Save status indicator should be visible"
+      }
+    },
+    {
+      "id": "cap-initial",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture initial state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-palette",
+      "type": "click",
+      "data": {
+        "label": "Click navigate node",
+        "selector": "@selector/nodePalette.cards.navigate",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-canvas",
+      "type": "click",
+      "data": {
+        "label": "Click canvas to add",
+        "selector": ".react-flow__pane",
+        "timeoutMs": 5000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-autosave",
+      "type": "wait",
+      "data": {
+        "label": "Wait for autosave",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "check-saved-state",
+      "type": "evaluate",
+      "data": {
+        "label": "Check for saved indicator",
+        "expression": "(() => { const status = document.querySelector('@selector/header.saveStatus.indicator'); return status ? status.textContent || status.innerHTML : ''; })()",
+        "storeAs": "saveStatus"
+      }
+    },
+    {
+      "id": "cap-after-save",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture after autosave",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "nav",
+      "target": "proj",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "proj",
+      "target": "wait-workflows",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "work",
+      "target": "wait1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait1",
+      "target": "assert-status",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "assert-status",
+      "target": "cap-initial",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "cap-initial",
+      "target": "click-palette",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "click-palette",
+      "target": "click-canvas",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-canvas",
+      "target": "wait-autosave",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "wait-autosave",
+      "target": "check-saved-state",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "check-saved-state",
+      "target": "cap-after-save",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e-wait-work",
+      "source": "wait-workflows",
+      "target": "work",
+      "type": "smoothstep"
+    }
+  ]
+}

@@ -18,10 +18,12 @@ EXIT_NO_REQUIREMENTS=4
 EXIT_FIXTURE_ERRORS=5
 
 # Track issues
-declare -a ORPHANED_PLAYBOOKS=()
-declare -a MISSING_REQUIREMENT_IDS=()
-declare -a MISSING_PLAYBOOK_FILES=()
-declare -a PLAYBOOKS_WITHOUT_METADATA=()
+declare -a REGISTRY_ORPHANED_PLAYBOOKS=()
+declare -a REGISTRY_MISSING_FILES=()
+declare -a REGISTRY_UNKNOWN_REQUIREMENTS=()
+declare -a REGISTRY_MISMATCH_REQUIREMENTS=()
+declare -a REQUIREMENT_REFERENCES_MISSING_REGISTRY=()
+declare -A REQUIREMENT_FILE_MAP=()
 
 # Colors for output
 RED='\033[0;31m'
@@ -44,6 +46,33 @@ log_warning() {
 
 log_error() {
     echo -e "${RED}❌ $1${NC}"
+}
+
+_append_unique_line() {
+    local current="$1"
+    local value="$2"
+    if [ -z "$value" ]; then
+        printf '%s' "$current"
+        return
+    fi
+    if [ -z "$current" ]; then
+        printf '%s' "$value"
+        return
+    fi
+    if grep -Fxq "$value" <<< "$current"; then
+        printf '%s' "$current"
+    else
+        printf '%s\n%s' "$current" "$value"
+    fi
+}
+
+_normalize_list() {
+    local data="$1"
+    if [ -z "$data" ]; then
+        echo ""
+        return
+    fi
+    printf '%s\n' "$data" | sed '/^$/d' | sort -u
 }
 
 # Check if directories exist
@@ -128,6 +157,8 @@ touch "$MISSING_FILES_LIST"
 while IFS='|' read -r ref req_id; do
     [ -z "$ref" ] && continue
 
+    REQUIREMENT_FILE_MAP["$ref"]=$(_append_unique_line "${REQUIREMENT_FILE_MAP["$ref"]:-}" "$req_id")
+
     # Try multiple path resolutions
     playbook_file=""
     if [ -f "$SCENARIO_DIR/$ref" ]; then
@@ -206,64 +237,73 @@ if [ -d "$fixtures_dir" ]; then
     done < <(find "$fixtures_dir" -type f -name '*.json' 2>/dev/null | sort)
 fi
 
-# Step 4: Check each playbook
-log_header "🔗 Step 4: Validating playbook metadata..."
+# Step 4: Cross-check registry ordering and requirement coverage
+log_header "🔗 Step 4: Cross-checking registry order and requirement coverage..."
 echo ""
 
-ORPHANED_LIST="$TEMP_DIR/orphaned.txt"
-MISSING_REQ_LIST="$TEMP_DIR/missing_req.txt"
-NO_METADATA_LIST="$TEMP_DIR/no_metadata.txt"
+REGISTRY_PATH="$PLAYBOOKS_DIR/registry.json"
+if [ ! -f "$REGISTRY_PATH" ]; then
+    log_error "Playbook registry not found at $REGISTRY_PATH"
+    exit $EXIT_MISSING_PLAYBOOK_FILES
+fi
 
-touch "$ORPHANED_LIST"
-touch "$MISSING_REQ_LIST"
-touch "$NO_METADATA_LIST"
+declare -A REGISTRY_REQUIREMENTS_MAP=()
+while IFS= read -r entry; do
+    [ -z "$entry" ] && continue
+    file=$(printf '%s' "$entry" | jq -r '.file // empty')
+    [ -z "$file" ] && continue
+    requirements=$(printf '%s' "$entry" | jq -r '.requirements[]?' 2>/dev/null || true)
+    REGISTRY_REQUIREMENTS_MAP["$file"]="$requirements"
+    if [ ! -f "$SCENARIO_DIR/$file" ]; then
+        REGISTRY_MISSING_FILES+=("$file")
+    fi
+done < <(jq -c '.playbooks[]?' "$REGISTRY_PATH")
 
-while IFS= read -r playbook_file; do
-    [ -z "$playbook_file" ] && continue
+if [ ${#REGISTRY_REQUIREMENTS_MAP[@]} -eq 0 ]; then
+    log_warning "Registry contains no playbooks; execution order cannot be determined"
+fi
 
-    rel_path="${playbook_file#$SCENARIO_DIR/}"
-
-    if [ "$rel_path" = "test/playbooks/registry.json" ]; then
+for ref in "${!REQUIREMENT_FILE_MAP[@]}"; do
+    if [[ -z "${REGISTRY_REQUIREMENTS_MAP[$ref]+_}" ]]; then
+        while IFS= read -r req_id; do
+            [ -z "$req_id" ] && continue
+            REQUIREMENT_REFERENCES_MISSING_REGISTRY+=("$req_id|$ref")
+        done <<< "${REQUIREMENT_FILE_MAP[$ref]}"
         continue
     fi
-
-    # Extract requirement ID from playbook metadata
-    if ! jq -e '.metadata' "$playbook_file" >/dev/null 2>&1; then
-        # Case 3a: Playbook has no metadata section at all
-        echo "$rel_path|NO_METADATA_SECTION" >> "$NO_METADATA_LIST"
+    registry_list=$(_normalize_list "${REGISTRY_REQUIREMENTS_MAP[$ref]}")
+    actual_list=$(_normalize_list "${REQUIREMENT_FILE_MAP[$ref]}")
+    if [ -z "$actual_list" ]; then
+        actual_list=""
+    fi
+    if [ -z "$registry_list" ] && [ -z "$actual_list" ]; then
         continue
     fi
-
-    declared_req=$(jq -r '.metadata.requirement // empty' "$playbook_file" 2>/dev/null)
-
-    if [ -z "$declared_req" ] || [ "$declared_req" = "null" ]; then
-        # Case 3b: Playbook has metadata but no requirement field
-        echo "$rel_path|NO_REQUIREMENT_FIELD" >> "$NO_METADATA_LIST"
-        continue
+    if [ -z "$registry_list" ] || [ -z "$actual_list" ] || [ "$registry_list" != "$actual_list" ]; then
+        REGISTRY_MISMATCH_REQUIREMENTS+=("$ref|$registry_list|$actual_list")
     fi
+done
 
-    # Check if declared requirement exists
-    if ! grep -Fxq "$declared_req" "$REQUIREMENT_IDS_FILE"; then
-        # Case 2: Playbook references non-existent requirement
-        echo "$rel_path|$declared_req" >> "$MISSING_REQ_LIST"
-        continue
+for file in "${!REGISTRY_REQUIREMENTS_MAP[@]}"; do
+    registry_list=$(_normalize_list "${REGISTRY_REQUIREMENTS_MAP[$file]}")
+    if [ -z "$registry_list" ] && [ -z "${REQUIREMENT_FILE_MAP[$file]:-}" ]; then
+        REGISTRY_ORPHANED_PLAYBOOKS+=("$file")
     fi
-
-    # Check if this playbook is referenced by the requirement it declares
-    is_referenced=false
-    while IFS='|' read -r ref req_id; do
-        if [ "$ref" = "$rel_path" ] && [ "$req_id" = "$declared_req" ]; then
-            is_referenced=true
-            break
+    while IFS= read -r req_id; do
+        [ -z "$req_id" ] && continue
+        if ! grep -Fxq "$req_id" "$REQUIREMENT_IDS_FILE"; then
+            REGISTRY_UNKNOWN_REQUIREMENTS+=("$file|$req_id")
         fi
-    done < "$REQUIREMENT_REFS_FILE"
+    done <<< "$registry_list"
+done
 
-    if [ "$is_referenced" = false ]; then
-        # Playbook declares a valid requirement, but that requirement doesn't reference it back
-        echo "$rel_path|$declared_req" >> "$ORPHANED_LIST"
-    fi
-
-    if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
+if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
+    while IFS= read -r playbook_file; do
+        [ -z "$playbook_file" ] && continue
+        rel_path="${playbook_file#$SCENARIO_DIR/}"
+        if [ "$rel_path" = "test/playbooks/registry.json" ]; then
+            continue
+        fi
         placeholders=$(rg -o '@fixture/[A-Za-z0-9_.:-]+' -N "$playbook_file" 2>/dev/null | sort -u || true)
         if [ -n "$placeholders" ]; then
             while IFS= read -r placeholder; do
@@ -276,8 +316,8 @@ while IFS= read -r playbook_file; do
                 FIXTURE_USAGE["$slug"]="used"
             done <<< "$placeholders"
         fi
-    fi
-done <<< "$playbook_files"
+    done <<< "$playbook_files"
+fi
 
 if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
     for fixture_slug in "${!FIXTURE_FILES[@]}"; do
@@ -370,11 +410,13 @@ if [ "$fixture_unused_count" -gt 0 ]; then
 fi
 
 missing_file_count=$(wc -l < "$MISSING_FILES_LIST" | tr -d ' ')
-missing_req_count=$(wc -l < "$MISSING_REQ_LIST" | tr -d ' ')
-no_metadata_count=$(wc -l < "$NO_METADATA_LIST" | tr -d ' ')
-orphaned_count=$(wc -l < "$ORPHANED_LIST" | tr -d ' ')
+registry_missing_file_count=${#REGISTRY_MISSING_FILES[@]}
+missing_registry_count=${#REQUIREMENT_REFERENCES_MISSING_REGISTRY[@]}
+registry_unknown_req_count=${#REGISTRY_UNKNOWN_REQUIREMENTS[@]}
+registry_mismatch_count=${#REGISTRY_MISMATCH_REQUIREMENTS[@]}
+orphaned_count=${#REGISTRY_ORPHANED_PLAYBOOKS[@]}
 
-total_issues=$((missing_file_count + missing_req_count + no_metadata_count + orphaned_count + fixture_issue_total))
+fatal_issue_total=$((missing_file_count + registry_missing_file_count + missing_registry_count + registry_unknown_req_count + registry_mismatch_count + fixture_issue_total))
 
 # Report Case 1: Requirements pointing to missing files
 if [ "$missing_file_count" -gt 0 ]; then
@@ -393,59 +435,77 @@ if [ "$missing_file_count" -gt 0 ]; then
     echo ""
 fi
 
-# Report Case 2: Playbooks referencing non-existent requirements
-if [ "$missing_req_count" -gt 0 ]; then
-    log_error "CASE 2: Playbooks Reference Non-Existent Requirements"
+if [ "$registry_missing_file_count" -gt 0 ]; then
+    log_error "CASE 1B: Registry References Files Missing On Disk"
     echo ""
-    echo "These playbooks declare requirement IDs that don't exist in requirements/:"
-    echo ""
-    while IFS='|' read -r playbook req_id; do
-        echo -e "   ❌ Playbook: ${BLUE}${playbook}${NC}"
-        echo -e "      Declares: ${RED}${req_id}${NC} (not found in requirements/)"
+    for file in "${REGISTRY_MISSING_FILES[@]}"; do
+        echo -e "   ❌ Registry entry: ${BLUE}${file}${NC}"
+        echo -e "      Issue: ${RED}File does not exist${NC}"
         echo ""
-    done < "$MISSING_REQ_LIST"
+    done
     echo -e "   ${YELLOW}Action Required:${NC}"
-    echo "   • Create requirement entry in appropriate requirements/*.json file, OR"
-    echo "   • Update playbook metadata.requirement to reference an existing requirement, OR"
-    echo "   • Delete the playbook if it's no longer needed"
+    echo "   • Regenerate the playbook via the UI or remove it from registry.json"
     echo ""
 fi
 
-# Report Case 3: Playbooks without requirement metadata
-if [ "$no_metadata_count" -gt 0 ]; then
-    log_error "CASE 3: Playbooks Missing Requirement Metadata"
+if [ "$registry_unknown_req_count" -gt 0 ]; then
+    log_error "CASE 2: Registry Lists Unknown Requirement IDs"
     echo ""
-    echo "These playbooks don't declare which requirement they validate:"
-    echo ""
-    while IFS='|' read -r playbook reason; do
-        echo -e "   ❌ Playbook: ${BLUE}${playbook}${NC}"
-        if [ "$reason" = "NO_METADATA_SECTION" ]; then
-            echo -e "      Issue: Missing ${RED}.metadata${NC} section entirely"
-        else
-            echo -e "      Issue: Missing ${RED}.metadata.requirement${NC} field"
-        fi
+    for entry in "${REGISTRY_UNKNOWN_REQUIREMENTS[@]}"; do
+        IFS='|' read -r file req_id <<< "$entry"
+        echo -e "   ❌ Playbook: ${BLUE}${file}${NC}"
+        echo -e "      Requirement: ${RED}${req_id}${NC} (not found in requirements/)"
         echo ""
-    done < "$NO_METADATA_LIST"
+    done
     echo -e "   ${YELLOW}Action Required:${NC}"
-    echo "   • Add metadata section with requirement field:"
-    echo "     {\"metadata\": {\"requirement\": \"BAS-REQ-ID\", \"description\": \"...\", \"version\": 1}}"
+    echo "   • Update requirements/*.json to include the validation, OR"
+    echo "   • Regenerate registry.json after removing the requirement reference"
     echo ""
 fi
 
-# Report orphaned playbooks (valid requirement exists but doesn't reference back)
+if [ "$missing_registry_count" -gt 0 ]; then
+    log_error "CASE 3: Requirements Reference Playbooks Missing From Registry"
+    echo ""
+    for entry in "${REQUIREMENT_REFERENCES_MISSING_REGISTRY[@]}"; do
+        IFS='|' read -r req_id file <<< "$entry"
+        echo -e "   ❌ Requirement: ${BLUE}${req_id}${NC}"
+        echo -e "      File: ${RED}${file}${NC} (not present in registry.json)"
+        echo ""
+    done
+    echo -e "   ${YELLOW}Action Required:${NC}"
+    echo "   • Run build-registry.mjs so the playbook order/coverage is updated"
+    echo ""
+fi
+
+if [ "$registry_mismatch_count" -gt 0 ]; then
+    log_error "CASE 4: Registry Coverage Differs From Requirement Files"
+    echo ""
+    for entry in "${REGISTRY_MISMATCH_REQUIREMENTS[@]}"; do
+        IFS='|' read -r file reg_list actual_list <<< "$entry"
+        formatted_registry=$(printf '%s' "$reg_list" | tr '\n' ',' | sed 's/,$//')
+        formatted_actual=$(printf '%s' "$actual_list" | tr '\n' ',' | sed 's/,$//')
+        [ -z "$formatted_registry" ] && formatted_registry="<none>"
+        [ -z "$formatted_actual" ] && formatted_actual="<none>"
+        echo -e "   ❌ Playbook: ${BLUE}${file}${NC}"
+        echo -e "      Registry requirements: ${YELLOW}${formatted_registry}${NC}"
+        echo -e "      Requirement files:     ${YELLOW}${formatted_actual}${NC}"
+        echo ""
+    done
+    echo -e "   ${YELLOW}Action Required:${NC}"
+    echo "   • Regenerate registry.json to sync with requirements/"
+    echo ""
+fi
+
 if [ "$orphaned_count" -gt 0 ]; then
-    log_warning "Playbooks Not Referenced by Their Declared Requirements"
+    log_warning "Playbooks Not Referenced By Any Requirements"
     echo ""
-    echo "These playbooks declare valid requirements, but those requirements don't reference them:"
-    echo ""
-    while IFS='|' read -r playbook req_id; do
-        echo -e "   ⚠️  Playbook: ${BLUE}${playbook}${NC}"
-        echo -e "      Declares: ${YELLOW}${req_id}${NC} (requirement exists but doesn't link back)"
+    for file in "${REGISTRY_ORPHANED_PLAYBOOKS[@]}"; do
+        echo -e "   ⚠️  Playbook: ${BLUE}${file}${NC}"
+        echo -e "      Note: Not referenced by any requirement validation"
         echo ""
-    done < "$ORPHANED_LIST"
-    echo -e "   ${YELLOW}Action Required:${NC}"
-    echo "   • Add automation validation entry to the requirement:"
-    echo "     {\"type\": \"automation\", \"ref\": \"<playbook_path>\", \"phase\": \"integration\", \"status\": \"implemented\"}"
+    done
+    echo -e "   ${YELLOW}Action Recommended:${NC}"
+    echo "   • Add an automation validation entry in requirements/*.json to capture coverage"
     echo ""
 fi
 
@@ -453,30 +513,31 @@ fi
 echo "=============================================================="
 echo ""
 
-if [ "$total_issues" -eq 0 ]; then
+if [ "$fatal_issue_total" -eq 0 ]; then
     log_success "All playbooks are properly linked to requirements!"
     echo ""
     echo "   📊 Summary:"
     echo "      • Total playbooks: $playbook_count"
     echo "      • Total requirements: $requirement_count"
     echo "      • Playbook references in requirements: $reference_count"
-    echo "      • All have valid requirement metadata"
-    echo "      • All requirements reference existing files"
+    echo "      • Registry and requirements are in sync"
     if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
         echo "      • Fixture workflows validated: ${#FIXTURE_FILES[@]}"
     fi
     echo ""
     exit $EXIT_SUCCESS
 else
-    log_error "Validation Failed: $total_issues issue(s) found"
+    log_error "Validation Failed: $fatal_issue_total blocking issue(s) found"
     echo ""
     echo "   📊 Summary:"
     echo "      • Total playbooks: $playbook_count"
     echo "      • Total requirements: $requirement_count"
     echo "      • Missing playbook files: $missing_file_count"
-    echo "      • Invalid requirement refs: $missing_req_count"
-    echo "      • Missing metadata: $no_metadata_count"
-    echo "      • Orphaned (not referenced): $orphaned_count"
+    echo "      • Registry missing files: $registry_missing_file_count"
+    echo "      • Requirements missing from registry: $missing_registry_count"
+    echo "      • Unknown requirement IDs: $registry_unknown_req_count"
+    echo "      • Coverage mismatches: $registry_mismatch_count"
+    echo "      • Fixture warnings: $fixture_issue_total"
     if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
         echo "      • Fixture metadata issues: $fixture_metadata_count"
         echo "      • Fixture duplicates: $fixture_duplicate_count"
@@ -486,12 +547,10 @@ else
     echo ""
 
     # Exit with most severe error code
-    if [ "$missing_file_count" -gt 0 ]; then
+    if [ "$missing_file_count" -gt 0 ] || [ "$registry_missing_file_count" -gt 0 ]; then
         exit $EXIT_MISSING_PLAYBOOK_FILES
-    elif [ "$missing_req_count" -gt 0 ]; then
+    elif [ "$registry_unknown_req_count" -gt 0 ] || [ "$missing_registry_count" -gt 0 ] || [ "$registry_mismatch_count" -gt 0 ]; then
         exit $EXIT_INVALID_REQUIREMENT_REFS
-    elif [ "$no_metadata_count" -gt 0 ] || [ "$orphaned_count" -gt 0 ]; then
-        exit $EXIT_ORPHANED_PLAYBOOKS
     elif [ $((fixture_metadata_count + fixture_duplicate_count + fixture_unknown_count + fixture_unused_count)) -gt 0 ]; then
         exit $EXIT_FIXTURE_ERRORS
     fi

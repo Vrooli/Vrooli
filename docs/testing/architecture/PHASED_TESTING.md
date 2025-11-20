@@ -58,7 +58,7 @@ testing::runner::init \
   --test-dir "$TEST_DIR" \
   --log-dir "$TEST_DIR/artifacts"
 
-testing::runner::register_phase --name structure --script "$TEST_DIR/phases/test-structure.sh" --timeout 15
+testing::runner::register_phase --name structure --script "$TEST_DIR/phases/test-structure.sh" --timeout 120 --requires-runtime true
 testing::runner::register_phase --name integration --script "$TEST_DIR/phases/test-integration.sh" --timeout 120 --requires-runtime true
 testing::runner::register_test_type --name go --handler "$TEST_DIR/unit/run-unit-tests.sh --skip-node --skip-python" --kind command
 
@@ -71,7 +71,7 @@ By keeping scenario-specific wiring in this wrapper and delegating orchestration
 
 ## Testing Phases
 
-### Phase 1: Structure (15 seconds)
+### Phase 1: Structure (120 seconds)
 **Purpose**: Validate project structure and required files
 **Location**: `test/phases/test-structure.sh`
 

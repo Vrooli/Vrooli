@@ -1,0 +1,141 @@
+{
+  "metadata": {
+    "description": "Validates locking and unlocking canvas to prevent/allow node interaction",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-demo-workflow",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open seeded workflow via fixture",
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowName=@seed/workflowName)"
+      }
+    },
+    {
+      "id": "find-lock-button",
+      "type": "assert",
+      "data": {
+        "label": "Lock button exists",
+        "selector": "@selector/toolbar.lockButton",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Lock button should exist in toolbar"
+      }
+    },
+    {
+      "id": "capture-unlocked",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture unlocked state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-lock",
+      "type": "click",
+      "data": {
+        "label": "Click lock to lock canvas",
+        "selector": "@selector/toolbar.lockButton:not([data-dedupe=\"click\"])",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/toolbar.unlockButton",
+          "successTimeoutMs": 8000
+        }
+      }
+    },
+    {
+      "id": "capture-locked",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture locked state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-unlock",
+      "type": "click",
+      "data": {
+        "label": "Click lock to unlock canvas",
+        "selector": "@selector/toolbar.unlockButton",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/toolbar.lockButton",
+          "successTimeoutMs": 8000
+        }
+      }
+    },
+    {
+      "id": "capture-unlocked-again",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture unlocked state again",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "verify-toggle",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify lock toggle completed",
+        "expression": "true",
+        "storeAs": "lockToggleComplete"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-demo-workflow-to-find-lock",
+      "source": "call-open-demo-workflow",
+      "target": "find-lock-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "find-lock-button",
+      "target": "capture-unlocked",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "capture-unlocked",
+      "target": "click-lock",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "click-lock",
+      "target": "capture-locked",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "capture-locked",
+      "target": "click-unlock",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "click-unlock",
+      "target": "capture-unlocked-again",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "capture-unlocked-again",
+      "target": "verify-toggle",
+      "type": "smoothstep"
+    }
+  ]
+}

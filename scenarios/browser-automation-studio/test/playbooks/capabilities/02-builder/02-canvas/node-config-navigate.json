@@ -1,0 +1,303 @@
+{
+  "metadata": {
+    "description": "Validates Navigate node property configuration editing",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-builder",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open builder via fixture",
+        "workflowId": "@fixture/open-builder-from-demo(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+      }
+    },
+    {
+      "id": "wait-builder",
+      "type": "wait",
+      "data": {
+        "label": "Wait for workflow builder",
+        "selector": "@selector/workflowBuilder.code.modeButton",
+        "timeoutMs": 15000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "capture-before",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture builder before adding node",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "drag-navigate-node",
+      "type": "dragDrop",
+      "data": {
+        "label": "Drag Navigate node onto canvas",
+        "sourceSelector": "@selector/nodePalette.cards.navigate",
+        "targetSelector": ".react-flow__pane",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-node-added",
+      "type": "wait",
+      "data": {
+        "label": "Wait for node to appear",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "verify-navigate-node",
+      "type": "assert",
+      "data": {
+        "label": "Verify Navigate node exists",
+        "selector": ".react-flow__node[data-type=\"navigate\"]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Navigate node should appear on canvas"
+      }
+    },
+    {
+      "id": "capture-node-added",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture Navigate node on canvas",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "click-navigate-node",
+      "type": "click",
+      "data": {
+        "label": "Click Navigate node to select it",
+        "selector": ".react-flow__node[data-type=\"navigate\"] /*dup-1*/",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "verify-node-selected",
+      "type": "assert",
+      "data": {
+        "label": "Verify node is selected",
+        "selector": ".react-flow__node.selected[data-type=\"navigate\"]",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "Navigate node should be selected"
+      }
+    },
+    {
+      "id": "find-url-input",
+      "type": "assert",
+      "data": {
+        "label": "Verify URL input is visible in node",
+        "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "URL input should be visible"
+      }
+    },
+    {
+      "id": "click-url-mode",
+      "type": "click",
+      "data": {
+        "label": "Switch to URL mode",
+        "selector": ".react-flow__node.selected[data-type=\"navigate\"] button@selector/nodeProperties.urlModeButton",
+        "timeoutMs": 5000,
+        "waitForMs": 500,
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "click-url-input",
+      "type": "click",
+      "data": {
+        "label": "Click URL input field",
+        "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"] /*dup-1*/",
+        "timeoutMs": 5000,
+        "waitForMs": 300
+      }
+    },
+    {
+      "id": "clear-url-input",
+      "type": "keyboard",
+      "data": {
+        "label": "Clear URL input",
+        "keys": [
+          "Control",
+          "a"
+        ],
+        "waitForMs": 200
+      }
+    },
+    {
+      "id": "type-url",
+      "type": "type",
+      "data": {
+        "label": "Type test URL",
+        "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"] /*dup-2*/",
+        "text": "https://example.com/test-page",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "blur-url-input",
+      "type": "click",
+      "data": {
+        "label": "Click outside to trigger blur/save",
+        "selector": ".react-flow__pane",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "capture-url-configured",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture after URL configuration",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "verify-url-persisted",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify URL value persisted",
+        "expression": "document.querySelector('.react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]')?.value.includes('example.com/test-page') ?? false",
+        "storeAs": "urlPersisted"
+      }
+    },
+    {
+      "id": "assert-url-saved",
+      "type": "assert",
+      "data": {
+        "label": "Assert URL was saved",
+        "selector": ".react-flow__node.selected[data-type=\"navigate\"] input[value*=\"example.com\"]",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "URL should persist after blur"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-builder-to-wait-builder",
+      "source": "call-open-builder",
+      "target": "wait-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-builder",
+      "target": "capture-before",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "capture-before",
+      "target": "drag-navigate-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "drag-navigate-node",
+      "target": "wait-node-added",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "wait-node-added",
+      "target": "verify-navigate-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "verify-navigate-node",
+      "target": "capture-node-added",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "capture-node-added",
+      "target": "click-navigate-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "click-navigate-node",
+      "target": "verify-node-selected",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "verify-node-selected",
+      "target": "find-url-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "find-url-input",
+      "target": "click-url-mode",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "click-url-mode",
+      "target": "click-url-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "click-url-input",
+      "target": "clear-url-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e17",
+      "source": "clear-url-input",
+      "target": "type-url",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e18",
+      "source": "type-url",
+      "target": "blur-url-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e19",
+      "source": "blur-url-input",
+      "target": "capture-url-configured",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e20",
+      "source": "capture-url-configured",
+      "target": "verify-url-persisted",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e21",
+      "source": "verify-url-persisted",
+      "target": "assert-url-saved",
+      "type": "smoothstep"
+    }
+  ]
+}

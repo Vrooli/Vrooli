@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-17T20:48:10.559Z"
+    "last_synced_at": "2025-11-20T14:01:07.073Z"
   },
   "requirements": [
     {
@@ -18,12 +18,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/nonfunctional/error-handling/invalid-selector-graceful-degradation.json",
+          "ref": "test/playbooks/capabilities/06-nonfunctional/01-error-handling/invalid-selector-graceful-degradation.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Validates graceful handling of invalid CSS selectors and malformed syntax with appropriate error messages"
+          "notes": "Validates graceful handling of invalid CSS selectors and malformed syntax with appropriate error messages",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 1,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     }
   ]
 }

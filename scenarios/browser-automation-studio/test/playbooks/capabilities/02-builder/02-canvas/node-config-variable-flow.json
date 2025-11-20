@@ -1,0 +1,352 @@
+{
+  "metadata": {
+    "description": "Validates SetVariable and UseVariable node configuration for data flow testing",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-builder",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open builder via fixture",
+        "workflowId": "@fixture/open-builder-from-demo(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+      }
+    },
+    {
+      "id": "wait-builder",
+      "type": "wait",
+      "data": {
+        "label": "Wait for builder",
+        "selector": "@selector/workflowBuilder.code.modeButton",
+        "timeoutMs": 15000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "drag-setvariable-node",
+      "type": "dragDrop",
+      "data": {
+        "label": "Drag SetVariable node (camelCase test)",
+        "sourceSelector": "@selector/nodePalette.cards.setVariable",
+        "targetSelector": ".react-flow__pane",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "verify-setvariable-node",
+      "type": "assert",
+      "data": {
+        "label": "Verify SetVariable node exists",
+        "selector": ".react-flow__node",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "SetVariable node should appear (camelCase node type)"
+      }
+    },
+    {
+      "id": "select-setvariable",
+      "type": "click",
+      "data": {
+        "label": "Select SetVariable node",
+        "selector": ".react-flow__node:first-of-type",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "capture-setvariable",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture SetVariable node",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "find-variable-name-input",
+      "type": "assert",
+      "data": {
+        "label": "Variable name input exists",
+        "selector": ".react-flow__node.selected input[placeholder*=\"variable\" i], .react-flow__node.selected input[placeholder*=\"name\" i]",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Variable name input should be visible"
+      }
+    },
+    {
+      "id": "enter-variable-name",
+      "type": "type",
+      "data": {
+        "label": "Enter variable name",
+        "selector": ".react-flow__node.selected input:first-of-type",
+        "text": "testVar",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "find-value-input",
+      "type": "assert",
+      "data": {
+        "label": "Value input exists",
+        "selector": ".react-flow__node.selected input:nth-of-type(2), .react-flow__node.selected textarea",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Value input should be visible"
+      }
+    },
+    {
+      "id": "enter-value",
+      "type": "type",
+      "data": {
+        "label": "Enter variable value",
+        "selector": ".react-flow__node.selected input:nth-of-type(2), .react-flow__node.selected textarea /*dup-1*/",
+        "text": "test-value-123",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "save-setvariable",
+      "type": "click",
+      "data": {
+        "label": "Click canvas to save",
+        "selector": ".react-flow__pane",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "capture-setvariable-configured",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture configured SetVariable",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "drag-usevariable-node",
+      "type": "dragDrop",
+      "data": {
+        "label": "Drag UseVariable node (camelCase test)",
+        "sourceSelector": "@selector/nodePalette.cards.useVariable",
+        "targetSelector": ".react-flow__pane",
+        "timeoutMs": 10000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-second-node",
+      "type": "wait",
+      "data": {
+        "label": "Wait for UseVariable node",
+        "durationMs": 1500,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "verify-usevariable-node",
+      "type": "assert",
+      "data": {
+        "label": "Verify UseVariable node exists",
+        "selector": ".react-flow__node:nth-of-type(2)",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "UseVariable node should appear (camelCase node type)"
+      }
+    },
+    {
+      "id": "select-usevariable",
+      "type": "click",
+      "data": {
+        "label": "Select UseVariable node",
+        "selector": ".react-flow__node:nth-of-type(2) /*dup-1*/",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "capture-usevariable",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture UseVariable node",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "find-variable-reference-input",
+      "type": "assert",
+      "data": {
+        "label": "Variable reference input exists",
+        "selector": ".react-flow__node.selected input",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Variable reference input should be visible"
+      }
+    },
+    {
+      "id": "enter-variable-reference",
+      "type": "type",
+      "data": {
+        "label": "Reference the variable",
+        "selector": ".react-flow__node.selected input /*dup-1*/",
+        "text": "testVar",
+        "timeoutMs": 5000,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "save-usevariable",
+      "type": "click",
+      "data": {
+        "label": "Click canvas to save",
+        "selector": ".react-flow__pane /*dup-1*/",
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "verify-complete-flow",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture complete variable flow",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-builder-to-wait-builder",
+      "source": "call-open-builder",
+      "target": "wait-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "wait-builder",
+      "target": "drag-setvariable-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "drag-setvariable-node",
+      "target": "verify-setvariable-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "verify-setvariable-node",
+      "target": "select-setvariable",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "select-setvariable",
+      "target": "capture-setvariable",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "capture-setvariable",
+      "target": "find-variable-name-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "find-variable-name-input",
+      "target": "enter-variable-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "enter-variable-name",
+      "target": "find-value-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "find-value-input",
+      "target": "enter-value",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e15",
+      "source": "enter-value",
+      "target": "save-setvariable",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "save-setvariable",
+      "target": "capture-setvariable-configured",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e17",
+      "source": "capture-setvariable-configured",
+      "target": "drag-usevariable-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e18",
+      "source": "drag-usevariable-node",
+      "target": "wait-second-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e19",
+      "source": "wait-second-node",
+      "target": "verify-usevariable-node",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e20",
+      "source": "verify-usevariable-node",
+      "target": "select-usevariable",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e21",
+      "source": "select-usevariable",
+      "target": "capture-usevariable",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e22",
+      "source": "capture-usevariable",
+      "target": "find-variable-reference-input",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e23",
+      "source": "find-variable-reference-input",
+      "target": "enter-variable-reference",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e24",
+      "source": "enter-variable-reference",
+      "target": "save-usevariable",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e25",
+      "source": "save-usevariable",
+      "target": "verify-complete-flow",
+      "type": "smoothstep"
+    }
+  ]
+}

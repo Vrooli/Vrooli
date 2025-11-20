@@ -1,0 +1,208 @@
+{
+  "metadata": {
+    "description": "Validates the execution viewer Replay tab displays timeline, screenshots, and replay controls",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-project",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open Demo project via fixture",
+        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+      }
+    },
+    {
+      "id": "click-executions-tab",
+      "type": "click",
+      "data": {
+        "label": "Click Executions tab",
+        "selector": "@selector/projects.tabs.executions",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/executions.list.item, @selector/executions.actions.viewButton",
+          "successTimeoutMs": 10000
+        }
+      }
+    },
+    {
+      "id": "assert-executions-exist",
+      "type": "assert",
+      "data": {
+        "label": "At least one execution exists",
+        "selector": "@selector/executions.list.item, @selector/executions.actions.viewButton",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Should have at least one execution to test replay"
+      }
+    },
+    {
+      "id": "click-view-execution",
+      "type": "click",
+      "data": {
+        "label": "Click View button on first execution",
+        "selector": "@selector/executions.actions.viewButton:first-of-type",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/executions.viewer.root",
+          "successTimeoutMs": 10000
+        }
+      }
+    },
+    {
+      "id": "assert-execution-viewer-visible",
+      "type": "assert",
+      "data": {
+        "label": "Execution viewer is visible",
+        "selector": "@selector/executions.viewer.root, @selector/executions.viewer.logs, @selector/executions.viewer.screenshots",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Execution viewer should be visible"
+      }
+    },
+    {
+      "id": "capture-execution-viewer",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture execution viewer initial state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "look-for-replay-tab",
+      "type": "evaluate",
+      "data": {
+        "label": "Check if Replay tab exists",
+        "expression": "(() => { const replayTab = document.querySelector('@selector/executions.tabs.replay'); return replayTab !== null; })()",
+        "storeAs": "hasReplayTab"
+      }
+    },
+    {
+      "id": "click-replay-tab",
+      "type": "click",
+      "data": {
+        "label": "Click Replay tab",
+        "selector": "@selector/executions.tabs.replay",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/replay.player, @selector/replay.timeline, @selector/executions.viewer.screenshots",
+          "successTimeoutMs": 10000
+        },
+        "continueOnError": true
+      }
+    },
+    {
+      "id": "verify-replay-content",
+      "type": "evaluate",
+      "data": {
+        "label": "Verify replay-related content exists",
+        "expression": "(() => { const screenshots = document.querySelectorAll('@selector/executions.viewer.screenshot, @selector/replay.screenshot'); const timeline = document.querySelector('@selector/replay.timeline, @selector/replay.viewer'); return screenshots.length > 0 || timeline !== null; })()",
+        "storeAs": "hasReplayContent"
+      }
+    },
+    {
+      "id": "capture-replay-tab",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture replay tab view",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "check-for-screenshot",
+      "type": "evaluate",
+      "data": {
+        "label": "Check if screenshots are displayed",
+        "expression": "(() => { const images = document.querySelectorAll('img[src*=\"screenshot\"], img[src*=\"execution\"], img[alt*=\"screenshot\"]'); return images.length > 0; })()",
+        "storeAs": "hasScreenshots"
+      }
+    },
+    {
+      "id": "check-for-timeline",
+      "type": "evaluate",
+      "data": {
+        "label": "Check if timeline/controls exist",
+        "expression": "(() => { return document.querySelector('@selector/replay.player') !== null; })()",
+        "storeAs": "hasTimelineControls"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-project-to-click-executions-tab",
+      "source": "call-open-project",
+      "target": "click-executions-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-executions-tab",
+      "target": "assert-executions-exist",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "assert-executions-exist",
+      "target": "click-view-execution",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "click-view-execution",
+      "target": "assert-execution-viewer-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "assert-execution-viewer-visible",
+      "target": "capture-execution-viewer",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "capture-execution-viewer",
+      "target": "look-for-replay-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e12",
+      "source": "look-for-replay-tab",
+      "target": "click-replay-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e13",
+      "source": "click-replay-tab",
+      "target": "verify-replay-content",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e14",
+      "source": "verify-replay-content",
+      "target": "capture-replay-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e16",
+      "source": "capture-replay-tab",
+      "target": "check-for-screenshot",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e17",
+      "source": "check-for-screenshot",
+      "target": "check-for-timeline",
+      "type": "smoothstep"
+    }
+  ]
+}

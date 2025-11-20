@@ -106,6 +106,32 @@ setup() {
     }
   ]
 }
+
+@test "CLI: playbooks scaffold creates template" {
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/test/playbooks/capabilities/01-foundation"
+    mkdir -p "$temp_dir/requirements"
+    printf '{"imports": []}\n' > "$temp_dir/requirements/index.json"
+
+    run "${CLI_PATH}" playbooks scaffold capabilities/01-foundation "CLI Demo" --scenario "$temp_dir" --description "Scaffolded via CLI" --reset none
+    [ "$status" -eq 0 ]
+
+    target_file="$temp_dir/test/playbooks/capabilities/01-foundation/cli-demo.json"
+    [ -f "$target_file" ]
+    grep -q '"reset": "none"' "$target_file"
+
+    rm -rf "$temp_dir"
+}
+
+@test "CLI: playbooks verify flags invalid prefixes" {
+    temp_dir=$(mktemp -d)
+    mkdir -p "$temp_dir/test/playbooks/capabilities/builder"
+
+    run "${CLI_PATH}" playbooks verify --scenario "$temp_dir"
+    [ "$status" -ne 0 ]
+
+    rm -rf "$temp_dir"
+}
 JSON
 
     printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==' | base64 -d > "${frames_dir}/0001.png"

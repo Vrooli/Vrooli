@@ -14,7 +14,6 @@ func TestValidatorValidWorkflow(t *testing.T) {
 	workflow := map[string]any{
 		"metadata": map[string]any{
 			"description": "simple happy path",
-			"requirement": "BAS-TEST-001",
 			"version":     1,
 		},
 		"nodes": []any{
@@ -57,9 +56,6 @@ func TestValidatorValidWorkflow(t *testing.T) {
 	if res.Stats.NodeCount != 2 || res.Stats.EdgeCount != 1 {
 		t.Fatalf("unexpected stats: %+v", res.Stats)
 	}
-	if !res.Stats.HasRequirement {
-		t.Fatalf("expected requirement metadata to be detected")
-	}
 }
 
 func TestValidatorStrictPromotesWarnings(t *testing.T) {
@@ -78,6 +74,15 @@ func TestValidatorStrictPromotesWarnings(t *testing.T) {
 				"data": map[string]any{
 					"waitType":   "duration",
 					"durationMs": 1000,
+				},
+			},
+			map[string]any{
+				"id":       "second",
+				"type":     "wait",
+				"position": map[string]any{"x": 200, "y": 0},
+				"data": map[string]any{
+					"waitType":   "duration",
+					"durationMs": 500,
 				},
 			},
 		},
@@ -113,7 +118,6 @@ func TestValidatorDetectsSchemaErrors(t *testing.T) {
 	workflow := map[string]any{
 		"metadata": map[string]any{
 			"description": "missing nodes",
-			"requirement": "BAS-TEST-ERR",
 			"version":     1,
 		},
 		"nodes": []any{},

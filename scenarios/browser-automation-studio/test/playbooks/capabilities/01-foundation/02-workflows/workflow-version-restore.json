@@ -1,0 +1,220 @@
+{
+  "metadata": {
+    "description": "Validates workflow version history listing and restore functionality through the UI",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Open BAS dashboard",
+        "destinationType": "scenario",
+        "scenario": "browser-automation-studio",
+        "scenarioPath": "/",
+        "waitUntil": "networkidle0",
+        "timeoutMs": 45000,
+        "waitForMs": 2000
+      }
+    },
+    {
+      "id": "wait-for-dashboard",
+      "type": "wait",
+      "data": {
+        "label": "Wait for dashboard",
+        "selector": "@selector/projects.grid",
+        "timeoutMs": 10000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "click-project",
+      "type": "click",
+      "data": {
+        "label": "Open first project",
+        "selector": "@selector/projects.card:first-of-type",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/workflows.card",
+          "successTimeoutMs": 15000
+        }
+      }
+    },
+    {
+      "id": "ensure-workflows-exist",
+      "type": "assert",
+      "data": {
+        "label": "Workflows exist in list",
+        "selector": "@selector/workflows.card",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Expected workflows in project detail view"
+      }
+    },
+    {
+      "id": "click-workflow",
+      "type": "click",
+      "data": {
+        "label": "Open first workflow",
+        "selector": "@selector/workflows.card:first-of-type:not([data-dedupe=\"click\"])",
+        "timeoutMs": 10000,
+        "continueOnFailure": true,
+        "resilience": {
+          "successSelector": "@selector/workflowBuilder.canvas.root",
+          "successTimeoutMs": 20000
+        }
+      }
+    },
+    {
+      "id": "look-for-version-button",
+      "type": "assert",
+      "data": {
+        "label": "Version history button visible",
+        "selector": "@selector/header.buttons.versionHistory",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Version history button should exist in builder header"
+      }
+    },
+    {
+      "id": "click-version-history",
+      "type": "click",
+      "data": {
+        "label": "Open version history",
+        "selector": "@selector/header.buttons.versionHistory:not([data-dedupe=\"click\"])",
+        "timeoutMs": 5000,
+        "resilience": {
+          "successSelector": "@selector/header.versionHistory.dialog",
+          "successTimeoutMs": 10000
+        }
+      }
+    },
+    {
+      "id": "check-version-list-visible",
+      "type": "assert",
+      "data": {
+        "label": "Version list dialog visible",
+        "selector": "@selector/header.versionHistory.dialog",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Version history dialog should be visible"
+      }
+    },
+    {
+      "id": "capture-version-history",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture version history UI",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "check-restore-buttons",
+      "type": "assert",
+      "data": {
+        "label": "Restore controls visible",
+        "selector": "@selector/header.versionHistory.closeButton",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Restore/close controls should exist in version dialog"
+      }
+    },
+    {
+      "id": "close-version-dialog",
+      "type": "keyboard",
+      "data": {
+        "label": "Close version dialog with Escape",
+        "keys": [
+          "Escape"
+        ]
+      }
+    },
+    {
+      "id": "capture-final-state",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture final workflow builder state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-dashboard",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e2",
+      "source": "wait-for-dashboard",
+      "target": "click-project",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "click-project",
+      "target": "ensure-workflows-exist",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "ensure-workflows-exist",
+      "target": "click-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "click-workflow",
+      "target": "look-for-version-button",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "look-for-version-button",
+      "target": "click-version-history",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "click-version-history",
+      "target": "check-version-list-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "check-version-list-visible",
+      "target": "capture-version-history",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "capture-version-history",
+      "target": "check-restore-buttons",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "check-restore-buttons",
+      "target": "close-version-dialog",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "close-version-dialog",
+      "target": "capture-final-state",
+      "type": "smoothstep"
+    }
+  ]
+}

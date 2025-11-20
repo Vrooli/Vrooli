@@ -1,0 +1,171 @@
+{
+  "metadata": {
+    "description": "Validates palette search filters nodes by name, description, and keywords",
+    "version": 1,
+    "reset": "project"
+  },
+  "settings": {
+    "executionViewport": {
+      "width": 1920,
+      "height": 1080,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
+    {
+      "id": "call-open-builder",
+      "type": "workflowCall",
+      "data": {
+        "label": "Open builder via fixture",
+        "workflowId": "@fixture/open-builder-from-demo(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
+      }
+    },
+    {
+      "id": "wait1",
+      "type": "wait",
+      "data": {
+        "label": "Wait",
+        "durationMs": 3000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "assert-palette",
+      "type": "assert",
+      "data": {
+        "label": "Palette visible",
+        "selector": "@selector/nodePalette.container",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Palette should be visible"
+      }
+    },
+    {
+      "id": "count-before",
+      "type": "evaluate",
+      "data": {
+        "label": "Count all nodes",
+        "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
+        "storeAs": "totalNodes"
+      }
+    },
+    {
+      "id": "search",
+      "type": "type",
+      "data": {
+        "label": "Search 'navigate'",
+        "selector": "@selector/nodePalette.searchInput",
+        "text": "navigate",
+        "clearFirst": false,
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "count-after",
+      "type": "evaluate",
+      "data": {
+        "label": "Count filtered",
+        "expression": "document.querySelectorAll('@selector/nodePalette.visibleCardList').length",
+        "storeAs": "filteredNodes"
+      }
+    },
+    {
+      "id": "assert-navigate-visible",
+      "type": "assert",
+      "data": {
+        "label": "Navigate node visible",
+        "selector": "@selector/nodePalette.cards.navigate",
+        "assertMode": "exists",
+        "timeoutMs": 3000,
+        "failureMessage": "Navigate node should be visible after search"
+      }
+    },
+    {
+      "id": "cap",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture filtered",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    },
+    {
+      "id": "clear",
+      "type": "type",
+      "data": {
+        "label": "Clear search",
+        "selector": "@selector/nodePalette.searchInput /*dup-1*/",
+        "text": "",
+        "clearFirst": true,
+        "timeoutMs": 5000,
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "count-cleared",
+      "type": "evaluate",
+      "data": {
+        "label": "Count after clear",
+        "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
+        "storeAs": "clearedNodes"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "call-open-builder-to-wait1",
+      "source": "call-open-builder",
+      "target": "wait1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "wait1",
+      "target": "assert-palette",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5",
+      "source": "assert-palette",
+      "target": "count-before",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e6",
+      "source": "count-before",
+      "target": "search",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e7",
+      "source": "search",
+      "target": "count-after",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e8",
+      "source": "count-after",
+      "target": "assert-navigate-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9",
+      "source": "assert-navigate-visible",
+      "target": "cap",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "cap",
+      "target": "clear",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e11",
+      "source": "clear",
+      "target": "count-cleared",
+      "type": "smoothstep"
+    }
+  ]
+}

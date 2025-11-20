@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-20T02:46:38.357Z"
+    "last_synced_at": "2025-11-20T14:01:07.071Z"
   },
   "requirements": [
     {
@@ -21,51 +21,141 @@
           "ref": "api/browserless/compiler/compiler_test.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "Ensures ordering, cycle detection, and unsupported node handling."
+          "notes": "Ensures ordering, cycle detection, and unsupported node handling.",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T12:56:37-05:00",
+            "test_duration_ms": 42000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         },
         {
           "type": "test",
           "ref": "api/browserless/runtime/session_test.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "Exercises Browserless session payloads without external dependencies."
+          "notes": "Exercises Browserless session payloads without external dependencies.",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T12:56:37-05:00",
+            "test_duration_ms": 42000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         },
         {
           "type": "test",
           "ref": "api/database/repository_test.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "Confirms workflow persistence and retrieval with folder hierarchy metadata."
+          "notes": "Confirms workflow persistence and retrieval with folder hierarchy metadata.",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T12:56:37-05:00",
+            "test_duration_ms": 42000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         },
         {
           "type": "test",
           "ref": "test/phases/test-unit.sh",
           "phase": "unit",
           "status": "failing",
-          "notes": "Unit phase aggregates Go + Node coverage with thresholds enforced."
+          "notes": "Unit phase aggregates Go + Node coverage with thresholds enforced.",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T12:56:37-05:00",
+            "test_duration_ms": 42000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         },
         {
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
           "phase": "unit",
           "status": "failing",
-          "notes": "Auto-added from vitest evidence"
+          "notes": "Auto-added from vitest evidence",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T12:56:37-05:00",
+            "test_duration_ms": 42000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         },
         {
           "type": "test",
           "ref": "ui/src/stores/workflowStore.test.ts",
           "phase": "unit",
           "status": "failing",
-          "notes": "Auto-added from vitest evidence"
+          "notes": "Auto-added from vitest evidence",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T12:56:37-05:00",
+            "test_duration_ms": 42000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         },
         {
           "type": "test",
           "ref": "ui/src/components/__tests__/WorkflowBuilder.test.tsx",
           "phase": "unit",
           "status": "failing",
-          "notes": "Auto-added from vitest evidence"
+          "notes": "Auto-added from vitest evidence",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T12:56:37-05:00",
+            "test_duration_ms": 42000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T13:05:48-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
+        "phase_results": [
+          "coverage/phase-results/business.json",
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     },
     {
       "id": "BAS-WORKFLOW-DEMO-SEED",
@@ -78,12 +168,35 @@
       "validation": [
         {
           "type": "automation",
-          "ref": "test/playbooks/capabilities/builder/projects/demo-sanity.json",
+          "ref": "test/playbooks/capabilities/02-builder/01-projects/demo-sanity.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "BAS workflow ensuring demo seed parity via JSON playbook (pending export)."
+          "notes": "BAS workflow ensuring demo seed parity via JSON playbook (pending export).",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-19T23:07:35-05:00",
+            "test_duration_ms": 540000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh integration"
+            ]
+          }
         }
-      ]
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-19T23:07:35-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh integration"
+        ]
+      }
     }
   ]
 }
