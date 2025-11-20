@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "description": "Loads dynamic BAS seed info and stores it for downstream fixtures",
+    "requirement": "BAS-WORKFLOW-DEMO-SEED",
+    "fixture_id": "load-seed-state",
+    "parameters": [
+      {"name": "projectId", "type": "string", "required": true, "default": "@seed/projectId", "description": "Project identifier returned by the API"},
+      {"name": "projectName", "type": "string", "required": true, "default": "@seed/projectName", "description": "Human-readable project name"},
+      {"name": "projectFolder", "type": "string", "required": true, "default": "@seed/projectFolder", "description": "Workflow folder path"},
+      {"name": "workflowId", "type": "string", "required": true, "default": "@seed/workflowId", "description": "Seed workflow identifier"},
+      {"name": "workflowName", "type": "string", "required": true, "default": "@seed/workflowName", "description": "Seed workflow label"}
+    ],
+    "requirements": ["BAS-WORKFLOW-DEMO-SEED"]
+  },
+  "nodes": [
+    {
+      "id": "store-project-name",
+      "type": "evaluate",
+      "data": {
+        "label": "Store seed project name",
+        "expression": "\"${fixture.projectName}\"",
+        "storeAs": "seed.projectName"
+      }
+    },
+    {
+      "id": "store-project-id",
+      "type": "evaluate",
+      "data": {
+        "label": "Store seed project id",
+        "expression": "\"${fixture.projectId}\"",
+        "storeAs": "seed.projectId"
+      }
+    },
+    {
+      "id": "store-project-folder",
+      "type": "evaluate",
+      "data": {
+        "label": "Store seed project folder",
+        "expression": "\"${fixture.projectFolder}\"",
+        "storeAs": "seed.projectFolder"
+      }
+    },
+    {
+      "id": "store-workflow-name",
+      "type": "evaluate",
+      "data": {
+        "label": "Store seed workflow name",
+        "expression": "\"${fixture.workflowName}\"",
+        "storeAs": "seed.workflowName"
+      }
+    },
+    {
+      "id": "store-workflow-id",
+      "type": "evaluate",
+      "data": {
+        "label": "Store seed workflow id",
+        "expression": "\"${fixture.workflowId}\"",
+        "storeAs": "seed.workflowId"
+      }
+    }
+  ],
+  "edges": [
+    {"id": "edge-project-id", "source": "store-project-name", "target": "store-project-id", "type": "smoothstep"},
+    {"id": "edge-folder", "source": "store-project-id", "target": "store-project-folder", "type": "smoothstep"},
+    {"id": "edge-workflow-name", "source": "store-project-folder", "target": "store-workflow-name", "type": "smoothstep"},
+    {"id": "edge-workflow-id", "source": "store-workflow-name", "target": "store-workflow-id", "type": "smoothstep"}
+  ]
+}

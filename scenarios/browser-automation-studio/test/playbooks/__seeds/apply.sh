@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SCENARIO_NAME="${SCENARIO_NAME:-browser-automation-studio}"
 API_PORT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT 2>/dev/null || true)
 if [ -z "$API_PORT" ]; then
@@ -11,6 +11,21 @@ fi
 API_URL="http://localhost:${API_PORT}/api/v1"
 DATA_DIR="${SCENARIO_DIR}/data/projects/demo"
 mkdir -p "$DATA_DIR"
+
+FIXTURES_DIR="${SCENARIO_DIR}/test/artifacts/runtime"
+SEED_STATE_FILE="${FIXTURES_DIR}/seed-state.json"
+mkdir -p "$FIXTURES_DIR"
+
+SEED_PROJECT_NAME=""
+SEED_WORKFLOW_NAME=""
+SEED_PROJECT_FOLDER="/demo"
+
+if [ -f "$SEED_STATE_FILE" ] && command -v jq >/dev/null 2>&1; then
+  existing_seed=$(cat "$SEED_STATE_FILE")
+  SEED_PROJECT_NAME=$(printf '%s' "$existing_seed" | jq -r '.projectName // empty')
+  SEED_WORKFLOW_NAME=$(printf '%s' "$existing_seed" | jq -r '.workflowName // empty')
+  SEED_PROJECT_FOLDER=$(printf '%s' "$existing_seed" | jq -r '.projectFolder // "/demo"')
+fi
 
 require_tool() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -43,9 +58,20 @@ if [ -n "$project_ids" ]; then
   done <<< "$project_ids"
 fi
 
+if [ -z "$SEED_PROJECT_NAME" ] || [ -z "$SEED_WORKFLOW_NAME" ]; then
+  run_id=$(date +%s)
+  if command -v openssl >/dev/null 2>&1; then
+    suffix=$(openssl rand -hex 3 | tr -d '\n')
+  else
+    suffix=$(dd if=/dev/urandom bs=4 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n' | cut -c1-6)
+  fi
+  SEED_PROJECT_NAME="Demo Browser Automations ${run_id}-${suffix}"
+  SEED_WORKFLOW_NAME="Demo Smoke Workflow ${run_id}-${suffix}"
+fi
+
 # Create demo project that all workflows expect.
 create_payload=$(jq -n \
-  --arg name "Demo Browser Automations" \
+  --arg name "$SEED_PROJECT_NAME" \
   --arg desc "Seeded project for BAS integration testing" \
   --arg folder "$DATA_DIR" \
   '{name: $name, description: $desc, folder_path: $folder}')
@@ -96,8 +122,8 @@ JSON
 
 workflow_payload=$(jq -n \
   --arg pid "$project_id" \
-  --arg name "Demo Smoke Workflow" \
-  --arg folder "/demo" \
+  --arg name "$SEED_WORKFLOW_NAME" \
+  --arg folder "$SEED_PROJECT_FOLDER" \
   --argjson flow "$workflow_definition" \
   '{project_id: $pid, name: $name, folder_path: $folder, flow_definition: $flow}')
 workflow_resp=$(curl_json POST "$API_URL/workflows/create" "$workflow_payload") || {
@@ -105,5 +131,23 @@ workflow_resp=$(curl_json POST "$API_URL/workflows/create" "$workflow_payload") 
   printf '%s\n' "$workflow_resp" >&2
   exit 1
 }
+
+workflow_id=$(printf '%s' "$workflow_resp" | jq -r '.workflow.id // .workflow_id // .id // empty')
+if [ -z "$workflow_id" ]; then
+  echo "❌ Unable to determine workflow_id from API response" >&2
+  printf '%s\n' "$workflow_resp" >&2
+  exit 1
+fi
+
+seed_payload=$(jq -n \
+  --arg projectId "$project_id" \
+  --arg projectName "$SEED_PROJECT_NAME" \
+  --arg projectFolder "$SEED_PROJECT_FOLDER" \
+  --arg workflowId "$workflow_id" \
+  --arg workflowName "$SEED_WORKFLOW_NAME" \
+  '{projectId: $projectId, projectName: $projectName, projectFolder: $projectFolder, workflowId: $workflowId, workflowName: $workflowName}')
+printf '%s\n' "$seed_payload" > "$SEED_STATE_FILE"
+
+echo "📝 Wrote BAS seed state to ${SEED_STATE_FILE}"
 
 echo "✅ BAS seed data applied (project ${project_id})"

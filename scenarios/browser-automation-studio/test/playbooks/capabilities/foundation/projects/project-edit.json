@@ -17,7 +17,7 @@
       "type": "workflowCall",
       "data": {
         "label": "Open Demo project",
-        "workflowId": "@fixture/open-demo-project"
+        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
       }
     },
     {
@@ -119,6 +119,12 @@
       "id": "e5",
       "source": "call-open-project",
       "target": "get-original-name",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e5a",
+      "source": "get-original-name",
+      "target": "click-edit-button",
       "type": "smoothstep"
     },
     {

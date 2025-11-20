@@ -13,88 +13,45 @@
   },
   "nodes": [
     {
-      "id": "navigate-dashboard",
-      "type": "navigate",
+      "id": "call-open-demo-workflow",
+      "type": "workflowCall",
       "data": {
-        "label": "Open BAS dashboard",
-        "destinationType": "scenario",
-        "scenario": "browser-automation-studio",
-        "scenarioPath": "/",
-        "waitUntil": "networkidle0",
-        "timeoutMs": 60000,
-        "waitForMs": 500
+        "label": "Open seeded workflow",
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowName=@seed/workflowName)"
       }
     },
     {
-      "id": "capture-dashboard",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture dashboard",
-        "fullPage": true,
-        "captureDomSnapshot": true,
-        "waitForMs": 1000
-      }
-    },
-    {
-      "id": "assert-demo-project",
+      "id": "assert-builder",
       "type": "assert",
       "data": {
-        "label": "Demo project card exists",
-        "selector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]:where(:not(:root))",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Demo Browser Automations project card should be visible on dashboard"
-      }
-    },
-    {
-      "id": "click-demo-card",
-      "type": "click",
-      "data": {
-        "label": "Open demo project",
-        "selector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]",
-        "waitForSelector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]",
-        "timeoutMs": 10000,
-        "resilience": {
-          "successSelector": "@selector/workflows.card",
-          "successTimeoutMs": 15000
-        }
-      }
-    },
-    {
-      "id": "assert-demo-workflow",
-      "type": "assert",
-      "data": {
-        "label": "Demo workflow visible",
-        "selector": "div[data-workflow-header] h3[title=\"Demo: Capture Example.com Hero\"]",
+        "label": "Builder is visible",
+        "selector": "@selector/workflowBuilder.canvas.root",
         "assertMode": "exists",
         "timeoutMs": 20000,
-        "failureMessage": "Expected demo workflow card to appear inside project detail"
+        "failureMessage": "Workflow builder should render after loading the seeded workflow"
+      }
+    },
+    {
+      "id": "capture-builder",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture builder state",
+        "fullPage": true,
+        "waitForMs": 500
       }
     }
   ],
   "edges": [
     {
-      "id": "edge-nav-capture",
-      "source": "navigate-dashboard",
-      "target": "capture-dashboard",
+      "id": "edge-open-assert",
+      "source": "call-open-demo-workflow",
+      "target": "assert-builder",
       "type": "smoothstep"
     },
     {
-      "id": "edge-capture-assert",
-      "source": "capture-dashboard",
-      "target": "assert-demo-project",
-      "type": "smoothstep"
-    },
-    {
-      "id": "edge-assert-click",
-      "source": "assert-demo-project",
-      "target": "click-demo-card",
-      "type": "smoothstep"
-    },
-    {
-      "id": "edge-click-wait",
-      "source": "click-demo-card",
-      "target": "assert-demo-workflow",
+      "id": "edge-assert-capture",
+      "source": "assert-builder",
+      "target": "capture-builder",
       "type": "smoothstep"
     }
   ]

@@ -353,7 +353,7 @@
       "type": "wait",
       "data": {
         "label": "Wait for executions list to load",
-        "selector": "@selector/executions.list.card",
+        "selector": "@selector/executions.list.card:not([data-dedupe=\"wait\"])",
         "timeoutMs": 10000,
         "waitForMs": 1000,
         "waitType": "element"
@@ -364,7 +364,7 @@
       "type": "assert",
       "data": {
         "label": "Verify execution appears in history",
-        "selector": "@selector/executions.list.card",
+        "selector": "@selector/executions.list.card:not([data-dedupe=\"assert\"])",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Execution should appear in history after workflow run"

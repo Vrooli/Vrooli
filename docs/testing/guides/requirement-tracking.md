@@ -164,7 +164,7 @@ requirements/
     {
       "id": "BAS-PROJECT-DIALOG-OPEN",
       "category": "projects.ui",
-      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "title": "New project dialog opens from primary entry points",
       "description": "Verifies the modal opens via button, keyboard, and menu",
       "status": "in_progress",
@@ -770,7 +770,7 @@ node scripts/requirements/report.js --scenario <name> --fail-on-critical-gap
 {
   "id": "MY-FUNC-001",
   "category": "foundation",
-  "prd_ref": "Functional Requirements > Must Have > Project Management",
+  "prd_ref": "Operational Targets > P0 > OT-P0-001",
   "title": "Complete project management system",
   "description": "Aggregates all project-related requirements from PRD section",
   "status": "in_progress",
@@ -959,7 +959,7 @@ requirements/
 ```json
 {
   "id": "BAS-WORKFLOW-PERSIST-CRUD",
-  "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+  "prd_ref": "Operational Targets > P0 > OT-P0-001",
   "title": "Workflows persist nodes, edges, and metadata"
 }
 ```

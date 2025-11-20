@@ -34,3 +34,22 @@ Translate deployment-manager bundle manifests into runnable cloud environments (
 ## Interim Status
 
 Until scenario-to-cloud exists, we rely on Tier 1 servers and manual provider docs. The legacy Kubernetes instructions now live under `docs/deployment/history/` for reference.
+
+## Milestones
+
+1. **Provider Spike** — Automate DigitalOcean App Platform deploy for picker-wheel using Terraform templates.
+2. **Manifest Integration** — Consume deployment-manager bundles + secrets plans to render provider manifests.
+3. **Multi-provider Support** — Add AWS (ECS/EKS) + bare-metal modules with shared abstraction for storage/network.
+4. **Verification + Rollback** — Implement smoke tests and rollback automation per provider module.
+
+## Success Criteria
+
+- `vrooli scenario to-cloud picker-wheel --provider do` runs end-to-end without manual editing.
+- Deployments emit status + cost estimates back into deployment-manager dashboards.
+- Secrets never leave secrets-manager; providers fetch them on-demand per bundle instructions.
+
+## Risks
+
+- **Provisioning Drift:** Without Terraform/Pulumi state management we risk orphaned infrastructure; guardrails mandatory.
+- **Credential Handling:** Need secure Vault-backed distribution of provider credentials.
+- **Cost Explosion:** Automation must include quotas + confirmations before provisioning large clusters.

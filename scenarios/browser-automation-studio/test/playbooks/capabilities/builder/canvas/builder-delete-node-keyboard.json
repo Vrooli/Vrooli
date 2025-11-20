@@ -17,7 +17,7 @@
       "type": "workflowCall",
       "data": {
         "label": "Open seeded workflow via fixture",
-        "workflowId": "@fixture/open-demo-workflow"
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowName=@seed/workflowName)"
       }
     },
     {

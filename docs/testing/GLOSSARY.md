@@ -175,9 +175,7 @@ Source in phase scripts: `source "${APP_ROOT}/scripts/scenarios/testing/shell/ph
 **See**: [Shell Libraries Reference](reference/shell-libraries.md)
 
 ### Requirements Registry
-Structured JSON file(s) mapping PRD requirements to technical validations:
-- **Single-file**: `docs/requirements.json` (simple scenarios)
-- **Modular**: `requirements/` directory with imports (complex scenarios)
+Structured JSON file(s) mapping PRD requirements to technical validations (stored in the `requirements/` directory with imports).
 
 Registry includes metadata, requirement definitions, validation entries, and parent-child relationships.
 
@@ -199,7 +197,6 @@ Registry includes metadata, requirement definitions, validation entries, and par
 ### Requirements
 - `requirements/index.json` - Parent requirements with imports (modular)
 - `requirements/**/*.json` - Child requirement modules by feature (modular)
-- `docs/requirements.json` - Single-file registry (simple scenarios)
 - `PRD.md` - Product Requirements Document
 
 ### Test Output

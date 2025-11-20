@@ -70,7 +70,7 @@
       "type": "click",
       "data": {
         "label": "Click first example prompt",
-        "selector": "@selector/ai.modal.promptExample(index=0)",
+        "selector": "@selector/ai.modal.examplePrompts.first",
         "timeoutMs": 5000,
         "resilience": {
           "successSelector": "textarea[placeholder*=\"prompt\"], textarea[placeholder*=\"describe\"], textarea",

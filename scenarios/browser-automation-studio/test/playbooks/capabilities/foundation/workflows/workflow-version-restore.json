@@ -65,7 +65,7 @@
       "type": "click",
       "data": {
         "label": "Open first workflow",
-        "selector": "@selector/workflows.card:first-of-type",
+        "selector": "@selector/workflows.card:first-of-type:not([data-dedupe=\"click\"])",
         "timeoutMs": 10000,
         "continueOnFailure": true,
         "resilience": {
@@ -90,7 +90,7 @@
       "type": "click",
       "data": {
         "label": "Open version history",
-        "selector": "@selector/header.buttons.versionHistory",
+        "selector": "@selector/header.buttons.versionHistory:not([data-dedupe=\"click\"])",
         "timeoutMs": 5000,
         "resilience": {
           "successSelector": "@selector/header.versionHistory.dialog",

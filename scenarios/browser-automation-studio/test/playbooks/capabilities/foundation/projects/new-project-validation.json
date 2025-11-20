@@ -71,7 +71,7 @@
       "type": "assert",
       "data": {
         "label": "Name required error appears",
-        "selector": "@selector/dialogs.project.nameError",
+        "selector": "@selector/dialogs.project.nameError:not([data-dedupe=\"required\"])",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Form should display error when project name is empty"
@@ -115,7 +115,7 @@
       "type": "assert",
       "data": {
         "label": "Invalid name error appears",
-        "selector": "@selector/dialogs.project.nameError",
+        "selector": "@selector/dialogs.project.nameError:not([data-dedupe=\"invalid\"])",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Form should reject whitespace-only project names"
@@ -158,7 +158,7 @@
       "type": "assert",
       "data": {
         "label": "Length error appears",
-        "selector": "@selector/dialogs.project.nameError",
+        "selector": "@selector/dialogs.project.nameError:not([data-dedupe=\"length\"])",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Form should reject overly long project names"

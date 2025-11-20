@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SCENARIO_NAME="${SCENARIO_NAME:-browser-automation-studio}"
 API_PORT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT 2>/dev/null || true)
+
+SEED_STATE_FILE="${SCENARIO_DIR}/test/artifacts/runtime/seed-state.json"
+rm -f "$SEED_STATE_FILE" 2>/dev/null || true
 if [ -z "$API_PORT" ]; then
   # Nothing to clean if scenario unavailable.
   exit 0

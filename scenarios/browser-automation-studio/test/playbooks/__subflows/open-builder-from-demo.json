@@ -1,7 +1,13 @@
 {
   "metadata": {
     "description": "Ensures the workflow builder is opened from the Demo project",
-    "fixture_id": "open-builder-from-demo"
+    "requirement": "BAS-WORKFLOW-DEMO-SEED",
+    "fixture_id": "open-builder-from-demo",
+    "parameters": [
+      {"name": "projectId", "type": "string", "required": true, "default": "@seed/projectId", "description": "Project identifier to load"},
+      {"name": "projectName", "type": "string", "required": true, "default": "@seed/projectName", "description": "Project to load before entering the builder"},
+      {"name": "projectFolder", "type": "string", "required": true, "default": "@seed/projectFolder", "description": "Folder path for the seeded project"}
+    ]
   },
   "nodes": [
     {
@@ -9,7 +15,7 @@
       "type": "workflowCall",
       "data": {
         "label": "Open Demo project",
-        "workflowId": "@fixture/open-demo-project"
+        "workflowId": "@fixture/open-demo-project(projectId=\"${fixture.projectId}\", projectName=\"${fixture.projectName}\", projectFolder=\"${fixture.projectFolder}\")"
       }
     },
     {

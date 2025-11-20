@@ -41,7 +41,26 @@ Scans a scenario to determine which resources/scenarios it depends on and writes
 
 - Feed reports into deployment-manager for visualization.
 - Allow CLI usage (`vrooli scenario dependencies picker-wheel --format json`) so agents can script checks.
-- Cache reports in `.vrooli/deployment/<scenario>.json` with versioning.
+- Cache reports in `.vrooli/deployment/deployment-report.json` with versioning.
+
+## Milestones
+
+1. **v1.1** — Deterministic JSON export with recursive DAG + aggregates.
+2. **v1.2** — Fitness + requirement rollups per tier using new `deployment` metadata fields.
+3. **v1.3** — Swap suggestions + severity scoring (critical vs optional dependencies).
+4. **v1.4** — Push-stream to deployment-manager (webhooks/websocket) + CLI diffing for CI checks.
+
+## Success Criteria
+
+- Analyzer completes within 10s for large scenarios (<500 files).
+- Output validates against `service.schema.json` without manual tweaks.
+- Deployment-manager dashboards rely solely on analyzer artifacts (no bespoke scraping).
+
+## Risks
+
+- **Source of Truth Drift:** Need guardrails so manual edits to `service.json` don't drift from analyzer findings.
+- **Transitive Explosion:** DAG traversal may blow up for scenario-on-scenario stacks; include caching + depth capping.
+- **Secrets Awareness:** Analyzer must avoid touching sensitive files; rely on metadata hints.
 
 ## Open Questions
 

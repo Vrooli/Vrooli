@@ -1,0 +1,243 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for code-smell scenario",
+    "domain": "code-quality",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "CS-REQ-001",
+      "category": "core.engine",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Hot-reloadable rules engine",
+      "description": "Verifies the rules engine reads from JSON/YAML configuration and can reload rules without service restart",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/rules_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "TestRulesReload with file watcher"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-002",
+      "category": "integration.ai",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "AI-powered pattern detection",
+      "description": "Ensures integration with resource-claude-code for AI-powered pattern detection beyond regex",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/analyzer_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "TestClaudeCodeIntegration with pattern matching"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-003",
+      "category": "integration.tracker",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Avoid redundant checks via visited-tracker",
+      "description": "Confirms integration with visited-tracker to skip analysis of unchanged files",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/analyzer_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "TestVisitedTrackerIntegration with skip logic"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-004",
+      "category": "core.autofix",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Auto-fix safe patterns",
+      "description": "Verifies auto-fix capability for safe patterns like whitespace and imports",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/fixer_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "TestAutoFix with safe pattern fixtures"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-005",
+      "category": "ui.review",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Review queue UI",
+      "description": "Confirms review queue UI displays violations needing approval/denial for dangerous changes",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/ReviewQueue.tsx",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Manual verification of queue display and approve/reject actions"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-006",
+      "category": "api.endpoints",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "API endpoints for code reviews",
+      "description": "Ensures API endpoints exist for other scenarios to request code reviews programmatically",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "TestAnalyzeEndpoint and TestFixEndpoint"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-007",
+      "category": "rules.vrooli",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "Detect Vrooli-specific smells",
+      "description": "Verifies detection and fixing of Vrooli-specific smells like hard-coded ports and paths",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/rules_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "TestVrooliSpecificRules with port/path fixtures"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-008",
+      "category": "learning.mode",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Learning mode tracking",
+      "description": "Confirms learning mode tracks approved/rejected fixes to improve future suggestions",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/learning_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "TestLearnFromFeedback with pattern confidence"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-009",
+      "category": "ui.dashboard",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Statistics dashboard",
+      "description": "Ensures dashboard displays smell statistics across the codebase",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Dashboard.tsx",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Manual verification of statistics display"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-010",
+      "category": "ui.editor",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Rule editor UI",
+      "description": "Verifies rule editor UI allows adding patterns without editing configuration files",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/RuleEditor.tsx",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Manual verification of rule creation and editing"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-011",
+      "category": "ui.history",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Fix history view",
+      "description": "Confirms history view tracks and displays what's been fixed over time",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/HistoryView.tsx",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Manual verification of fix history timeline"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-012",
+      "category": "core.batch",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Batch processing mode",
+      "description": "Verifies batch processing mode for fixing multiple files in a single operation",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/batch_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "TestBatchFix with multiple file fixtures"
+        }
+      ]
+    },
+    {
+      "id": "CS-REQ-013",
+      "category": "config.risk",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Configurable risk levels",
+      "description": "Ensures risk levels are configurable for different fix categories",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/config_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "TestRiskLevelConfiguration with category overrides"
+        }
+      ]
+    }
+  ]
+}

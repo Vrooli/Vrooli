@@ -268,6 +268,9 @@ const literalSelectors = {
       promptInput: "ai-prompt-input",
       workflowNameInput: "ai-workflow-name-input",
       switchToManualButton: "switch-to-manual-button",
+      examplePrompts: {
+        first: "ai-example-prompt-0",
+      },
     },
   },
   breadcrumbs: {
@@ -307,6 +310,10 @@ const literalSelectors = {
     },
     filters: {
       all: "execution-filter-all",
+      completed: "execution-filter-completed",
+      failed: "execution-filter-failed",
+      running: "execution-filter-running",
+      cancelled: "execution-filter-cancelled",
     },
     list: {
       root: "execution-history",
@@ -414,6 +421,9 @@ const literalSelectors = {
       navigationToggle: "node-palette-category-navigation-toggle",
     },
     noResults: "node-palette-no-results",
+    favoriteButtons: {
+      navigate: "node-palette-navigate-favorite-button",
+    },
   },
   nodeProperties: {
     urlInput: "node-property-url-input",
@@ -608,12 +618,22 @@ const dynamicSelectorDefinitions = {
       selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
       params: { name: { type: "string" } },
     }),
+    cardById: defineDynamicSelector({
+      description: "Dashboard project card filtered by id",
+      selectorPattern: '[data-testid="project-card"][data-project-id="${id}"]',
+      params: { id: { type: "string" } },
+    }),
   },
   workflows: {
     cardByName: defineDynamicSelector({
       description: "Workflow list card filtered by name",
       selectorPattern: '[data-testid="workflow-card"][data-workflow-name="${name}"]',
       params: { name: { type: "string" } },
+    }),
+    cardById: defineDynamicSelector({
+      description: "Workflow list card filtered by id",
+      selectorPattern: '[data-testid="workflow-card"][data-workflow-id="${id}"]',
+      params: { id: { type: "string" } },
     }),
   },
 } as const satisfies DynamicSelectorTree;

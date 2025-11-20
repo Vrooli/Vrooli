@@ -17,7 +17,7 @@
       "type": "workflowCall",
       "data": {
         "label": "Open seeded workflow via fixture",
-        "workflowId": "@fixture/open-demo-workflow"
+        "workflowId": "@fixture/open-demo-workflow(projectName=@seed/projectName, projectFolder=@seed/projectFolder, workflowName=@seed/workflowName)"
       }
     },
     {
@@ -45,7 +45,7 @@
       "type": "click",
       "data": {
         "label": "Click lock to lock canvas",
-        "selector": "@selector/toolbar.lockButton",
+        "selector": "@selector/toolbar.lockButton:not([data-dedupe=\"click\"])",
         "timeoutMs": 5000,
         "resilience": {
           "successSelector": "@selector/toolbar.unlockButton",

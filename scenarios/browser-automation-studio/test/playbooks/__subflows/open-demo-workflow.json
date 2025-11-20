@@ -1,7 +1,16 @@
 {
   "metadata": {
-    "description": "Loads the Demo Browser Automations project and opens the seeded workflow for builder interactions",
-    "fixture_id": "open-demo-workflow"
+    "description": "Loads the demo project and opens the seeded workflow for builder interactions",
+    "requirement": "BAS-WORKFLOW-DEMO-SEED",
+    "fixture_id": "open-demo-workflow",
+    "parameters": [
+      {"name": "projectId", "type": "string", "required": true, "default": "@seed/projectId", "description": "Project identifier containing the workflow"},
+      {"name": "projectName", "type": "string", "required": true, "default": "@seed/projectName", "description": "Project containing the workflow"},
+      {"name": "projectFolder", "type": "string", "required": true, "default": "@seed/projectFolder", "description": "Folder path for the seeded project"},
+      {"name": "workflowId", "type": "string", "required": true, "default": "@seed/workflowId", "description": "Seed workflow identifier"},
+      {"name": "workflowName", "type": "string", "required": true, "default": "@seed/workflowName", "description": "Seed workflow to open"}
+    ],
+    "requirements": ["BAS-WORKFLOW-DEMO-SEED"]
   },
   "nodes": [
     {
@@ -9,7 +18,7 @@
       "type": "workflowCall",
       "data": {
         "label": "Open Demo project",
-        "workflowId": "@fixture/open-demo-project"
+        "workflowId": "@fixture/open-demo-project(projectId=\"${fixture.projectId}\", projectName=\"${fixture.projectName}\", projectFolder=\"${fixture.projectFolder}\")"
       }
     },
     {
@@ -17,7 +26,7 @@
       "type": "click",
       "data": {
         "label": "Open seeded workflow",
-        "selector": "@selector/workflows.card[data-workflow-name=\"Demo: Capture Example.com Hero\"]",
+        "selector": "@selector/workflows.cardById(id=\"${fixture.workflowId}\")",
         "timeoutMs": 10000,
         "resilience": {
           "successSelector": "@selector/workflowBuilder.code.modeButton",

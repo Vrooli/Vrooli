@@ -41,6 +41,7 @@ Browser Automation Studio (BAS) enables **declarative UI testing** through JSON 
 **vs. Manual Testing**:
 - ❌ Manual: Not repeatable, can't integrate with CI, no coverage tracking
 - ✅ BAS: Automated, versioned, integrated with requirement tracking
+- ℹ️ Manual validations remain a last-resort escape hatch. Build a BAS workflow as soon as possible to retire manual checklist entries—`vrooli scenario status` surfaces every manual validation until it has an automated counterpart.
 
 **For AI Agents**:
 - BAS workflows are **JSON structures** that agents can write directly

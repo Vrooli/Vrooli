@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-19T04:26:42.712Z"
+    "last_synced_at": "2025-11-20T02:46:38.357Z"
   },
   "requirements": [
     {
@@ -31,14 +31,14 @@
       "prd_ref": "Project Management",
       "title": "Project search filters the project list",
       "description": "Users can search for projects by name or description, with results updating in real-time",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/foundation/projects/project-search-filter.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Tests search filtering and clearing search to restore full list"
         }
       ]
@@ -49,14 +49,14 @@
       "prd_ref": "Project Management",
       "title": "Project editing updates name and description",
       "description": "Users can edit project details through a modal dialog, with changes reflected immediately",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/foundation/projects/project-edit.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates opening edit modal, updating fields, and persisting changes"
         }
       ]
@@ -139,14 +139,14 @@
       "prd_ref": "Project Management",
       "title": "Switch between Workflows and Executions tabs in Project Detail",
       "description": "Users can navigate between Workflows and Executions tabs in the project detail view to see different content sections",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/foundation/projects/project-detail-tab-switching.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates tab switching between workflows and executions in project detail view"
         }
       ]

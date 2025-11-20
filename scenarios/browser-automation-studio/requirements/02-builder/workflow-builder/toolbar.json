@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-17T19:54:35.401Z"
+    "last_synced_at": "2025-11-20T02:46:38.357Z"
   },
   "requirements": [
     {
@@ -13,14 +13,14 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Zoom in button increases canvas zoom level",
       "description": "Users can click the zoom in button to incrementally increase the canvas zoom level for detailed node editing",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/builder/toolbar/toolbar-zoom-in.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates zoom in button functionality and canvas zoom level increase"
         }
       ]
@@ -31,14 +31,14 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Zoom out button decreases canvas zoom level",
       "description": "Users can click the zoom out button to incrementally decrease the canvas zoom level for workflow overview",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/builder/toolbar/toolbar-zoom-out.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates zoom out button functionality and canvas zoom level decrease"
         }
       ]
@@ -67,14 +67,14 @@
       "prd_ref": "Workflow Builder > History Navigation",
       "title": "Undo button reverts the last canvas change",
       "description": "Users can click undo to revert the most recent canvas modification (node add/delete/move, connection changes)",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/builder/toolbar/toolbar-undo.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates undo reverts node addition, deletion, and position changes"
         }
       ]
@@ -85,14 +85,14 @@
       "prd_ref": "Workflow Builder > History Navigation",
       "title": "Redo button re-applies undone changes",
       "description": "Users can click redo to re-apply the most recently undone change",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/builder/toolbar/toolbar-redo.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates redo re-applies undone changes"
         }
       ]

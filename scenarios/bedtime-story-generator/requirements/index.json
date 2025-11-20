@@ -1,0 +1,544 @@
+{
+  "_metadata": {
+    "description": "Bedtime Story Generator operational requirements aligned with PRD v2.0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true,
+    "last_validated_at": "2025-11-18",
+    "last_synced_at": "2025-11-18T00:00:00.000Z"
+  },
+  "meta": {
+    "scenario": "bedtime-story-generator",
+    "version": "2024.11",
+    "generated": "2025-11-18",
+    "owners": [
+      {
+        "team": "Vrooli Bedtime Pod",
+        "contact": "bedtime@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [],
+  "requirements": [
+    {
+      "id": "BSG-P0-001",
+      "category": "story-generation",
+      "title": "Story generation with age-appropriate content",
+      "description": "Generate stories for 6-8 and 9-12 age groups with content filtering",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["ollama", "generation", "api"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P0-002",
+      "category": "persistence",
+      "title": "Database persistence",
+      "description": "Store and retrieve stories, reading history, and favorites via PostgreSQL",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["postgres", "database"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P0-003",
+      "category": "api",
+      "title": "RESTful API with health checks",
+      "description": "Provide API endpoints for story operations with service health monitoring",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["api", "health"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P0-004",
+      "category": "ui",
+      "title": "React UI for browsing and reading",
+      "description": "Deliver functional UI for story interaction at dynamically assigned port",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["ui", "react"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify story browsing functionality",
+          "ref": "ui/src/App.tsx",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P0-005",
+      "category": "story-generation",
+      "title": "Theme selection",
+      "description": "Support 10+ kid-friendly themes (Adventure, Animals, Magic, Space, Ocean, etc.)",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["themes", "generation"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P0-006",
+      "category": "tracking",
+      "title": "Reading history tracking",
+      "description": "Track reading sessions via /api/v1/stories/{id}/read endpoint",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["tracking", "api"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P0-007",
+      "category": "performance",
+      "title": "Performance targets",
+      "description": "Achieve story generation in ~2-3s with local LLM (target: <8s)",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["performance", "generation"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P0-008",
+      "category": "3d-environment",
+      "title": "Basic 3D environment",
+      "description": "Render cinematic bedroom scene with Three.js integration",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "criticality": "P0",
+      "status": "complete",
+      "tags": ["3d", "webgl", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify 3D scene renders",
+          "ref": "ui/src/three/Experience",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P1-001",
+      "category": "story-generation",
+      "title": "Character name customization",
+      "description": "Accept and integrate custom character names in generated stories",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["generation", "customization"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P1-002",
+      "category": "story-generation",
+      "title": "Reading time estimates",
+      "description": "Calculate and display reading_time_minutes for each story",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["generation", "metadata"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P1-003",
+      "category": "tracking",
+      "title": "Favorite stories feature",
+      "description": "Toggle and persist favorite status via /favorite endpoint",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["tracking", "api"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P1-004",
+      "category": "story-generation",
+      "title": "Story length options",
+      "description": "Support short/medium/long length parameters for story generation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["generation", "customization"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P1-005",
+      "category": "3d-environment",
+      "title": "Interactive 3D bookshelf",
+      "description": "Render 3-level bookshelf with 15 interactive books and animations",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["3d", "webgl", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify bookshelf interactions",
+          "ref": "ui/src/three/Experience",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P1-006",
+      "category": "3d-environment",
+      "title": "Time-of-day transitions",
+      "description": "Implement day/evening/night lighting with smooth fog and color transitions",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["3d", "lighting", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify time-of-day transitions",
+          "ref": "ui/src/three/Experience",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P1-007",
+      "category": "3d-environment",
+      "title": "Dynamic particle system",
+      "description": "Display 100+ floating magical particles with theme-based animations",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["3d", "particles", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify particle system renders",
+          "ref": "ui/src/three/Experience",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P1-008",
+      "category": "3d-environment",
+      "title": "Camera rail system",
+      "description": "Provide cinematic camera presets (intro, bookshelf, window, story orbit, lamp zoom)",
+      "prd_ref": "Operational Targets > P1 > OT-P1-008",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["3d", "camera", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify camera presets work",
+          "ref": "ui/src/three/Experience",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P1-009",
+      "category": "3d-environment",
+      "title": "Spatial audio ambience",
+      "description": "Deliver 3D audio with time-of-day and story mood adaptations",
+      "prd_ref": "Operational Targets > P1 > OT-P1-009",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["3d", "audio", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify spatial audio works",
+          "ref": "ui/src/three/Experience",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P1-010",
+      "category": "3d-environment",
+      "title": "Performance dashboard",
+      "description": "Display real-time FPS, draw calls, triangles, memory in developer console",
+      "prd_ref": "Operational Targets > P1 > OT-P1-010",
+      "criticality": "P1",
+      "status": "complete",
+      "tags": ["3d", "performance", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify performance dashboard displays",
+          "ref": "ui/src/three/Experience",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P2-001",
+      "category": "story-generation",
+      "title": "Emoji-based illustrations",
+      "description": "Generate and display emoji art illustrations for stories",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["generation", "illustrations"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P2-002",
+      "category": "ui",
+      "title": "Parent dashboard",
+      "description": "Integrate parent controls and metrics in UI",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["ui", "dashboard"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify parent dashboard accessible",
+          "ref": "ui/src/components",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P2-003",
+      "category": "export",
+      "title": "PDF export functionality",
+      "description": "Export stories to PDF via /export endpoint",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["export", "api"],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "command": "test/run-tests.sh",
+          "ref": "test/integration/api_test.go",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P2-004",
+      "category": "ui",
+      "title": "Text-to-speech",
+      "description": "Implement Web Speech API for story narration",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["ui", "tts"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify TTS functionality",
+          "ref": "ui/src/components",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P2-005",
+      "category": "3d-environment",
+      "title": "Parent narration mode",
+      "description": "Stream text-to-speech into environment with lamp synchronization",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["3d", "tts", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify narration mode works",
+          "ref": "ui/src/components/NarrationMode.tsx",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P2-006",
+      "category": "3d-environment",
+      "title": "Procedural star map",
+      "description": "Generate dynamic constellations based on reading history and story themes",
+      "prd_ref": "Operational Targets > P2 > OT-P2-006",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["3d", "procedural", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify star map generates",
+          "ref": "ui/src/three/StarMap.js",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P2-007",
+      "category": "3d-environment",
+      "title": "Photo-mode exports",
+      "description": "Capture marketing screenshots at multi-resolution (up to 6K) with presets",
+      "prd_ref": "Operational Targets > P2 > OT-P2-007",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["3d", "export", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify photo-mode export works",
+          "ref": "ui/src/three/Experience",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P2-008",
+      "category": "3d-environment",
+      "title": "Asset kit generator",
+      "description": "Export Blender starter scenes (bedroom, classroom, office, outdoor) with Python scripts",
+      "prd_ref": "Operational Targets > P2 > OT-P2-008",
+      "criticality": "P2",
+      "status": "complete",
+      "tags": ["3d", "blender", "export"],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "command": "Open UI and verify asset kit generator works",
+          "ref": "ui/src/three/BlenderAssetKit.js",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "BSG-P2-009",
+      "category": "story-generation",
+      "title": "Advanced AI illustration generation",
+      "description": "Generate custom illustrations beyond emoji art",
+      "prd_ref": "Operational Targets > P2 > OT-P2-009",
+      "criticality": "P2",
+      "status": "planned",
+      "tags": ["generation", "illustrations", "ai"],
+      "validation": []
+    }
+  ],
+  "reporting": {
+    "phases": [
+      {
+        "name": "structure",
+        "runner": "test/phases/test-structure.sh"
+      },
+      {
+        "name": "unit",
+        "runner": "api"
+      },
+      {
+        "name": "integration",
+        "runner": "test/run-tests.sh"
+      }
+    ]
+  }
+}

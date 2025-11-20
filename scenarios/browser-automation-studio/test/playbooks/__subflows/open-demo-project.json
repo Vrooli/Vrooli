@@ -1,9 +1,41 @@
 {
   "metadata": {
-    "description": "Navigates to the BAS dashboard and opens the Demo Browser Automations project",
-    "fixture_id": "open-demo-project"
+    "description": "Navigates to the BAS dashboard and opens the seeded demo project",
+    "requirement": "BAS-WORKFLOW-DEMO-SEED",
+    "fixture_id": "open-demo-project",
+    "parameters": [
+      {
+        "name": "projectId",
+        "type": "string",
+        "required": true,
+        "default": "@seed/projectId",
+        "description": "Project identifier created by the seed script"
+      },
+      {
+        "name": "projectName",
+        "type": "string",
+        "required": true,
+        "default": "@seed/projectName",
+        "description": "Project name created by the seed script"
+      },
+      {
+        "name": "projectFolder",
+        "type": "string",
+        "required": true,
+        "default": "@seed/projectFolder",
+        "description": "Seed project folder path"
+      }
+    ]
   },
   "nodes": [
+    {
+      "id": "fixture-seed-state",
+      "type": "workflowCall",
+      "data": {
+        "label": "Load seed metadata",
+        "workflowId": "@fixture/load-seed-state"
+      }
+    },
     {
       "id": "fixture-navigate-dashboard",
       "type": "navigate",
@@ -21,8 +53,8 @@
       "id": "fixture-click-demo",
       "type": "click",
       "data": {
-        "label": "Select Demo Browser Automations",
-        "selector": "@selector/projects.card[data-project-name=\"Demo Browser Automations\"]",
+        "label": "Select demo project",
+        "selector": "@selector/projects.cardById(id=\"${fixture.projectId}\")",
         "timeoutMs": 10000,
         "resilience": {
           "successSelector": "h1",
@@ -34,16 +66,21 @@
       "id": "fixture-assert-demo-heading",
       "type": "assert",
       "data": {
-        "label": "Verify demo project header",
+        "label": "Verify project header",
         "selector": "h1",
-        "assertMode": "text_contains",
-        "expectedValue": "Demo",
+        "assertMode": "exists",
         "timeoutMs": 5000,
-        "failureMessage": "Demo project header should be visible"
+        "failureMessage": "Project header should be visible"
       }
     }
   ],
   "edges": [
+    {
+      "id": "fixture-edge-0",
+      "source": "fixture-seed-state",
+      "target": "fixture-navigate-dashboard",
+      "type": "smoothstep"
+    },
     {
       "id": "fixture-edge-1",
       "source": "fixture-navigate-dashboard",

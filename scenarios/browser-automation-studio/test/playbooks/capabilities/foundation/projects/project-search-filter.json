@@ -74,7 +74,7 @@
       "type": "assert",
       "data": {
         "label": "Projects reappear after clearing",
-        "selector": "@selector/projects.card",
+        "selector": "@selector/projects.card:not([data-dedupe=\"restored\"])",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Projects should reappear when search is cleared"

@@ -1,6 +1,6 @@
 {
   "schemaVersion": "2025.11",
-  "generatedAt": "2025-11-18T17:37:58.872Z",
+  "generatedAt": "2025-11-20T04:23:05.230Z",
   "selectors": {
     "app.shell.ready": {
       "testId": "app-ready",
@@ -29,6 +29,10 @@
     "ai.modal.switchToManualButton": {
       "testId": "switch-to-manual-button",
       "selector": "[data-testid=\"switch-to-manual-button\"]"
+    },
+    "ai.modal.examplePrompts.first": {
+      "testId": "ai-example-prompt-0",
+      "selector": "[data-testid=\"ai-example-prompt-0\"]"
     },
     "breadcrumbs.project": {
       "testId": "breadcrumb-project",
@@ -105,6 +109,22 @@
     "executions.filters.all": {
       "testId": "execution-filter-all",
       "selector": "[data-testid=\"execution-filter-all\"]"
+    },
+    "executions.filters.completed": {
+      "testId": "execution-filter-completed",
+      "selector": "[data-testid=\"execution-filter-completed\"]"
+    },
+    "executions.filters.failed": {
+      "testId": "execution-filter-failed",
+      "selector": "[data-testid=\"execution-filter-failed\"]"
+    },
+    "executions.filters.running": {
+      "testId": "execution-filter-running",
+      "selector": "[data-testid=\"execution-filter-running\"]"
+    },
+    "executions.filters.cancelled": {
+      "testId": "execution-filter-cancelled",
+      "selector": "[data-testid=\"execution-filter-cancelled\"]"
     },
     "executions.list.root": {
       "testId": "execution-history",
@@ -377,6 +397,10 @@
     "nodePalette.noResults": {
       "testId": "node-palette-no-results",
       "selector": "[data-testid=\"node-palette-no-results\"]"
+    },
+    "nodePalette.favoriteButtons.navigate": {
+      "testId": "node-palette-navigate-favorite-button",
+      "selector": "[data-testid=\"node-palette-navigate-favorite-button\"]"
     },
     "nodeProperties.urlInput": {
       "testId": "node-property-url-input",
@@ -790,12 +814,32 @@
         }
       ]
     },
+    "projects.cardById": {
+      "description": "Dashboard project card filtered by id",
+      "selectorPattern": "[data-testid=\"project-card\"][data-project-id=\"${id}\"]",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
     "workflows.cardByName": {
       "description": "Workflow list card filtered by name",
       "selectorPattern": "[data-testid=\"workflow-card\"][data-workflow-name=\"${name}\"]",
       "params": [
         {
           "name": "name",
+          "type": "string"
+        }
+      ]
+    },
+    "workflows.cardById": {
+      "description": "Workflow list card filtered by id",
+      "selectorPattern": "[data-testid=\"workflow-card\"][data-workflow-id=\"${id}\"]",
+      "params": [
+        {
+          "name": "id",
           "type": "string"
         }
       ]

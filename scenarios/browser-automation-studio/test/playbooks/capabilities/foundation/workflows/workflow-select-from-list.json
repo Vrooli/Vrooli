@@ -54,7 +54,7 @@
       "type": "evaluate",
       "data": {
         "label": "Check if on workflows tab",
-        "expression": "document.querySelector('@selector/workflows.card, @selector/workflowBuilder.search.input, @selector/toolbar.root)') !== null",
+        "expression": "document.querySelector('@selector/workflows.card, @selector/workflowBuilder.search.input, @selector/toolbar.root') !== null",
         "storeAs": "onWorkflowsTab"
       }
     },

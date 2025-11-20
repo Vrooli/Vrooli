@@ -17,7 +17,7 @@
       "type": "workflowCall",
       "data": {
         "label": "Open Demo project via fixture",
-        "workflowId": "@fixture/open-demo-project"
+        "workflowId": "@fixture/open-demo-project(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
       }
     },
     {
@@ -37,7 +37,7 @@
       "type": "click",
       "data": {
         "label": "Filter to failed executions",
-        "selector": "@selector/executions.filters.filter(filter=failed)",
+        "selector": "@selector/executions.filters.failed",
         "timeoutMs": 5000,
         "resilience": {
           "successSelector": "@selector/executions.list.item"

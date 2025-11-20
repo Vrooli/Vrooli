@@ -17,7 +17,7 @@
       "type": "workflowCall",
       "data": {
         "label": "Open builder via fixture",
-        "workflowId": "@fixture/open-builder-from-demo"
+        "workflowId": "@fixture/open-builder-from-demo(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
       }
     },
     {
@@ -45,7 +45,7 @@
       "type": "assert",
       "data": {
         "label": "Favorite button exists on node card",
-        "selector": "@selector/nodePalette.favoriteButton(type=\"navigate\")",
+        "selector": "@selector/nodePalette.favoriteButtons.navigate",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Favorite button should exist on node cards"
@@ -65,7 +65,7 @@
       "type": "click",
       "data": {
         "label": "Click favorite button to toggle",
-        "selector": "@selector/nodePalette.favoriteButton(type=\"navigate\")",
+        "selector": "@selector/nodePalette.favoriteButtons.navigate:not([data-dedupe=\"toggle\"])",
         "timeoutMs": 5000,
         "waitForMs": 1000
       }

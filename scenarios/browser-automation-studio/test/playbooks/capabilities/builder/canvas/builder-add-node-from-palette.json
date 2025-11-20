@@ -17,7 +17,7 @@
       "type": "workflowCall",
       "data": {
         "label": "Open builder via fixture",
-        "workflowId": "@fixture/open-builder-from-demo"
+        "workflowId": "@fixture/open-builder-from-demo(projectName=@seed/projectName, projectFolder=@seed/projectFolder)"
       }
     },
     {
@@ -133,6 +133,12 @@
       "id": "e9",
       "source": "call-open-builder",
       "target": "assert-canvas-visible",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e9a",
+      "source": "assert-canvas-visible",
+      "target": "count-initial-nodes",
       "type": "smoothstep"
     },
     {

@@ -27,7 +27,7 @@ Vrooli employs a **comprehensive, safety-first testing strategy** that ensures c
 3. **Multi-Language Support** - Unified testing across Go, Node.js, Python, and Shell
 4. **Resource Integration** - Automatic validation of PostgreSQL, Redis, Ollama, etc.
 5. **High Coverage Standards** - 80% warning, 70% error thresholds
-6. **Requirement Traceability** - Phase outputs, `REQ:`-tagged tests, and YAML workflows feed the scenario requirements registry (`docs/requirements.json` or modular `requirements/` folders), closing the loop with `vrooli scenario requirements report`.
+6. **Requirement Traceability** - Phase outputs, `REQ:`-tagged tests, and YAML workflows feed the scenario requirements registry under `requirements/`, closing the loop with `vrooli scenario requirements report`.
    - Validate the registry structure with `node scripts/requirements/validate.js --scenario <name>` (also surfaced inside `vrooli scenario status <name>`). Schema failures will now show up directly in the status output so broken registries can’t slip through CI.
 
 ## Testing Layers

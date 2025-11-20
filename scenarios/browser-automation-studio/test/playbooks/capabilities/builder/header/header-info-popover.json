@@ -78,7 +78,7 @@
       "type": "click",
       "data": {
         "label": "Click info button to open popover",
-        "selector": "@selector/header.buttons.info",
+        "selector": "@selector/header.buttons.info:not([data-dedupe=\"click\"])",
         "timeoutMs": 5000,
         "resilience": {
           "successSelector": "@selector/header.info.popover",

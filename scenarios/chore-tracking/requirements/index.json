@@ -1,0 +1,180 @@
+{
+  "scenario": "chore-tracking",
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "CT-FUNC-001",
+      "title": "Core Chore Management",
+      "description": "Support CRUD operations for chores with configurable difficulty levels, point values, frequency patterns, and category tags",
+      "priority": "P0",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "validation": ["test", "manual"],
+      "children": [
+        {
+          "id": "CT-CHORE-CREATE",
+          "title": "Create chore with metadata",
+          "status": "pending",
+          "validation": ["test"]
+        },
+        {
+          "id": "CT-CHORE-LIST",
+          "title": "List chores with filtering",
+          "status": "pending",
+          "validation": ["test"]
+        },
+        {
+          "id": "CT-CHORE-UPDATE",
+          "title": "Update chore properties",
+          "status": "pending",
+          "validation": ["test"]
+        },
+        {
+          "id": "CT-CHORE-DELETE",
+          "title": "Delete chore safely",
+          "status": "pending",
+          "validation": ["test"]
+        }
+      ]
+    },
+    {
+      "id": "CT-FUNC-002",
+      "title": "Family Profile System",
+      "description": "Enable multiple user profiles with age-appropriate task assignments and individual statistics",
+      "priority": "P0",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "validation": ["test", "manual"],
+      "children": [
+        {
+          "id": "CT-USER-CREATE",
+          "title": "Create user profile with preferences",
+          "status": "pending",
+          "validation": ["test"]
+        },
+        {
+          "id": "CT-USER-STATS",
+          "title": "Track individual user statistics",
+          "status": "pending",
+          "validation": ["test"]
+        },
+        {
+          "id": "CT-USER-ASSIGN",
+          "title": "Assign chores to users",
+          "status": "pending",
+          "validation": ["test"]
+        }
+      ]
+    },
+    {
+      "id": "CT-FUNC-003",
+      "title": "Gamification Engine",
+      "description": "Implement points system, achievements, streaks, and leaderboards with Redis backing",
+      "priority": "P0",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "validation": ["test", "manual"],
+      "children": [
+        {
+          "id": "CT-POINTS-AWARD",
+          "title": "Award points on task completion",
+          "status": "pending",
+          "validation": ["test"]
+        },
+        {
+          "id": "CT-ACHIEVEMENTS",
+          "title": "Unlock achievements based on activity",
+          "status": "pending",
+          "validation": ["test"]
+        },
+        {
+          "id": "CT-LEADERBOARD",
+          "title": "Maintain real-time family leaderboard",
+          "status": "pending",
+          "validation": ["test"]
+        },
+        {
+          "id": "CT-STREAKS",
+          "title": "Track and reward completion streaks",
+          "status": "pending",
+          "validation": ["test"]
+        }
+      ]
+    },
+    {
+      "id": "CT-FUNC-004",
+      "title": "Task Completion Flow",
+      "description": "Deliver satisfying completion interactions with animations and instant feedback",
+      "priority": "P0",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "validation": ["manual"],
+      "children": [
+        {
+          "id": "CT-COMPLETE-API",
+          "title": "Complete chore via API",
+          "status": "pending",
+          "validation": ["test"]
+        },
+        {
+          "id": "CT-COMPLETE-UI",
+          "title": "Completion UI with animations",
+          "status": "pending",
+          "validation": ["manual"]
+        },
+        {
+          "id": "CT-COMPLETE-FEEDBACK",
+          "title": "Instant point and achievement updates",
+          "status": "pending",
+          "validation": ["manual"]
+        }
+      ]
+    },
+    {
+      "id": "CT-FUNC-005",
+      "title": "AI-Powered Scheduling",
+      "description": "Generate intelligent weekly chore schedules using Ollama based on patterns and preferences",
+      "priority": "P1",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "validation": ["test", "manual"],
+      "children": [
+        {
+          "id": "CT-SCHEDULE-GENERATE",
+          "title": "Generate AI schedule for week",
+          "status": "pending",
+          "validation": ["test"]
+        },
+        {
+          "id": "CT-SCHEDULE-LEARN",
+          "title": "Learn from completion patterns",
+          "status": "pending",
+          "validation": ["test"]
+        }
+      ]
+    },
+    {
+      "id": "CT-FUNC-006",
+      "title": "Habit Analytics Dashboard",
+      "description": "Surface completion rates, streaks, trends, and behavioral insights",
+      "priority": "P1",
+      "status": "pending",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "validation": ["manual"],
+      "children": [
+        {
+          "id": "CT-ANALYTICS-RATES",
+          "title": "Display completion rate metrics",
+          "status": "pending",
+          "validation": ["manual"]
+        },
+        {
+          "id": "CT-ANALYTICS-TRENDS",
+          "title": "Visualize habit trends over time",
+          "status": "pending",
+          "validation": ["manual"]
+        }
+      ]
+    }
+  ]
+}

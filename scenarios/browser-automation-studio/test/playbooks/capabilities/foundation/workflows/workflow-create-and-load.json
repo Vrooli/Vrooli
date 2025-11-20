@@ -63,7 +63,7 @@
       "type": "evaluate",
       "data": {
         "label": "Check if AI modal appeared",
-        "expression": "!!document.querySelector('@selector/ai.modal.root, @selector/dialogs.base.content, @selector/dialogs.responsive.overlay)')",
+        "expression": "!!document.querySelector('@selector/ai.modal.root, @selector/dialogs.base.content, @selector/dialogs.responsive.overlay')",
         "storeAs": "aiModalVisible"
       }
     },
