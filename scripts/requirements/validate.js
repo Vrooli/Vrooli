@@ -128,6 +128,10 @@ function parseJsonFile(filePath) {
   }
 }
 
+function escapeRegExp(value) {
+  return value.replace(/([.*+?^${}()|\[\]\\])/g, '\\$1');
+}
+
 function runSchemaValidation(schemaPath, jsonText, sourcePath, tempDir) {
   const dataFile = path.join(tempDir, `${path.basename(sourcePath)}`);
   fs.writeFileSync(dataFile, jsonText, 'utf8');
@@ -135,7 +139,11 @@ function runSchemaValidation(schemaPath, jsonText, sourcePath, tempDir) {
   fs.unlinkSync(dataFile);
   if (result.status !== 0) {
     const output = (result.stderr || result.stdout || '').trim();
-    throw new Error(`Schema validation failed for ${sourcePath}: ${output || 'ajv returned a non-zero exit code'}`);
+    const relativeSource = relativeToRoot(sourcePath);
+    const sanitized = output
+      ? output.replace(new RegExp(escapeRegExp(dataFile), 'g'), relativeSource)
+      : '';
+    throw new Error(`Schema validation failed for ${relativeSource}: ${sanitized || 'ajv returned a non-zero exit code'}`);
   }
 }
 

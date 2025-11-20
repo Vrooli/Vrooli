@@ -1,0 +1,261 @@
+{
+  "_metadata": {
+    "description": "Visitor intelligence tracking and behavioral analytics requirements",
+    "domain": "visitor-intelligence",
+    "last_updated": "2025-11-19"
+  },
+  "requirements": [
+    {
+      "id": "VI-TRACK-001",
+      "category": "tracking.client",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "JavaScript tracking pixel with fingerprinting",
+      "description": "Implement client-side fingerprinting library achieving 40-60% visitor identification rate across sessions using browser characteristics and device parameters.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/phases/test-tracking.sh",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Test fingerprint generation consistency and identification rate"
+        }
+      ]
+    },
+    {
+      "id": "VI-TRACK-002",
+      "category": "tracking.backend",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Real-time visitor session tracking with PostgreSQL storage",
+      "description": "Track visitor sessions with events, page views, and behavioral data stored in PostgreSQL with optimized schema and indexing.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/tracking_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Test session creation, event storage, and data integrity"
+        }
+      ]
+    },
+    {
+      "id": "VI-API-001",
+      "category": "api.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "RESTful API for visitor data retrieval and management",
+      "description": "Provide GET/POST endpoints for tracking pixels, visitor profiles, and analytics queries with sub-100ms response times.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Test all API endpoints with valid/invalid inputs and performance benchmarks"
+        }
+      ]
+    },
+    {
+      "id": "VI-INTEG-001",
+      "category": "integration.client",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "One-line integration script for any scenario",
+      "description": "Distribute tracking script via simple script tag integration that works across all Vrooli scenarios with minimal configuration.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/tracker.js",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Test script integration in sample scenarios"
+        }
+      ]
+    },
+    {
+      "id": "VI-PRIVACY-001",
+      "category": "privacy.compliance",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Privacy-compliant data collection with GDPR controls",
+      "description": "Implement consent management, data retention limits, and purging capabilities to ensure GDPR compliance and user privacy protection.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/privacy_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Test consent flows, data deletion, and retention policies"
+        }
+      ]
+    },
+    {
+      "id": "VI-UI-001",
+      "category": "ui.dashboard",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Real-time dashboard showing live visitor activity",
+      "description": "Build UI displaying current visitors, session counts, top pages, and real-time activity streams.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Dashboard.tsx",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Manual verification of dashboard functionality and real-time updates"
+        }
+      ]
+    },
+    {
+      "id": "VI-INSIGHTS-001",
+      "category": "insights.enrichment",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Visitor profile enrichment with behavioral insights",
+      "description": "Analyze visitor patterns to generate insights about intent, preferences, and conversion likelihood.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/insights_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Test insight generation algorithms and accuracy"
+        }
+      ]
+    },
+    {
+      "id": "VI-EVENTS-001",
+      "category": "events.triggers",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Event-driven retention trigger system",
+      "description": "Publish visitor.identified and visitor.abandoned events for downstream scenarios to trigger retention workflows.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/events_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Test event publishing and subscriber integration"
+        }
+      ]
+    },
+    {
+      "id": "VI-JOURNEY-001",
+      "category": "tracking.cross-scenario",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Cross-scenario visitor journey tracking",
+      "description": "Track visitor movement across multiple Vrooli scenarios in unified profiles with session continuity.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/phases/test-cross-scenario.sh",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Test visitor identification across multiple scenario integrations"
+        }
+      ]
+    },
+    {
+      "id": "VI-SEGMENT-001",
+      "category": "analytics.segmentation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Audience segmentation and export tools",
+      "description": "Enable filtering, segmentation, and CSV export of visitor cohorts for marketing campaigns.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Segmentation.tsx",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Manual verification of segmentation UI and export functionality"
+        }
+      ]
+    },
+    {
+      "id": "VI-AI-001",
+      "category": "ai.predictions",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Predictive analytics using Ollama for intent inference",
+      "description": "Use local LLMs to predict visitor intent and conversion probability based on behavioral patterns.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/predictions_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Test Ollama integration and prediction accuracy"
+        }
+      ]
+    },
+    {
+      "id": "VI-REALTIME-001",
+      "category": "realtime.websocket",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "WebSocket real-time notifications",
+      "description": "Push live visitor activity updates to connected dashboard clients via WebSocket connections.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/websocket_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Test WebSocket connection handling and message delivery"
+        }
+      ]
+    },
+    {
+      "id": "VI-FINGER-001",
+      "category": "tracking.advanced",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Advanced fingerprinting with Canvas/WebGL",
+      "description": "Enhance identification rate using canvas fingerprinting and WebGL parameters for improved visitor tracking.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/phases/test-advanced-fingerprint.sh",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Test advanced fingerprinting techniques and identification improvement"
+        }
+      ]
+    },
+    {
+      "id": "VI-EXTERNAL-001",
+      "category": "integration.external",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Integration with external marketing tools",
+      "description": "Export visitor data to email platforms and CRM systems for external campaign management.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/integrations/",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Manual verification of external API integrations"
+        }
+      ]
+    }
+  ]
+}

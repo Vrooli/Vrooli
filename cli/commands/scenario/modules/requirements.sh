@@ -866,7 +866,7 @@ scenario::requirements::quick_check() {
             schema_status="valid"
         else
             schema_status="invalid"
-            schema_message=$(printf '%s' "$validator_output" | tail -n 5 | tr '\n' ' ' | sed 's/  */ /g')
+            schema_message=$(printf '%s' "$validator_output" | tail -n 12)
         fi
     else
         schema_message="Schema validator not installed"
@@ -993,7 +993,8 @@ scenario::requirements::display_summary() {
         invalid)
             log::warning "Requirements: ⚠️  Schema validation failed"
             if [ -n "$schema_message" ]; then
-                echo "  • ${schema_message}"
+                echo "  • Validator output:"
+                printf '%s\n' "$schema_message" | sed 's/\r$//' | sed 's/^/      /'
             fi
             echo "  • Run: node scripts/requirements/validate.js --scenario ${scenario_name}"
             ;;
