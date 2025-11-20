@@ -17,7 +17,7 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 2. **Scenario skeleton** – scaffold via the CLI template (see below) and keep the generated structure untouched except for configuration updates.
 3. **Configuration & metadata** – `.vrooli/` directory populated so `vrooli scenario status {{TARGET}}` succeeds (service.json, endpoints.json, testing/lighthouse configs as required by the template).
 4. **Operational Targets PRD** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` following the structure below.
-5. **Requirements registry** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` (+ modules if helpful) plus `requirements/README.md` describing the organization.
+5. **Requirements registry** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` plus numbered operational-target folders (`01-<first-target-name>`, `02-<second-target-name>`, etc.) and a concise `requirements/README.md` explaining the mapping.
 6. **Documentation set** – README.md, docs/PROGRESS.md, docs/PROBLEMS.md, docs/RESEARCH.md initialized with baseline entries and instructions for future agents.
 
 ## Research & Template Selection
@@ -73,7 +73,7 @@ Use concise narratives and focus on measurable outcomes rather than implementati
 - Document any required environment variables or secrets in README.md.
 
 ## Requirements Registry Seeding
-- Create `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` (break into modules if helpful).
+- Create `{{PROJECT_PATH}}/scenarios/{{TARGET}}/requirements/index.json` plus a folder per operational target (e.g., `01-<first-target-name>`, `02-<second-target-name>`, …). Place module JSON files inside these directories so the filesystem mirrors the PRD targets.
 - For every operational target, add requirement entries with:
   - `id` (pattern `[A-Z][A-Z0-9]+-[A-Z0-9-]+`), title, `prd_ref`, `criticality`, optional children/dependencies, empty `validation` array.
   - Notes on which phases (unit/integration/business/performance) should validate the requirement once implemented.

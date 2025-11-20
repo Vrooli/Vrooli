@@ -1,0 +1,116 @@
+{
+  "requirements": [
+    {
+      "id": "REQ-P0-001",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Health Check Endpoint",
+      "description": "API responds to /health with status 200",
+      "status": "validated",
+      "priority": "P0"
+    },
+    {
+      "id": "REQ-P0-002",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Database Connection",
+      "description": "API connects to PostgreSQL and performs CRUD operations",
+      "status": "validated",
+      "priority": "P0"
+    },
+    {
+      "id": "REQ-P0-003",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Foliage Data API",
+      "description": "Retrieve current foliage status for regions via REST endpoints",
+      "status": "validated",
+      "priority": "P0"
+    },
+    {
+      "id": "REQ-P0-004",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Weather Integration",
+      "description": "Fetch and store weather data for predictions using n8n workflows",
+      "status": "validated",
+      "priority": "P0"
+    },
+    {
+      "id": "REQ-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Basic Prediction Engine",
+      "description": "Generate foliage peak predictions using Ollama AI with fallback logic",
+      "status": "validated",
+      "priority": "P0"
+    },
+    {
+      "id": "REQ-P0-006",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Interactive Map UI",
+      "description": "Display regions with foliage status overlays using Leaflet.js",
+      "status": "validated",
+      "priority": "P0"
+    },
+    {
+      "id": "REQ-P0-007",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "Lifecycle Management",
+      "description": "setup/develop/test/stop commands work properly",
+      "status": "validated",
+      "priority": "P0"
+    },
+    {
+      "id": "REQ-P1-001",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "User Reports",
+      "description": "Accept and display crowd-sourced foliage reports via GET/POST endpoints",
+      "status": "validated",
+      "priority": "P1"
+    },
+    {
+      "id": "REQ-P1-002",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Time Slider",
+      "description": "Navigate through past/present/future foliage states in UI",
+      "status": "validated",
+      "priority": "P1"
+    },
+    {
+      "id": "REQ-P1-003",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Trip Planning",
+      "description": "Save and manage multi-region trip plans with backend storage",
+      "status": "validated",
+      "priority": "P1"
+    },
+    {
+      "id": "REQ-P1-004",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Photo Gallery",
+      "description": "Display user-submitted photos by region and date with filtering",
+      "status": "validated",
+      "priority": "P1"
+    },
+    {
+      "id": "REQ-P2-001",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "AI Predictions",
+      "description": "Use Ollama llama3.2:latest for advanced pattern analysis",
+      "status": "validated",
+      "priority": "P2"
+    },
+    {
+      "id": "REQ-P2-002",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Mobile Responsive",
+      "description": "Optimize UI for mobile devices with responsive CSS",
+      "status": "validated",
+      "priority": "P2"
+    },
+    {
+      "id": "REQ-P2-003",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Export Features",
+      "description": "Download predictions and trip plans in CSV and JSON formats",
+      "status": "validated",
+      "priority": "P2"
+    }
+  ]
+}

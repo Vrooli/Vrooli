@@ -1,0 +1,315 @@
+{
+  "_metadata": {
+    "description": "Funnel Builder requirements registry",
+    "domain": "conversion-optimization",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "FB-P0-001",
+      "category": "ui.builder",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Visual drag-and-drop funnel builder",
+      "description": "React/TypeScript UI with intuitive step creation and ordering",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Builder.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Drag-and-drop interface with visual step ordering"
+        }
+      ]
+    },
+    {
+      "id": "FB-P0-002",
+      "category": "api.steps",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Multiple step types support",
+      "description": "Quiz, form, content, and CTA step types with customizable fields",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/funnel_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Step type validation and JSONB content storage"
+        }
+      ]
+    },
+    {
+      "id": "FB-P0-003",
+      "category": "api.leads",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Lead capture and storage",
+      "description": "PostgreSQL-backed lead storage with full response tracking",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/leads_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Lead CRUD with step responses via PostgreSQL"
+        }
+      ]
+    },
+    {
+      "id": "FB-P0-004",
+      "category": "api.execution",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Linear funnel flow execution",
+      "description": "Sequential step progression with session management",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/execution_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Session-based step progression and response submission"
+        }
+      ]
+    },
+    {
+      "id": "FB-P0-006",
+      "category": "api.endpoints",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "API endpoints for funnel operations",
+      "description": "Complete CRUD and execution endpoints with JSON responses",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/main_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Full API contract with health, CRUD, execution, and analytics endpoints"
+        }
+      ]
+    },
+    {
+      "id": "FB-P0-007",
+      "category": "ui.responsive",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "Mobile-responsive funnel display",
+      "description": "Mobile-first responsive design for funnel execution",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/FunnelExecutor.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Responsive CSS with mobile-first breakpoints"
+        }
+      ]
+    },
+    {
+      "id": "FB-P1-001",
+      "category": "api.branching",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Branching logic support",
+      "description": "User response-based conditional routing between steps",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/branching_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "JSONB branching rules evaluated during execution"
+        }
+      ]
+    },
+    {
+      "id": "FB-P1-003",
+      "category": "ui.analytics",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Analytics dashboard",
+      "description": "Conversion rates, drop-off points, and lead metrics visualization",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Analytics.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Dashboard with metrics cards and funnel performance visualization"
+        }
+      ]
+    },
+    {
+      "id": "FB-P1-004",
+      "category": "api.templates",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Template library",
+      "description": "Pre-built professional funnels for common use cases",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "initialization/storage/postgres/seed.sql",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "4 professional templates: quiz, lead-gen, product-launch, webinar"
+        }
+      ]
+    },
+    {
+      "id": "FB-P1-005",
+      "category": "ui.personalization",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Dynamic content personalization",
+      "description": "User-specific content rendering based on responses",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/FunnelExecutor.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Response-driven content substitution in step rendering"
+        }
+      ]
+    },
+    {
+      "id": "FB-P1-006",
+      "category": "api.export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Lead export functionality",
+      "description": "CSV and JSON export for external processing",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/export_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "API endpoints for CSV/JSON lead export with filters"
+        }
+      ]
+    },
+    {
+      "id": "FB-P2-001",
+      "category": "ai.generation",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "AI-powered copy generation",
+      "description": "Ollama-based compelling funnel content creation",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ai_generation_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Ollama integration for step content generation"
+        }
+      ]
+    },
+    {
+      "id": "FB-P2-002",
+      "category": "analytics.ml",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Predictive analytics",
+      "description": "ML-based conversion optimization recommendations",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/ml_recommendations.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "ML model for funnel optimization suggestions"
+        }
+      ]
+    },
+    {
+      "id": "FB-P2-003",
+      "category": "api.webhooks",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Webhook integrations",
+      "description": "External service notifications for lead events",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/webhooks_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Webhook delivery for lead capture and completion events"
+        }
+      ]
+    },
+    {
+      "id": "FB-P2-004",
+      "category": "analytics.segmentation",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Advanced segmentation",
+      "description": "User targeting and audience-specific funnel variants",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/segmentation.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Audience targeting and variant selection logic"
+        }
+      ]
+    },
+    {
+      "id": "FB-P2-005",
+      "category": "auth.multi-tenant",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "Multi-tenant authentication",
+      "description": "Scenario-authenticator integration for isolated tenants",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/auth_integration_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Tenant isolation via scenario-authenticator API"
+        }
+      ]
+    },
+    {
+      "id": "FB-P2-006",
+      "category": "analytics.testing",
+      "prd_ref": "Operational Targets > P2 > OT-P2-006",
+      "title": "A/B testing framework",
+      "description": "Variant testing with statistical significance tracking",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ab_testing_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Variant distribution and statistical analysis"
+        }
+      ]
+    }
+  ]
+}

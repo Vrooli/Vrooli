@@ -28,3 +28,22 @@
 - Extend secret metadata schema to include deployment strategies.
 - Build CLI command to preview secret plans (`vrooli secrets plan ...`).
 - Document best practices for storing user-provided secrets on desktop/mobile (safeStorage, Keychain, etc.).
+
+## Milestones
+
+1. **Schema Update** — Add deployment strategy fields + validation for infrastructure/service/user secrets.
+2. **Planning CLI/API** — `vrooli secrets plan <scenario> --tier desktop` outputs manifest consumed by deployment-manager.
+3. **Generation Hooks** — Provide library helpers to generate service secrets (SQLite paths, JWTs) at bundle creation time.
+4. **User Prompt SDK** — Shared UI helpers for scenario-to-desktop/mobile to capture secrets securely.
+
+## Success Metrics
+
+- 100% of secrets referenced by deployment-focused scenarios carry a deployment strategy within two releases.
+- Secrets plans can be generated in <1s per scenario/tier combination.
+- Desktop/mobile bundles never include infrastructure secrets; compliance is enforced automatically.
+
+## Risks
+
+- **Sprawl:** Without governance, teams might define conflicting strategies; enforce linting + review.
+- **Storage Safety:** Desktop/mobile key stores vary; need fallback for Linux builds.
+- **Rotation:** Generated service secrets must support rotation + revocation workflows downstream.

@@ -11,10 +11,13 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
    - Capture the JSON (or summary) and explain any remaining security/standards violations.
 3. Scenario test runner (document the exact command).
    - Tests must pass after your change, or you must clearly explain why they remain failing. Phase scripts automatically sync requirement coverage when tests run.
+4. `vrooli scenario ui-smoke {{TARGET}}`
+   - Ensures the production UI bundle loads, the iframe bridge is ready, and Browserless captures artifacts (screenshot, console, network).
 
 ## Working with PRD & Requirements
 - `{{PROJECT_PATH}}/scenarios/{{TARGET}}/PRD.md` is read-only unless the task explicitly grants edit access. Fix code/tests so the PRD reflects reality; don’t toggle checkboxes manually.
-- Operational targets (P0/P1/P2) gain ✅ status automatically when their linked requirements’ tests pass. Confirm each target you touch is mapped to requirement IDs in `requirements/index.json` (or modules). Add/link requirements if needed.
+- Operational targets (P0/P1/P2) gain ✅ status automatically when their linked requirements’ tests pass. Confirm each target you touch is mapped to requirement IDs in `requirements/index.json` under the numbered operational-target folders (e.g. `01-<first-target-name>`, `02-<second-target-name>`, …). Add/link requirements if needed and keep the filesystem mirror of the PRD targets intact (no duplicate compatibility shims).
+- `{{PROJECT_PATH}}/scenarios/{{TARGET}}/test/playbooks/` mirrors the same target layout under `capabilities/<target>/<surface>/` plus and additional `journeys/` to validate user flows. When adding/editing workflows, place them in the correct folder, tag selectors via `ui/src/consts/selectors.ts`, refresh the README if the structure changes, and never leave temporary copies in legacy directories.
 - When you run tests, ensure the commands cover the `[REQ:ID]` tags for the target you’re improving. Document the commands in PRD/Test Commands and your summary so future agents can reproduce the evidence. Running the full suite triggers automatic requirement sync.
 
 ## Documentation Updates
@@ -22,7 +25,8 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
 - **docs/PROBLEMS.md** – log unresolved issues or follow-up tasks under the existing sections.
 - **docs/RESEARCH.md** – add any new references or learnings if you discover them while fixing the scenario.
 - **README.md** – update run/test instructions or dependencies if your change alters how the scenario operates.
-- **requirements/README.md** – keep module descriptions current when you add requirement files.
+- **requirements/README.md** – keep module descriptions current when you add requirement files. If you reorganize modules, update the README and ensure the numbered folders still align with PRD targets without adding bridge directories.
+- **test/playbooks/README.md** – document any new surfaces or journey folders you add and ensure the per-target structure matches the requirements. Re-run the registry script (`node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario {{PROJECT_PATH}}/scenarios/{{TARGET}}`) after changes.
 These files are the canonical documentation sources for future scenario improvement agents to read.
 
 ## Improvement Priorities

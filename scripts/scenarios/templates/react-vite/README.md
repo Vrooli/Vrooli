@@ -48,6 +48,13 @@ make dev   # wraps `vrooli scenario run --dev`
 
 Run tests with `make test` (CLI/API/UI) or the phased harness `test/run-tests.sh`.
 
+### UI Smoke Harness
+
+- `vrooli scenario ui-smoke <your-scenario>` launches a Browserless session against the production UI bundle, waits for `@vrooli/iframe-bridge` to signal readiness, captures a screenshot, HTML snapshot, console logs, and network trace.
+- Artifacts live under `coverage/<scenario>/ui-smoke/` (screenshot, console.json, network.json, dom.html, raw.json) and the latest summary is stored at `coverage/<scenario>/ui-smoke/latest.json`.
+- Structure tests invoke the harness automatically. Disable it temporarily by toggling `structure.ui_smoke.enabled` in `.vrooli/testing.json` or extend the default timeouts via `timeout_ms` / `handshake_timeout_ms`.
+- Browserless must be running (`resource-browserless status --format json`). If it is offline the harness fails early so issues surface before release.
+
 ## Required Environment Variables
 The lifecycle exports everything automatically when you run `vrooli scenario run`. If you start pieces manually, set these yourself (there are no fallbacks):
 

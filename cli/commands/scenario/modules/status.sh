@@ -481,7 +481,7 @@ scenario::status::display_diagnostic_data() {
         scenario::status::display_running_diagnostics "$diagnostic_data" "$scenario_name"
     fi
 
-    scenario::status::display_ui_smoke "$diagnostic_data"
+    scenario::status::display_ui_smoke "$diagnostic_data" "$scenario_name"
 
     if command -v scenario::requirements::display_summary >/dev/null 2>&1; then
         if [[ -z "${SCENARIO_STATUS_REQUIREMENTS_SUMMARY:-}" ]] && command -v scenario::requirements::quick_check >/dev/null 2>&1; then
@@ -835,6 +835,7 @@ scenario::status::display_test_infrastructure() {
 
 scenario::status::display_ui_smoke() {
     local diagnostic_data="$1"
+    local scenario_name="$2"
 
     if ! command -v jq >/dev/null 2>&1; then
         return
@@ -843,6 +844,12 @@ scenario::status::display_ui_smoke() {
     local smoke_json
     smoke_json=$(echo "$diagnostic_data" | jq -c '.ui_smoke // empty' 2>/dev/null || echo '')
     if [[ -z "$smoke_json" || "$smoke_json" == "null" ]]; then
+        local scenario_dir="${APP_ROOT}/scenarios/${scenario_name}"
+        if [[ -d "$scenario_dir/ui" ]]; then
+            echo ""
+            echo "UI Smoke: not yet run"
+            echo "  ↳ Run: vrooli scenario ui-smoke ${scenario_name}"
+        fi
         return
     fi
 

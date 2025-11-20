@@ -1,0 +1,279 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for chart-generator scenario",
+    "domain": "chart-generation",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "CHART-P0-001",
+      "category": "chart-generation.core",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Core chart types: bar, line, pie, scatter, area charts with configurable data inputs",
+      "description": "Support for basic chart types with configurable data inputs and automatic rendering",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/unit/chart_processors_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "62.4% test coverage including chart type validation"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-002",
+      "category": "chart-generation.data",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "JSON/CSV/direct data object ingestion with automatic data type detection",
+      "description": "Support multiple data input formats with automatic type detection and parsing",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/unit/chart_processors_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Data format validation and parsing tests"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-003",
+      "category": "chart-generation.styling",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Default professional styling themes (light, dark, corporate, minimal)",
+      "description": "Provide built-in professional themes for consistent chart styling",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/api_test.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Style API and theme validation tests"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-004",
+      "category": "chart-generation.cli",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "CLI interface for programmatic chart generation by other scenarios",
+      "description": "Command-line interface enabling automation and cross-scenario integration",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/api_test.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "15/15 CLI BATS tests passing"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-005",
+      "category": "chart-generation.export",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Export capabilities: PNG, SVG formats for different use cases",
+      "description": "Multi-format export supporting web, print, and integration scenarios",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/api_test.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "PNG/SVG generation and export tests"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-006",
+      "category": "chart-generation.persistence",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "PostgreSQL integration for chart template and style persistence",
+      "description": "Database-backed storage for templates, styles, and generation history",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/phase-01-structure.bats",
+          "phase": "structure",
+          "status": "implemented",
+          "notes": "Database schema and initialization validated"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P0-007",
+      "category": "chart-generation.ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "Web UI for style management and preview with mock data",
+      "description": "User interface for creating, managing, and previewing chart styles",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/App.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "UI service with health endpoints and style management"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P1-001",
+      "category": "chart-generation.advanced",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Advanced chart types: gantt, heatmap, treemap charts",
+      "description": "Extended chart type support for specialized business use cases",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/unit/chart_processors_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Advanced chart type processing and validation"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P1-002",
+      "category": "chart-generation.financial",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Candlestick charts for financial data",
+      "description": "Specialized financial chart type for stock and market data visualization",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/unit/chart_processors_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Candlestick chart validation and rendering"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P1-003",
+      "category": "chart-generation.customization",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Custom style builder with live preview and color palette management",
+      "description": "Interactive style creation with real-time preview and palette tools",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/api_test.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Style API endpoints and preview functionality"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P1-004",
+      "category": "chart-generation.interactivity",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Chart animation and interactivity options for web displays",
+      "description": "Dynamic chart features including animations and user interactions",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/api_test.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Interactive chart endpoint and animation tests"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P1-005",
+      "category": "chart-generation.export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "PDF export with vector graphics for print-quality reports",
+      "description": "High-quality PDF generation for professional reporting and print",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/api_test.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "PDF generation and vector graphics export"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P1-006",
+      "category": "chart-generation.composition",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Chart composition (multiple charts in single canvas)",
+      "description": "Multi-chart layouts with grid, horizontal, and vertical arrangements",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/api_test.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Chart composition and layout tests"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P1-007",
+      "category": "chart-generation.data",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "title": "Data transformation pipeline (aggregation, filtering, sorting)",
+      "description": "Built-in data processing for common transformation operations",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/api_test.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Data transformation pipeline tests"
+        }
+      ]
+    },
+    {
+      "id": "CHART-P1-008",
+      "category": "chart-generation.templates",
+      "prd_ref": "Operational Targets > P1 > OT-P1-008",
+      "title": "Template library with industry-specific presets",
+      "description": "Pre-configured chart templates for common business verticals",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/api_test.bats",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "15+ industry-specific templates validated"
+        }
+      ]
+    }
+  ]
+}

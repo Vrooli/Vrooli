@@ -103,9 +103,13 @@ testing::ui_smoke::run() {
     local bundle_info_json
     bundle_info_json=$(testing::ui_smoke::_check_bundle_freshness "$scenario_dir" 2>/dev/null)
     local bundle_fresh
-    bundle_fresh=$(echo "$bundle_info_json" | jq -r '.fresh // true')
+    bundle_fresh=$(echo "$bundle_info_json" | jq -r '
+        if .fresh == false then "false"
+        elif .fresh == true then "true"
+        else "unknown"
+        end' 2>/dev/null || echo "unknown")
 
-    if [[ "$bundle_fresh" != "true" ]]; then
+    if [[ "$bundle_fresh" = "false" ]]; then
         local bundle_reason
         bundle_reason=$(echo "$bundle_info_json" | jq -r '.reason // "UI bundle missing or outdated"')
         local stale_json
@@ -121,12 +125,13 @@ testing::ui_smoke::run() {
     fi
 
     local browserless_json
+    local browserless_hint="Browserless resource is offline. Run 'resource-browserless manage start' then rerun the smoke test."
     if ! browserless_json=$(testing::ui_smoke::_browserless_status); then
         local offline_json
         offline_json=$(testing::ui_smoke::_build_summary_json \
             --scenario "$scenario_name" \
             --status "blocked" \
-            --message "Browserless resource is offline" \
+            --message "$browserless_hint" \
             --scenario-dir "$scenario_dir")
         testing::ui_smoke::_persist_summary "$offline_json" "$scenario_dir" "$scenario_name"
         testing::ui_smoke::_emit_summary "$offline_json" "$output_mode" "$summary_fd"
@@ -143,7 +148,7 @@ testing::ui_smoke::run() {
         offline_json=$(testing::ui_smoke::_build_summary_json \
             --scenario "$scenario_name" \
             --status "blocked" \
-            --message "Browserless resource is offline" \
+            --message "$browserless_hint" \
             --scenario-dir "$scenario_dir" \
             --browserless "$browserless_json")
         testing::ui_smoke::_persist_summary "$offline_json" "$scenario_dir" "$scenario_name"
@@ -176,19 +181,30 @@ testing::ui_smoke::run() {
         ui_port=$(vrooli scenario port "$scenario_name" UI_PORT 2>/dev/null || echo "")
     fi
 
+    local expects_ui_port
+    expects_ui_port=$(testing::ui_smoke::_service_defines_ui_port "$scenario_dir")
+
     if [[ -z "$ui_port" ]]; then
         if [[ "$runtime_managed" = true ]]; then
             testing::runtime::cleanup || true
         fi
+        local result_status="skipped"
+        local result_message="Scenario does not expose a UI port"
+        local exit_code=0
+        if [[ "$expects_ui_port" = "true" ]]; then
+            result_status="failed"
+            result_message="UI_PORT defined in .vrooli/service.json but no UI port was detected. Start the scenario or run 'vrooli scenario port ${scenario_name} UI_PORT' to verify ports."
+            exit_code=1
+        fi
         local no_port_json
         no_port_json=$(testing::ui_smoke::_build_summary_json \
             --scenario "$scenario_name" \
-            --status "skipped" \
-            --message "Scenario does not expose a UI port" \
+            --status "$result_status" \
+            --message "$result_message" \
             --scenario-dir "$scenario_dir")
         testing::ui_smoke::_persist_summary "$no_port_json" "$scenario_dir" "$scenario_name"
         testing::ui_smoke::_emit_summary "$no_port_json" "$output_mode" "$summary_fd"
-        return 0
+        return $exit_code
     fi
 
     local ui_url="http://localhost:${ui_port}"
@@ -214,11 +230,16 @@ testing::ui_smoke::run() {
 
     local js_payload
     js_payload=$(testing::ui_smoke::_build_browserless_script "$ui_url" "$timeout_ms" "$handshake_timeout_ms")
+    local curl_timeout_seconds=$(( (timeout_ms + handshake_timeout_ms) / 1000 + 20 ))
+    if (( curl_timeout_seconds < 15 )); then
+        curl_timeout_seconds=15
+    fi
 
     local start_ms
     start_ms=$(date +%s%3N)
     local raw_result
     raw_result=$(curl -s -X POST \
+        --max-time "$curl_timeout_seconds" \
         -H "Content-Type: application/javascript" \
         --data "$js_payload" \
         "http://localhost:${browserless_port}/chrome/function")
@@ -392,6 +413,27 @@ testing::ui_smoke::_check_iframe_bridge() {
         jq -n '{dependency_present:false, details:"@vrooli/iframe-bridge not listed"}'
     else
         jq -n --arg version "$version" '{dependency_present:true, version:$version}'
+    fi
+}
+
+# Determine whether the scenario declares a UI port in service.json
+testing::ui_smoke::_service_defines_ui_port() {
+    local scenario_dir="$1"
+    local service_json="$scenario_dir/.vrooli/service.json"
+
+    if [[ ! -f "$service_json" ]] || ! command -v jq >/dev/null 2>&1; then
+        echo "false"
+        return
+    fi
+
+    if jq -e '(
+            (.ports // {})
+            | to_entries[]?
+            | select((.value.env_var // "") == "UI_PORT" or ((.key | ascii_upcase) == "UI"))
+        ) | length > 0' "$service_json" >/dev/null 2>&1; then
+        echo "true"
+    else
+        echo "false"
     fi
 }
 

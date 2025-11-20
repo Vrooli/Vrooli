@@ -48,10 +48,23 @@ scenario::smoke::run() {
 
     local summary_json
     local helper_status
-    set +e
-    summary_json=$(bash "$smoke_helper" --scenario "$scenario_name" --scenario-dir "$scenario_dir" --json)
-    helper_status=$?
-    set -e
+    if [[ "$json_output" = true ]]; then
+        local helper_stderr
+        helper_stderr=$(mktemp)
+        set +e
+        summary_json=$(bash "$smoke_helper" --scenario "$scenario_name" --scenario-dir "$scenario_dir" --json 2>"$helper_stderr")
+        helper_status=$?
+        set -e
+        if [[ $helper_status -ne 0 ]] && [[ -s "$helper_stderr" ]]; then
+            cat "$helper_stderr" >&2
+        fi
+        rm -f "$helper_stderr"
+    else
+        set +e
+        summary_json=$(bash "$smoke_helper" --scenario "$scenario_name" --scenario-dir "$scenario_dir" --json)
+        helper_status=$?
+        set -e
+    fi
 
     scenario::smoke::emit_output "$summary_json" "$json_output"
     return $helper_status
