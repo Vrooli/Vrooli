@@ -27,6 +27,39 @@ testing::integration::resolve_workflow_definition() {
     cat "$workflow_path"
 }
 
+testing::integration::prepare_seed_state() {
+    local scenario_dir="$1"
+    local seed_script="$scenario_dir/test/playbooks/__seeds/apply.sh"
+    if [ ! -f "$seed_script" ]; then
+        return 0
+    fi
+    if [[ "${TESTING_PLAYBOOKS_SEEDS_EXTERNAL:-}" = "1" ]]; then
+        return 0
+    fi
+    echo "🌱 Priming BAS seed data via ${seed_script}" >&2
+    if ! (cd "$scenario_dir" && bash "$seed_script"); then
+        echo "❌ Failed to apply BAS seed data for linting" >&2
+        return 1
+    fi
+    export TESTING_PLAYBOOKS_SEEDS_EXTERNAL=1
+    export TESTING_PLAYBOOKS_SEEDS_EXTERNAL_DIR="$scenario_dir"
+    return 0
+}
+
+testing::integration::cleanup_external_seed_state() {
+    local scenario_dir="${TESTING_PLAYBOOKS_SEEDS_EXTERNAL_DIR:-}"
+    if [ -z "$scenario_dir" ]; then
+        return 0
+    fi
+    local cleanup_script="$scenario_dir/test/playbooks/__seeds/cleanup.sh"
+    if [ -f "$cleanup_script" ]; then
+        (cd "$scenario_dir" && bash "$cleanup_script") || true
+    fi
+    unset TESTING_PLAYBOOKS_SEEDS_EXTERNAL
+    unset TESTING_PLAYBOOKS_SEEDS_EXTERNAL_DIR
+    return 0
+}
+
 # Check whether the running API exposes /workflows/validate so we can safely lint via HTTP.
 testing::integration::ensure_validate_endpoint() {
     local api_base="$1"
@@ -101,9 +134,12 @@ testing::integration::lint_workflows_via_api() {
     fi
 
     mapfile -t lint_files < <(find "$playbook_dir" -type f -name '*.json' ! -name 'registry.json' | sort)
-    if [ ${#lint_files[@]} -eq 0 ]; then
+    local lint_total=${#lint_files[@]}
+    if [ "$lint_total" -eq 0 ]; then
         return 0
     fi
+
+    echo "[INFO]    🔎 Linting ${lint_total} workflow playbooks (${scenario_name})"
 
     local strict_flag=false
     if [[ "${WORKFLOW_LINT_STRICT:-}" =~ ^(1|true|yes)$ ]]; then
@@ -129,6 +165,11 @@ testing::integration::lint_workflows_via_api() {
 
     local api_base="http://localhost:${api_port}/api/v1"
     local lint_failed=0
+    local lint_processed=0
+    local lint_warning_files=0
+    local lint_error_files=0
+    local lint_warning_entries=0
+    local lint_error_entries=0
     local probe_rc=0
     testing::integration::ensure_validate_endpoint "$api_base" || probe_rc=$?
     if [ "$probe_rc" -eq 1 ]; then
@@ -139,6 +180,10 @@ testing::integration::lint_workflows_via_api() {
         return $probe_rc
     fi
 
+    if ! testing::integration::prepare_seed_state "$scenario_dir"; then
+        return 1
+    fi
+
         for file_path in "${lint_files[@]}"; do
             local rel_path
             rel_path="${file_path#$scenario_dir/}"
@@ -146,7 +191,7 @@ testing::integration::lint_workflows_via_api() {
             if [[ "$rel_path" == "test/playbooks/registry.json" ]]; then
                 continue
             fi
-            echo "🔍 Linting workflow ${rel_path}"
+            lint_processed=$((lint_processed + 1))
 
         local lint_source_json
         if declare -F _testing_playbooks__read_workflow_definition >/dev/null 2>&1; then
@@ -199,23 +244,40 @@ testing::integration::lint_workflows_via_api() {
         node_count=$(jq -r '.stats.node_count // 0' "$response_file" 2>/dev/null)
         edge_count=$(jq -r '.stats.edge_count // 0' "$response_file" 2>/dev/null)
 
+        local warning_count
+        warning_count=$(jq '.warnings | length' "$response_file" 2>/dev/null || echo 0)
+
         if [ "$valid" = "true" ]; then
-            echo "   ✅ Passed (${node_count} nodes, ${edge_count} edges)"
-            local warning_count
-            warning_count=$(jq '.warnings | length' "$response_file" 2>/dev/null || echo 0)
             if [ "$warning_count" -gt 0 ]; then
-                echo "   ⚠️  ${warning_count} warning(s):"
+                lint_warning_files=$((lint_warning_files + 1))
+                lint_warning_entries=$((lint_warning_entries + warning_count))
+                echo "⚠️  ${rel_path} emitted ${warning_count} warning(s) (${node_count} nodes, ${edge_count} edges)"
                 jq -r '.warnings[] | "      [warn:\(.code // "warning")] \(.message // "")"' "$response_file"
             fi
         else
-            echo "   ❌ Failed (${node_count} nodes, ${edge_count} edges)"
-            jq -r '.errors[]? | "      [\(.code // "error")] \(.message // "")"' "$response_file"
-            jq -r '.warnings[]? | "      [warn:\(.code // "warning")] \(.message // "")"' "$response_file"
             lint_failed=1
+            local error_count
+            error_count=$(jq '.errors | length' "$response_file" 2>/dev/null || echo 0)
+            lint_error_files=$((lint_error_files + 1))
+            lint_error_entries=$((lint_error_entries + error_count))
+            echo "❌ ${rel_path} failed lint (${node_count} nodes, ${edge_count} edges)"
+            jq -r '.errors[]? | "      [\(.code // "error")] \(.message // "")"' "$response_file"
+            if [ "$warning_count" -gt 0 ]; then
+                lint_warning_entries=$((lint_warning_entries + warning_count))
+                jq -r '.warnings[]? | "      [warn:\(.code // "warning")] \(.message // "")"' "$response_file"
+            fi
         fi
 
         rm -f "$response_file"
     done
+
+    printf '[INFO]    ✅ Workflow lint completed: %s checked\n' "$lint_processed"
+    if [ "$lint_warning_files" -gt 0 ]; then
+        printf '            • %s workflows emitted %s warning(s)\n' "$lint_warning_files" "$lint_warning_entries"
+    fi
+    if [ "$lint_error_files" -gt 0 ]; then
+        printf '            • %s workflows failed with %s error(s)\n' "$lint_error_files" "$lint_error_entries"
+    fi
 
     return $lint_failed
 }
@@ -230,6 +292,7 @@ testing::integration::validate_all() {
         if declare -F _testing_playbooks__cleanup_seeds >/dev/null 2>&1; then
             _testing_playbooks__cleanup_seeds || true
         fi
+        testing::integration::cleanup_external_seed_state || true
         if [ "$force_end" = true ]; then
             return 0  # Already cleaned up
         fi

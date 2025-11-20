@@ -3,19 +3,44 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 SELECTOR_CACHE: Dict[str, Dict[str, Any]] = {}
 MANIFEST_FILENAME = "selectors.manifest.json"
 SELECTOR_TOKEN_PATTERN = re.compile(r"@selector/([A-Za-z0-9_.-]+)(\([^)]*\))?")
+FIXTURE_TOKEN_PATTERN = re.compile(r"^@fixture/([A-Za-z0-9_.-]+)(\s*\(.*\))?$")
+SEED_TOKEN_PATTERN = re.compile(r"^@seed/([A-Za-z0-9_.-]+)$")
 DATA_TESTID_PATTERN = re.compile(r"\[data-testid[^\]]*\]")
 NUMBER_PATTERN = re.compile(r"^-?\d+(?:\.\d+)?$")
+BOOLEAN_TRUE = {"true", "1", "yes", "on"}
+BOOLEAN_FALSE = {"false", "0", "no", "off"}
+SEED_STATE_RELATIVE_PATH = Path("test") / "artifacts" / "runtime" / "seed-state.json"
+
+
+@dataclass(frozen=True)
+class FixtureParameterDefinition:
+    name: str
+    type: str = "string"
+    required: bool = False
+    default: Any = None
+    enum_values: Optional[List[str]] = None
+    description: str = ""
+
+
+@dataclass
+class FixtureMetadata:
+    description: str
+    fixture_id: str
+    requirements: List[str]
+    parameters: List[FixtureParameterDefinition]
 
 
 def parse_args() -> argparse.Namespace:
@@ -37,6 +62,98 @@ def clone(obj: Any) -> Any:
     return json.loads(json.dumps(obj))
 
 
+def load_seed_state(scenario_dir: Path) -> Dict[str, Any]:
+    seed_path = scenario_dir / SEED_STATE_RELATIVE_PATH
+    if not seed_path.exists():
+        return {}
+    data = load_json(seed_path)
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Seed state at {seed_path} must be a JSON object")
+    return data
+
+
+def normalize_fixture_parameters(metadata: Dict[str, Any], source: Path) -> List[FixtureParameterDefinition]:
+    raw_params = metadata.get("parameters") or []
+    normalized: List[FixtureParameterDefinition] = []
+    if not raw_params:
+        return normalized
+    if not isinstance(raw_params, list):
+        raise RuntimeError(f"Fixture {source} metadata.parameters must be an array")
+    seen: Set[str] = set()
+    for idx, entry in enumerate(raw_params):
+        pointer = f"metadata.parameters[{idx}]"
+        if not isinstance(entry, dict):
+            raise RuntimeError(f"Fixture {source} {pointer} must be an object")
+        name = entry.get("name")
+        if not name or not isinstance(name, str):
+            raise RuntimeError(f"Fixture {source} {pointer} is missing a string 'name'")
+        if name in seen:
+            raise RuntimeError(f"Fixture {source} defines duplicate parameter '{name}'")
+        seen.add(name)
+        param_type = (entry.get("type") or "string").lower()
+        if param_type not in {"string", "number", "boolean", "enum"}:
+            raise RuntimeError(
+                f"Fixture {source} parameter '{name}' has unsupported type '{param_type}'"
+            )
+        enum_values: Optional[List[str]] = None
+        if param_type == "enum":
+            values = entry.get("enumValues") or entry.get("enum_values")
+            if not isinstance(values, list) or not values:
+                raise RuntimeError(
+                    f"Fixture {source} parameter '{name}' requires non-empty enumValues list"
+                )
+            enum_values = []
+            for raw_value in values:
+                if not isinstance(raw_value, (str, int, float)):
+                    raise RuntimeError(
+                        f"Fixture {source} parameter '{name}' enumValues must be strings or numbers"
+                    )
+                enum_values.append(str(raw_value))
+        required = bool(entry.get("required", False))
+        default = entry.get("default")
+        if required and default is not None:
+            required = False
+        if default is not None:
+            default = coerce_parameter_value(param_type, default, name, str(source), enum_values)
+        description = entry.get("description") if isinstance(entry.get("description"), str) else ""
+        normalized.append(
+            FixtureParameterDefinition(
+                name=name,
+                type=param_type,
+                required=required,
+                default=default,
+                enum_values=enum_values,
+                description=description,
+            )
+        )
+    return normalized
+
+
+def normalize_fixture_metadata(path: Path, metadata: Dict[str, Any]) -> FixtureMetadata:
+    description = metadata.get("description") if isinstance(metadata.get("description"), str) else ""
+    fixture_id = metadata.get("fixture_id") or metadata.get("fixtureId")
+    if not fixture_id or not isinstance(fixture_id, str):
+        raise RuntimeError(f"Fixture {path} is missing metadata.fixture_id")
+    raw_requirements = metadata.get("requirements") or []
+    requirements: List[str] = []
+    if raw_requirements:
+        if not isinstance(raw_requirements, list):
+            raise RuntimeError(f"Fixture {path} metadata.requirements must be an array of strings")
+        for idx, req in enumerate(raw_requirements):
+            if not isinstance(req, str):
+                raise RuntimeError(
+                    f"Fixture {path} metadata.requirements[{idx}] must be a string requirement id"
+                )
+            requirements.append(req)
+    parameters = normalize_fixture_parameters(metadata, path)
+    return FixtureMetadata(
+        description=description,
+        fixture_id=fixture_id,
+        requirements=requirements,
+        parameters=parameters,
+    )
+
+
 def load_fixtures(directory: Path) -> Dict[str, Dict[str, Any]]:
     fixtures: Dict[str, Dict[str, Any]] = {}
     if not directory.exists():
@@ -48,9 +165,8 @@ def load_fixtures(directory: Path) -> Dict[str, Dict[str, Any]]:
             path = Path(root) / name
             data = load_json(path)
             metadata = data.get("metadata") or {}
-            fixture_id = metadata.get("fixture_id") or metadata.get("fixtureId")
-            if not fixture_id or not isinstance(fixture_id, str):
-                raise RuntimeError(f"Fixture {path} is missing metadata.fixture_id")
+            normalized_metadata = normalize_fixture_metadata(path, metadata)
+            fixture_id = normalized_metadata.fixture_id
             if fixture_id in fixtures:
                 other = fixtures[fixture_id]["source"]
                 raise RuntimeError(f"Duplicate fixture id '{fixture_id}' in {path} (already defined in {other})")
@@ -60,33 +176,285 @@ def load_fixtures(directory: Path) -> Dict[str, Dict[str, Any]]:
                 raise RuntimeError(f"Fixture {path} must define at least one node")
             if not isinstance(definition.get("edges"), list):
                 definition["edges"] = []
-            fixtures[fixture_id] = {"definition": definition, "source": str(path)}
+            fixtures[fixture_id] = {
+                "definition": definition,
+                "source": str(path),
+                "metadata": normalized_metadata,
+            }
     return fixtures
 
 
-def resolve_definition(definition: Dict[str, Any], fixtures: Dict[str, Dict[str, Any]], used: Set[str]) -> None:
+FIXTURE_TEMPLATE_PATTERN = re.compile(r"\$\{fixture\.([A-Za-z0-9_]+)\}")
+
+
+def coerce_parameter_value(
+    param_type: str,
+    value: Any,
+    name: str,
+    source: str,
+    enum_values: Optional[List[str]] = None,
+) -> Any:
+    if param_type == "string":
+        if isinstance(value, (str, int, float, bool)):
+            return str(value)
+        raise RuntimeError(
+            f"Fixture parameter '{name}' in {source} must be a string-compatible value"
+        )
+    if param_type == "number":
+        if isinstance(value, (int, float)):
+            return value
+        if isinstance(value, str) and NUMBER_PATTERN.fullmatch(value):
+            if value.isdigit() or (value.startswith("-") and value[1:].isdigit()):
+                return int(value)
+            return float(value)
+        raise RuntimeError(f"Fixture parameter '{name}' in {source} must be numeric")
+    if param_type == "boolean":
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in BOOLEAN_TRUE:
+                return True
+            if normalized in BOOLEAN_FALSE:
+                return False
+        raise RuntimeError(f"Fixture parameter '{name}' in {source} must be boolean (true/false)")
+    if param_type == "enum":
+        if not enum_values:
+            raise RuntimeError(f"Fixture parameter '{name}' in {source} enumValues not configured")
+        candidate = str(value)
+        if candidate not in enum_values:
+            raise RuntimeError(
+                f"Fixture parameter '{name}' in {source} must be one of: {', '.join(enum_values)}"
+            )
+        return candidate
+    return value
+
+
+def parse_fixture_reference(raw: str, pointer: str) -> Tuple[str, Optional[str]]:
+    match = FIXTURE_TOKEN_PATTERN.match(raw.strip())
+    if not match:
+        raise RuntimeError(f"Invalid fixture reference '{raw}' at {pointer}")
+    slug = match.group(1)
+    args_segment = match.group(2)
+    return slug, args_segment
+
+
+def _split_argument_entries(inner: str, pointer: str) -> List[str]:
+    entries: List[str] = []
+    current: List[str] = []
+    quote: Optional[str] = None
+    escape = False
+    for char in inner:
+        if escape:
+            current.append(char)
+            escape = False
+            continue
+        if quote:
+            if char == "\\":
+                escape = True
+                continue
+            if char == quote:
+                quote = None
+            current.append(char)
+            continue
+        if char in {'"', "'"}:
+            quote = char
+            current.append(char)
+            continue
+        if char == ',':
+            entry = ''.join(current).strip()
+            if entry:
+                entries.append(entry)
+            current = []
+            continue
+        current.append(char)
+    if quote:
+        raise RuntimeError(f"Unterminated quote in fixture parameters at {pointer}")
+    tail = ''.join(current).strip()
+    if tail:
+        entries.append(tail)
+    return entries
+
+
+def parse_fixture_arguments(argument_segment: Optional[str], pointer: str) -> Dict[str, str]:
+    if not argument_segment:
+        return {}
+    content = argument_segment.strip()
+    if not content:
+        return {}
+    if not content.startswith("(") or not content.endswith(")"):
+        raise RuntimeError(
+            f"Fixture parameters must use parentheses syntax at {pointer}: {argument_segment}"
+        )
+    inner = content[1:-1].strip()
+    if not inner:
+        return {}
+    assignments: Dict[str, str] = {}
+    for entry in _split_argument_entries(inner, pointer):
+        if "=" not in entry:
+            raise RuntimeError(
+                f"Invalid fixture parameter '{entry}' at {pointer}; expected key=value"
+            )
+        name, raw_value = entry.split("=", 1)
+        clean_name = name.strip()
+        if not clean_name:
+            raise RuntimeError(f"Fixture parameter missing name at {pointer}")
+        value = raw_value.strip()
+        if not value:
+            raise RuntimeError(
+                f"Fixture parameter '{clean_name}' missing value at {pointer}"
+            )
+        if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+            try:
+                value = ast.literal_eval(value)
+            except Exception as exc:  # noqa: BLE001
+                raise RuntimeError(
+                    f"Fixture parameter '{clean_name}' has invalid quoted value at {pointer}: {exc}"
+                ) from exc
+        assignments[clean_name] = str(value)
+    return assignments
+
+
+def resolve_seed_reference(value: Any, seed_state: Dict[str, Any], pointer: str) -> Any:
+    if isinstance(value, str):
+        match = SEED_TOKEN_PATTERN.match(value.strip())
+        if match:
+            key = match.group(1)
+            if key not in seed_state:
+                raise RuntimeError(
+                    f"Seed state missing key '{key}' required at {pointer}. Re-run seeds via test/playbooks/__seeds/apply.sh."
+                )
+            return seed_state[key]
+    return value
+
+
+def resolve_fixture_parameters(
+    fixture: Dict[str, Any],
+    provided: Dict[str, str],
+    pointer: str,
+    seed_state: Dict[str, Any],
+) -> Dict[str, Any]:
+    resolved: Dict[str, Any] = {}
+    metadata: FixtureMetadata = fixture.get("metadata")
+    parameter_defs = metadata.parameters if metadata else []
+    known_names = {param.name for param in parameter_defs}
+    extras = [name for name in provided.keys() if name not in known_names]
+    if extras:
+        raise RuntimeError(
+            "Fixture '"
+            + metadata.fixture_id
+            + "' received unknown parameter(s): "
+            + ", ".join(extras)
+            + f" ({pointer})"
+        )
+    for param_def in parameter_defs:
+        raw_value = provided.get(param_def.name)
+        if raw_value is None:
+            if param_def.default is not None:
+                default_value = resolve_seed_reference(param_def.default, seed_state, pointer)
+                resolved[param_def.name] = default_value
+            elif param_def.required:
+                raise RuntimeError(
+                    f"Fixture '{metadata.fixture_id}' missing required parameter '{param_def.name}' ({pointer})"
+                )
+            continue
+        normalized_value = resolve_seed_reference(raw_value, seed_state, pointer)
+        resolved[param_def.name] = coerce_parameter_value(
+            param_def.type,
+            normalized_value,
+            param_def.name,
+            fixture.get("source", pointer),
+            param_def.enum_values,
+        )
+    return resolved
+
+
+def apply_fixture_templates(definition: Any, parameters: Dict[str, Any], pointer: str = "") -> Any:
+    if isinstance(definition, dict):
+        for key, value in definition.items():
+            next_pointer = f"{pointer}/{key}" if pointer else f"/{key}"
+            definition[key] = apply_fixture_templates(value, parameters, next_pointer)
+        return definition
+    if isinstance(definition, list):
+        for idx, value in enumerate(definition):
+            next_pointer = f"{pointer}/{idx}" if pointer else f"/{idx}"
+            definition[idx] = apply_fixture_templates(value, parameters, next_pointer)
+        return definition
+    if isinstance(definition, str):
+        def _replace(match: re.Match[str]) -> str:
+            param_name = match.group(1)
+            if param_name not in parameters:
+                raise RuntimeError(
+                    f"Fixture template references unknown parameter '{param_name}' at {pointer}"
+                )
+            return str(parameters[param_name])
+
+        return FIXTURE_TEMPLATE_PATTERN.sub(_replace, definition)
+    return definition
+
+
+def annotate_workflow_metadata(root: Dict[str, Any], fixture_requirements: Set[str]) -> None:
+    if not fixture_requirements:
+        return
+    metadata = root.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+        root["metadata"] = metadata
+    existing = metadata.get("requirementsFromFixtures")
+    accumulator: Set[str] = set()
+    if isinstance(existing, list):
+        for req in existing:
+            if isinstance(req, str):
+                accumulator.add(req)
+    accumulator.update(fixture_requirements)
+    metadata["requirementsFromFixtures"] = sorted(accumulator)
+
+
+def resolve_definition(
+    definition: Dict[str, Any],
+    fixtures: Dict[str, Dict[str, Any]],
+    used: Set[str],
+    fixture_requirements: Set[str],
+    seed_state: Dict[str, Any],
+    pointer: str = "",
+) -> None:
     nodes = definition.get("nodes")
     if not isinstance(nodes, list):
         return
-    for node in nodes:
+    for index, node in enumerate(nodes):
         if not isinstance(node, dict):
             continue
+        node_pointer = f"{pointer}/nodes/{index}"
         data = node.get("data")
         if not isinstance(data, dict):
             continue
+        data_pointer = f"{node_pointer}/data"
         workflow_id = data.get("workflowId")
         if isinstance(workflow_id, str) and workflow_id.startswith("@fixture/"):
-            slug = workflow_id.split("/", 1)[1]
+            slug, args_segment = parse_fixture_reference(workflow_id, f"{data_pointer}/workflowId")
             fixture = fixtures.get(slug)
             if not fixture:
-                raise RuntimeError(f"Workflow references unknown fixture '{slug}'")
+                raise RuntimeError(f"Workflow references unknown fixture '{slug}' at {data_pointer}")
             used.add(slug)
+            provided_args = parse_fixture_arguments(args_segment, f"{data_pointer}/workflowId")
+            parameters = resolve_fixture_parameters(
+                fixture,
+                provided_args,
+                f"{data_pointer}/workflowId",
+                seed_state,
+            )
             nested = clone(fixture["definition"])
-            resolve_definition(nested, fixtures, used)
+            apply_fixture_templates(nested, parameters, node_pointer)
+            metadata: FixtureMetadata = fixture.get("metadata")
+            if metadata and metadata.requirements:
+                fixture_requirements.update(metadata.requirements)
+            resolve_definition(nested, fixtures, used, fixture_requirements, seed_state, node_pointer)
             data["workflowDefinition"] = nested
             data.pop("workflowId", None)
         elif isinstance(data.get("workflowDefinition"), dict):
-            resolve_definition(data["workflowDefinition"], fixtures, used)
+            resolve_definition(
+                data["workflowDefinition"], fixtures, used, fixture_requirements, seed_state, node_pointer
+            )
 
 
 def load_selector_registry(scenario_dir: Path) -> Dict[str, Any]:
@@ -319,7 +687,10 @@ def main() -> None:
     fixtures = load_fixtures(fixtures_dir)
     workflow = load_json(workflow_path)
     used: Set[str] = set()
-    resolve_definition(workflow, fixtures, used)
+    fixture_requirements: Set[str] = set()
+    seed_state = load_seed_state(scenario_dir)
+    resolve_definition(workflow, fixtures, used, fixture_requirements, seed_state)
+    annotate_workflow_metadata(workflow, fixture_requirements)
     selector_registry = load_selector_registry(scenario_dir)
     if selector_registry:
         manifest = selector_registry.get("manifest") or {}

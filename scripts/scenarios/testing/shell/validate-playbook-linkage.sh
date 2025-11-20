@@ -173,6 +173,7 @@ declare -A FIXTURE_USAGE=()
 declare -a FIXTURE_METADATA_ERRORS=()
 declare -a FIXTURE_DUPLICATE_ERRORS=()
 declare -a FIXTURE_UNKNOWN_REFERENCES=()
+declare -a FIXTURE_UNKNOWN_REQUIREMENTS=()
 declare -a FIXTURE_UNUSED=()
 
 # Load fixture workflow definitions
@@ -191,6 +192,17 @@ if [ -d "$fixtures_dir" ]; then
             continue
         fi
         FIXTURE_FILES[$fixture_id]="$rel_path"
+
+        fixture_requirements=""
+        fixture_requirements=$(jq -r '.metadata.requirements[]? // empty' "$fixture_file" 2>/dev/null || true)
+        if [ -n "$fixture_requirements" ]; then
+            while IFS= read -r fixture_req; do
+                [ -z "$fixture_req" ] && continue
+                if ! grep -Fxq "$fixture_req" "$REQUIREMENT_IDS_FILE"; then
+                    FIXTURE_UNKNOWN_REQUIREMENTS+=("$fixture_id|$fixture_req|$rel_path")
+                fi
+            done <<< "$fixture_requirements"
+        fi
     done < <(find "$fixtures_dir" -type f -name '*.json' 2>/dev/null | sort)
 fi
 
@@ -210,6 +222,10 @@ while IFS= read -r playbook_file; do
     [ -z "$playbook_file" ] && continue
 
     rel_path="${playbook_file#$SCENARIO_DIR/}"
+
+    if [ "$rel_path" = "test/playbooks/registry.json" ]; then
+        continue
+    fi
 
     # Extract requirement ID from playbook metadata
     if ! jq -e '.metadata' "$playbook_file" >/dev/null 2>&1; then
@@ -264,6 +280,22 @@ while IFS= read -r playbook_file; do
 done <<< "$playbook_files"
 
 if [ ${#FIXTURE_FILES[@]} -gt 0 ]; then
+    for fixture_slug in "${!FIXTURE_FILES[@]}"; do
+        fixture_path="$SCENARIO_DIR/${FIXTURE_FILES[$fixture_slug]}"
+        placeholders=$(rg -o '@fixture/[A-Za-z0-9_.:-]+' -N "$fixture_path" 2>/dev/null | sort -u || true)
+        if [ -n "$placeholders" ]; then
+            while IFS= read -r placeholder; do
+                [ -z "$placeholder" ] && continue
+                slug="${placeholder#@fixture/}"
+                if [ -z "${FIXTURE_FILES[$slug]:-}" ]; then
+                    FIXTURE_UNKNOWN_REFERENCES+=("${FIXTURE_FILES[$fixture_slug]}|$slug")
+                    continue
+                fi
+                FIXTURE_USAGE["$slug"]="used"
+            done <<< "$placeholders"
+        fi
+    done
+
     for slug in "${!FIXTURE_FILES[@]}"; do
         if [ -z "${FIXTURE_USAGE[$slug]:-}" ]; then
             FIXTURE_UNUSED+=("$slug|${FIXTURE_FILES[$slug]}")
@@ -281,8 +313,9 @@ echo ""
 fixture_metadata_count=${#FIXTURE_METADATA_ERRORS[@]}
 fixture_duplicate_count=${#FIXTURE_DUPLICATE_ERRORS[@]}
 fixture_unknown_count=${#FIXTURE_UNKNOWN_REFERENCES[@]}
+fixture_unknown_req_count=${#FIXTURE_UNKNOWN_REQUIREMENTS[@]}
 fixture_unused_count=${#FIXTURE_UNUSED[@]}
-fixture_issue_total=$((fixture_metadata_count + fixture_duplicate_count + fixture_unknown_count + fixture_unused_count))
+fixture_issue_total=$((fixture_metadata_count + fixture_duplicate_count + fixture_unknown_count + fixture_unknown_req_count + fixture_unused_count))
 
 if [ "$fixture_metadata_count" -gt 0 ]; then
     log_error "Fixture workflows missing metadata.fixture_id"
@@ -311,6 +344,17 @@ if [ "$fixture_unknown_count" -gt 0 ]; then
         IFS='|' read -r playbook slug <<< "$entry"
         echo -e "   ❌ Playbook: ${BLUE}${playbook}${NC}"
         echo -e "      Unknown fixture: ${RED}${slug}${NC}"
+        echo ""
+    done
+fi
+
+if [ "$fixture_unknown_req_count" -gt 0 ]; then
+    log_error "Fixture metadata references unknown requirement IDs"
+    echo ""
+    for entry in "${FIXTURE_UNKNOWN_REQUIREMENTS[@]}"; do
+        IFS='|' read -r slug req_id file_path <<< "$entry"
+        echo -e "   ❌ Fixture: ${BLUE}${slug}${NC} (${file_path})"
+        echo -e "      Requirement: ${RED}${req_id}${NC} (not found in requirements/)"
         echo ""
     done
 fi

@@ -91,16 +91,10 @@ function parseImports(indexPath) {
  * @throws {Error} If no requirements registry found
  */
 function collectRequirementFiles(scenarioRoot) {
-  // Check for legacy docs/requirements.json
-  const docsPath = path.join(scenarioRoot, 'docs', 'requirements.json');
-  if (fs.existsSync(docsPath)) {
-    return [{ path: docsPath, relative: 'docs/requirements.json', isIndex: true }];
-  }
-
   // Check for requirements/ folder
   const requirementsDir = path.join(scenarioRoot, 'requirements');
   if (!fs.existsSync(requirementsDir)) {
-    throw new Error('No requirements registry found (expected docs/requirements.json or requirements/)');
+    throw new Error('No requirements registry found (expected requirements/ folder)');
   }
 
   const results = [];

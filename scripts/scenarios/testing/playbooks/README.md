@@ -53,14 +53,13 @@ testing::playbooks::run_workflow \
 - `--disallow-missing` - Treat missing workflow files as failures instead of skips
 
 #### `testing::playbooks::run_workflow`
-- `--file PATH` - JSON workflow definition (required unless `--workflow-id` provided)
-- `--workflow-id ID` - Execute existing workflow from database
+- `--file PATH` - JSON workflow definition (required)
 - `--scenario NAME` - Scenario to execute against (default: browser-automation-studio)
-- `--folder PATH` - Folder to import workflow into (default: /testing)
 - `--manage-runtime MODE` - Auto start/stop scenario: `auto`, `start` (1/true), `skip` (0/false)
-- `--keep-workflow` - Don't delete workflow after execution
 - `--timeout SECONDS` - Max wait for scenario readiness (default: 120)
 - `--allow-missing` - Return exit code 210 when workflow file missing (for optional tests)
+
+> BAS integration tests now prime `test/playbooks/__seeds/apply.sh` before workflow linting so the `seed-state.json` artifact (and its dynamic project/workflow names) stay consistent between lint and execution. Remove `test/artifacts/runtime/seed-state.json` or run `__seeds/cleanup.sh` if you need to regenerate identifiers manually.
 
 ## How It Works
 
@@ -195,6 +194,38 @@ cd scenarios/my-scenario
 ```
 
 That's it! No scenario-specific boilerplate needed. The workflow runner handles everything.
+
+## Fixture Metadata & Parameterization
+
+Subflows in `test/playbooks/__subflows/` can now expose typed parameters and requirement coverage:
+
+```json
+{
+  "metadata": {
+    "fixture_id": "open-workflow",
+    "description": "Load a workflow inside the demo project",
+    "parameters": [
+      {"name": "project", "type": "string", "required": true},
+      {"name": "workflow", "type": "string", "required": true},
+      {"name": "mode", "type": "enum", "enumValues": ["builder", "readonly"], "default": "builder"}
+    ],
+    "requirements": ["BAS-WORKFLOW-DEMO-SEED"]
+  },
+  "nodes": [
+    {"id": "open", "type": "navigate", "data": {"scenario": "browser-automation-studio", "scenarioPath": "/projects"}}
+  ]
+}
+```
+
+- Call fixtures with optional arguments: `"workflowId": "@fixture/open-workflow(project=\"Demo\", workflow=@store/seed.workflowName)"`
+- Strings with spaces/punctuation must be wrapped in quotes. Escape quotes with `\"`.
+- Use `@store/<key>` to forward runtime values captured earlier in the workflow.
+- Use `@seed/<key>` (pulled from `test/artifacts/runtime/seed-state.json`) when you need literal strings during resolution. The resolver replaces those tokens with the latest seed metadata that `test/playbooks/__seeds/apply.sh` wrote.
+- Number/boolean parameters reject store references (the resolver enforces types before execution).
+
+When a fixture declares `metadata.requirements`, the resolver automatically propagates those IDs to the parent workflow under `metadata.requirementsFromFixtures`. The phase helper records pass/fail evidence for those requirement IDs whenever the parent workflow runs, so fixture-level guarantees show up in `coverage/phase-results` and requirement reports.
+
+Seeding scripts can also write dynamic context to `test/artifacts/runtime/seed-state.json`. Ship a helper fixture (for example `load-seed-state`) that imports the JSON via `@seed/<key>` tokens and stores the values under canonical keys such as `seed.projectName`, `seed.projectId`, `seed.workflowName`, and `seed.workflowId`. Downstream fixtures then reference `@store/seed.projectName` (or reuse the fixture parameters) without needing to know how each run was seeded.
 
 ## Cross-Scenario Testing
 

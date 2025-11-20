@@ -143,23 +143,68 @@ _testing_suite_render_lint_summary() {
         return 0
     fi
     jq -r '
-        .results[] as $res |
-        if ($res.error // "") != "" then
-            "✗ \($res.file)" + "\n  \($res.error)"
-        else
-            (if $res.result.valid then "✓" else "✗" end)
-            + " \($res.file) (\($res.result.stats.node_count // 0) nodes, \($res.result.stats.edge_count // 0) edges)"
-            + (if ($res.result.errors | length) > 0 then
-                "\n" + ($res.result.errors[] |
-                    "      [" + (.code // "error") + "] " + (.message // "")
-                )
-            else "" end)
-            + (if ($res.result.warnings | length) > 0 then
-                "\n" + ($res.result.warnings[] |
-                    "      [warn:" + (.code // "warning") + "] " + (.message // "")
-                )
-            else "" end)
-        end
+        def safe(obj; key):
+          if obj == null or (obj | type) != "object" then null else obj[key] end;
+
+        def warn_count(result):
+          ((safe(result; "warnings") // []) | length);
+
+        def error_count(result):
+          ((safe(result; "errors") // []) | length);
+
+        def stat_val(stats; key):
+          ((safe(stats; key) // 0) | tonumber);
+
+        def warn_line($file; $stats):
+          "⚠️  " + $file +
+          " emitted \($stats.warnings | length) warning(s) (" +
+          ((stat_val($stats; "node_count"))|tostring) + " nodes, " +
+          ((stat_val($stats; "edge_count"))|tostring) + " edges)";
+
+        def err_line($file; $stats):
+          "❌ " + $file + " failed lint (" +
+          ((stat_val($stats; "node_count"))|tostring) + " nodes, " +
+          ((stat_val($stats; "edge_count"))|tostring) + " edges)";
+
+        (if type == "object" and has("results") then .results elif type == "array" then . else [] end) as $results_raw |
+        (if $results_raw | type == "array" then $results_raw else [] end) as $results |
+        ($results | length) as $total |
+        ($results | map(select((safe(. ; "error") // "") != "" or (safe(safe(. ; "result"); "valid") // false) == false or warn_count(safe(. ; "result")) > 0))) as $interesting |
+        ($results | map(select((safe(. ; "error") // "") != "" or (safe(safe(. ; "result"); "valid") // false) == false))) as $errors |
+        ($results | map(select((safe(. ; "error") // "") == "" and (safe(safe(. ; "result"); "valid") // false) == true and warn_count(safe(. ; "result")) > 0))) as $warnings |
+        (
+          "[INFO]    🔎 Workflow lint (Go) completed: \($total) checked" +
+          (if ($warnings | length) > 0 then
+            "\n            • " + (($warnings | length)|tostring) + " workflows emitted " +
+            (($warnings | map(warn_count(.result)) | add // 0)|tostring) + " warning(s)"
+          else "" end) +
+          (if ($errors | length) > 0 then
+            "\n            • " + (($errors | length)|tostring) + " workflows failed"
+          else "" end)
+        ),
+        (
+          $interesting[] |
+          if ((safe(. ; "error") // "") != "") then
+              err_line(.file; {}) + "\n      " + (safe(. ; "error") // "")
+          elif (safe(safe(. ; "result"); "valid") // false) == false then
+              err_line(.file; safe(safe(. ; "result"); "stats"))
+              + (if error_count(safe(. ; "result")) > 0 then
+                  "\n" + (safe(safe(. ; "result"); "errors")[] |
+                      "      [" + (.code // "error") + "] " + (.message // "")
+                  )
+                else "" end)
+              + (if warn_count(safe(. ; "result")) > 0 then
+                  "\n" + (safe(safe(. ; "result"); "warnings")[] |
+                      "      [warn:" + (.code // "warning") + "] " + (.message // "")
+                  )
+                else "" end)
+          elif warn_count(safe(. ; "result")) > 0 then
+              warn_line(.file; safe(safe(. ; "result"); "stats"))
+              + "\n" + (safe(safe(. ; "result"); "warnings")[] |
+                  "      [warn:" + (.code // "warning") + "] " + (.message // "")
+              )
+          else empty end
+        )
     ' "$artifact"
 }
 
@@ -252,15 +297,14 @@ _testing_suite_sync_requirements() {
     local scenario_name="$2"
     local app_root="$3"
 
-    local registry_file="$scenario_dir/docs/requirements.json"
     local registry_dir="$scenario_dir/requirements"
 
     if [ "${TESTING_REQUIREMENTS_SYNC:-1}" != "1" ]; then
         return 0
     fi
 
-    if [ ! -f "$registry_file" ] && [ ! -d "$registry_dir" ]; then
-        log::warning "⚠️  Skipping requirements sync (no registry found)"
+    if [ ! -d "$registry_dir" ]; then
+        log::warning "⚠️  Skipping requirements sync (requirements/ missing)"
         return 0
     fi
 

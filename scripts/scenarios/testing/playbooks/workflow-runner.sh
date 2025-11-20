@@ -14,6 +14,7 @@ declare -g _TESTING_PLAYBOOKS_SEEDS_SCENARIO_DIR=""
 declare -g TESTING_PLAYBOOKS_LAST_WORKFLOW_ID=""
 declare -g TESTING_PLAYBOOKS_LAST_EXECUTION_ID=""
 declare -g TESTING_PLAYBOOKS_LAST_SCENARIO=""
+declare -g TESTING_PLAYBOOKS_LAST_FIXTURE_REQUIREMENTS=""
 
 _testing_playbooks__require_tools() {
     local missing=()
@@ -57,6 +58,12 @@ _testing_playbooks__apply_seeds_if_needed() {
     local scenario_dir="$1"
     local seeds_dir="$scenario_dir/test/playbooks/__seeds"
     if [ ! -d "$seeds_dir" ]; then
+        return 0
+    fi
+    if [[ "${TESTING_PLAYBOOKS_SEEDS_EXTERNAL:-}" = "1" ]]; then
+        _TESTING_PLAYBOOKS_SEEDS_APPLIED=true
+        _TESTING_PLAYBOOKS_SEEDS_DIR="$seeds_dir"
+        _TESTING_PLAYBOOKS_SEEDS_SCENARIO_DIR="$scenario_dir"
         return 0
     fi
     if [ "${_TESTING_PLAYBOOKS_SEEDS_APPLIED:-false}" = true ]; then
@@ -271,6 +278,7 @@ testing::playbooks::run_workflow() {
     TESTING_PLAYBOOKS_LAST_WORKFLOW_ID=""
     TESTING_PLAYBOOKS_LAST_EXECUTION_ID=""
     TESTING_PLAYBOOKS_LAST_SCENARIO=""
+    TESTING_PLAYBOOKS_LAST_FIXTURE_REQUIREMENTS=""
 
     local scenario_dir="${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}"
 
@@ -365,6 +373,10 @@ testing::playbooks::run_workflow() {
         echo "❌ Failed to load workflow definition $workflow_path" >&2
         return 1
     fi
+
+    local fixture_requirements
+    fixture_requirements=$(printf '%s' "$workflow_json" | jq -r '.metadata.requirementsFromFixtures[]?' 2>/dev/null || true)
+    TESTING_PLAYBOOKS_LAST_FIXTURE_REQUIREMENTS="$fixture_requirements"
 
     # Execute workflow via adhoc endpoint (no DB persistence)
     local workflow_name

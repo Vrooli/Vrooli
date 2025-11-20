@@ -9,6 +9,37 @@ source "$SHELL_DIR/config.sh"
 source "$SHELL_DIR/phase-helpers.sh"
 source "$SHELL_DIR/ui-smoke.sh"
 
+_testing_structure_get_mtime() {
+  local target="$1"
+  local ts
+
+  if ts=$(stat -c %Y "$target" 2>/dev/null) && [[ "$ts" =~ ^[0-9]+$ ]]; then
+    printf '%s' "$ts"
+    return 0
+  fi
+
+  if ts=$(stat -f %m "$target" 2>/dev/null) && [[ "$ts" =~ ^[0-9]+$ ]]; then
+    printf '%s' "$ts"
+    return 0
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$target" <<'PY'
+import os
+import sys
+
+path = sys.argv[1]
+try:
+    print(int(os.stat(path).st_mtime))
+except FileNotFoundError:
+    print(0)
+PY
+    return 0
+  fi
+
+  printf '0'
+}
+
 # Standard scenario structure (convention)
 # All scenarios MUST have these files/directories unless explicitly excluded
 declare -ga TESTING_STRUCTURE_STANDARD_FILES=(
@@ -399,8 +430,8 @@ _validate_selector_registry() {
   fi
 
   local selectors_mtime manifest_mtime
-  selectors_mtime=$(stat -f %m "$selectors_file" 2>/dev/null || stat -c %Y "$selectors_file" 2>/dev/null || echo 0)
-  manifest_mtime=$(stat -f %m "$manifest_file" 2>/dev/null || stat -c %Y "$manifest_file" 2>/dev/null || echo 0)
+  selectors_mtime=$(_testing_structure_get_mtime "$selectors_file")
+  manifest_mtime=$(_testing_structure_get_mtime "$manifest_file")
   if [ "$manifest_mtime" -lt "$selectors_mtime" ]; then
     testing::phase::add_error "Selector manifest is outdated. Re-run build-selector-manifest.js"
     testing::phase::add_test failed

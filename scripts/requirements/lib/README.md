@@ -50,8 +50,7 @@ lib/
 - `collectRequirementFiles(scenarioRoot)` - Collect all requirement JSON files
 
 **Key Features**:
-- Supports legacy `docs/requirements.json` format
-- Supports modular `requirements/` folder structure
+- Supports the modular `requirements/` folder structure
 - Resolves imports from `requirements/index.json`
 - Handles circular import detection
 

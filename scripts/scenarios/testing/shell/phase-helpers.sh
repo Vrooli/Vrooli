@@ -741,15 +741,18 @@ testing::phase::run_workflow_validations() {
                     evidence+=" via ${TESTING_PLAYBOOKS_LAST_SCENARIO}"
                 fi
                 testing::phase::add_requirement --id "$req_id" --status passed --evidence "$evidence"
+                testing::phase::_record_fixture_requirements passed "$workflow_label" "$req_id"
             else
                 local rc=$?
                 if [ "$effective_allow_missing" = true ] && [ "$rc" -eq 210 ]; then
                     testing::phase::add_warning "Workflow ${workflow_label} not found; export pending"
                     testing::phase::add_test skipped
                     testing::phase::add_requirement --id "$req_id" --status skipped --evidence "Workflow ${workflow_label} missing"
+                    testing::phase::_record_fixture_requirements skipped "$workflow_label" "$req_id"
                 else
                     testing::phase::add_test failed
                     testing::phase::add_requirement --id "$req_id" --status failed --evidence "Workflow ${workflow_label} failed"
+                    testing::phase::_record_fixture_requirements failed "$workflow_label" "$req_id"
                     overall_status=1
                 fi
             fi
@@ -769,6 +772,25 @@ testing::phase::_json_escape() {
     value="${value//$'\f'/\\f}"
     value="${value//$'\b'/\\b}"
     printf '%s' "$value"
+}
+
+testing::phase::_record_fixture_requirements() {
+    local status="$1"
+    local workflow_label="$2"
+    local parent_requirement="$3"
+    local fixture_ids="${TESTING_PLAYBOOKS_LAST_FIXTURE_REQUIREMENTS:-}"
+    if [ -z "$fixture_ids" ]; then
+        return 0
+    fi
+    local evidence="Fixture coverage via ${workflow_label}"
+    if [ -n "$parent_requirement" ]; then
+        evidence+=" (triggered by ${parent_requirement})"
+    fi
+    while IFS= read -r fixture_req; do
+        [ -z "$fixture_req" ] && continue
+        testing::phase::add_requirement --id "$fixture_req" --status "$status" --evidence "$evidence"
+    done <<< "$fixture_ids"
+    TESTING_PLAYBOOKS_LAST_FIXTURE_REQUIREMENTS=""
 }
 
 testing::phase::run_workflow_yaml() {
