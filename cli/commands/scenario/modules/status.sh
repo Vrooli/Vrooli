@@ -846,7 +846,7 @@ scenario::status::display_ui_smoke() {
         return
     fi
 
-    local status message timestamp duration handshake handshake_duration handshake_error bundle_fresh bundle_reason screenshot_path handshake_present
+    local status message timestamp duration handshake handshake_duration handshake_error bundle_fresh bundle_reason screenshot_path handshake_present storage_summary storage_patched
     status=$(echo "$smoke_json" | jq -r '.status // "unknown"')
     message=$(echo "$smoke_json" | jq -r '.message // ""')
     timestamp=$(echo "$smoke_json" | jq -r '.timestamp // ""')
@@ -858,6 +858,12 @@ scenario::status::display_ui_smoke() {
     bundle_fresh=$(echo "$smoke_json" | jq -r '.bundle.fresh // true')
     bundle_reason=$(echo "$smoke_json" | jq -r '.bundle.reason // ""')
     screenshot_path=$(echo "$smoke_json" | jq -r '.artifacts.screenshot // ""')
+    local network_errors
+    network_errors=$(echo "$smoke_json" | jq -r '(.raw.network // []) | length')
+    local page_errors
+    page_errors=$(echo "$smoke_json" | jq -r '(.raw.pageErrors // []) | length')
+    storage_summary=$(echo "$smoke_json" | jq -r '.storage_shim // [] | @json' 2>/dev/null || echo '[]')
+    storage_patched=$(echo "$smoke_json" | jq -r '(.storage_shim // []) | map(select(.patched == true)) | length' 2>/dev/null || echo '0')
 
     echo ""
     echo "UI Smoke: $status (${duration}ms${timestamp:+, $timestamp})"
@@ -877,7 +883,20 @@ scenario::status::display_ui_smoke() {
     if [[ "$bundle_fresh" != "true" ]]; then
         echo "  ↳ Bundle Status: ⚠️  ${bundle_reason:-UI bundle stale}"
     fi
+    if [[ "$network_errors" -gt 0 ]]; then
+        local network_path
+        network_path=$(echo "$smoke_json" | jq -r '.artifacts.network // ""')
+        echo "  ↳ Network errors: ${network_errors}${network_path:+ (see $network_path)}"
+    fi
+    if [[ "$page_errors" -gt 0 ]]; then
+        echo "  ↳ UI exceptions: ${page_errors} recorded"
+    fi
     if [[ -n "$screenshot_path" && "$screenshot_path" != "null" ]]; then
         echo "  ↳ Screenshot: $screenshot_path"
+    fi
+    if [[ "$storage_patched" != "0" ]]; then
+        local storage_props
+        storage_props=$(echo "$smoke_json" | jq -r '(.storage_shim // []) | map(select(.patched == true) | .prop) | join(", ")' 2>/dev/null || echo "localStorage")
+        echo "  ↳ Storage shim active for: ${storage_props}"
     fi
 }

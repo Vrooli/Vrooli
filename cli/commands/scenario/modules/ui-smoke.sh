@@ -53,13 +53,8 @@ scenario::smoke::run() {
     helper_status=$?
     set -e
 
-    if [[ $helper_status -ne 0 ]]; then
-        scenario::smoke::emit_output "$summary_json" "$json_output"
-        return $helper_status
-    fi
-
     scenario::smoke::emit_output "$summary_json" "$json_output"
-    return 0
+    return $helper_status
 }
 
 scenario::smoke::emit_output() {
@@ -87,7 +82,7 @@ scenario::smoke::render_text_summary() {
         return 0
     fi
 
-    local scenario status message ui_url duration handshake_status handshake_duration handshake_error dependency_present screenshot_path console_path handshake_present dependency_field_present
+    local scenario status message ui_url duration handshake_status handshake_duration handshake_error dependency_present screenshot_path console_path handshake_present dependency_field_present storage_summary patched_count
     scenario=$(echo "$summary_json" | jq -r '.scenario // ""')
     status=$(echo "$summary_json" | jq -r '.status // "unknown"')
     message=$(echo "$summary_json" | jq -r '.message // ""')
@@ -101,6 +96,7 @@ scenario::smoke::render_text_summary() {
     dependency_present=$(echo "$summary_json" | jq -r '.iframe_bridge.dependency_present // false')
     screenshot_path=$(echo "$summary_json" | jq -r '.artifacts.screenshot // empty')
     console_path=$(echo "$summary_json" | jq -r '.artifacts.console // empty')
+    storage_summary=$(echo "$summary_json" | jq -c '.storage_shim // []')
 
     log::info "Scenario: $scenario"
     log::info "UI URL: ${ui_url:-n/a}"
@@ -133,6 +129,14 @@ scenario::smoke::render_text_summary() {
     fi
     if [[ -n "$console_path" && "$console_path" != "null" ]]; then
         log::info "Console log: $console_path"
+    fi
+    if [[ -n "$storage_summary" && "$storage_summary" != "[]" ]]; then
+        patched_count=$(echo "$storage_summary" | jq '[.[] | select(.patched == true)] | length' 2>/dev/null || echo "0")
+        if [[ "$patched_count" != "0" ]]; then
+            local patched_props
+            patched_props=$(echo "$storage_summary" | jq -r '[.[] | select(.patched == true) | .prop] | join(", ")' 2>/dev/null || echo "localStorage")
+            log::warning "Storage shim: enabled for ${patched_props} (third-party storage blocked)"
+        fi
     fi
 }
 

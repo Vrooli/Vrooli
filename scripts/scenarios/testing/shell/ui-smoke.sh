@@ -58,6 +58,13 @@ testing::ui_smoke::run() {
     local runtime_quiet_prev="${TESTING_RUNTIME_QUIET:-false}"
     trap "TESTING_RUNTIME_QUIET=${runtime_quiet_prev}" RETURN
 
+    local summary_fd=1
+    if [[ "$output_mode" = "json" ]]; then
+        exec 3>&1
+        summary_fd=3
+        exec 1>&2
+    fi
+
     local ui_package_json="$scenario_dir/ui/package.json"
     if [[ ! -f "$ui_package_json" ]]; then
         local skip_json
@@ -67,7 +74,7 @@ testing::ui_smoke::run() {
             --message "UI directory not detected" \
             --scenario-dir "$scenario_dir")
         testing::ui_smoke::_persist_summary "$skip_json" "$scenario_dir" "$scenario_name"
-        testing::ui_smoke::_emit_summary "$skip_json" "$output_mode"
+        testing::ui_smoke::_emit_summary "$skip_json" "$output_mode" "$summary_fd"
         return 0
     fi
 
@@ -89,7 +96,7 @@ testing::ui_smoke::run() {
             --message "UI smoke harness disabled via .vrooli/testing.json" \
             --scenario-dir "$scenario_dir")
         testing::ui_smoke::_persist_summary "$disabled_json" "$scenario_dir" "$scenario_name"
-        testing::ui_smoke::_emit_summary "$disabled_json" "$output_mode"
+        testing::ui_smoke::_emit_summary "$disabled_json" "$output_mode" "$summary_fd"
         return 0
     fi
 
@@ -109,7 +116,7 @@ testing::ui_smoke::run() {
             --scenario-dir "$scenario_dir" \
             --bundle "$bundle_info_json")
         testing::ui_smoke::_persist_summary "$stale_json" "$scenario_dir" "$scenario_name"
-        testing::ui_smoke::_emit_summary "$stale_json" "$output_mode"
+        testing::ui_smoke::_emit_summary "$stale_json" "$output_mode" "$summary_fd"
         return $TESTING_UI_SMOKE_EXIT_BUNDLE_STALE
     fi
 
@@ -122,7 +129,7 @@ testing::ui_smoke::run() {
             --message "Browserless resource is offline" \
             --scenario-dir "$scenario_dir")
         testing::ui_smoke::_persist_summary "$offline_json" "$scenario_dir" "$scenario_name"
-        testing::ui_smoke::_emit_summary "$offline_json" "$output_mode"
+        testing::ui_smoke::_emit_summary "$offline_json" "$output_mode" "$summary_fd"
         return $TESTING_UI_SMOKE_EXIT_BROWSERLESS_OFFLINE
     fi
 
@@ -140,7 +147,7 @@ testing::ui_smoke::run() {
             --scenario-dir "$scenario_dir" \
             --browserless "$browserless_json")
         testing::ui_smoke::_persist_summary "$offline_json" "$scenario_dir" "$scenario_name"
-        testing::ui_smoke::_emit_summary "$offline_json" "$output_mode"
+        testing::ui_smoke::_emit_summary "$offline_json" "$output_mode" "$summary_fd"
         return $TESTING_UI_SMOKE_EXIT_BROWSERLESS_OFFLINE
     fi
 
@@ -158,7 +165,7 @@ testing::ui_smoke::run() {
                 --message "Failed to auto-start scenario runtime for UI smoke. Run 'vrooli scenario start ${scenario_name}' (or '--setup') to inspect lifecycle logs." \
                 --scenario-dir "$scenario_dir")
             testing::ui_smoke::_persist_summary "$runtime_json" "$scenario_dir" "$scenario_name"
-            testing::ui_smoke::_emit_summary "$runtime_json" "$output_mode"
+            testing::ui_smoke::_emit_summary "$runtime_json" "$output_mode" "$summary_fd"
             return 1
         fi
         testing::runtime::discover_ports "$scenario_name"
@@ -180,7 +187,7 @@ testing::ui_smoke::run() {
             --message "Scenario does not expose a UI port" \
             --scenario-dir "$scenario_dir")
         testing::ui_smoke::_persist_summary "$no_port_json" "$scenario_dir" "$scenario_name"
-        testing::ui_smoke::_emit_summary "$no_port_json" "$output_mode"
+        testing::ui_smoke::_emit_summary "$no_port_json" "$output_mode" "$summary_fd"
         return 0
     fi
 
@@ -201,7 +208,7 @@ testing::ui_smoke::run() {
             --scenario-dir "$scenario_dir" \
             --iframe "$iframe_json")
         testing::ui_smoke::_persist_summary "$bridge_json" "$scenario_dir" "$scenario_name"
-        testing::ui_smoke::_emit_summary "$bridge_json" "$output_mode"
+        testing::ui_smoke::_emit_summary "$bridge_json" "$output_mode" "$summary_fd"
         return 1
     fi
 
@@ -232,7 +239,7 @@ testing::ui_smoke::run() {
             --scenario-dir "$scenario_dir" \
             --browserless "$browserless_json")
         testing::ui_smoke::_persist_summary "$curl_json" "$scenario_dir" "$scenario_name"
-        testing::ui_smoke::_emit_summary "$curl_json" "$output_mode"
+        testing::ui_smoke::_emit_summary "$curl_json" "$output_mode" "$summary_fd"
         return 1
     fi
 
@@ -248,7 +255,7 @@ testing::ui_smoke::run() {
             --scenario-dir "$scenario_dir" \
             --browserless "$browserless_json")
         testing::ui_smoke::_persist_summary "$invalid_json" "$scenario_dir" "$scenario_name"
-        testing::ui_smoke::_emit_summary "$invalid_json" "$output_mode"
+        testing::ui_smoke::_emit_summary "$invalid_json" "$output_mode" "$summary_fd"
         return 1
     fi
 
@@ -260,11 +267,34 @@ testing::ui_smoke::run() {
 
     local raw_without_screenshot
     raw_without_screenshot=$(echo "$raw_result" | jq 'del(.screenshot)' 2>/dev/null || echo '{}')
+    local storage_json
+    storage_json=$(echo "$raw_result" | jq -c '.storageShim // []' 2>/dev/null || echo '[]')
 
     local success
     success=$(echo "$raw_result" | jq -r '.success // false')
     local handshake_signaled
     handshake_signaled=$(echo "$raw_result" | jq -r '.handshake.signaled // false')
+    local network_count
+    network_count=$(echo "$raw_result" | jq -r '(.network // []) | length')
+    local network_message
+    network_message=$(echo "$raw_result" | jq -r '
+        if ((.network // []) | length > 0) then
+            .network[0] as $n |
+            "Network failure: " +
+            (if ($n.status? != null) then ("HTTP " + ($n.status | tostring))
+             elif ($n.errorText? and $n.errorText != "") then $n.errorText else "Request error" end)
+            + " → " + ($n.url // "unknown URL")
+        else ""
+        end')
+    local page_error_count
+    page_error_count=$(echo "$raw_result" | jq -r '(.pageErrors // []) | length')
+    local page_error_message
+    page_error_message=$(echo "$raw_result" | jq -r '
+        if ((.pageErrors // []) | length > 0) then
+            .pageErrors[0] as $e |
+            "UI exception: " + ($e.message // "Unknown error")
+        else ""
+        end')
 
     local status="passed"
     local message="UI loaded successfully"
@@ -274,6 +304,12 @@ testing::ui_smoke::run() {
     elif [[ "$handshake_signaled" != "true" ]]; then
         status="failed"
         message="Iframe bridge never signaled ready"
+    elif [[ "$network_count" -gt 0 ]]; then
+        status="failed"
+        message="$network_message"
+    elif [[ "$page_error_count" -gt 0 ]]; then
+        status="failed"
+        message="$page_error_message"
     fi
 
     local summary_json
@@ -286,6 +322,7 @@ testing::ui_smoke::run() {
         --bundle "$bundle_info_json" \
         --iframe "$iframe_json" \
         --artifacts "$artifact_json" \
+        --storage "$storage_json" \
         --raw "$raw_without_screenshot" \
         --ui-url "$ui_url" \
         --duration "$duration_ms")
@@ -296,7 +333,7 @@ testing::ui_smoke::run() {
         testing::runtime::cleanup || true
     fi
 
-    testing::ui_smoke::_emit_summary "$summary_json" "$output_mode"
+    testing::ui_smoke::_emit_summary "$summary_json" "$output_mode" "$summary_fd"
 
     if [[ "$status" = "passed" ]]; then
         return 0
@@ -372,6 +409,7 @@ export default async ({ page }) => {
         network: [],
         pageErrors: [],
         handshake: { signaled: false, timedOut: false, durationMs: 0 },
+        storageShim: [],
         screenshot: null,
         html: '',
         title: '',
@@ -379,6 +417,54 @@ export default async ({ page }) => {
         error: null,
         timings: {}
     };
+
+    await page.evaluateOnNewDocument(() => {
+        const patched = [];
+
+        const createMemoryStorage = () => {
+            const data = {};
+            return {
+                getItem: key => (Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null),
+                setItem: (key, value) => {
+                    data[String(key)] = String(value);
+                },
+                removeItem: key => {
+                    delete data[String(key)];
+                },
+                clear: () => {
+                    for (const k of Object.keys(data)) {
+                        delete data[k];
+                    }
+                },
+                key: index => Object.keys(data)[index] ?? null,
+                get length() {
+                    return Object.keys(data).length;
+                }
+            };
+        };
+
+        const patchStorage = (prop) => {
+            try {
+                const value = window[prop];
+                if (value) {
+                    return { prop, patched: false };
+                }
+            } catch (err) {
+                const storage = createMemoryStorage();
+                Object.defineProperty(window, prop, {
+                    configurable: true,
+                    get: () => storage
+                });
+                return { prop, patched: true, reason: err?.message || null };
+            }
+            return { prop, patched: false };
+        };
+
+        window.__VROOLI_UI_SMOKE_STORAGE_PATCH__ = [
+            patchStorage('localStorage'),
+            patchStorage('sessionStorage')
+        ];
+    });
 
     const handshakeCheck = () => (
         (typeof window !== 'undefined') && (
@@ -468,6 +554,11 @@ export default async ({ page }) => {
         }
 
         await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            result.storageShim = await frame.evaluate(() => window.__VROOLI_UI_SMOKE_STORAGE_PATCH__ || []);
+        } catch (shimError) {
+            result.storageShim = [{ prop: 'localStorage', patched: false, reason: shimError?.message || 'shim-eval-failed' }];
+        }
         const screenshotBuffer = await frameElement.screenshot({ type: 'png' });
 
         result.screenshot = screenshotBuffer.toString('base64');
@@ -573,6 +664,7 @@ testing::ui_smoke::_build_summary_json() {
     local bundle="{}"
     local iframe="{}"
     local artifacts="{}"
+    local storage="[]"
     local raw="{}"
     local ui_url=""
     local duration_ms=0
@@ -609,6 +701,10 @@ testing::ui_smoke::_build_summary_json() {
                 ;;
             --artifacts)
                 artifacts="$2"
+                shift 2
+                ;;
+            --storage)
+                storage="$2"
                 shift 2
                 ;;
             --raw)
@@ -651,6 +747,10 @@ testing::ui_smoke::_build_summary_json() {
     raw_file=$(testing::ui_smoke::_write_temp_json "$raw" "$scenario_dir" "$scenario")
     _ui_smoke_tmp_files+=("$raw_file")
 
+    local storage_file
+    storage_file=$(testing::ui_smoke::_write_temp_json "$storage" "$scenario_dir" "$scenario")
+    _ui_smoke_tmp_files+=("$storage_file")
+
     local summary
     summary=$(jq -n \
         --arg scenario "$scenario" \
@@ -665,12 +765,14 @@ testing::ui_smoke::_build_summary_json() {
         --rawfile iframe "$iframe_file" \
         --rawfile artifacts "$artifacts_file" \
         --rawfile raw "$raw_file" \
+        --rawfile storage "$storage_file" \
         '($browserless | fromjson) as $browserless_data |
          ($bundle | fromjson) as $bundle_data |
          ($iframe | fromjson) as $iframe_data |
          ($artifacts | fromjson) as $artifacts_data |
          ($raw | fromjson) as $raw_data |
-         {scenario:$scenario,status:$status,message:$message,timestamp:$timestamp,ui_url:$ui_url,duration_ms:$duration,browserless:$browserless_data,bundle:$bundle_data,iframe_bridge:$iframe_data,artifacts:$artifacts_data,raw:$raw_data}')
+         ($storage | fromjson) as $storage_data |
+         {scenario:$scenario,status:$status,message:$message,timestamp:$timestamp,ui_url:$ui_url,duration_ms:$duration,browserless:$browserless_data,bundle:$bundle_data,iframe_bridge:$iframe_data,artifacts:$artifacts_data,storage_shim:$storage_data,raw:$raw_data}')
 
     rm -f "${_ui_smoke_tmp_files[@]}"
 
@@ -692,9 +794,14 @@ testing::ui_smoke::_persist_summary() {
 testing::ui_smoke::_emit_summary() {
     local summary_json="$1"
     local mode="$2"
+    local summary_fd="${3:-1}"
 
     if [[ "$mode" = "json" ]]; then
-        echo "$summary_json"
+        if [[ -z "$summary_json" ]]; then
+            echo '{}' >&$summary_fd
+        else
+            printf '%s\n' "$summary_json" >&$summary_fd
+        fi
         return
     fi
 
