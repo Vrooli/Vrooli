@@ -146,6 +146,18 @@ seed_payload=$(jq -n \
   --arg workflowId "$workflow_id" \
   --arg workflowName "$SEED_WORKFLOW_NAME" \
   '{projectId: $projectId, projectName: $projectName, projectFolder: $projectFolder, workflowId: $workflowId, workflowName: $workflowName}')
+
+# Validate seed payload has all required keys before writing
+required_keys=("projectId" "projectName" "projectFolder" "workflowId" "workflowName")
+for key in "${required_keys[@]}"; do
+  value=$(printf '%s' "$seed_payload" | jq -r ".$key // empty")
+  if [ -z "$value" ] || [ "$value" = "null" ]; then
+    echo "❌ Seed state validation failed: missing or empty '$key'" >&2
+    printf '%s\n' "$seed_payload" >&2
+    exit 1
+  fi
+done
+
 printf '%s\n' "$seed_payload" > "$SEED_STATE_FILE"
 
 echo "📝 Wrote BAS seed state to ${SEED_STATE_FILE}"

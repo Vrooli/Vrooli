@@ -499,7 +499,9 @@ type uploadFileConfig struct {
 }
 
 type keyboardConfig struct {
-	Key       string               `json:"key"`
+	Key       string               `json:"key"`       // Legacy singular format (deprecated)
+	Keys      []string             `json:"keys"`      // Modern array format (preferred)
+	Sequence  string               `json:"sequence"`  // Alternative sequence format
 	EventType string               `json:"eventType"`
 	Modifiers keyboardModifierSpec `json:"modifiers"`
 	DelayMs   int                  `json:"delayMs"`
@@ -925,10 +927,24 @@ func instructionFromStep(ctx context.Context, step compiler.ExecutionStep) (Inst
 		if err := decodeParams(step.Params, &cfg); err != nil {
 			return Instruction{}, fmt.Errorf("keyboard node %s has invalid data: %w", step.NodeID, err)
 		}
-		keyValue := strings.TrimSpace(cfg.Key)
-		if keyValue == "" {
-			return Instruction{}, fmt.Errorf("keyboard node %s missing key", step.NodeID)
+
+		// Support multiple keyboard input formats: keys (array), key (singular), or sequence
+		var keyValue string
+		if len(cfg.Keys) > 0 {
+			// Modern array format - use first key
+			keyValue = strings.TrimSpace(cfg.Keys[0])
+		} else if trimmed := strings.TrimSpace(cfg.Key); trimmed != "" {
+			// Legacy singular format (deprecated but still supported)
+			keyValue = trimmed
+		} else if trimmed := strings.TrimSpace(cfg.Sequence); trimmed != "" {
+			// Sequence format - use entire sequence
+			keyValue = trimmed
 		}
+
+		if keyValue == "" {
+			return Instruction{}, fmt.Errorf("keyboard node %s missing key input (expected keys[], key, or sequence)", step.NodeID)
+		}
+
 		eventType := strings.ToLower(strings.TrimSpace(cfg.EventType))
 		switch eventType {
 		case "keydown", "keyup":
