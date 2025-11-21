@@ -1,0 +1,277 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Agent-Callable Interface",
+    "description": "HTTP/CLI API for other agents to request tidiness recommendations",
+    "last_synced_at": "2025-11-21T18:00:24.820Z"
+  },
+  "requirements": [
+    {
+      "id": "TM-API-001",
+      "title": "Scenario summary endpoint",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "Expose API endpoint to request top N tidiness issues for a given scenario",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "GET /api/v1/scenarios/{name}/issues?limit=N&severity=high",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-API-002",
+      "title": "File-scoped issue query",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P1",
+      "description": "Support querying issues scoped to specific file or folder",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "GET /api/v1/scenarios/{name}/issues?file=path/to/file.ts",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-API-003",
+      "title": "Category-scoped issue query",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P1",
+      "description": "Support querying issues filtered by category (e.g., 'long files', 'dead code')",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "GET /api/v1/scenarios/{name}/issues?category=dead_code",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-API-004",
+      "title": "Issue ranking heuristic",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "Rank returned issues by severity, occurrence count, and file criticality",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/issue_ranker_test.go",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "test_duration_ms": 1000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Define clear ranking formula in API docs",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:00:11-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-API-005",
+      "title": "CLI wrapper for agent integration",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "Provide CLI commands that wrap HTTP API for agent consumption",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/cli/agent-api.bats",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "tidiness-manager issues <scenario> --limit 10 --category dead_code",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-API-006",
+      "title": "Issue storage in postgres",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "Store issues in postgres with all required fields (scenario, file, category, severity, notes, remediation, campaign metadata)",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Schema must support querying by all filterable dimensions",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-API-007",
+      "title": "Campaign metadata linkage",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P1",
+      "description": "Link issues to campaign ID, session ID, and visit timestamp",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Enables audit trail and trend analysis",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,325 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Light Scanning Engine",
+    "description": "Cheap, fast static analysis using Makefile integration and file metrics",
+    "last_synced_at": "2025-11-21T18:00:24.819Z"
+  },
+  "requirements": [
+    {
+      "id": "TM-LS-001",
+      "title": "Makefile integration for lint execution",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Execute `make lint` for any scenario with a Makefile and capture full output",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/light_scanner_test.go",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "test_duration_ms": 1000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Must handle scenarios without Makefile gracefully (skip or warn)",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:00:11-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-LS-002",
+      "title": "Makefile integration for type checking",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Execute `make type` for any scenario with a Makefile and capture full output",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/light_scanner_test.go",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "test_duration_ms": 1000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Parse typescript and Go type errors into structured format",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:00:11-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-LS-003",
+      "title": "Lint output parser",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Parse lint outputs into structured issues with scenario, file path, line/column, message, and tool",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/parsers_test.go",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "test_duration_ms": 1000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Support multiple linter formats (eslint, golangci-lint)",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:00:11-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-LS-004",
+      "title": "Type output parser",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Parse type checker outputs into structured issues",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/parsers_test.go",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "test_duration_ms": 1000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Support typescript tsc and Go type errors",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:00:11-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-LS-005",
+      "title": "File metrics - line counting",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "Compute per-file line counts for all source files matching configurable glob patterns",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/file_metrics_test.go",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "test_duration_ms": 1000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Default patterns: src/**/*.{ts,tsx,go,js,jsx}",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:00:11-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-LS-006",
+      "title": "File metrics - long file flagging",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "Flag files exceeding configurable line count threshold as 'long file' issues",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/file_metrics_test.go",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "test_duration_ms": 1000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Default threshold: 400-600 lines (configurable per scenario)",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:00:11-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-LS-007",
+      "title": "Light scan performance - small scenarios",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P1",
+      "description": "Light scans for scenarios <50 files must complete in under 60 seconds",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "not_implemented",
+          "ref": "test/phases/test-performance.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "performance",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Test with browser-automation-studio or similar",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.819Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-LS-008",
+      "title": "Light scan performance - medium scenarios",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P1",
+      "description": "Light scans for scenarios <200 files must complete in under 120 seconds",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "not_implemented",
+          "ref": "test/phases/test-performance.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "performance",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Timeout handling with clear status reporting",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.819Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    }
+  ]
+}

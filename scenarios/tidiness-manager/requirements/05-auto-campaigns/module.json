@@ -1,0 +1,313 @@
+{
+  "_metadata": {
+    "prd_section": "P1 - Automatic Campaign Management",
+    "description": "Background campaigns that systematically improve code health across scenarios",
+    "last_synced_at": "2025-11-21T18:00:24.821Z"
+  },
+  "requirements": [
+    {
+      "id": "TM-AC-001",
+      "title": "Campaign configuration",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "Support campaigns with max_sessions, max_files_per_session, priority rules, optional category focus",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Store config in postgres campaigns table",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-AC-002",
+      "title": "Campaign concurrency limit",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P0",
+      "description": "Enforce maximum K concurrent auto-tidiness campaigns (default K=3)",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Prevent resource exhaustion and AI cost runaway",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-AC-003",
+      "title": "Campaign auto-completion - files visited",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P0",
+      "description": "Transition campaign to 'completed' when all files in scope have at least one visit",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Query visited-tracker for completion status",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-AC-004",
+      "title": "Campaign auto-completion - max sessions",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P0",
+      "description": "Transition campaign to 'completed' when max_sessions limit reached",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Track session count in campaign state",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-AC-005",
+      "title": "Campaign pause/resume",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "Support manual pause and resume of active campaigns from UI",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "State transitions: ACTIVE ⇄ PAUSED",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-AC-006",
+      "title": "Campaign manual termination",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "Support manual termination of campaigns before completion",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Preserve partial results and mark as 'terminated'",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-AC-007",
+      "title": "Campaign error detection",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P0",
+      "description": "Mark campaigns as 'error' on repeated agent failures with visible error reason",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Threshold: 3 consecutive failures triggers error state",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.821Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-AC-008",
+      "title": "Campaign safety controls",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P0",
+      "description": "Auto-stop campaigns in error state to prevent resource waste",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Notify via UI/logs when campaign errors out",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.821Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    }
+  ]
+}

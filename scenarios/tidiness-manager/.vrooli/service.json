@@ -1,0 +1,241 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "tidiness-manager",
+    "displayName": "Tidiness Manager",
+    "description": "Code cleanliness orchestrator combining static analysis, AI-powered scanning, and campaign-based tidiness enforcement",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "developer_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/tidiness-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "35000-39999"
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket channel",
+      "range": "25000-29999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "startup_grace_period": 15000,
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "paths": [
+              "api/tidiness-manager-api"
+            ]
+          },
+          {
+            "type": "command_available",
+            "command": "tidiness-manager"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o tidiness-manager-api .",
+          "description": "Build Go API binary (tidiness-manager-api) in api/ directory for reuse by start-api step"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then if [ -z \"${API_PORT:-}\" ]; then echo 'API_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI (requires lifecycle-assigned API_PORT)"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Dashboard: http://localhost:${UI_PORT}/dashboard\"",
+          "description": "Display access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and production UI bundle",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./tidiness-manager-api",
+          "background": true,
+          "condition": {
+            "file_exists": "api/tidiness-manager-api"
+          },
+          "description": "Start Go API server"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Dashboard: http://localhost:${UI_PORT}/dashboard\"",
+          "description": "Display access URLs"
+        }
+      ]
+    },
+    "production": {
+      "description": "Production deployment configuration",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./tidiness-manager-api",
+          "background": true,
+          "condition": {
+            "file_exists": "api/tidiness-manager-api"
+          },
+          "description": "Start Go API server in production mode"
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle"
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "cd test && ./run-tests.sh",
+          "description": "Run structure/unit/integration/business/performance phases"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'tidiness-manager-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.cjs' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Primary relational data store for issue tracking, campaign state, and scan history",
+        "schema": "tidiness-manager"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "description": "Optional caching layer for expensive operations (AI analysis results, file metrics)"
+      },
+      "claude-code": {
+        "type": "ai",
+        "enabled": false,
+        "required": false,
+        "description": "AI-powered code analysis for smart scanning (deep pattern detection, refactoring suggestions)"
+      }
+    },
+    "scenarios": {
+      "visited-tracker": {
+        "enabled": false,
+        "required": false,
+        "description": "Campaign-based file tracking to ensure progressive coverage without redundancy"
+      },
+      "code-smell": {
+        "enabled": false,
+        "required": false,
+        "description": "Pattern-based code smell detection (optional integration for deeper analysis)"
+      }
+    }
+  }
+}

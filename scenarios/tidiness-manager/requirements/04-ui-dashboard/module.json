@@ -1,0 +1,275 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Human UI Dashboard",
+    "description": "React UI for humans to manage tidiness campaigns and view issues",
+    "last_synced_at": "2025-11-21T18:00:24.820Z"
+  },
+  "requirements": [
+    {
+      "id": "TM-UI-001",
+      "title": "Global dashboard - scenario table",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "Display table of scenarios with light issue count, AI issue count, long file count, visit %, campaign status",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "test/playbooks/capabilities/01-light-scanning/ui/global-dashboard.json",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "business",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Sortable by each column; clickable rows to drill into scenario detail",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-UI-002",
+      "title": "Global dashboard - campaign status badges",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P1",
+      "description": "Show visual campaign status (none, active, completed, error) with color coding",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "test/playbooks/capabilities/01-light-scanning/ui/global-dashboard.json",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "business",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Use emoji/icons from PRD branding hooks",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-UI-003",
+      "title": "Scenario detail - file table",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "description": "Display file table with path, line count, lint issue count, type issue count, AI issue count, visit count",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "business",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Include long-file flag indicator",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-UI-004",
+      "title": "Scenario detail - sortable columns",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "description": "Support sorting file table by line count, total issues, visit count, path",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "business",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Default sort: descending by total issues",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-UI-005",
+      "title": "Scenario detail - filter controls",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P1",
+      "description": "Provide filters for severity, category, long-file flag, visit count threshold",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "business",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Filters should persist in URL query params",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-UI-006",
+      "title": "Dark theme styling",
+      "prd_ref": "UX & Branding",
+      "criticality": "P1",
+      "description": "Implement developer-focused dark theme matching scenario-auditor aesthetic",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "test/playbooks/capabilities/04-ui-dashboard/ui/theme.json",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "business",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Use Tailwind dark mode utilities",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-UI-007",
+      "title": "Keyboard navigation",
+      "prd_ref": "UX & Branding - Accessibility",
+      "criticality": "P1",
+      "description": "Support keyboard navigation for all tables, filters, and actions",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "test/playbooks/capabilities/04-ui-dashboard/ui/accessibility.json",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "business",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Arrow keys for table navigation, Enter to select",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    }
+  ]
+}

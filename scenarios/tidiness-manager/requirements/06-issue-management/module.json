@@ -1,0 +1,313 @@
+{
+  "_metadata": {
+    "prd_section": "P1 - Issue Management & UI Controls",
+    "description": "Human-friendly issue triage, resolution tracking, and scan triggers",
+    "last_synced_at": "2025-11-21T18:00:24.821Z"
+  },
+  "requirements": [
+    {
+      "id": "TM-IM-001",
+      "title": "Mark issue as resolved",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "Allow marking issues as resolved with optional resolution notes",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Resolved issues hidden from default view but queryable",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.821Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-IM-002",
+      "title": "Mark issue as ignored",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "Allow marking issues as ignored with reason (e.g., false positive, intentional design)",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Ignored issues hidden from default view but queryable",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.821Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-IM-003",
+      "title": "Issue status filtering",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "Filter issues by status: open, resolved, ignored, all",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Default view: open issues only",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.821Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-IM-004",
+      "title": "Issue detail view",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "Display full agent notes, suggested remediation steps, and file context for selected issue",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Split-pane layout similar to scenario-auditor",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.821Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-IM-005",
+      "title": "Issue de-duplication grouping",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "description": "Group or link same logical issue from multiple sources (lint + type + AI)",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "ref": "test/phases/test-business.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "business",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Match by file + line number + fuzzy message similarity",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.821Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-IM-006",
+      "title": "Trigger one-off light scan",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "description": "UI button to trigger immediate light scan for a scenario",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Show scan progress and refresh results on completion",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.821Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-IM-007",
+      "title": "Trigger one-off smart scan",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "description": "UI button to trigger immediate smart scan for a scenario or file subset",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Warn about AI cost; show batch progress",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.821Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-IM-008",
+      "title": "Enable/disable campaign from UI",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "description": "Toggle to enable or disable auto-tidiness campaign for a scenario",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Show current campaign status and next scheduled session",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.821Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    }
+  ]
+}

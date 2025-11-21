@@ -1,0 +1,319 @@
+{
+  "_metadata": {
+    "prd_section": "P0 - Smart Scanning / AI Engine",
+    "description": "AI-powered deep analysis using resource-claude-code and resource-codes",
+    "last_synced_at": "2025-11-21T18:00:24.820Z"
+  },
+  "requirements": [
+    {
+      "id": "TM-SS-001",
+      "title": "AI batch configuration",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "Support configurable max files per batch, max tokens per request, max concurrent requests",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/smart_scanner_test.go",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "test_duration_ms": 1000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Defaults: 10 files/batch, 5 concurrent batches",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:00:11-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-SS-002",
+      "title": "AI issue recording",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "Record AI issues with scenario, file paths, category, severity, explanation, and remediation steps",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Categories: dead_code, duplication, length, complexity, style",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-SS-003",
+      "title": "visited-tracker campaign creation",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "Create new visited-tracker campaign if none exists for a scenario",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Graceful fallback if visited-tracker unavailable",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-SS-004",
+      "title": "visited-tracker campaign attachment",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "Attach to existing visited-tracker campaign when available",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Query by scenario name and campaign type",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-SS-005",
+      "title": "File prioritization - unvisited first",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "Prioritize unvisited files over visited files in smart scans",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/file_prioritizer_test.go",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "test_duration_ms": 1000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Use staleness scoring algorithm from PRD appendix",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:00:11-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-SS-006",
+      "title": "File prioritization - least visited",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P1",
+      "description": "Among visited files, prioritize least-visited files",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "ref": "api/file_prioritizer_test.go",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "test_duration_ms": 1000,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/unit.json",
+            "source_phase": "unit",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Allow override with 'priority rule' (e.g., longest files first)",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:00:11-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/unit.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-SS-007",
+      "title": "No duplicate analysis per session",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "Prevent analyzing the same file twice within a single smart scan session",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Track analyzed files in session state",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    },
+    {
+      "id": "TM-SS-008",
+      "title": "Configurable max visits per file",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P1",
+      "description": "Prevent analyzing files beyond configurable max visit count unless explicitly requested",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh",
+          "_sync_metadata": {
+            "last_test_run": "",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "notes": "Default: 3 visits max per file",
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T18:00:24.820Z",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
+    }
+  ]
+}
