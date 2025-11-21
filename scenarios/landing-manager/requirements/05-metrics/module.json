@@ -16,34 +16,11 @@
           "phase": "integration",
           "status": "not_implemented",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:56-05:00",
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "TBD"
         }
       ],
       "status": "pending",
-      "notes": "Event schema: {event_type, variant_id, variant_slug, timestamp, session_id, ...}",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:56-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Event schema: {event_type, variant_id, variant_slug, timestamp, session_id, ...}"
     },
     {
       "id": "METRIC-FILTER",
@@ -57,37 +34,14 @@
           "phase": "integration",
           "status": "not_implemented",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:56-05:00",
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "TBD"
         }
       ],
       "status": "pending",
       "dependencies": [
         "METRIC-TAG"
       ],
-      "notes": "UI: dropdown for variant selection, date range picker (today, 7d, 30d, custom)",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:56-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "UI: dropdown for variant selection, date range picker (today, 7d, 30d, custom)"
     },
     {
       "id": "METRIC-EVENTS",
@@ -101,34 +55,11 @@
           "phase": "integration",
           "status": "not_implemented",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:56-05:00",
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "TBD"
         }
       ],
       "status": "pending",
-      "notes": "Scroll depth bands: 25%, 50%, 75%, 100%; Click: element ID or data-track-id",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:56-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Scroll depth bands: 25%, 50%, 75%, 100%; Click: element ID or data-track-id"
     },
     {
       "id": "METRIC-IDEMPOTENT",
@@ -142,37 +73,14 @@
           "phase": "integration",
           "status": "not_implemented",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:56-05:00",
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "TBD"
         }
       ],
       "status": "pending",
       "dependencies": [
         "METRIC-EVENTS"
       ],
-      "notes": "Use unique event_id or (session_id + event_type + timestamp) composite key",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:56-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Use unique event_id or (session_id + event_type + timestamp) composite key"
     },
     {
       "id": "METRIC-SUMMARY",
@@ -186,18 +94,7 @@
           "phase": "integration",
           "status": "not_implemented",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:56-05:00",
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "TBD"
         }
       ],
       "status": "pending",
@@ -205,19 +102,7 @@
         "METRIC-TAG",
         "METRIC-EVENTS"
       ],
-      "notes": "Summary cards: Total Visitors, Conversion Rate, Top CTA (by click-through rate)",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:56-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Summary cards: Total Visitors, Conversion Rate, Top CTA (by click-through rate)"
     },
     {
       "id": "METRIC-DETAIL",
@@ -231,40 +116,15 @@
           "phase": "integration",
           "status": "not_implemented",
           "notes": "Placeholder - needs test implementation",
-          "ref": "TBD",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:56-05:00",
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "TBD"
         }
       ],
       "status": "pending",
       "dependencies": [
         "METRIC-SUMMARY"
       ],
-      "notes": "Detail view: line chart (7d trend), KPI cards (views, clicks, conversions, rate)",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:56-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Detail view: line chart (7d trend), KPI cards (views, clicks, conversions, rate)"
     }
   ],
-  "_metadata": {
-    "last_synced_at": "2025-11-21T18:31:05.586Z"
-  }
+  "_metadata": {}
 }

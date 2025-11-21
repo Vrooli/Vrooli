@@ -15,34 +15,11 @@
           "type": "automation",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/customization-ux/ui/customization.json",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:57-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/business.json",
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/customization-ux/ui/customization.json"
         }
       ],
       "status": "pending",
-      "notes": "Use responsive grid: side-by-side on desktop (md+), stacked on mobile",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:57-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Use responsive grid: side-by-side on desktop (md+), stacked on mobile"
     },
     {
       "id": "CUSTOM-LIVE",
@@ -55,40 +32,15 @@
           "type": "automation",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/customization-ux/ui/customization.json",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:57-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/business.json",
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/customization-ux/ui/customization.json"
         }
       ],
       "status": "pending",
       "dependencies": [
         "CUSTOM-SPLIT"
       ],
-      "notes": "Use React state + debounce (300ms) to update preview iframe or component",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:57-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Use React state + debounce (300ms) to update preview iframe or component"
     }
   ],
-  "_metadata": {
-    "last_synced_at": "2025-11-21T18:31:05.586Z"
-  }
+  "_metadata": {}
 }

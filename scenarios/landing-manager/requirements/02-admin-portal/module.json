@@ -15,34 +15,11 @@
           "type": "automation",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:57-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/business.json",
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
       "status": "pending",
-      "notes": "API endpoint or CLI command to spawn Claude Code agent with structured brief",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:57-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "API endpoint or CLI command to spawn Claude Code agent with structured brief"
     },
     {
       "id": "AGENT-INPUT",
@@ -55,37 +32,14 @@
           "type": "automation",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:57-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/business.json",
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
       "status": "pending",
       "dependencies": [
         "AGENT-TRIGGER"
       ],
-      "notes": "Agent should NEVER directly edit arbitrary files; only use configuration APIs",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:57-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Agent should NEVER directly edit arbitrary files; only use configuration APIs"
     },
     {
       "id": "ADMIN-HIDDEN",
@@ -98,34 +52,11 @@
           "type": "automation",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:57-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/business.json",
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
       "status": "pending",
-      "notes": "Admin routes should be on separate path (e.g., /admin) with no public references",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:57-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Admin routes should be on separate path (e.g., /admin) with no public references"
     },
     {
       "id": "ADMIN-AUTH",
@@ -138,34 +69,11 @@
           "type": "automation",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:57-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/business.json",
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
       "status": "pending",
-      "notes": "Use bcrypt (Go: golang.org/x/crypto/bcrypt) or argon2 for password hashing",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:57-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Use bcrypt (Go: golang.org/x/crypto/bcrypt) or argon2 for password hashing"
     },
     {
       "id": "ADMIN-MODES",
@@ -178,37 +86,14 @@
           "type": "automation",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:57-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/business.json",
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
       "status": "pending",
       "dependencies": [
         "ADMIN-AUTH"
       ],
-      "notes": "UI should have clear mode switcher on admin home page",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:57-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "UI should have clear mode switcher on admin home page"
     },
     {
       "id": "ADMIN-NAV",
@@ -221,37 +106,14 @@
           "type": "automation",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:57-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/business.json",
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
       "status": "pending",
       "dependencies": [
         "ADMIN-MODES"
       ],
-      "notes": "Test all navigation paths from admin home to ensure ≤ 3 clicks",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:57-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Test all navigation paths from admin home to ensure ≤ 3 clicks"
     },
     {
       "id": "ADMIN-BREADCRUMB",
@@ -264,37 +126,12 @@
           "type": "automation",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:30:57-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/business.json",
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
       "status": "pending",
-      "notes": "Format: Admin / Customization / Hero / Variant A",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:30:57-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "notes": "Format: Admin / Customization / Hero / Variant A"
     }
   ],
-  "_metadata": {
-    "last_synced_at": "2025-11-21T18:31:05.585Z"
-  }
+  "_metadata": {}
 }
