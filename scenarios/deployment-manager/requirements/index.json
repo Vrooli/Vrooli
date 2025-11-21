@@ -1,0 +1,1034 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/requirements-index.schema.json",
+  "version": "1.0.0",
+  "scenario": "deployment-manager",
+  "description": "Requirements registry for deployment-manager operational targets",
+  "modules": [
+    {
+      "id": "MOD-01",
+      "name": "Dependency Analysis & Fitness Scoring",
+      "directory": "01-dependency-analysis",
+      "prd_section": "🔴 P0 – Dependency Analysis & Fitness Scoring",
+      "criticality": "P0",
+      "requirements": [
+        {
+          "id": "REQ-P0-001",
+          "title": "Dependency Aggregation",
+          "prd_ref": "OT-P0-001",
+          "criticality": "P0",
+          "description": "Recursively fetch all resource and scenario dependencies (depth 10) within 5 seconds",
+          "validation": [],
+          "notes": "Integrates with scenario-dependency-analyzer API. Performance critical for UX."
+        },
+        {
+          "id": "REQ-P0-002",
+          "title": "Circular Dependency Detection",
+          "prd_ref": "OT-P0-002",
+          "criticality": "P0",
+          "description": "Display clear error when circular dependencies detected (A → B → C → A)",
+          "validation": [],
+          "notes": "Graph traversal algorithm with cycle detection. UI must show clear path visualization."
+        },
+        {
+          "id": "REQ-P0-003",
+          "title": "Multi-Tier Fitness Scoring",
+          "prd_ref": "OT-P0-003",
+          "criticality": "P0",
+          "description": "Calculate fitness score (0-100) for all 5 tiers within 2 seconds per dependency",
+          "validation": [],
+          "notes": "Core scoring engine. Pluggable rules per tier. Cacheable for performance."
+        },
+        {
+          "id": "REQ-P0-004",
+          "title": "Fitness Score Breakdown",
+          "prd_ref": "OT-P0-004",
+          "criticality": "P0",
+          "description": "Break down fitness into 4+ sub-scores: portability, resource requirements, licensing, platform support",
+          "validation": [],
+          "notes": "UI must visualize sub-scores clearly (bar charts or radial graphs)"
+        },
+        {
+          "id": "REQ-P0-005",
+          "title": "Blocker Identification",
+          "prd_ref": "OT-P0-005",
+          "criticality": "P0",
+          "description": "Clearly state reason for blockers (fitness = 0) with actionable remediation",
+          "validation": [],
+          "notes": "Error messaging UX critical. Must suggest swaps or manual workarounds."
+        },
+        {
+          "id": "REQ-P0-006",
+          "title": "Aggregate Resource Tallies",
+          "prd_ref": "OT-P0-006",
+          "criticality": "P0",
+          "description": "Display total memory, CPU, GPU, storage, network requirements with units",
+          "validation": [],
+          "notes": "Sum across all dependencies. Format as human-readable (MB, cores, GB, Mbps)."
+        }
+      ]
+    },
+    {
+      "id": "MOD-02",
+      "name": "Dependency Swapping",
+      "directory": "02-dependency-swapping",
+      "prd_section": "🔴 P0 – Dependency Swapping",
+      "criticality": "P0",
+      "requirements": [
+        {
+          "id": "REQ-P0-007",
+          "title": "Swap Suggestions",
+          "prd_ref": "OT-P0-007",
+          "criticality": "P0",
+          "description": "Suggest at least one swap for each blocker/low-fitness dependency (<50) or show \"No known alternatives\"",
+          "validation": [],
+          "notes": "Requires swap database (postgres → sqlite, ollama → openrouter, etc.)"
+        },
+        {
+          "id": "REQ-P0-008",
+          "title": "Swap Impact Analysis",
+          "prd_ref": "OT-P0-008",
+          "criticality": "P0",
+          "description": "Show fitness delta, trade-offs (pros/cons), and migration effort estimate for each swap",
+          "validation": [],
+          "notes": "Migration effort: trivial, moderate, major. Prose descriptions of trade-offs."
+        },
+        {
+          "id": "REQ-P0-009",
+          "title": "Non-Destructive Swaps",
+          "prd_ref": "OT-P0-009",
+          "criticality": "P0",
+          "description": "Applying swaps updates deployment profile only, never modifies source code",
+          "validation": [],
+          "notes": "Critical safety guarantee. Swaps are profile metadata, not code transformations."
+        },
+        {
+          "id": "REQ-P0-010",
+          "title": "Real-Time Recalculation",
+          "prd_ref": "OT-P0-010",
+          "criticality": "P0",
+          "description": "Recalculate fitness and requirements within 1 second after swap application",
+          "validation": [],
+          "notes": "Performance critical for interactive UX. Use caching where possible."
+        },
+        {
+          "id": "REQ-P0-011",
+          "title": "Cascading Swap Detection",
+          "prd_ref": "OT-P0-011",
+          "criticality": "P0",
+          "description": "Detect and warn about cascading impacts (e.g., swapping postgres removes dependent scenario X)",
+          "validation": [],
+          "notes": "Dependency graph traversal to find affected nodes. UI warning dialog."
+        }
+      ]
+    },
+    {
+      "id": "MOD-03",
+      "name": "Deployment Profile Management",
+      "directory": "03-profile-management",
+      "prd_section": "🔴 P0 – Deployment Profile Management",
+      "criticality": "P0",
+      "requirements": [
+        {
+          "id": "REQ-P0-012",
+          "title": "Profile Creation",
+          "prd_ref": "OT-P0-012",
+          "criticality": "P0",
+          "description": "Create new deployment profile in ≤ 3 clicks from home screen",
+          "validation": [],
+          "notes": "UX flow: Home → New Profile → Select Scenario → Select Tier → Profile Created"
+        },
+        {
+          "id": "REQ-P0-013",
+          "title": "Auto-Save with Debounce",
+          "prd_ref": "OT-P0-013",
+          "criticality": "P0",
+          "description": "Auto-save profile edits with 500ms debounce (or manual save button)",
+          "validation": [],
+          "notes": "Prevent data loss. Show save status indicator (Saving... / Saved / Failed)"
+        },
+        {
+          "id": "REQ-P0-014",
+          "title": "Profile Export/Import",
+          "prd_ref": "OT-P0-014",
+          "criticality": "P0",
+          "description": "Support profile export/import in JSON format for version control",
+          "validation": [],
+          "notes": "Enable CI/CD integration. JSON schema validation on import."
+        },
+        {
+          "id": "REQ-P0-015",
+          "title": "Profile Versioning",
+          "prd_ref": "OT-P0-015",
+          "criticality": "P0",
+          "description": "Create new version for each edit with timestamp and user attribution",
+          "validation": [],
+          "notes": "Immutable version history. Postgres JSONB storage for profile snapshots."
+        },
+        {
+          "id": "REQ-P0-016",
+          "title": "Version History View",
+          "prd_ref": "OT-P0-016",
+          "criticality": "P0",
+          "description": "Display version history list with diffs showing changes",
+          "validation": [],
+          "notes": "JSON diff library for visual change highlighting. Chronological list."
+        },
+        {
+          "id": "REQ-P0-017",
+          "title": "Version Rollback",
+          "prd_ref": "OT-P0-017",
+          "criticality": "P0",
+          "description": "Restore all profile settings (swaps, secrets, env vars) within 2 seconds when rolling back",
+          "validation": [],
+          "notes": "Load previous version from postgres. UI confirmation dialog before rollback."
+        }
+      ]
+    },
+    {
+      "id": "MOD-04",
+      "name": "Secret Management Integration",
+      "directory": "04-secret-management",
+      "prd_section": "🔴 P0 – Secret Management Integration",
+      "criticality": "P0",
+      "requirements": [
+        {
+          "id": "REQ-P0-018",
+          "title": "Secret Identification",
+          "prd_ref": "OT-P0-018",
+          "criticality": "P0",
+          "description": "Identify all required secrets within 3 seconds when profile created or swaps applied",
+          "validation": [],
+          "notes": "Call secrets-manager API with final dependency list. Cache results."
+        },
+        {
+          "id": "REQ-P0-019",
+          "title": "Secret Categorization",
+          "prd_ref": "OT-P0-019",
+          "criticality": "P0",
+          "description": "Categorize secrets as required, optional, dev-only, user-supplied, vault-managed",
+          "validation": [],
+          "notes": "UI color-coding: red=required, yellow=optional, gray=dev-only, blue=vault"
+        },
+        {
+          "id": "REQ-P0-020",
+          "title": "Desktop/Mobile Secret Templates",
+          "prd_ref": "OT-P0-020",
+          "criticality": "P0",
+          "description": "Generate .env.template with human-friendly descriptions for desktop/mobile tiers",
+          "validation": [],
+          "notes": "Format: KEY=default_value # Human description with link to docs"
+        },
+        {
+          "id": "REQ-P0-021",
+          "title": "SaaS/Enterprise Secret References",
+          "prd_ref": "OT-P0-021",
+          "criticality": "P0",
+          "description": "Generate Vault/AWS Secrets Manager references in correct format for cloud tiers",
+          "validation": [],
+          "notes": "Format: vault://path/to/secret or aws-sm://region/secret-name"
+        },
+        {
+          "id": "REQ-P0-022",
+          "title": "Secret Validation Testing",
+          "prd_ref": "OT-P0-022",
+          "criticality": "P0",
+          "description": "Provide \"Test API key\" buttons that call endpoints to validate secrets before deployment",
+          "validation": [],
+          "notes": "Quick validation: 401/403 = invalid, 200 = valid, timeout = unknown"
+        }
+      ]
+    },
+    {
+      "id": "MOD-05",
+      "name": "Pre-Deployment Validation",
+      "directory": "05-pre-deployment-validation",
+      "prd_section": "🔴 P0 – Pre-Deployment Validation",
+      "criticality": "P0",
+      "requirements": [
+        {
+          "id": "REQ-P0-023",
+          "title": "Comprehensive Validation Checks",
+          "prd_ref": "OT-P0-023",
+          "criticality": "P0",
+          "description": "Run 6+ checks: fitness threshold, secret completeness, licensing, resource limits, platform requirements, dependency compatibility",
+          "validation": [],
+          "notes": "Checklist UI with pass/fail/warning for each. Block deploy if any critical failures."
+        },
+        {
+          "id": "REQ-P0-024",
+          "title": "Fast Validation Execution",
+          "prd_ref": "OT-P0-024",
+          "criticality": "P0",
+          "description": "Complete all validation checks within 10 seconds for scenarios with ≤50 dependencies",
+          "validation": [],
+          "notes": "Run checks in parallel. Show progress spinner during validation."
+        },
+        {
+          "id": "REQ-P0-025",
+          "title": "Validation Report UI",
+          "prd_ref": "OT-P0-025",
+          "criticality": "P0",
+          "description": "Display pass/fail/warning status with color coding (green/red/yellow) for each check",
+          "validation": [],
+          "notes": "Icon + color + text: ✓ green Pass, ✗ red Fail, ⚠ yellow Warning"
+        },
+        {
+          "id": "REQ-P0-026",
+          "title": "Actionable Remediation Steps",
+          "prd_ref": "OT-P0-026",
+          "criticality": "P0",
+          "description": "Provide at least one actionable step for each failed check (e.g., \"Upload code signing certificate here\")",
+          "validation": [],
+          "notes": "Each failure shows button/link for remediation action inline"
+        },
+        {
+          "id": "REQ-P0-027",
+          "title": "SaaS Cost Estimation",
+          "prd_ref": "OT-P0-027",
+          "criticality": "P0",
+          "description": "Estimate monthly cost (compute, storage, bandwidth) within ±20% accuracy for SaaS/cloud tiers",
+          "validation": [],
+          "notes": "Use resource tallies + cloud pricing APIs. Show cost breakdown table."
+        }
+      ]
+    },
+    {
+      "id": "MOD-06",
+      "name": "Deployment Orchestration",
+      "directory": "06-deployment-orchestration",
+      "prd_section": "🔴 P0 – Deployment Orchestration",
+      "criticality": "P0",
+      "requirements": [
+        {
+          "id": "REQ-P0-028",
+          "title": "One-Click Deployment Trigger",
+          "prd_ref": "OT-P0-028",
+          "criticality": "P0",
+          "description": "Trigger deployment with single \"Deploy\" button after validation passes",
+          "validation": [],
+          "notes": "Big green Deploy button, disabled until validation passes"
+        },
+        {
+          "id": "REQ-P0-029",
+          "title": "Profile Locking During Deployment",
+          "prd_ref": "OT-P0-029",
+          "criticality": "P0",
+          "description": "Lock profile to prevent edits during active deployment",
+          "validation": [],
+          "notes": "Show lock icon + \"Deployment in progress\" banner. Unlock on completion/failure."
+        },
+        {
+          "id": "REQ-P0-030",
+          "title": "Real-Time Log Streaming",
+          "prd_ref": "OT-P0-030",
+          "criticality": "P0",
+          "description": "Stream deployment logs to UI with <2s latency via WebSocket or SSE",
+          "validation": [],
+          "notes": "WebSocket preferred for bidirectional. Auto-scroll log viewer to bottom."
+        },
+        {
+          "id": "REQ-P0-031",
+          "title": "Log Filtering and Search",
+          "prd_ref": "OT-P0-031",
+          "criticality": "P0",
+          "description": "Enable log filtering by level (info/warning/error) and full-text search",
+          "validation": [],
+          "notes": "Filter buttons: All, Info, Warning, Error. Search bar with highlight."
+        },
+        {
+          "id": "REQ-P0-032",
+          "title": "Deployment Failure Handling",
+          "prd_ref": "OT-P0-032",
+          "criticality": "P0",
+          "description": "Capture error logs on failure and display \"Retry\" button with error context",
+          "validation": [],
+          "notes": "Show last 50 error lines. Retry button resets state and reruns deploy."
+        },
+        {
+          "id": "REQ-P0-033",
+          "title": "scenario-to-* Integration",
+          "prd_ref": "OT-P0-033",
+          "criticality": "P0",
+          "description": "Call platform-specific packagers (scenario-to-desktop, scenario-to-ios, etc.) with deployment profile",
+          "validation": [],
+          "notes": "POST /api/v1/deploy with profile JSON. Handle HTTP 202 async response."
+        },
+        {
+          "id": "REQ-P0-034",
+          "title": "scenario-to-* Auto-Discovery",
+          "prd_ref": "OT-P0-034",
+          "criticality": "P0",
+          "description": "Auto-discover installed scenario-to-* scenarios on startup, warn if missing required packagers",
+          "validation": [],
+          "notes": "Query vrooli scenario list, match scenario-to-* pattern. UI warning for missing packagers."
+        }
+      ]
+    },
+    {
+      "id": "MOD-07",
+      "name": "Dependency Graph Visualization",
+      "directory": "07-dependency-visualization",
+      "prd_section": "🔴 P0 – Dependency Graph Visualization",
+      "criticality": "P0",
+      "requirements": [
+        {
+          "id": "REQ-P0-035",
+          "title": "Interactive Dependency Graph",
+          "prd_ref": "OT-P0-035",
+          "criticality": "P0",
+          "description": "Render dependency tree as interactive graph (React Flow or d3-force) with color-coded fitness scores",
+          "validation": [],
+          "notes": "Color scale: green >70, yellow 50-70, red <50. Zoom/pan controls."
+        },
+        {
+          "id": "REQ-P0-036",
+          "title": "Table View Alternative",
+          "prd_ref": "OT-P0-036",
+          "criticality": "P0",
+          "description": "Provide sortable table view with columns: name, type, fitness score, issues, suggested swaps",
+          "validation": [],
+          "notes": "Accessibility fallback + screen reader support. Sortable by any column."
+        },
+        {
+          "id": "REQ-P0-037",
+          "title": "Graph Rendering Performance",
+          "prd_ref": "OT-P0-037",
+          "criticality": "P0",
+          "description": "Render dependency graph within 3 seconds for scenarios with ≤100 dependencies",
+          "validation": [],
+          "notes": "Use React Flow for performance. Lazy-load deep subtrees on demand."
+        }
+      ]
+    },
+    {
+      "id": "MOD-08",
+      "name": "Post-Deployment Monitoring",
+      "directory": "08-post-deployment-monitoring",
+      "prd_section": "🟠 P1 – Post-Deployment Monitoring",
+      "criticality": "P1",
+      "requirements": [
+        {
+          "id": "REQ-P1-001",
+          "title": "Health Status Tracking",
+          "prd_ref": "OT-P1-001",
+          "criticality": "P1",
+          "description": "Check health (up/degraded/down) every 60 seconds for deployed scenarios",
+          "validation": [],
+          "notes": "Background polling job. Store health history in postgres for trends."
+        },
+        {
+          "id": "REQ-P1-002",
+          "title": "Graceful Timeout Handling",
+          "prd_ref": "OT-P1-002",
+          "criticality": "P1",
+          "description": "Mark health as \"unknown\" (not \"down\") after 10s timeout to avoid false alarms",
+          "validation": [],
+          "notes": "Gray icon for unknown vs red for confirmed down. Distinguish network vs app failure."
+        },
+        {
+          "id": "REQ-P1-003",
+          "title": "SaaS Metrics Collection",
+          "prd_ref": "OT-P1-003",
+          "criticality": "P1",
+          "description": "Collect uptime, response time, error rate every 5 minutes with 30-day retention",
+          "validation": [],
+          "notes": "Time-series postgres table. Use Recharts for visualization."
+        },
+        {
+          "id": "REQ-P1-004",
+          "title": "Desktop/Mobile Telemetry",
+          "prd_ref": "OT-P1-004",
+          "criticality": "P1",
+          "description": "Aggregate daily telemetry (active installs, crash reports) for desktop/mobile tiers",
+          "validation": [],
+          "notes": "Requires desktop/mobile apps to phone home. Privacy considerations."
+        },
+        {
+          "id": "REQ-P1-005",
+          "title": "Configurable Alerting",
+          "prd_ref": "OT-P1-005",
+          "criticality": "P1",
+          "description": "Allow users to configure alerts (email, Slack, webhook) with custom thresholds (e.g., \"Error rate >5%\")",
+          "validation": [],
+          "notes": "Alert rules stored per deployment. Template system for notifications."
+        },
+        {
+          "id": "REQ-P1-006",
+          "title": "Fast Alert Delivery",
+          "prd_ref": "OT-P1-006",
+          "criticality": "P1",
+          "description": "Fire alerts within 2 minutes of threshold breach",
+          "validation": [],
+          "notes": "Background job checks metrics every minute. Async delivery queue."
+        },
+        {
+          "id": "REQ-P1-007",
+          "title": "Monitoring Dashboard",
+          "prd_ref": "OT-P1-007",
+          "criticality": "P1",
+          "description": "Display at-a-glance status for all deployments (health grid, metric sparklines)",
+          "validation": [],
+          "notes": "Grid layout: one card per deployment. Color-coded health status."
+        },
+        {
+          "id": "REQ-P1-008",
+          "title": "Deployment Detail Page",
+          "prd_ref": "OT-P1-008",
+          "criticality": "P1",
+          "description": "Load metrics charts (<5s) for last 24 hours with zoom/pan for longer ranges",
+          "validation": [],
+          "notes": "Recharts line charts. Date range selector for historical analysis."
+        }
+      ]
+    },
+    {
+      "id": "MOD-09",
+      "name": "Update & Rollback Management",
+      "directory": "09-update-rollback",
+      "prd_section": "🟠 P1 – Update & Rollback Management",
+      "criticality": "P1",
+      "requirements": [
+        {
+          "id": "REQ-P1-009",
+          "title": "Update Change Detection",
+          "prd_ref": "OT-P1-009",
+          "criticality": "P1",
+          "description": "Detect scenario changes (git diff, dependency updates) when viewing deployed profile",
+          "validation": [],
+          "notes": "git diff between deployed version and latest. Show file change summary."
+        },
+        {
+          "id": "REQ-P1-010",
+          "title": "Update Change Summary",
+          "prd_ref": "OT-P1-010",
+          "criticality": "P1",
+          "description": "Show files modified, dependencies added/removed, breaking changes (if detectable)",
+          "validation": [],
+          "notes": "Parse git diff + service.json diff. Heuristic for breaking changes."
+        },
+        {
+          "id": "REQ-P1-011",
+          "title": "Desktop/Mobile Update Distribution",
+          "prd_ref": "OT-P1-011",
+          "criticality": "P1",
+          "description": "Push updates to auto-update server or app stores within 30 minutes (excludes store review time)",
+          "validation": [],
+          "notes": "Call scenario-to-desktop/ios update endpoints. Track submission status."
+        },
+        {
+          "id": "REQ-P1-012",
+          "title": "SaaS Zero-Downtime Updates",
+          "prd_ref": "OT-P1-012",
+          "criticality": "P1",
+          "description": "Use blue-green or rolling deployment for stateless SaaS apps",
+          "validation": [],
+          "notes": "scenario-to-saas handles blue-green logic. deployment-manager just triggers."
+        },
+        {
+          "id": "REQ-P1-013",
+          "title": "Fast Rollback Execution",
+          "prd_ref": "OT-P1-013",
+          "criticality": "P1",
+          "description": "Restore previous version within 5 minutes for SaaS deployments",
+          "validation": [],
+          "notes": "Redeploy previous Docker image or Terraform state. Show rollback progress."
+        },
+        {
+          "id": "REQ-P1-014",
+          "title": "Automatic Rollback on Failure",
+          "prd_ref": "OT-P1-014",
+          "criticality": "P1",
+          "description": "Trigger rollback within 2 minutes if health checks fail post-update (when enabled)",
+          "validation": [],
+          "notes": "Configurable per deployment. Monitor health for 5 minutes post-update."
+        }
+      ]
+    },
+    {
+      "id": "MOD-10",
+      "name": "Multi-Tier Deployment Orchestration",
+      "directory": "10-multi-tier-orchestration",
+      "prd_section": "🟠 P1 – Multi-Tier Deployment Orchestration",
+      "criticality": "P1",
+      "requirements": [
+        {
+          "id": "REQ-P1-015",
+          "title": "Multi-Tier Profile Support",
+          "prd_ref": "OT-P1-015",
+          "criticality": "P1",
+          "description": "Allow single profile to target multiple tiers simultaneously (e.g., desktop + iOS + SaaS)",
+          "validation": [],
+          "notes": "Profile.tiers array. UI multi-select checkbox for tiers."
+        },
+        {
+          "id": "REQ-P1-016",
+          "title": "Tier-Specific Settings UI",
+          "prd_ref": "OT-P1-016",
+          "criticality": "P1",
+          "description": "Show tier-specific settings (code signing, bundle IDs) only when that tier is selected",
+          "validation": [],
+          "notes": "Conditional form sections. Hide irrelevant fields for clarity."
+        },
+        {
+          "id": "REQ-P1-017",
+          "title": "Parallel Tier Orchestration",
+          "prd_ref": "OT-P1-017",
+          "criticality": "P1",
+          "description": "Call scenario-to-* packagers concurrently for multi-tier deployments",
+          "validation": [],
+          "notes": "Goroutine per tier. Aggregate results and show combined status."
+        },
+        {
+          "id": "REQ-P1-018",
+          "title": "Per-Tier Status Tracking",
+          "prd_ref": "OT-P1-018",
+          "criticality": "P1",
+          "description": "Independently track status (queued/deploying/deployed/failed) for each tier",
+          "validation": [],
+          "notes": "Status grid: one row per tier. Color-coded status cells."
+        },
+        {
+          "id": "REQ-P1-019",
+          "title": "Partial Failure Retry",
+          "prd_ref": "OT-P1-019",
+          "criticality": "P1",
+          "description": "Allow retry of failed tiers without redeploying successful ones after partial failures",
+          "validation": [],
+          "notes": "Retry button next to failed tier. Skips already-deployed tiers."
+        }
+      ]
+    },
+    {
+      "id": "MOD-11",
+      "name": "Agent Integration & Custom Swaps",
+      "directory": "11-agent-integration",
+      "prd_section": "🟠 P1 – Agent Integration + Custom Swap Requests",
+      "criticality": "P1",
+      "requirements": [
+        {
+          "id": "REQ-P1-020",
+          "title": "Agent Migration Proposals",
+          "prd_ref": "OT-P1-020",
+          "criticality": "P1",
+          "description": "Agent receives profile + source code and responds with migration proposals within 5 minutes",
+          "validation": [],
+          "notes": "Call claude-code API with deployment context. Async job with progress."
+        },
+        {
+          "id": "REQ-P1-021",
+          "title": "Detailed Migration Estimates",
+          "prd_ref": "OT-P1-021",
+          "criticality": "P1",
+          "description": "Each proposal includes line count estimate, testing checklist, deployment impact",
+          "validation": [],
+          "notes": "Agent returns structured proposal object. UI renders as cards."
+        },
+        {
+          "id": "REQ-P1-022",
+          "title": "Auto-Generated Issue Creation",
+          "prd_ref": "OT-P1-022",
+          "criticality": "P1",
+          "description": "Agent-generated app-issue-tracker issues pre-filled with all context (no manual edits required)",
+          "validation": [],
+          "notes": "POST /api/v1/issues with full proposal. Link back to deployment profile."
+        },
+        {
+          "id": "REQ-P1-023",
+          "title": "Bulk Proposal Approval",
+          "prd_ref": "OT-P1-023",
+          "criticality": "P1",
+          "description": "Allow approve/reject proposals in bulk (e.g., \"Create 5 issues\" with one click)",
+          "validation": [],
+          "notes": "Checkbox selection + bulk actions toolbar. Confirm before mass creation."
+        },
+        {
+          "id": "REQ-P1-024",
+          "title": "Custom Swap Request Form",
+          "prd_ref": "OT-P1-024",
+          "criticality": "P1",
+          "description": "Provide form for users to request custom swaps (dependency name, desired alternative, justification)",
+          "validation": [],
+          "notes": "Modal form with validation. Preview app-issue-tracker issue before submit."
+        },
+        {
+          "id": "REQ-P1-025",
+          "title": "Fast Issue Creation",
+          "prd_ref": "OT-P1-025",
+          "criticality": "P1",
+          "description": "Create app-issue-tracker issue with all form data within 3 seconds when custom swap submitted",
+          "validation": [],
+          "notes": "Optimistic UI: show success immediately, handle errors async."
+        },
+        {
+          "id": "REQ-P1-026",
+          "title": "Fast Swap Application",
+          "prd_ref": "OT-P1-026",
+          "criticality": "P1",
+          "description": "Apply swap and recalculate fitness in <1 second",
+          "validation": [],
+          "notes": "Duplicate of REQ-P0-010 (promoting to P1 for performance UX)"
+        },
+        {
+          "id": "REQ-P1-027",
+          "title": "Keyboard Accessibility",
+          "prd_ref": "OT-P1-027",
+          "criticality": "P1",
+          "description": "Support full keyboard navigation (tab, Enter/Space activation) for all interactive elements",
+          "validation": [],
+          "notes": "Tab order, focus indicators, keyboard shortcuts (Ctrl+S save, Esc cancel)."
+        },
+        {
+          "id": "REQ-P1-028",
+          "title": "Screen Reader Fallback",
+          "prd_ref": "OT-P1-028",
+          "criticality": "P1",
+          "description": "Provide screen-reader-friendly table view with ARIA labels as dependency graph fallback",
+          "validation": [],
+          "notes": "ARIA landmarks, ARIA labels for graph nodes. Table view preferred for SR users."
+        },
+        {
+          "id": "REQ-P1-029",
+          "title": "User-Friendly Error Messages",
+          "prd_ref": "OT-P1-029",
+          "criticality": "P1",
+          "description": "Display user-friendly errors (no stack traces in UI) with at least one suggested action",
+          "validation": [],
+          "notes": "Error templates: \"X failed because Y. Try Z.\" Stack traces in Details dropdown."
+        },
+        {
+          "id": "REQ-P1-030",
+          "title": "Collapsible Technical Details",
+          "prd_ref": "OT-P1-030",
+          "criticality": "P1",
+          "description": "Hide technical details (logs, stack traces) behind \"Details\" button",
+          "validation": [],
+          "notes": "Accordion or expandable section. Copy to clipboard button."
+        },
+        {
+          "id": "REQ-P1-031",
+          "title": "Fast Dependency Data Fetches",
+          "prd_ref": "OT-P1-031",
+          "criticality": "P1",
+          "description": "Fetch dependency data from scenario-dependency-analyzer API in <3 seconds",
+          "validation": [],
+          "notes": "Parallel API calls per scenario. Cache aggressively."
+        },
+        {
+          "id": "REQ-P1-032",
+          "title": "Stale Data Detection",
+          "prd_ref": "OT-P1-032",
+          "criticality": "P1",
+          "description": "Offer \"Re-scan dependencies\" button when dependency data is >7 days old",
+          "validation": [],
+          "notes": "Check last_scanned timestamp. UI banner with refresh button."
+        },
+        {
+          "id": "REQ-P1-033",
+          "title": "Bidirectional Secret Sync",
+          "prd_ref": "OT-P1-033",
+          "criticality": "P1",
+          "description": "Sync secret mappings bidirectionally between deployment-manager and secrets-manager",
+          "validation": [],
+          "notes": "Webhook from secrets-manager on secret changes. Update profiles."
+        },
+        {
+          "id": "REQ-P1-034",
+          "title": "Secret Rotation Notifications",
+          "prd_ref": "OT-P1-034",
+          "criticality": "P1",
+          "description": "Receive webhook from secrets-manager on rotation, mark affected deployments as \"needs re-deployment\"",
+          "validation": [],
+          "notes": "Yellow warning banner on deployment detail page. \"Redeploy Now\" button."
+        },
+        {
+          "id": "REQ-P1-035",
+          "title": "Deployment Profile Metadata in Issues",
+          "prd_ref": "OT-P1-035",
+          "criticality": "P1",
+          "description": "Include deployment profile ID as metadata when creating app-issue-tracker issues for linking",
+          "validation": [],
+          "notes": "Issue.metadata.deployment_profile_id. Enables reverse lookup."
+        },
+        {
+          "id": "REQ-P1-036",
+          "title": "Issue Closure Webhooks",
+          "prd_ref": "OT-P1-036",
+          "criticality": "P1",
+          "description": "Receive webhook when linked app-issue-tracker issue closes, update deployment status accordingly",
+          "validation": [],
+          "notes": "Mark swap migration as complete. Trigger re-analysis to confirm fitness improvement."
+        }
+      ]
+    },
+    {
+      "id": "MOD-12",
+      "name": "Enterprise Compliance & Licensing",
+      "directory": "12-enterprise-compliance",
+      "prd_section": "🟢 P2 – Enterprise & Compliance Features",
+      "criticality": "P2",
+      "requirements": [
+        {
+          "id": "REQ-P2-001",
+          "title": "Licensing Validation",
+          "prd_ref": "OT-P2-001",
+          "criticality": "P2",
+          "description": "Validate all dependency licenses against tier-specific compatibility rules (e.g., GPL incompatible with proprietary desktop)",
+          "validation": [],
+          "notes": "License database: MIT, Apache, GPL, proprietary. Compatibility matrix."
+        },
+        {
+          "id": "REQ-P2-002",
+          "title": "License Violation Blocking",
+          "prd_ref": "OT-P2-002",
+          "criticality": "P2",
+          "description": "Block deployment with clear error when license violations detected",
+          "validation": [],
+          "notes": "Hard stop before deploy. Show conflicting licenses and suggest alternatives."
+        },
+        {
+          "id": "REQ-P2-003",
+          "title": "License Report Generation",
+          "prd_ref": "OT-P2-003",
+          "criticality": "P2",
+          "description": "Generate license report (markdown/PDF) in <10 seconds for enterprise tier",
+          "validation": [],
+          "notes": "Export button on profile page. Table of all deps + licenses + URLs."
+        },
+        {
+          "id": "REQ-P2-004",
+          "title": "Comprehensive License Documentation",
+          "prd_ref": "OT-P2-004",
+          "criticality": "P2",
+          "description": "Include all dependencies with license type, version, source URL in report",
+          "validation": [],
+          "notes": "Legal review format. Sortable by license type for compliance audits."
+        },
+        {
+          "id": "REQ-P2-005",
+          "title": "Immutable Audit Logging",
+          "prd_ref": "OT-P2-005",
+          "criticality": "P2",
+          "description": "Log all deployment actions (create/deploy/update/rollback) with user ID, timestamp, configuration diff",
+          "validation": [],
+          "notes": "Append-only postgres table. Triggers prevent deletion/modification."
+        },
+        {
+          "id": "REQ-P2-006",
+          "title": "Audit Log Export",
+          "prd_ref": "OT-P2-006",
+          "criticality": "P2",
+          "description": "Export audit logs (JSON/CSV) within 5 seconds for compliance reviews",
+          "validation": [],
+          "notes": "Date range filter. Export button generates download link."
+        },
+        {
+          "id": "REQ-P2-007",
+          "title": "Approval Workflow Support",
+          "prd_ref": "OT-P2-007",
+          "criticality": "P2",
+          "description": "Support approval workflows (e.g., \"Requires 2 approvals before production deploy\") for enterprise tier",
+          "validation": [],
+          "notes": "Approval rules per profile. Track approver IDs and timestamps."
+        },
+        {
+          "id": "REQ-P2-008",
+          "title": "Email/Slack Approval Requests",
+          "prd_ref": "OT-P2-008",
+          "criticality": "P2",
+          "description": "Send approval requests via email/Slack with clickable approve/reject links",
+          "validation": [],
+          "notes": "Signed approval tokens. One-click approve redirects to UI confirmation."
+        }
+      ]
+    },
+    {
+      "id": "MOD-13",
+      "name": "CLI Automation & CI/CD",
+      "directory": "13-cli-automation",
+      "prd_section": "🟢 P2 – CLI & Automation Features",
+      "criticality": "P2",
+      "requirements": [
+        {
+          "id": "REQ-P2-009",
+          "title": "CLI Profile Creation from Templates",
+          "prd_ref": "OT-P2-009",
+          "criticality": "P2",
+          "description": "Support `deployment-manager create --template <path>` to create profiles from YAML templates",
+          "validation": [],
+          "notes": "YAML schema for profile templates. Validation before creation."
+        },
+        {
+          "id": "REQ-P2-010",
+          "title": "Headless CLI Deployment",
+          "prd_ref": "OT-P2-010",
+          "criticality": "P2",
+          "description": "Support `deployment-manager deploy --profile <id> --no-prompt` for CI/CD pipelines",
+          "validation": [],
+          "notes": "Non-interactive mode. Exit codes: 0=success, 1=validation fail, 2=deploy fail."
+        },
+        {
+          "id": "REQ-P2-011",
+          "title": "Machine-Readable Status Output",
+          "prd_ref": "OT-P2-011",
+          "criticality": "P2",
+          "description": "Support `deployment-manager status --profile <id> --format json` for CI/CD scripting",
+          "validation": [],
+          "notes": "JSON output for parsing. Include all status fields."
+        },
+        {
+          "id": "REQ-P2-012",
+          "title": "CI/CD Exit Code Conventions",
+          "prd_ref": "OT-P2-012",
+          "criticality": "P2",
+          "description": "Follow conventions (0 = success, non-zero = failure) for CI/CD tooling",
+          "validation": [],
+          "notes": "Document exit codes in CLI help. Consistent across all commands."
+        }
+      ]
+    },
+    {
+      "id": "MOD-14",
+      "name": "Advanced Features & Visual Builder",
+      "directory": "14-advanced-features",
+      "prd_section": "🟢 P2 – Advanced Monitoring, Analytics, Visual Builder, Multi-Tier Enhancements",
+      "criticality": "P2",
+      "requirements": [
+        {
+          "id": "REQ-P2-013",
+          "title": "Cost Breakdown by Resource",
+          "prd_ref": "OT-P2-013",
+          "criticality": "P2",
+          "description": "Break down SaaS/cloud cost estimate by resource (EC2, RDS, S3, etc.)",
+          "validation": [],
+          "notes": "Table: Resource, Monthly Cost, Notes. Sum total at bottom."
+        },
+        {
+          "id": "REQ-P2-014",
+          "title": "Historical Cost Tracking",
+          "prd_ref": "OT-P2-014",
+          "criticality": "P2",
+          "description": "Track actual deployment costs over time for SaaS/cloud tiers",
+          "validation": [],
+          "notes": "Requires cloud provider billing API integration. Chart actual vs estimated."
+        },
+        {
+          "id": "REQ-P2-015",
+          "title": "Advanced Metrics Dashboards",
+          "prd_ref": "OT-P2-015",
+          "criticality": "P2",
+          "description": "Support custom metric dashboards with user-defined queries",
+          "validation": [],
+          "notes": "Dashboard builder UI. Save custom views per deployment."
+        },
+        {
+          "id": "REQ-P2-016",
+          "title": "Deployment Comparison Views",
+          "prd_ref": "OT-P2-016",
+          "criticality": "P2",
+          "description": "Compare metrics across multiple deployments (A/B testing, staging vs production)",
+          "validation": [],
+          "notes": "Side-by-side metric charts. Diff highlighting for config differences."
+        },
+        {
+          "id": "REQ-P2-017",
+          "title": "Visual Dependency Graph Editor",
+          "prd_ref": "OT-P2-017",
+          "criticality": "P2",
+          "description": "Allow drag-and-drop editing of dependency swaps in graph view",
+          "validation": [],
+          "notes": "React Flow with node drag handlers. Swap suggestions appear on drag."
+        },
+        {
+          "id": "REQ-P2-018",
+          "title": "Deployment Simulation Mode",
+          "prd_ref": "OT-P2-018",
+          "criticality": "P2",
+          "description": "Simulate deployment to preview changes without executing (dry-run mode)",
+          "validation": [],
+          "notes": "Show simulated logs and estimated outcomes. No actual API calls."
+        },
+        {
+          "id": "REQ-P2-019",
+          "title": "Deployment Templates Library",
+          "prd_ref": "OT-P2-019",
+          "criticality": "P2",
+          "description": "Provide pre-built deployment templates for common scenarios (SaaS API, mobile app, desktop tool)",
+          "validation": [],
+          "notes": "Gallery of templates. One-click clone to create profile from template."
+        },
+        {
+          "id": "REQ-P2-020",
+          "title": "Collaborative Deployment Approval",
+          "prd_ref": "OT-P2-020",
+          "criticality": "P2",
+          "description": "Support multi-user collaboration on deployment profiles with comment threads",
+          "validation": [],
+          "notes": "Real-time presence indicators. Comment threads per profile section."
+        },
+        {
+          "id": "REQ-P2-021",
+          "title": "Tier Recommendation Engine",
+          "prd_ref": "OT-P2-021",
+          "criticality": "P2",
+          "description": "AI-powered recommendation of optimal tier(s) based on scenario characteristics",
+          "validation": [],
+          "notes": "Analyze resource requirements + user base → suggest best fit tier(s)."
+        },
+        {
+          "id": "REQ-P2-022",
+          "title": "Cross-Tier Resource Sharing",
+          "prd_ref": "OT-P2-022",
+          "criticality": "P2",
+          "description": "Coordinate shared backend for mobile/desktop clients deploying with SaaS tier",
+          "validation": [],
+          "notes": "Profile option: Use SaaS deployment X as backend for mobile/desktop."
+        },
+        {
+          "id": "REQ-P2-023",
+          "title": "Deployment Cost Comparison",
+          "prd_ref": "OT-P2-023",
+          "criticality": "P2",
+          "description": "Compare estimated costs across all viable tiers to inform tier selection",
+          "validation": [],
+          "notes": "Bar chart: Tier vs Monthly Cost. Highlight cheapest viable option."
+        },
+        {
+          "id": "REQ-P2-024",
+          "title": "Secret Auto-Rotation Integration",
+          "prd_ref": "OT-P2-024",
+          "criticality": "P2",
+          "description": "Automatically trigger re-deployment when secrets rotate (secrets-manager integration)",
+          "validation": [],
+          "notes": "Configurable per deployment. Auto-redeploy on rotation webhook."
+        },
+        {
+          "id": "REQ-P2-025",
+          "title": "Secret Compliance Scanning",
+          "prd_ref": "OT-P2-025",
+          "criticality": "P2",
+          "description": "Scan secrets for compliance with industry standards (NIST, SOC2, HIPAA)",
+          "validation": [],
+          "notes": "Check encryption strength, rotation frequency, access controls."
+        },
+        {
+          "id": "REQ-P2-026",
+          "title": "Just-In-Time Secret Provisioning",
+          "prd_ref": "OT-P2-026",
+          "criticality": "P2",
+          "description": "Generate secrets on-demand during deployment rather than pre-provisioning",
+          "validation": [],
+          "notes": "Reduce secret sprawl. Generate only when needed, revoke after use."
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "total_requirements": 99,
+    "p0_count": 37,
+    "p1_count": 36,
+    "p2_count": 26,
+    "created_at": "2025-11-21",
+    "created_by": "Generator Agent",
+    "notes": "Requirements seed for deployment-manager initialization. P0 targets focus on core deployment lifecycle, P1 on monitoring/updates/integrations, P2 on enterprise/advanced features."
+  }
+}

@@ -30,7 +30,6 @@ declare -Ag TESTING_SUITE_DEFAULT_PRESETS=(
 )
 
 declare -Ag TESTING_SUITE_PHASE_SCRIPTS=()
-TESTING_SUITE_LINT_PERFORMED=false
 
 _testing_suite_realpath() {
     local target="$1"
@@ -48,165 +47,6 @@ PY
     printf '%s\n' "$target"
 }
 
-_testing_suite_lint_workflows() {
-    if [ "$TESTING_SUITE_LINT_PERFORMED" = true ]; then
-        return 0
-    fi
-    TESTING_SUITE_LINT_PERFORMED=true
-
-    local scenario_dir="$1"
-    local scenario_name="$2"
-    local app_root="$3"
-
-    if [[ "${WORKFLOW_LINT_PRECHECK:-1}" =~ ^(0|false|no)$ ]]; then
-        return 0
-    fi
-
-    local playbook_dir="$scenario_dir/test/playbooks"
-    if [ ! -d "$playbook_dir" ]; then
-        return 0
-    fi
-
-    if ! command -v jq >/dev/null 2>&1; then
-        log::warning "⚠️  jq not available; skipping workflow lint"
-        return 0
-    fi
-
-    local invalid_found=0
-    while IFS= read -r -d '' file; do
-        if ! jq empty "$file" >/dev/null 2>&1; then
-            log::error "❌ Invalid JSON in workflow playbook: ${file#$scenario_dir/}"
-            invalid_found=1
-        fi
-    done < <(find "$playbook_dir" -type f -name '*.json' ! -name 'registry.json' -print0)
-
-    if [ "$invalid_found" -ne 0 ]; then
-        log::error "Fix invalid workflow JSON before rerunning tests."
-        return 1
-    fi
-
-    mapfile -t workflow_files < <(find "$playbook_dir" -type f -name '*.json' ! -name 'registry.json' | sort)
-    if [ ${#workflow_files[@]} -eq 0 ]; then
-        return 0
-    fi
-
-    if ! command -v go >/dev/null 2>&1; then
-        log::warning "⚠️  Go toolchain not available; skipping workflow lint"
-        return 0
-    fi
-
-    local bas_api_dir="$app_root/scenarios/browser-automation-studio/api"
-    if [ ! -d "$bas_api_dir" ]; then
-        log::warning "⚠️  Browser Automation Studio validator not found; skipping workflow lint"
-        return 0
-    fi
-
-    local strict_env="${WORKFLOW_LINT_STRICT:-}" 
-    local -a lint_cmd=(go run ./cmd/workflow-lint)
-    if [[ "$strict_env" =~ ^(1|true|yes)$ ]]; then
-        lint_cmd+=(--strict)
-    fi
-    lint_cmd+=(--json)
-
-    local lint_artifact_dir="$scenario_dir/test/artifacts/lint"
-    mkdir -p "$lint_artifact_dir"
-    local lint_artifact="$lint_artifact_dir/workflow-lint.json"
-
-    local -a abs_files=()
-    local file
-    for file in "${workflow_files[@]}"; do
-        abs_files+=("$(_testing_suite_realpath "$file")")
-    done
-
-    log::info "🔎 Linting ${#abs_files[@]} workflow playbooks (${scenario_name})"
-
-    if ! (
-        cd "$bas_api_dir"
-        "${lint_cmd[@]}" "${abs_files[@]}"
-    ) >"$lint_artifact"; then
-        log::error "Workflow lint failed (see ${lint_artifact#$scenario_dir/})"
-        _testing_suite_render_lint_summary "$lint_artifact"
-        return 1
-    fi
-
-    _testing_suite_render_lint_summary "$lint_artifact"
-    return 0
-}
-
-_testing_suite_render_lint_summary() {
-    local artifact="$1"
-    if [ ! -s "$artifact" ]; then
-        return 0
-    fi
-    if ! command -v jq >/dev/null 2>&1; then
-        cat "$artifact"
-        return 0
-    fi
-    jq -r '
-        def safe(obj; key):
-          if obj == null or (obj | type) != "object" then null else obj[key] end;
-
-        def warn_count(result):
-          ((safe(result; "warnings") // []) | length);
-
-        def error_count(result):
-          ((safe(result; "errors") // []) | length);
-
-        def stat_val(stats; key):
-          ((safe(stats; key) // 0) | tonumber);
-
-        def warn_line($file; $stats; $warn_count):
-          "⚠️  " + $file +
-          " emitted " + ($warn_count|tostring) + " warning(s) (" +
-          ((stat_val($stats; "node_count"))|tostring) + " nodes, " +
-          ((stat_val($stats; "edge_count"))|tostring) + " edges)";
-
-        def err_line($file; $stats):
-          "❌ " + $file + " failed lint (" +
-          ((stat_val($stats; "node_count"))|tostring) + " nodes, " +
-          ((stat_val($stats; "edge_count"))|tostring) + " edges)";
-
-        (if type == "object" and has("results") then .results elif type == "array" then . else [] end) as $results_raw |
-        (if $results_raw | type == "array" then $results_raw else [] end) as $results |
-        ($results | length) as $total |
-        ($results | map(select((safe(. ; "error") // "") != "" or (safe(safe(. ; "result"); "valid") // false) == false or warn_count(safe(. ; "result")) > 0))) as $interesting |
-        ($results | map(select((safe(. ; "error") // "") != "" or (safe(safe(. ; "result"); "valid") // false) == false))) as $errors |
-        ($results | map(select((safe(. ; "error") // "") == "" and (safe(safe(. ; "result"); "valid") // false) == true and warn_count(safe(. ; "result")) > 0))) as $warnings |
-        (
-          "[INFO]    🔎 Workflow lint (Go) completed: \($total) checked" +
-          (if ($warnings | length) > 0 then
-            "\n            • " + (($warnings | length)|tostring) + " workflows emitted " +
-            (($warnings | map(warn_count(.result)) | add // 0)|tostring) + " warning(s)"
-          else "" end) +
-          (if ($errors | length) > 0 then
-            "\n            • " + (($errors | length)|tostring) + " workflows failed"
-          else "" end)
-        ),
-        (
-          $interesting[] |
-          if ((safe(. ; "error") // "") != "") then
-              err_line(.file; {}) + "\n      " + (safe(. ; "error") // "")
-          elif (safe(safe(. ; "result"); "valid") // false) == false then
-              err_line(.file; safe(safe(. ; "result"); "stats"))
-              + (if error_count(safe(. ; "result")) > 0 then
-                  "\n" + (safe(safe(. ; "result"); "errors")[] |
-                      "      [" + (.code // "error") + "] " + (.message // "")
-                  )
-                else "" end)
-              + (if warn_count(safe(. ; "result")) > 0 then
-                  "\n" + (safe(safe(. ; "result"); "warnings")[] |
-                      "      [warn:" + (.code // "warning") + "] " + (.message // "")
-                  )
-                else "" end)
-          elif warn_count(safe(. ; "result")) > 0 then
-              warn_line(.file; safe(safe(. ; "result"); "stats"); warn_count(safe(. ; "result")))
-              + "\n" + (safe(safe(. ; "result"); "warnings")[] |
-                  "      [warn:" + (.code // "warning") + "] " + (.message // "")
-              )
-          else empty end
-        )
-    ' "$artifact"
-}
 
 _testing_suite_read_json_value() {
     local file="$1"
@@ -491,6 +331,21 @@ _testing_suite_collect_phases() {
 }
 
 testing::suite::run() {
+    # Auto-capture the calling script's entrypoint if not already set.
+    # ${BASH_SOURCE[1]} refers to the script that called this function.
+    if [[ -z "${TESTING_SUITE_ENTRYPOINT:-}" ]]; then
+        local entrypoint_raw="${BASH_SOURCE[1]:-$0}"
+        local entrypoint_abs="$entrypoint_raw"
+
+        # Resolve relative paths to absolute
+        if [[ "$entrypoint_abs" != /* ]]; then
+            entrypoint_abs="$(cd "$(dirname "$entrypoint_raw")" && pwd)/$(basename "$entrypoint_raw")"
+        fi
+
+        # Export absolute path; will be normalized to scenario-relative below
+        export TESTING_SUITE_ENTRYPOINT="$entrypoint_abs"
+    fi
+
     local scenario_dir=""
     local scenario_name=""
     local -a runner_args=()
@@ -574,22 +429,9 @@ testing::suite::run() {
         fi
     fi
 
-    local skip_lint=false
-    local arg
-    for arg in "${runner_args[@]}"; do
-        case "$arg" in
-            -h|--help|help|--usage)
-                skip_lint=true
-                break
-                ;;
-        esac
-    done
-
-    if [ "$skip_lint" = false ]; then
-        if ! _testing_suite_lint_workflows "$scenario_dir" "$scenario_name" "$app_root"; then
-            return 1
-        fi
-    fi
+    # NOTE: Workflow linting removed - validation now happens at runtime during execution.
+    # The BAS execution engine validates workflows when it runs them, which is more realistic
+    # and avoids the seed-state timing issue where linting happened before seeds were applied.
 
     local log_dir="$test_dir/artifacts"
 

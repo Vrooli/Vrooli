@@ -737,7 +737,15 @@ testing::phase::run_workflow_validations() {
         # Cleanup and reset flag if workflow has "full" reset state
         if [ "$reset_requirement" = "full" ] && [ "$can_seed" = true ]; then
             if [ -f "$seeds_dir/cleanup.sh" ]; then
-                (cd "$scenario_dir" && bash "$seeds_dir/cleanup.sh" &>/dev/null) || true
+                local cleanup_output
+                cleanup_output=$(mktemp)
+                if ! (cd "$scenario_dir" && bash "$seeds_dir/cleanup.sh" >"$cleanup_output" 2>&1); then
+                    testing::phase::add_warning "Seed cleanup failed after ${workflow_label}"
+                    if [ -s "$cleanup_output" ]; then
+                        cat "$cleanup_output" >&2
+                    fi
+                fi
+                rm -f "$cleanup_output"
             fi
             should_reseed=true
         fi
@@ -745,7 +753,15 @@ testing::phase::run_workflow_validations() {
 
     # Final cleanup after loop ends
     if [ "$can_seed" = true ] && [ -f "$seeds_dir/cleanup.sh" ]; then
-        (cd "$scenario_dir" && bash "$seeds_dir/cleanup.sh" &>/dev/null) || true
+        local cleanup_output
+        cleanup_output=$(mktemp)
+        if ! (cd "$scenario_dir" && bash "$seeds_dir/cleanup.sh" >"$cleanup_output" 2>&1); then
+            testing::phase::add_warning "Final seed cleanup failed"
+            if [ -s "$cleanup_output" ]; then
+                cat "$cleanup_output" >&2
+            fi
+        fi
+        rm -f "$cleanup_output"
     fi
 
     return $overall_status

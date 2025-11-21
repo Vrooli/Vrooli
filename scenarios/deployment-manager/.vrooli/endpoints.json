@@ -1,0 +1,235 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "deployment-manager status"
+      }
+    },
+    {
+      "id": "analyze_dependencies",
+      "path": "/api/v1/dependencies/analyze/:scenario",
+      "method": "GET",
+      "summary": "Analyze scenario dependencies",
+      "description": "Recursively fetches all resource and scenario dependencies for a given scenario",
+      "category": "analysis",
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenario": "string",
+          "dependencies": "object",
+          "circular_dependencies": "array",
+          "aggregate_requirements": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Analyze scenario dependencies",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/dependencies/analyze/picker-wheel"
+        }
+      ],
+      "cli_mapping": {
+        "command": "deployment-manager analyze <scenario>"
+      }
+    },
+    {
+      "id": "score_fitness",
+      "path": "/api/v1/fitness/score",
+      "method": "POST",
+      "summary": "Calculate platform fitness scores",
+      "description": "Scores dependency fitness for specified deployment tiers (1-5)",
+      "category": "analysis",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string",
+          "tiers": "array"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "scores": "object",
+          "blockers": "array",
+          "warnings": "array"
+        }
+      },
+      "examples": [
+        {
+          "name": "Score fitness for desktop tier",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/fitness/score -d '{\"scenario\":\"picker-wheel\",\"tiers\":[2]}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "deployment-manager fitness <scenario> --tier <tier>"
+      }
+    },
+    {
+      "id": "list_profiles",
+      "path": "/api/v1/profiles",
+      "method": "GET",
+      "summary": "List deployment profiles",
+      "description": "Returns all deployment profiles with summary info",
+      "category": "profiles",
+      "response": {
+        "type": "array",
+        "items": "object"
+      },
+      "examples": [
+        {
+          "name": "List all profiles",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/profiles"
+        }
+      ],
+      "cli_mapping": {
+        "command": "deployment-manager profiles list"
+      }
+    },
+    {
+      "id": "create_profile",
+      "path": "/api/v1/profiles",
+      "method": "POST",
+      "summary": "Create deployment profile",
+      "description": "Creates a new deployment profile for a scenario and target tier(s)",
+      "category": "profiles",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string",
+          "scenario": "string",
+          "tiers": "array",
+          "swaps": "object",
+          "secrets": "object",
+          "settings": "object"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "version": "number"
+        }
+      },
+      "examples": [
+        {
+          "name": "Create desktop profile",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/profiles -d '{\"name\":\"picker-wheel-desktop\",\"scenario\":\"picker-wheel\",\"tiers\":[2]}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "deployment-manager profile create <name> --scenario <scenario> --tier <tier>"
+      }
+    },
+    {
+      "id": "deploy",
+      "path": "/api/v1/deploy/:profile_id",
+      "method": "POST",
+      "summary": "Deploy a profile",
+      "description": "Orchestrates deployment of a profile to its target tier(s)",
+      "category": "deployment",
+      "response": {
+        "type": "object",
+        "properties": {
+          "deployment_id": "string",
+          "status": "string",
+          "logs_url": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Deploy profile",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/deploy/profile123"
+        }
+      ],
+      "cli_mapping": {
+        "command": "deployment-manager deploy <profile_id>"
+      }
+    },
+    {
+      "id": "deployment_status",
+      "path": "/api/v1/deployments/:deployment_id",
+      "method": "GET",
+      "summary": "Get deployment status",
+      "description": "Returns current status and metadata for a deployment",
+      "category": "deployment",
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "status": "string",
+          "profile_id": "string",
+          "started_at": "string",
+          "completed_at": "string",
+          "artifacts": "array"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check deployment status",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/deployments/deploy123"
+        }
+      ],
+      "cli_mapping": {
+        "command": "deployment-manager deployment status <deployment_id>"
+      }
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "analyze",
+      "description": "Analyze scenario dependencies and requirements",
+      "endpoint_id": "analyze_dependencies"
+    },
+    {
+      "name": "fitness",
+      "description": "Calculate platform fitness scores",
+      "endpoint_id": "score_fitness"
+    },
+    {
+      "name": "profiles list",
+      "description": "List all deployment profiles",
+      "endpoint_id": "list_profiles"
+    },
+    {
+      "name": "profile create",
+      "description": "Create new deployment profile",
+      "endpoint_id": "create_profile"
+    },
+    {
+      "name": "deploy",
+      "description": "Deploy a profile to target tier(s)",
+      "endpoint_id": "deploy"
+    },
+    {
+      "name": "deployment status",
+      "description": "Check deployment status",
+      "endpoint_id": "deployment_status"
+    }
+  ]
+}
