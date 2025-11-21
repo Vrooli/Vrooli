@@ -660,9 +660,15 @@ testing::phase::run_workflow_validations() {
 
         # Apply seeds at loop start if both flags are true
         if [ "$should_reseed" = true ] && [ "$can_seed" = true ]; then
-            if ! (cd "$scenario_dir" && bash "$seeds_dir/apply.sh" &>/dev/null); then
-                log::warning "Failed to apply seeds for ${workflow_label}"
+            local seed_temp_output
+            seed_temp_output=$(mktemp)
+            if ! (cd "$scenario_dir" && bash "$seeds_dir/apply.sh" >"$seed_temp_output" 2>&1); then
+                log::error "Failed to apply seeds before ${workflow_label}"
+                cat "$seed_temp_output" >&2
+                rm -f "$seed_temp_output"
+                return 1
             fi
+            rm -f "$seed_temp_output"
             should_reseed=false
         fi
 

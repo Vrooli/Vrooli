@@ -57,16 +57,55 @@
       }
     },
     {
+      "id": "fixture-wait-for-workflows",
+      "type": "wait",
+      "data": {
+        "label": "Wait for workflows to load",
+        "selector": "@selector/workflows.card",
+        "timeoutMs": 15000,
+        "waitForMs": 1000,
+        "waitType": "element"
+      }
+    },
+    {
+      "id": "fixture-assert-seed-workflow",
+      "type": "assert",
+      "data": {
+        "label": "Verify seed workflow exists",
+        "selector": "@selector/workflows.cardById(id=\"${fixture.workflowId}\")",
+        "assertMode": "exists",
+        "timeoutMs": 10000,
+        "failureMessage": "Seed workflow with ID ${fixture.workflowId} should exist. Ensure seed script ran successfully."
+      }
+    },
+    {
       "id": "fixture-click-demo-workflow",
       "type": "click",
       "data": {
         "label": "Open seeded workflow",
         "selector": "@selector/workflows.cardById(id=\"${fixture.workflowId}\")",
         "timeoutMs": 10000,
-        "resilience": {
-          "successSelector": "@selector/workflowBuilder.code.modeButton",
-          "successTimeoutMs": 15000
-        }
+        "waitForMs": 1000
+      }
+    },
+    {
+      "id": "fixture-wait-for-builder",
+      "type": "wait",
+      "data": {
+        "label": "Wait for builder to initialize",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
+      "id": "fixture-assert-builder-loaded",
+      "type": "assert",
+      "data": {
+        "label": "Workflow builder loaded",
+        "selector": "@selector/workflowBuilder.code.modeButton",
+        "assertMode": "exists",
+        "timeoutMs": 15000,
+        "failureMessage": "Workflow builder should load after clicking workflow"
       }
     },
     {
@@ -76,7 +115,7 @@
         "label": "Seeded nodes are visible",
         "selector": ".react-flow__node",
         "assertMode": "exists",
-        "timeoutMs": 5000,
+        "timeoutMs": 10000,
         "failureMessage": "Seeded workflow should render nodes"
       }
     }
@@ -85,12 +124,36 @@
     {
       "id": "fixture-open-project",
       "source": "fixture-call-open-project",
+      "target": "fixture-wait-for-workflows",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-edge-1",
+      "source": "fixture-wait-for-workflows",
+      "target": "fixture-assert-seed-workflow",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-edge-2",
+      "source": "fixture-assert-seed-workflow",
       "target": "fixture-click-demo-workflow",
       "type": "smoothstep"
     },
     {
-      "id": "fixture-builder-ready",
+      "id": "fixture-edge-3",
       "source": "fixture-click-demo-workflow",
+      "target": "fixture-wait-for-builder",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-edge-4",
+      "source": "fixture-wait-for-builder",
+      "target": "fixture-assert-builder-loaded",
+      "type": "smoothstep"
+    },
+    {
+      "id": "fixture-builder-ready",
+      "source": "fixture-assert-builder-loaded",
       "target": "fixture-assert-nodes",
       "type": "smoothstep"
     }

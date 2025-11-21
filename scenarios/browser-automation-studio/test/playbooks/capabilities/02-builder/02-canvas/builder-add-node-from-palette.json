@@ -25,7 +25,7 @@
       "type": "assert",
       "data": {
         "label": "Canvas is visible",
-        "selector": ".react-flow, .react-flow__renderer",
+        "selector": "@selector/workflowBuilder.canvas.reactFlow",
         "assertMode": "exists",
         "timeoutMs": 5000,
         "failureMessage": "Workflow builder canvas should be visible"

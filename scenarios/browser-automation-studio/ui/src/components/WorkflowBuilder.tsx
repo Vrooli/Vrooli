@@ -810,7 +810,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
           nodesConnectable={!locked}
           elementsSelectable={!locked}
           edgesUpdatable={!locked}
-          data-testid={selectors.workflowBuilder.canvas.root}
+          data-testid={selectors.workflowBuilder.canvas.reactFlow}
         >
           <MiniMap
             nodeStrokeColor={(node) => {

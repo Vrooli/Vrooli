@@ -275,10 +275,10 @@
         "timeoutMs": 5000,
         "waitForMs": 2000,
         "continueOnError": true,
-        "keys": [
-          "Control",
-          "s"
-        ]
+        "keys": ["s"],
+        "modifiers": {
+          "ctrl": true
+        }
       }
     },
     {

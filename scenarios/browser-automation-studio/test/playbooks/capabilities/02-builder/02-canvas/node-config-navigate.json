@@ -138,10 +138,10 @@
       "type": "keyboard",
       "data": {
         "label": "Clear URL input",
-        "keys": [
-          "Control",
-          "a"
-        ],
+        "keys": ["a"],
+        "modifiers": {
+          "ctrl": true
+        },
         "waitForMs": 200
       }
     },

@@ -1,0 +1,510 @@
+id: scenario-generator-20251121-092510
+title: deployment-manager
+type: scenario
+operation: generator
+category: ""
+priority: critical
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: pending
+current_phase: pending
+started_at: ""
+completed_at: ""
+completion_count: 0
+last_completed_at: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-11-21T09:25:10-05:00"
+updated_at: "2025-11-21T09:25:14-05:00"
+tags: []
+notes: |-
+    1. Scenario Description
+
+      Name (working): deployment-manager
+      Type: Multi-step orchestration scenario
+      Role: Analyzes, prepares, configures, and manages deployments of any scenario to any target platform (desktop, mobile, SaaS, enterprise).
+
+      1.1. Purpose
+
+      deployment-manager is the control tower for the entire deployment lifecycle:
+
+      - Analyzes scenario dependencies (resources + scenarios) and calculates platform fitness scores.
+      - Recommends dependency swaps to make scenarios portable (e.g., postgres → sqlite for desktop).
+      - Guides users through pre-deployment configuration (secrets, environment variables, platform-specific settings).
+      - Orchestrates deployment by calling platform-specific scenarios (scenario-to-desktop, scenario-to-ios, etc.).
+      - Monitors live deployments across all tiers and manages updates/rollbacks.
+      - Integrates with:
+        - scenario-dependency-analyzer (dependency data source)
+        - secrets-manager (secret transformation and generation)
+        - app-issue-tracker (creating migration tasks when swaps are approved)
+        - scenario-to-* scenarios (desktop, iOS, Android, SaaS packagers)
+
+      This scenario is not a deployment target itself; it is the preparation, orchestration, and management hub for all deployments.
+
+      ---
+      1.2. Core Responsibilities
+
+      1. Dependency Analysis & Fitness Scoring
+
+        - Consume dependency trees from scenario-dependency-analyzer (stored in each scenario's service.json).
+        - Recursively aggregate:
+            - All resources (postgres, redis, ollama, etc.)
+          - All scenario dependencies (with their transitive dependencies)
+          - System requirements: memory, CPU, GPU, storage, network.
+        - Calculate platform fitness scores (0-100) for each deployment tier:
+            - Tier 1 (Local Dev): Always 100 (reference baseline).
+          - Tier 2 (Desktop): Penalize for missing standalone resource support, high memory/GPU requirements.
+          - Tier 3 (Mobile): Strict penalties for heavy resources, favor cloud-hybrid or API-based alternatives.
+          - Tier 4 (SaaS/Cloud): Penalize for non-scalable resources, favor managed services.
+          - Tier 5 (Enterprise): Penalize for missing compliance/audit features, favor self-hosted options.
+        - Identify blockers (dependencies with 0 fitness) and warnings (dependencies with <50 fitness).
+      2. Interactive Dependency Swapping UI
+
+        - Display dependency tree as:
+            - Visual graph (d3.js, React Flow, or similar) with color-coded fitness scores.
+          - Table view with sortable columns: name, type, fitness score, issues, suggested swaps.
+        - For each dependency, show:
+            - Current resource/scenario.
+          - Fitness score breakdown (memory, portability, licensing, platform support).
+          - Suggested swaps with impact analysis:
+                - postgres → sqlite (desktop/mobile): +40 fitness, -SQL feature parity, -multi-user support.
+            - ollama → openrouter (all tiers): +60 fitness, +API cost, -privacy, -offline support.
+            - redis → in-memory cache (mobile): +30 fitness, -persistence, -cluster support.
+        - Allow users to:
+            - Apply swap (non-destructive; creates a deployment configuration, does NOT modify source code).
+          - Reject swap (mark as intentional; hide from suggestions).
+          - Request custom swap (opens form to describe alternative; creates app-issue-tracker issue).
+        - Real-time recalculation:
+            - After each swap, instantly recalculate aggregate fitness score and resource requirements.
+          - Highlight cascading changes (e.g., swapping postgres also removes postgres-dependent scenario X).
+      3. Deployment Configuration Profiles
+
+        - Each deployment is a named profile containing:
+            - Target scenario.
+          - Target tier(s) (can be multi-tier: desktop + iOS simultaneously).
+          - Approved dependency swaps.
+          - Secret mappings (from secrets-manager).
+          - Environment variable overrides.
+          - Platform-specific settings:
+                - Desktop: App name, icon, auto-update URL, code signing certificate.
+            - Mobile: Bundle ID, provisioning profiles, app store metadata.
+            - SaaS: Domain, scaling rules, CDN configuration.
+            - Enterprise: Compliance mode (SOC2, HIPAA, etc.), audit logging, SSO provider.
+          - Deployment status: draft, ready, deploying, deployed, failed, archived.
+        - Profiles are versioned:
+            - Each change creates a new version.
+          - Can compare versions (diff swaps, secrets, settings).
+          - Can rollback to previous version.
+      4. Secret Management Integration
+
+        - For each deployment profile, call secrets-manager to:
+            - Identify required secrets based on final dependency list.
+          - Classify secrets by sensitivity: dev-only, user-supplied, vault-managed, environment-specific.
+          - Generate templates:
+                - .env.template for desktop/mobile (with user-friendly descriptions).
+            - Vault references for SaaS/enterprise.
+            - Hardened defaults (e.g., random session keys, unique DB passwords).
+        - Provide UI for:
+            - Reviewing secret requirements (table with: name, type, required/optional, default, description).
+          - Mapping secrets to deployment tier strategy:
+                - Desktop: Prompt user on first launch.
+            - Mobile: Encrypted keychain + optional cloud sync.
+            - SaaS: Vault/AWS Secrets Manager.
+            - Enterprise: Customer-managed HSM/LDAP.
+          - Validating secrets (test connection to APIs, databases, etc. before deployment).
+        - When dependency swaps occur:
+            - Automatically update secret requirements (e.g., swapping ollama → openrouter adds OPENROUTER_API_KEY, removes OLLAMA_MODEL_PATH).
+          - Flag secrets that are no longer needed (suggest archival).
+      5. Pre-Deployment Validation
+
+        - Before allowing deployment, run automated checks:
+            - Fitness threshold: All blockers resolved, overall fitness ≥ 70 for target tier.
+          - Secret completeness: All required secrets mapped or templated.
+          - Licensing: All dependencies have compatible licenses for target tier (e.g., GPL-incompatible for proprietary desktop app).
+          - Resource limits: Aggregate memory/CPU/storage fits within tier constraints (e.g., mobile <500MB RAM).
+          - Platform-specific requirements:
+                - Desktop: Code signing certificate present (macOS/Windows).
+            - Mobile: Provisioning profiles valid, bundle ID unique.
+            - SaaS: Domain configured, SSL certificate valid.
+        - Display validation report:
+            - Pass/Fail/Warning for each check.
+          - Actionable remediation steps (e.g., "Upload code signing certificate here").
+          - Estimated deployment time and cost (if SaaS/cloud).
+      6. Deployment Orchestration
+
+        - When user triggers deployment:
+            - Lock profile (prevent edits during deployment).
+          - Call platform-specific scenario:
+                - scenario-to-desktop --profile <profile_id> → Generates Tauri/Electron app.
+            - scenario-to-ios --profile <profile_id> → Generates Xcode project + builds IPA.
+            - scenario-to-saas --profile <profile_id> → Deploys to cloud (Terraform/Docker Compose).
+          - Stream logs to UI (WebSocket or SSE):
+                - Dependency bundling progress.
+            - Build steps (compilation, asset optimization).
+            - Deployment steps (upload, DNS configuration, health checks).
+          - Handle failures:
+                - Capture error logs.
+            - Offer retry with fixes (e.g., "Build failed due to missing dependency; add to package.json?").
+            - Automatically create app-issue-tracker issue if failure is reproducible.
+        - On success:
+            - Update deployment status to "deployed."
+          - Record metadata: build artifacts (URLs/paths), deployment timestamp, version hash.
+          - Enable monitoring (see next section).
+      7. Post-Deployment Monitoring
+
+        - For each active deployment, track:
+            - Health status: Up, degraded, down (via heartbeat endpoints or platform APIs).
+          - Version: Current deployed version vs. latest available version.
+          - Metrics (platform-dependent):
+                - Desktop: Active installs, crash reports, auto-update success rate.
+            - Mobile: App store ratings, crash-free sessions, active users.
+            - SaaS: Uptime, response times, error rates, active tenants.
+          - Alerts: Configurable thresholds (e.g., "SaaS uptime <99.9%" → email/Slack).
+        - Provide UI for:
+            - Dashboard: All deployments at a glance (status grid, health sparklines).
+          - Deployment detail page:
+                - Logs (last 1000 lines, filterable).
+            - Metrics charts (time-series graphs).
+            - Quick actions: Update, rollback, scale (SaaS only), archive.
+      8. Update & Rollback Management
+
+        - Update flow:
+            - User selects deployed profile.
+          - System checks for scenario changes (git diff, dependency updates).
+          - Shows change summary (files modified, dependencies added/removed, breaking changes).
+          - Allows editing deployment configuration (e.g., update secret, change scaling rules).
+          - Re-runs validation.
+          - Deploys new version (platform-specific):
+                - Desktop: Pushes update to auto-update server, notifies users.
+            - Mobile: Submits new build to app stores (with release notes).
+            - SaaS: Blue-green deployment or rolling update.
+        - Rollback flow:
+            - Select previous deployment version from history.
+          - Confirm rollback (show diff: what will change).
+          - Execute rollback (platform-specific):
+                - Desktop: Push previous version to auto-update server.
+            - Mobile: Re-submit previous IPA/APK (or rollback app store version).
+            - SaaS: Redeploy previous Docker image/Terraform state.
+          - Automatic rollback: If health checks fail after update, optionally auto-rollback.
+      9. Integration with app-issue-tracker
+
+        - When user approves a dependency swap in the UI:
+            - Generate detailed app-issue-tracker issue:
+                - Title: "Migrate [scenario] from [old dependency] to [new dependency] for [tier] deployment"
+            - Description:
+                    - Why swap is needed (fitness improvement, licensing, cost).
+              - Code changes required (estimate).
+              - Testing checklist (ensure feature parity).
+              - Deployment impact (downtime, migration steps).
+            - Labels: deployment, migration, [tier], [scenario].
+          - Link issue to deployment profile (show in UI).
+          - When issue is closed (migration complete):
+                - Notify user in deployment-manager.
+            - Re-run dependency analysis (new dependency should appear in tree).
+            - Update fitness scores.
+      10. Scenario-to- Scenario Interface*
+
+      - deployment-manager does NOT directly build desktop apps, mobile apps, etc. Instead, it calls specialized scenarios:
+        - scenario-to-desktop: Tauri/Electron packager.
+        - scenario-to-ios: Xcode project generator + fastlane automation.
+        - scenario-to-android: Android Studio project + Gradle.
+        - scenario-to-saas: Docker Compose + Terraform + cloud provider SDKs.
+        - scenario-to-enterprise: Helm charts + Kubernetes + compliance overlays.
+      - Each scenario-to-* scenario exposes:
+        - API endpoint: POST /deploy with deployment profile JSON.
+        - CLI command: scenario-to-desktop --profile <path/to/profile.json>.
+        - WebSocket/SSE: Streams build logs.
+        - Artifact output: Returns URLs/paths to build artifacts (.dmg, .exe, .ipa, Docker images, etc.).
+      - deployment-manager maintains:
+        - Registry of available scenario-to-* scenarios (auto-discovered or manually registered).
+        - Version compatibility matrix (e.g., scenario-to-desktop v1.2 requires deployment-manager v1.0+).
+
+      11. Framework & Aesthetic
+
+      - Backend: Go API.
+        - Dependency graph algorithms (BFS/DFS for transitive dependencies).
+        - Fitness scoring engine (pluggable rules per tier).
+        - Deployment orchestrator (state machine: draft → validating → deploying → deployed).
+        - WebSocket server for log streaming.
+      - Frontend: React, TypeScript, Vite, TailwindCSS, shadcn, Lucide.
+        - Dependency graph view: React Flow (or d3-force for custom layouts).
+        - Configuration forms: shadcn Form + Zod validation.
+        - Monitoring dashboard: Recharts for time-series metrics.
+        - Aesthetic: Professional, blueprint-like theme (dark mode default, monospace accents, technical diagrams).
+      - CLI: Optional deployment-manager CLI wrapper for:
+        - Creating profiles from templates.
+        - Triggering deployments headlessly (CI/CD integration).
+        - Querying deployment status.
+
+      12. Agent Integration
+
+      - From deployment-manager UI:
+        - User selects a deployment profile with blockers.
+        - Clicks "Suggest Migration Strategy" → spawns agent.
+        - Agent receives:
+            - Scenario source code (read-only).
+          - Dependency tree + fitness scores.
+          - Target tier constraints.
+        - Agent proposes:
+            - Specific dependency swaps with code change estimates.
+          - Alternative architectures (e.g., "Split scenario into microservices: one for desktop, one cloud backend").
+          - Generates app-issue-tracker issues for each proposal.
+        - User reviews proposals, approves/rejects, and agent creates issues automatically.
+
+      13. Versioning & Audit Trail
+
+      - All deployment actions are logged:
+        - Who triggered (user ID or agent ID).
+        - What changed (configuration diff).
+        - When (timestamp).
+        - Result (success, failure, rolled back).
+      - Audit logs are:
+        - Immutable (append-only).
+        - Exportable (JSON, CSV).
+        - Searchable (by scenario, tier, date range, user).
+      - Compliance mode (enterprise tier):
+        - Require approval workflows (e.g., "Two engineers must approve production deployment").
+        - Integrate with external audit systems (Splunk, Datadog).
+
+      14. Multi-Tier Deployment
+
+      - Single deployment profile can target multiple tiers simultaneously:
+        - Example: Deploy to desktop (macOS + Windows) + iOS + SaaS in one action.
+        - deployment-manager orchestrates parallel deployments:
+            - Calls scenario-to-desktop, scenario-to-ios, scenario-to-saas concurrently.
+          - Aggregates results (show combined status).
+        - Handles tier-specific failures:
+            - If iOS deployment fails but desktop succeeds → mark iOS as failed, desktop as deployed.
+          - Offer retry for failed tiers without re-deploying successful ones.
+
+      15. Licensing & Compliance Validation
+
+      - For each dependency, store:
+        - License type (MIT, Apache, GPL, proprietary, etc.).
+        - License compatibility rules (e.g., "GPL incompatible with proprietary desktop apps").
+      - During validation:
+        - Check all dependencies' licenses against target tier rules.
+        - Flag violations (e.g., "Cannot deploy GPL dependency in proprietary SaaS").
+        - Suggest swaps to compatible alternatives.
+      - For enterprise tier:
+        - Generate license report (markdown/PDF):
+            - All dependencies with licenses, versions, URLs.
+          - Compliance statement (e.g., "All dependencies are Apache 2.0 or MIT").
+        - Exportable for legal review.
+
+      ---
+      2. Operational Targets
+
+      2.1. Dependency Analysis Targets
+
+      1. Dependency aggregation
+        - OT-1: For any scenario, deployment-manager must recursively fetch all resource and scenario dependencies (up to depth 10) from scenario-dependency-analyzer data within 5 seconds.
+        - OT-2: Dependency tree must detect circular dependencies and display a clear error (e.g., "Scenario A → B → C → A").
+      2. Fitness scoring
+        - OT-3: For each dependency, fitness score (0-100) must be calculated for all 5 tiers within 2 seconds.
+        - OT-4: Fitness score must break down into at least 4 sub-scores: portability, resource requirements, licensing, platform support.
+        - OT-5: Blockers (fitness = 0) must clearly state the reason (e.g., "postgres has no standalone mobile build").
+      3. Aggregate requirements
+        - OT-6: Aggregate memory, CPU, GPU, storage, and network requirements must be displayed with units (MB, cores, GB, Mbps).
+        - OT-7: Requirements must update in <300ms when a dependency swap is applied.
+
+      ---
+      2.2. Dependency Swapping Targets
+
+      4. Swap suggestions
+        - OT-8: For each blocker or low-fitness dependency (<50), system must suggest at least one swap or display "No known alternatives."
+        - OT-9: Each swap suggestion must show:
+            - Fitness delta (e.g., "+40 fitness"),
+          - Trade-offs (bulleted list of pros/cons),
+          - Estimated migration effort (trivial, moderate, major).
+      5. Swap application
+        - OT-10: Applying a swap must NOT modify scenario source code; it must only update the deployment profile.
+        - OT-11: After applying a swap, fitness scores and requirements must recalculate within 1 second.
+        - OT-12: Cascading swaps must be detected (e.g., "Swapping postgres removes scenario X that depends on postgres-only features") and displayed as warnings.
+      6. Custom swap requests
+        - OT-13: User must be able to request a custom swap via a form (dependency name, desired alternative, justification).
+        - OT-14: Submitting custom swap request must create an app-issue-tracker issue with all form data within 3 seconds.
+
+      ---
+      2.3. Deployment Profile Targets
+
+      7. Profile management
+        - OT-15: User must be able to create a new profile in ≤ 3 clicks from deployment manager home.
+        - OT-16: All profile edits must be auto-saved with debounce (500ms) or manual save button.
+        - OT-17: Profiles must support export/import (JSON format) for version control or sharing.
+      8. Versioning
+        - OT-18: Each profile edit must create a new version with timestamp and user attribution.
+        - OT-19: User must be able to view version history (list of changes with diffs).
+        - OT-20: Rollback to previous profile version must restore all settings (swaps, secrets, env vars) within 2 seconds.
+      9. Multi-tier support
+        - OT-21: Single profile must support selecting multiple tiers (e.g., desktop + iOS + SaaS).
+        - OT-22: Tier-specific settings (e.g., desktop code signing, iOS bundle ID) must only appear when that tier is selected.
+
+      ---
+      2.4. Secret Management Targets
+
+      10. Secret identification
+      - OT-23: When a profile is created or dependency swaps are applied, secrets-manager integration must identify all required secrets within 3 seconds.
+      - OT-24: Secrets must be categorized: required, optional, dev-only, user-supplied, vault-managed.
+
+      11. Secret templates
+      - OT-25: For desktop/mobile tiers, .env.template must be generated with human-friendly descriptions (e.g., "Your OpenAI API key (get one at https://platform.openai.com)").
+      - OT-26: For SaaS/enterprise tiers, Vault/AWS Secrets Manager references must be generated in correct format.
+
+      12. Secret validation
+      - OT-27: User must be able to test secrets before deployment (e.g., "Test API key" button that calls endpoint).
+      - OT-28: Validation failures must display actionable errors (e.g., "Invalid OpenAI API key: 401 Unauthorized").
+
+      ---
+      2.5. Pre-Deployment Validation Targets
+
+      13. Validation checks
+      - OT-29: Pre-deployment validation must run at least 6 checks: fitness threshold, secret completeness, licensing, resource limits, platform requirements, dependency compatibility.
+      - OT-30: All validation checks must complete within 10 seconds for typical scenarios (≤50 dependencies).
+
+      14. Validation reporting
+      - OT-31: Validation report must show pass/fail/warning status for each check with color coding (green/red/yellow).
+      - OT-32: Each failed check must provide at least one actionable remediation step (e.g., "Upload code signing certificate" with file upload button).
+
+      15. Deployment cost estimation
+      - OT-33: For SaaS/cloud tiers, validation must estimate monthly cost (compute, storage, bandwidth) within ±20% accuracy.
+      - OT-34: Cost estimate must break down by resource (e.g., "EC2: $50, RDS: $30, S3: $5").
+
+      ---
+      2.6. Deployment Orchestration Targets
+
+      16. Deployment initiation
+      - OT-35: User must be able to trigger deployment with a single "Deploy" button click after validation passes.
+      - OT-36: Deployment must lock profile (prevent edits) and display estimated completion time.
+
+      17. Log streaming
+      - OT-37: Deployment logs must stream to UI in real-time (latency <2 seconds) via WebSocket or SSE.
+      - OT-38: Logs must be filterable by level (info, warning, error) and searchable.
+
+      18. Failure handling
+      - OT-39: If deployment fails, error logs must be captured and displayed with a "Retry" button.
+      - OT-40: For reproducible failures (same error on 2+ retries), app-issue-tracker issue must be auto-created.
+
+      19. Multi-tier orchestration
+      - OT-41: When deploying to multiple tiers, each tier's status (queued, deploying, deployed, failed) must be independently tracked and displayed.
+      - OT-42: Partial failures (e.g., desktop succeeds, iOS fails) must allow retry of failed tiers without redeploying successful ones.
+
+      ---
+      2.7. Post-Deployment Monitoring Targets
+
+      20. Health tracking
+      - OT-43: For each deployed scenario, health status (up, degraded, down) must be checked at least every 60 seconds.
+      - OT-44: Health checks must timeout after 10 seconds and mark status as "unknown" (not "down") to avoid false alarms.
+
+      21. Metrics collection
+      - OT-45: For SaaS deployments, metrics (uptime, response time, error rate) must be collected every 5 minutes and stored for at least 30 days.
+      - OT-46: For desktop/mobile, telemetry (active installs, crash reports) must be aggregated daily.
+
+      22. Alerting
+      - OT-47: User must be able to configure alerts (email, Slack, webhook) with custom thresholds (e.g., "Error rate >5%").
+      - OT-48: Alerts must fire within 2 minutes of threshold breach.
+
+      23. Dashboard
+      - OT-49: Monitoring dashboard must show at-a-glance status for all deployments (health grid, sparklines for key metrics).
+      - OT-50: Deployment detail page must load metrics charts (<5 seconds) for last 24 hours by default, with zoom/pan for longer ranges.
+
+      ---
+      2.8. Update & Rollback Targets
+
+      24. Update detection
+      - OT-51: System must detect scenario changes (git diff, dependency updates) when user navigates to deployed profile.
+      - OT-52: Change summary must show files modified, dependencies added/removed, and breaking changes (if detectable).
+
+      25. Update execution
+      - OT-53: For desktop/mobile, update must be pushed to auto-update server or app stores within 30 minutes (excludes app store review time).
+      - OT-54: For SaaS, update must use blue-green or rolling deployment with zero downtime for stateless apps.
+
+      26. Rollback execution
+      - OT-55: Rollback must restore previous version within 5 minutes for SaaS deployments.
+      - OT-56: Automatic rollback (if enabled) must trigger within 2 minutes of failed health checks post-update.
+
+      ---
+      2.9. Integration Targets
+
+      27. scenario-dependency-analyzer integration
+      - OT-57: Dependency data must be fetched via API (not direct file reads) with <3 second response time.
+      - OT-58: If dependency data is stale (>7 days old), system must offer "Re-scan dependencies" button.
+
+      28. secrets-manager integration
+      - OT-59: Secret mapping must sync bidirectionally: changes in deployment-manager update secrets-manager, and vice versa.
+      - OT-60: Secret rotation (triggered by secrets-manager) must notify deployment-manager to mark affected deployments as "needs re-deployment."
+
+      29. app-issue-tracker integration
+      - OT-61: Creating an issue from deployment-manager must include deployment profile ID as metadata (for linking).
+      - OT-62: When linked issue is closed, deployment-manager must receive webhook and update deployment status.
+
+      30. scenario-to- integration*
+      - OT-63: deployment-manager must auto-discover all installed scenario-to-* scenarios on startup.
+      - OT-64: If required scenario-to-* scenario is missing (e.g., user selects iOS tier but scenario-to-ios not installed), clear error must be shown with installation instructions.
+
+      ---
+      2.10. Performance & UX Targets
+
+      31. Response times
+      - OT-65: Dependency graph rendering (visual or table) must complete within 3 seconds for scenarios with ≤100 dependencies.
+      - OT-66: Applying a swap and recalculating fitness must complete in <1 second.
+
+      32. Accessibility
+      - OT-67: All interactive elements must be keyboard-accessible (tab navigation, Enter/Space activation).
+      - OT-68: Dependency graph must have screen-reader-friendly fallback (table view with ARIA labels).
+
+      33. Error messaging
+      - OT-69: All errors must be user-friendly (avoid stack traces in UI) with at least one suggested action.
+      - OT-70: Technical details (logs, stack traces) must be collapsible or hidden behind "Details" button.
+
+      ---
+      2.11. Licensing & Compliance Targets
+
+      34. License validation
+      - OT-71: For each dependency, license must be stored and validated against tier-specific compatibility rules.
+      - OT-72: License violations must block deployment with clear error (e.g., "GPL dependency incompatible with proprietary desktop app").
+
+      35. License reporting
+      - OT-73: For enterprise tier, license report (markdown or PDF) must be generated in <10 seconds.
+      - OT-74: Report must include all dependencies with license type, version, and source URL.
+
+      ---
+      2.12. Agent Integration Targets
+
+      36. Migration strategy suggestions
+      - OT-75: Agent must receive deployment profile + scenario source code and respond with migration proposals within 5 minutes (wall-clock time, accounting for LLM latency).
+      - OT-76: Each proposal must include estimated code changes (line count), testing checklist, and deployment impact.
+
+      37. Issue creation
+      - OT-77: Agent-generated app-issue-tracker issues must be pre-filled with all relevant context (no manual edits required for submission).
+      - OT-78: User must be able to approve/reject proposals in bulk (e.g., "Create 5 issues" with one click).
+
+      ---
+      2.13. Audit & Compliance Targets (Enterprise)
+
+      38. Audit logging
+      - OT-79: All deployment actions (create, deploy, update, rollback) must be logged with user ID, timestamp, and configuration diff.
+      - OT-80: Audit logs must be immutable (no delete/edit) and exportable (JSON, CSV) within 5 seconds.
+
+      39. Approval workflows
+      - OT-81: For enterprise tier, deployment must support approval workflows (e.g., "Requires 2 approvals before production deploy").
+      - OT-82: Approval requests must be sent via email/Slack with clickable approve/reject links.
+
+      ---
+      2.14. CLI & Automation Targets
+
+      40. CLI commands
+      - OT-83: CLI must support creating profiles from YAML templates (deployment-manager create --template <path>).
+      - OT-84: CLI must support headless deployment (deployment-manager deploy --profile <id> --no-prompt) for CI/CD pipelines.
+
+      41. CI/CD integration
+      - OT-85: Deployment status must be queryable via CLI with machine-readable output (JSON) for scripting (deployment-manager status --profile <id> --format json).
+      - OT-86: Exit codes must follow conventions (0 = success, non-zero = failure) for CI/CD tooling.
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false

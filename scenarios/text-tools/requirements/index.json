@@ -1,0 +1,247 @@
+{
+  "_metadata": {
+    "description": "Text processing and analysis platform requirements registry",
+    "domain": "text-processing",
+    "last_updated": "2025-11-19"
+  },
+  "requirements": [
+    {
+      "id": "TXT-DIFF-001",
+      "category": "core.api",
+      "prd_ref": "Operational Targets > P0 > Diff and comparison tools (line-by-line, word-by-word, semantic)",
+      "title": "Diff and comparison API endpoint",
+      "description": "POST /api/v1/text/diff compares two texts using line-by-line, word-by-word, character, or semantic algorithms and returns structured changes with similarity scores.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/diff_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-SEARCH-001",
+      "category": "core.api",
+      "prd_ref": "Operational Targets > P0 > Search and pattern matching (grep, regex, fuzzy search)",
+      "title": "Text search and pattern matching API",
+      "description": "POST /api/v1/text/search implements regex, plain text, fuzzy, and semantic search with configurable options.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/search_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-TRANSFORM-001",
+      "category": "core.api",
+      "prd_ref": "Operational Targets > P0 > Text transformation (case, encoding, format conversion)",
+      "title": "Text transformation API endpoint",
+      "description": "POST /api/v1/text/transform applies case conversion, encoding changes, format transformations, and sanitization operations.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/transform_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-EXTRACT-001",
+      "category": "core.api",
+      "prd_ref": "Operational Targets > P0 > Text extraction from multiple formats (PDF, HTML, DOCX, images via OCR)",
+      "title": "Multi-format text extraction API",
+      "description": "POST /api/v1/text/extract extracts text from PDF, HTML, DOCX, and images using OCR with metadata preservation.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/extract_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-STATS-001",
+      "category": "core.api",
+      "prd_ref": "Operational Targets > P0 > Basic statistics (word count, character count, language detection)",
+      "title": "Text statistics API endpoint",
+      "description": "Provides word count, character count, language detection, and basic text analysis metrics.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/stats_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-API-001",
+      "category": "core.api",
+      "prd_ref": "Operational Targets > P0 > RESTful API for all core operations",
+      "title": "RESTful API implementation",
+      "description": "Implements comprehensive RESTful API with proper error handling, authentication, and documentation.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/server_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-CLI-001",
+      "category": "core.cli",
+      "prd_ref": "Operational Targets > P0 > CLI interface with full feature parity",
+      "title": "CLI interface with API parity",
+      "description": "Command-line interface providing all API functionality with Unix-friendly input/output and piping support.",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/text-tools.bats",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-SEMANTIC-001",
+      "category": "ai.api",
+      "prd_ref": "Operational Targets > P1 > Semantic search using embeddings (via Ollama)",
+      "title": "Semantic search with embeddings",
+      "description": "Semantic search using Ollama-generated embeddings stored in vector database for conceptual matching.",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/semantic_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-SUMMARY-001",
+      "category": "ai.api",
+      "prd_ref": "Operational Targets > P1 > Text summarization and condensation",
+      "title": "AI-powered text summarization",
+      "description": "Text summarization using Ollama integration with configurable length and style parameters.",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/summarize_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-ENTITY-001",
+      "category": "ai.api",
+      "prd_ref": "Operational Targets > P1 > Entity extraction (names, dates, locations, emails, URLs)",
+      "title": "Named entity extraction",
+      "description": "Extracts named entities including names, dates, locations, emails, URLs with confidence scores.",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/entity_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-SENTIMENT-001",
+      "category": "ai.api",
+      "prd_ref": "Operational Targets > P1 > Sentiment and tone analysis",
+      "title": "Sentiment and tone analysis",
+      "description": "Analyzes text sentiment and tone using AI models with numerical scores and categorical labels.",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/sentiment_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-SANITIZE-001",
+      "category": "security.api",
+      "prd_ref": "Operational Targets > P1 > Text sanitization (PII removal, HTML cleaning)",
+      "title": "Text sanitization and PII removal",
+      "description": "Sanitizes text by removing PII, cleaning HTML, and stripping dangerous content.",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/sanitize_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "TXT-I18N-001",
+      "category": "ai.api",
+      "prd_ref": "Operational Targets > P1 > Multi-language support and translation",
+      "title": "Multi-language translation support",
+      "description": "Translation capabilities for multiple languages using Ollama integration.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/translate_test.go",
+          "phase": "integration",
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "TXT-BATCH-001",
+      "category": "core.api",
+      "prd_ref": "Operational Targets > P1 > Batch processing for multiple files",
+      "title": "Batch file processing",
+      "description": "Batch processing endpoint for applying operations to multiple files efficiently.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/batch_test.go",
+          "phase": "integration",
+          "status": "planned"
+        }
+      ]
+    }
+  ]
+}

@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T02:16:10.054Z"
+    "last_synced_at": "2025-11-21T14:01:14.533Z"
   },
   "requirements": [
     {
@@ -23,8 +23,8 @@
           "status": "implemented",
           "notes": "Validates project grid rendering and navigation to project detail view",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -36,7 +36,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 1,
         "all_tests_passing": true,
@@ -64,8 +64,8 @@
           "status": "implemented",
           "notes": "Tests search filtering and clearing search to restore full list",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -77,7 +77,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 1,
         "all_tests_passing": true,
@@ -105,8 +105,8 @@
           "status": "implemented",
           "notes": "Validates opening edit modal, updating fields, and persisting changes",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -118,7 +118,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 1,
         "all_tests_passing": true,
@@ -146,8 +146,8 @@
           "status": "failing",
           "notes": "Tests workflow creation flow including AI modal bypass and builder loading",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -159,7 +159,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,
@@ -187,8 +187,8 @@
           "status": "failing",
           "notes": "Validates workflow list display and navigation to builder with selected workflow",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -200,7 +200,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,
@@ -228,8 +228,8 @@
           "status": "implemented",
           "notes": "Tests tab navigation, execution list rendering, and execution viewer opening",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -241,7 +241,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 1,
         "all_tests_passing": true,
@@ -259,18 +259,18 @@
       "prd_ref": "Workflow Execution",
       "title": "Workflow execution from project detail",
       "description": "Users can trigger workflow execution from the project detail view and see execution indicators",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/03-executions/execution-from-project-detail.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates execute button functionality and execution status feedback",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -282,10 +282,10 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
+        "test_coverage_count": 1,
+        "all_tests_passing": true,
         "phase_results": [
           "coverage/phase-results/integration.json"
         ],
@@ -310,8 +310,8 @@
           "status": "implemented",
           "notes": "Validates tab switching between workflows and executions in project detail view",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -323,7 +323,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 1,
         "all_tests_passing": true,
@@ -351,8 +351,8 @@
           "status": "implemented",
           "notes": "Validates replay tab display with timeline, screenshots, and controls",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -364,7 +364,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 1,
         "all_tests_passing": true,

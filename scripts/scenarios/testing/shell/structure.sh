@@ -447,7 +447,7 @@ _validate_playbook_reset_metadata() {
     reset_value=$(jq -r '.metadata.reset // empty' "$file_path" 2>/dev/null || echo "")
     local rel_path="${file_path#$scenario_dir/}"
     case "$reset_value" in
-      none|project|global)
+      none|full)
         :
         ;;
       "")

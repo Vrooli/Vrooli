@@ -101,6 +101,15 @@
       }
     },
     {
+      "id": "wait-for-builder-mount",
+      "type": "wait",
+      "data": {
+        "label": "Wait for React Flow to mount and initialize",
+        "durationMs": 2000,
+        "waitType": "duration"
+      }
+    },
+    {
       "id": "verify-builder-loaded",
       "type": "assert",
       "data": {
@@ -167,6 +176,12 @@
     {
       "id": "e10",
       "source": "verify-url-changed",
+      "target": "wait-for-builder-mount",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10a",
+      "source": "wait-for-builder-mount",
       "target": "verify-builder-loaded",
       "type": "smoothstep"
     },

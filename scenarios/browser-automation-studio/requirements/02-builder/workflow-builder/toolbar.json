@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T02:16:10.056Z"
+    "last_synced_at": "2025-11-21T14:01:14.535Z"
   },
   "requirements": [
     {
@@ -23,8 +23,8 @@
           "status": "failing",
           "notes": "Validates zoom in button functionality and canvas zoom level increase",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -36,7 +36,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,
@@ -64,8 +64,8 @@
           "status": "failing",
           "notes": "Validates zoom out button functionality and canvas zoom level decrease",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -77,7 +77,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,
@@ -95,18 +95,18 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Fit view centers and sizes canvas to show all nodes",
       "description": "Users can click fit view to automatically center and zoom the canvas to display all workflow nodes",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-fit-view.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates fit view centers canvas with all nodes visible",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -118,10 +118,10 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
         "phase_results": [
           "coverage/phase-results/integration.json"
         ],
@@ -136,18 +136,18 @@
       "prd_ref": "Workflow Builder > History Navigation",
       "title": "Undo button reverts the last canvas change",
       "description": "Users can click undo to revert the most recent canvas modification (node add/delete/move, connection changes)",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-undo.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates undo reverts node addition, deletion, and position changes",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -159,10 +159,10 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
         "phase_results": [
           "coverage/phase-results/integration.json"
         ],
@@ -177,18 +177,18 @@
       "prd_ref": "Workflow Builder > History Navigation",
       "title": "Redo button re-applies undone changes",
       "description": "Users can click redo to re-apply the most recently undone change",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-redo.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates redo re-applies undone changes",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -200,10 +200,10 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
         "phase_results": [
           "coverage/phase-results/integration.json"
         ],
@@ -218,18 +218,18 @@
       "prd_ref": "Workflow Builder > Canvas Controls",
       "title": "Lock/unlock canvas prevents/allows node interaction",
       "description": "Users can toggle canvas lock to prevent accidental node movements and edits during review",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-lock-toggle.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates lock prevents node dragging and unlock re-enables interaction",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -241,10 +241,10 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
         "phase_results": [
           "coverage/phase-results/integration.json"
         ],
@@ -259,18 +259,18 @@
       "prd_ref": "Workflow Builder > Node Operations",
       "title": "Duplicate button copies selected nodes",
       "description": "Users can select nodes and click duplicate to create copies with offset positions",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-duplicate-nodes.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates node duplication with proper positioning",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -282,10 +282,10 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
         "phase_results": [
           "coverage/phase-results/integration.json"
         ],
@@ -300,18 +300,18 @@
       "prd_ref": "Workflow Builder > Node Operations",
       "title": "Delete button removes selected nodes",
       "description": "Users can select nodes and click the delete button to remove them (alternative to keyboard shortcut)",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P1",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-delete-nodes.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates toolbar delete button removes selected nodes",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -323,10 +323,10 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
         "phase_results": [
           "coverage/phase-results/integration.json"
         ],

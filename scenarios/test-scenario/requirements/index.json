@@ -1,0 +1,63 @@
+{
+  "version": "1.0.0",
+  "scenario": "test-scenario",
+  "description": "Requirements registry for test-scenario validation fixture",
+  "requirements": [
+    {
+      "id": "TS-P0-001",
+      "title": "Lifecycle protection enforcement",
+      "description": "Binary must refuse to run outside Vrooli lifecycle system",
+      "priority": "P0",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "validation": ["test"],
+      "tags": ["lifecycle", "security"]
+    },
+    {
+      "id": "TS-P0-002",
+      "title": "Hardcoded secret detection",
+      "description": "Contains intentional hardcoded secrets for scanner validation",
+      "priority": "P0",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "validation": ["manual"],
+      "tags": ["security", "testing"]
+    },
+    {
+      "id": "TS-P0-003",
+      "title": "Basic API server",
+      "description": "Simple HTTP server for infrastructure testing",
+      "priority": "P0",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "validation": ["test"],
+      "tags": ["api", "infrastructure"]
+    },
+    {
+      "id": "TS-P1-001",
+      "title": "Health endpoint",
+      "description": "Standard /health endpoint for lifecycle validation",
+      "priority": "P1",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "validation": ["test"],
+      "tags": ["health", "monitoring"]
+    },
+    {
+      "id": "TS-P1-002",
+      "title": "CLI installation",
+      "description": "Basic CLI for testing CLI installation workflows",
+      "priority": "P1",
+      "status": "validated",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "validation": ["test"],
+      "tags": ["cli", "installation"]
+    }
+  ],
+  "metadata": {
+    "last_updated": "2025-11-18",
+    "total_requirements": 5,
+    "validated": 5,
+    "pending": 0
+  }
+}

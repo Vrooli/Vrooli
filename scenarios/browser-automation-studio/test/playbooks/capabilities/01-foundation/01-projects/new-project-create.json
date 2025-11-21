@@ -86,18 +86,24 @@
         "label": "Click Create button",
         "selector": "@selector/dialogs.project.submitButton",
         "timeoutMs": 5000,
-        "resilience": {
-          "successSelector": "@selector/projects.grid",
-          "successTimeoutMs": 15000
-        }
+        "waitForMs": 500
       }
     },
     {
-      "id": "wait-for-project-list-update",
+      "id": "wait-for-modal-close",
       "type": "wait",
       "data": {
-        "label": "Wait for project list refresh",
-        "durationMs": 2000,
+        "label": "Wait for modal to close and state to update",
+        "waitType": "duration",
+        "durationMs": 1000
+      }
+    },
+    {
+      "id": "wait-for-render",
+      "type": "wait",
+      "data": {
+        "label": "Wait for React re-render",
+        "durationMs": 500,
         "waitType": "duration"
       }
     },
@@ -151,15 +157,21 @@
       "type": "smoothstep"
     },
     {
-      "id": "e11",
-      "source": "wait-for-project-list-update",
-      "target": "assert-project-in-list",
+      "id": "e8",
+      "source": "click-create",
+      "target": "wait-for-modal-close",
       "type": "smoothstep"
     },
     {
-      "id": "e8",
-      "source": "click-create",
-      "target": "wait-for-project-list-update",
+      "id": "e9",
+      "source": "wait-for-modal-close",
+      "target": "wait-for-render",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e10",
+      "source": "wait-for-render",
+      "target": "assert-project-in-list",
       "type": "smoothstep"
     }
   ]

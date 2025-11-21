@@ -77,7 +77,7 @@ Use concise narratives and focus on measurable outcomes rather than implementati
 - For every operational target, add requirement entries with:
   - `id` (pattern `[A-Z][A-Z0-9]+-[A-Z0-9-]+`), title, `prd_ref`, `criticality`, optional children/dependencies, empty `validation` array.
   - Notes on which phases (unit/integration/business/performance) should validate the requirement once implemented.
-- In README/PRD, instruct improvers to tag tests with `[REQ:ID]` and run the scenario’s full test suite; requirement coverage automatically syncs when tests execute.
+- In README/PRD, instruct improvers to tag tests with `[REQ:ID]`, run the scenario’s full test suite.
 
 ## Documentation Checklist
 - **README.md**

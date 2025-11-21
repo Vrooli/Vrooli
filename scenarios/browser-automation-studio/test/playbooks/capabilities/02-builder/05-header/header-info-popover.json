@@ -112,9 +112,7 @@
       "data": {
         "label": "Close popover with Escape",
         "waitForMs": 500,
-        "keys": [
-          "Escape"
-        ]
+        "keys": ["Escape"]
       }
     }
   ],

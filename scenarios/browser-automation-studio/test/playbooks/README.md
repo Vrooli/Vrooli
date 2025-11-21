@@ -14,16 +14,24 @@ Automation workflows live here for both **capabilities** (feature surfaces) and 
 - `__subflows/` – reusable fixtures (`metadata.fixture_id` required)
 - `__seeds/` – deterministic seed/cleanup scripts supporting flows
 
-Numbers in the requirements folders determine **what** each target means; this layout explains **where** to place the validations.
+Numbers in the requirements folders determine **what** each target means; this layout explains **where** to place the validations. When adding a new top-level capability/journey folder, prefix the segment with a two-digit ordinal (e.g. `01-foundation`, `02-builder`) so execution order is obvious.
 
 ## Authoring Checklist
 1. Pick the correct capability folder + surface (e.g., `builder/toolbar`). If the folder doesn’t exist yet, create it and update this README.
 2. File naming: `feature-action.json` (kebab-case, include verb).
-3. Add metadata with `description`, `requirement` ID, and `version`.
+3. Add metadata with `description`, `version`, and `reset` (optionally `name`). Requirement linkage now lives in `requirements/*.json` via `validation.ref` entries; do **not** set `metadata.requirement`. Use `"reset"` to tell the runner when to reseed:
+   - `"reset": "project"` (default) when the workflow mutates the seeded project
+   - `"reset": "none"` when the workflow is read-only and can share state with the previous test
+   - `"reset": "global"` when future flows require a full cleanup (reserved for cross-project mutations)
 4. Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts` (never hard-code CSS). Add new selector keys there when needed.
 5. Reuse fixtures by setting `"workflowId": "@fixture/<slug>(key=value)"` rather than duplicating setup steps. Parameters are optional unless the fixture declares them in metadata. Strings with spaces/punctuation must be quoted: `@fixture/open-workflow(project="Demo Browser Automations")`. Use `@store/<key>` for runtime values stored earlier in the workflow.
 6. If a fixture guarantees requirement coverage (e.g., demo workflow seeding), list those requirement IDs under `metadata.requirements`. The resolver propagates them to parent workflows via `metadata.requirementsFromFixtures` so coverage reports know which requirements the run exercised.
 7. Update the matching requirement module to reference the new playbook path; auto-sync will keep statuses fresh when tests run.
+8. Regenerate `registry.json` after any edits and verify the `order` field lists your workflow where you expect it.
+9. Use the CLI helpers to stay consistent:
+   - `browser-automation-studio playbooks scaffold <folder> <name>` creates a stub workflow JSON with the correct metadata/reset fields under `test/playbooks/`
+   - `browser-automation-studio playbooks verify` flags folders that are missing the two-digit prefixes required for deterministic ordering
+
 
 ### Fixture Metadata Reference
 
@@ -46,7 +54,7 @@ Numbers in the requirements folders determine **what** each target means; this l
 ## Running Locally
 ```
 browser-automation-studio execution create \
-  --file test/playbooks/capabilities/foundation/projects/new-project-create.json \
+  --file test/playbooks/capabilities/01-foundation/01-projects/new-project-create.json \
   --wait
 ```
 
@@ -54,4 +62,4 @@ browser-automation-studio execution create \
 - Keep this README under 100 lines; link to shared docs for deep dives (`docs/testing/guides/ui-automation-with-bas.md`).
 - No compatibility shims: move files directly into this layout even if it causes short-term failures.
 - Upcoming automation ideas referenced in requirements should point to `test/playbooks/journeys/...` using the final desired path.
-- Regenerate the registry after edits: `node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario scenarios/browser-automation-studio` (run from repo root).
+- Regenerate the registry after edits: `node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario scenarios/browser-automation-studio` (run from repo root). The registry records each workflow’s `order`, `reset` behavior, fixtures, and covered requirement IDs so the runner can execute them deterministically. Use `browser-automation-studio playbooks order` to quickly inspect the rendered story without opening `registry.json` manually.

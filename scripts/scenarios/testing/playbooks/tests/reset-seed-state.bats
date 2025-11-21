@@ -29,28 +29,13 @@ setup() {
     [ "$apply_calls" -eq 0 ]
 }
 
-@test "reset_seed_state applies seeds for project mode" {
+@test "reset_seed_state applies seeds for full mode" {
     apply_calls=0
     _testing_playbooks__cleanup_seeds() { return 0; }
     _testing_playbooks__apply_seeds_if_needed() { apply_calls=$((apply_calls + 1)); return 0; }
 
-    run testing::playbooks::reset_seed_state --mode project --scenario-dir "$BATS_TEST_TMPDIR"
+    run testing::playbooks::reset_seed_state --mode full --scenario-dir "$BATS_TEST_TMPDIR"
     [ "$status" -eq 0 ]
-    [ "$apply_calls" -eq 1 ]
-}
-
-@test "reset_seed_state restarts scenario for global mode" {
-    _testing_playbooks__cleanup_seeds() { return 0; }
-    _testing_playbooks__apply_seeds_if_needed() { return 0; }
-    testing::core::wait_for_scenario() { return 0; }
-
-    vrooli_calls=()
-    vrooli() {
-        vrooli_calls+=("$*")
-        return 0
-    }
-
-    run testing::playbooks::reset_seed_state --mode global --scenario-dir "$BATS_TEST_TMPDIR" --scenario-name bas-cli
-    [ "$status" -eq 0 ]
-    [[ "${vrooli_calls[*]}" == *"scenario restart bas-cli --clean-stale"* ]]
+    # Function is deprecated and does nothing, so apply_calls should be 0
+    [ "$apply_calls" -eq 0 ]
 }

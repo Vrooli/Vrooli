@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T02:16:10.055Z"
+    "last_synced_at": "2025-11-21T14:01:14.534Z"
   },
   "requirements": [
     {
@@ -23,8 +23,8 @@
           "status": "failing",
           "notes": "Ensures ordering, cycle detection, and unsupported node handling.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:08:00-05:00",
-            "test_duration_ms": 33000,
+            "last_test_run": "2025-11-21T08:52:41-05:00",
+            "test_duration_ms": 34000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
@@ -41,8 +41,8 @@
           "status": "failing",
           "notes": "Exercises Browserless session payloads without external dependencies.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:08:00-05:00",
-            "test_duration_ms": 33000,
+            "last_test_run": "2025-11-21T08:52:41-05:00",
+            "test_duration_ms": 34000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
@@ -59,8 +59,8 @@
           "status": "failing",
           "notes": "Confirms workflow persistence and retrieval with folder hierarchy metadata.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:08:00-05:00",
-            "test_duration_ms": 33000,
+            "last_test_run": "2025-11-21T08:52:41-05:00",
+            "test_duration_ms": 34000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
@@ -77,8 +77,8 @@
           "status": "failing",
           "notes": "Unit phase aggregates Go + Node coverage with thresholds enforced.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:08:00-05:00",
-            "test_duration_ms": 33000,
+            "last_test_run": "2025-11-21T08:52:41-05:00",
+            "test_duration_ms": 34000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
@@ -95,8 +95,8 @@
           "status": "failing",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:08:00-05:00",
-            "test_duration_ms": 33000,
+            "last_test_run": "2025-11-21T08:52:41-05:00",
+            "test_duration_ms": 34000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
@@ -113,8 +113,8 @@
           "status": "failing",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:08:00-05:00",
-            "test_duration_ms": 33000,
+            "last_test_run": "2025-11-21T08:52:41-05:00",
+            "test_duration_ms": 34000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
@@ -131,8 +131,8 @@
           "status": "failing",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:08:00-05:00",
-            "test_duration_ms": 33000,
+            "last_test_run": "2025-11-21T08:52:41-05:00",
+            "test_duration_ms": 34000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
@@ -144,7 +144,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:39-05:00",
+        "last_updated": "2025-11-21T09:00:43-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,
@@ -173,8 +173,8 @@
           "status": "failing",
           "notes": "BAS workflow ensuring demo seed parity via JSON playbook (pending export).",
           "_sync_metadata": {
-            "last_test_run": "2025-11-20T21:15:37-05:00",
-            "test_duration_ms": 456000,
+            "last_test_run": "2025-11-21T09:00:41-05:00",
+            "test_duration_ms": 480000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
@@ -186,7 +186,7 @@
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-20T21:15:37-05:00",
+        "last_updated": "2025-11-21T09:00:41-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,

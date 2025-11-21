@@ -144,9 +144,7 @@
       "data": {
         "label": "Press Escape key",
         "waitForMs": 500,
-        "keys": [
-          "Escape"
-        ]
+        "keys": ["Escape"]
       }
     },
     {

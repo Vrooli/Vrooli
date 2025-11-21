@@ -85,11 +85,9 @@
       "type": "keyboard",
       "data": {
         "label": "Press Delete key",
-        "keys": [
-          "Delete"
-        ],
         "timeoutMs": 3000,
-        "waitForMs": 1500
+        "waitForMs": 1500,
+        "keys": ["Delete"]
       }
     },
     {

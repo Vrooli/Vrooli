@@ -134,9 +134,7 @@
       "type": "keyboard",
       "data": {
         "label": "Close version dialog with Escape",
-        "keys": [
-          "Escape"
-        ]
+        "keys": ["Escape"]
       }
     },
     {

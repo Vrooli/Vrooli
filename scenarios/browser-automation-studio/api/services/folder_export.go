@@ -97,6 +97,7 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 		}
 	}
 
+	// Only export screenshots if we have a storage client and there are screenshots
 	if screenshotCount > 0 && storageClient != nil {
 		screenshotsDir := filepath.Join(outputDir, "screenshots")
 		if err := os.MkdirAll(screenshotsDir, 0755); err != nil {
@@ -116,7 +117,7 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 				objectName = objectName[1:]
 			}
 
-			// Download screenshot from MinIO
+			// Download screenshot from MinIO (skip if fails - screenshot might not be available)
 			reader, info, err := storageClient.GetScreenshot(ctx, objectName)
 			if err != nil {
 				// Log but don't fail - screenshot might be missing

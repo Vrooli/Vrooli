@@ -155,9 +155,9 @@ _testing_suite_render_lint_summary() {
         def stat_val(stats; key):
           ((safe(stats; key) // 0) | tonumber);
 
-        def warn_line($file; $stats):
+        def warn_line($file; $stats; $warn_count):
           "⚠️  " + $file +
-          " emitted \($stats.warnings | length) warning(s) (" +
+          " emitted " + ($warn_count|tostring) + " warning(s) (" +
           ((stat_val($stats; "node_count"))|tostring) + " nodes, " +
           ((stat_val($stats; "edge_count"))|tostring) + " edges)";
 
@@ -199,7 +199,7 @@ _testing_suite_render_lint_summary() {
                   )
                 else "" end)
           elif warn_count(safe(. ; "result")) > 0 then
-              warn_line(.file; safe(safe(. ; "result"); "stats"))
+              warn_line(.file; safe(safe(. ; "result"); "stats"); warn_count(safe(. ; "result")))
               + "\n" + (safe(safe(. ; "result"); "warnings")[] |
                   "      [warn:" + (.code // "warning") + "] " + (.message // "")
               )
