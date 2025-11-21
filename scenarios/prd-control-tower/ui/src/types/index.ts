@@ -376,6 +376,7 @@ export interface QualityIssueCounts {
   target_coverage: number
   requirement_coverage: number
   prd_ref: number
+  documentation: number
   total: number
   blocking: number
 }
@@ -398,6 +399,8 @@ export interface ScenarioQualityReport {
   has_requirements: boolean
   prd_path?: string
   requirements_path?: string
+  requirements_readme_path?: string
+  requirements_readme_issues?: string[]
   validated_at: string
   cache_used: boolean
   status: 'healthy' | 'needs_attention' | 'blocked' | 'missing_prd' | 'error'

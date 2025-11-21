@@ -210,7 +210,18 @@ export default function QualityScanner() {
   const loadPreviousScan = () => {
     const payload = loadStoredScan()
     if (!payload) {
-      toast.error('No stored scan found')
+      // Check if there's a summary available
+      const summaryRaw = window.localStorage.getItem(SCAN_STORAGE_KEY + ':summary')
+      if (summaryRaw) {
+        try {
+          const summary = JSON.parse(summaryRaw)
+          toast.error(`Previous scan was too large to cache. It had ${summary.report_count} results with ${summary.total_issues} total issues. Please run a new scan.`)
+        } catch {
+          toast.error('No stored scan found')
+        }
+      } else {
+        toast.error('No stored scan found')
+      }
       return
     }
     setReports(payload.reports)
@@ -497,7 +508,35 @@ export default function QualityScanner() {
 
 function persistScan(response: { generated_at: string; reports: ScenarioQualityReport[] }) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(SCAN_STORAGE_KEY, JSON.stringify(response))
+
+  try {
+    // Try to store the full scan data
+    const data = JSON.stringify(response)
+    window.localStorage.setItem(SCAN_STORAGE_KEY, data)
+  } catch (err) {
+    // If quota exceeded, store a lightweight summary instead
+    if (err instanceof DOMException && (err.name === 'QuotaExceededError' || err.code === 22)) {
+      console.warn('localStorage quota exceeded, storing summary only')
+      try {
+        // Store a lightweight summary with only critical info
+        const summary = {
+          generated_at: response.generated_at,
+          report_count: response.reports.length,
+          entity_names: response.reports.map(r => `${r.entity_type}:${r.entity_name}`),
+          total_issues: response.reports.reduce((sum, r) => sum + r.issue_counts.total, 0),
+        }
+        window.localStorage.setItem(SCAN_STORAGE_KEY + ':summary', JSON.stringify(summary))
+        toast.error('Scan results too large to cache locally. Summary saved instead.')
+      } catch (summaryErr) {
+        console.error('Failed to store scan summary', summaryErr)
+        // Clear potentially corrupted data
+        window.localStorage.removeItem(SCAN_STORAGE_KEY)
+        window.localStorage.removeItem(SCAN_STORAGE_KEY + ':summary')
+      }
+    } else {
+      console.error('Failed to persist scan', err)
+    }
+  }
 }
 
 function buildReportKey(report: ScenarioQualityReport) {
@@ -744,10 +783,7 @@ function ReportTable({
                     <StatusPill status={report.status} />
                   </td>
                   <td className="px-4 py-3">
-                    {report.issue_counts.missing_template_sections +
-                      report.issue_counts.target_coverage +
-                      report.issue_counts.requirement_coverage +
-                      report.issue_counts.prd_ref}
+                    {report.issue_counts.total}
                   </td>
                   <td className="px-4 py-3">
                     {report.target_count}
@@ -800,6 +836,7 @@ function ReportDetails({ report, onReport }: { report: ScenarioQualityReport; on
       <Badge variant="outline">Target coverage: {report.issue_counts.target_coverage}</Badge>
       <Badge variant="outline">Reqs without targets: {report.issue_counts.requirement_coverage}</Badge>
       <Badge variant="outline">PRD ref: {report.issue_counts.prd_ref}</Badge>
+      <Badge variant="outline">Documentation: {report.issue_counts.documentation}</Badge>
     </div>
   )
 

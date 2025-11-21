@@ -284,7 +284,7 @@ export function DraftEditorPane({
                   {editorContent.trim().length === 0 ? (
                     <p className="text-muted-foreground">Start editing to see a formatted preview.</p>
                   ) : (
-                    <div className="space-y-4 text-slate-800 prose prose-sm max-w-none">
+                    <div className="prd-content">
                       <ReactMarkdown>{editorContent}</ReactMarkdown>
                     </div>
                   )}

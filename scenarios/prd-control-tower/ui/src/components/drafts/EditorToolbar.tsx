@@ -1,5 +1,6 @@
 import { Loader2, Save, RotateCcw, RefreshCcw, Sparkles, Upload } from 'lucide-react'
 import { Button } from '../ui/button'
+import { Tooltip } from '../ui/tooltip'
 
 interface EditorToolbarProps {
   saving: boolean
@@ -19,13 +20,17 @@ interface EditorToolbarProps {
 export function EditorToolbar({ saving, refreshing, hasUnsavedChanges, onSave, onDiscard, onRefresh, onOpenAI, onPublish }: EditorToolbarProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Button onClick={onSave} disabled={saving || !hasUnsavedChanges}>
-        {saving ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Save size={16} className="mr-2" />}
-        Save
-      </Button>
-      <Button variant="secondary" onClick={onDiscard} disabled={!hasUnsavedChanges}>
-        <RotateCcw size={16} className="mr-2" /> Discard
-      </Button>
+      <Tooltip content={!hasUnsavedChanges ? 'No changes to save' : ''}>
+        <Button onClick={onSave} disabled={saving || !hasUnsavedChanges}>
+          {saving ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Save size={16} className="mr-2" />}
+          Save
+        </Button>
+      </Tooltip>
+      <Tooltip content={!hasUnsavedChanges ? 'No changes to discard' : ''}>
+        <Button variant="secondary" onClick={onDiscard} disabled={!hasUnsavedChanges}>
+          <RotateCcw size={16} className="mr-2" /> Discard
+        </Button>
+      </Tooltip>
       <Button variant="outline" onClick={onRefresh} disabled={refreshing}>
         {refreshing ? <Loader2 size={16} className="mr-2 animate-spin" /> : <RefreshCcw size={16} className="mr-2" />}
         Refresh

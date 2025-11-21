@@ -1,0 +1,63 @@
+package main
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+)
+
+func TestHealthEndpoint(t *testing.T) {
+	// Set required environment variables for test
+	os.Setenv("API_PORT", "15000")
+	os.Setenv("POSTGRES_HOST", "localhost")
+	os.Setenv("POSTGRES_PORT", "5432")
+	os.Setenv("POSTGRES_USER", "test")
+	os.Setenv("POSTGRES_PASSWORD", "test")
+	os.Setenv("POSTGRES_DB", "test")
+
+	// Note: This test requires a database connection
+	// In a real scenario, you'd use a test database or mock
+	srv, err := NewServer()
+	if err != nil {
+		t.Skip("Skipping test - database not available:", err)
+	}
+	defer srv.db.Close()
+
+	req := httptest.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
+
+	srv.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	if contentType := w.Header().Get("Content-Type"); contentType != "application/json" {
+		t.Errorf("Expected Content-Type application/json, got %s", contentType)
+	}
+}
+
+func TestRequireEnv(t *testing.T) {
+	// Test valid environment variable
+	t.Run("valid environment variable", func(t *testing.T) {
+		os.Setenv("TEST_VAR", "test_value")
+		defer os.Unsetenv("TEST_VAR")
+
+		result := requireEnv("TEST_VAR")
+		if result != "test_value" {
+			t.Errorf("Expected test_value, got %s", result)
+		}
+	})
+
+	// Test whitespace trimming
+	t.Run("whitespace trimming", func(t *testing.T) {
+		os.Setenv("TEST_VAR_WS", "  trimmed  ")
+		defer os.Unsetenv("TEST_VAR_WS")
+
+		result := requireEnv("TEST_VAR_WS")
+		if result != "trimmed" {
+			t.Errorf("Expected trimmed, got '%s'", result)
+		}
+	})
+}

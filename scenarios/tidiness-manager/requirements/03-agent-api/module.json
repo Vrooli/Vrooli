@@ -2,7 +2,7 @@
   "_metadata": {
     "prd_section": "P0 - Agent-Callable Interface",
     "description": "HTTP/CLI API for other agents to request tidiness recommendations",
-    "last_synced_at": "2025-11-21T18:00:24.820Z"
+    "last_synced_at": "2025-11-21T18:29:33.662Z"
   },
   "requirements": [
     {
@@ -18,11 +18,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -56,11 +56,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -94,11 +94,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -132,7 +132,7 @@
           "status": "not_implemented",
           "ref": "api/issue_ranker_test.go",
           "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:00:11-05:00",
+            "last_test_run": "2025-11-21T13:29:20-05:00",
             "test_duration_ms": 1000,
             "auto_updated": true,
             "test_names": [],
@@ -147,7 +147,7 @@
       "notes": "Define clear ranking formula in API docs",
       "status": "pending",
       "_sync_metadata": {
-        "last_updated": "2025-11-21T13:00:11-05:00",
+        "last_updated": "2025-11-21T13:29:20-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": true,
@@ -172,11 +172,11 @@
           "status": "not_implemented",
           "ref": "test/cli/agent-api.bats",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -210,11 +210,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -248,11 +248,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"

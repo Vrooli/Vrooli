@@ -116,8 +116,8 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then if [ -z \"${API_PORT:-}\" ]; then echo 'API_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI (requires lifecycle-assigned API_PORT)"
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
         },
         {
           "name": "show-urls",
@@ -197,7 +197,7 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f 'node server.cjs' || true",
+          "run": "pkill -f 'node server.js' || true",
           "description": "Stop UI server"
         }
       ]
@@ -230,11 +230,6 @@
         "enabled": false,
         "required": false,
         "description": "Campaign-based file tracking to ensure progressive coverage without redundancy"
-      },
-      "code-smell": {
-        "enabled": false,
-        "required": false,
-        "description": "Pattern-based code smell detection (optional integration for deeper analysis)"
       }
     }
   }

@@ -153,5 +153,46 @@ export function buildQualityIssueCategories(
     })
   }
 
+  // Documentation issues (empty sections, content quality issues)
+  const contentIssues = report.template_compliance_v2?.content_issues ?? []
+  const requirementsReadmeIssues = report.requirements_readme_issues ?? []
+  const allDocIssues = [...contentIssues, ...requirementsReadmeIssues]
+
+  if (allDocIssues.length > 0) {
+    const sections = []
+
+    if (contentIssues.length > 0) {
+      sections.push({
+        id: 'content-issues',
+        title: 'PRD content issues',
+        items: contentIssues.map((issue) => `${issue.section}: ${issue.message}`),
+        maxVisible: 4,
+      })
+    }
+
+    if (requirementsReadmeIssues.length > 0) {
+      sections.push({
+        id: 'readme-issues',
+        title: 'Requirements README issues',
+        items: requirementsReadmeIssues,
+        maxVisible: 4,
+      })
+    }
+
+    categories.push({
+      id: 'documentation',
+      title: (
+        <span className="flex items-center gap-2">
+          <AlertTriangle size={16} /> Documentation issues
+        </span>
+      ),
+      tone: 'warning',
+      sections,
+      action: options?.onReportCategory
+        ? { label: 'Report', onClick: () => options.onReportCategory?.('documentation') }
+        : undefined,
+    })
+  }
+
   return categories
 }

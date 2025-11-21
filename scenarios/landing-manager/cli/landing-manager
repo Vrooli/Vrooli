@@ -166,6 +166,151 @@ cmd_configure() {
     esac
 }
 
+cmd_template_list() {
+    echo -e "${BLUE}Fetching available templates...${NC}"
+    response=$(api_request GET "/templates" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Failed to fetch templates"
+        return 1
+    fi
+
+    echo "$response" | jq -r '.[] | "  • \(.id) - \(.name)\n    \(.description)"' 2>/dev/null || echo "$response"
+}
+
+cmd_template_show() {
+    local template_id="${1:-}"
+    if [[ -z "$template_id" ]]; then
+        echo -e "${RED}✗${NC} Template ID required"
+        echo "Usage: $CLI_NAME template show <template-id>"
+        return 1
+    fi
+
+    echo -e "${BLUE}Fetching template details for: $template_id${NC}"
+    response=$(api_request GET "/templates/${template_id}" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Template not found: $template_id"
+        return 1
+    fi
+
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_generate() {
+    local template_id=""
+    local name=""
+    local slug=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --slug)
+                slug="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$template_id" ]]; then
+                    template_id="$1"
+                    shift
+                else
+                    echo -e "${RED}✗${NC} Unknown argument: $1"
+                    return 1
+                fi
+                ;;
+        esac
+    done
+
+    if [[ -z "$template_id" || -z "$name" || -z "$slug" ]]; then
+        echo -e "${RED}✗${NC} Missing required arguments"
+        echo "Usage: $CLI_NAME generate <template-id> --name <name> --slug <slug>"
+        return 1
+    fi
+
+    echo -e "${BLUE}Generating landing page scenario...${NC}"
+    local payload
+    payload=$(jq -n \
+        --arg tid "$template_id" \
+        --arg n "$name" \
+        --arg s "$slug" \
+        '{template_id: $tid, name: $n, slug: $s}')
+
+    response=$(curl -s -X POST \
+        -H 'Content-Type: application/json' \
+        -d "$payload" \
+        "${API_BASE}/generate" || true)
+
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Generation failed"
+        return 1
+    fi
+
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_customize() {
+    local scenario_id=""
+    local brief_file=""
+    local preview=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --brief-file)
+                brief_file="$2"
+                shift 2
+                ;;
+            --preview)
+                preview=true
+                shift
+                ;;
+            *)
+                if [[ -z "$scenario_id" ]]; then
+                    scenario_id="$1"
+                    shift
+                else
+                    echo -e "${RED}✗${NC} Unknown argument: $1"
+                    return 1
+                fi
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario_id" || -z "$brief_file" ]]; then
+        echo -e "${RED}✗${NC} Missing required arguments"
+        echo "Usage: $CLI_NAME customize <scenario-id> --brief-file <file> [--preview]"
+        return 1
+    fi
+
+    if [[ ! -f "$brief_file" ]]; then
+        echo -e "${RED}✗${NC} Brief file not found: $brief_file"
+        return 1
+    fi
+
+    local brief
+    brief=$(<"$brief_file")
+
+    echo -e "${BLUE}Triggering agent customization...${NC}"
+    local payload
+    payload=$(jq -n \
+        --arg sid "$scenario_id" \
+        --arg b "$brief" \
+        --argjson p "$preview" \
+        '{scenario_id: $sid, brief: $b, preview: $p}')
+
+    response=$(curl -s -X POST \
+        -H 'Content-Type: application/json' \
+        -d "$payload" \
+        "${API_BASE}/customize" || true)
+
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Customization request failed"
+        return 1
+    fi
+
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
 cmd_version() {
     echo "$CLI_NAME version $CLI_VERSION"
     if [[ -n "$API_BASE" ]]; then
@@ -182,10 +327,16 @@ landing-manager - Command-line interface for Landing Manager
 Usage: landing-manager <command>
 
 Commands:
-    status          Check API and dependency health
-    configure       View or update CLI configuration
-    version         Show CLI version
-    help            Show this help message
+    status                              Check API and dependency health
+    template list                       List available landing page templates
+    template show <id>                  Show detailed template metadata
+    generate <template> --name <name> --slug <slug>
+                                        Generate a new landing page scenario
+    customize <scenario> --brief-file <file> [--preview]
+                                        Trigger agent customization of a landing page
+    configure                           View or update CLI configuration
+    version                             Show CLI version
+    help                                Show this help message
 EOF
 }
 
@@ -211,7 +362,7 @@ main() {
         API_BASE="${env_api_base%/}"
     fi
 
-    if [[ "$command" == "status" ]]; then
+    if [[ "$command" == "status" || "$command" == "template" || "$command" == "generate" || "$command" == "customize" ]]; then
         if [[ -z "$API_BASE" ]]; then
             if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
                 echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
@@ -223,6 +374,29 @@ main() {
     case "$command" in
         status)
             cmd_status
+            ;;
+        template)
+            local subcommand="${1:-}"
+            shift || true
+            case "$subcommand" in
+                list)
+                    cmd_template_list
+                    ;;
+                show)
+                    cmd_template_show "$@"
+                    ;;
+                *)
+                    echo -e "${RED}✗${NC} Unknown template subcommand: $subcommand"
+                    echo "Valid subcommands: list, show"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        generate)
+            cmd_generate "$@"
+            ;;
+        customize)
+            cmd_customize "$@"
             ;;
         configure|config)
             cmd_configure "$@"

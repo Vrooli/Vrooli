@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
-import { fetchHealth } from "./lib/api";
 import { Button } from "./components/ui/button";
+import { fetchHealth } from "./lib/api";
 
 export default function App() {
   const { data, isLoading, error, refetch } = useQuery({
@@ -13,7 +13,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur">
         <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Scenario Template</p>
-        <h1 className="mt-3 text-3xl font-semibold">{{SCENARIO_DISPLAY_NAME}}</h1>
+        <h1 className="mt-3 text-3xl font-semibold">{{ SCENARIO_DISPLAY_NAME }}</h1>
         <p className="mt-2 text-slate-300">
           This starter UI is intentionally minimal. Replace it with your scenario-specific
           experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.
@@ -24,7 +24,7 @@ export default function App() {
           {isLoading && <p className="mt-2 text-slate-200">Checking API status…</p>}
           {error && (
             <p className="mt-2 text-red-400">
-              Unable to reach the API. Make sure the scenario is running through `vrooli scenario run` so API_PORT/VITE_API_BASE_URL are available.
+              Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.
             </p>
           )}
           {data && (

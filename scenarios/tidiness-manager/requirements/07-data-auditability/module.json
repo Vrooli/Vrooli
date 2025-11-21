@@ -2,7 +2,7 @@
   "_metadata": {
     "prd_section": "P1 - Data, Consistency & Auditability",
     "description": "Scan history, configuration management, and audit trails",
-    "last_synced_at": "2025-11-21T18:00:24.821Z"
+    "last_synced_at": "2025-11-21T18:20:27.231Z"
   },
   "requirements": [
     {
@@ -18,11 +18,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -56,11 +56,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -94,11 +94,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -132,11 +132,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -170,11 +170,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -208,11 +208,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -246,11 +246,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"
@@ -284,11 +284,11 @@
           "status": "not_implemented",
           "ref": "test/phases/test-integration.sh",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "integration",
             "tests_run": [
               "test/run-tests.sh"

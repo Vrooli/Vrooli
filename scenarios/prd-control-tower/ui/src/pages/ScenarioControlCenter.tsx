@@ -55,6 +55,8 @@ export default function ScenarioControlCenter() {
   const { entityType, entityName } = useParams<{ entityType?: string; entityName?: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const defaultTab = searchParams.get('tab') || 'overview'
+  const targetIdParam = searchParams.get('target')
+  const targetSearchParam = searchParams.get('search')
 
   // Requirements data
   const {
@@ -85,7 +87,12 @@ export default function ScenarioControlCenter() {
     filteredTargets,
     handleSelectTarget,
     refresh: refreshTargets,
-  } = useOperationalTargets({ entityType, entityName })
+  } = useOperationalTargets({
+    entityType,
+    entityName,
+    autoSelectTargetId: targetIdParam,
+    autoSelectTargetSearch: targetSearchParam
+  })
 
   const [qualityReport, setQualityReport] = useState<ScenarioQualityReport | null>(null)
   const [qualityLoading, setQualityLoading] = useState(false)

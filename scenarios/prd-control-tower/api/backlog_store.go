@@ -392,44 +392,95 @@ func buildBacklogDraftContent(ideaText, entityName string) string {
 		displayName = entityName
 	}
 
-	return fmt.Sprintf(`# %s
+	return fmt.Sprintf(`# Product Requirements Document (PRD)
 
 > Converted from backlog idea: %s
 
-## Capability Narrative
-Outline the permanent capability this scenario adds to Vrooli. Tie the story back to the backlog intent so future readers know why it matters.
+## 🎯 Overview
 
-## Why Now
-- Urgency driver #1 (e.g. ecosystem dependency, missing automation, customer pull)
-- Urgency driver #2
-- Risk of waiting longer (cost, degraded experience, etc.)
+**What this scenario delivers:**
+Describe the core capability this scenario adds to Vrooli. Connect it to the original backlog idea and explain why this matters to the ecosystem.
 
-## Stakeholders
-- **Product Operations** — keeps the catalog honest and validates the PRD spine.
-- **Scenario Maintainers** — will build + operate this capability.
-- **Meta-scenarios & Agents** — depend on this scenario once it ships.
+**Problem being solved:**
+- What pain point or gap does this address?
+- Who benefits from this capability?
+- What's the cost of not building this?
 
-## User Journeys
-1. Describe the most important human or agent flow that this scenario must power.
-2. Keep them task oriented ("As product ops..." or "When the orchestrator...").
-3. Reference linked requirements or operational targets if helpful.
+**Success criteria:**
+- Define what "done" looks like
+- List 2-3 measurable outcomes
 
-## Requirements
-- [ ] PRD-001 | Define the essential behavior and link to /requirements/*.json.
-- [ ] PRD-002 | Capture integrations, resources, and automation surfaces.
-- [ ] PRD-003 | Lock the success criteria for launch + observability.
+## 🎯 Operational Targets
 
-## Operational Targets
-- Target name (P0/P1) — Metric definition, measurement method, and which requirements back it.
-- Add at least one per P0 requirement and keep them machine-readable.
+### 🔴 P0 – Must ship for viability
+- [ ] **[T.001]** _Brief target description_ — Define the essential capability for launch
+- [ ] **[T.002]** _Brief target description_ — Add critical functionality required
+- [ ] **[T.003]** _Brief target description_ — Implement core workflow
 
-## Launch Plan
-1. Kickoff + scaffolding — Owner, due date, current status.
-2. Instrumentation + quality gates — Owner, due date, status.
-3. Ship + monitor with ecosystem-manager — Owner, due date, status.
+### 🟠 P1 – Should have post-launch
+- [ ] **[T.101]** _Brief target description_ — Enhance user experience
+- [ ] **[T.102]** _Brief target description_ — Add supporting features
 
-## Status
-**Yellow** — Converted from backlog. Flesh out the sections above, validate with scenario-auditor, and publish once ready.
+### 🟢 P2 – Future / expansion
+- [ ] **[T.201]** _Brief target description_ — Consider advanced features
+- [ ] **[T.202]** _Brief target description_ — Explore future enhancements
 
-`, displayName, ideaText)
+## 🧱 Tech Direction Snapshot
+
+**Architecture overview:**
+- Core components and how they interact
+- Key integrations with existing scenarios/resources
+
+**Tech stack:**
+- Language/framework: [e.g., Go, React, TypeScript]
+- Storage: [e.g., PostgreSQL, Redis]
+- Dependencies: [List key resources this scenario needs]
+
+**Data model:**
+- Key entities and relationships
+- Storage strategy
+
+## 🤝 Dependencies & Launch Plan
+
+**Prerequisites:**
+- Resource dependencies: [List required resources]
+- Scenario dependencies: [List scenarios this depends on]
+- External dependencies: [APIs, services, etc.]
+
+**Launch phases:**
+1. **Phase 1 - Foundation** — Setup scaffolding, database schema, core API
+2. **Phase 2 - Core Features** — Implement P0 targets, basic UI
+3. **Phase 3 - Polish & Ship** — Testing, documentation, deployment
+
+**Risks & mitigation:**
+- Risk: [Describe potential issue]
+  - Mitigation: [How to address it]
+
+## 🎨 UX & Branding
+
+**User experience:**
+- Primary user flows
+- Key interactions and screens
+- Navigation structure
+
+**Visual design:**
+- Color palette and theming
+- Component style (matches Vrooli design system)
+- Accessibility considerations
+
+## 📎 Appendix
+
+**References:**
+- Original backlog idea: %s
+- Related PRDs: [Link to related scenarios]
+- Design assets: [Link to mockups if available]
+
+**Notes:**
+- Additional context or considerations
+- Open questions to resolve
+
+---
+
+**Status:** 🟡 Draft — Converted from backlog. Review and expand sections, link operational targets to requirements, then publish.
+`, displayName, ideaText, ideaText)
 }

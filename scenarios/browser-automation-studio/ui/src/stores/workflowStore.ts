@@ -604,6 +604,22 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     });
     } catch (error) {
       logger.error('Failed to load workflow', { component: 'WorkflowStore', action: 'loadWorkflow', workflowId: id }, error);
+
+      // Set error state so UI knows loading failed
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load workflow';
+      set({
+        currentWorkflow: null,
+        nodes: [],
+        edges: [],
+        lastSaveError: {
+          type: 'network',
+          message: errorMessage,
+          status: error instanceof Error && error.message.includes('404') ? 404 : undefined,
+        },
+      });
+
+      // Re-throw so caller can handle the error
+      throw error;
     }
   },
   

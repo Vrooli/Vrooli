@@ -249,9 +249,12 @@ function App() {
         setSelectedFolder(project.folder_path || "/");
       }
 
-      await loadWorkflow(workflowId);
-      const loadedWorkflow = useWorkflowStore.getState().currentWorkflow;
-      if (loadedWorkflow) {
+      try {
+        await loadWorkflow(workflowId);
+        const loadedWorkflow = useWorkflowStore.getState().currentWorkflow;
+        if (!loadedWorkflow) {
+          throw new Error('Workflow data not loaded');
+        }
         const normalized = transformWorkflow(loadedWorkflow);
         if (normalized) {
           setSelectedWorkflow(normalized);
@@ -259,8 +262,21 @@ function App() {
             normalized.folderPath || project.folder_path || "/",
           );
         }
+        setCurrentView("project-workflow");
+      } catch (error) {
+        logger.error(
+          "Failed to load workflow",
+          {
+            component: "App",
+            action: "openWorkflow",
+            workflowId,
+            projectId: project.id,
+          },
+          error,
+        );
+        toast.error(`Failed to load workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        openProject(project, { replace: options?.replace ?? false });
       }
-      setCurrentView("project-workflow");
     },
     [
       loadWorkflow,

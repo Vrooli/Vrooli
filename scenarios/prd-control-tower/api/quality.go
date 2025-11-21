@@ -393,6 +393,10 @@ func computeQualityReport(entityType, entityName string) (ScenarioQualityReport,
 	report.RequirementsWithoutTargets = summarizeRequirements(unmatched, "missing_target_linkage")
 	report.PRDRefIssues = prdIssues
 
+	// Count content issues (empty sections, missing content, etc.)
+	contentIssueCount := len(tmplV2.ContentIssues)
+	report.IssueCounts.Documentation += contentIssueCount
+
 	report.IssueCounts.MissingTemplateSections = structureIssues
 	report.IssueCounts.TargetCoverage = len(targetIssues)
 	report.IssueCounts.RequirementCoverage = len(unmatched)

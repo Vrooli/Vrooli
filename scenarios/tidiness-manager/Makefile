@@ -4,13 +4,12 @@
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
-#   make           - Show help
-#   make start     - Start this scenario
-#   make stop      - Stop this scenario
-#   make dev       - Start in development mode
-#   make test   - Run scenario tests
-#   make logs   - Show scenario logs
-#   make clean  - Clean build artifacts
+#   make       - Show help and available commands
+#   make start - Start this scenario through Vrooli lifecycle
+#   make stop  - Stop this scenario and cleanup processes
+#   make test  - Run scenario test suite (all phases)
+#   make logs  - Show recent logs from running scenario
+#   make clean - Clean build artifacts and temporary files
 
 .PHONY: help start stop dev status test logs clean build fmt fmt-go fmt-ui lint lint-go lint-ui type check r s t l c b f
 

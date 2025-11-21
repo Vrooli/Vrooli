@@ -86,7 +86,7 @@
 - [ ] OT-P1-008 | Non-trivial backgrounds | Template includes at least one layered gradient/shape/texture background (not flat solid)
 - [ ] OT-P1-009 | Video section support | Template supports at least one video demo section (URL, thumbnail, caption, layout) configurable via admin
 
-### 🟢 P2 – Future / expansion ideas
+### 🟢 P2 – Future / expansion
 
 #### Multi-Template Support
 - [ ] OT-P2-001 | Additional templates | Support multiple landing page templates (e.g., SaaS, Product Launch, Lead Magnet, Event Registration)

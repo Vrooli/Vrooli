@@ -10,8 +10,39 @@
       "prd_ref": "OT-P2-001",
       "criticality": "P2",
       "description": "Support multiple landing page templates (SaaS, Product Launch, Lead Magnet, Event Registration)",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "TMPL-MARKET",
@@ -19,9 +50,42 @@
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "Community-contributed templates with ratings and reviews",
-      "validation": [],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
       "status": "pending",
-      "dependencies": ["TMPL-MULTI"]
+      "dependencies": [
+        "TMPL-MULTI"
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "AB-SIGNIFICANCE",
@@ -29,8 +93,39 @@
       "prd_ref": "OT-P2-003",
       "criticality": "P2",
       "description": "Admin dashboard shows confidence intervals and statistical significance for A/B tests",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "AB-AUTO-WINNER",
@@ -38,9 +133,42 @@
       "prd_ref": "OT-P2-004",
       "criticality": "P2",
       "description": "System automatically promotes winning variant after reaching significance threshold",
-      "validation": [],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
       "status": "pending",
-      "dependencies": ["AB-SIGNIFICANCE"]
+      "dependencies": [
+        "AB-SIGNIFICANCE"
+      ],
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "AB-BANDIT",
@@ -48,8 +176,39 @@
       "prd_ref": "OT-P2-005",
       "criticality": "P2",
       "description": "Implement Thompson sampling or UCB for dynamic traffic allocation",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "METRIC-HEATMAP",
@@ -57,8 +216,39 @@
       "prd_ref": "OT-P2-006",
       "criticality": "P2",
       "description": "Click heatmaps and scroll maps per variant",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "METRIC-REPLAY",
@@ -66,8 +256,39 @@
       "prd_ref": "OT-P2-007",
       "criticality": "P2",
       "description": "Record and replay user sessions for UX analysis",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "METRIC-FUNNEL",
@@ -75,8 +296,39 @@
       "prd_ref": "OT-P2-008",
       "criticality": "P2",
       "description": "Multi-step conversion funnel tracking (landing → CTA → checkout → success)",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "AGENT-VARIANTS",
@@ -84,8 +336,39 @@
       "prd_ref": "OT-P2-009",
       "criticality": "P2",
       "description": "Agent automatically generates and deploys A/B test variants based on conversion data",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "AGENT-MVT",
@@ -93,8 +376,39 @@
       "prd_ref": "OT-P2-010",
       "criticality": "P2",
       "description": "Test multiple elements simultaneously (hero copy + CTA button + pricing)",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "AGENT-PERSONA",
@@ -102,8 +416,39 @@
       "prd_ref": "OT-P2-011",
       "criticality": "P2",
       "description": "Generate variants optimized for different user personas",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "INTEG-CRM",
@@ -111,8 +456,39 @@
       "prd_ref": "OT-P2-012",
       "criticality": "P2",
       "description": "Push leads to HubSpot, Salesforce, or custom CRMs",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "INTEG-EMAIL",
@@ -120,8 +496,39 @@
       "prd_ref": "OT-P2-013",
       "criticality": "P2",
       "description": "Sync subscribers to Mailchimp, ConvertKit, etc.",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "INTEG-WEBHOOK",
@@ -129,8 +536,42 @@
       "prd_ref": "OT-P2-014",
       "criticality": "P2",
       "description": "Custom webhooks for landing page events (form submit, conversion, etc.)",
-      "validation": [],
-      "status": "pending"
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Placeholder - needs test implementation",
+          "ref": "TBD",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
+      "status": "pending",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     }
-  ]
+  ],
+  "_metadata": {
+    "last_synced_at": "2025-11-21T18:31:05.587Z"
+  }
 }

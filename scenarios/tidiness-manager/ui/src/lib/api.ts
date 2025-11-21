@@ -1,19 +1,9 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 
-let API_BASE_URL: string | null = null;
-
-const getApiBaseUrl = () => {
-  if (API_BASE_URL === null) {
-    API_BASE_URL = resolveApiBase({
-      appendSuffix: true,
-      explicitUrl: import.meta.env.VITE_API_BASE_URL,
-    });
-  }
-  return API_BASE_URL;
-};
+const API_BASE = resolveApiBase({ appendSuffix: true });
 
 export async function fetchHealth() {
-  const res = await fetch(buildApiUrl("/health", { baseUrl: getApiBaseUrl() }), {
+  const res = await fetch(buildApiUrl("/health", { baseUrl: API_BASE }), {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
   });

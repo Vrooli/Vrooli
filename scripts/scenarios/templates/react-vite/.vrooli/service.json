@@ -93,8 +93,8 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then if [ -z \"${API_PORT:-}\" ]; then echo 'API_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI (requires lifecycle-assigned API_PORT)"
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
         }
       ]
     },
@@ -109,9 +109,12 @@
         },
         {
           "name": "start-ui",
-          "run": "if [ -d ui ]; then if [ -z \"${API_PORT:-}\" ] || [ -z \"${UI_PORT:-}\" ]; then echo 'API_PORT and UI_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run dev -- --host --port ${UI_PORT}; else echo 'ui/ not present yet'; fi",
+          "run": "cd ui && node server.js",
           "background": true,
-          "description": "Start Vite dev server (requires lifecycle-assigned ports)"
+          "description": "Serve production UI bundle",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
         }
       ]
     },
@@ -135,8 +138,8 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f 'pnpm run dev' || true",
-          "description": "Stop Vite dev server"
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }

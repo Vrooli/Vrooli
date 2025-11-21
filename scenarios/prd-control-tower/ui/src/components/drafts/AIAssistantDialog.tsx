@@ -7,12 +7,50 @@ import { DiffViewer } from './DiffViewer'
 import type { AIAction } from '../../hooks/useAIAssistant'
 
 const DEFAULT_SECTIONS = [
-  '🎯 Overview',
-  '🎯 Operational Targets',
-  '🧱 Tech Direction Snapshot',
-  '🤝 Dependencies & Launch Plan',
-  '🎨 UX & Branding',
-  '📎 Appendix',
+  { value: '🎯 Overview', label: '🎯 Overview' },
+  { value: '🎯 Operational Targets', label: '🎯 Operational Targets' },
+  { value: '🧱 Tech Direction Snapshot', label: '🧱 Tech Direction Snapshot' },
+  { value: '🤝 Dependencies & Launch Plan', label: '🤝 Dependencies & Launch Plan' },
+  { value: '🎨 UX & Branding', label: '🎨 UX & Branding' },
+  { value: '📎 Appendix', label: '📎 Appendix' },
+]
+
+const PROMPT_TEMPLATES = [
+  {
+    id: 'fill-operational-targets',
+    label: 'Fill Operational Targets',
+    description: 'Generate P0/P1/P2 targets based on scenario requirements',
+    section: '🎯 Operational Targets',
+    contextPlaceholder: 'Describe what this scenario does and what the key requirements are...',
+  },
+  {
+    id: 'expand-overview',
+    label: 'Expand Overview',
+    description: 'Generate a detailed overview with problem statement and success criteria',
+    section: '🎯 Overview',
+    contextPlaceholder: 'Provide a brief description of the scenario...',
+  },
+  {
+    id: 'tech-stack',
+    label: 'Tech Stack Details',
+    description: 'Suggest appropriate tech stack and architecture',
+    section: '🧱 Tech Direction Snapshot',
+    contextPlaceholder: 'Describe the type of application and any requirements or constraints...',
+  },
+  {
+    id: 'launch-plan',
+    label: 'Launch Plan',
+    description: 'Create a phased launch plan with milestones',
+    section: '🤝 Dependencies & Launch Plan',
+    contextPlaceholder: 'Describe the scope and any known dependencies...',
+  },
+  {
+    id: 'ux-flows',
+    label: 'UX Flows',
+    description: 'Design user experience and interaction flows',
+    section: '🎨 UX & Branding',
+    contextPlaceholder: 'Describe the primary users and what they need to accomplish...',
+  },
 ]
 
 interface AIAssistantDialogProps {
@@ -66,11 +104,27 @@ export function AIAssistantDialog({
   onClose,
 }: AIAssistantDialogProps) {
   const [showDiff, setShowDiff] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
 
-  const sectionSuggestions = useMemo(
-    () => DEFAULT_SECTIONS.filter(item => item.toLowerCase().includes(section.toLowerCase())).slice(0, 5),
-    [section],
-  )
+  const handleTemplateSelect = (templateId: string) => {
+    const template = PROMPT_TEMPLATES.find(t => t.id === templateId)
+    if (template) {
+      setSelectedTemplate(templateId)
+      onSectionChange(template.section)
+      // Clear context to show the placeholder
+      if (!context.trim()) {
+        // Only set if context is empty
+      }
+    }
+  }
+
+  const currentContextPlaceholder = useMemo(() => {
+    if (selectedTemplate) {
+      const template = PROMPT_TEMPLATES.find(t => t.id === selectedTemplate)
+      return template?.contextPlaceholder || 'Paste notes, requirements, or the existing section to guide the model'
+    }
+    return 'Paste notes, requirements, or the existing section to guide the model'
+  }, [selectedTemplate])
 
   // Compute preview of what content will look like after AI insertion
   const previewContent = useMemo(() => {
@@ -103,23 +157,45 @@ export function AIAssistantDialog({
         </div>
 
         <div className="mt-6 space-y-4 text-sm">
-          <label className="flex flex-col gap-2">
-            <span className="font-medium text-slate-700">Section name</span>
-            <Input value={section} onChange={event => onSectionChange(event.target.value)} placeholder="e.g., Executive Summary" />
-            {section && sectionSuggestions.length > 0 && (
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                {sectionSuggestions.map(suggestion => (
+          {/* Template Selection */}
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <label className="flex flex-col gap-2">
+              <span className="font-medium text-blue-900">Quick Templates</span>
+              <p className="text-xs text-blue-700">Select a template to auto-fill section and get context guidance</p>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {PROMPT_TEMPLATES.map(template => (
                   <button
-                    key={suggestion}
+                    key={template.id}
                     type="button"
-                    className="rounded-full border bg-slate-50 px-3 py-1"
-                    onClick={() => onSectionChange(suggestion)}
+                    className={`rounded-lg border p-2 text-left transition ${
+                      selectedTemplate === template.id
+                        ? 'border-blue-500 bg-blue-100 text-blue-900'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300'
+                    }`}
+                    onClick={() => handleTemplateSelect(template.id)}
                   >
-                    {suggestion}
+                    <div className="font-semibold text-sm">{template.label}</div>
+                    <div className="text-xs text-slate-600 mt-0.5">{template.description}</div>
                   </button>
                 ))}
               </div>
-            )}
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-2">
+            <span className="font-medium text-slate-700">Section name</span>
+            <select
+              value={section}
+              onChange={event => onSectionChange(event.target.value)}
+              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">Select a section...</option>
+              {DEFAULT_SECTIONS.map(sec => (
+                <option key={sec.value} value={sec.value}>{sec.label}</option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">Or type a custom section name</p>
+            <Input value={section} onChange={event => onSectionChange(event.target.value)} placeholder="e.g., Custom Section" />
           </label>
 
           <label className="flex flex-col gap-2">
@@ -128,7 +204,7 @@ export function AIAssistantDialog({
               className="min-h-[120px]"
               value={context}
               onChange={event => onContextChange(event.target.value)}
-              placeholder="Paste notes, requirements, or the existing section to guide the model"
+              placeholder={currentContextPlaceholder}
             />
           </label>
 

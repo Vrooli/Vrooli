@@ -6,6 +6,8 @@ import type { OperationalTarget, OperationalTargetsResponse, RequirementRecord }
 interface UseOperationalTargetsOptions {
   entityType?: string
   entityName?: string
+  autoSelectTargetId?: string | null
+  autoSelectTargetSearch?: string | null
 }
 
 interface OperationalTargetsState {
@@ -25,7 +27,7 @@ interface OperationalTargetsState {
   refresh: () => Promise<void>
 }
 
-export function useOperationalTargets({ entityType, entityName }: UseOperationalTargetsOptions): OperationalTargetsState {
+export function useOperationalTargets({ entityType, entityName, autoSelectTargetId, autoSelectTargetSearch }: UseOperationalTargetsOptions): OperationalTargetsState {
   const [targets, setTargets] = useState<OperationalTarget[]>([])
   const [unmatchedRequirements, setUnmatchedRequirements] = useState<RequirementRecord[]>([])
   const [loading, setLoading] = useState(false)
@@ -66,6 +68,30 @@ export function useOperationalTargets({ entityType, entityName }: UseOperational
   useEffect(() => {
     void fetchTargets()
   }, [fetchTargets])
+
+  // Auto-select target based on URL params
+  useEffect(() => {
+    if (!targets.length) return
+
+    // Priority 1: Select by exact target ID
+    if (autoSelectTargetId) {
+      const target = targets.find((t) => t.id === autoSelectTargetId)
+      if (target) {
+        setSelectedTarget(target)
+        return
+      }
+    }
+
+    // Priority 2: Select by search term (matches against target ID)
+    if (autoSelectTargetSearch) {
+      const target = targets.find((t) => t.id === autoSelectTargetSearch)
+      if (target) {
+        setSelectedTarget(target)
+        setFilter(autoSelectTargetSearch)
+        return
+      }
+    }
+  }, [targets, autoSelectTargetId, autoSelectTargetSearch])
 
   const filteredTargets = useMemo(() => {
     return targets.filter((target) => {

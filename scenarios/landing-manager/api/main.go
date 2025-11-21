@@ -27,9 +27,10 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config *Config
-	db     *sql.DB
-	router *mux.Router
+	config          *Config
+	db              *sql.DB
+	router          *mux.Router
+	templateService *TemplateService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -54,9 +55,10 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config: cfg,
-		db:     db,
-		router: mux.NewRouter(),
+		config:          cfg,
+		db:              db,
+		router:          mux.NewRouter(),
+		templateService: NewTemplateService(),
 	}
 
 	srv.setupRoutes()
@@ -65,7 +67,13 @@ func NewServer() (*Server, error) {
 
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
+	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+	s.router.HandleFunc("/api/v1/templates", s.handleTemplateList).Methods("GET")
+	s.router.HandleFunc("/api/v1/templates/{id}", s.handleTemplateShow).Methods("GET")
+	s.router.HandleFunc("/api/v1/generate", s.handleGenerate).Methods("POST")
+	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -129,21 +137,112 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// loggingMiddleware prints simple request logs
+func (s *Server) handleTemplateList(w http.ResponseWriter, r *http.Request) {
+	templates, err := s.templateService.ListTemplates()
+	if err != nil {
+		s.log("failed to list templates", map[string]interface{}{"error": err.Error()})
+		http.Error(w, "Failed to list templates", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(templates)
+}
+
+func (s *Server) handleTemplateShow(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	template, err := s.templateService.GetTemplate(id)
+	if err != nil {
+		s.log("failed to get template", map[string]interface{}{"id": id, "error": err.Error()})
+		http.Error(w, "Template not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(template)
+}
+
+func (s *Server) handleGenerate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TemplateID string                 `json:"template_id"`
+		Name       string                 `json:"name"`
+		Slug       string                 `json:"slug"`
+		Options    map[string]interface{} `json:"options"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	response, err := s.templateService.GenerateScenario(req.TemplateID, req.Name, req.Slug, req.Options)
+	if err != nil {
+		s.log("failed to generate scenario", map[string]interface{}{
+			"template_id": req.TemplateID,
+			"name":        req.Name,
+			"error":       err.Error(),
+		})
+		http.Error(w, fmt.Sprintf("Failed to generate scenario: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) handleCustomize(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ScenarioID string   `json:"scenario_id"`
+		Brief      string   `json:"brief"`
+		Assets     []string `json:"assets"`
+		Preview    bool     `json:"preview"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Stub implementation
+	response := map[string]interface{}{
+		"job_id":   fmt.Sprintf("job-%d", time.Now().Unix()),
+		"status":   "queued",
+		"agent_id": "agent-claude-code-1",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(response)
+}
+
+// loggingMiddleware prints structured request logs
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+		fields := map[string]interface{}{
+			"method":   r.Method,
+			"path":     r.RequestURI,
+			"duration": time.Since(start).String(),
+		}
+		logStructured("request_completed", fields)
 	})
 }
 
 func (s *Server) log(msg string, fields map[string]interface{}) {
+	logStructured(msg, fields)
+}
+
+func logStructured(msg string, fields map[string]interface{}) {
 	if len(fields) == 0 {
-		log.Println(msg)
+		log.Printf(`{"level":"info","message":"%s","timestamp":"%s"}`, msg, time.Now().UTC().Format(time.RFC3339))
 		return
 	}
-	log.Printf("%s | %v", msg, fields)
+	fieldsJSON, _ := json.Marshal(fields)
+	log.Printf(`{"level":"info","message":"%s","fields":%s,"timestamp":"%s"}`, msg, fieldsJSON, time.Now().UTC().Format(time.RFC3339))
 }
 
 func requireEnv(key string) string {

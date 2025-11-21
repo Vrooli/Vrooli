@@ -48,6 +48,17 @@ curl_json() {
   fi
 }
 
+# Clean up disk-based workflow storage to prevent workflows from being restored
+echo "🧹 Cleaning up disk-based workflow storage..."
+if [ -d "${SCENARIO_DIR}/data/projects" ]; then
+  rm -rf "${SCENARIO_DIR}/data/projects"/*
+  echo "✓ Cleared data/projects directory"
+fi
+
+# Remove orphaned workflows (test workflows with NULL project_id)
+echo "🧹 Cleaning up orphaned test workflows..."
+curl_json DELETE "$API_URL/workflows/cleanup-orphaned" >/dev/null || true
+
 # Remove every project so the test run starts from a known state.
 list_resp=$(curl_json GET "$API_URL/projects") || list_resp='{}'
 project_ids=$(printf '%s' "$list_resp" | jq -r '.projects[]? | (.project.id // .Project.id // .id // empty)')

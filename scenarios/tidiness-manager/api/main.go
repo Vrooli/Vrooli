@@ -65,7 +65,9 @@ func NewServer() (*Server, error) {
 
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
+	// Expose health at both root (for infrastructure) and /api/v1 (for clients)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
 }
 
 // Start launches the HTTP server with graceful shutdown

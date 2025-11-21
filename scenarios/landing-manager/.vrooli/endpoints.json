@@ -59,7 +59,7 @@
     },
     {
       "id": "template-show",
-      "path": "/api/v1/templates/:id",
+      "path": "/api/v1/templates/{id}",
       "method": "GET",
       "summary": "Show template details",
       "description": "Returns detailed metadata for a specific template",

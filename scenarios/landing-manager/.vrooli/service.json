@@ -60,9 +60,13 @@
     "health": {
       "description": "Standard API/UI health checks",
       "startup_grace_period": 15000,
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
       "checks": [
         {
-          "name": "api",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "timeout": 10000,
@@ -70,7 +74,7 @@
           "critical": true
         },
         {
-          "name": "ui",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
@@ -81,6 +85,23 @@
     },
     "setup": {
       "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "paths": ["api/landing-manager-api"]
+          },
+          {
+            "type": "command_available",
+            "command": "landing-manager"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
       "steps": [
         {
           "name": "install-cli",
@@ -89,35 +110,51 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o landing-manager-api ./cmd/server",
-          "description": "Compile Go API server"
+          "run": "cd api && go mod download && go build -o landing-manager-api .",
+          "description": "Build Go API binary (landing-manager-api) in api/ directory for reuse by start-api step"
         },
         {
-          "name": "install-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then if [ -z \"${API_PORT:-}\" ]; then echo 'API_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI (requires lifecycle-assigned API_PORT)"
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\"",
+          "description": "Display access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Launch API and Vite dev server",
+      "description": "Launch API and production UI bundle",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./landing-manager-api",
           "background": true,
+          "condition": {
+            "file_exists": "api/landing-manager-api"
+          },
           "description": "Start Go API server"
         },
         {
           "name": "start-ui",
-          "run": "if [ -d ui ]; then if [ -z \"${API_PORT:-}\" ] || [ -z \"${UI_PORT:-}\" ]; then echo 'API_PORT and UI_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run dev -- --host --port ${UI_PORT}; else echo 'ui/ not present yet'; fi",
+          "run": "cd ui && node server.js",
           "background": true,
-          "description": "Start Vite dev server (requires lifecycle-assigned ports)"
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Serve production UI bundle"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\"",
+          "description": "Display access URLs"
         }
       ]
     },
@@ -141,8 +178,8 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f 'pnpm run dev' || true",
-          "description": "Stop Vite dev server"
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }

@@ -10,9 +10,39 @@
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "Expose at least one template (saas-landing-page) via CLI/API for listing, inspection, and generation",
-      "validation": [],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/cli/template-management.bats",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
       "status": "pending",
-      "notes": "Implement CLI commands: landing-manager template list, landing-manager template show <name>"
+      "notes": "Implement CLI commands: landing-manager template list, landing-manager template show <name>",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "TMPL-METADATA",
@@ -20,10 +50,42 @@
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "Template metadata includes required sections, optional sections, and metrics hooks",
-      "validation": [],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/cli/template-management.bats",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
       "status": "pending",
-      "dependencies": ["TMPL-AVAILABILITY"],
-      "notes": "Metadata should include: sections (hero, features, pricing, etc.), metrics hooks (page_view, click, conversion), customization schema"
+      "dependencies": [
+        "TMPL-AVAILABILITY"
+      ],
+      "notes": "Metadata should include: sections (hero, features, pricing, etc.), metrics hooks (page_view, click, conversion), customization schema",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "TMPL-GENERATION",
@@ -31,10 +93,43 @@
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "Create new landing-page scenario with one CLI command without manual file editing",
-      "validation": [],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/cli/template-management.bats",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
       "status": "pending",
-      "dependencies": ["TMPL-AVAILABILITY", "TMPL-METADATA"],
-      "notes": "Command: landing-manager generate <template> --name <name> --slug <slug> [--options]"
+      "dependencies": [
+        "TMPL-AVAILABILITY",
+        "TMPL-METADATA"
+      ],
+      "notes": "Command: landing-manager generate <template> --name <name> --slug <slug> [--options]",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     },
     {
       "id": "TMPL-RUNNABLE",
@@ -42,10 +137,45 @@
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "Generated landing-page scenario runs locally (frontend + Go API) with single startup command",
-      "validation": [],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/cli/template-management.bats",
+          "_sync_metadata": {
+            "last_test_run": "2025-11-21T13:30:56-05:00",
+            "test_duration_ms": 0,
+            "auto_updated": true,
+            "test_names": [],
+            "phase_result": "coverage/phase-results/integration.json",
+            "source_phase": "integration",
+            "tests_run": [
+              "test/run-tests.sh"
+            ]
+          }
+        }
+      ],
       "status": "pending",
-      "dependencies": ["TMPL-GENERATION"],
-      "notes": "Generated scenario should work with: vrooli scenario start <generated-name> or make start"
+      "dependencies": [
+        "TMPL-GENERATION"
+      ],
+      "notes": "Generated scenario should work with: vrooli scenario start <generated-name> or make start",
+      "_sync_metadata": {
+        "last_updated": "2025-11-21T13:30:56-05:00",
+        "updated_by": "auto-sync",
+        "test_coverage_count": 0,
+        "all_tests_passing": true,
+        "phase_results": [
+          "coverage/phase-results/integration.json"
+        ],
+        "tests_run": [
+          "test/run-tests.sh"
+        ]
+      }
     }
-  ]
+  ],
+  "_metadata": {
+    "last_synced_at": "2025-11-21T18:31:05.584Z"
+  }
 }

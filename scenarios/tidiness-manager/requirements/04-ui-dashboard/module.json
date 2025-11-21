@@ -2,7 +2,7 @@
   "_metadata": {
     "prd_section": "P0 - Human UI Dashboard",
     "description": "React UI for humans to manage tidiness campaigns and view issues",
-    "last_synced_at": "2025-11-21T18:00:24.820Z"
+    "last_synced_at": "2025-11-21T18:20:27.230Z"
   },
   "requirements": [
     {
@@ -18,11 +18,11 @@
           "status": "not_implemented",
           "ref": "test/playbooks/capabilities/01-light-scanning/ui/global-dashboard.json",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "business",
             "tests_run": [
               "test/run-tests.sh"
@@ -56,11 +56,11 @@
           "status": "not_implemented",
           "ref": "test/playbooks/capabilities/01-light-scanning/ui/global-dashboard.json",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "business",
             "tests_run": [
               "test/run-tests.sh"
@@ -94,11 +94,11 @@
           "status": "not_implemented",
           "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "business",
             "tests_run": [
               "test/run-tests.sh"
@@ -132,11 +132,11 @@
           "status": "not_implemented",
           "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "business",
             "tests_run": [
               "test/run-tests.sh"
@@ -170,11 +170,11 @@
           "status": "not_implemented",
           "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "business",
             "tests_run": [
               "test/run-tests.sh"
@@ -208,11 +208,11 @@
           "status": "not_implemented",
           "ref": "test/playbooks/capabilities/04-ui-dashboard/ui/theme.json",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "business",
             "tests_run": [
               "test/run-tests.sh"
@@ -246,11 +246,11 @@
           "status": "not_implemented",
           "ref": "test/playbooks/capabilities/04-ui-dashboard/ui/accessibility.json",
           "_sync_metadata": {
-            "last_test_run": "",
+            "last_test_run": null,
             "test_duration_ms": 0,
             "auto_updated": true,
             "test_names": [],
-            "phase_result": "",
+            "phase_result": null,
             "source_phase": "business",
             "tests_run": [
               "test/run-tests.sh"

@@ -37,7 +37,7 @@
 - [ ] OT-P1-009 | Read-only agent access | Agent read calls return existing data without triggering new scans unless force flag set
 - [ ] OT-P1-010 | Force scan queueing | Enqueue force-scan requests in controlled queue respecting global concurrency limits
 
-### 🟢 P2 – Future / expansion ideas
+### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Trend analysis | Display code health metrics over time (% files long, % files with issues, avg issues per file)
 - [ ] OT-P2-002 | Issue-tracker integration | Create tasks in app-issue-tracker for high-severity tidiness issues
 - [ ] OT-P2-003 | code-smell integration | Call code-smell scenario for deeper pattern analysis beyond structural issues
