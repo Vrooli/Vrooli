@@ -142,7 +142,7 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 - [ ] OT-P1-035 | Deployment Profile Metadata in Issues | Include deployment profile ID as metadata when creating app-issue-tracker issues for linking
 - [ ] OT-P1-036 | Issue Closure Webhooks | Receive webhook when linked app-issue-tracker issue closes, update deployment status accordingly
 
-### 🟢 P2 – Future / expansion ideas
+### 🟢 P2 – Future / expansion
 
 #### Enterprise & Compliance Features
 - [ ] OT-P2-001 | Licensing Validation | Validate all dependency licenses against tier-specific compatibility rules (e.g., GPL incompatible with proprietary desktop)

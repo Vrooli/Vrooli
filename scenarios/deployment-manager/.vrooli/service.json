@@ -61,9 +61,13 @@
     "health": {
       "description": "Standard API/UI health checks",
       "startup_grace_period": 15000,
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
       "checks": [
         {
-          "name": "api",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "timeout": 10000,
@@ -71,7 +75,7 @@
           "critical": true
         },
         {
-          "name": "ui",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
@@ -82,6 +86,15 @@
     },
     "setup": {
       "description": "Build API & UI, install CLI, initialize database",
+      "condition": {
+        "binaries": [
+          "api/deployment-manager-api"
+        ],
+        "commands": [
+          "deployment-manager"
+        ],
+        "ui-bundle": "ui/dist/index.html"
+      },
       "steps": [
         {
           "name": "install-cli",
@@ -90,8 +103,8 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o deployment-manager-api ./cmd/server",
-          "description": "Compile Go API server"
+          "run": "cd api && go mod download && go build -o deployment-manager-api .",
+          "description": "Build Go API binary (deployment-manager-api) in api/ directory"
         },
         {
           "name": "setup-database",
@@ -99,7 +112,7 @@
           "description": "Initialize PostgreSQL schema and seed deployment-manager data"
         },
         {
-          "name": "install-ui",
+          "name": "install-ui-deps",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
         },
@@ -107,23 +120,39 @@
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then if [ -z \"${API_PORT:-}\" ]; then echo 'API_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run build; else echo 'ui/ not present yet'; fi",
           "description": "Build production UI (requires lifecycle-assigned API_PORT)"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Deployment Manager initialized\\n  📊 API: http://localhost:${API_PORT}\\n  🌐 UI: http://localhost:${UI_PORT}\\n  🎯 CLI: deployment-manager --help\\n\\n💡 Quick start:\\n  deployment-manager analyze <scenario>\\n  deployment-manager profiles list\\n  deployment-manager fitness <scenario> --tier 2'",
+          "description": "Display access URLs for API and UI"
         }
       ]
     },
     "develop": {
-      "description": "Launch API and Vite dev server",
+      "description": "Launch API and production UI bundle via Node server",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./deployment-manager-api",
           "background": true,
-          "description": "Start Go API server"
+          "description": "Start Go API server",
+          "condition": {
+            "file_exists": "api/deployment-manager-api"
+          }
         },
         {
           "name": "start-ui",
-          "run": "if [ -d ui ]; then if [ -z \"${API_PORT:-}\" ] || [ -z \"${UI_PORT:-}\" ]; then echo 'API_PORT and UI_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run dev -- --host --port ${UI_PORT}; else echo 'ui/ not present yet'; fi",
+          "run": "cd ui && node server.cjs",
           "background": true,
-          "description": "Start Vite dev server (requires lifecycle-assigned ports)"
+          "description": "Serve production UI bundle",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Deployment Manager running:\\n  📊 API: http://localhost:${API_PORT}\\n  🌐 UI: http://localhost:${UI_PORT}\\n  🎯 CLI: deployment-manager --help\\n\\n📝 View logs: make logs\\n🛑 Stop: make stop'",
+          "description": "Display access URLs for API and UI after startup"
         }
       ]
     },
