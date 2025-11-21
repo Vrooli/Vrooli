@@ -1,0 +1,162 @@
+{
+  "$schema": "../../../.vrooli/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "scenario": "secrets-manager",
+  "endpoints": [
+    {
+      "path": "/health",
+      "method": "GET",
+      "description": "API health check with database connectivity status",
+      "schema_ref": "health-api",
+      "critical": true,
+      "response_required_fields": [
+        "status",
+        "service",
+        "timestamp",
+        "readiness",
+        "dependencies"
+      ],
+      "expected_status": 200,
+      "timeout_ms": 5000
+    },
+    {
+      "path": "/vault/secrets/status",
+      "method": "GET",
+      "description": "Vault secrets coverage summary across all resources",
+      "critical": true,
+      "response_required_fields": [
+        "total_resources",
+        "configured_resources",
+        "missing_secrets",
+        "resource_statuses",
+        "last_updated"
+      ],
+      "expected_status": 200,
+      "timeout_ms": 10000,
+      "query_params": [
+        {
+          "name": "resource",
+          "type": "string",
+          "required": false,
+          "description": "Filter by specific resource name"
+        }
+      ]
+    },
+    {
+      "path": "/security/vulnerabilities",
+      "method": "GET",
+      "description": "Security vulnerability scan results with filtering (quick mode for testing)",
+      "critical": true,
+      "response_required_fields": [
+        "vulnerabilities",
+        "total_count",
+        "scan_metadata"
+      ],
+      "expected_status": 200,
+      "timeout_ms": 5000,
+      "query_params": [
+        {
+          "name": "component",
+          "type": "string",
+          "required": false,
+          "description": "Filter by component name"
+        },
+        {
+          "name": "severity",
+          "type": "string",
+          "required": false,
+          "description": "Filter by severity (critical, high, medium, low)"
+        },
+        {
+          "name": "component_type",
+          "type": "string",
+          "required": false,
+          "description": "Filter by component type (scenario, resource)"
+        },
+        {
+          "name": "quick",
+          "type": "boolean",
+          "required": false,
+          "description": "Use quick mode (cached/minimal results for testing)"
+        }
+      ]
+    },
+    {
+      "path": "/security/compliance",
+      "method": "GET",
+      "description": "Unified compliance metrics combining vault coverage and vulnerability stats",
+      "critical": true,
+      "response_required_fields": [
+        "risk_score",
+        "vault_coverage_percent",
+        "total_vulnerabilities",
+        "critical_vulnerabilities",
+        "compliance_status"
+      ],
+      "expected_status": 200,
+      "timeout_ms": 10000
+    },
+    {
+      "path": "/secrets/validate",
+      "method": "POST",
+      "description": "Validate secrets for a specific resource",
+      "critical": false,
+      "request_body_required_fields": [
+        "resource"
+      ],
+      "response_required_fields": [
+        "resource",
+        "valid_secrets",
+        "invalid_secrets",
+        "validation_timestamp"
+      ],
+      "expected_status": 200,
+      "timeout_ms": 15000
+    },
+    {
+      "path": "/secrets/provision",
+      "method": "POST",
+      "description": "Provision secrets to Vault (P1 feature)",
+      "critical": false,
+      "request_body_required_fields": [
+        "resource",
+        "secrets"
+      ],
+      "response_required_fields": [
+        "provisioned_count",
+        "failed_count",
+        "status"
+      ],
+      "expected_status": 200,
+      "timeout_ms": 20000
+    },
+    {
+      "path": "/deployment/secrets",
+      "method": "POST",
+      "description": "Generate deployment manifest for specific tier (P0 feature - not yet implemented)",
+      "critical": false,
+      "experimental": true,
+      "request_body_required_fields": [
+        "scenario",
+        "tier"
+      ],
+      "response_required_fields": [
+        "scenario",
+        "tier",
+        "secrets"
+      ],
+      "expected_status": 200,
+      "timeout_ms": 10000,
+      "implementation_status": "planned"
+    }
+  ],
+  "base_url": "http://localhost:${API_PORT}",
+  "test_config": {
+    "run_before_tests": [
+      "vrooli resource start postgres",
+      "vrooli resource start vault"
+    ],
+    "cleanup_after_tests": false,
+    "parallel_execution": false
+  }
+}

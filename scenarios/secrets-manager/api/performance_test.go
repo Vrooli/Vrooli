@@ -61,9 +61,7 @@ func BenchmarkSecurityScanHandler(b *testing.B) {
 // BenchmarkProvisionHandler benchmarks the provision endpoint
 func BenchmarkProvisionHandler(b *testing.B) {
 	provReq := ProvisionRequest{
-		SecretKey:     "TEST_KEY",
-		SecretValue:   "test-value",
-		StorageMethod: "vault",
+		Secrets: map[string]string{"TEST_KEY": "test-value"},
 	}
 	body, _ := json.Marshal(provReq)
 	handler := http.HandlerFunc(provisionHandler)

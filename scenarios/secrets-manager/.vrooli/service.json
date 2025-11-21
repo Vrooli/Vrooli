@@ -53,9 +53,13 @@
     "health": {
       "description": "Standard API/UI health checks",
       "startup_grace_period": 15000,
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
       "checks": [
         {
-          "name": "api",
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "timeout": 10000,
@@ -63,7 +67,7 @@
           "critical": true
         },
         {
-          "name": "ui",
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
@@ -74,6 +78,28 @@
     },
     "setup": {
       "description": "Install CLI, build API, initialize database, and produce a production UI bundle",
+      "condition": {
+        "description": "Check if binaries, CLI, and UI bundle exist",
+        "checks": [
+          {
+            "type": "binaries",
+            "paths": ["api/secrets-manager-api"],
+            "description": "API binary produced by build-api step"
+          },
+          {
+            "type": "cli",
+            "command": "secrets-manager",
+            "targets": ["secrets-manager"],
+            "description": "CLI must be installed"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src",
+            "description": "Production UI bundle built from source"
+          }
+        ]
+      },
       "steps": [
         {
           "name": "install-cli",
@@ -83,7 +109,7 @@
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o secrets-manager-api .",
-          "description": "Compile the Go API server"
+          "description": "Build the Go API server binary (secrets-manager-api) inside api/ directory for lifecycle execution"
         },
         {
           "name": "initialize-database",
@@ -96,7 +122,7 @@
           "description": "Seed baseline secret definitions"
         },
         {
-          "name": "install-ui",
+          "name": "install-ui-deps",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; fi",
           "description": "Install UI dependencies"
         },
@@ -104,23 +130,39 @@
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then if [ -z \"${API_PORT:-}\" ]; then echo 'API_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run build; fi",
           "description": "Build production UI bundle against the lifecycle-assigned API port"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '✅ Setup complete!' && echo '' && echo '🔗 Access points:' && echo \"  API: http://localhost:${API_PORT}/health\" && echo \"  UI:  http://localhost:${UI_PORT}\" && echo '' && echo '▶️  Start with: make start'",
+          "description": "Display access URLs after setup"
         }
       ]
     },
     "develop": {
-      "description": "Start the Go API and React Vite dev server",
+      "description": "Start the Go API and serve production UI bundle",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./secrets-manager-api",
           "background": true,
-          "description": "Run the API server"
+          "description": "Run the API server",
+          "condition": {
+            "file_exists": "api/secrets-manager-api"
+          }
         },
         {
           "name": "start-ui",
-          "run": "if [ -z \"${API_PORT:-}\" ] || [ -z \"${UI_PORT:-}\" ]; then echo 'API_PORT and UI_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run dev -- --host --port ${UI_PORT}",
+          "run": "if [ -z \"${API_PORT:-}\" ] || [ -z \"${UI_PORT:-}\" ]; then echo 'API_PORT and UI_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" node server.cjs",
           "background": true,
-          "description": "Run the Vite dev server"
+          "description": "Serve production UI bundle via Express server",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "sleep 2 && echo '' && echo '🚀 Secrets Manager is running!' && echo '' && echo '🔗 Access points:' && echo \"  API Health: http://localhost:${API_PORT}/health\" && echo \"  Dashboard:  http://localhost:${UI_PORT}\" && echo '' && echo '📊 View logs: make logs' && echo '🛑 Stop: make stop'",
+          "description": "Display running service URLs"
         }
       ]
     },

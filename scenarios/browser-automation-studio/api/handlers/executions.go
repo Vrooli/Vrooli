@@ -23,6 +23,7 @@ import (
 type executionExportRequest struct {
 	Format    string                    `json:"format,omitempty"`
 	FileName  string                    `json:"file_name,omitempty"`
+	OutputDir string                    `json:"output_dir,omitempty"`
 	Overrides *executionExportOverrides `json:"overrides,omitempty"`
 	MovieSpec *services.ReplayMovieSpec `json:"movie_spec,omitempty"`
 }
@@ -1068,6 +1069,38 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	}
 	if format == "" {
 		format = "json"
+	}
+
+	// Handle folder export format
+	if format == "folder" {
+		outputDir := strings.TrimSpace(r.URL.Query().Get("output_dir"))
+		if body.OutputDir != "" {
+			outputDir = strings.TrimSpace(body.OutputDir)
+		}
+
+		if outputDir == "" {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "output_dir is required for folder format"}))
+			return
+		}
+
+		exportCtx, cancelExport := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)
+		defer cancelExport()
+
+		if err := h.workflowService.ExportToFolder(exportCtx, executionID, outputDir, h.storage); err != nil {
+			if errors.Is(err, database.ErrNotFound) {
+				h.respondError(w, ErrExecutionNotFound.WithDetails(map[string]string{"execution_id": executionID.String()}))
+				return
+			}
+			h.log.WithError(err).WithField("execution_id", executionID).WithField("output_dir", outputDir).Error("Failed to export to folder")
+			h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "export_folder", "error": err.Error()}))
+			return
+		}
+
+		h.respondSuccess(w, http.StatusOK, map[string]string{
+			"message":    "Execution exported successfully",
+			"output_dir": outputDir,
+		})
+		return
 	}
 
 	previewCtx, cancelPreview := context.WithTimeout(r.Context(), constants.ExtendedRequestTimeout)

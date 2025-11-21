@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -123,7 +122,7 @@ func scanResourcesDirectly() ([]string, error) {
 	}
 
 	resourcesPath := filepath.Join(vrooliRoot, "resources")
-	log.Printf("🔍 Scanning resources directory: %s", resourcesPath)
+	logger.Info("🔍 Scanning resources directory: %s", resourcesPath)
 	var resourcesWithSecrets []string
 
 	// Walk through resources directory
@@ -139,14 +138,14 @@ func scanResourcesDirectly() ([]string, error) {
 			parts := strings.Split(rel, string(filepath.Separator))
 			if len(parts) > 0 {
 				resourceName := parts[0]
-				log.Printf("  📦 Found resource with secrets: %s", resourceName)
+				logger.Info("  📦 Found resource with secrets: %s", resourceName)
 				resourcesWithSecrets = append(resourcesWithSecrets, resourceName)
 			}
 		}
 		return nil
 	})
 
-	log.Printf("✅ Found %d resources with secrets: %v", len(resourcesWithSecrets), resourcesWithSecrets)
+	logger.Info("✅ Found %d resources with secrets: %v", len(resourcesWithSecrets), resourcesWithSecrets)
 	return resourcesWithSecrets, err
 }
 
@@ -190,27 +189,27 @@ func checkVaultForSecret(resourceName, secretName string) bool {
 		envName = strings.ReplaceAll(envName, "-", "_")
 	}
 
-	log.Printf("🔍 checkVaultForSecret: resource=%s, secret=%s, envName=%s", resourceName, secretName, envName)
+	logger.Info("🔍 checkVaultForSecret: resource=%s, secret=%s, envName=%s", resourceName, secretName, envName)
 
 	// Use getVaultSecret which already implements resource-vault CLI access
 	if value, err := getVaultSecret(envName); err == nil && value != "" {
-		log.Printf("✅ Found secret %s in vault", envName)
+		logger.Info("✅ Found secret %s in vault", envName)
 		return true
 	}
 
 	// Fall back to environment variables
 	if envValue := os.Getenv(envName); envValue != "" {
-		log.Printf("✅ Found secret %s in environment", envName)
+		logger.Info("✅ Found secret %s in environment", envName)
 		return true
 	}
 
 	// Fall back to local secrets file (~/.vrooli/secrets.json)
 	if value, err := loadLocalSecret(envName); err == nil && value != "" {
-		log.Printf("✅ Found secret %s in local secrets store", envName)
+		logger.Info("✅ Found secret %s in local secrets store", envName)
 		return true
 	}
 
-	log.Printf("❌ Secret %s not found in vault or environment", envName)
+	logger.Info("❌ Secret %s not found in vault or environment", envName)
 	return false
 }
 
@@ -267,7 +266,7 @@ func getVaultSecretsStatusFallback(resourceFilter string) (*VaultSecretsStatus, 
 		// Load secrets configuration
 		config, err := loadResourceSecrets(resourceName)
 		if err != nil {
-			log.Printf("  ❌ Error loading %s secrets: %v", resourceName, err)
+			logger.Error("  ❌ Error loading %s secrets: %v", resourceName, err)
 			continue // Skip resources we can't read
 		}
 		var categoryNames []string
@@ -275,7 +274,7 @@ func getVaultSecretsStatusFallback(resourceFilter string) (*VaultSecretsStatus, 
 			categoryNames = append(categoryNames, category)
 		}
 		sort.Strings(categoryNames)
-		log.Printf("  📋 Processing %s: categories=%v", resourceName, categoryNames)
+		logger.Info("  📋 Processing %s: categories=%v", resourceName, categoryNames)
 
 		totalSecrets := 0
 

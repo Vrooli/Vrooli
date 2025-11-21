@@ -20,6 +20,10 @@ import (
 
 // setupTestLogger initializes the logger for testing
 func setupTestLogger() func() {
+	// Initialize the package-level logger if not already initialized
+	if logger == nil {
+		logger = NewLogger("test")
+	}
 	// Save original logger output and redirect to discard during tests
 	originalOutput := log.Writer()
 	log.SetOutput(ioutil.Discard)

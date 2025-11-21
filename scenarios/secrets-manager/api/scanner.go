@@ -23,7 +23,7 @@ type SecretScanner struct {
 func NewSecretScanner(db *sql.DB) *SecretScanner {
 	return &SecretScanner{
 		db:     db,
-		logger: Logger{},
+		logger: *NewLogger("scanner"),
 	}
 }
 

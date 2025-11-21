@@ -15,6 +15,11 @@ CREATE TABLE IF NOT EXISTS resource_secrets (
     validation_pattern VARCHAR(500),
     documentation_url TEXT,
     default_value TEXT,
+    classification VARCHAR(20) NOT NULL DEFAULT 'service' CHECK (classification IN ('infrastructure', 'service', 'user')),
+    owner_team TEXT,
+    owner_contact TEXT,
+    rotation_period_days INTEGER DEFAULT 0,
+    last_rotated_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
@@ -56,6 +61,78 @@ CREATE TABLE IF NOT EXISTS secret_provisions (
     provisioned_by VARCHAR(100),
     provision_status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (provision_status IN ('active', 'expired', 'revoked')),
     expiration_date TIMESTAMP WITH TIME ZONE
+);
+
+-- Table describing how each secret should be handled per tier
+CREATE TABLE IF NOT EXISTS secret_deployment_strategies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    resource_secret_id UUID NOT NULL REFERENCES resource_secrets(id) ON DELETE CASCADE,
+    tier VARCHAR(50) NOT NULL,
+    handling_strategy VARCHAR(20) NOT NULL CHECK (handling_strategy IN ('strip', 'generate', 'prompt', 'delegate')),
+    fallback_strategy VARCHAR(20),
+    requires_user_input BOOLEAN NOT NULL DEFAULT false,
+    prompt_label TEXT,
+    prompt_description TEXT,
+    generator_template JSONB,
+    bundle_hints JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(resource_secret_id, tier)
+);
+
+-- Table storing generated bundle manifests for auditing / telemetry
+CREATE TABLE IF NOT EXISTS deployment_manifests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    scenario_name VARCHAR(200) NOT NULL,
+    tier VARCHAR(50) NOT NULL,
+    manifest JSONB NOT NULL,
+    generated_by VARCHAR(200),
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table for persisting vulnerability scan runs
+CREATE TABLE IF NOT EXISTS security_scan_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    scan_id VARCHAR(100) NOT NULL,
+    component_filter VARCHAR(200),
+    component_type VARCHAR(50),
+    severity_filter VARCHAR(50),
+    files_scanned INTEGER DEFAULT 0,
+    files_skipped INTEGER DEFAULT 0,
+    vulnerabilities_found INTEGER DEFAULT 0,
+    risk_score INTEGER DEFAULT 0,
+    duration_ms INTEGER DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'completed' CHECK (status IN ('running', 'completed', 'failed')),
+    error_message TEXT,
+    metadata JSONB,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table for individual vulnerability records with lifecycle metadata
+CREATE TABLE IF NOT EXISTS security_vulnerabilities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    scan_run_id UUID REFERENCES security_scan_runs(id) ON DELETE SET NULL,
+    fingerprint VARCHAR(500) NOT NULL,
+    component_type VARCHAR(50) NOT NULL,
+    component_name VARCHAR(200) NOT NULL,
+    file_path TEXT NOT NULL,
+    line_number INTEGER,
+    severity VARCHAR(20) NOT NULL,
+    vulnerability_type VARCHAR(50) NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    recommendation TEXT,
+    code_snippet TEXT,
+    can_auto_fix BOOLEAN DEFAULT false,
+    status VARCHAR(30) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved', 'accepted', 'regressed')),
+    assigned_to TEXT,
+    fix_request_id UUID,
+    first_observed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_observed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    metadata JSONB,
+    UNIQUE(fingerprint)
 );
 
 -- View for current secret status summary
@@ -146,14 +223,25 @@ CREATE INDEX IF NOT EXISTS idx_resource_secrets_resource_name ON resource_secret
 CREATE INDEX IF NOT EXISTS idx_resource_secrets_required ON resource_secrets(required) WHERE required = true;
 CREATE INDEX IF NOT EXISTS idx_secret_validations_status ON secret_validations(validation_status);
 CREATE INDEX IF NOT EXISTS idx_secret_validations_timestamp ON secret_validations(validation_timestamp);
+CREATE INDEX IF NOT EXISTS idx_secret_deploy_strat_tier ON secret_deployment_strategies(tier);
+CREATE INDEX IF NOT EXISTS idx_secret_deploy_strat_secret ON secret_deployment_strategies(resource_secret_id);
+CREATE INDEX IF NOT EXISTS idx_deployment_manifests_tier ON deployment_manifests(tier);
+CREATE INDEX IF NOT EXISTS idx_security_scans_completed_at ON security_scan_runs(completed_at);
+CREATE INDEX IF NOT EXISTS idx_security_vuln_component ON security_vulnerabilities(component_type, component_name);
+CREATE INDEX IF NOT EXISTS idx_security_vuln_status ON security_vulnerabilities(status);
+CREATE INDEX IF NOT EXISTS idx_security_vuln_severity ON security_vulnerabilities(severity);
 
 -- Comments for documentation
 COMMENT ON TABLE resource_secrets IS 'Tracks all secret requirements discovered from resource configurations';
 COMMENT ON TABLE secret_validations IS 'Stores validation results for each secret over time';
 COMMENT ON TABLE secret_scans IS 'Logs all resource scanning operations';
 COMMENT ON TABLE secret_provisions IS 'Tracks secret provisioning and storage operations';
+COMMENT ON TABLE secret_deployment_strategies IS 'Stores tier-specific handling strategies for each secret';
+COMMENT ON TABLE deployment_manifests IS 'Historical deployment bundle manifests for auditing and telemetry';
 COMMENT ON VIEW secret_health_summary IS 'Summary view of secret validation status by resource';
 COMMENT ON VIEW missing_secrets_report IS 'Report of missing required secrets that need attention';
+COMMENT ON TABLE security_scan_runs IS 'Tracks filesystem security scans, filters, and performance metrics';
+COMMENT ON TABLE security_vulnerabilities IS 'Stores actionable vulnerability findings with lifecycle metadata';
 
 -- Grant permissions (adjust as needed for your setup)
 -- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO secrets_manager_api;

@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../.vrooli/schemas/lighthouse.schema.json",
+  "version": "1.0.0",
+  "scenario": "secrets-manager",
+  "pages": [
+    {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "path": "/",
+      "description": "Main secrets manager dashboard",
+      "thresholds": {
+        "performance": 0.8,
+        "accessibility": 0.9,
+        "best-practices": 0.85,
+        "seo": 0.7,
+        "first-contentful-paint": 2000,
+        "largest-contentful-paint": 3000,
+        "time-to-interactive": 4000,
+        "cumulative-layout-shift": 0.1,
+        "total-blocking-time": 500
+      }
+    }
+  ],
+  "global_options": {
+    "chrome_flags": [
+      "--no-sandbox",
+      "--headless"
+    ]
+  }
+}

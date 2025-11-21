@@ -34,6 +34,7 @@ type WorkflowService interface {
 	GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*database.Screenshot, error)
 	GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*services.ExecutionTimeline, error)
 	DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*services.ExecutionExportPreview, error)
+	ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error
 	GetExecution(ctx context.Context, executionID uuid.UUID) (*database.Execution, error)
 	ListExecutions(ctx context.Context, workflowID *uuid.UUID, limit, offset int) ([]*database.Execution, error)
 	StopExecution(ctx context.Context, executionID uuid.UUID) error

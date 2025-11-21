@@ -114,6 +114,20 @@ _testing_playbooks__persist_failure_artifacts() {
     target_dir=$(dirname "$base_path")
     mkdir -p "$target_dir"
 
+    # Try folder export first (includes markdown, screenshots, etc.)
+    local folder_export_dir="${base_path}-${execution_id}"
+    local folder_export_resp
+    folder_export_resp=$(curl -s --max-time 30 -X POST \
+        -H 'Content-Type: application/json' \
+        -d "{\"format\":\"folder\",\"output_dir\":\"${folder_export_dir}\"}" \
+        "$api_base/executions/${execution_id}/export" 2>&1)
+
+    local folder_export_success=false
+    if printf '%s' "$folder_export_resp" | grep -q "Execution exported successfully"; then
+        folder_export_success=true
+    fi
+
+    # Legacy: Always write timeline.json at old location for backward compatibility
     if [ -n "$timeline_payload" ]; then
         printf '%s\n' "$timeline_payload" >"${base_path}.timeline.json"
     fi
@@ -133,27 +147,38 @@ _testing_playbooks__persist_failure_artifacts() {
         fi
     fi
 
-    local recorded_paths=()
-    if [ -s "${base_path}.timeline.json" ]; then
-        recorded_paths+=("${base_path}.timeline.json")
-    fi
-    if [ -s "${base_path}.png" ]; then
-        recorded_paths+=("${base_path}.png")
-    fi
-
-    if [ ${#recorded_paths[@]} -gt 0 ]; then
-        local rel_paths=()
-        local path_entry
-        for path_entry in "${recorded_paths[@]}"; do
-            if [[ "$path_entry" == "$scenario_dir/"* ]]; then
-                rel_paths+=("${path_entry#$scenario_dir/}")
-            else
-                rel_paths+=("$path_entry")
-            fi
-        done
-        TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE=$(IFS=', '; echo "${rel_paths[*]}")
+    # Prefer folder export with README.md if available
+    local folder_readme="${folder_export_dir}/README.md"
+    if [ "$folder_export_success" = true ] && [ -f "$folder_readme" ]; then
+        local rel_readme="$folder_readme"
+        if [[ "$rel_readme" == "$scenario_dir/"* ]]; then
+            rel_readme="${rel_readme#$scenario_dir/}"
+        fi
+        TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE="Read $rel_readme"
     else
-        TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE=""
+        # Fallback to legacy artifact listing
+        local recorded_paths=()
+        if [ -s "${base_path}.timeline.json" ]; then
+            recorded_paths+=("${base_path}.timeline.json")
+        fi
+        if [ -s "${base_path}.png" ]; then
+            recorded_paths+=("${base_path}.png")
+        fi
+
+        if [ ${#recorded_paths[@]} -gt 0 ]; then
+            local rel_paths=()
+            local path_entry
+            for path_entry in "${recorded_paths[@]}"; do
+                if [[ "$path_entry" == "$scenario_dir/"* ]]; then
+                    rel_paths+=("${path_entry#$scenario_dir/}")
+                else
+                    rel_paths+=("$path_entry")
+                fi
+            done
+            TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE=$(IFS=', '; echo "${rel_paths[*]}")
+        else
+            TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE=""
+        fi
     fi
 }
 
@@ -529,11 +554,22 @@ testing::playbooks::run_workflow() {
     fi
 
     echo "❌ Workflow ${workflow_name} failed after ${duration}s${stats_output}" >&2
-    printf '%s\n' "$execution_summary" >&2
 
     _testing_playbooks__persist_failure_artifacts "$scenario_dir" "$artifact_rel_path" "$execution_id" "$api_base" "$timeline_json"
+
+    # Only print JSON summary if folder export failed (fallback to legacy format)
     if [ -n "${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE:-}" ]; then
-        echo "   ↳ Failure artifacts: ${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}" >&2
+        if [[ "${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}" == Read* ]]; then
+            # Folder export succeeded - skip JSON, just show clean README pointer
+            echo "   ↳ ${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}" >&2
+        else
+            # Folder export failed - show JSON and legacy artifacts
+            printf '%s\n' "$execution_summary" >&2
+            echo "   ↳ Failure artifacts: ${TESTING_PLAYBOOKS_LAST_ARTIFACT_NOTE}" >&2
+        fi
+    else
+        # No artifacts at all - still show JSON for debugging
+        printf '%s\n' "$execution_summary" >&2
     fi
 
     if [ $wait_rc -eq 2 ] && [ "$duration" -ge "$workflow_timeout" ]; then

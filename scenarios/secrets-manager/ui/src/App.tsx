@@ -1,14 +1,40 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Activity, CheckCircle2, Database, RefreshCcw, ShieldAlert, ShieldCheck, TerminalSquare } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  Activity,
+  CheckCircle2,
+  Compass,
+  Database,
+  Layers,
+  Map,
+  RefreshCcw,
+  ShieldAlert,
+  ShieldCheck,
+  Target,
+  TerminalSquare
+} from "lucide-react";
 import { Button } from "./components/ui/button";
 import {
   fetchHealth,
   fetchVaultStatus,
   fetchCompliance,
   fetchVulnerabilities,
+  fetchOrientationSummary,
+  generateDeploymentManifest,
+  fetchResourceDetail,
+  updateResourceSecret,
+  updateSecretStrategy,
+  updateVulnerabilityStatus,
   type VaultResourceStatus,
-  type SecurityVulnerability
+  type SecurityVulnerability,
+  type JourneyCard as JourneyCardData,
+  type OrientationSummary,
+  type DeploymentManifestRequest,
+  type DeploymentManifestResponse,
+  type ResourceDetail,
+  type ResourceSecretDetail,
+  type UpdateResourceSecretPayload,
+  type UpdateSecretStrategyPayload
 } from "./lib/api";
 
 const severityAccent: Record<string, string> = {
@@ -26,6 +52,14 @@ const intentAccent: Record<Intent, string> = {
   danger: "border-red-500/40 bg-red-500/10 text-red-100",
   info: "border-cyan-400/40 bg-cyan-400/10 text-cyan-100"
 };
+
+const classificationTone: Record<string, string> = {
+  infrastructure: "bg-sky-400/15 text-sky-100 border-sky-500/40",
+  service: "bg-purple-400/10 text-purple-100 border-purple-500/40",
+  user: "bg-amber-400/10 text-amber-100 border-amber-500/40"
+};
+
+type JourneyId = "configure-secrets" | "fix-vulnerabilities" | "prep-deployment";
 
 const formatTimestamp = (value?: string) => {
   if (!value) return "—";
@@ -150,6 +184,28 @@ export default function App() {
   const [componentType, setComponentType] = useState("");
   const [componentFilter, setComponentFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
+  const [activeJourney, setActiveJourney] = useState<JourneyId | null>(null);
+  const [journeyStep, setJourneyStep] = useState(0);
+  const [deploymentScenario, setDeploymentScenario] = useState("picker-wheel");
+  const [deploymentTier, setDeploymentTier] = useState("tier-2-desktop");
+  const [resourceInput, setResourceInput] = useState("");
+  const [activeResource, setActiveResource] = useState<string | null>(null);
+  const [selectedSecretKey, setSelectedSecretKey] = useState<string | null>(null);
+  const [strategyTier, setStrategyTier] = useState("tier-2-desktop");
+  const [strategyHandling, setStrategyHandling] = useState("prompt");
+  const [strategyPrompt, setStrategyPrompt] = useState("Desktop pairing prompt");
+  const [strategyDescription, setStrategyDescription] = useState("Prompt operator for credentials during install");
+
+  const openResourcePanel = useCallback((resourceName?: string) => {
+    if (!resourceName) return;
+    setActiveResource(resourceName);
+    setSelectedSecretKey(null);
+  }, []);
+
+  const closeResourcePanel = useCallback(() => {
+    setActiveResource(null);
+    setSelectedSecretKey(null);
+  }, []);
 
   const healthQuery = useQuery({
     queryKey: ["health"],
@@ -183,6 +239,62 @@ export default function App() {
   const isRefreshing =
     healthQuery.isFetching || vaultQuery.isFetching || complianceQuery.isFetching || vulnerabilityQuery.isFetching;
 
+  const orientationQuery = useQuery({
+    queryKey: ["orientation-summary"],
+    queryFn: fetchOrientationSummary,
+    refetchInterval: 120000
+  });
+
+  const manifestMutation = useMutation<DeploymentManifestResponse, Error, DeploymentManifestRequest>({
+    mutationFn: (payload) => generateDeploymentManifest(payload)
+  });
+
+  const resourceDetailQuery = useQuery<ResourceDetail>({
+    queryKey: ["resource-detail", activeResource],
+    queryFn: () => fetchResourceDetail(activeResource as string),
+    enabled: Boolean(activeResource),
+    refetchOnWindowFocus: false
+  });
+
+  const updateSecretMutation = useMutation({
+    mutationFn: ({ resource, secret, payload }: { resource: string; secret: string; payload: UpdateResourceSecretPayload }) =>
+      updateResourceSecret(resource, secret, payload),
+    onSuccess: () => {
+      resourceDetailQuery.refetch();
+    }
+  });
+
+  const updateStrategyMutation = useMutation({
+    mutationFn: ({ resource, secret, payload }: { resource: string; secret: string; payload: UpdateSecretStrategyPayload }) =>
+      updateSecretStrategy(resource, secret, payload),
+    onSuccess: () => {
+      resourceDetailQuery.refetch();
+    }
+  });
+
+  const updateVulnerabilityStatusMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: { status: string; assigned_to?: string } }) =>
+      updateVulnerabilityStatus(id, payload),
+    onSuccess: () => {
+      resourceDetailQuery.refetch();
+    }
+  });
+
+  useEffect(() => {
+    setJourneyStep(0);
+  }, [activeJourney]);
+
+  useEffect(() => {
+    if (!resourceDetailQuery.data || !resourceDetailQuery.data.secrets.length) {
+      setSelectedSecretKey(null);
+      return;
+    }
+    const exists = resourceDetailQuery.data.secrets.some((secret) => secret.secret_key === selectedSecretKey);
+    if (!exists) {
+      setSelectedSecretKey(resourceDetailQuery.data.secrets[0].secret_key);
+    }
+  }, [resourceDetailQuery.data, selectedSecretKey]);
+
   const componentOptions = useMemo(() => {
     const set = new Set<string>();
     vaultQuery.data?.resource_statuses?.forEach((status) => set.add(status.resource_name));
@@ -206,7 +318,251 @@ export default function App() {
     vaultQuery.refetch();
     complianceQuery.refetch();
     vulnerabilityQuery.refetch();
+    orientationQuery.refetch();
   };
+
+  const orientationData = orientationQuery.data;
+  const heroStats = orientationData?.hero_stats;
+  const journeyCards = orientationData?.journeys ?? [];
+  const tierReadiness = orientationData?.tier_readiness ?? [];
+  const resourceInsights = orientationData?.resource_insights ?? [];
+
+  const topResourceNeedingAttention = useMemo(() => {
+    if (resourceInsights.length > 0) {
+      return resourceInsights[0].resource_name;
+    }
+    return resourceStatuses.find((status) => status.secrets_missing > 0)?.resource_name;
+  }, [resourceInsights, resourceStatuses]);
+
+  const handleJourneySelect = (journey: JourneyId) => {
+    setActiveJourney(journey);
+  };
+
+  const parsedResources = useMemo(() => {
+    if (!resourceInput.trim()) return undefined;
+    return resourceInput
+      .split(/[\n,]+/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+  }, [resourceInput]);
+
+  const selectedSecret = useMemo<ResourceSecretDetail | undefined>(() => {
+    if (!resourceDetailQuery.data || resourceDetailQuery.data.secrets.length === 0) {
+      return undefined;
+    }
+    if (!selectedSecretKey) {
+      return resourceDetailQuery.data.secrets[0];
+    }
+    return resourceDetailQuery.data.secrets.find((secret) => secret.secret_key === selectedSecretKey) ??
+      resourceDetailQuery.data.secrets[0];
+  }, [resourceDetailQuery.data, selectedSecretKey]);
+
+  const handleSecretUpdate = useCallback(
+    (secretKey: string, payload: UpdateResourceSecretPayload) => {
+      if (!activeResource) return;
+      updateSecretMutation.mutate({ resource: activeResource, secret: secretKey, payload });
+    },
+    [activeResource, updateSecretMutation]
+  );
+
+  const handleStrategyApply = useCallback(() => {
+    if (!activeResource || !selectedSecret) return;
+    const payload: UpdateSecretStrategyPayload = {
+      tier: strategyTier,
+      handling_strategy: strategyHandling,
+      requires_user_input: strategyHandling === "prompt",
+      prompt_label: strategyPrompt,
+      prompt_description: strategyDescription
+    };
+    updateStrategyMutation.mutate({ resource: activeResource, secret: selectedSecret.secret_key, payload });
+  }, [activeResource, selectedSecret, strategyTier, strategyHandling, strategyPrompt, strategyDescription, updateStrategyMutation]);
+
+  const handleVulnerabilityStatus = useCallback(
+    (id: string, status: string) => {
+      updateVulnerabilityStatusMutation.mutate({ id, payload: { status } });
+    },
+    [updateVulnerabilityStatusMutation]
+  );
+
+  const handleManifestRequest = () => {
+    manifestMutation.mutate({
+      scenario: deploymentScenario,
+      tier: deploymentTier,
+      resources: parsedResources,
+      include_optional: false
+    });
+  };
+
+  const journeySteps = useMemo(() => {
+    if (!activeJourney) return [];
+    const steps = [] as Array<{ title: string; description: string; content?: React.ReactNode }>;
+    if (activeJourney === "configure-secrets") {
+      steps.push({
+        title: "Audit coverage",
+        description: "Review vault readiness and identify resources with missing requirements.",
+        content: (
+          <ul className="mt-2 space-y-1 text-sm text-white/80">
+            <li>Configured resources: {heroStats?.vault_configured ?? 0}</li>
+            <li>Total resources tracked: {heroStats?.vault_total ?? 0}</li>
+            <li>Missing secrets: {heroStats?.missing_secrets ?? 0}</li>
+          </ul>
+        )
+      });
+      steps.push({
+        title: "Prioritize fixes",
+        description: "Work the highest-risk resources first using the insights table below.",
+        content: (
+          <div className="space-y-3">
+            <p className="text-sm text-white/70">
+              Start with degraded resources in the Workbench section. Each resource card exposes inline actions to
+              manage its secrets and deployment strategies.
+            </p>
+            <Button size="sm" onClick={() => openResourcePanel(topResourceNeedingAttention)} disabled={!topResourceNeedingAttention}>
+              {topResourceNeedingAttention ? `Open ${topResourceNeedingAttention}` : "No targets"}
+            </Button>
+          </div>
+        )
+      });
+      steps.push({
+        title: "Provision",
+        description: "Use the CLI/API provisioning hooks or jump into secrets-manager CLI to apply changes.",
+        content: (
+          <div className="space-y-2 text-sm text-white/70">
+            <p>Recommended command:</p>
+            <code className="block rounded-xl border border-white/20 bg-black/40 px-3 py-2 font-mono text-xs text-emerald-200">
+              secrets-manager plan --scenario picker-wheel --tier tier-2-desktop | jq
+            </code>
+          </div>
+        )
+      });
+    }
+    if (activeJourney === "fix-vulnerabilities") {
+      steps.push({
+        title: "Review findings",
+        description: "Filter findings by severity and assign owners before remediation.",
+        content: (
+          <p className="text-sm text-white/70">Risk score: {orientationData?.hero_stats.risk_score ?? 0}</p>
+        )
+      });
+      steps.push({
+        title: "Plan remediation",
+        description: "Trigger claude-code fixer runs for repetitive issues or create app-issue-tracker tickets.",
+        content: (
+          <p className="text-sm text-white/70">
+            Use the vulnerability list below to copy file references and recommendations. When fixes are ready, run the
+            automated tests to confirm stability.
+          </p>
+        )
+      });
+      steps.push({
+        title: "Verify",
+        description: "Re-run scans and confirm compliance deltas.",
+        content: (
+          <Button variant="outline" size="sm" onClick={() => vulnerabilityQuery.refetch()}>
+            Re-run scan
+          </Button>
+        )
+      });
+    }
+    if (activeJourney === "prep-deployment") {
+      steps.push({
+        title: "Assess tier readiness",
+        description: "Confirm which tiers have full secret strategies.",
+        content: (
+          <ul className="mt-2 space-y-1 text-sm text-white/80">
+            {tierReadiness.slice(0, 3).map((tier) => (
+              <li key={tier.tier}>
+                {tier.label}: {tier.ready_percent}% ({tier.strategized}/{tier.total})
+              </li>
+            ))}
+          </ul>
+        )
+      });
+      steps.push({
+        title: "Generate manifest",
+        description: "Select scenario, tier, and optional resource filters to emit a bundle manifest.",
+        content: (
+          <div className="space-y-3 text-sm text-white/80">
+            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
+              Scenario
+              <input
+                type="text"
+                value={deploymentScenario}
+                onChange={(event) => setDeploymentScenario(event.target.value)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
+              Tier
+              <select
+                value={deploymentTier}
+                onChange={(event) => setDeploymentTier(event.target.value)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+              >
+                {tierReadiness.map((tier) => (
+                  <option key={tier.tier} value={tier.tier}>
+                    {tier.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
+              Resources (optional)
+              <textarea
+                value={resourceInput}
+                onChange={(event) => setResourceInput(event.target.value)}
+                placeholder="postgres, vault"
+                rows={2}
+                className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+              />
+            </label>
+            <Button variant="secondary" size="sm" className="w-full" onClick={handleManifestRequest} disabled={manifestMutation.isLoading}>
+              {manifestMutation.isLoading ? "Generating…" : "Generate manifest"}
+            </Button>
+            {manifestMutation.isError ? (
+              <p className="text-xs text-red-300">{manifestMutation.error.message}</p>
+            ) : null}
+          </div>
+        )
+      });
+      steps.push({
+        title: "Review manifest",
+        description: "Inspect the resulting manifest and hand it off to deployment-manager or scenario-to-*.",
+        content: manifestMutation.data ? (
+          <div className="space-y-2 text-xs text-white/70">
+            <p>
+              Secrets covered: {manifestMutation.data.summary.strategized_secrets}/{manifestMutation.data.summary.total_secrets}
+            </p>
+            <p>Blocking: {manifestMutation.data.summary.requires_action}</p>
+            <div className="rounded-xl border border-white/10 bg-black/40 p-3 font-mono">
+              <pre className="overflow-x-auto text-[10px] text-emerald-100">
+{JSON.stringify(manifestMutation.data.summary, null, 2)}
+              </pre>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-white/60">No manifest generated yet.</p>
+        )
+      });
+    }
+    return steps;
+  }, [
+    activeJourney,
+    heroStats,
+    orientationData,
+    tierReadiness,
+    deploymentScenario,
+    deploymentTier,
+    resourceInput,
+    manifestMutation.data,
+    manifestMutation.isLoading,
+    manifestMutation.isError,
+    openResourcePanel,
+    topResourceNeedingAttention
+  ]);
+
+  const activeJourneyCard: JourneyCardData | undefined = journeyCards.find((card) => card.id === activeJourney);
+  const activeStep = journeySteps[journeyStep];
 
   return (
     <div className="relative min-h-screen bg-slate-950 text-slate-50">
@@ -234,20 +590,206 @@ export default function App() {
           </div>
         </header>
 
+        <section className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Orientation Hub</p>
+                <h2 className="mt-1 text-2xl font-semibold text-white">Readiness Snapshot</h2>
+              </div>
+              <div className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/70">
+                Updated {orientationData ? new Date(orientationData.updated_at).toLocaleTimeString() : "—"}
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <StatCard label="Overall" value={`${heroStats?.overall_score ?? 0}%`} description={heroStats?.readiness_label} />
+              <StatCard label="Risk" value={`${heroStats?.risk_score ?? 0}`} description="Security score" />
+              <StatCard
+                label="Confidence"
+                value={`${Math.round((heroStats?.confidence ?? 0) * 100)}%`}
+                description="Best tier coverage"
+              />
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {(orientationData?.vulnerability_insights ?? []).map((highlight) => (
+                <span
+                  key={highlight.severity}
+                  className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70"
+                >
+                  {highlight.message}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-[0.3em] text-white/70">Journeys</h3>
+                <Compass className="h-4 w-4 text-white/60" />
+              </div>
+              <div className="mt-3 grid gap-3">
+                {journeyCards.map((card) => (
+                  <button
+                    key={card.id}
+                    onClick={() => handleJourneySelect(card.id as JourneyId)}
+                    className={`w-full rounded-2xl border px-4 py-3 text-left transition hover:border-white/40 ${
+                      activeJourney === card.id ? "border-emerald-400 bg-emerald-500/10" : "border-white/10 bg-black/30"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
+                      <span>{card.badge}</span>
+                      <span>{card.primers[0]}</span>
+                    </div>
+                    <p className="mt-1 text-base font-semibold text-white">{card.title}</p>
+                    <p className="text-sm text-white/60">{card.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center justify-between text-xs uppercase tracking-[0.3em] text-white/60">
+                <span>Guided Flow</span>
+                <Map className="h-4 w-4 text-white/60" />
+              </div>
+              {!activeJourney || journeySteps.length === 0 ? (
+                <p className="mt-3 text-sm text-white/60">Select a journey to start a guided experience.</p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  <p className="text-xs text-white/50">
+                    Step {journeyStep + 1} of {journeySteps.length} — {activeJourneyCard?.title}
+                  </p>
+                  <h4 className="text-lg font-semibold text-white">{activeStep?.title}</h4>
+                  <p className="text-sm text-white/70">{activeStep?.description}</p>
+                  {activeStep?.content}
+                  <div className="flex items-center justify-between pt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveJourney(null)}
+                      className="text-xs uppercase tracking-[0.2em]"
+                    >
+                      Exit
+                    </Button>
+                    <div className="space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setJourneyStep((value) => Math.max(0, value - 1))}
+                        disabled={journeyStep === 0}
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setJourneyStep((value) => Math.min(journeySteps.length - 1, value + 1))}
+                        disabled={journeyStep >= journeySteps.length - 1}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          {tierReadiness.map((tier) => (
+            <div key={tier.tier} className="rounded-3xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
+                <span>{tier.label}</span>
+                <Layers className="h-4 w-4 text-white/60" />
+              </div>
+              <p className="mt-2 text-3xl font-semibold text-white">{tier.ready_percent}%</p>
+              <p className="text-sm text-white/60">
+                {tier.strategized}/{tier.total} required secrets covered
+              </p>
+              {tier.blocking_secret_sample.length ? (
+                <p className="mt-2 text-xs text-white/50">Blockers: {tier.blocking_secret_sample.join(", ")}</p>
+              ) : null}
+            </div>
+          ))}
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-white/60">Resource Workbench</p>
+              <h2 className="mt-1 text-2xl font-semibold text-white">Per-Resource Control</h2>
+            </div>
+            <Target className="h-5 w-5 text-white/60" />
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {resourceInsights.map((resource) => (
+              <div key={resource.resource_name} className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-lg font-semibold text-white">{resource.resource_name}</p>
+                    <p className="text-xs text-white/60">
+                      {resource.valid_secrets}/{resource.total_secrets} valid · Missing {resource.missing_secrets}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-[10px] uppercase tracking-[0.2em]"
+                    onClick={() => openResourcePanel(resource.resource_name)}
+                  >
+                    Manage
+                  </Button>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {resource.secrets.map((secret) => (
+                    <div key={secret.secret_key} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs text-white">{secret.secret_key}</span>
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] ${
+                            classificationTone[secret.classification] ?? "border-white/20"
+                          }`}
+                        >
+                          {secret.classification}
+                        </span>
+                      </div>
+                      <p className="text-xs text-white/50">{secret.secret_type}</p>
+                      {Object.keys(secret.tier_strategies || {}).length ? (
+                        <p className="text-[10px] text-white/50">
+                          Strategies: {Object.entries(secret.tier_strategies || {})
+                            .map(([tier, value]) => `${tier}:${value}`)
+                            .join(" · ")}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-amber-300">No tier strategies defined</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatusTile
             icon={TerminalSquare}
             label="API Terminal"
-            value={(healthQuery.data?.status ?? "unknown").toUpperCase()}
+            value={String(healthQuery.data?.status ?? "unknown").toUpperCase()}
             meta={healthQuery.data?.service}
             intent={healthQuery.data?.status === "healthy" ? "good" : "warn"}
           />
           <StatusTile
             icon={Database}
             label="Database"
-            value={(healthQuery.data?.dependencies?.database ?? "unknown").toUpperCase()}
+            value={
+              healthQuery.data?.dependencies?.database?.connected
+                ? "CONNECTED"
+                : "DISCONNECTED"
+            }
             meta={`v${healthQuery.data?.version ?? "1.0"}`}
-            intent={healthQuery.data?.dependencies?.database === "connected" ? "good" : "warn"}
+            intent={
+              healthQuery.data?.dependencies?.database?.connected ? "good" : "warn"
+            }
           />
           <StatusTile
             icon={ShieldCheck}
@@ -431,6 +973,179 @@ export default function App() {
           Powered by the Vrooli lifecycle · API base: {import.meta.env.VITE_API_BASE_URL || "lifecycle-managed"}
         </footer>
       </main>
+      {activeResource ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/80 px-4 py-10">
+          <div className="w-full max-w-5xl rounded-3xl border border-white/10 bg-slate-950/95 p-6 shadow-2xl shadow-emerald-500/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Resource Workbench</p>
+                <h3 className="text-2xl font-semibold text-white">{activeResource}</h3>
+                <p className="text-sm text-white/60">
+                  {resourceDetailQuery.data?.valid_secrets ?? 0}/{resourceDetailQuery.data?.total_secrets ?? 0} secrets valid · Missing {resourceDetailQuery.data?.missing_secrets ?? 0}
+                </p>
+              </div>
+              <Button variant="ghost" onClick={closeResourcePanel} className="text-white/70">
+                Close
+              </Button>
+            </div>
+            <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr,1fr]">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm uppercase tracking-[0.3em] text-white/60">Secrets</h4>
+                  {resourceDetailQuery.isFetching ? (
+                    <span className="text-xs text-white/40">Syncing…</span>
+                  ) : null}
+                </div>
+                <div className="space-y-2 rounded-2xl border border-white/10 bg-black/30 p-3 max-h-[55vh] overflow-y-auto">
+                  {resourceDetailQuery.isLoading ? (
+                    <p className="text-sm text-white/60">Loading secrets…</p>
+                  ) : resourceDetailQuery.data?.secrets.length ? (
+                    resourceDetailQuery.data.secrets.map((secret) => (
+                      <button
+                        key={secret.id}
+                        onClick={() => setSelectedSecretKey(secret.secret_key)}
+                        className={`w-full rounded-xl border px-3 py-2 text-left ${
+                          selectedSecretKey === secret.secret_key
+                            ? "border-emerald-500/60 bg-emerald-500/10"
+                            : "border-white/10 bg-white/5"
+                        }`}
+                      >
+                        <p className="font-mono text-xs text-white">{secret.secret_key}</p>
+                        <p className="text-[11px] text-white/60">{secret.description || secret.secret_type}</p>
+                        <div className="mt-2 flex items-center justify-between text-[11px] text-white/60">
+                          <span>
+                            {secret.classification} · {secret.required ? "Required" : "Optional"}
+                          </span>
+                          <span>{secret.validation_state}</span>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-sm text-white/60">No secrets tracked for this resource yet.</p>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                  <h4 className="text-sm uppercase tracking-[0.3em] text-white/60">Secret Detail</h4>
+                  {selectedSecret ? (
+                    <div className="mt-3 space-y-4">
+                      <div>
+                        <p className="font-mono text-sm text-white">{selectedSecret.secret_key}</p>
+                        <p className="text-xs text-white/60">{selectedSecret.description || selectedSecret.secret_type}</p>
+                      </div>
+                      <label className="text-xs uppercase tracking-[0.2em] text-white/60">
+                        Classification
+                        <select
+                          value={selectedSecret.classification}
+                          onChange={(event) => handleSecretUpdate(selectedSecret.secret_key, { classification: event.target.value })}
+                          className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                        >
+                          <option value="infrastructure">Infrastructure</option>
+                          <option value="service">Service</option>
+                          <option value="user">User</option>
+                        </select>
+                      </label>
+                      <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white">
+                        <span>Required secret</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSecretUpdate(selectedSecret.secret_key, { required: !selectedSecret.required })}
+                        >
+                          {selectedSecret.required ? "Mark optional" : "Mark required"}
+                        </Button>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/60">Tier strategies</p>
+                        {Object.entries(selectedSecret.tier_strategies || {}).length ? (
+                          <ul className="mt-2 space-y-1 text-xs text-white/70">
+                            {Object.entries(selectedSecret.tier_strategies || {}).map(([tier, strategy]) => (
+                              <li key={`${tier}-${strategy}`}>{tier}: {strategy}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-1 text-xs text-amber-200">No tier strategies recorded</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-[0.2em] text-white/60">Add / update strategy</p>
+                        <div className="grid gap-2">
+                          <select
+                            value={strategyTier}
+                            onChange={(event) => setStrategyTier(event.target.value)}
+                            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                          >
+                            {tierReadiness.map((tier) => (
+                              <option key={tier.tier} value={tier.tier}>
+                                {tier.label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={strategyHandling}
+                            onChange={(event) => setStrategyHandling(event.target.value)}
+                            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                          >
+                            <option value="prompt">Prompt</option>
+                            <option value="generate">Generate</option>
+                            <option value="strip">Strip</option>
+                            <option value="delegate">Delegate</option>
+                          </select>
+                          <input
+                            value={strategyPrompt}
+                            onChange={(event) => setStrategyPrompt(event.target.value)}
+                            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                            placeholder="Prompt label"
+                          />
+                          <textarea
+                            value={strategyDescription}
+                            onChange={(event) => setStrategyDescription(event.target.value)}
+                            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                            placeholder="Prompt description"
+                            rows={2}
+                          />
+                          <Button size="sm" onClick={handleStrategyApply} disabled={updateStrategyMutation.isLoading}>
+                            {updateStrategyMutation.isLoading ? "Saving…" : "Apply strategy"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-white/60">Select a secret to view details.</p>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                  <h4 className="text-sm uppercase tracking-[0.3em] text-white/60">Open Vulnerabilities</h4>
+                  <div className="mt-3 space-y-3">
+                    {resourceDetailQuery.data?.open_vulnerabilities?.length ? (
+                      resourceDetailQuery.data.open_vulnerabilities.map((vuln) => (
+                        <div key={vuln.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                          <div className="flex items-center justify-between text-xs text-white/60">
+                            <span>{vuln.title}</span>
+                            <SeverityBadge severity={vuln.severity} />
+                          </div>
+                          <p className="mt-1 text-xs text-white/70">{vuln.description}</p>
+                          <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-white/60">
+                            <Button size="sm" variant="outline" onClick={() => handleVulnerabilityStatus(vuln.id, "in_progress")}>
+                              Track
+                            </Button>
+                            <Button size="sm" onClick={() => handleVulnerabilityStatus(vuln.id, "resolved")}>
+                              Resolve
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-white/60">No outstanding vulnerabilities for this resource.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

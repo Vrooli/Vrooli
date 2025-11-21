@@ -20,7 +20,7 @@ type SecretValidator struct {
 func NewSecretValidator(db *sql.DB) *SecretValidator {
 	return &SecretValidator{
 		db:     db,
-		logger: Logger{},
+		logger: *NewLogger("validator"),
 	}
 }
 

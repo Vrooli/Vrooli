@@ -1,7 +1,19 @@
 # Secrets Manager Scenario Makefile
-# Modernized to track the React + Vite template workflow
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
+#
+# Usage:
+#   make           - Show help
+#   make start     - Start this scenario
+#   make stop      - Stop this scenario
+#   make dev       - Start in development mode with hot reload
+#   make test      - Run all tests
+#   make logs      - Show scenario logs
+#   make clean     - Clean build artifacts
+#   make db-reset  - Reset database (if applicable)
 
-.PHONY: help run stop dev test test-api test-ui test-cli logs logs-follow status clean build build-api build-ui db-reset db-migrate validate install-deps fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop dev test test-api test-ui test-cli logs logs-follow status clean build build-api build-ui db-reset db-migrate validate install-deps fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
 
@@ -11,25 +23,34 @@ GREEN := \033[1;32m
 YELLOW := \033[1;33m
 BLUE := \033[1;34m
 RED := \033[1;31m
-CYAN := \033[1;36m
 RESET := \033[0m
 
 help: ## Show this help message
-	@echo "$(BLUE)🏗️  $(SCENARIO_NAME) Commands$(RESET)"
+	@echo "$(BLUE)Scenario Commands$(RESET)"
 	@echo ""
-	@echo "$(YELLOW)Usage:$(RESET) make <command>"
+	@echo "$(YELLOW)Usage:$(RESET)"
+	@echo "  make <command>"
 	@echo ""
-	@echo "$(YELLOW)Essential Commands:$(RESET)"
-	@grep -E '^(run|stop|dev|test|logs|help):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
+	@echo "  make          - Show this help message"
+	@echo "  make start    - Start this scenario (preferred - uses lifecycle orchestration)"
+	@echo "  make stop     - Stop this scenario"
+	@echo "  make test     - Run phased scenario tests"
+	@echo "  make logs     - Show recent logs"
+	@echo "  make clean    - Clean build artifacts"
 	@echo ""
-	@echo "$(YELLOW)Additional Commands:$(RESET)"
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | grep -v -E '^(run|stop|dev|test|logs|help):' | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-12s$(RESET) %s\n", $$1, $$2}'
+	@echo "$(YELLOW)Commands:$(RESET)"
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Always start via 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET)"
+	@echo "  Never run ./api/secrets-manager-api directly"
+	@echo "  Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
+	@echo "  Direct binary execution bypasses lifecycle management and breaks monitoring"
 
-run: ## Start this scenario (uses Vrooli lifecycle)
+start: ## Start this scenario (preferred - uses lifecycle orchestration)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
+
+run: start ## Alias for start
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
@@ -39,11 +60,9 @@ dev: ## Start in development mode with hot reload
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME) --dev
 
-test: ## Run API + UI + CLI tests
-	@echo "$(BLUE)🧪 Running all tests for $(SCENARIO_NAME)...$(RESET)"
-	@$(MAKE) test-api
-	@$(MAKE) test-ui
-	@$(MAKE) test-cli
+test: ## Run phased scenario tests
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario test $(SCENARIO_NAME)
 
 test-api: ## Run Go API tests
 	@if [ -f api/go.mod ]; then \
@@ -70,12 +89,14 @@ test-cli: ## Run CLI tests (BATS)
 	fi
 
 logs: ## Show recent logs
+	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 logs-follow: ## Follow logs
 	@vrooli scenario logs $(SCENARIO_NAME) --follow
 
 status: ## Check running status
+	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 
 clean: ## Clean build artifacts

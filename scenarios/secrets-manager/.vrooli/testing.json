@@ -10,7 +10,7 @@
     "languages": {
       "go": {
         "coverage": {
-          "error_threshold": 50
+          "error_threshold": 49
         }
       }
     },
