@@ -1,0 +1,61 @@
+{
+  "module_id": "ab-testing",
+  "title": "A/B Testing Core",
+  "priority": "P0",
+  "description": "Whole-page A/B variant selection, management, and archival",
+  "requirements": [
+    {
+      "id": "AB-URL",
+      "title": "URL variant selection",
+      "prd_ref": "OT-P0-014",
+      "criticality": "P0",
+      "description": "If variant_slug in URL, force that variant regardless of localStorage",
+      "validation": [],
+      "status": "pending",
+      "notes": "Check URL params first: ?variant=control or ?variant=experiment-1"
+    },
+    {
+      "id": "AB-STORAGE",
+      "title": "localStorage persistence",
+      "prd_ref": "OT-P0-015",
+      "criticality": "P0",
+      "description": "If no URL slug and localStorage has variant ID, reuse that variant",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["AB-URL"],
+      "notes": "localStorage key: landing_variant_<landing_page_id>"
+    },
+    {
+      "id": "AB-API",
+      "title": "API weight-based selection",
+      "prd_ref": "OT-P0-016",
+      "criticality": "P0",
+      "description": "If neither URL nor localStorage, API selects variant by weight and frontend stores it in localStorage",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["AB-URL", "AB-STORAGE"],
+      "notes": "API endpoint: GET /api/variant/select returns {variant_id, variant_slug}"
+    },
+    {
+      "id": "AB-CRUD",
+      "title": "Variant CRUD operations",
+      "prd_ref": "OT-P0-017",
+      "criticality": "P0",
+      "description": "Admin can create, update weights, disable/archive, and hard delete variants (with confirmation)",
+      "validation": [],
+      "status": "pending",
+      "notes": "Admin UI: variant list with actions (edit, archive, delete with confirmation modal)"
+    },
+    {
+      "id": "AB-ARCHIVE",
+      "title": "Archived variant handling",
+      "prd_ref": "OT-P0-018",
+      "criticality": "P0",
+      "description": "Archived variants remain queryable for analytics but ineligible for random selection",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["AB-CRUD"],
+      "notes": "DB: status column (active, archived, deleted); API filters archived from selection"
+    }
+  ]
+}

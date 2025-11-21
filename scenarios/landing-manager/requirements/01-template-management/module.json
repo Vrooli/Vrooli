@@ -1,0 +1,51 @@
+{
+  "module_id": "template-management",
+  "title": "Template Management & Generation",
+  "priority": "P0",
+  "description": "Capabilities for listing, inspecting, and generating landing page scenarios from templates",
+  "requirements": [
+    {
+      "id": "TMPL-AVAILABILITY",
+      "title": "Template availability",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Expose at least one template (saas-landing-page) via CLI/API for listing, inspection, and generation",
+      "validation": [],
+      "status": "pending",
+      "notes": "Implement CLI commands: landing-manager template list, landing-manager template show <name>"
+    },
+    {
+      "id": "TMPL-METADATA",
+      "title": "Template metadata",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "Template metadata includes required sections, optional sections, and metrics hooks",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["TMPL-AVAILABILITY"],
+      "notes": "Metadata should include: sections (hero, features, pricing, etc.), metrics hooks (page_view, click, conversion), customization schema"
+    },
+    {
+      "id": "TMPL-GENERATION",
+      "title": "Single-command generation",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "Create new landing-page scenario with one CLI command without manual file editing",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["TMPL-AVAILABILITY", "TMPL-METADATA"],
+      "notes": "Command: landing-manager generate <template> --name <name> --slug <slug> [--options]"
+    },
+    {
+      "id": "TMPL-RUNNABLE",
+      "title": "Runnable locally",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "Generated landing-page scenario runs locally (frontend + Go API) with single startup command",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["TMPL-GENERATION"],
+      "notes": "Generated scenario should work with: vrooli scenario start <generated-name> or make start"
+    }
+  ]
+}

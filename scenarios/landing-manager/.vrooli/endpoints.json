@@ -1,0 +1,196 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "string",
+          "readiness": "boolean",
+          "dependencies": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "cli_mapping": {
+        "command": "landing-manager status"
+      }
+    },
+    {
+      "id": "template-list",
+      "path": "/api/v1/templates",
+      "method": "GET",
+      "summary": "List available landing page templates",
+      "description": "Returns all available landing page templates with metadata",
+      "category": "templates",
+      "response": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": "string",
+            "name": "string",
+            "description": "string",
+            "version": "string",
+            "metadata": "object"
+          }
+        }
+      },
+      "examples": [
+        {
+          "name": "List templates",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/templates"
+        }
+      ],
+      "cli_mapping": {
+        "command": "landing-manager template list"
+      }
+    },
+    {
+      "id": "template-show",
+      "path": "/api/v1/templates/:id",
+      "method": "GET",
+      "summary": "Show template details",
+      "description": "Returns detailed metadata for a specific template",
+      "category": "templates",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "type": "string",
+          "description": "Template ID (e.g., saas-landing-page)"
+        }
+      ],
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "name": "string",
+          "description": "string",
+          "sections": "array",
+          "metrics_hooks": "array",
+          "customization_schema": "object"
+        }
+      },
+      "examples": [
+        {
+          "name": "Show template",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/templates/saas-landing-page"
+        }
+      ],
+      "cli_mapping": {
+        "command": "landing-manager template show <id>"
+      }
+    },
+    {
+      "id": "generate",
+      "path": "/api/v1/generate",
+      "method": "POST",
+      "summary": "Generate a new landing page scenario",
+      "description": "Creates a new landing page scenario from a template",
+      "category": "generation",
+      "request": {
+        "type": "object",
+        "required": ["template_id", "name", "slug"],
+        "properties": {
+          "template_id": "string",
+          "name": "string",
+          "slug": "string",
+          "options": "object"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenario_id": "string",
+          "path": "string",
+          "status": "string",
+          "next_steps": "array"
+        }
+      },
+      "examples": [
+        {
+          "name": "Generate landing page",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/generate -H 'Content-Type: application/json' -d '{\"template_id\":\"saas-landing-page\",\"name\":\"vrooli-pro\",\"slug\":\"vrooli-pro\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "landing-manager generate <template> --name <name> --slug <slug>"
+      }
+    },
+    {
+      "id": "customize",
+      "path": "/api/v1/customize",
+      "method": "POST",
+      "summary": "Trigger agent customization",
+      "description": "Spawns an agent to customize a landing page based on brief and assets",
+      "category": "customization",
+      "request": {
+        "type": "object",
+        "required": ["scenario_id", "brief"],
+        "properties": {
+          "scenario_id": "string",
+          "brief": "string",
+          "assets": "array",
+          "preview": "boolean"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "job_id": "string",
+          "status": "string",
+          "agent_id": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Customize landing page",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/customize -H 'Content-Type: application/json' -d '{\"scenario_id\":\"vrooli-pro\",\"brief\":\"Productivity bundle for developers\",\"preview\":true}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "landing-manager customize <scenario> --brief-file <file> [--preview]"
+      }
+    }
+  ],
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Check API and dependency health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "template list",
+      "description": "List available landing page templates",
+      "endpoint_id": "template-list"
+    },
+    {
+      "name": "template show",
+      "description": "Show detailed template metadata",
+      "endpoint_id": "template-show"
+    },
+    {
+      "name": "generate",
+      "description": "Generate a new landing page scenario from template",
+      "endpoint_id": "generate"
+    },
+    {
+      "name": "customize",
+      "description": "Trigger agent customization of a landing page",
+      "endpoint_id": "customize"
+    }
+  ]
+}

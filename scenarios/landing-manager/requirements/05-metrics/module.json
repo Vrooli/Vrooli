@@ -1,0 +1,72 @@
+{
+  "module_id": "metrics",
+  "title": "Metrics & Analytics",
+  "priority": "P0",
+  "description": "Event tracking, variant tagging, and analytics dashboard",
+  "requirements": [
+    {
+      "id": "METRIC-TAG",
+      "title": "Event variant tagging",
+      "prd_ref": "OT-P0-019",
+      "criticality": "P0",
+      "description": "All events (page view, scroll, clicks, forms, conversions) include variant_id in payload",
+      "validation": [],
+      "status": "pending",
+      "notes": "Event schema: {event_type, variant_id, variant_slug, timestamp, session_id, ...}"
+    },
+    {
+      "id": "METRIC-FILTER",
+      "title": "Analytics variant filtering",
+      "prd_ref": "OT-P0-020",
+      "criticality": "P0",
+      "description": "Admin analytics view filters stats by variant and time range",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["METRIC-TAG"],
+      "notes": "UI: dropdown for variant selection, date range picker (today, 7d, 30d, custom)"
+    },
+    {
+      "id": "METRIC-EVENTS",
+      "title": "Minimum event coverage",
+      "prd_ref": "OT-P0-021",
+      "criticality": "P0",
+      "description": "System emits events for: page_view, scroll_depth (bands), click (element ID), form_submit, conversion (Stripe success)",
+      "validation": [],
+      "status": "pending",
+      "notes": "Scroll depth bands: 25%, 50%, 75%, 100%; Click: element ID or data-track-id"
+    },
+    {
+      "id": "METRIC-IDEMPOTENT",
+      "title": "Metrics idempotency",
+      "prd_ref": "OT-P0-022",
+      "criticality": "P0",
+      "description": "Metrics ingestion is idempotent or deduplicated to avoid double-counting on retries",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["METRIC-EVENTS"],
+      "notes": "Use unique event_id or (session_id + event_type + timestamp) composite key"
+    },
+    {
+      "id": "METRIC-SUMMARY",
+      "title": "Analytics summary",
+      "prd_ref": "OT-P0-023",
+      "criticality": "P0",
+      "description": "Analytics home shows total visitors, conversion rate per variant, top CTAs by CTR",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["METRIC-TAG", "METRIC-EVENTS"],
+      "notes": "Summary cards: Total Visitors, Conversion Rate, Top CTA (by click-through rate)"
+    },
+    {
+      "id": "METRIC-DETAIL",
+      "title": "Variant detail view",
+      "prd_ref": "OT-P0-024",
+      "criticality": "P0",
+      "description": "Variant detail page shows views, CTA clicks, conversions, conversion rate, basic trend",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["METRIC-SUMMARY"],
+      "notes": "Detail view: line chart (7d trend), KPI cards (views, clicks, conversions, rate)"
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "landing-manager",
+    "displayName": "Landing Manager",
+    "description": "Factory for creating and managing SaaS landing page scenarios with A/B testing, analytics, and Stripe integration",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "business_tools",
+    "tags": [
+      "react-ui",
+      "go-api",
+      "meta-scenario",
+      "landing-pages",
+      "ab-testing",
+      "stripe",
+      "analytics",
+      "templates"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/landing-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "35000-39999"
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket channel",
+      "range": "25000-29999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build API & UI, install CLI",
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o landing-manager-api ./cmd/server",
+          "description": "Compile Go API server"
+        },
+        {
+          "name": "install-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then if [ -z \"${API_PORT:-}\" ]; then echo 'API_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI (requires lifecycle-assigned API_PORT)"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./landing-manager-api",
+          "background": true,
+          "description": "Start Go API server"
+        },
+        {
+          "name": "start-ui",
+          "run": "if [ -d ui ]; then if [ -z \"${API_PORT:-}\" ] || [ -z \"${UI_PORT:-}\" ]; then echo 'API_PORT and UI_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run dev -- --host --port ${UI_PORT}; else echo 'ui/ not present yet'; fi",
+          "background": true,
+          "description": "Start Vite dev server (requires lifecycle-assigned ports)"
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "cd test && ./run-tests.sh",
+          "description": "Run structure/unit/integration/business/performance phases"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'landing-manager-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'pnpm run dev' || true",
+          "description": "Stop Vite dev server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "description": "Primary relational data store for generated landing pages (content, variants, metrics, subscriptions)",
+        "schema": "landing-manager"
+      },
+      "resource-claude-code": {
+        "type": "resource",
+        "enabled": false,
+        "required": false,
+        "description": "Agent-based customization of landing pages",
+        "notes": "Required for agent customization features (OT-P0-005, OT-P0-006)"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": false,
+        "required": false,
+        "description": "Session caching for high-traffic landing pages",
+        "notes": "Optional performance optimization for generated landing pages"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "description": "Template recommendations based on user intent",
+        "notes": "Optional for P2 features (semantic template search)"
+      },
+      "browserless": {
+        "type": "resource",
+        "enabled": false,
+        "required": false,
+        "description": "Screenshot generation for template previews",
+        "notes": "Optional for generating template thumbnails and admin portal previews"
+      }
+    }
+  }
+}

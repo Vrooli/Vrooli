@@ -1,0 +1,29 @@
+{
+  "module_id": "customization-ux",
+  "title": "Customization UX",
+  "priority": "P0",
+  "description": "Live preview and form-based customization of landing page sections",
+  "requirements": [
+    {
+      "id": "CUSTOM-SPLIT",
+      "title": "Split customization layout",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "description": "Each slide customization page shows form (one column) + live preview (other column), stacked on mobile",
+      "validation": [],
+      "status": "pending",
+      "notes": "Use responsive grid: side-by-side on desktop (md+), stacked on mobile"
+    },
+    {
+      "id": "CUSTOM-LIVE",
+      "title": "Live preview updates",
+      "prd_ref": "OT-P0-013",
+      "criticality": "P0",
+      "description": "Form field changes update preview within 300ms (debounced) without page reload",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["CUSTOM-SPLIT"],
+      "notes": "Use React state + debounce (300ms) to update preview iframe or component"
+    }
+  ]
+}

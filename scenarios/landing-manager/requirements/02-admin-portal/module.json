@@ -1,0 +1,81 @@
+{
+  "module_id": "admin-portal",
+  "title": "Admin Portal Core",
+  "priority": "P0",
+  "description": "Secure admin portal for managing landing page content, A/B variants, and analytics",
+  "requirements": [
+    {
+      "id": "AGENT-TRIGGER",
+      "title": "Agent integration trigger",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "Trigger agent customization run for a specific landing page from factory scenario",
+      "validation": [],
+      "status": "pending",
+      "notes": "API endpoint or CLI command to spawn Claude Code agent with structured brief"
+    },
+    {
+      "id": "AGENT-INPUT",
+      "title": "Structured agent input",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "Agent receives structured brief (text + assets + goals) and writes changes via defined APIs/files only",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["AGENT-TRIGGER"],
+      "notes": "Agent should NEVER directly edit arbitrary files; only use configuration APIs"
+    },
+    {
+      "id": "ADMIN-HIDDEN",
+      "title": "Security by obscurity",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "Admin portal not linked from any public page or sitemap",
+      "validation": [],
+      "status": "pending",
+      "notes": "Admin routes should be on separate path (e.g., /admin) with no public references"
+    },
+    {
+      "id": "ADMIN-AUTH",
+      "title": "Authentication",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "Admin portal protected by email/password with bcrypt/argon2 password hashing",
+      "validation": [],
+      "status": "pending",
+      "notes": "Use bcrypt (Go: golang.org/x/crypto/bcrypt) or argon2 for password hashing"
+    },
+    {
+      "id": "ADMIN-MODES",
+      "title": "Admin home modes",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "Admin home displays exactly two modes: Analytics / Metrics and Customization",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["ADMIN-AUTH"],
+      "notes": "UI should have clear mode switcher on admin home page"
+    },
+    {
+      "id": "ADMIN-NAV",
+      "title": "Navigation efficiency",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "description": "Navigate to any customization card in ≤ 3 clicks from admin home",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["ADMIN-MODES"],
+      "notes": "Test all navigation paths from admin home to ensure ≤ 3 clicks"
+    },
+    {
+      "id": "ADMIN-BREADCRUMB",
+      "title": "Breadcrumb navigation",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "description": "All admin pages show breadcrumb indicating current location",
+      "validation": [],
+      "status": "pending",
+      "notes": "Format: Admin / Customization / Hero / Variant A"
+    }
+  ]
+}

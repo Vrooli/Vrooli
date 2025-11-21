@@ -1,0 +1,50 @@
+{
+  "module_id": "security",
+  "title": "Security & Verification",
+  "priority": "P0",
+  "description": "Webhook verification, subscription verification API, and cancellation endpoints",
+  "requirements": [
+    {
+      "id": "STRIPE-SIG",
+      "title": "Webhook signature verification",
+      "prd_ref": "OT-P0-027",
+      "criticality": "P0",
+      "description": "All webhook endpoints verify Stripe signature before processing",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["STRIPE-ROUTES"],
+      "notes": "Use stripe.ConstructEvent() with STRIPE_WEBHOOK_SECRET to verify signature"
+    },
+    {
+      "id": "SUB-VERIFY",
+      "title": "Subscription verification endpoint",
+      "prd_ref": "OT-P0-028",
+      "criticality": "P0",
+      "description": "Each landing page exposes GET /api/subscription/verify accepting user identity, returning active/inactive/trial/canceled",
+      "validation": [],
+      "status": "pending",
+      "notes": "Accept user_id or token, return {status: active|inactive|trial|canceled, expires_at?}"
+    },
+    {
+      "id": "SUB-CACHE",
+      "title": "Verification caching",
+      "prd_ref": "OT-P0-029",
+      "criticality": "P0",
+      "description": "Subscription verification responses cacheable (short TTL) with max 60s lag from webhook changes",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["SUB-VERIFY"],
+      "notes": "Cache with 60s TTL; invalidate on webhook events (subscription.updated, subscription.deleted)"
+    },
+    {
+      "id": "SUB-CANCEL",
+      "title": "Subscription cancellation endpoint",
+      "prd_ref": "OT-P0-030",
+      "criticality": "P0",
+      "description": "API exposes POST /api/subscription/cancel validating user and returning status",
+      "validation": [],
+      "status": "pending",
+      "notes": "Validate user identity, call Stripe cancellation API, return {status: scheduled|canceled|error}"
+    }
+  ]
+}

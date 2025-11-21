@@ -1,0 +1,48 @@
+{
+  "module_id": "performance",
+  "title": "Performance & Accessibility",
+  "priority": "P1",
+  "description": "Lighthouse scores, TTI, and accessibility compliance",
+  "requirements": [
+    {
+      "id": "PERF-LIGHTHOUSE",
+      "title": "Lighthouse performance",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "Default generated landing page achieves Lighthouse performance score ≥ 90 on desktop",
+      "validation": [],
+      "status": "pending",
+      "notes": "Run Lighthouse in CI: lighthouse <url> --preset=desktop --output=json"
+    },
+    {
+      "id": "PERF-TTI",
+      "title": "Time to interactive",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "Cold load TTI < 2.0s on typical broadband for main landing page",
+      "validation": [],
+      "status": "pending",
+      "notes": "Measure via Lighthouse or WebPageTest; optimize with code splitting, lazy loading"
+    },
+    {
+      "id": "A11Y-LIGHTHOUSE",
+      "title": "Lighthouse accessibility",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "Lighthouse accessibility score ≥ 90 for generated template",
+      "validation": [],
+      "status": "pending",
+      "notes": "Run Lighthouse accessibility audit; fix contrast, ARIA labels, keyboard nav"
+    },
+    {
+      "id": "A11Y-KEYBOARD",
+      "title": "Keyboard accessibility",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "All interactive elements keyboard-accessible with discernible labels",
+      "validation": [],
+      "status": "pending",
+      "notes": "Test: Tab through page, ensure all buttons/links/forms accessible via keyboard"
+    }
+  ]
+}

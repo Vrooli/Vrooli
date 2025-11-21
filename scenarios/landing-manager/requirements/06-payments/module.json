@@ -1,0 +1,29 @@
+{
+  "module_id": "payments",
+  "title": "Payments & Stripe Integration",
+  "priority": "P0",
+  "description": "Stripe checkout sessions and webhook handling",
+  "requirements": [
+    {
+      "id": "STRIPE-CONFIG",
+      "title": "Stripe environment config",
+      "prd_ref": "OT-P0-025",
+      "criticality": "P0",
+      "description": "Each landing page includes Stripe keys from environment variables",
+      "validation": [],
+      "status": "pending",
+      "notes": "Env vars: STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET"
+    },
+    {
+      "id": "STRIPE-ROUTES",
+      "title": "Stripe routes",
+      "prd_ref": "OT-P0-026",
+      "criticality": "P0",
+      "description": "Each landing page includes routes for creating checkout sessions and handling webhook events",
+      "validation": [],
+      "status": "pending",
+      "dependencies": ["STRIPE-CONFIG"],
+      "notes": "Routes: POST /api/checkout/create, POST /api/webhooks/stripe"
+    }
+  ]
+}
