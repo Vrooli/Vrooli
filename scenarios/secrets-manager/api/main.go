@@ -62,8 +62,10 @@ type cachedSecurityScan struct {
 }
 
 var (
-	securityScanCache   = map[string]cachedSecurityScan{}
-	securityScanCacheMu sync.Mutex
+	securityScanCache     = map[string]cachedSecurityScan{}
+	securityScanCacheMu   sync.Mutex
+	scanRefreshInFlight   = map[string]bool{}
+	scanRefreshInFlightMu sync.Mutex
 )
 
 // Data models
@@ -394,6 +396,7 @@ type SecurityScanResult struct {
 	Recommendations   []RemediationSuggestion `json:"recommendations"`
 	ComponentsSummary ComponentScanSummary    `json:"components_summary"`
 	ScanMetrics       ScanMetrics             `json:"scan_metrics"`
+	GeneratedAt       time.Time               `json:"generated_at,omitempty"`
 }
 
 type RemediationSuggestion struct {
@@ -985,32 +988,30 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 		return cached, nil
 	}
 
-	startTime := time.Now()
-	scanID := uuid.New().String()
-
-	// In test mode, return minimal mock results to avoid long scans
 	if os.Getenv("SECRETS_MANAGER_TEST_MODE") == "true" {
-		result := &SecurityScanResult{
-			ScanID:          scanID,
-			Vulnerabilities: []SecurityVulnerability{},
-			RiskScore:       0,
-			ScanDurationMs:  0,
-			Recommendations: generateRemediationSuggestions([]SecurityVulnerability{}),
-			ScanMetrics: ScanMetrics{
-				TotalScanTimeMs:    0,
-				ScenarioScanTimeMs: 0,
-				ResourceScanTimeMs: 0,
-				FilesScanned:       0,
-				FilesSkipped:       0,
-				TimeoutOccurred:    false,
-				ScanErrors:         []string{},
-				ScanComplete:       true,
-			},
-		}
-		storeCachedSecurityScan(cacheKey, result)
+		result := buildEmptySecurityScan(componentFilter, componentTypeFilter, severityFilter, true)
 		storeCachedSecurityScan(cacheKey, result)
 		return result, nil
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if stored, err := loadPersistedSecurityScan(ctx, componentFilter, componentTypeFilter, severityFilter); err == nil && stored != nil {
+		storeCachedSecurityScan(cacheKey, stored)
+		scheduleSecurityScanRefresh(componentFilter, componentTypeFilter, severityFilter, cacheKey)
+		return stored, nil
+	} else if err != nil {
+		logger.Warning("failed to load persisted security scan: %v", err)
+	}
+
+	scheduleSecurityScanRefresh(componentFilter, componentTypeFilter, severityFilter, cacheKey)
+	logger.Info("🌀 Vulnerability scan warming for key %s", cacheKey)
+	return buildEmptySecurityScan(componentFilter, componentTypeFilter, severityFilter, false), nil
+}
+
+func performSecurityScan(componentFilter, componentTypeFilter, severityFilter string) (*SecurityScanResult, error) {
+	startTime := time.Now()
+	scanID := uuid.New().String()
 
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
@@ -1272,6 +1273,7 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 	logger.Info("  ⏭️  Files skipped: %d", metrics.FilesSkipped)
 	logger.Info("  🔍 Vulnerabilities found: %d", len(vulnerabilities))
 
+	completedAt := time.Now()
 	if _, err := persistSecurityScan(context.Background(), scanID, componentFilter, componentTypeFilter, severityFilter, metrics, riskScore, vulnerabilities); err != nil {
 		logger.Info("failed to persist scan run: %v", err)
 	}
@@ -1295,7 +1297,26 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 			ConfiguredCount:  0, // TODO: Calculate from vault status
 		},
 		ScanMetrics: metrics,
+		GeneratedAt: completedAt,
 	}, nil
+}
+
+func buildEmptySecurityScan(componentFilter, componentTypeFilter, severityFilter string, completed bool) *SecurityScanResult {
+	metrics := ScanMetrics{
+		ScanComplete: completed,
+	}
+	return &SecurityScanResult{
+		ScanID:            uuid.New().String(),
+		ComponentFilter:   componentFilter,
+		ComponentType:     componentTypeFilter,
+		Vulnerabilities:   []SecurityVulnerability{},
+		RiskScore:         0,
+		ScanDurationMs:    0,
+		Recommendations:   generateRemediationSuggestions([]SecurityVulnerability{}),
+		ComponentsSummary: ComponentScanSummary{},
+		ScanMetrics:       metrics,
+		GeneratedAt:       time.Now(),
+	}
 }
 
 // Optimized resource scanning function with timeout protection
@@ -3773,6 +3794,179 @@ func cloneSecurityScanResult(result *SecurityScanResult) *SecurityScanResult {
 	return &clone
 }
 
+func warmSecurityScanCache() {
+	if db == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cacheKey := buildScanCacheKey("", "", "")
+	result, err := loadPersistedSecurityScan(ctx, "", "", "")
+	if err != nil {
+		logger.Info("No persisted vulnerability scan to warm cache: %v", err)
+		return
+	}
+	if result == nil {
+		logger.Info("No historical vulnerability scans found; cache will warm on demand")
+		return
+	}
+	storeCachedSecurityScan(cacheKey, result)
+	logger.Info("♻️  Loaded cached vulnerability scan from %s", result.GeneratedAt.Format(time.RFC3339))
+	go scheduleSecurityScanRefresh("", "", "", cacheKey)
+}
+
+func scheduleSecurityScanRefresh(componentFilter, componentTypeFilter, severityFilter, cacheKey string) {
+	if cacheKey == "" {
+		cacheKey = buildScanCacheKey(componentFilter, componentTypeFilter, severityFilter)
+	}
+	scanRefreshInFlightMu.Lock()
+	if scanRefreshInFlight[cacheKey] {
+		scanRefreshInFlightMu.Unlock()
+		return
+	}
+	scanRefreshInFlight[cacheKey] = true
+	scanRefreshInFlightMu.Unlock()
+
+	go func() {
+		defer func() {
+			scanRefreshInFlightMu.Lock()
+			delete(scanRefreshInFlight, cacheKey)
+			scanRefreshInFlightMu.Unlock()
+		}()
+		result, err := performSecurityScan(componentFilter, componentTypeFilter, severityFilter)
+		if err != nil {
+			logger.Warning("background vulnerability scan failed: %v", err)
+			return
+		}
+		storeCachedSecurityScan(cacheKey, result)
+	}()
+}
+
+func loadPersistedSecurityScan(ctx context.Context, componentFilter, componentTypeFilter, severityFilter string) (*SecurityScanResult, error) {
+	if db == nil {
+		return nil, nil
+	}
+	query := `
+		SELECT id, scan_id, component_filter, component_type, severity_filter,
+		       files_scanned, files_skipped, vulnerabilities_found, risk_score, duration_ms,
+		       metadata, completed_at
+		FROM security_scan_runs
+		WHERE component_filter IS NOT DISTINCT FROM $1
+		  AND component_type IS NOT DISTINCT FROM $2
+		  AND severity_filter IS NOT DISTINCT FROM $3
+		ORDER BY completed_at DESC
+		LIMIT 1`
+	var (
+		runID             string
+		scanID            string
+		dbComponentFilter sql.NullString
+		dbComponentType   sql.NullString
+		dbSeverityFilter  sql.NullString
+		filesScanned      sql.NullInt64
+		filesSkipped      sql.NullInt64
+		vulnCount         sql.NullInt64
+		riskScore         sql.NullInt64
+		durationMs        sql.NullInt64
+		metadataBytes     []byte
+		completedAt       time.Time
+	)
+	row := db.QueryRowContext(ctx, query, nullString(componentFilter), nullString(componentTypeFilter), nullString(severityFilter))
+	if err := row.Scan(&runID, &scanID, &dbComponentFilter, &dbComponentType, &dbSeverityFilter, &filesScanned, &filesSkipped, &vulnCount, &riskScore, &durationMs, &metadataBytes, &completedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	metrics := ScanMetrics{}
+	if len(metadataBytes) > 0 {
+		_ = json.Unmarshal(metadataBytes, &metrics)
+	}
+	if metrics.TotalScanTimeMs == 0 && durationMs.Valid {
+		metrics.TotalScanTimeMs = int(durationMs.Int64)
+	}
+	metrics.ScanComplete = true
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT id, component_type, component_name, file_path, line_number, severity,
+		       vulnerability_type, title, description, recommendation, code_snippet,
+		       can_auto_fix, status, fingerprint, first_observed_at, last_observed_at
+		FROM security_vulnerabilities
+		WHERE scan_run_id = $1
+		ORDER BY severity DESC, component_name, file_path
+	`, runID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var (
+		vulnerabilities []SecurityVulnerability
+		resourceSet     = map[string]struct{}{}
+		scenarioSet     = map[string]struct{}{}
+	)
+	for rows.Next() {
+		var (
+			id             string
+			compType       string
+			compName       string
+			filePath       string
+			lineNumber     sql.NullInt64
+			severityLevel  string
+			vulnType       string
+			title          string
+			description    sql.NullString
+			recommendation sql.NullString
+			codeSnippet    sql.NullString
+			canAutoFix     bool
+			status         string
+			fingerprint    string
+			firstObserved  time.Time
+			lastObserved   time.Time
+		)
+		if err := rows.Scan(&id, &compType, &compName, &filePath, &lineNumber, &severityLevel, &vulnType, &title, &description, &recommendation, &codeSnippet, &canAutoFix, &status, &fingerprint, &firstObserved, &lastObserved); err != nil {
+			return nil, err
+		}
+		if compType == "resource" {
+			resourceSet[compName] = struct{}{}
+		} else if compType == "scenario" {
+			scenarioSet[compName] = struct{}{}
+		}
+		vulnerabilities = append(vulnerabilities, SecurityVulnerability{
+			ID:             id,
+			ComponentType:  compType,
+			ComponentName:  compName,
+			FilePath:       filePath,
+			LineNumber:     int(lineNumber.Int64),
+			Severity:       severityLevel,
+			Type:           vulnType,
+			Title:          title,
+			Description:    description.String,
+			Recommendation: recommendation.String,
+			Code:           codeSnippet.String,
+			CanAutoFix:     canAutoFix,
+			Status:         status,
+			Fingerprint:    fingerprint,
+			DiscoveredAt:   firstObserved,
+			LastObservedAt: lastObserved,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	result := &SecurityScanResult{
+		ScanID:            scanID,
+		ComponentFilter:   componentFilter,
+		ComponentType:     componentTypeFilter,
+		Vulnerabilities:   vulnerabilities,
+		RiskScore:         int(riskScore.Int64),
+		ScanDurationMs:    metrics.TotalScanTimeMs,
+		Recommendations:   generateRemediationSuggestions(vulnerabilities),
+		ComponentsSummary: ComponentScanSummary{ResourcesScanned: len(resourceSet), ScenariosScanned: len(scenarioSet), TotalComponents: len(resourceSet) + len(scenarioSet)},
+		ScanMetrics:       metrics,
+		GeneratedAt:       completedAt,
+	}
+	return result, nil
+}
+
 func fetchResourceDetail(ctx context.Context, resourceName string) (*ResourceDetail, error) {
 	resourceName = strings.TrimSpace(resourceName)
 	if resourceName == "" {
@@ -4375,6 +4569,7 @@ func main() {
 	} else {
 		initDB()
 		defer db.Close()
+		warmSecurityScanCache()
 	}
 	logger.Info("🚀 Starting Secrets Manager API (database optional)")
 

@@ -27,6 +27,14 @@ CREATE TABLE IF NOT EXISTS resource_secrets (
     UNIQUE(resource_name, secret_key)
 );
 
+-- Ensure legacy installs pick up the new metadata columns even if the table already existed
+ALTER TABLE resource_secrets
+    ADD COLUMN IF NOT EXISTS classification VARCHAR(20) NOT NULL DEFAULT 'service' CHECK (classification IN ('infrastructure', 'service', 'user')),
+    ADD COLUMN IF NOT EXISTS owner_team TEXT,
+    ADD COLUMN IF NOT EXISTS owner_contact TEXT,
+    ADD COLUMN IF NOT EXISTS rotation_period_days INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS last_rotated_at TIMESTAMP WITH TIME ZONE;
+
 -- Table for tracking secret validation results
 CREATE TABLE IF NOT EXISTS secret_validations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

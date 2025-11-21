@@ -128,7 +128,7 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then if [ -z \"${API_PORT:-}\" ]; then echo 'API_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run build; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; fi",
           "description": "Build production UI bundle against the lifecycle-assigned API port"
         },
         {
@@ -152,7 +152,7 @@
         },
         {
           "name": "start-ui",
-          "run": "if [ -z \"${API_PORT:-}\" ] || [ -z \"${UI_PORT:-}\" ]; then echo 'API_PORT and UI_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" node server.cjs",
+          "run": "if [ -z \"${API_PORT:-}\" ] || [ -z \"${UI_PORT:-}\" ]; then echo 'API_PORT and UI_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && node server.cjs",
           "background": true,
           "description": "Serve production UI bundle via Express server",
           "condition": {

@@ -1,26 +1,37 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 
+declare global {
+  interface Window {
+    __SECRETS_MANAGER_CONFIG__?: {
+      apiBaseUrl?: string;
+    };
+  }
+}
+
 let API_BASE_URL: string | null = null;
 
 const getApiBaseUrl = () => {
   if (API_BASE_URL === null) {
-    API_BASE_URL = resolveApiBase({
-      appendSuffix: true,
-      explicitUrl: import.meta.env.VITE_API_BASE_URL
-    });
+    const explicitUrl = typeof window !== "undefined" ? window.__SECRETS_MANAGER_CONFIG__?.apiBaseUrl : undefined;
+    API_BASE_URL = explicitUrl && explicitUrl.trim().length > 0 ? explicitUrl : resolveApiBase({ appendSuffix: true });
   }
 
   return API_BASE_URL;
 };
 
 const jsonFetch = async <T>(path: string, init?: RequestInit) => {
-  const response = await fetch(buildApiUrl(path, { baseUrl: getApiBaseUrl() }), {
-    headers: {
-      "Content-Type": "application/json"
-    },
-    cache: "no-store",
-    ...init
-  });
+  const response = await fetch(
+    buildApiUrl(path, {
+      baseUrl: getApiBaseUrl()
+    }),
+    {
+      headers: {
+        "Content-Type": "application/json"
+      },
+      cache: "no-store",
+      ...init
+    }
+  );
 
   if (!response.ok) {
     throw new Error(`Request failed (${response.status}): ${response.statusText}`);

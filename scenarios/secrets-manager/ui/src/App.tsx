@@ -75,6 +75,60 @@ const percentage = (found: number, total: number) => {
   return Math.round((found / total) * 100);
 };
 
+const Skeleton = ({ className = "", variant = "default" }: { className?: string; variant?: "default" | "text" | "circular" }) => {
+  const baseClasses = "animate-pulse bg-white/10";
+  const variantClasses = variant === "circular" ? "rounded-full" : variant === "text" ? "rounded" : "rounded-2xl";
+  return <div className={`${baseClasses} ${variantClasses} ${className}`} />;
+};
+
+const LoadingStatCard = () => (
+  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+    <Skeleton className="h-3 w-20" variant="text" />
+    <Skeleton className="mt-2 h-9 w-16" variant="text" />
+    <Skeleton className="mt-1 h-4 w-32" variant="text" />
+  </div>
+);
+
+const LoadingStatusTile = () => (
+  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5">
+    <div className="flex items-center justify-between">
+      <Skeleton className="h-3 w-24" variant="text" />
+      <Skeleton className="h-4 w-4" variant="circular" />
+    </div>
+    <Skeleton className="mt-3 h-8 w-32" variant="text" />
+    <Skeleton className="mt-1 h-4 w-24" variant="text" />
+  </div>
+);
+
+const LoadingResourceCard = () => (
+  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <Skeleton className="h-6 w-32" variant="text" />
+        <Skeleton className="mt-1 h-4 w-40" variant="text" />
+      </div>
+      <Skeleton className="h-8 w-20" variant="text" />
+    </div>
+    <div className="mt-3 space-y-2">
+      <Skeleton className="h-16 w-full" />
+      <Skeleton className="h-16 w-full" />
+    </div>
+  </div>
+);
+
+const LoadingSecretsRow = () => (
+  <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 px-4 py-3">
+    <div className="flex-1">
+      <Skeleton className="h-4 w-32" variant="text" />
+      <Skeleton className="mt-1 h-3 w-24" variant="text" />
+    </div>
+    <div className="flex w-1/2 flex-col items-end gap-2">
+      <Skeleton className="h-2 w-full" />
+      <Skeleton className="h-5 w-24" variant="text" />
+    </div>
+  </div>
+);
+
 const StatusTile = ({
   icon: Icon,
   label,
@@ -236,14 +290,17 @@ export default function App() {
     refetchInterval: 90000
   });
 
-  const isRefreshing =
-    healthQuery.isFetching || vaultQuery.isFetching || complianceQuery.isFetching || vulnerabilityQuery.isFetching;
-
   const orientationQuery = useQuery({
     queryKey: ["orientation-summary"],
     queryFn: fetchOrientationSummary,
     refetchInterval: 120000
   });
+
+  const isRefreshing =
+    healthQuery.isFetching || vaultQuery.isFetching || complianceQuery.isFetching || vulnerabilityQuery.isFetching;
+
+  const isInitialLoading =
+    healthQuery.isLoading || vaultQuery.isLoading || complianceQuery.isLoading || vulnerabilityQuery.isLoading || orientationQuery.isLoading;
 
   const manifestMutation = useMutation<DeploymentManifestResponse, Error, DeploymentManifestRequest>({
     mutationFn: (payload) => generateDeploymentManifest(payload)
@@ -567,6 +624,22 @@ export default function App() {
   return (
     <div className="relative min-h-screen bg-slate-950 text-slate-50">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.15),_transparent_50%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.15),_transparent_60%)]" />
+
+      {/* Initial loading overlay */}
+      {isInitialLoading && !healthQuery.data && !vaultQuery.data && !complianceQuery.data && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm">
+          <div className="rounded-3xl border border-emerald-400/40 bg-emerald-400/5 px-8 py-6 shadow-2xl shadow-emerald-500/20">
+            <div className="flex items-center gap-4">
+              <RefreshCcw className="h-8 w-8 animate-spin text-emerald-400" />
+              <div>
+                <p className="text-lg font-semibold text-white">Loading Security Dashboard</p>
+                <p className="text-sm text-white/60">Fetching vault status, compliance data, and vulnerability scans...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="relative mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10">
         <header className="rounded-3xl border border-white/10 bg-black/30 p-6 shadow-2xl shadow-emerald-500/10">
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Security Vault Access Terminal</p>
@@ -579,9 +652,16 @@ export default function App() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-xs uppercase tracking-[0.2em] text-emerald-100">
-                {vulnerabilityQuery.data ? `${vulnerabilityQuery.data.total_count} Findings` : "Scanning"}
-              </div>
+              {isInitialLoading ? (
+                <div className="flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-xs uppercase tracking-[0.2em] text-cyan-100">
+                  <RefreshCcw className="h-3 w-3 animate-spin" />
+                  Loading data...
+                </div>
+              ) : (
+                <div className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-4 py-2 text-xs uppercase tracking-[0.2em] text-emerald-100">
+                  {vulnerabilityQuery.data ? `${vulnerabilityQuery.data.total_count} Findings` : "Ready"}
+                </div>
+              )}
               <Button variant="outline" size="sm" onClick={refreshAll} disabled={isRefreshing} className="gap-2">
                 <RefreshCcw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
                 Refresh data
@@ -598,28 +678,42 @@ export default function App() {
                 <h2 className="mt-1 text-2xl font-semibold text-white">Readiness Snapshot</h2>
               </div>
               <div className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/70">
-                Updated {orientationData ? new Date(orientationData.updated_at).toLocaleTimeString() : "—"}
+                {orientationQuery.isLoading ? (
+                  <Skeleton className="h-3 w-16" variant="text" />
+                ) : (
+                  <>Updated {orientationData ? new Date(orientationData.updated_at).toLocaleTimeString() : "—"}</>
+                )}
               </div>
             </div>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <StatCard label="Overall" value={`${heroStats?.overall_score ?? 0}%`} description={heroStats?.readiness_label} />
-              <StatCard label="Risk" value={`${heroStats?.risk_score ?? 0}`} description="Security score" />
-              <StatCard
-                label="Confidence"
-                value={`${Math.round((heroStats?.confidence ?? 0) * 100)}%`}
-                description="Best tier coverage"
-              />
-            </div>
-            <div className="mt-6 flex flex-wrap gap-3">
-              {(orientationData?.vulnerability_insights ?? []).map((highlight) => (
-                <span
-                  key={highlight.severity}
-                  className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70"
-                >
-                  {highlight.message}
-                </span>
-              ))}
-            </div>
+            {orientationQuery.isLoading ? (
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <LoadingStatCard />
+                <LoadingStatCard />
+                <LoadingStatCard />
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                  <StatCard label="Overall" value={`${heroStats?.overall_score ?? 0}%`} description={heroStats?.readiness_label} />
+                  <StatCard label="Risk" value={`${heroStats?.risk_score ?? 0}`} description="Security score" />
+                  <StatCard
+                    label="Confidence"
+                    value={`${Math.round((heroStats?.confidence ?? 0) * 100)}%`}
+                    description="Best tier coverage"
+                  />
+                </div>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {(orientationData?.vulnerability_insights ?? []).map((highlight) => (
+                    <span
+                      key={highlight.severity}
+                      className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70"
+                    >
+                      {highlight.message}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           <div className="space-y-4">
             <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
@@ -695,21 +789,29 @@ export default function App() {
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
-          {tierReadiness.map((tier) => (
-            <div key={tier.tier} className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
-                <span>{tier.label}</span>
-                <Layers className="h-4 w-4 text-white/60" />
+          {orientationQuery.isLoading ? (
+            <>
+              <LoadingStatCard />
+              <LoadingStatCard />
+              <LoadingStatCard />
+            </>
+          ) : (
+            tierReadiness.map((tier) => (
+              <div key={tier.tier} className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
+                  <span>{tier.label}</span>
+                  <Layers className="h-4 w-4 text-white/60" />
+                </div>
+                <p className="mt-2 text-3xl font-semibold text-white">{tier.ready_percent}%</p>
+                <p className="text-sm text-white/60">
+                  {tier.strategized}/{tier.total} required secrets covered
+                </p>
+                {tier.blocking_secret_sample.length ? (
+                  <p className="mt-2 text-xs text-white/50">Blockers: {tier.blocking_secret_sample.join(", ")}</p>
+                ) : null}
               </div>
-              <p className="mt-2 text-3xl font-semibold text-white">{tier.ready_percent}%</p>
-              <p className="text-sm text-white/60">
-                {tier.strategized}/{tier.total} required secrets covered
-              </p>
-              {tier.blocking_secret_sample.length ? (
-                <p className="mt-2 text-xs text-white/50">Blockers: {tier.blocking_secret_sample.join(", ")}</p>
-              ) : null}
-            </div>
-          ))}
+            ))
+          )}
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
@@ -721,120 +823,172 @@ export default function App() {
             <Target className="h-5 w-5 text-white/60" />
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {resourceInsights.map((resource) => (
-              <div key={resource.resource_name} className="rounded-2xl border border-white/10 bg-black/30 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-lg font-semibold text-white">{resource.resource_name}</p>
-                    <p className="text-xs text-white/60">
-                      {resource.valid_secrets}/{resource.total_secrets} valid · Missing {resource.missing_secrets}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-[10px] uppercase tracking-[0.2em]"
-                    onClick={() => openResourcePanel(resource.resource_name)}
-                  >
-                    Manage
-                  </Button>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {resource.secrets.map((secret) => (
-                    <div key={secret.secret_key} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs text-white">{secret.secret_key}</span>
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] ${
-                            classificationTone[secret.classification] ?? "border-white/20"
-                          }`}
-                        >
-                          {secret.classification}
-                        </span>
-                      </div>
-                      <p className="text-xs text-white/50">{secret.secret_type}</p>
-                      {Object.keys(secret.tier_strategies || {}).length ? (
-                        <p className="text-[10px] text-white/50">
-                          Strategies: {Object.entries(secret.tier_strategies || {})
-                            .map(([tier, value]) => `${tier}:${value}`)
-                            .join(" · ")}
-                        </p>
-                      ) : (
-                        <p className="text-[10px] text-amber-300">No tier strategies defined</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
+            {orientationQuery.isLoading ? (
+              <>
+                <LoadingResourceCard />
+                <LoadingResourceCard />
+                <LoadingResourceCard />
+                <LoadingResourceCard />
+              </>
+            ) : resourceInsights.length === 0 ? (
+              <div className="col-span-2 rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/60">
+                No resource insights available. API data is still loading or no resources are configured.
               </div>
-            ))}
+            ) : (
+              resourceInsights.map((resource) => (
+                <div key={resource.resource_name} className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-lg font-semibold text-white">{resource.resource_name}</p>
+                      <p className="text-xs text-white/60">
+                        {resource.valid_secrets}/{resource.total_secrets} valid · Missing {resource.missing_secrets}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-[10px] uppercase tracking-[0.2em]"
+                      onClick={() => openResourcePanel(resource.resource_name)}
+                    >
+                      Manage
+                    </Button>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {resource.secrets.map((secret) => (
+                      <div key={secret.secret_key} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xs text-white">{secret.secret_key}</span>
+                          <span
+                            className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] ${
+                              classificationTone[secret.classification] ?? "border-white/20"
+                            }`}
+                          >
+                            {secret.classification}
+                          </span>
+                        </div>
+                        <p className="text-xs text-white/50">{secret.secret_type}</p>
+                        {Object.keys(secret.tier_strategies || {}).length ? (
+                          <p className="text-[10px] text-white/50">
+                            Strategies: {Object.entries(secret.tier_strategies || {})
+                              .map(([tier, value]) => `${tier}:${value}`)
+                              .join(" · ")}
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-amber-300">No tier strategies defined</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </section>
 
         <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatusTile
-            icon={TerminalSquare}
-            label="API Terminal"
-            value={String(healthQuery.data?.status ?? "unknown").toUpperCase()}
-            meta={healthQuery.data?.service}
-            intent={healthQuery.data?.status === "healthy" ? "good" : "warn"}
-          />
-          <StatusTile
-            icon={Database}
-            label="Database"
-            value={
-              healthQuery.data?.dependencies?.database?.connected
-                ? "CONNECTED"
-                : "DISCONNECTED"
-            }
-            meta={`v${healthQuery.data?.version ?? "1.0"}`}
-            intent={
-              healthQuery.data?.dependencies?.database?.connected ? "good" : "warn"
-            }
-          />
-          <StatusTile
-            icon={ShieldCheck}
-            label="Vault Coverage"
-            value={`${vaultQuery.data?.configured_resources ?? 0}/${vaultQuery.data?.total_resources ?? 0}`}
-            meta={`${missingSecrets.length} missing`}
-            intent={missingSecrets.length > 0 ? "warn" : "good"}
-          />
-          <StatusTile
-            icon={Activity}
-            label="Last Scan"
-            value={formatTimestamp(complianceQuery.data?.last_updated ?? vaultQuery.data?.last_updated)}
-            meta={`${vulnerabilityQuery.data?.scan_duration ?? 0} ms`}
-            intent={vulnerabilityQuery.data?.risk_score && vulnerabilityQuery.data.risk_score > 60 ? "danger" : "info"}
-          />
+          {healthQuery.isLoading ? (
+            <LoadingStatusTile />
+          ) : (
+            <StatusTile
+              icon={TerminalSquare}
+              label="API Terminal"
+              value={String(healthQuery.data?.status ?? "unknown").toUpperCase()}
+              meta={healthQuery.data?.service}
+              intent={healthQuery.data?.status === "healthy" ? "good" : "warn"}
+            />
+          )}
+          {healthQuery.isLoading ? (
+            <LoadingStatusTile />
+          ) : (
+            <StatusTile
+              icon={Database}
+              label="Database"
+              value={
+                healthQuery.data?.dependencies?.database?.connected
+                  ? "CONNECTED"
+                  : "DISCONNECTED"
+              }
+              meta={`v${healthQuery.data?.version ?? "1.0"}`}
+              intent={
+                healthQuery.data?.dependencies?.database?.connected ? "good" : "warn"
+              }
+            />
+          )}
+          {vaultQuery.isLoading ? (
+            <LoadingStatusTile />
+          ) : (
+            <StatusTile
+              icon={ShieldCheck}
+              label="Vault Coverage"
+              value={`${vaultQuery.data?.configured_resources ?? 0}/${vaultQuery.data?.total_resources ?? 0}`}
+              meta={`${missingSecrets.length} missing`}
+              intent={missingSecrets.length > 0 ? "warn" : "good"}
+            />
+          )}
+          {complianceQuery.isLoading || vulnerabilityQuery.isLoading ? (
+            <LoadingStatusTile />
+          ) : (
+            <StatusTile
+              icon={Activity}
+              label="Last Scan"
+              value={formatTimestamp(complianceQuery.data?.last_updated ?? vaultQuery.data?.last_updated)}
+              meta={`${vulnerabilityQuery.data?.scan_duration ?? 0} ms`}
+              intent={vulnerabilityQuery.data?.risk_score && vulnerabilityQuery.data.risk_score > 60 ? "danger" : "info"}
+            />
+          )}
         </section>
 
         <section className="grid gap-4 lg:grid-cols-3">
           <div className="space-y-4 rounded-3xl border border-white/5 bg-white/5 p-6 lg:col-span-2">
-            <div className="flex flex-wrap items-center gap-4">
-              <StatCard label="Overall Score" value={`${complianceQuery.data?.overall_score ?? 0}%`} />
-              <StatCard label="Configured Components" value={`${complianceQuery.data?.configured_components ?? 0}`} />
-              <StatCard label="Security Score" value={`${complianceQuery.data?.remediation_progress?.security_score ?? 0}%`} />
-              <StatCard label="Vault Health" value={`${complianceQuery.data?.vault_secrets_health ?? 0}%`} />
-            </div>
+            {complianceQuery.isLoading ? (
+              <div className="flex flex-wrap items-center gap-4">
+                <LoadingStatCard />
+                <LoadingStatCard />
+                <LoadingStatCard />
+                <LoadingStatCard />
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-4">
+                <StatCard label="Overall Score" value={`${complianceQuery.data?.overall_score ?? 0}%`} />
+                <StatCard label="Configured Components" value={`${complianceQuery.data?.configured_components ?? 0}`} />
+                <StatCard label="Security Score" value={`${complianceQuery.data?.remediation_progress?.security_score ?? 0}%`} />
+                <StatCard label="Vault Health" value={`${complianceQuery.data?.vault_secrets_health ?? 0}%`} />
+              </div>
+            )}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-white/5 bg-black/30 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">Vulnerability Mix</p>
-                <div className="mt-4 space-y-3">
-                  {(["critical", "high", "medium", "low"] as const).map((level) => (
-                    <div key={level} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <SeverityBadge severity={level} />
-                        <span className="capitalize text-white/80">{level}</span>
+                {complianceQuery.isLoading ? (
+                  <div className="mt-4 space-y-3">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {(["critical", "high", "medium", "low"] as const).map((level) => (
+                      <div key={level} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <SeverityBadge severity={level} />
+                          <span className="capitalize text-white/80">{level}</span>
+                        </div>
+                        <span className="text-lg font-semibold">
+                          {vulnerabilitySummary[level] ? vulnerabilitySummary[level].toString() : "0"}
+                        </span>
                       </div>
-                      <span className="text-lg font-semibold">
-                        {vulnerabilitySummary[level] ? vulnerabilitySummary[level].toString() : "0"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="rounded-2xl border border-white/5 bg-black/30 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/60">Missing Secrets</p>
-                {missingSecrets.length === 0 ? (
+                {vaultQuery.isLoading ? (
+                  <div className="mt-4 space-y-3">
+                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-20 w-full" />
+                  </div>
+                ) : missingSecrets.length === 0 ? (
                   <div className="mt-4 flex items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-100">
                     <CheckCircle2 className="h-5 w-5" />
                     All required secrets are configured.
@@ -927,18 +1081,25 @@ export default function App() {
               <h2 className="text-lg font-semibold text-white">Component Security Status</h2>
               <div className="flex items-center gap-2 text-xs text-white/60">
                 <ShieldCheck className="h-4 w-4" />
-                Live data from vault and file scans
+                {vaultQuery.isLoading ? <Skeleton className="h-3 w-32" variant="text" /> : "Live data from vault and file scans"}
               </div>
             </div>
             <div className="mt-4 space-y-3">
-              {resourceStatuses.length === 0 && !vaultQuery.isLoading ? (
+              {vaultQuery.isLoading ? (
+                <>
+                  <LoadingSecretsRow />
+                  <LoadingSecretsRow />
+                  <LoadingSecretsRow />
+                </>
+              ) : resourceStatuses.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/60">
                   No resource scan results available yet.
                 </div>
-              ) : null}
-              {resourceStatuses.slice(0, 6).map((status) => (
-                <SecretsRow key={status.resource_name} status={status} />
-              ))}
+              ) : (
+                resourceStatuses.slice(0, 6).map((status) => (
+                  <SecretsRow key={status.resource_name} status={status} />
+                ))
+              )}
             </div>
           </div>
 
@@ -947,24 +1108,26 @@ export default function App() {
               <h2 className="text-lg font-semibold text-white">Security Findings</h2>
               <div className="flex items-center gap-2 text-xs text-white/60">
                 <ShieldAlert className="h-4 w-4" />
-                Showing {vulnerabilities.length} results
+                {vulnerabilityQuery.isLoading ? <Skeleton className="h-3 w-24" variant="text" /> : `Showing ${vulnerabilities.length} results`}
               </div>
             </div>
             <div className="mt-4 space-y-3">
               {vulnerabilityQuery.isLoading ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/60">
-                  Scanning filesystem for vulnerabilities…
-                </div>
-              ) : null}
-              {!vulnerabilityQuery.isLoading && vulnerabilities.length === 0 ? (
+                <>
+                  <Skeleton className="h-32 w-full" />
+                  <Skeleton className="h-32 w-full" />
+                  <Skeleton className="h-32 w-full" />
+                </>
+              ) : vulnerabilities.length === 0 ? (
                 <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-6 text-center text-sm text-emerald-100">
                   <ShieldCheck className="mx-auto mb-2 h-6 w-6" />
                   No vulnerabilities found for the selected filters.
                 </div>
-              ) : null}
-              {vulnerabilities.slice(0, 6).map((vuln) => (
-                <VulnerabilityItem key={vuln.id} vuln={vuln} />
-              ))}
+              ) : (
+                vulnerabilities.slice(0, 6).map((vuln) => (
+                  <VulnerabilityItem key={vuln.id} vuln={vuln} />
+                ))
+              )}
             </div>
           </div>
         </section>

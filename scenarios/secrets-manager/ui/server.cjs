@@ -12,7 +12,9 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 const PORT = process.env.UI_PORT || 37153;
 const API_PORT = process.env.API_PORT || 16739;
-const API_BASE_URL = process.env.VITE_API_BASE_URL || `http://localhost:${API_PORT}/api/v1`;
+const API_INTERNAL_BASE = process.env.API_INTERNAL_BASE || `http://127.0.0.1:${API_PORT}`;
+const API_PROXY_PREFIX = process.env.API_PROXY_PREFIX || '/api';
+const API_HEALTH_URL = new URL('/api/v1/health', API_INTERNAL_BASE).toString();
 
 // Health check endpoint - standardized /health for lifecycle compatibility
 app.get('/health', async (req, res) => {
@@ -27,7 +29,7 @@ app.get('/health', async (req, res) => {
 
   try {
     const http = require('http');
-    const url = new URL(`${API_BASE_URL}/health`);
+    const url = new URL(API_HEALTH_URL);
     const startTime = Date.now();
 
     const result = await new Promise((resolve) => {
@@ -111,7 +113,7 @@ app.get('/health', async (req, res) => {
     status_notes: statusNotes.length > 0 ? statusNotes : undefined,
     api_connectivity: {
       connected: apiConnected,
-      api_url: API_BASE_URL,
+      api_url: API_HEALTH_URL,
       last_check: lastCheck,
       error: apiError,
       latency_ms: apiLatency
@@ -121,20 +123,27 @@ app.get('/health', async (req, res) => {
 
 // Proxy API requests to the Go backend
 // Mount at /api path to avoid catching static files
-console.log(`🔄 Configuring API proxy: /api/* → http://localhost:${API_PORT}`);
-app.use('/api', createProxyMiddleware({
-  target: `http://localhost:${API_PORT}`,
-  changeOrigin: true,
-  logLevel: 'warn',
-  onError: (err, req, res) => {
-    console.error('Proxy error:', err.message);
-    res.status(502).json({
-      status: 'error',
-      message: 'API proxy error',
-      error: err.message
-    });
-  }
-}));
+const proxyTarget = `${API_INTERNAL_BASE}/api`;
+console.log(`🔄 Configuring API proxy: ${API_PROXY_PREFIX}/* → ${proxyTarget}`);
+app.use(
+  API_PROXY_PREFIX,
+  createProxyMiddleware({
+    target: proxyTarget,
+    changeOrigin: true,
+    logLevel: 'warn',
+    pathRewrite: {
+      [`^${API_PROXY_PREFIX}`]: ''
+    },
+    onError: (err, req, res) => {
+      console.error('Proxy error:', err.message);
+      res.status(502).json({
+        status: 'error',
+        message: 'API proxy error',
+        error: err.message
+      });
+    }
+  })
+);
 
 // Serve static files from dist directory
 app.use(express.static(path.join(__dirname, 'dist'), {
@@ -170,5 +179,6 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🎨 Secrets Manager UI serving production bundle on http://localhost:${PORT}`);
-  console.log(`📡 API base URL: ${API_BASE_URL}`);
+  console.log(`📡 API health target: ${API_HEALTH_URL}`);
+  console.log(`📨 Client requests should hit ${API_PROXY_PREFIX}/v1/* (auto-resolved in UI)`);
 });
