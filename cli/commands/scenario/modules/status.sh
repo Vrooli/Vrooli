@@ -872,10 +872,28 @@ scenario::status::display_ui_smoke() {
     storage_summary=$(echo "$smoke_json" | jq -r '.storage_shim // [] | @json' 2>/dev/null || echo '[]')
     storage_patched=$(echo "$smoke_json" | jq -r '(.storage_shim // []) | map(select(.patched == true)) | length' 2>/dev/null || echo '0')
 
+    # Detect if smoke test results are stale (older than UI bundle)
+    local smoke_is_stale=false
+    local scenario_dir="${APP_ROOT}/scenarios/${scenario_name}"
+    if [[ -d "$scenario_dir/ui" && -f "$scenario_dir/ui/dist/index.html" && -n "$timestamp" ]]; then
+        local bundle_mtime
+        bundle_mtime=$(stat -c %Y "$scenario_dir/ui/dist/index.html" 2>/dev/null || echo "0")
+        if [[ "$bundle_mtime" != "0" ]]; then
+            local smoke_timestamp_epoch
+            smoke_timestamp_epoch=$(date -d "$timestamp" +%s 2>/dev/null || echo "0")
+            if [[ "$smoke_timestamp_epoch" != "0" && "$smoke_timestamp_epoch" -lt "$bundle_mtime" ]]; then
+                smoke_is_stale=true
+            fi
+        fi
+    fi
+
     echo ""
     echo "UI Smoke: $status (${duration}ms${timestamp:+, $timestamp})"
-    if [[ -n "$message" && "$message" != "null" ]]; then
-        echo "  ↳ $message"
+    # Skip displaying cached message if we detect staleness (it's outdated info)
+    if [[ -n "$message" && "$message" != "null" && "$smoke_is_stale" != "true" ]]; then
+        # Format multiline messages with proper indentation
+        local formatted_message=$(echo "$message" | sed '2,$s/^/  /')
+        echo "  ↳ $formatted_message"
     fi
     if [[ "$handshake_present" = "true" ]]; then
         if [[ "$handshake" = "true" ]]; then
@@ -889,6 +907,7 @@ scenario::status::display_ui_smoke() {
     fi
     if [[ "$bundle_fresh" != "true" ]]; then
         echo "  ↳ Bundle Status: ⚠️  ${bundle_reason:-UI bundle stale}"
+        echo "  ↳ Fix: vrooli scenario restart ${scenario_name}"
     fi
     if [[ "$network_errors" -gt 0 ]]; then
         local network_path
@@ -905,5 +924,11 @@ scenario::status::display_ui_smoke() {
         local storage_props
         storage_props=$(echo "$smoke_json" | jq -r '(.storage_shim // []) | map(select(.patched == true) | .prop) | join(", ")' 2>/dev/null || echo "localStorage")
         echo "  ↳ Storage shim active for: ${storage_props}"
+    fi
+
+    # Show staleness warning if test results are older than bundle
+    if [[ "$smoke_is_stale" = true ]]; then
+        echo "  ↳ ⚠️  Smoke test results outdated (bundle rebuilt since last test)"
+        echo "  ↳ Rerun: vrooli scenario ui-smoke ${scenario_name}"
     fi
 }

@@ -112,11 +112,14 @@ testing::ui_smoke::run() {
     if [[ "$bundle_fresh" = "false" ]]; then
         local bundle_reason
         bundle_reason=$(echo "$bundle_info_json" | jq -r '.reason // "UI bundle missing or outdated"')
+        local enhanced_message="${bundle_reason}
+  ↳ Fix: vrooli scenario restart ${scenario_name}
+  ↳ Then verify: vrooli scenario ui-smoke ${scenario_name}"
         local stale_json
         stale_json=$(testing::ui_smoke::_build_summary_json \
             --scenario "$scenario_name" \
             --status "blocked" \
-            --message "$bundle_reason" \
+            --message "$enhanced_message" \
             --scenario-dir "$scenario_dir" \
             --bundle "$bundle_info_json")
         testing::ui_smoke::_persist_summary "$stale_json" "$scenario_dir" "$scenario_name"

@@ -239,8 +239,14 @@ testing::structure::run_ui_smoke() {
   fi
 
   local summary_json
-  if ! summary_json=$(bash "$helper" --scenario "$scenario_name" --scenario-dir "$scenario_dir" --json); then
+  local smoke_exit_code=0
+  summary_json=$(bash "$helper" --scenario "$scenario_name" --scenario-dir "$scenario_dir" --json) || smoke_exit_code=$?
+
+  if [[ $smoke_exit_code -ne 0 ]]; then
     testing::structure::_log_ui_smoke "$summary_json"
+
+    # Exit code 60 = bundle stale (message already includes restart guidance from ui-smoke.sh)
+    # Just mark as failed; the detailed message is already shown
     testing::phase::add_test failed
     return 1
   fi
@@ -279,7 +285,9 @@ testing::structure::_log_ui_smoke() {
 
   log::info "UI smoke: ${status} (${duration}ms)"
   if [[ -n "$message" && "$message" != "null" ]]; then
-    log::info "  ↳ $message"
+    # Format multiline messages with proper indentation for log::info prefix
+    local formatted_message=$(echo "$message" | sed '2,$s/^/      /')
+    log::info "  ↳ $formatted_message"
   fi
   if [[ -n "$screenshot_path" && "$screenshot_path" != "null" ]]; then
     log::info "  ↳ Screenshot: $screenshot_path"

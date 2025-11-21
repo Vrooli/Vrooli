@@ -638,6 +638,30 @@ PY
         tips+=("• Entire test selection ran ${overall_duration}s (>600s). Consider trimming per-workflow waits or splitting phases so runs stay under 10 minutes.")
     fi
 
+    # Check for UI bundle issues in all failed phase logs
+    local bundle_issue_detected=false
+    for item in "${failed_items[@]}"; do
+        if [[ "$item" == "phase"* ]]; then
+            # Extract phase name from label like "phase 'structure'"
+            local phase_name=$(echo "$item" | sed "s/^phase[: ]*['\"]*//" | sed "s/['\"].*$//")
+            # Find the most recent log for this phase using artifacts directory
+            local artifacts_dir="${TESTING_RUNNER_SCENARIO_DIR}/test/artifacts"
+            if [[ -d "$artifacts_dir" ]]; then
+                local phase_log=$(ls -t "${artifacts_dir}/${phase_name}"-*.log 2>/dev/null | head -1)
+                if [[ -n "$phase_log" && -f "$phase_log" ]]; then
+                    if grep -qE "UI bundle (outdated|missing|stale)|bundle.*stale|Bundle Status:.*stale" "$phase_log" 2>/dev/null; then
+                        bundle_issue_detected=true
+                        break
+                    fi
+                fi
+            fi
+        fi
+    done
+
+    if [ "$bundle_issue_detected" = true ]; then
+        tips+=("• UI bundle outdated. Restart scenario to auto-rebuild: vrooli scenario restart ${TESTING_RUNNER_SCENARIO_NAME}")
+    fi
+
     echo "💡 Troubleshooting tips:"
     if [ ${#tips[@]} -eq 0 ]; then
         echo "   • Ensure $TESTING_RUNNER_SCENARIO_NAME scenario is running: vrooli scenario start $TESTING_RUNNER_SCENARIO_NAME"

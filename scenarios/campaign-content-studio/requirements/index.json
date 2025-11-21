@@ -1,0 +1,281 @@
+{
+  "_metadata": {
+    "description": "Campaign Content Studio requirements registry",
+    "domain": "marketing-automation",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "CCS-CAMP-001",
+      "category": "campaign.management",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Campaign management - Create, organize, and manage marketing campaigns",
+      "description": "Users can create new campaigns with metadata (name, description, goals), organize them in a list view, and manage campaign lifecycle.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/campaign_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-DOC-001",
+      "category": "document.upload",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Document upload and processing - Support multiple file formats",
+      "description": "Users can upload brand guidelines, product docs, and context materials in PDF, DOCX, TXT, and XLSX formats for use in content generation.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/document_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-AI-001",
+      "category": "content.generation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "AI content generation - Generate marketing content across multiple types",
+      "description": "Users can generate marketing content for blog posts, social media, emails, and advertisements using AI integration with Ollama or external services.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/generation_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-CONT-001",
+      "category": "content.types",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Content type selection - Support distinct content types with appropriate parameters",
+      "description": "System provides distinct content type options (blog, social, email, ads) with appropriate generation parameters and output formatting for each type.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/content_types_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-CTX-001",
+      "category": "context.integration",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Document context integration - Use uploaded documents in generation",
+      "description": "AI content generation incorporates uploaded documents as context to produce brand-aligned, contextually relevant content.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/context_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-REV-001",
+      "category": "content.review",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Generated content review - Display, edit, and refine AI output",
+      "description": "Users can view AI-generated content, make edits, and refine results before saving to ensure quality and brand alignment.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/ContentEditor.tsx",
+          "phase": "integration",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-PERS-001",
+      "category": "content.persistence",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "Content persistence - Save and retrieve generated content",
+      "description": "System persists generated content associated with campaigns and allows retrieval for future reference and editing.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/content_storage_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-UI-001",
+      "category": "ui.responsive",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "Responsive UI - Functional interface across viewports",
+      "description": "UI provides functional, accessible interface across mobile, tablet, and desktop viewports with appropriate layouts and interactions.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/styles/responsive.css",
+          "phase": "integration",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-CAL-001",
+      "category": "calendar.view",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Content calendar - Schedule and visualize content timeline",
+      "description": "Users can view scheduled content across campaigns in a monthly calendar view with drag-and-drop scheduling support.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/Calendar.tsx",
+          "phase": "integration",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-TMPL-001",
+      "category": "template.gallery",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Template gallery - Browse and apply pre-built templates",
+      "description": "Users can browse pre-built content templates by category and content type, and apply them to generate content faster.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/templates_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-SRCH-001",
+      "category": "document.search",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Document search - Search uploaded documents",
+      "description": "Users can search uploaded documents by name, content keywords, and campaign association to quickly find relevant context materials.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/document_search_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-FILT-001",
+      "category": "campaign.filtering",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Campaign filtering - Filter content by campaign",
+      "description": "Users can filter documents and generated content by campaign context to focus on specific marketing initiatives.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/filtering_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-ANLY-001",
+      "category": "analytics.dashboard",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Usage analytics dashboard - Track generation metrics",
+      "description": "Dashboard displays content generation volume, estimated time saved, and campaign activity metrics to measure productivity.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/AnalyticsDashboard.tsx",
+          "phase": "integration",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-IMG-001",
+      "category": "content.images",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Image inclusion toggle - Optional image generation",
+      "description": "Users can optionally request image generation or image recommendations alongside text content generation.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/image_integration_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-REGEN-001",
+      "category": "content.regeneration",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "title": "Content regeneration - Generate variations with adjusted prompts",
+      "description": "Users can regenerate content variations by adjusting generation prompts and parameters to explore different creative directions.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/regeneration_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    },
+    {
+      "id": "CCS-BATCH-001",
+      "category": "document.batch",
+      "prd_ref": "Operational Targets > P1 > OT-P1-008",
+      "title": "Batch document upload - Process multiple files simultaneously",
+      "description": "Users can upload multiple document files in a single operation for efficient bulk context material processing.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/batch_upload_test.go",
+          "phase": "unit",
+          "status": "not_implemented"
+        }
+      ]
+    }
+  ]
+}
