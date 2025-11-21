@@ -557,6 +557,7 @@ export interface RequirementGroup {
   name: string
   description?: string
   file_path?: string
+  is_module?: boolean  // True if this represents a module.json file (not a directory)
   requirements: RequirementRecord[]
   children?: RequirementGroup[]
 }

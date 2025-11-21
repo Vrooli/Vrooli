@@ -29,6 +29,7 @@ func enrichGroupsRecursive(groups []RequirementGroup, issueMap map[string]*PRDVa
 			Name:         group.Name,
 			Description:  group.Description,
 			FilePath:     group.FilePath,
+			IsModule:     group.IsModule,
 			Requirements: make([]RequirementRecord, len(group.Requirements)),
 			Children:     enrichGroupsRecursive(group.Children, issueMap, testRefs),
 		}

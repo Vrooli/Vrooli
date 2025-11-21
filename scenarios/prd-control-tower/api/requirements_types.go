@@ -30,6 +30,7 @@ type RequirementGroup struct {
 	Name         string              `json:"name"`
 	Description  string              `json:"description"`
 	FilePath     string              `json:"file_path"`
+	IsModule     bool                `json:"is_module"` // True if this represents a module.json file
 	Requirements []RequirementRecord `json:"requirements"`
 	Children     []RequirementGroup  `json:"children"`
 }
@@ -63,6 +64,10 @@ type OperationalTargetsResponse struct {
 
 type requirementsFile struct {
 	Metadata     map[string]any           `json:"_metadata"`
+	ModuleID     string                   `json:"module_id"`     // For module.json files
+	Title        string                   `json:"title"`         // For module.json files
+	Priority     string                   `json:"priority"`      // For module.json files
+	Description  string                   `json:"description"`   // For module.json files
 	Imports      []string                 `json:"imports"`
 	Requirements []RequirementRecordInput `json:"requirements"`
 }

@@ -62,12 +62,20 @@ func parseRequirementGroups(baseDir, relPath string, visited map[string]bool) ([
 		return nil, fmt.Errorf("failed to parse %s: %w", relPath, err)
 	}
 
+	baseName := filepath.Base(relPath)
+	isModuleFile := baseName == "module.json"
+
 	group := RequirementGroup{
 		ID:       filepath.ToSlash(relPath),
-		Name:     groupNameFromPath(relPath),
+		Name:     groupNameFromPath(relPath, file),
 		FilePath: filepath.ToSlash(absPath),
+		IsModule: isModuleFile,
 	}
-	if desc, ok := file.Metadata["description"].(string); ok {
+
+	// Use explicit description from module files, or fall back to metadata
+	if file.Description != "" {
+		group.Description = file.Description
+	} else if desc, ok := file.Metadata["description"].(string); ok {
 		group.Description = desc
 	}
 
@@ -93,13 +101,69 @@ func parseRequirementGroups(baseDir, relPath string, visited map[string]bool) ([
 		group.Children = append(group.Children, childGroups...)
 	}
 
-	if relPath == "index.json" {
-		return append([]RequirementGroup{group}, group.Children...), nil
-	}
+	// Always return just the group itself - children are nested within it
 	return []RequirementGroup{group}, nil
 }
 
-func groupNameFromPath(relPath string) string {
+func groupNameFromPath(relPath string, file requirementsFile) string {
+	baseName := filepath.Base(relPath)
+
+	// For module.json files, prefer the title field
+	if baseName == "module.json" && file.Title != "" {
+		return file.Title
+	}
+
+	// For index.json at root, use "Requirements"
+	if relPath == "index.json" {
+		return "Requirements"
+	}
+
+	// Otherwise use the base filename without extension
 	base := filepath.Base(relPath)
-	return strings.TrimSuffix(base, filepath.Ext(base))
+	name := strings.TrimSuffix(base, filepath.Ext(base))
+
+	// If it's "module" or "index", try to use the parent directory name instead
+	if name == "module" || name == "index" {
+		dir := filepath.Dir(relPath)
+		if dir != "." && dir != "/" {
+			parentDir := filepath.Base(dir)
+			// Clean up numbered prefixes like "01-template-management" -> "Template Management"
+			cleaned := cleanFolderName(parentDir)
+			if cleaned != "" {
+				return cleaned
+			}
+		}
+	}
+
+	return name
+}
+
+// cleanFolderName removes number prefixes and converts kebab-case to Title Case
+func cleanFolderName(folderName string) string {
+	// Remove leading numbers and dash (e.g., "01-template-management" -> "template-management")
+	parts := strings.SplitN(folderName, "-", 2)
+	if len(parts) == 2 && isNumeric(parts[0]) {
+		folderName = parts[1]
+	}
+
+	// Convert kebab-case to space-separated words
+	words := strings.Split(folderName, "-")
+
+	// Title case each word
+	for i, word := range words {
+		if len(word) > 0 {
+			words[i] = strings.ToUpper(word[:1]) + word[1:]
+		}
+	}
+
+	return strings.Join(words, " ")
+}
+
+func isNumeric(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return len(s) > 0
 }

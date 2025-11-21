@@ -13,6 +13,7 @@ import { useRequirementsExplorer } from '../hooks/useRequirementsExplorer'
 import { useOperationalTargets } from '../hooks/useOperationalTargets'
 import { RequirementTree } from '../components/requirements/RequirementTree'
 import { RequirementDetailPanel } from '../components/requirements/RequirementDetailPanel'
+import { RequirementCreateDialog } from '../components/requirements/RequirementCreateDialog'
 import { TargetsList } from '../components/targets/TargetsList'
 import { TargetDetailPanel } from '../components/targets/TargetDetailPanel'
 import { Input } from '../components/ui/input'
@@ -228,6 +229,14 @@ export default function ScenarioControlCenter() {
     refreshRequirements()
     refreshTargets()
     loadQualityReport(true)
+  }
+
+  const handleRequirementUpdate = () => {
+    refreshRequirements()
+  }
+
+  const handleRequirementDelete = () => {
+    refreshRequirements()
   }
 
   const quickActions: QuickAction[] = [
@@ -523,6 +532,14 @@ export default function ScenarioControlCenter() {
                 <p className="text-sm text-muted-foreground">
                   Showing {filteredGroups.length} of {requirementGroups.length} groups
                 </p>
+                {entityType && entityName && (
+                  <RequirementCreateDialog
+                    entityType={entityType}
+                    entityName={entityName}
+                    groups={requirementGroups}
+                    onSuccess={refreshRequirements}
+                  />
+                )}
               </div>
 
               <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
@@ -546,6 +563,8 @@ export default function ScenarioControlCenter() {
                       requirement={selectedRequirement}
                       entityType={entityType}
                       entityName={entityName}
+                      onRequirementUpdate={handleRequirementUpdate}
+                      onRequirementDelete={handleRequirementDelete}
                     />
                   </div>
                 )}
@@ -598,7 +617,7 @@ export default function ScenarioControlCenter() {
 
                 {selectedTarget && (
                   <div className="sticky top-6 h-fit">
-                    <TargetDetailPanel target={selectedTarget} />
+                    <TargetDetailPanel target={selectedTarget} entityType={entityType} entityName={entityName} />
                   </div>
                 )}
               </div>

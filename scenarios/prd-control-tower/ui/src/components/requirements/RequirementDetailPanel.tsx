@@ -1,22 +1,28 @@
 import { useState } from 'react'
-import { FileText, AlertCircle, CheckCircle2, Link2, TestTube, ExternalLink, AlertTriangle, Code, Edit } from 'lucide-react'
-import { Link as RouterLink } from 'react-router-dom'
+import { FileText, AlertCircle, CheckCircle2, Link2, TestTube, AlertTriangle, Code, Edit, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import type { RequirementRecord } from '../../types'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
 import { RequirementEditPanel } from './RequirementEditPanel'
+import { buildApiUrl } from '../../utils/apiClient'
 
 interface RequirementDetailPanelProps {
   requirement: RequirementRecord | null
   entityType?: string
   entityName?: string
   onRequirementUpdate?: (updated: RequirementRecord) => void
+  onRequirementDelete?: (id: string) => void
 }
 
-export function RequirementDetailPanel({ requirement, entityType, entityName, onRequirementUpdate }: RequirementDetailPanelProps) {
+export function RequirementDetailPanel({ requirement, entityType, entityName, onRequirementUpdate, onRequirementDelete }: RequirementDetailPanelProps) {
   const [isEditing, setIsEditing] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const navigate = useNavigate()
+
   if (!requirement) {
     return (
       <Card className="border-dashed">
@@ -35,6 +41,37 @@ export function RequirementDetailPanel({ requirement, entityType, entityName, on
 
   const handleCancel = () => {
     setIsEditing(false)
+  }
+
+  const handleDelete = async () => {
+    if (!entityType || !entityName) return
+
+    const confirmed = window.confirm(`Are you sure you want to delete requirement "${requirement.title}"? This action cannot be undone.`)
+    if (!confirmed) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(
+        buildApiUrl(`/catalog/${entityType}/${entityName}/requirements/${requirement.id}`),
+        { method: 'DELETE' }
+      )
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete requirement: ${response.statusText}`)
+      }
+
+      toast.success('Requirement deleted successfully')
+      onRequirementDelete?.(requirement.id)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete requirement')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleNavigateToTarget = (targetId: string) => {
+    if (!entityType || !entityName) return
+    navigate(`/scenario/${entityType}/${entityName}?tab=targets&target=${targetId}`)
   }
 
   // Show edit panel if editing
@@ -81,10 +118,22 @@ export function RequirementDetailPanel({ requirement, entityType, entityName, on
             </Badge>
             {requirement.criticality && <Badge variant={criticalityColor}>{requirement.criticality}</Badge>}
             {entityType && entityName && (
-              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-1">
-                <Edit size={14} />
-                Edit
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-1">
+                  <Edit size={14} />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                >
+                  <Trash2 size={14} />
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -107,7 +156,14 @@ export function RequirementDetailPanel({ requirement, entityType, entityName, on
                 PRD Reference
               </h3>
               <div className="space-y-2">
-                <p className="text-sm text-blue-600 font-mono">{requirement.prd_ref}</p>
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-sm text-blue-600 font-mono hover:underline"
+                  onClick={() => entityType && entityName && navigate(`/scenario/${entityType}/${entityName}?tab=targets&search=${encodeURIComponent(requirement.prd_ref || '')}`)}
+                >
+                  {requirement.prd_ref}
+                </Button>
+                <p className="text-xs text-muted-foreground">Click to view in Targets tab</p>
                 {hasPRDIssue && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start gap-2">
@@ -145,19 +201,18 @@ export function RequirementDetailPanel({ requirement, entityType, entityName, on
               <div className="space-y-2">
                 <div className="flex flex-wrap gap-2">
                   {requirement.linked_operational_target_ids!.map((targetId) => (
-                    <Badge key={targetId} variant="outline" className="font-mono text-xs">
+                    <Button
+                      key={targetId}
+                      variant="outline"
+                      size="sm"
+                      className="h-auto px-2 py-1 font-mono text-xs hover:bg-blue-50"
+                      onClick={() => handleNavigateToTarget(targetId)}
+                    >
                       {targetId}
-                    </Badge>
+                    </Button>
                   ))}
                 </div>
-                {entityType && entityName && (
-                  <Button variant="outline" size="sm" asChild className="w-full">
-                    <RouterLink to={`/targets/${entityType}/${entityName}`} className="flex items-center justify-center gap-2">
-                      <ExternalLink size={14} />
-                      View Operational Targets
-                    </RouterLink>
-                  </Button>
-                )}
+                <p className="text-xs text-muted-foreground">Click target IDs to view in Targets tab</p>
               </div>
             </div>
           </>

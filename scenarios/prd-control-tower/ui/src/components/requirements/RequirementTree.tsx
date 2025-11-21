@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, FileText, FolderOpen, Folder } from 'lucide-react'
+import { ChevronDown, ChevronRight, FileText, FolderOpen, Folder, Package } from 'lucide-react'
 import { useState } from 'react'
 import type { RequirementGroup, RequirementRecord } from '../../types'
 import { Badge } from '../ui/badge'
@@ -22,6 +22,16 @@ function RequirementGroupNode({ group, level, selectedId, onSelect }: Requiremen
   const hasChildren = (group.children?.length ?? 0) > 0
   const hasRequirements = group.requirements.length > 0
 
+  // Determine icon based on whether this is a module file or folder
+  const getIcon = () => {
+    if (group.is_module) {
+      // Module files get a package icon
+      return <Package size={16} className={expanded ? 'text-purple-500' : 'text-slate-400'} />
+    }
+    // Folders get folder icons
+    return expanded ? <FolderOpen size={16} className="text-amber-500" /> : <Folder size={16} className="text-slate-400" />
+  }
+
   return (
     <div className="select-none">
       <div
@@ -40,7 +50,7 @@ function RequirementGroupNode({ group, level, selectedId, onSelect }: Requiremen
         ) : (
           <div className="w-4" />
         )}
-        {expanded ? <FolderOpen size={16} className="text-amber-500" /> : <Folder size={16} className="text-slate-400" />}
+        {getIcon()}
         <span className="font-medium text-sm text-slate-700">{group.name}</span>
         {group.description && <span className="text-xs text-muted-foreground truncate">{group.description}</span>}
       </div>

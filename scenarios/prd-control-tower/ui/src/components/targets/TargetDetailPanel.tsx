@@ -1,14 +1,20 @@
 import { Target, CheckCircle2, Circle, Link2, FileText } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import type { OperationalTarget } from '../../types'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
+import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
 
 interface TargetDetailPanelProps {
   target: OperationalTarget | null
+  entityType?: string
+  entityName?: string
 }
 
-export function TargetDetailPanel({ target }: TargetDetailPanelProps) {
+export function TargetDetailPanel({ target, entityType, entityName }: TargetDetailPanelProps) {
+  const navigate = useNavigate()
+
   if (!target) {
     return (
       <Card className="border-dashed">
@@ -23,6 +29,11 @@ export function TargetDetailPanel({ target }: TargetDetailPanelProps) {
   const statusIcon = target.status === 'complete' ? <CheckCircle2 size={16} className="text-green-600" /> : <Circle size={16} className="text-slate-400" />
 
   const criticalityColor = target.criticality === 'P0' ? 'destructive' : target.criticality === 'P1' ? 'warning' : 'secondary'
+
+  const handleNavigateToRequirement = (reqId: string) => {
+    if (!entityType || !entityName) return
+    navigate(`/scenario/${entityType}/${entityName}?tab=requirements&requirement=${reqId}`)
+  }
 
   return (
     <Card>
@@ -78,10 +89,17 @@ export function TargetDetailPanel({ target }: TargetDetailPanelProps) {
               </h3>
               <div className="space-y-2">
                 {target.linked_requirement_ids.map((reqId) => (
-                  <div key={reqId} className="rounded-lg border bg-slate-50 p-3">
-                    <p className="text-sm font-mono text-blue-600">{reqId}</p>
-                  </div>
+                  <Button
+                    key={reqId}
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start h-auto px-3 py-2 font-mono text-sm hover:bg-blue-50"
+                    onClick={() => handleNavigateToRequirement(reqId)}
+                  >
+                    {reqId}
+                  </Button>
                 ))}
+                <p className="text-xs text-muted-foreground">Click requirement IDs to view in Requirements tab</p>
               </div>
             </div>
           </>
