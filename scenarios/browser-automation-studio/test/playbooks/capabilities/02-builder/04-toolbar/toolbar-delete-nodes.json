@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates deleting selected nodes using toolbar delete button",
     "version": 1,
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

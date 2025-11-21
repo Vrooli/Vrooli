@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates execution result export functionality",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

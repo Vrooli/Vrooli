@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-16T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-20T14:01:07.071Z"
+    "last_synced_at": "2025-11-21T02:16:10.054Z"
   },
   "requirements": [
     {
@@ -23,20 +23,20 @@
           "status": "failing",
           "notes": "41-step workflow covering: project creation → workflow building → node configuration → execution → history viewing → replay. Skips AI generation for deterministic testing.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:37-05:00",
+            "test_duration_ms": 456000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T23:07:35-05:00",
+        "last_updated": "2025-11-20T21:15:37-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,
@@ -44,7 +44,7 @@
           "coverage/phase-results/integration.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -65,7 +65,7 @@
         "all_tests_passing": true,
         "phase_results": [],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -86,7 +86,7 @@
         "all_tests_passing": true,
         "phase_results": [],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -107,7 +107,7 @@
         "all_tests_passing": true,
         "phase_results": [],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -128,7 +128,7 @@
         "all_tests_passing": true,
         "phase_results": [],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     }

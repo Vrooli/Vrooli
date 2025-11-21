@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates that workflow execution produces telemetry artifacts (screenshots, logs, progress updates)",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Ensures the demo project and default workflow remain available after boot.",
     "version": 2,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

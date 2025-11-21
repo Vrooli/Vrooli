@@ -1,0 +1,333 @@
+{
+  "_metadata": {
+    "description": "Game Dialog Generator requirements registry",
+    "domain": "game-development",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "GDG-P0-001",
+      "category": "core.storage",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Character personality definition and storage system",
+      "description": "Create and store character personalities with traits, backgrounds, speech patterns, and relationships in PostgreSQL",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/character_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Character CRUD operations and personality storage"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P0-002",
+      "category": "core.search",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Scene context management with semantic search via Qdrant",
+      "description": "Manage scene contexts and enable semantic search using Qdrant vector embeddings",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/scene_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Scene CRUD and Qdrant vector search integration"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P0-003",
+      "category": "core.generation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Real-time dialog generation API with streaming responses",
+      "description": "Generate character dialog in real-time using Ollama with < 2s response time",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/dialog_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Real-time dialog generation with performance SLA"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P0-004",
+      "category": "core.generation",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Batch dialog generation for traditional game workflows",
+      "description": "Support batch generation of multiple dialog lines for fixed-dialog games",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/batch_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Batch dialog generation with throughput validation"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P0-005",
+      "category": "integration.postgres",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "PostgreSQL integration for persistent character and project data",
+      "description": "Store characters, scenes, projects, and dialog history in PostgreSQL",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/database_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Database schema validation and data persistence"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P0-006",
+      "category": "integration.ollama",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Ollama integration for local LLM-powered dialog generation",
+      "description": "Use Ollama for AI-powered dialog generation with personality constraints",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ollama_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Ollama API integration and dialog generation"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P1-001",
+      "category": "voice.synthesis",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Voice synthesis with character-specific audio profiles",
+      "description": "Generate character-specific voice audio for dialog lines",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/voice_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "TTS integration and audio file generation"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P1-002",
+      "category": "character.relationships",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Character relationship modeling affecting dialog dynamics",
+      "description": "Model character relationships that influence dialog tone and content",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/relationship_test.go",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Relationship modeling and dialog influence"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P1-003",
+      "category": "dialog.validation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Dialog history tracking and consistency checks",
+      "description": "Track dialog history and validate consistency with character personality",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/consistency_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Dialog history tracking and consistency validation"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P1-004",
+      "category": "export.formats",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Export formats for popular game engines",
+      "description": "Export dialog in formats compatible with Unity, Unreal, Godot, and JSON",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/export_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Game engine export format generation"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P1-005",
+      "category": "character.emotion",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Character emotion state tracking influencing dialog tone",
+      "description": "Track and incorporate character emotion states in dialog generation",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/emotion_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Emotion state tracking and dialog tone influence"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P1-006",
+      "category": "dialog.validation",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Dialog validation against character personality constraints",
+      "description": "Validate generated dialog matches character personality profiles",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/validation_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Personality constraint validation scoring"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P2-001",
+      "category": "visualization.graphs",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Visual character relationship graphs",
+      "description": "Display character relationships as interactive graphs",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/RelationshipGraph.tsx",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Interactive relationship visualization component"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P2-002",
+      "category": "analytics.metrics",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Dialog analytics and quality metrics",
+      "description": "Provide analytics on dialog quality, character consistency, and usage patterns",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/analytics_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Analytics data collection and reporting"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P2-003",
+      "category": "i18n.multilingual",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Multi-language dialog generation",
+      "description": "Generate dialog in multiple languages with cultural context",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/i18n_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Multi-language generation and cultural adaptation"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P2-004",
+      "category": "integration.external",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Integration with existing game dialog systems",
+      "description": "Connect to existing game dialog systems for enhanced generation",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/external_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "External system integration adapters"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P2-005",
+      "category": "collaboration.features",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "Collaborative character development features",
+      "description": "Enable team collaboration on character creation and dialog review",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/CollaborationPanel.tsx",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "Real-time collaboration UI components"
+        }
+      ]
+    },
+    {
+      "id": "GDG-P2-006",
+      "category": "testing.ab",
+      "prd_ref": "Operational Targets > P2 > OT-P2-006",
+      "title": "Dialog A/B testing capabilities",
+      "description": "Support A/B testing of different dialog variations",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ab_test.go",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "A/B test framework and variant tracking"
+        }
+      ]
+    }
+  ]
+}

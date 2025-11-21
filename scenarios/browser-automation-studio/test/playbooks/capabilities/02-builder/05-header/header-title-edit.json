@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates inline workflow title editing with save/cancel",
     "version": 1,
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

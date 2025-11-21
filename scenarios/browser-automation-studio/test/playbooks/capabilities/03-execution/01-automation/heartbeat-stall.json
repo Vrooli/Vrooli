@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates that execution heartbeat monitoring detects stalls and displays appropriate warnings",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

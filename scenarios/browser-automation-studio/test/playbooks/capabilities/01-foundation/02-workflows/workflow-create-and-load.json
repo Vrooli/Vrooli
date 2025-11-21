@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates workflow creation via AI modal and loading into the workflow builder",
     "version": 1,
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

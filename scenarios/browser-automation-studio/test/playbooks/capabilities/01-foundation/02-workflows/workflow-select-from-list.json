@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates that workflows can be selected from project detail list and loaded into the builder",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

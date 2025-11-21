@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Smoke test for AI workflow generation feature - verifies UI elements are present",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

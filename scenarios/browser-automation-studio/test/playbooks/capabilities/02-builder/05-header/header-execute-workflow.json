@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates execute button runs current workflow with feedback",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

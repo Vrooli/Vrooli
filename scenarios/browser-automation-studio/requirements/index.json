@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-20T14:01:07.069Z"
+    "last_synced_at": "2025-11-21T02:16:10.052Z"
   },
   "meta": {
     "scenario": "browser-automation-studio",
@@ -57,7 +57,7 @@
         "all_tests_passing": true,
         "phase_results": [],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -76,7 +76,7 @@
         "BAS-EXEC-CLI-WATCH"
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T12:56:37-05:00",
+        "last_updated": "2025-11-20T21:08:00-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": true,
@@ -84,7 +84,7 @@
           "coverage/phase-results/unit.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -107,7 +107,7 @@
         "all_tests_passing": true,
         "phase_results": [],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -130,7 +130,7 @@
         "all_tests_passing": true,
         "phase_results": [],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -153,7 +153,7 @@
         "all_tests_passing": true,
         "phase_results": [],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     }

@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates fit view centers and sizes canvas to show all nodes",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

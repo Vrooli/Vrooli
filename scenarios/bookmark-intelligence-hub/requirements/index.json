@@ -1,0 +1,315 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for Bookmark Intelligence Hub scenario",
+    "domain": "bookmark-processing",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "BIH-AUTH-001",
+      "category": "authentication",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Multi-tenant authentication with profile-specific processing",
+      "description": "Implement multi-tenant authentication system that isolates bookmark processing per user profile with secure credential storage.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/auth_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Test profile isolation and authentication flows"
+        }
+      ]
+    },
+    {
+      "id": "BIH-PLAT-001",
+      "category": "platform-integration",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Modular social platform integration for X, Reddit, TikTok",
+      "description": "Build modular integration system supporting X, Reddit, and TikTok with extensible plugin architecture for future platforms.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/platforms_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Test each platform adapter and plugin loading"
+        }
+      ]
+    },
+    {
+      "id": "BIH-CAT-001",
+      "category": "categorization",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "AI-powered content categorization with user-defined buckets",
+      "description": "Implement AI categorization engine using Ollama/Qdrant for semantic matching with user-configurable category buckets and rules.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/categorization_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Test categorization accuracy and rule matching"
+        }
+      ]
+    },
+    {
+      "id": "BIH-ACT-001",
+      "category": "action-engine",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Action suggestion engine with approval/rejection workflow",
+      "description": "Build action suggestion system that analyzes categorized content and proposes workflow actions with user approval mechanisms.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/actions_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Test action suggestion logic and approval workflows"
+        }
+      ]
+    },
+    {
+      "id": "BIH-API-001",
+      "category": "cross-scenario",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Cross-scenario integration API for consuming organized data",
+      "description": "Expose REST API endpoints allowing other scenarios to query organized bookmark data and subscribe to categorization events.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/integration_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Test API endpoints with mock scenario consumers"
+        }
+      ]
+    },
+    {
+      "id": "BIH-PROC-001",
+      "category": "processing",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Real-time bookmark processing with configurable polling intervals",
+      "description": "Implement bookmark processing engine with configurable polling intervals and queue-based processing for real-time updates.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/processor_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Test polling mechanism and queue processing"
+        }
+      ]
+    },
+    {
+      "id": "BIH-INT-001",
+      "category": "scenario-integration",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Integration with data-structurer for unstructured text processing",
+      "description": "Integrate with data-structurer scenario to extract structured data from unstructured social media content.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Integration test with data-structurer scenario",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Verify content extraction accuracy improvements"
+        }
+      ]
+    },
+    {
+      "id": "BIH-INT-002",
+      "category": "scenario-integration",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Integration with scenario-authenticator for multi-tenant support",
+      "description": "Integrate with scenario-authenticator for centralized user management and authentication across scenarios.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Integration test with scenario-authenticator",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Verify SSO and profile management"
+        }
+      ]
+    },
+    {
+      "id": "BIH-LEARN-001",
+      "category": "machine-learning",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Intelligent learning system improving categorization over time",
+      "description": "Implement feedback loop system that learns from user approval/rejection patterns to improve categorization accuracy.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/learning_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Test learning algorithm and accuracy improvements"
+        }
+      ]
+    },
+    {
+      "id": "BIH-BULK-001",
+      "category": "ui-features",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Bulk action approval for similar content types",
+      "description": "Add bulk approval UI and API endpoints allowing users to approve/reject multiple similar actions at once.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "UI test for bulk approval flow",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Test bulk operations on 100+ actions"
+        }
+      ]
+    },
+    {
+      "id": "BIH-EXP-001",
+      "category": "export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Export functionality to external systems (CSV, JSON, API)",
+      "description": "Implement export capabilities allowing users to extract organized bookmark data in CSV, JSON formats or via API webhooks.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/export_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Test all export formats and data integrity"
+        }
+      ]
+    },
+    {
+      "id": "BIH-SEARCH-001",
+      "category": "search",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Advanced filtering and search across organized bookmarks",
+      "description": "Build search and filtering system supporting full-text search, category filters, date ranges, and semantic similarity.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/search_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Test search accuracy and performance with 10K+ bookmarks"
+        }
+      ]
+    },
+    {
+      "id": "BIH-EXT-001",
+      "category": "browser-extension",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Browser extension for real-time bookmark categorization",
+      "description": "Develop browser extension that categorizes bookmarks in real-time as users save them across platforms.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Browser extension testing in Chrome/Firefox",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Test real-time categorization across major browsers"
+        }
+      ]
+    },
+    {
+      "id": "BIH-MOB-001",
+      "category": "mobile",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Mobile app for on-the-go bookmark management",
+      "description": "Build mobile application for iOS/Android enabling bookmark review and action approval on mobile devices.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Mobile app testing on iOS/Android",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Test core workflows on mobile platforms"
+        }
+      ]
+    },
+    {
+      "id": "BIH-ANA-001",
+      "category": "analytics",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Advanced analytics on bookmark patterns and productivity outcomes",
+      "description": "Implement analytics dashboard showing bookmark patterns, categorization trends, and productivity metrics from action completions.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Analytics dashboard review",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Verify metrics accuracy and visualization quality"
+        }
+      ]
+    },
+    {
+      "id": "BIH-CAL-001",
+      "category": "calendar-integration",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Integration with calendar systems for time-based action scheduling",
+      "description": "Integrate with calendar services to automatically schedule follow-up actions based on bookmark content and timing patterns.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Calendar integration test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Test with Google Calendar and Outlook"
+        }
+      ]
+    },
+    {
+      "id": "BIH-TEAM-001",
+      "category": "collaboration",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "Collaborative bookmark sharing within teams",
+      "description": "Add team collaboration features allowing shared bookmark collections, collective categorization, and team action workflows.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "Team collaboration testing",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Test sharing, permissions, and collaborative workflows"
+        }
+      ]
+    }
+  ]
+}

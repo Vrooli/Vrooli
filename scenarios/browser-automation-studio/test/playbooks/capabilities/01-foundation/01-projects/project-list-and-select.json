@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates that projects are listed correctly and can be selected to navigate to project detail view",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

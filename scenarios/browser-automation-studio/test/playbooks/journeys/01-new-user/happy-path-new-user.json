@@ -8,7 +8,7 @@
       "critical-path",
       "new-user-onboarding"
     ],
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

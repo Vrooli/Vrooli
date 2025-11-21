@@ -1,0 +1,183 @@
+{
+  "requirements": [
+    {
+      "id": "SWM-REQ-001",
+      "title": "File-Based Task Lifecycle",
+      "description": "Create, stage, execute, complete, and fail tasks using file-based storage (tasks/active, backlog, staged, completed, failed) with proper state transitions",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "validation_method": "Tasks transition correctly between folders with proper metadata updates",
+      "tags": ["core", "storage", "lifecycle"]
+    },
+    {
+      "id": "SWM-REQ-002",
+      "title": "Intelligent Priority Calculation",
+      "description": "Calculate task priority using (Impact × Urgency × Success_Probability) / (Resource_Cost × Cooldown_Factor) formula with configurable weights",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "validation_method": "Priority scores calculated correctly and tasks ordered by priority",
+      "tags": ["core", "priority", "algorithm"]
+    },
+    {
+      "id": "SWM-REQ-003",
+      "title": "CLI-Based Scenario Integration",
+      "description": "Dispatch work to scenarios via CLI commands (ecosystem-manager, resource-experimenter, app-debugger) with proper error handling",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "validation_method": "Dispatcher successfully calls scenario CLIs and captures results",
+      "tags": ["integration", "cli", "dispatcher"]
+    },
+    {
+      "id": "SWM-REQ-004",
+      "title": "Task Monitoring Dashboard",
+      "description": "Trello-like dark theme UI showing tasks across active/backlog/staged/completed/failed columns with drag-and-drop",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "validation_method": "UI displays tasks in kanban layout with functional drag-and-drop",
+      "tags": ["ui", "dashboard", "kanban"]
+    },
+    {
+      "id": "SWM-REQ-005",
+      "title": "Real-Time Agent Monitoring",
+      "description": "Display what each agent is working on with live status updates via WebSocket or polling",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "validation_method": "Agent monitor panel shows active tasks with real-time updates",
+      "tags": ["monitoring", "ui", "realtime"]
+    },
+    {
+      "id": "SWM-REQ-006",
+      "title": "Manual Task Creation",
+      "description": "Allow humans to create priority tasks by dropping YAML files in tasks/backlog/manual/ directory",
+      "priority": "P0",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "validation_method": "YAML files in manual/ directory are parsed and tasks appear in backlog",
+      "tags": ["core", "manual", "yaml"]
+    },
+    {
+      "id": "SWM-REQ-007",
+      "title": "Learning and Adaptation",
+      "description": "Track success/failure rates and adjust priority weights based on actual vs predicted impact",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "validation_method": "System adjusts weights after task completion and shows improved predictions",
+      "tags": ["learning", "ai", "optimization"]
+    },
+    {
+      "id": "SWM-REQ-008",
+      "title": "Pattern Recognition",
+      "description": "Store successful task sequences and failure modes in Qdrant for future reference and pattern matching",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "validation_method": "Patterns stored in Qdrant and retrieved for similar new tasks",
+      "tags": ["ai", "qdrant", "patterns"]
+    },
+    {
+      "id": "SWM-REQ-009",
+      "title": "Cooldown Management",
+      "description": "Prevent thrashing on repeatedly failing tasks with exponential backoff",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "validation_method": "Failed tasks have increasing cooldown periods before retry",
+      "tags": ["reliability", "cooldown", "backoff"]
+    },
+    {
+      "id": "SWM-REQ-010",
+      "title": "Dependency Resolution",
+      "description": "Execute tasks in correct order based on dependency chains with circular dependency detection",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "validation_method": "Tasks with dependencies execute in correct order",
+      "tags": ["dependencies", "ordering", "graph"]
+    },
+    {
+      "id": "SWM-REQ-011",
+      "title": "PROBLEMS.md Scanning",
+      "description": "Automatically discover and create tasks from PROBLEMS.md files across resources and scenarios every 5 minutes",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "validation_method": "Problems in PROBLEMS.md automatically generate tasks with correct priority",
+      "tags": ["automation", "scanning", "problems"]
+    },
+    {
+      "id": "SWM-REQ-012",
+      "title": "YOLO Mode",
+      "description": "Auto-approve AI-generated tasks when yolo_mode is enabled in configuration",
+      "priority": "P1",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "validation_method": "AI tasks auto-move to staged when yolo_mode=true",
+      "tags": ["automation", "config", "yolo"]
+    },
+    {
+      "id": "SWM-REQ-013",
+      "title": "Distributed Tracing",
+      "description": "Full execution tracing across multi-step task workflows for debugging and analysis",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "validation_method": "TBD",
+      "tags": ["observability", "tracing", "future"]
+    },
+    {
+      "id": "SWM-REQ-014",
+      "title": "Mobile Monitoring App",
+      "description": "iOS/Android app for task monitoring and approval on the go",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "validation_method": "TBD",
+      "tags": ["mobile", "ui", "future"]
+    },
+    {
+      "id": "SWM-REQ-015",
+      "title": "Advanced Analytics",
+      "description": "Success metrics, throughput charts, resource usage graphs, and learning rate visualization",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "validation_method": "TBD",
+      "tags": ["analytics", "visualization", "future"]
+    },
+    {
+      "id": "SWM-REQ-016",
+      "title": "Task Templates",
+      "description": "Reusable task templates for common improvement patterns",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "validation_method": "TBD",
+      "tags": ["templates", "productivity", "future"]
+    },
+    {
+      "id": "SWM-REQ-017",
+      "title": "Multi-Cluster Coordination",
+      "description": "Coordinate work across multiple Vrooli installations for distributed environments",
+      "priority": "P2",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "validation_method": "TBD",
+      "tags": ["distributed", "multi-cluster", "future"]
+    }
+  ],
+  "metadata": {
+    "scenario": "swarm-manager",
+    "version": "1.0.0",
+    "last_updated": "2025-11-18",
+    "total_requirements": 17,
+    "validated_count": 0,
+    "pending_count": 0,
+    "planned_count": 17
+  }
+}

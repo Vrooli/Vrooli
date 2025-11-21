@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates execution history tab displays execution list and allows selecting executions to view details",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

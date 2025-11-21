@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates toggling node favorites in the palette",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

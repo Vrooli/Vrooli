@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates Wait node configuration with dynamic fields based on wait type selection",
     "version": 1,
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

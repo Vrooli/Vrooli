@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-20T14:01:07.070Z"
+    "last_synced_at": "2025-11-21T02:16:10.054Z"
   },
   "requirements": [
     {
@@ -13,24 +13,24 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "New project dialog opens from primary entry points",
       "description": "Verifies the modal opens via the \"Create Project\" button, keyboard shortcuts, and toolbar menu so operators can begin authoring without page reloads.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-dialog-open.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow asserting modal visibility for each trigger once exported.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -38,17 +38,17 @@
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -56,32 +56,32 @@
           "type": "test",
           "ref": "ui/src/components/ResponsiveDialog.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T23:07:35-05:00",
+        "last_updated": "2025-11-20T21:15:37-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
+        "test_coverage_count": 3,
+        "all_tests_passing": true,
         "phase_results": [
           "coverage/phase-results/integration.json",
           "coverage/phase-results/unit.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -91,24 +91,24 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "New project dialog closes through all affordances",
       "description": "Ensures the modal dismisses through the X button, cancel button, backdrop click, and Escape key, restoring the underlying canvas state.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-dialog-close.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow covering dismissal affordances (pending export).",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -116,17 +116,17 @@
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -134,32 +134,32 @@
           "type": "test",
           "ref": "ui/src/components/ResponsiveDialog.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T23:07:35-05:00",
+        "last_updated": "2025-11-20T21:15:37-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
+        "test_coverage_count": 3,
+        "all_tests_passing": true,
         "phase_results": [
           "coverage/phase-results/integration.json",
           "coverage/phase-results/unit.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -169,24 +169,24 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Operators can create a project from the dialog",
       "description": "Confirms validated submissions persist projects, show success toasts, and refresh the project list with the new entry selected.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-create.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow seeds unique project and checks API/UI consistency (pending export).",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:39-05:00",
+            "test_duration_ms": 2000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -194,17 +194,17 @@
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -212,33 +212,33 @@
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T23:07:35-05:00",
+        "last_updated": "2025-11-20T21:15:39-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
+        "test_coverage_count": 3,
+        "all_tests_passing": true,
         "phase_results": [
           "coverage/phase-results/business.json",
           "coverage/phase-results/integration.json",
           "coverage/phase-results/unit.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -248,24 +248,24 @@
       "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
       "title": "Project creation enforces inline validation rules",
       "description": "Covers empty name, duplicate detection, and invalid characters with accessible error messaging surfaced inside the dialog.",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-validation.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow submits failing payloads and asserts inline error copy (pending export).",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -273,17 +273,17 @@
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -291,32 +291,32 @@
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T23:07:35-05:00",
+        "last_updated": "2025-11-20T21:15:37-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
+        "test_coverage_count": 3,
+        "all_tests_passing": true,
         "phase_results": [
           "coverage/phase-results/integration.json",
           "coverage/phase-results/unit.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     }

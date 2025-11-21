@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Opens the dashboard and verifies that the New Project modal becomes visible.",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

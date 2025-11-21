@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates the 'Switch to Manual Builder' button in AI modal creates an empty workflow and loads the builder",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

@@ -1,968 +1,154 @@
 # Product Requirements Document (PRD)
 
-## 🎯 Capability Definition
-
-### Core Capability
-**What permanent capability does this scenario add to Vrooli?**
-Comprehensive image manipulation toolkit providing compression, resizing, upscaling, format conversion, and metadata management through both API and CLI interfaces. Enables any scenario to optimize visual assets for production use.
-
-### Intelligence Amplification
-**How does this capability make future agents smarter?**
-Agents generating websites, documentation, or visual content can automatically optimize assets without manual intervention. This removes the technical barrier of image optimization, letting agents focus on creative/business logic while ensuring professional-quality output.
-
-### Recursive Value
-**What new scenarios become possible after this exists?**
-- **Website generator scenarios** can auto-optimize all assets before deployment
-- **Documentation builders** can standardize image formats and sizes
-- **E-commerce platforms** can generate multiple product image variants
-- **Social media managers** can auto-format images for different platforms
-- **Performance analyzers** can identify and fix asset bottlenecks
-
-## 📊 Success Metrics
-
-### Functional Requirements
-- **Must Have (P0)**
-  - [x] Image compression for JPEG, PNG, WebP, SVG formats (2025-09-24)
-  - [x] Format conversion between supported formats (2025-09-24)
-  - [x] Resizing with multiple resampling algorithms (2025-09-24)
-  - [x] Metadata stripping for privacy/size reduction (2025-09-24)
-  - [x] REST API with all operations (2025-09-24)
-  - [x] CLI with full API parity (2025-09-24)
-  - [x] Plugin architecture for format-specific operations (2025-09-24)
-  - [x] Live preview in UI with before/after comparison (2025-09-27: Enhanced with image proxy and fallback display)
-  
-- **Should Have (P1)**
-  - [ ] AI upscaling using Real-ESRGAN or similar
-  - [ ] Batch processing for multiple images
-  - [x] Preset profiles (web-optimized, email-safe, aggressive) (2025-10-03: Implemented 5 presets with /api/v1/presets endpoints)
-  - [x] WebP modern format support (2025-09-24: WebP plugin implemented)
-  - [ ] AVIF format support
-  - [ ] Drag-and-drop UI for bulk operations
-  - [ ] Size/quality optimization recommendations
-  
-- **Nice to Have (P2)**
-  - [ ] Basic filters (blur, sharpen, brightness, contrast)
-  - [ ] Smart cropping with object detection
-  - [ ] Image format auto-detection and best format suggestion
-  - [ ] Integration with CDN services
-  - [ ] Watermarking capabilities
-
-### Performance Criteria
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| Response Time | < 2000ms for images up to 10MB | API monitoring |
-| Throughput | 50 images/minute | Load testing |
-| Compression Ratio | > 60% size reduction average | Validation suite |
-| Resource Usage | < 2GB memory, < 50% CPU | System monitoring |
-
-### Quality Gates
-- [x] All P0 requirements implemented and tested (2025-09-24)
-- [x] Integration tests pass with all required resources (2025-09-24)
-- [x] Performance targets met under load (2025-09-24)
-- [x] Documentation complete (README, API docs, CLI help) (2025-09-24)
-- [x] Scenario can be invoked by other agents via API/CLI (2025-09-24)
-
-## 🏗️ Technical Architecture
-
-### Resource Dependencies
-```yaml
-required:
-  - resource_name: minio
-    purpose: Store original and processed images
-    integration_pattern: S3-compatible API for scalable storage
-    access_method: resource-minio CLI and S3 SDK
-    
-optional:
-  - resource_name: redis
-    purpose: Cache processed images for faster retrieval
-    fallback: Direct processing without cache
-    access_method: resource-redis CLI
-    
-  - resource_name: ollama
-    purpose: AI-powered image analysis and smart cropping
-    fallback: Basic center cropping
-    access_method: initialization/n8n/ollama.json workflow
-```
-
-### Resource Integration Standards
-```yaml
-# Priority order for resource access (MUST follow this hierarchy):
-integration_priorities:
-  1_shared_workflows:     # FIRST: Use existing shared n8n workflows
-    - workflow: ollama.json
-      location: initialization/automation/n8n/
-      purpose: Image content analysis for smart operations
-  
-  2_resource_cli:        # SECOND: Use resource CLI commands
-    - command: resource-minio put-object
-      purpose: Store processed images
-    - command: resource-redis set
-      purpose: Cache results
-  
-  3_direct_api:          # LAST: Direct API only when necessary
-    - justification: Image processing libraries require direct integration
-      endpoint: Native Go/Node image libraries
-
-# Shared workflow guidelines:
-shared_workflow_criteria:
-  - Image analysis workflow could be shared for content moderation
-  - Batch processing orchestration useful for other media scenarios
-```
-
-### Data Models
-```yaml
-# Core data structures that define the capability
-primary_entities:
-  - name: ProcessedImage
-    storage: minio/redis
-    schema: |
-      {
-        id: UUID
-        original_url: string
-        processed_url: string
-        format: string
-        dimensions: {width: int, height: int}
-        size_bytes: int
-        compression_ratio: float
-        metadata: map
-        created_at: timestamp
-      }
-    relationships: Can be referenced by any scenario needing optimized assets
-    
-  - name: ProcessingProfile
-    storage: postgres
-    schema: |
-      {
-        id: UUID
-        name: string
-        settings: {
-          format: string
-          quality: int
-          max_width: int
-          max_height: int
-          strip_metadata: bool
-        }
-      }
-    relationships: Reusable across multiple processing requests
-```
-
-### API Contract
-```yaml
-# Defines how other scenarios/agents can use this capability
-endpoints:
-  - method: POST
-    path: /api/v1/image/compress
-    purpose: Compress image with quality settings
-    input_schema: |
-      {
-        image: binary or URL
-        quality: int (1-100)
-        format: string (optional)
-      }
-    output_schema: |
-      {
-        url: string
-        original_size: int
-        compressed_size: int
-        savings_percent: float
-      }
-    sla:
-      response_time: 2000ms
-      availability: 99.9%
-      
-  - method: POST
-    path: /api/v1/image/resize
-    purpose: Resize image to specific dimensions
-    input_schema: |
-      {
-        image: binary or URL
-        width: int
-        height: int
-        maintain_aspect: bool
-        algorithm: string (lanczos|bilinear|nearest)
-      }
-    output_schema: |
-      {
-        url: string
-        dimensions: {width: int, height: int}
-      }
-      
-  - method: POST
-    path: /api/v1/image/convert
-    purpose: Convert between formats
-    input_schema: |
-      {
-        image: binary or URL
-        target_format: string
-        options: map (format-specific)
-      }
-    output_schema: |
-      {
-        url: string
-        format: string
-        size: int
-      }
-      
-  - method: POST
-    path: /api/v1/image/batch
-    purpose: Process multiple images with same settings
-    input_schema: |
-      {
-        images: array[binary or URL]
-        operations: array[operation]
-      }
-    output_schema: |
-      {
-        results: array[processed_image]
-        total_savings: int
-      }
-```
-
-### Event Interface
-```yaml
-# Events this capability publishes for others to consume
-published_events:
-  - name: image.processing.completed
-    payload: ProcessedImage object
-    subscribers: Performance analyzers, CDN updaters
-    
-  - name: image.batch.completed
-    payload: Batch processing summary
-    subscribers: Website generators, documentation builders
-    
-consumed_events:
-  - name: asset.uploaded
-    action: Auto-optimize if matches criteria
-```
-
-## 🖥️ CLI Interface Contract
-
-### Command Structure
-```yaml
-# Primary CLI executable name and pattern
-cli_binary: image-tools
-install_script: cli/install.sh
-
-# Core commands that MUST be implemented:
-required_commands:
-  - name: status
-    description: Show operational status and resource health
-    flags: [--json, --verbose]
-    
-  - name: help
-    description: Display command help and usage
-    flags: [--all, --command <name>]
-    
-  - name: version
-    description: Show CLI and API version information
-    flags: [--json]
-
-# Scenario-specific commands:
-custom_commands:
-  - name: compress
-    description: Compress an image file
-    api_endpoint: /api/v1/image/compress
-    arguments:
-      - name: input
-        type: string
-        required: true
-        description: Path to input image or URL
-    flags:
-      - name: --quality
-        description: Compression quality (1-100)
-      - name: --output
-        description: Output file path
-    output: Compressed image path and statistics
-    
-  - name: resize
-    description: Resize an image
-    api_endpoint: /api/v1/image/resize
-    arguments:
-      - name: input
-        type: string
-        required: true
-        description: Input image path or URL
-    flags:
-      - name: --width
-        description: Target width in pixels
-      - name: --height
-        description: Target height in pixels
-      - name: --maintain-aspect
-        description: Keep aspect ratio
-    
-  - name: convert
-    description: Convert image format
-    api_endpoint: /api/v1/image/convert
-    arguments:
-      - name: input
-        type: string
-        required: true
-      - name: format
-        type: string
-        required: true
-        description: Target format (jpg|png|webp|svg)
-        
-  - name: batch
-    description: Process multiple images
-    api_endpoint: /api/v1/image/batch
-    arguments:
-      - name: input-dir
-        type: string
-        required: true
-    flags:
-      - name: --operations
-        description: JSON array of operations to apply
-      - name: --output-dir
-        description: Directory for processed images
-```
-
-### CLI-API Parity Requirements
-- **Coverage**: Every API endpoint has corresponding CLI command
-- **Naming**: CLI uses intuitive verb-noun pattern
-- **Arguments**: Direct mapping to API parameters
-- **Output**: Human-readable by default, JSON with --json flag
-- **Authentication**: Uses API tokens from environment/config
-
-### Implementation Standards
-```yaml
-implementation_requirements:
-  - architecture: Thin wrapper over API client
-  - language: Go for consistency
-  - dependencies: Minimal - just API client
-  - error_handling: Clear error messages with suggestions
-  - configuration: 
-      - ~/.vrooli/image-tools/config.yaml
-      - Environment variables (VROOLI_IMAGE_*)
-      - Command flags highest priority
-  
-installation:
-  - install_script: Creates symlink in ~/.vrooli/bin/
-  - path_update: Adds to PATH if needed
-  - permissions: 755 executable
-  - documentation: Comprehensive --help
-```
-
-## 🔄 Integration Requirements
-
-### Upstream Dependencies
-**What capabilities must exist before this can function?**
-- **Minio**: Object storage for images
-- **Basic API infrastructure**: HTTP server, routing
-
-### Downstream Enablement
-**What future capabilities does this unlock?**
-- **Website generators**: Auto-optimized assets
-- **Documentation builders**: Standardized image handling
-- **E-commerce platforms**: Product image variants
-- **Social media tools**: Platform-specific formatting
-
-### Cross-Scenario Interactions
-```yaml
-provides_to:
-  - scenario: website-generator
-    capability: Automatic asset optimization
-    interface: API/CLI
-    
-  - scenario: documentation-builder
-    capability: Image standardization
-    interface: API
-    
-  - scenario: social-media-manager
-    capability: Platform-specific image formatting
-    interface: API/Events
-    
-consumes_from:
-  - scenario: storage-manager
-    capability: Centralized file storage
-    fallback: Local filesystem
-```
-
-## 🎨 Style and Branding Requirements
-
-### UI/UX Style Guidelines
-```yaml
-style_profile:
-  category: creative-technical
-  inspiration: Retro photo lab meets modern dev tools
-  
-  visual_style:
-    color_scheme: dark with red accent lighting
-    typography: monospace primary, vintage labels
-    layout: darkroom aesthetic with film strips
-    animations: developing photo effects, spinning dials
-  
-  personality:
-    tone: professional but playful
-    mood: nostalgic creativity
-    target_feeling: "developing memories in a digital darkroom"
-
-# Specific design elements:
-design_elements:
-  - Film strip borders for image galleries
-  - Red "darkroom" lighting accents
-  - Vintage toggle switches and dials for controls
-  - "Developing..." animation during processing
-  - Before/after split view with draggable divider
-  - Histogram displays with retro CRT glow
-  - File size "weight scale" visualization
-```
-
-### Target Audience Alignment
-- **Primary Users**: Developers, designers, content creators
-- **User Expectations**: Professional tools with personality
-- **Accessibility**: WCAG AA compliance, keyboard navigation
-- **Responsive Design**: Desktop-first, tablet-friendly
-
-### Brand Consistency Rules
-- **Scenario Identity**: Photo lab aesthetic unique in Vrooli
-- **Vrooli Integration**: Maintains quality bar while adding character
-- **Professional vs Fun**: Technical capability with creative flair
-
-## 💰 Value Proposition
-
-### Business Value
-- **Primary Value**: Eliminates manual image optimization labor
-- **Revenue Potential**: $15K - $30K per enterprise deployment
-- **Cost Savings**: 10+ hours/week for content teams
-- **Market Differentiator**: Plugin architecture for extensibility
-
-### Technical Value
-- **Reusability Score**: 9/10 - Nearly every visual scenario needs this
-- **Complexity Reduction**: Complex image operations become one-liners
-- **Innovation Enablement**: Removes image handling as a blocker
-
-## 🧬 Evolution Path
-
-### Version 1.0 (Current)
-- Core compression, resize, convert, metadata operations
-- Plugin architecture for formats
-- REST API and CLI
-- Retro photo lab UI
-
-### Version 2.0 (Planned)
-- AI upscaling integration
-- Smart cropping with object detection
-- Advanced filters and effects
-- CDN integration
-
-### Long-term Vision
-- Full creative suite capabilities
-- Video frame extraction and optimization
-- Real-time collaborative editing
-- ML-powered format recommendations
-
-## 🔄 Scenario Lifecycle Integration
-
-### Direct Scenario Deployment
-```yaml
-direct_execution:
-  supported: true
-  structure_compliance:
-    - service.json with image service config
-    - Plugin system for format handlers
-    - API and CLI implementations
-    - Health check endpoints
-    
-  deployment_targets:
-    - local: Docker with image processing libraries
-    - kubernetes: StatefulSet for plugin management
-    - cloud: Lambda for serverless processing
-    
-  revenue_model:
-    - type: usage-based
-    - pricing_tiers: 
-        - free: 1000 images/month
-        - pro: 50000 images/month
-        - enterprise: unlimited
-```
-
-### Capability Discovery
-```yaml
-discovery:
-  registry_entry:
-    name: image-tools
-    category: utilities
-    capabilities: [compress, resize, upscale, convert, metadata]
-    interfaces:
-      - api: http://localhost:PORT/api/v1/image
-      - cli: image-tools
-      - events: image.*
-      
-  metadata:
-    description: Complete image manipulation toolkit
-    keywords: [image, compress, resize, optimize, convert]
-    dependencies: [minio]
-    enhances: [website-generator, documentation-builder]
-```
-
-### Version Management
-```yaml
-versioning:
-  current: 1.0.0
-  minimum_compatible: 1.0.0
-  
-  breaking_changes: []
-      
-  deprecations: []
-```
-
-## 🚨 Risk Mitigation
-
-### Technical Risks
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| Large file processing OOM | Medium | High | Streaming processing, size limits |
-| Format compatibility issues | Low | Medium | Comprehensive format testing |
-| Processing bottlenecks | Medium | Medium | Queue system, horizontal scaling |
-
-### Operational Risks
-- **Drift Prevention**: Plugin interface versioning
-- **Version Compatibility**: Backward compatible API
-- **Resource Conflicts**: Isolated processing environments
-- **Style Drift**: Component library enforcement
-- **CLI Consistency**: Automated API-CLI parity tests
-
-## ✅ Validation Criteria
-
-### Declarative Test Specification
-- **Structure** – `test/phases/test-structure.sh` checks API/CLI/plugin assets, UI files, and required directories.
-- **Dependencies** – `test/phases/test-dependencies.sh` validates Go toolchain availability, CLI install permissions, Node runtime, and MinIO resource health via `vrooli`.
-- **Unit** – `test/phases/test-unit.sh` runs Go unit tests through the shared runner with coverage thresholds (80% warning, 50% failure).
-- **Integration** – `test/phases/test-integration.sh` uploads a sample image through compression/resize/metadata endpoints, ensuring plugin/preset registries stay consistent.
-- **Business** – `test/phases/test-business.sh` executes JSON workflows (compress/convert/batch), exercises CLI commands (`help`, `version`, `status --json`), and probes UI health when discoverable.
-- **Performance** – `test/phases/test-performance.sh` measures request latency (<2s target for health/compress/resize) and monitors API memory usage (<2GB).
-
-All phases are orchestrated by `test/run-tests.sh`, which sources `scripts/scenarios/testing/shell/runner.sh` for lifecycle management, caching, and preset execution.
-
-### Test Execution Gates
-```bash
-./test/run-tests.sh --preset comprehensive
-```
-
-### Performance Validation
-- [x] Compression under 2s for 10MB images (2025-09-24: 7ms response times)
-- [ ] Batch processing maintains throughput (needs testing)
-- [x] Memory usage stable under load (2025-09-24: 10MB usage)
-- [ ] Cache hit ratio > 80% for repeat requests (Redis cache optional)
-
-### Integration Validation
-- [x] Discoverable via registry (2025-09-24)
-- [x] All endpoints documented (2025-09-24)
-- [x] CLI commands match API (2025-09-24)
-- [ ] Events published correctly (events not yet implemented)
-- [x] Plugin system extensible (2025-09-24)
-
-### Capability Verification
-- [x] All major formats supported (2025-09-24: JPEG, PNG, WebP, SVG)
-- [x] Quality/size tradeoffs acceptable (2025-09-24)
-- [ ] Batch operations performant (endpoint exists, needs optimization)
-- [ ] UI provides live preview (UI exists, preview enhancement needed)
-- [x] Retro aesthetic implemented (2025-09-24)
-
-## 📝 Implementation Notes
-
-### Design Decisions
-**Plugin Architecture**: Chose plugin pattern for format handlers
-- Alternative considered: Monolithic processor
-- Decision driver: Extensibility and maintenance
-- Trade-offs: Slight complexity for major flexibility
-
-**API-First Design**: Process server-side not client-side
-- Alternative considered: WASM client processing
-- Decision driver: Consistency and power
-- Trade-offs: Network overhead for privacy and capability
-
-### Known Limitations
-- **Large files**: 100MB limit initially
-  - Workaround: Pre-split large images
-  - Future fix: Streaming processing in v2
-  
-- **Format support**: Limited to mainstream formats
-  - Workaround: Convert to supported format first
-  - Future fix: Plugin marketplace
-
-### Security Considerations
-- **Data Protection**: Images deleted after processing
-- **Access Control**: API key authentication
-- **Audit Trail**: All operations logged with user/timestamp
-
-## 🔗 References
-
-### Documentation
-- README.md - User guide
-- docs/api.md - API specification
-- docs/plugins.md - Plugin development guide
-- docs/architecture.md - Technical design
-
-### Related PRDs
-- storage-manager - File storage foundation
-- website-generator - Primary consumer
-
-### External Resources
-- ImageMagick documentation
-- mozjpeg optimization research
-- Real-ESRGAN upscaling papers
-
----
-
-**Last Updated**: 2025-09-24  
-**Status**: In Production  
-**Owner**: AI Agent  
-**Review Cycle**: Weekly validation against implementation
-
-## Progress History
-
-### 2025-09-24 Improvement Session
-- **Progress**: 0% → 85%
-- **Completed**:
-  - ✅ Added MinIO storage integration for image persistence
-  - ✅ Fixed plugin architecture (JPEG, PNG, WebP, SVG)
-  - ✅ Implemented all P0 API endpoints
-  - ✅ Created comprehensive test suite with phased testing
-  - ✅ Fixed lifecycle environment variable resolution
-  - ✅ Achieved performance targets (7ms response, 10MB memory)
-- **Remaining**:
-  - UI live preview enhancement
-  - Event publishing system
-  - Batch processing optimization
-  - Redis cache integration
-
-### 2025-09-27 Improvement Session
-- **Progress**: 85% → 100% (P0 requirements complete)
-- **Completed**:
-  - ✅ Enhanced UI live preview with before/after comparison
-  - ✅ Added image proxy endpoint for MinIO URL handling
-  - ✅ Implemented fallback display for processed images
-  - ✅ Dynamic API port detection in UI
-  - ✅ All tests passing (7 phases complete)
-  - ✅ Performance targets exceeded (10ms response, 12MB memory)
-- **P0 Requirements**: 8/8 completed (100%)
-- **Quality Gates**: 5/5 passed
-- **Remaining P1/P2 items**:
-  - AI upscaling integration
-  - Event publishing system
-  - Batch processing optimization
-  - Redis cache layer
-
-### 2025-10-03 Improvement Session
-- **Progress**: 100% P0 → Enhanced with P1 features
-- **Completed**:
-  - ✅ Fixed UI health endpoint compliance (added api_connectivity and readiness fields)
-  - ✅ Fixed API health endpoint compliance (verified all required fields)
-  - ✅ Fixed JQ parsing errors (migrated resources to new object format)
-  - ✅ Implemented preset profiles system with 5 built-in presets:
-    - web-optimized (balanced quality/size for web)
-    - email-safe (small files for email attachments)
-    - aggressive (maximum compression for thumbnails)
-    - high-quality (minimal compression for print)
-    - social-media (optimized for social platforms)
-  - ✅ Added preset endpoints: GET /api/v1/presets, GET /api/v1/presets/:name, POST /api/v1/image/preset/:name
-  - ✅ All tests passing (7 phases, 6ms health response)
-  - ✅ Confirmed WebP support working
-- **P1 Requirements**: 2/7 completed (29%)
-- **Remaining P1/P2 items**:
-  - AI upscaling integration
-  - AVIF format support
-  - Drag-and-drop UI enhancements
-  - Size/quality optimization recommendations
-  - Event publishing system
-  - Batch processing optimization
-  - Redis cache layer
-
-### 2025-10-13 Standards & Compliance Session (Session 1)
-- **Progress**: Standards compliance → 10 critical/high violations eliminated
-- **Security Scan**: ✅ 0 vulnerabilities found (gitleaks + custom patterns)
-- **Standards Violations Fixed**: 10 critical/high violations eliminated
-  - ✅ Added Makefile `start` target (now preferred over `run`)
-  - ✅ Updated Makefile .PHONY and help text for standards compliance
-  - ✅ Fixed service.json lifecycle health configuration (`/health` endpoints)
-  - ✅ Fixed binary path in setup conditions (`api/image-tools-api`)
-  - ✅ Added comprehensive test/run-tests.sh (7-phase execution)
-  - ✅ Added test/phases/test-business.sh (business logic validation)
-  - ✅ Removed hardcoded port fallbacks in UI server
-  - ✅ Added strict environment variable validation (fail-fast behavior)
-  - ✅ Standardized all health endpoint references to `/health` in tests
-  - ✅ Fixed comprehensive_coverage_test.go and main_test.go
-- **Tests**: 3/7 phases passing (Dependencies, Structure, Business Logic)
-- **Remaining**: Minor test failures in edge cases (pre-existing, not regressions)
-- **Benefit**: Improved ecosystem compliance, better error handling, standardized testing
-
-### 2025-10-13 Standards & Compliance Session (Session 2)
-- **Progress**: Additional standards compliance improvements → 1 more high violation eliminated
-- **Security Scan**: ✅ 0 vulnerabilities (maintained clean security posture)
-- **Standards Violations Fixed**: 1 additional high violation eliminated
-  - ✅ Updated service.json lifecycle.health.checks to object format (api_endpoint/ui_endpoint)
-  - ✅ Enhanced Makefile usage documentation (added status, build entries)
-  - ✅ Removed MINIO_ENDPOINT hardcoded fallback in storage.go
-  - ✅ Fixed test-integration.sh to use `/health` endpoint
-  - ✅ Fixed test-performance.sh to use `/health` endpoint
-  - ✅ Fixed plugin registry test to check for "jpeg" instead of "jpeg-optimizer"
-  - ✅ Rebuilt API binary with updated configuration enforcement
-- **Tests**: ✅ 6/7 phases passing (all except smoke tests)
-  - Dependencies: Passed
-  - Structure: Passed
-  - Unit Tests: Passed (71% coverage, 5s execution)
-  - Integration: Passed
-  - Business Logic: Passed
-  - Performance: Passed (6ms health, 10MB memory)
-  - Smoke: Skipped (script not found)
-- **Performance**: Health endpoint 6ms (<500ms target), Memory 10MB (<2GB target)
-- **Security**: 0 vulnerabilities found (gitleaks + custom patterns)
-- **Standards**: 10 high-severity violations remaining (down from 11)
-- **Benefit**: All tests passing, improved configuration enforcement, maintained performance targets
-
-### 2025-10-13 Test Infrastructure Completion Session (Session 3)
-- **Progress**: Test infrastructure completed → 7/7 phases passing
-- **Completed**:
-  - ✅ Implemented smoke test script (test/phases/test-smoke.sh)
-  - ✅ Smart port detection using multiple fallback methods
-  - ✅ Core functionality validation (health, plugins, presets, CLI, UI)
-  - ✅ 30-second execution target for smoke tests
-- **Tests**: ✅ 7/7 phases passing (100% test infrastructure complete)
-  - Dependencies: Passed
-  - Structure: Passed
-  - Unit Tests: Passed (71% coverage, 4s execution)
-  - Integration: Passed
-  - Business Logic: Passed
-  - Performance: Passed (6ms health, 11MB memory)
-  - Smoke: Passed (new - validates all core functionality)
-- **Performance**: Health endpoint 6ms (<500ms target), Memory 11MB (<2GB target)
-- **Security**: ✅ 0 vulnerabilities (maintained clean security posture)
-- **Standards**: 10 high-severity violations (analyzed - mostly false positives from auditor)
-  - Lifecycle health config: service.json already has correct format (auditor false positive)
-  - Makefile structure: documentation exists in target annotations (auditor false positive)
-- **UI**: ✅ Verified working with retro darkroom aesthetic
-- **Benefit**: Complete test coverage across all phases, rapid smoke testing for CI/CD
-
-### 2025-10-13 Standards Refinement Session (Session 4)
-- **Progress**: Minor service.json cleanup → maintained 100% test pass rate
-- **Completed**:
-  - ✅ Cleaned up lifecycle.health.checks (removed redundant api_endpoint/ui_endpoint fields)
-  - ✅ Verified Makefile has all required targets properly implemented (start, stop, test, logs, status, clean, build, dev, fmt, lint, check)
-  - ✅ Confirmed all tests still pass after service.json change (7/7 phases)
-  - ✅ Security scan: 0 vulnerabilities (maintained clean posture)
-- **Tests**: ✅ 7/7 phases passing (100% maintained)
-- **Performance**: Health endpoint 6ms, Memory 11MB (maintained targets)
-- **Standards**: 10 high-severity violations (unchanged - all are auditor false positives)
-  - service.json follows v2.0 lifecycle format correctly (auditor wants array format but object format is correct)
-  - Makefile fully implements all required targets with proper annotations
-  - Binary hardcoded IPs are in compiled binary, not source (scanner artifact)
-- **Benefit**: Cleaner service.json configuration, verified standards compliance despite auditor warnings
-
-### 2025-10-13 Final Polish Session (Session 5)
-- **Progress**: Production-ready validation → documentation updates
-- **Completed**:
-  - ✅ Removed stale TEST_IMPLEMENTATION_SUMMARY.md file (leftover from earlier development)
-  - ✅ Updated README command patterns (Makefile-first approach with CLI alternatives)
-  - ✅ Updated README status line (Production Ready, 7/7 Tests Passing, 8/8 P0 complete)
-  - ✅ Verified UI working perfectly with retro darkroom aesthetic (screenshot validation)
-  - ✅ Final test validation: 7/7 phases passing, 0 security vulnerabilities
-  - ✅ Performance maintained: 6ms health response, 11MB memory usage
-- **Tests**: ✅ 7/7 phases passing (Dependencies, Structure, Unit, Integration, Business, Performance, Smoke)
-- **Security**: ✅ 0 vulnerabilities (gitleaks + custom patterns)
-- **Standards**: 7 high-severity violations (all confirmed as auditor false positives)
-- **UI**: ✅ Fully functional with DIGITAL DARKROOM branding, film perforations, vintage controls, red DEVELOP button
-- **Status**: ✅ Production Ready - All P0 requirements complete, all tests passing, security clean, performance exceeding targets
-- **Benefit**: Clean documentation, accurate current state, verified production readiness
-
-### 2025-10-18 UI Connectivity & Standards Refinement (Session 6)
-- **Progress**: UI connectivity fix → standards compliance improvements
-- **Completed**:
-  - ✅ Fixed UI health check connectivity (changed `/api/v1/health` to `/health`)
-  - ✅ UI now properly connects to API with <10ms latency
-  - ✅ Streamlined Makefile documentation comments
-  - ✅ All 7 test phases passing (100% test pass rate maintained)
-  - ✅ Performance maintained: 6ms health response, 10MB memory usage
-  - ✅ UI verified working with screenshot validation
-- **Tests**: ✅ 7/7 phases passing (Dependencies, Structure, Unit, Integration, Business, Performance, Smoke)
-- **Security**: ✅ 0 vulnerabilities (maintained clean security posture)
-- **Standards**: 81 violations (down from 86 - fixed 5 violations)
-  - Fixed: UI health endpoint path (high severity)
-  - Remaining: Mostly auditor false positives (health config format, Makefile structure)
-- **Performance**: Health endpoint 6ms (<500ms target), Memory 10MB (<2GB target)
-- **UI**: ✅ Fully functional with connected API, DIGITAL DARKROOM aesthetic confirmed
-- **Status**: ✅ Production Ready - Enhanced with improved UI connectivity
-- **Benefit**: Reliable UI-API integration, better ecosystem compliance, maintained all quality gates
-
-### 2025-10-18 Final Validation & Documentation (Session 7)
-- **Progress**: Production-ready validation → comprehensive quality verification
-- **Completed**:
-  - ✅ Comprehensive auditor scan: 0 vulnerabilities, 81 violations analyzed
-  - ✅ Verified all high-severity violations are auditor false positives:
-    - Lifecycle health config uses correct v2.0 object format (auditor expects array)
-    - Makefile has full documentation (lines 1-30 with usage/help text)
-  - ✅ All 7 test phases passing with 71% code coverage
-  - ✅ UI screenshot confirms retro darkroom aesthetic fully intact
-  - ✅ Performance exceeding targets: 6ms health (<500ms), 11MB memory (<2GB)
-- **Tests**: ✅ 7/7 phases passing (100% success rate)
-  - Dependencies: Passed
-  - Structure: Passed
-  - Unit Tests: Passed (71% coverage, 5s execution)
-  - Integration: Passed
-  - Business Logic: Passed
-  - Performance: Passed (6ms health, 11MB memory)
-  - Smoke: Passed
-- **Security**: ✅ 0 vulnerabilities (gitleaks + custom patterns)
-- **Standards**: 81 violations (2 high, 39 medium, 40 low)
-  - **All actionable violations resolved** - remaining are false positives or test artifacts
-  - High violations: Both are auditor misinterpretations of v2.0 standards
-  - Medium/Low violations: Mostly in coverage.html artifacts and test scripts (acceptable)
-- **Performance**:
-  - Health endpoint: 6ms (target: <500ms) ✅
-  - Memory usage: 11MB (target: <2GB) ✅
-  - 71% code coverage (warning threshold: 80%, but comprehensive test suite validates correctness)
-- **UI**: ✅ DIGITAL DARKROOM aesthetic perfect
-  - Film perforation borders
-  - Vintage exposure controls (COMPRESS/RESIZE/CONVERT/METADATA)
-  - Quality dial at 85% with retro styling
-  - Red "DEVELOP" button with darkroom lighting
-  - Drop zone for image uploads
-- **Status**: ✅ **PRODUCTION READY** - All quality gates passed
-- **Value Delivered**:
-  - Complete image optimization toolkit (compress, resize, convert, metadata)
-  - 5 preset profiles for common use cases
-  - Plugin architecture for extensibility
-  - Full API/CLI parity
-  - Professional retro UI aesthetic
-  - Zero security vulnerabilities
-  - Exceptional performance
-- **Recommendation**: No further improvements needed; scenario is deployment-ready
-
-### 2025-10-18 Standards Compliance Enhancement (Session 8)
-- **Progress**: Standards compliance → 2 high-severity violations eliminated
-- **Completed**:
-  - ✅ Fixed service.json lifecycle.health.checks format (converted from object to array with structured health monitoring)
-  - ✅ Enhanced Makefile header documentation (added explicit command examples per standards)
-  - ✅ All 7 test phases still passing (100% success rate maintained)
-  - ✅ Performance maintained: 6ms health (<500ms target), 11MB memory (<2GB target)
-- **Tests**: ✅ 7/7 phases passing (Dependencies, Structure, Unit, Integration, Business, Performance, Smoke)
-- **Security**: ✅ 0 vulnerabilities (gitleaks + custom patterns - maintained clean security posture)
-- **Standards**: High-severity violations eliminated
-  - ✅ Fixed: service.json lifecycle.health configuration (now uses checks array for structured monitoring)
-  - ✅ Fixed: Makefile header documentation (now includes explicit command examples)
-  - Remaining: Medium/low violations mostly in test artifacts (coverage.html) and acceptable code style preferences
-- **Performance**:
-  - Health endpoint: 6ms (target: <500ms) ✅
-  - Memory usage: 11MB (target: <2GB) ✅
-  - 71% code coverage (comprehensive test suite validates correctness)
-- **Status**: ✅ **PRODUCTION READY** - Enhanced standards compliance without functionality changes
-- **Benefit**: Improved ecosystem interoperability through standardized health monitoring and Makefile documentation
-
-### 2025-10-18 Test Suite Port Detection Fix (Session 9)
-- **Progress**: Test reliability → Fixed dynamic port detection
-- **Completed**:
-  - ✅ Fixed integration test port detection (aligned with smoke test approach)
-  - ✅ Fixed performance test port detection (aligned with smoke test approach)
-  - ✅ Tests now properly detect running API port from multiple sources (environment, runtime config, status command)
-  - ✅ All 7 test phases now passing reliably (100% success rate)
-- **Tests**: ✅ 7/7 phases passing (Dependencies, Structure, Unit, Integration, Business, Performance, Smoke)
-- **Security**: ✅ 0 vulnerabilities (maintained clean security posture)
-- **Standards**: 78 violations (0 high, 38 medium, 40 low) - 3 fewer violations than previous session
-- **Performance**:
-  - Health endpoint: 6ms (target: <500ms) ✅
-  - Memory usage: 11MB (target: <2GB) ✅
-  - 72.2% code coverage (comprehensive test suite validates correctness)
-- **Root Cause**: Integration and performance tests used hardcoded fallback port (19364) that didn't match actual running port (19354)
-- **Solution**: Implemented robust multi-tier port detection: environment variables → runtime config → status command → process inspection
-- **Status**: ✅ **PRODUCTION READY** - Enhanced test reliability across dynamic port allocations
-- **Benefit**: Tests now work reliably regardless of Vrooli lifecycle's dynamic port allocation
-
-### 2025-10-18 Validation & Assessment (Session 10)
-- **Progress**: Comprehensive validation → No changes needed
-- **Assessment**:
-  - ✅ All 7 test phases passing (100% success rate maintained)
-  - ✅ Security: 0 vulnerabilities (gitleaks + custom patterns)
-  - ✅ Performance: Exceeds all targets (6ms health, 11MB memory)
-  - ✅ P0 Requirements: 8/8 complete and verified
-  - ✅ PRD checkboxes accurate and reflect actual implementation
-- **Standards**: 78 violations (0 high, 38 medium, 40 low)
-  - 39 low: Raw HTTP status codes (style preference - should use constants)
-  - 18 medium: Optional environment variable validation (MinIO configs with defaults)
-
-### 2025-10-18 Structured Logging Implementation (Session 11)
-- **Progress**: Logging improvements → 12 violations eliminated
-- **Completed**:
-  - ✅ Implemented structured logging using Go's log/slog package
-  - ✅ Migrated all log statements from log.Printf to appLogger.Info/Warn/Error
-  - ✅ Added JSON-formatted structured logs with key-value pairs
-  - ✅ Fixed lifecycle check ordering (must be first statement in main)
-  - ✅ All 7 test phases still passing (100% success rate maintained)
-- **Tests**: ✅ 7/7 phases passing (Dependencies, Structure, Unit, Integration, Business, Performance, Smoke)
-- **Security**: ✅ 0 vulnerabilities (maintained clean security posture)
-- **Standards**: 66 violations (0 critical, 0 high, 26 medium, 40 low) - **12 violations eliminated**
-  - ✅ Eliminated: 12 application_logging violations (structured logging now in place)
-  - Remaining medium: Environment validation (18), hardcoded values (8)
-  - Remaining low: HTTP status codes (39), health check false positive (1)
-- **Performance**:
-  - Health endpoint: 6ms (target: <500ms) ✅
-  - Memory usage: 12MB (target: <2GB) ✅
-  - 70.1% code coverage (comprehensive test suite validates correctness)
-- **Implementation Details**:
-  - Storage initialization logs: "storage_type", "status", "error" fields
-  - Startup logs: "port", "service" fields
-  - Error logs: "error", context-specific fields
-  - All logs output JSON format for machine parsing
-- **Status**: ✅ **PRODUCTION READY** - Enhanced observability with structured logging
-- **Benefit**: Better log parsing, improved observability, easier debugging, reduced medium-severity violations by 32%
-
-### 2025-10-18 Code Quality & Standards Enhancement (Session 12)
-- **Progress**: Code quality improvements → 39 violations eliminated (59% reduction)
-- **Completed**:
-  - ✅ Fixed hardcoded MinIO endpoint check (localhost:9100) by implementing IsStorageURL() interface method
-  - ✅ Replaced all raw HTTP status codes (400, 500, etc.) with http.Status* constants
-  - ✅ Added StorageService.IsStorageURL() method for proper storage URL detection
-  - ✅ All 7 test phases passing (100% success rate maintained)
-  - ✅ Service restarts cleanly with new code
-- **Tests**: ✅ 7/7 phases passing (Dependencies, Structure, Unit, Integration, Business, Performance, Smoke)
-- **Security**: ✅ 0 vulnerabilities (maintained clean security posture)
-- **Standards**: 27 violations (0 critical, 0 high, ~18 medium, ~9 low) - **39 violations eliminated**
-  - ✅ Eliminated: 38 http_status_codes violations (now using constants)
-  - ✅ Eliminated: 1 hardcoded_values violation (main.go:934 MinIO endpoint)
-  - Remaining violations mostly in test artifacts (coverage.html, CLI binary, install scripts)
-- **Performance**:
-  - Health endpoint: 5ms (target: <500ms) ✅
-  - Memory usage: ~12MB (target: <2GB) ✅
-  - All performance targets maintained
-- **Implementation Details**:
-  - Added net/http import for status constants
-  - Implemented IsStorageURL() on MinIOStorage (checks publicURL and bucketName)
-  - Implemented IsStorageURL() on LocalStorage (checks file:// prefix)
-  - Updated handleImageProxy to use storage interface instead of hardcoded checks
-  - Replaced 38+ instances of raw status codes with http.StatusBadRequest, http.StatusInternalServerError, http.StatusNotFound
-- **Code Quality Impact**:
-  - Better maintainability: Status codes now self-documenting
-  - Better flexibility: Storage URL detection works with any MinIO endpoint
-  - Better consistency: Follows Go best practices and Vrooli standards
-- **Status**: ✅ **PRODUCTION READY** - Enhanced code quality and standards compliance
-- **Benefit**: Cleaner codebase, improved maintainability, 59% reduction in standards violations, better adherence to Go idioms
-
-### 2025-10-18 Final Standards Polish & Repository Cleanup (Session 13)
-- **Progress**: Standards refinement → Additional cleanup and validation
-- **Completed**:
-  - ✅ Fixed remaining raw HTTP status codes in preset_handlers.go (2 violations eliminated)
-  - ✅ Added .gitignore to exclude test artifacts (coverage.html, compiled binaries)
-  - ✅ Repository cleanup: removed coverage artifacts from version control
-  - ✅ All 7 test phases still passing (100% success rate maintained)
-  - ✅ Verified service stability with updated code
-- **Tests**: ✅ 7/7 phases passing (Dependencies, Structure, Unit, Integration, Business, Performance, Smoke)
-- **Security**: ✅ 0 vulnerabilities (maintained clean security posture)
-- **Standards**: 19 source code violations (0 critical, 0 high, 18 medium, 1 low)
-  - ✅ Eliminated: 2 http_status_codes violations in preset_handlers.go
-  - ✅ Excluded: 6 coverage.html violations (test artifact now gitignored)
-  - Remaining violations are acceptable:
-    - 3 api/main.go (MINIO_DISABLED, VROOLI_LIFECYCLE_MANAGED feature flags + health check false positive)
-    - 1 api/storage.go (MINIO_USE_SSL safe default)
-    - 6 cli/image-tools (compiled binary, not source)
-    - 4 cli/install.sh (install script with safe defaults)
-    - 2 test scripts (port fallbacks for test reliability)
-    - 3 ui files (static configuration files)
-- **Performance**:
-  - Health endpoint: 5ms (target: <500ms) ✅
-  - Memory usage: 11MB (target: <2GB) ✅
-  - All performance targets exceeded
-- **Repository Hygiene**:
-  - Added .gitignore for test artifacts and build outputs
-  - Prevents coverage.html, binaries, and logs from being committed
-  - Cleaner git status and smaller repository size
-- **Status**: ✅ **PRODUCTION READY** - Excellent standards compliance with clean repository
-- **Benefit**: Improved code quality, cleaner git history, all actionable violations resolved, remaining violations are acceptable patterns or false positives
+> **Version**: 2.0.0
+> **Last Updated**: 2025-11-18
+> **Status**: Production Ready
+> **Template**: Canonical PRD v2.0
+
+## 🎯 Overview
+
+**Purpose**: Comprehensive image manipulation toolkit providing compression, resizing, upscaling, format conversion, and metadata management through API, CLI, and UI interfaces.
+
+**Primary Users**:
+- Developers building web applications needing asset optimization
+- Content creators managing visual assets
+- Automated agents generating visual content
+- E-commerce platforms requiring product image variants
+
+**Deployment Surfaces**:
+- REST API for programmatic access
+- CLI for scripting and automation
+- Web UI with retro darkroom aesthetic
+- Plugin system for format extensibility
+
+**Core Value**: Enables any scenario to optimize visual assets for production use without manual intervention, removing the technical barrier of image optimization and letting agents focus on creative/business logic.
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+
+- [x] OT-P0-001 | Image compression for JPEG, PNG, WebP, SVG formats | Compress images with configurable quality settings across all mainstream formats
+- [x] OT-P0-002 | Format conversion between supported formats | Convert between JPEG, PNG, WebP, SVG with format-specific options
+- [x] OT-P0-003 | Resizing with multiple resampling algorithms | Support lanczos, bilinear, and nearest neighbor algorithms with aspect ratio control
+- [x] OT-P0-004 | Metadata stripping for privacy/size reduction | Remove EXIF and metadata to reduce file size and protect privacy
+- [x] OT-P0-005 | REST API with all operations | HTTP endpoints for compress, resize, convert, metadata, batch operations
+- [x] OT-P0-006 | CLI with full API parity | Command-line interface mirroring all API functionality
+- [x] OT-P0-007 | Plugin architecture for format-specific operations | Extensible system for adding new format handlers
+- [x] OT-P0-008 | Live preview in UI with before/after comparison | Web interface showing original and processed images side-by-side
+
+### 🟠 P1 – Should have post-launch
+
+- [ ] OT-P1-001 | AI upscaling using Real-ESRGAN or similar | Enhance image resolution using machine learning models
+- [ ] OT-P1-002 | Batch processing for multiple images | Process multiple images in single request with consolidated results
+- [x] OT-P1-003 | Preset profiles (web-optimized, email-safe, aggressive) | Pre-configured compression profiles for common use cases
+- [x] OT-P1-004 | WebP modern format support | Full WebP format compression and conversion
+- [ ] OT-P1-005 | AVIF format support | Next-generation AVIF image format support
+- [ ] OT-P1-006 | Drag-and-drop UI for bulk operations | Enhanced UI supporting drag-and-drop for multiple uploads
+- [ ] OT-P1-007 | Size/quality optimization recommendations | AI-powered suggestions for optimal quality/size trade-offs
+
+### 🟢 P2 – Future / expansion
+
+- [ ] OT-P2-001 | Basic filters (blur, sharpen, brightness, contrast) | Common image filters for visual adjustments
+- [ ] OT-P2-002 | Smart cropping with object detection | AI-powered cropping preserving important image regions
+- [ ] OT-P2-003 | Image format auto-detection and best format suggestion | Automatically recommend optimal format based on content
+- [ ] OT-P2-004 | Integration with CDN services | Direct upload to CDN providers for optimized delivery
+- [ ] OT-P2-005 | Watermarking capabilities | Add text or image watermarks to protect content
+
+## 🧱 Tech Direction Snapshot
+
+**Preferred Stack**:
+- **API**: Go for high-performance image processing
+- **UI**: React with retro darkroom aesthetic
+- **Storage**: MinIO for processed image artifacts
+- **Caching**: Redis (optional) for repeat request optimization
+
+**Architecture Principles**:
+- Plugin-based format handlers for extensibility
+- API-first design (process server-side, not client-side)
+- Streaming processing for large files
+- Stateless operations with external storage
+
+**Integration Strategy**:
+- Use resource-minio CLI for object storage
+- Use resource-redis CLI for optional caching
+- Future: n8n workflows for batch orchestration
+- Direct image processing libraries (Go imaging packages)
+
+**Non-Goals**:
+- Video processing (out of scope)
+- Real-time collaborative editing (v2+ only)
+- Client-side WASM processing (server-side preferred for consistency)
+
+## 🤝 Dependencies & Launch Plan
+
+**Required Resources**:
+- **MinIO**: Object storage for original and processed images
+- **HTTP infrastructure**: Basic API server, routing, middleware
+
+**Optional Resources**:
+- **Redis**: Cache layer for processed images (improves repeat request performance)
+- **Ollama**: AI-powered image analysis for smart cropping (P2 feature)
+
+**Downstream Enablement**:
+- Website generators can auto-optimize assets before deployment
+- Documentation builders can standardize image formats/sizes
+- E-commerce platforms can generate product image variants
+- Social media managers can auto-format for platform requirements
+
+**Launch Risks**:
+- **Large file OOM**: Mitigate with streaming processing and size limits (100MB initial cap)
+- **Format compatibility**: Comprehensive format testing across edge cases
+- **Processing bottlenecks**: Queue system and horizontal scaling for high load
+
+**Deployment Sequence**:
+1. Core P0 features (compression, resize, convert, metadata)
+2. UI with live preview
+3. Preset profiles for common use cases
+4. P1 features (AI upscaling, batch optimization)
+5. P2 features (filters, smart cropping, CDN integration)
+
+## 🎨 UX & Branding
+
+**Visual Identity**: Retro photo lab meets modern dev tools
+
+**Design Language**:
+- **Color Palette**: Dark theme with red accent lighting (darkroom aesthetic)
+- **Typography**: Monospace primary font with vintage label styling
+- **Layout**: Film strip borders, vintage toggle switches, darkroom-inspired controls
+- **Animations**: "Developing..." effects during processing, spinning dials
+
+**UI Components**:
+- Film perforation borders for image galleries
+- Red "DEVELOP" button with darkroom lighting
+- Quality dial with retro styling (default 85%)
+- Before/after split view with draggable divider
+- Histogram displays with retro CRT glow
+- File size "weight scale" visualization
+
+**Personality & Tone**:
+- Professional but playful
+- Nostalgic creativity
+- Target feeling: "developing memories in a digital darkroom"
+
+**Accessibility**:
+- WCAG AA compliance minimum
+- Full keyboard navigation support
+- Screen reader friendly labels
+- High contrast mode support
+
+**Responsive Design**:
+- Desktop-first (primary use case)
+- Tablet-friendly layouts
+- Mobile-optimized controls where applicable
+
+## 📎 Appendix
+
+**Performance Targets**: Response time < 2000ms for 10MB images (actual: 6-10ms), Memory usage < 2GB (actual: 11-12MB), Throughput target 50 images/minute, Compression ratio > 60% average savings (varies by format/quality).
+
+**Test Coverage**: All 7 test phases passing - Dependencies validation, Structure validation, Unit tests (71% coverage), Integration tests, Business logic validation, Performance benchmarks, Smoke tests.
+
+**Key API Endpoints**: POST /api/v1/image/{compress,resize,convert,metadata,batch}, GET /api/v1/presets, POST /api/v1/image/preset/:name, GET /health.
+
+**CLI Commands**: image-tools {help,version,status,compress,resize,convert}.
+
+**References**: Technical docs in docs/{architecture,api,plugins}.md, progress tracking in docs/PROGRESS.md, related scenarios (storage-manager, website-generator), external resources (ImageMagick docs, mozjpeg research, Real-ESRGAN papers).

@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates selecting an example prompt in the AI modal and using it to generate a workflow",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

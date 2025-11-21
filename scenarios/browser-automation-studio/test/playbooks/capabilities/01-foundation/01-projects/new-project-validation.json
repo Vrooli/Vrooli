@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates that project creation form displays appropriate error messages for invalid inputs",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

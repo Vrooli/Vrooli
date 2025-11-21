@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates zoom out button decreases canvas zoom level",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

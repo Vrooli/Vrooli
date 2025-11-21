@@ -146,7 +146,7 @@ function ensureDirExists(dir, label) {
     const metadata = data.metadata || {};
     const requirementSet = validationsByFile.get(relPath) || new Set();
     const requirementIds = Array.from(requirementSet.values()).sort();
-    const resetRequirement = typeof metadata.reset === 'string' ? metadata.reset : 'project';
+    const resetRequirement = typeof metadata.reset === 'string' ? metadata.reset : 'none';
 
     registry.playbooks.push({
       file: relPath,

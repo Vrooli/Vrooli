@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates switching between Workflows and Executions tabs in Project Detail view",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates palette search filters nodes by name, description, and keywords",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

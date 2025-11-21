@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates duplicating selected nodes using toolbar duplicate button",
     "version": 1,
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

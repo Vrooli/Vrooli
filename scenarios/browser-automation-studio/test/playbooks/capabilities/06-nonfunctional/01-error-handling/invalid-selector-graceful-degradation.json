@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates graceful handling of invalid CSS selectors with appropriate error messages",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

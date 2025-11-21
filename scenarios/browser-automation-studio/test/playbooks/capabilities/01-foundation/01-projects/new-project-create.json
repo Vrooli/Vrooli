@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Creates a new project and verifies it appears in the project list with success feedback",
     "version": 1,
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

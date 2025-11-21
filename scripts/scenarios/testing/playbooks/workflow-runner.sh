@@ -63,12 +63,6 @@ _testing_playbooks__apply_seeds_if_needed() {
     if [ ! -d "$seeds_dir" ]; then
         return 0
     fi
-    if [[ "${TESTING_PLAYBOOKS_SEEDS_EXTERNAL:-}" = "1" ]]; then
-        _TESTING_PLAYBOOKS_SEEDS_APPLIED=true
-        _TESTING_PLAYBOOKS_SEEDS_DIR="$seeds_dir"
-        _TESTING_PLAYBOOKS_SEEDS_SCENARIO_DIR="$scenario_dir"
-        return 0
-    fi
     if [ "${_TESTING_PLAYBOOKS_SEEDS_APPLIED:-false}" = true ]; then
         return 0
     fi
@@ -441,10 +435,8 @@ testing::playbooks::run_workflow() {
         fi
     fi
 
-    if ! _testing_playbooks__apply_seeds_if_needed "$scenario_dir"; then
-        echo "❌ Failed to apply BAS seed data" >&2
-        return 1
-    fi
+    # NOTE: Seeding is now handled by the phase loop (phase-helpers.sh) before calling run_workflow.
+    # This ensures seeds are applied once at the start and cleaned/reapplied only when needed.
 
     local api_port
     api_port=$(_testing_playbooks__resolve_api_port "$scenario_name") || {
@@ -554,7 +546,7 @@ testing::playbooks::run_workflow() {
 export -f testing::playbooks::run_workflow
 
 testing::playbooks::reset_seed_state() {
-    local reset_mode="project"
+    local reset_mode="none"
     local scenario_dir="${TESTING_PHASE_SCENARIO_DIR:-$(pwd)}"
     local scenario_name="${TESTING_PLAYBOOKS_LAST_SCENARIO:-${TESTING_PHASE_SCENARIO_NAME:-browser-automation-studio}}"
     local readiness_timeout="${TESTING_PLAYBOOKS_RESET_TIMEOUT:-150}"
@@ -588,51 +580,8 @@ testing::playbooks::reset_seed_state() {
         return 0
     fi
 
-    case "$reset_mode" in
-        project|global)
-            :
-            ;;
-        *)
-            reset_mode="project"
-            ;;
-    esac
-
-    if [ -n "$scenario_dir" ]; then
-        scenario_dir="$(cd "$scenario_dir" && pwd)"
-    fi
-
-    local previous_scenario_env="${SCENARIO_NAME:-}"
-    if [ -n "$scenario_name" ]; then
-        export SCENARIO_NAME="$scenario_name"
-    fi
-
-    _testing_playbooks__cleanup_seeds || true
-
-    if [ "$reset_mode" = "global" ] && [ -n "$scenario_name" ] && command -v vrooli >/dev/null 2>&1; then
-        if ! vrooli scenario restart "$scenario_name" --clean-stale >/dev/null 2>&1; then
-            vrooli scenario stop "$scenario_name" >/dev/null 2>&1 || true
-            vrooli scenario start "$scenario_name" --clean-stale >/dev/null 2>&1 || true
-        fi
-        if declare -F testing::core::wait_for_scenario >/dev/null 2>&1; then
-            testing::core::wait_for_scenario "$scenario_name" "$readiness_timeout" >/dev/null 2>&1 || true
-        else
-            sleep 3
-        fi
-    fi
-
-    local apply_status=0
-    if [ -n "$scenario_dir" ]; then
-        if ! _testing_playbooks__apply_seeds_if_needed "$scenario_dir"; then
-            apply_status=$?
-        fi
-    fi
-
-    if [ -n "$previous_scenario_env" ]; then
-        export SCENARIO_NAME="$previous_scenario_env"
-    else
-        unset SCENARIO_NAME || true
-    fi
-
-    return $apply_status
+    # DEPRECATED: This function now does nothing. Cleanup and seeding are handled by phase loop.
+    # Return success immediately for backward compatibility.
+    return 0
 }
 export -f testing::playbooks::reset_seed_state

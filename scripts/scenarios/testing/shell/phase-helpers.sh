@@ -622,6 +622,14 @@ testing::phase::run_workflow_validations() {
         return 0
     fi
 
+    # Seeding flags for loop control
+    local should_reseed=true
+    local can_seed=false
+    local seeds_dir="$scenario_dir/test/playbooks/__seeds"
+    if [ -d "$seeds_dir" ] && [ -f "$seeds_dir/apply.sh" ]; then
+        can_seed=true
+    fi
+
     local overall_status=0
     local index=0
     while IFS= read -r entry; do
@@ -638,7 +646,7 @@ testing::phase::run_workflow_validations() {
         local order_key
         order_key=$(printf '%s' "$entry" | jq -r '.order // ""')
         local reset_requirement
-        reset_requirement=$(printf '%s' "$entry" | jq -r '.reset // "project"')
+        reset_requirement=$(printf '%s' "$entry" | jq -r '.reset // "none"')
 
         local requirements_json
         requirements_json=$(printf '%s' "$entry" | jq -c '.requirements // []')
@@ -650,12 +658,12 @@ testing::phase::run_workflow_validations() {
             done < <(printf '%s' "$requirements_json" | jq -r '.[]?')
         fi
 
-        if [ "$reset_requirement" != "none" ]; then
-            testing::playbooks::reset_seed_state \
-                --mode "$reset_requirement" \
-                --scenario-dir "$scenario_dir" \
-                --scenario-name "$default_scenario" \
-                >/dev/null 2>&1 || true
+        # Apply seeds at loop start if both flags are true
+        if [ "$should_reseed" = true ] && [ "$can_seed" = true ]; then
+            if ! (cd "$scenario_dir" && bash "$seeds_dir/apply.sh" &>/dev/null); then
+                log::warning "Failed to apply seeds for ${workflow_label}"
+            fi
+            should_reseed=false
         fi
 
         if [ "$bas_cli_available" = false ]; then
@@ -719,7 +727,20 @@ testing::phase::run_workflow_validations() {
         if [ ${#requirements[@]} -eq 0 ]; then
             testing::phase::_record_fixture_requirements "$fixture_status" "$workflow_label" ""
         fi
+
+        # Cleanup and reset flag if workflow has "full" reset state
+        if [ "$reset_requirement" = "full" ] && [ "$can_seed" = true ]; then
+            if [ -f "$seeds_dir/cleanup.sh" ]; then
+                (cd "$scenario_dir" && bash "$seeds_dir/cleanup.sh" &>/dev/null) || true
+            fi
+            should_reseed=true
+        fi
     done < <(jq -c '.playbooks[]?' "$registry_path")
+
+    # Final cleanup after loop ends
+    if [ "$can_seed" = true ] && [ -f "$seeds_dir/cleanup.sh" ]; then
+        (cd "$scenario_dir" && bash "$seeds_dir/cleanup.sh" &>/dev/null) || true
+    fi
 
     return $overall_status
 }

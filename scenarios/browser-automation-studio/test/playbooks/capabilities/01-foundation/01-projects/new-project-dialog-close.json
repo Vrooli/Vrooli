@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Verifies the New Project modal closes through all affordances (X, Cancel, Escape, backdrop click)",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

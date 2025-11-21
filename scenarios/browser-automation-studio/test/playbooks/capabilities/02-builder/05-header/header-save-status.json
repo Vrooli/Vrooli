@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates save status indicator shows autosave state transitions",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates project search and filtering functionality on the dashboard",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

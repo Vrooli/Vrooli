@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates SetVariable and UseVariable node configuration for data flow testing",
     "version": 1,
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

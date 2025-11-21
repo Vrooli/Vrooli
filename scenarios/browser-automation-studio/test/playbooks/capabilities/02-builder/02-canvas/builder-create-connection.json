@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates creating a connection between two nodes by dragging from output handle to input handle",
     "version": 1,
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

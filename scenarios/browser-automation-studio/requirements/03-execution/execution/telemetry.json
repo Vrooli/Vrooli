@@ -4,7 +4,7 @@
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-20T14:01:07.072Z"
+    "last_synced_at": "2025-11-21T02:16:10.056Z"
   },
   "requirements": [
     {
@@ -23,14 +23,14 @@
           "status": "implemented",
           "notes": "Exercises telemetry persistence, retries, and artifact metadata.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -41,14 +41,14 @@
           "status": "implemented",
           "notes": "Validates Browserless session payloads and error handling.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -59,14 +59,14 @@
           "status": "implemented",
           "notes": "Unit phase captures Node + Go telemetry coverage with enforced thresholds.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -77,14 +77,14 @@
           "status": "implemented",
           "notes": "Tests heartbeat events and execution state management",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -95,14 +95,14 @@
           "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -113,14 +113,14 @@
           "status": "implemented",
           "notes": "E2E validation of telemetry stream with screenshots, console, and network events",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:39-05:00",
+            "test_duration_ms": 2000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -131,14 +131,14 @@
           "status": "implemented",
           "notes": "Validates real-time execution progress tracking UI with indicators and state transitions",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:39-05:00",
+            "test_duration_ms": 2000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -149,20 +149,20 @@
           "status": "implemented",
           "notes": "Validates real-time telemetry display including screenshots, console, network tabs, and heartbeat timestamps",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:39-05:00",
+            "test_duration_ms": 2000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T23:07:35-05:00",
+        "last_updated": "2025-11-20T21:15:39-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 8,
         "all_tests_passing": true,
@@ -172,7 +172,7 @@
           "coverage/phase-results/unit.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -192,14 +192,14 @@
           "status": "implemented",
           "notes": "BAS workflow validating telemetry stream (JSON export pending).",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:37-05:00",
+            "test_duration_ms": 456000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -210,14 +210,14 @@
           "status": "implemented",
           "notes": "Integration phase invokes the telemetry smoke automation through run_workflow_yaml.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:37-05:00",
+            "test_duration_ms": 456000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -228,20 +228,20 @@
           "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T23:07:35-05:00",
+        "last_updated": "2025-11-20T21:15:37-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 3,
         "all_tests_passing": true,
@@ -250,7 +250,7 @@
           "coverage/phase-results/unit.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -270,14 +270,14 @@
           "status": "implemented",
           "notes": "BAS workflow validating heartbeat stall detection once exported.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:39-05:00",
+            "test_duration_ms": 2000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -288,14 +288,14 @@
           "status": "implemented",
           "notes": "Integration phase records requirement state after running heartbeat automation.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:37-05:00",
+            "test_duration_ms": 456000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -306,20 +306,20 @@
           "status": "implemented",
           "notes": "Auto-added from vitest evidence",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T12:56:37-05:00",
-            "test_duration_ms": 42000,
+            "last_test_run": "2025-11-20T21:08:00-05:00",
+            "test_duration_ms": 33000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/unit.json",
             "source_phase": "unit",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T23:07:35-05:00",
+        "last_updated": "2025-11-20T21:15:39-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 3,
         "all_tests_passing": true,
@@ -329,7 +329,7 @@
           "coverage/phase-results/unit.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -349,14 +349,14 @@
           "status": "implemented",
           "notes": "CLI emits heartbeat lag/stall notices during manual verification sessions.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:39-05:00",
+            "test_duration_ms": 2000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -367,20 +367,20 @@
           "status": "implemented",
           "notes": "Extend smoke workflow to assert CLI output once scripted checks are in place.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:39-05:00",
+            "test_duration_ms": 2000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T23:07:35-05:00",
+        "last_updated": "2025-11-20T21:15:39-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 2,
         "all_tests_passing": true,
@@ -389,7 +389,7 @@
           "coverage/phase-results/integration.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -399,24 +399,24 @@
       "prd_ref": "Execution Management > Control",
       "title": "Stop/cancel running workflow executions",
       "description": "Users can stop or cancel a running workflow execution from the UI, with the execution status updated to 'cancelled' and resources properly cleaned up",
-      "status": "complete",
+      "status": "in_progress",
       "criticality": "P0",
       "validation": [
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/03-execution/02-ui/execution-stop-control.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates stop button appears for running executions and successfully cancels them",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:37-05:00",
+            "test_duration_ms": 456000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -424,17 +424,17 @@
           "type": "automation",
           "ref": "test/playbooks/capabilities/05-replay/02-ui/execution-result-export.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates execution result export and replay artifacts availability",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:37-05:00",
+            "test_duration_ms": 456000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         },
@@ -442,31 +442,31 @@
           "type": "automation",
           "ref": "test/playbooks/capabilities/03-execution/02-ui/execution-progress-tracking.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates execution progress tracking with state transitions and completion indicators",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T23:07:35-05:00",
-            "test_duration_ms": 540000,
+            "last_test_run": "2025-11-20T21:15:37-05:00",
+            "test_duration_ms": 456000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/integration.json",
             "source_phase": "integration",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T23:07:35-05:00",
+        "last_updated": "2025-11-20T21:15:37-05:00",
         "updated_by": "auto-sync",
-        "test_coverage_count": 3,
-        "all_tests_passing": true,
+        "test_coverage_count": 0,
+        "all_tests_passing": false,
         "phase_results": [
           "coverage/phase-results/integration.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     }

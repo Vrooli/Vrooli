@@ -1,0 +1,189 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for seo-optimizer scenario",
+    "domain": "seo-analysis",
+    "last_updated": "2025-11-19"
+  },
+  "requirements": [
+    {
+      "id": "SEO-AUDIT-CORE",
+      "category": "seo.api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "SEO audit endpoint performs comprehensive webpage analysis",
+      "description": "API endpoint POST /api/v1/seo/audit accepts URL and returns overall score, title analysis, meta tag analysis, content quality metrics, and technical SEO checks with actionable recommendations.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/audit_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "TestAuditEndpoint validates scoring logic and recommendation generation"
+        }
+      ]
+    },
+    {
+      "id": "SEO-AI-INTEGRATION",
+      "category": "seo.workflow",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "AI-powered SEO insights via shared Ollama workflow",
+      "description": "Integration with initialization/n8n/ollama.json workflow to provide AI-generated content recommendations, semantic analysis, and advanced optimization suggestions.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/workflow_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "TestOllamaIntegration verifies workflow invocation and response parsing"
+        }
+      ]
+    },
+    {
+      "id": "SEO-STORAGE",
+      "category": "seo.persistence",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "PostgreSQL storage for audit history and results",
+      "description": "Schema includes SEOAudit and KeywordAnalysis tables with proper relationships. API supports storing audit results and retrieving historical data for tracking improvements.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/storage_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "TestAuditStorage validates CRUD operations and historical queries"
+        }
+      ]
+    },
+    {
+      "id": "SEO-KEYWORDS",
+      "category": "seo.research",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Keyword research functionality with volume and difficulty metrics",
+      "description": "API endpoint for keyword analysis returns search volume estimates, difficulty scores, and relevance metrics to guide content optimization decisions.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/keywords_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "TestKeywordResearch validates volume/difficulty calculation and ranking"
+        }
+      ]
+    },
+    {
+      "id": "SEO-CONTENT-OPT",
+      "category": "seo.optimization",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Content optimization suggestions based on target keywords",
+      "description": "Analysis engine provides specific recommendations for improving content including keyword density, placement, semantic variations, and readability improvements.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/optimization_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "TestContentOptimization validates recommendation quality and relevance"
+        }
+      ]
+    },
+    {
+      "id": "SEO-COMPETITOR",
+      "category": "seo.analysis",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Competitor analysis comparing SEO performance",
+      "description": "API accepts multiple URLs for comparative analysis, identifying gaps and opportunities relative to competitor pages on similar topics or keywords.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/competitor_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "TestCompetitorAnalysis validates multi-URL comparison and gap identification"
+        }
+      ]
+    },
+    {
+      "id": "SEO-CACHING",
+      "category": "seo.performance",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Redis caching layer for improved performance",
+      "description": "Optional Redis integration caches audit results and API responses with graceful fallback to PostgreSQL when Redis is unavailable.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cache_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "TestRedisCache validates cache hit/miss behavior and fallback logic"
+        }
+      ]
+    },
+    {
+      "id": "SEO-RANK-TRACKING",
+      "category": "seo.monitoring",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Rank tracking over time for target keywords",
+      "description": "Historical rank monitoring stores daily/weekly position data for target keywords, enabling trend analysis and performance visualization.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ranking_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "TestRankTracking validates time-series data collection and retrieval"
+        }
+      ]
+    },
+    {
+      "id": "SEO-BULK-AUDIT",
+      "category": "seo.api",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Bulk URL auditing for site-wide SEO assessment",
+      "description": "API supports batch processing of multiple URLs in a single request with parallel execution and aggregated reporting for entire websites or sections.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/bulk_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "TestBulkAudit validates parallel processing and result aggregation"
+        }
+      ]
+    },
+    {
+      "id": "SEO-REPORTS",
+      "category": "seo.reporting",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "PDF report generation with visualizations",
+      "description": "Report generator creates professional PDF documents with charts, executive summaries, and detailed findings suitable for client or stakeholder presentation.",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/reports_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "TestReportGeneration validates PDF creation and content completeness"
+        }
+      ]
+    }
+  ]
+}

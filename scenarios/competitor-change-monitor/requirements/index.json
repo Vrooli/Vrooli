@@ -1,0 +1,190 @@
+{
+  "scenario": "competitor-change-monitor",
+  "version": "1.0.0",
+  "requirements": [
+    {
+      "id": "CCM-FUNC-001",
+      "title": "Multi-Source Monitoring",
+      "description": "Track changes across websites, GitHub repos, and public APIs",
+      "category": "functional",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "status": "pending",
+      "validation": ["test"],
+      "children": [
+        {
+          "id": "CCM-WEB-001",
+          "title": "Website change detection",
+          "description": "Monitor and detect changes in competitor website content",
+          "validation": ["test"],
+          "status": "pending"
+        },
+        {
+          "id": "CCM-GIT-001",
+          "title": "GitHub repository monitoring",
+          "description": "Track commits, releases, and repository changes",
+          "validation": ["test"],
+          "status": "pending"
+        },
+        {
+          "id": "CCM-API-001",
+          "title": "Public API monitoring",
+          "description": "Monitor changes in public API endpoints and responses",
+          "validation": ["test"],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "CCM-FUNC-002",
+      "title": "Change Detection and Storage",
+      "description": "Detect content differences and persist complete change history",
+      "category": "functional",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "status": "pending",
+      "validation": ["test"],
+      "children": [
+        {
+          "id": "CCM-STORE-001",
+          "title": "Change history persistence",
+          "description": "Store all detected changes in PostgreSQL with full audit trail",
+          "validation": ["test"],
+          "status": "pending"
+        },
+        {
+          "id": "CCM-DIFF-001",
+          "title": "Content diff generation",
+          "description": "Generate and store meaningful diffs of changed content",
+          "validation": ["test"],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "CCM-FUNC-003",
+      "title": "AI-Powered Analysis",
+      "description": "Categorize changes and assess business impact using AI",
+      "category": "functional",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "status": "pending",
+      "validation": ["test"],
+      "children": [
+        {
+          "id": "CCM-AI-001",
+          "title": "Change categorization",
+          "description": "Automatically categorize changes (pricing, features, marketing, legal, repository)",
+          "validation": ["test"],
+          "status": "pending"
+        },
+        {
+          "id": "CCM-AI-002",
+          "title": "Impact assessment",
+          "description": "Assess business impact and strategic significance of changes",
+          "validation": ["test"],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "CCM-FUNC-004",
+      "title": "Alert System",
+      "description": "Deliver configurable alerts for high-impact changes",
+      "category": "functional",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "status": "pending",
+      "validation": ["test", "manual"],
+      "children": [
+        {
+          "id": "CCM-ALERT-001",
+          "title": "Alert configuration",
+          "description": "Configure alert thresholds and notification preferences",
+          "validation": ["manual"],
+          "status": "pending"
+        },
+        {
+          "id": "CCM-ALERT-002",
+          "title": "Real-time notifications",
+          "description": "Deliver alerts via UI notifications and configured channels",
+          "validation": ["manual"],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "CCM-FUNC-005",
+      "title": "Scheduled Scanning",
+      "description": "Automated periodic checks with configurable intervals",
+      "category": "functional",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "status": "pending",
+      "validation": ["test"],
+      "children": [
+        {
+          "id": "CCM-SCHED-001",
+          "title": "n8n workflow orchestration",
+          "description": "Schedule and execute monitoring workflows via n8n",
+          "validation": ["test"],
+          "status": "pending"
+        },
+        {
+          "id": "CCM-SCHED-002",
+          "title": "Configurable scan intervals",
+          "description": "Allow users to configure scanning frequency per competitor",
+          "validation": ["manual"],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "CCM-FUNC-006",
+      "title": "Business Intelligence Dashboard",
+      "description": "Professional dark-themed UI with timeline views and alerts",
+      "category": "functional",
+      "priority": "P0",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "status": "pending",
+      "validation": ["manual"],
+      "children": [
+        {
+          "id": "CCM-UI-001",
+          "title": "Timeline view",
+          "description": "Display competitor changes in chronological timeline format",
+          "validation": ["manual"],
+          "status": "pending"
+        },
+        {
+          "id": "CCM-UI-002",
+          "title": "Data tables with sorting",
+          "description": "Sortable, filterable tables for competitor and change data",
+          "validation": ["manual"],
+          "status": "pending"
+        },
+        {
+          "id": "CCM-UI-003",
+          "title": "Real-time notification panel",
+          "description": "Live notification panel for recent alerts and changes",
+          "validation": ["manual"],
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "total_requirements": 6,
+    "total_child_requirements": 17,
+    "p0_count": 6,
+    "p1_count": 0,
+    "p2_count": 0,
+    "last_updated": "2025-11-18",
+    "coverage": {
+      "pending": 23,
+      "in_progress": 0,
+      "completed": 0,
+      "total": 23
+    }
+  }
+}

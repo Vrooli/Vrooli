@@ -956,11 +956,24 @@ func (s *Server) listProfiles(c *gin.Context) {
 	var profiles []Profile
 	for rows.Next() {
 		var p Profile
+		var settingsJSON []byte
 		err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.APIKeyPrefix,
-			&p.Settings, &p.Plan, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+			&settingsJSON, &p.Plan, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 		if err != nil {
+			logger.Error("Failed to scan profile row", "error", err)
 			continue
 		}
+
+		// Unmarshal settings JSON
+		if len(settingsJSON) > 0 {
+			if err := json.Unmarshal(settingsJSON, &p.Settings); err != nil {
+				logger.Error("Failed to unmarshal settings", "error", err, "profile_id", p.ID)
+				p.Settings = make(map[string]interface{})
+			}
+		} else {
+			p.Settings = make(map[string]interface{})
+		}
+
 		profiles = append(profiles, p)
 	}
 
@@ -971,6 +984,7 @@ func (s *Server) getProfile(c *gin.Context) {
 	profileID := c.Param("id")
 
 	var profile Profile
+	var settingsJSON []byte
 	query := `
 		SELECT id, name, slug, api_key_prefix, settings, plan, status, created_at, updated_at
 		FROM profiles
@@ -979,13 +993,23 @@ func (s *Server) getProfile(c *gin.Context) {
 
 	err := s.db.QueryRow(query, profileID).Scan(
 		&profile.ID, &profile.Name, &profile.Slug, &profile.APIKeyPrefix,
-		&profile.Settings, &profile.Plan, &profile.Status,
+		&settingsJSON, &profile.Plan, &profile.Status,
 		&profile.CreatedAt, &profile.UpdatedAt,
 	)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
 		return
+	}
+
+	// Unmarshal settings JSON
+	if len(settingsJSON) > 0 {
+		if err := json.Unmarshal(settingsJSON, &profile.Settings); err != nil {
+			logger.Error("Failed to unmarshal settings", "error", err, "profile_id", profile.ID)
+			profile.Settings = make(map[string]interface{})
+		}
+	} else {
+		profile.Settings = make(map[string]interface{})
 	}
 
 	c.JSON(http.StatusOK, profile)

@@ -1,0 +1,334 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for graph-studio scenario",
+    "domain": "graph-studio",
+    "last_updated": "2025-11-18"
+  },
+  "requirements": [
+    {
+      "id": "GS-ARCH-001",
+      "category": "architecture",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Plugin architecture supporting dynamic loading",
+      "description": "Plugin system loads graph type modules dynamically with base interface, isolation, and lifecycle management",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/unit/plugin-system.test.yaml",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Plugin loading, unloading, and isolation tests"
+        }
+      ]
+    },
+    {
+      "id": "GS-API-001",
+      "category": "api",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Core API for graph CRUD operations",
+      "description": "REST API endpoints for create, read, update, delete, and validate graph operations",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/api/crud-operations.test.yaml",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "14 API endpoint tests covering all CRUD operations"
+        }
+      ]
+    },
+    {
+      "id": "GS-PLUGIN-001",
+      "category": "plugin",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Mind map plugin with FreeMind format support",
+      "description": "FreeMind (.mm) format import/export with hierarchical visualization",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/mind-map.test.yaml",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Mind map creation, validation, and rendering"
+        }
+      ]
+    },
+    {
+      "id": "GS-PLUGIN-002",
+      "category": "plugin",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Process modeling plugin with BPMN 2.0 support",
+      "description": "BPMN 2.0 format support for business workflow diagrams",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/integration/bpmn.test.yaml",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BPMN workflow creation and validation"
+        }
+      ]
+    },
+    {
+      "id": "GS-CONVERT-001",
+      "category": "conversion",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Graph conversion engine for compatible formats",
+      "description": "Automatic format translation between compatible graph types maintaining data integrity",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/api/conversion.test.yaml",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "12 conversion paths tested"
+        },
+        {
+          "type": "test",
+          "ref": "api/conversions_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Go unit tests for conversion engine"
+        }
+      ]
+    },
+    {
+      "id": "GS-STORAGE-001",
+      "category": "storage",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "PostgreSQL storage for graph metadata and relationships",
+      "description": "Database schema with JSONB for flexible graph data structures",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "initialization/postgres/schema.sql",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Schema includes graphs, graph_versions, graph_conversions tables"
+        }
+      ]
+    },
+    {
+      "id": "GS-UI-001",
+      "category": "ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "Dashboard UI showing all available graph types",
+      "description": "Visual gallery with plugin cards, descriptions, and quick actions",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/ui/dashboard.test.yaml",
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "Dashboard rendering and plugin gallery display"
+        }
+      ]
+    },
+    {
+      "id": "GS-CLI-001",
+      "category": "cli",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "CLI interface for programmatic graph operations",
+      "description": "Command-line tool for create, list, validate, convert, render operations",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/cli/commands.test.yaml",
+          "phase": "cli",
+          "status": "implemented",
+          "notes": "7 CLI command tests covering all operations"
+        }
+      ]
+    },
+    {
+      "id": "GS-PLUGIN-003",
+      "category": "plugin",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Mermaid diagram plugin for lightweight visualizations",
+      "description": "Mermaid format support for markdown-embedded diagrams",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/plugins/mermaid.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Mermaid plugin registered and operational"
+        }
+      ]
+    },
+    {
+      "id": "GS-PLUGIN-004",
+      "category": "plugin",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Cytoscape.js plugin for network visualizations",
+      "description": "Network/graph visualizations with force-directed layouts",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/plugins/network.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Cytoscape.js plugin for network graphs"
+        }
+      ]
+    },
+    {
+      "id": "GS-SEARCH-001",
+      "category": "api",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Graph search and query interface",
+      "description": "Full-text search across graph name, description, and tags with case-insensitive matching",
+      "status": "complete",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "test/api/search.test.yaml",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "Search functionality tested with various queries"
+        }
+      ]
+    },
+    {
+      "id": "GS-PLUGIN-005",
+      "category": "plugin",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "UML plugin supporting class, sequence, and activity diagrams",
+      "description": "UML diagram support for software design documentation",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "GS-PLUGIN-006",
+      "category": "plugin",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "RDF/OWL plugin for semantic web graphs",
+      "description": "Semantic web graph support with ontology validation",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "GS-EXPORT-001",
+      "category": "api",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "GraphML/GEXF import/export for Gephi compatibility",
+      "description": "Network analysis tool compatibility via standard formats",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "GS-COLLAB-001",
+      "category": "feature",
+      "prd_ref": "Operational Targets > P1 > OT-P1-007",
+      "title": "Real-time collaborative editing via WebSockets",
+      "description": "Multi-user editing with conflict resolution and presence awareness",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "GS-QUERY-001",
+      "category": "api",
+      "prd_ref": "Operational Targets > P1 > OT-P1-008",
+      "title": "Advanced query interface (SPARQL, GraphQL)",
+      "description": "Sophisticated query languages for complex graph operations",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "GS-PLUGIN-007",
+      "category": "plugin",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "XMind and CmapTools format support",
+      "description": "Additional mind mapping tool compatibility",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "GS-PLUGIN-008",
+      "category": "plugin",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "DMN plugin for Decision Model Notation",
+      "description": "Business rules and decision modeling support",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "GS-PLUGIN-009",
+      "category": "plugin",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "CMMN plugin for Case Management",
+      "description": "Case Management Model and Notation for flexible processes",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "GS-PLUGIN-010",
+      "category": "plugin",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "SysML and ArchiMate plugins",
+      "description": "Systems engineering and enterprise architecture modeling",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "GS-VISUAL-001",
+      "category": "feature",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "D3.js custom visualization builder",
+      "description": "Custom visualization templates with interactive controls",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "GS-AI-001",
+      "category": "feature",
+      "prd_ref": "Operational Targets > P2 > OT-P2-006",
+      "title": "AI-powered graph suggestions and auto-completion",
+      "description": "Intelligent recommendations based on context and patterns",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    },
+    {
+      "id": "GS-VERSION-001",
+      "category": "feature",
+      "prd_ref": "Operational Targets > P2 > OT-P2-007",
+      "title": "Version control and diff visualization for graphs",
+      "description": "Git-style versioning with visual diff capabilities",
+      "status": "pending",
+      "criticality": "P2",
+      "validation": []
+    }
+  ]
+}

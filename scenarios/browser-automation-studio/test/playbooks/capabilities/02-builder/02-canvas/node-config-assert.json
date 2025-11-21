@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates Assert node configuration with mode-specific conditional fields",
     "version": 1,
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

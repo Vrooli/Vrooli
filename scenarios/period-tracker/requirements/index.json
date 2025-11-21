@@ -1,0 +1,364 @@
+{
+  "_metadata": {
+    "description": "Privacy-first menstrual health tracking requirements registry",
+    "domain": "health-tracking",
+    "last_updated": "2025-11-19"
+  },
+  "requirements": [
+    {
+      "id": "PT-P0-001",
+      "category": "core.security",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Secure multi-tenant period cycle tracking with encrypted local storage",
+      "description": "Implements AES-256 encrypted storage in PostgreSQL with multi-tenant isolation for household privacy",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/encryption_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests encryption/decryption of sensitive health data"
+        },
+        {
+          "type": "test",
+          "ref": "api/multi_tenant_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates tenant isolation at database level"
+        }
+      ]
+    },
+    {
+      "id": "PT-P0-002",
+      "category": "core.tracking",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Basic symptom logging (flow, pain, mood, physical symptoms)",
+      "description": "Provides API endpoints and UI for logging daily symptoms with validation and storage",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/symptoms_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests symptom CRUD operations and validation"
+        },
+        {
+          "type": "manual",
+          "ref": "ui/src/components/SymptomLogger.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "UI component for daily symptom entry"
+        }
+      ]
+    },
+    {
+      "id": "PT-P0-003",
+      "category": "core.prediction",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Cycle prediction algorithm with pattern recognition",
+      "description": "Statistical prediction algorithm using historical cycle data to forecast next period dates",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/prediction_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tests prediction accuracy with synthetic datasets"
+        },
+        {
+          "type": "test",
+          "ref": "api/prediction_integration_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Validates predictions update on new cycle data"
+        }
+      ]
+    },
+    {
+      "id": "PT-P0-004",
+      "category": "integration.calendar",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Calendar integration for period predictions and blocking",
+      "description": "Publishes period prediction events for calendar scenario consumption and blocking",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/events_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Tests event publishing for period.prediction.updated"
+        },
+        {
+          "type": "manual",
+          "ref": "integration with calendar scenario",
+          "phase": "e2e",
+          "status": "implemented",
+          "notes": "Manual verification of calendar blocking workflow"
+        }
+      ]
+    },
+    {
+      "id": "PT-P0-005",
+      "category": "core.security",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Privacy-first architecture with no external data sharing",
+      "description": "Ensures all data stays local, no external API calls, audit logging for data access",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/privacy_test.go",
+          "phase": "security",
+          "status": "implemented",
+          "notes": "Verifies no external network calls in core operations"
+        },
+        {
+          "type": "manual",
+          "ref": "security audit checklist",
+          "phase": "security",
+          "status": "implemented",
+          "notes": "External security review of data handling"
+        }
+      ]
+    },
+    {
+      "id": "PT-P0-006",
+      "category": "ui.experience",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "Simple, intuitive UI optimized for daily use",
+      "description": "Mobile-first responsive UI with quick entry flows and clear data visualization",
+      "status": "complete",
+      "criticality": "P0",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/App.tsx",
+          "phase": "ux",
+          "status": "implemented",
+          "notes": "Daily use flow takes < 30 seconds for symptom logging"
+        },
+        {
+          "type": "manual",
+          "ref": "WCAG 2.1 AA compliance audit",
+          "phase": "accessibility",
+          "status": "implemented",
+          "notes": "Accessibility validation per UX requirements"
+        }
+      ]
+    },
+    {
+      "id": "PT-P1-001",
+      "category": "ai.insights",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "AI-powered pattern recognition using local Ollama models",
+      "description": "Integrates with local Ollama for natural language insights from cycle patterns",
+      "status": "planned",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/ollama_integration_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Tests Ollama API integration with fallback to statistical analysis"
+        }
+      ]
+    },
+    {
+      "id": "PT-P1-002",
+      "category": "ai.insights",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Symptom correlation insights",
+      "description": "Detects and surfaces correlations between symptoms and cycle phases",
+      "status": "planned",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/correlation_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Statistical correlation detection algorithm"
+        }
+      ]
+    },
+    {
+      "id": "PT-P1-003",
+      "category": "features.reminders",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Medication and supplement reminder system",
+      "description": "Scheduled notifications for medications and supplements based on cycle phase",
+      "status": "planned",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/reminders_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Tests reminder scheduling and notification delivery"
+        }
+      ]
+    },
+    {
+      "id": "PT-P1-004",
+      "category": "features.export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Export functionality for medical appointments",
+      "description": "Generates PDF/CSV summaries of cycle history for healthcare provider visits",
+      "status": "planned",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/export_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Tests export format generation"
+        }
+      ]
+    },
+    {
+      "id": "PT-P1-005",
+      "category": "features.sharing",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Partner dashboard with consensual, discrete sharing",
+      "description": "Opt-in sharing interface for partners/family with granular privacy controls",
+      "status": "planned",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/PartnerDashboard.tsx",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Partner UI with consent management"
+        }
+      ]
+    },
+    {
+      "id": "PT-P1-006",
+      "category": "features.analytics",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Historical trend analysis and reporting",
+      "description": "Visualizations and reports showing cycle trends over time",
+      "status": "planned",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/TrendsPanel.tsx",
+          "phase": "ux",
+          "status": "planned",
+          "notes": "Trend visualization components"
+        }
+      ]
+    },
+    {
+      "id": "PT-P2-001",
+      "category": "features.photo",
+      "prd_ref": "Operational Targets > P2 > OT-P2-001",
+      "title": "Photo tracking for skin/symptom changes",
+      "description": "Encrypted photo storage for visual symptom tracking over time",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/photo_storage_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Tests encrypted photo upload and retrieval"
+        }
+      ]
+    },
+    {
+      "id": "PT-P2-002",
+      "category": "integration.health",
+      "prd_ref": "Operational Targets > P2 > OT-P2-002",
+      "title": "Integration with fitness/mood tracking scenarios",
+      "description": "Cross-scenario event consumption for holistic health correlations",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/health_integration_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Tests event consumption from fitness/mood scenarios"
+        }
+      ]
+    },
+    {
+      "id": "PT-P2-003",
+      "category": "features.reminders",
+      "prd_ref": "Operational Targets > P2 > OT-P2-003",
+      "title": "Custom reminder scheduling",
+      "description": "User-defined reminder schedules beyond medication tracking",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "ui/src/components/ReminderScheduler.tsx",
+          "phase": "ux",
+          "status": "planned",
+          "notes": "Custom reminder UI and scheduling logic"
+        }
+      ]
+    },
+    {
+      "id": "PT-P2-004",
+      "category": "features.fertility",
+      "prd_ref": "Operational Targets > P2 > OT-P2-004",
+      "title": "Advanced fertility window calculations",
+      "description": "Enhanced prediction algorithms for fertility tracking",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/fertility_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Tests fertility window calculation accuracy"
+        }
+      ]
+    },
+    {
+      "id": "PT-P2-005",
+      "category": "features.research",
+      "prd_ref": "Operational Targets > P2 > OT-P2-005",
+      "title": "Research contribution opt-in with anonymization",
+      "description": "Anonymized data export for women's health research with explicit consent",
+      "status": "planned",
+      "criticality": "P2",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/anonymization_test.go",
+          "phase": "security",
+          "status": "planned",
+          "notes": "Tests PII removal and data anonymization"
+        },
+        {
+          "type": "manual",
+          "ref": "consent workflow and research export",
+          "phase": "compliance",
+          "status": "planned",
+          "notes": "Legal review of consent and anonymization process"
+        }
+      ]
+    }
+  ]
+}

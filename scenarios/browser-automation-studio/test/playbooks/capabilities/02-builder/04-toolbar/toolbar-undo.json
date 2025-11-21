@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates undo button reverts the last canvas change",
     "version": 1,
-    "reset": "project"
+    "reset": "full"
   },
   "settings": {
     "executionViewport": {

@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates that the info popover displays workflow metadata correctly",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

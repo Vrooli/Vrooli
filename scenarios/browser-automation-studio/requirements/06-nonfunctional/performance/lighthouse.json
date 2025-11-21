@@ -5,7 +5,7 @@
     "last_validated_at": "2025-11-05T00:00:00Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-20T14:01:07.073Z"
+    "last_synced_at": "2025-11-21T02:16:10.057Z"
   },
   "requirements": [
     {
@@ -27,20 +27,20 @@
           "status": "failing",
           "notes": "Lighthouse audit via test-performance.sh phase",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T13:06:19-05:00",
+            "last_test_run": "2025-11-20T21:16:09-05:00",
             "test_duration_ms": 30000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/performance.json",
             "source_phase": "performance",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T13:06:19-05:00",
+        "last_updated": "2025-11-20T21:16:09-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,
@@ -49,7 +49,7 @@
           "coverage/phase-results/performance.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -72,20 +72,20 @@
           "status": "failing",
           "notes": "Lighthouse audit via test-performance.sh phase",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T13:06:19-05:00",
+            "last_test_run": "2025-11-20T21:16:09-05:00",
             "test_duration_ms": 30000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/performance.json",
             "source_phase": "performance",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T13:06:19-05:00",
+        "last_updated": "2025-11-20T21:16:09-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,
@@ -94,7 +94,7 @@
           "coverage/phase-results/performance.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -117,20 +117,20 @@
           "status": "implemented",
           "notes": "Lower threshold due to canvas + Monaco editor. Focus on interactivity metrics.",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T13:06:19-05:00",
+            "last_test_run": "2025-11-20T21:16:09-05:00",
             "test_duration_ms": 30000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/performance.json",
             "source_phase": "performance",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T13:06:19-05:00",
+        "last_updated": "2025-11-20T21:16:09-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 1,
         "all_tests_passing": true,
@@ -139,7 +139,7 @@
           "coverage/phase-results/performance.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -161,20 +161,20 @@
           "phase": "performance",
           "status": "failing",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T13:06:19-05:00",
+            "last_test_run": "2025-11-20T21:16:09-05:00",
             "test_duration_ms": 30000,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/performance.json",
             "source_phase": "performance",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T13:06:19-05:00",
+        "last_updated": "2025-11-20T21:16:09-05:00",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,
@@ -183,7 +183,7 @@
           "coverage/phase-results/performance.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     },
@@ -206,20 +206,20 @@
           "status": "failing",
           "notes": "Mobile viewport validation",
           "_sync_metadata": {
-            "last_test_run": "2025-11-19T18:06:19.364Z",
+            "last_test_run": "2025-11-21T02:16:09.363Z",
             "test_duration_ms": null,
             "auto_updated": true,
             "test_names": [],
             "phase_result": "coverage/phase-results/lighthouse.json",
             "source_phase": "performance",
             "tests_run": [
-              "test/run-tests.sh integration"
+              "test/run-tests.sh"
             ]
           }
         }
       ],
       "_sync_metadata": {
-        "last_updated": "2025-11-19T18:06:19.364Z",
+        "last_updated": "2025-11-21T02:16:09.363Z",
         "updated_by": "auto-sync",
         "test_coverage_count": 0,
         "all_tests_passing": false,
@@ -228,7 +228,7 @@
           "coverage/phase-results/performance.json"
         ],
         "tests_run": [
-          "test/run-tests.sh integration"
+          "test/run-tests.sh"
         ]
       }
     }

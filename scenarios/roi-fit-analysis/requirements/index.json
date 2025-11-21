@@ -1,0 +1,150 @@
+{
+  "_metadata": {
+    "description": "Requirements registry for ROI Fit Analysis - financial decision-making and market intelligence",
+    "scenario": "roi-fit-analysis",
+    "last_updated": "2025-11-18",
+    "version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "RFA-MARKET-INTEL",
+      "category": "market.research",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "title": "Market intelligence gathering via web research",
+      "description": "Scrape and analyze current market data, competitor pricing, and industry trends using browserless integration.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "RFA-SKILLS-MATCH",
+      "category": "analysis.skills",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Skills assessment and opportunity matching",
+      "description": "Match opportunities to user expertise and capabilities with confidence scoring algorithms.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "RFA-RESOURCE-OPT",
+      "category": "analysis.resources",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "title": "Resource optimization analysis",
+      "description": "Identify most efficient use of capital, time, and human resources across opportunities.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "RFA-RISK-CALC",
+      "category": "analysis.risk",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "title": "Risk quantification and probability assessment",
+      "description": "Calculate risk-weighted returns with probability assessments and mitigation strategies.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "RFA-RECOMMENDATIONS",
+      "category": "analysis.ranking",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "title": "Opportunity ranking by ROI potential",
+      "description": "Rank opportunities by ROI potential with detailed justifications and supporting data.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "RFA-API-CORE",
+      "category": "api.endpoints",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "title": "RESTful API for analysis workflows",
+      "description": "Core endpoints for submitting opportunities, retrieving analyses, and exporting reports.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "RFA-CLI-INTERFACE",
+      "category": "cli.commands",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "title": "CLI interface for batch analysis",
+      "description": "Command-line tools for batch analysis and automation workflows.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "RFA-UI-DASHBOARD",
+      "category": "ui.visualization",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "title": "Data visualization dashboard",
+      "description": "Interactive charts, tables, and executive summaries in web UI with React/Vite.",
+      "status": "pending",
+      "criticality": "P0",
+      "validation": []
+    },
+    {
+      "id": "RFA-MARKET-MONITOR",
+      "category": "market.monitoring",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "title": "Real-time market monitoring",
+      "description": "Continuous tracking of market changes and competitive movements for tracked opportunities.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "RFA-FINANCIAL-MODEL",
+      "category": "analysis.modeling",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "title": "Advanced financial modeling",
+      "description": "ROI calculations with multiple scenarios and sensitivity analysis capabilities.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "RFA-COMPARISON",
+      "category": "analysis.comparison",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "title": "Comparative opportunity analysis",
+      "description": "Side-by-side comparison of multiple opportunities with scoring matrix.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "RFA-HISTORICAL",
+      "category": "analysis.trends",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "title": "Historical trend analysis",
+      "description": "Track opportunity performance over time with pattern recognition algorithms.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "RFA-EXPORT",
+      "category": "reporting.export",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "title": "Report export functionality",
+      "description": "Generate PDF/Excel reports for presentations and stakeholder sharing.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    },
+    {
+      "id": "RFA-DATA-TOOLS-INTEGRATION",
+      "category": "integration.data-tools",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "title": "Integration with data-tools scenario",
+      "description": "Leverage data-tools for advanced analytics, transformations, and statistical analysis.",
+      "status": "pending",
+      "criticality": "P1",
+      "validation": []
+    }
+  ]
+}

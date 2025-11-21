@@ -1,701 +1,139 @@
 # Product Requirements Document (PRD)
 
-## 🎯 Capability Definition
+> **Version**: 2.0.0
+> **Last Updated**: 2025-11-18
+> **Status**: Active
+> **Template Source**: PRD Control Tower Canonical Template
 
-### Core Capability
-**What permanent capability does this scenario add to Vrooli?**
-Code Tidiness Manager adds automated technical debt detection, cleanup suggestion generation, and maintenance intelligence to Vrooli. It continuously scans the codebase for inefficiencies, redundancies, and cleanup opportunities, generating both automated cleanup scripts for simple issues and detailed analysis for complex architectural improvements.
+## 🎯 Overview
 
-### Intelligence Amplification
-**How does this capability make future agents smarter?**
-This capability provides agents with:
-- **Clean workspace guarantee**: Agents can trust the codebase is maintained, reducing context noise
-- **Pattern recognition**: Learns what cleanup patterns are accepted/rejected, improving suggestions
-- **Technical debt awareness**: Agents can query accumulated debt before making architectural decisions
-- **Resource optimization**: Identifies underutilized resources that agents can repurpose
-- **Code quality baseline**: Establishes standards that all future code generation follows
+**Purpose**: Code Tidiness Manager adds automated technical debt detection, cleanup suggestion generation, and maintenance intelligence to Vrooli. It continuously scans the codebase for inefficiencies, redundancies, and cleanup opportunities, generating both automated cleanup scripts for simple issues and detailed analysis for complex architectural improvements.
 
-### Recursive Value
-**What new scenarios become possible after this exists?**
-1. **code-quality-enforcer**: Automated PR reviews with quality gates based on tidiness standards
-2. **resource-optimizer**: Dynamic resource allocation based on actual usage patterns detected
-3. **scenario-deduplication-manager**: Intelligent merging of overlapping scenario capabilities
-4. **legacy-code-modernizer**: Systematic upgrade of outdated patterns to modern approaches
-5. **performance-bottleneck-hunter**: Deep analysis of inefficiencies identified by tidiness scans
+**Primary Users**:
+- Developers maintaining Vrooli scenarios
+- DevOps engineers managing infrastructure
+- AI agents needing clean workspace guarantees
+- Product teams tracking technical debt
 
-## 📊 Success Metrics
+**Deployment Surfaces**:
+- **CLI**: `code-tidiness-manager` binary for manual scans and cleanup operations
+- **API**: RESTful endpoints for programmatic access (`/api/v1/tidiness/*`)
+- **UI**: Web dashboard showing cleanup categories, trends, and actionable insights
+- **Events**: Message bus integration for cross-scenario coordination
 
-### Functional Requirements
-- **Must Have (P0)**
-  - [ ] Scan entire Vrooli codebase for cleanup opportunities (backup files, temp files, empty dirs)
-  - [ ] Generate safe cleanup scripts for automated issues with confidence scoring
-  - [ ] Detect complex issues requiring human judgment (duplicate scenarios, architectural drift)
-  - [ ] Provide REST API for other scenarios to request targeted scans
-  - [ ] Store scan history and track accepted/rejected suggestions for learning
-  - [ ] CLI interface for manual triggering and configuration
-  
-- **Should Have (P1)**
-  - [ ] Scheduled automatic scanning with configurable frequency
-  - [ ] Integration with git hooks for pre-commit cleanup suggestions
-  - [ ] Dashboard UI showing cleanup categories, counts, and trends
-  - [ ] Batch operations for applying multiple similar cleanups
-  - [ ] Custom rule registration API for scenarios to define their own cleanup patterns
-  - [ ] Notification system for critical technical debt accumulation
-  
-- **Nice to Have (P2)**
-  - [ ] Machine learning model to predict cleanup acceptance likelihood
-  - [ ] "Spring cleaning mode" for comprehensive deep scans
-  - [ ] Integration with CI/CD for automated cleanup in pipelines
-  - [ ] Cost analysis showing resource waste from inefficiencies
-  - [ ] Gamification with cleanliness scores and leaderboards
+**Intelligence Amplification**: This capability provides agents with clean workspace guarantees, pattern recognition from accepted/rejected cleanups, technical debt awareness for architectural decisions, resource optimization insights, and code quality baselines that all future code generation follows.
 
-### Performance Criteria
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| Full Scan Time | < 60s for entire codebase | Time from start to completion |
-| Suggestion Generation | < 500ms per issue | API response time |
-| False Positive Rate | < 5% for automated cleanups | Rejected suggestions / total |
-| Memory Usage | < 512MB during scan | Resource monitoring |
-| Cleanup Success Rate | > 95% for automated scripts | Successful executions / attempts |
+**Recursive Value**: Enables future scenarios like code-quality-enforcer (automated PR reviews), resource-optimizer (dynamic allocation), scenario-deduplication-manager (intelligent merging), legacy-code-modernizer (systematic upgrades), and performance-bottleneck-hunter (deep analysis).
 
-### Quality Gates
-- [ ] All P0 requirements implemented and tested
-- [ ] Can scan and analyze 10,000+ files without crashing
-- [ ] Zero data loss from cleanup operations
-- [ ] API response times consistently under 1 second
-- [ ] CLI provides comprehensive help and examples
+## 🎯 Operational Targets
 
-## 🏗️ Technical Architecture
+### 🔴 P0 – Must ship for viability
 
-### Resource Dependencies
-```yaml
-required:
-  - resource_name: postgres
-    purpose: Store scan history, patterns, and learning data
-    integration_pattern: Direct database access for persistence
-    access_method: resource-postgres CLI and SQL queries
-    
-  - resource_name: redis
-    purpose: Cache scan results and temporary analysis data
-    integration_pattern: Key-value storage for performance
-    access_method: resource-redis CLI commands
-    
-optional:
-  - resource_name: qdrant
-    purpose: Vector storage for code similarity detection
-    fallback: Skip advanced duplicate detection features
-    access_method: API for embedding storage/retrieval
-    
-  - resource_name: ollama
-    purpose: AI-powered code analysis and suggestion refinement
-    fallback: Use rule-based analysis only
-    access_method: Shared workflow ollama.json
-```
+- [ ] OT-P0-001 | Full codebase scanning | Scan entire Vrooli codebase for cleanup opportunities (backup files, temp files, empty dirs)
+- [ ] OT-P0-002 | Safe cleanup script generation | Generate safe cleanup scripts for automated issues with confidence scoring
+- [ ] OT-P0-003 | Complex issue detection | Detect complex issues requiring human judgment (duplicate scenarios, architectural drift)
+- [ ] OT-P0-004 | REST API access | Provide REST API for other scenarios to request targeted scans
+- [ ] OT-P0-005 | Learning persistence | Store scan history and track accepted/rejected suggestions for learning
+- [ ] OT-P0-006 | CLI interface | CLI interface for manual triggering and configuration
 
-### Resource Integration Standards
-```yaml
-integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/automation/n8n/
-      purpose: Intelligent analysis of complex code patterns
-    - workflow: rate-limiter.json
-      location: initialization/automation/n8n/
-      purpose: Throttle scan operations to avoid system overload
-  
-  2_resource_cli:
-    - command: resource-postgres query
-      purpose: Store and retrieve scan history
-    - command: resource-redis get/set
-      purpose: Cache intermediate scan results
-  
-  3_direct_api:
-    - justification: Real-time scan progress updates
-      endpoint: /api/v1/tidiness/scan/progress
+### 🟠 P1 – Should have post-launch
 
-shared_workflow_criteria:
-  - code-scanner.json will be created for reusable scanning logic
-  - Will be used by: code-quality-enforcer, legacy-code-modernizer
-  - Provides parameterized scanning with custom rule sets
-```
+- [ ] OT-P1-001 | Scheduled scanning | Scheduled automatic scanning with configurable frequency
+- [ ] OT-P1-002 | Git integration | Integration with git hooks for pre-commit cleanup suggestions
+- [ ] OT-P1-003 | Dashboard UI | Dashboard UI showing cleanup categories, counts, and trends
+- [ ] OT-P1-004 | Batch operations | Batch operations for applying multiple similar cleanups
+- [ ] OT-P1-005 | Custom rule API | Custom rule registration API for scenarios to define their own cleanup patterns
+- [ ] OT-P1-006 | Notification system | Notification system for critical technical debt accumulation
 
-### Data Models
-```yaml
-primary_entities:
-  - name: ScanResult
-    storage: postgres
-    schema: |
-      {
-        id: UUID
-        scan_id: UUID
-        timestamp: DateTime
-        issue_type: string // backup_file|duplicate_code|unused_import|etc
-        severity: string // low|medium|high|critical
-        file_path: string
-        description: text
-        cleanup_script: text // nullable for complex issues
-        confidence_score: float
-        requires_human_review: boolean
-        metadata: jsonb
-      }
-    relationships: Links to ScanHistory, CleanupAction
-    
-  - name: CleanupAction
-    storage: postgres
-    schema: |
-      {
-        id: UUID
-        scan_result_id: UUID
-        action_taken: string // accepted|rejected|modified|deferred
-        executed_at: DateTime
-        execution_result: jsonb
-        user_feedback: text
-      }
-    relationships: Belongs to ScanResult
-    
-  - name: CleanupRule
-    storage: postgres  
-    schema: |
-      {
-        id: UUID
-        rule_name: string
-        pattern: string // regex or glob
-        action_template: text
-        priority: integer
-        enabled: boolean
-        created_by: string // scenario that registered it
-      }
-    relationships: Used by ScanEngine
-```
+### 🟢 P2 – Future / expansion
 
-### API Contract
-```yaml
-endpoints:
-  - method: POST
-    path: /api/v1/tidiness/scan
-    purpose: Trigger a new scan with optional filters
-    input_schema: |
-      {
-        paths?: string[]  // Specific paths to scan
-        types?: string[]  // Issue types to detect
-        deep_scan?: boolean
-        exclude_patterns?: string[]
-      }
-    output_schema: |
-      {
-        scan_id: string
-        status: "started"
-        estimated_time: number
-      }
-    sla:
-      response_time: 500ms
-      availability: 99.9%
-      
-  - method: GET
-    path: /api/v1/tidiness/suggestions
-    purpose: Retrieve cleanup suggestions from latest scan
-    input_schema: |
-      {
-        scan_id?: string
-        severity?: string
-        limit?: number
-        offset?: number
-      }
-    output_schema: |
-      {
-        suggestions: [{
-          id: string
-          type: string
-          description: string
-          cleanup_script?: string
-          confidence: number
-          files_affected: string[]
-          requires_human_review: boolean
-        }]
-        total: number
-      }
-      
-  - method: POST
-    path: /api/v1/tidiness/cleanup
-    purpose: Execute cleanup scripts
-    input_schema: |
-      {
-        suggestion_ids: string[]
-        dry_run?: boolean
-      }
-    output_schema: |
-      {
-        executed: number
-        skipped: number
-        errors: string[]
-      }
-```
+- [ ] OT-P2-001 | ML-based predictions | Machine learning model to predict cleanup acceptance likelihood
+- [ ] OT-P2-002 | Deep scan mode | "Spring cleaning mode" for comprehensive deep scans
+- [ ] OT-P2-003 | CI/CD integration | Integration with CI/CD for automated cleanup in pipelines
+- [ ] OT-P2-004 | Cost analysis | Cost analysis showing resource waste from inefficiencies
+- [ ] OT-P2-005 | Gamification | Gamification with cleanliness scores and leaderboards
 
-### Event Interface
-```yaml
-published_events:
-  - name: tidiness.scan.completed
-    payload: { scan_id, issues_found, duration }
-    subscribers: code-quality-enforcer, scenario-health-monitor
-    
-  - name: tidiness.cleanup.executed
-    payload: { suggestion_id, result, files_modified }
-    subscribers: git-manager, deployment-manager
-    
-  - name: tidiness.debt.threshold
-    payload: { debt_score, categories, alert_level }
-    subscribers: product-manager-agent, system-monitor
-    
-consumed_events:
-  - name: scenario.created
-    action: Register new scenario's cleanup patterns
-    
-  - name: git.pre_commit
-    action: Run targeted scan on changed files
-```
+## 🧱 Tech Direction Snapshot
 
-## 🖥️ CLI Interface Contract
+**Architecture Approach**:
+- Go-based API server for performance and concurrency (scan engine, rule processing)
+- React + Vite UI for dashboard and visualization
+- CLI as Go binary wrapping core lib/ functions
+- PostgreSQL for persistence (scan history, rules, learning data)
+- Redis for caching scan results and temporary analysis data
 
-### Command Structure
-```yaml
-cli_binary: code-tidiness-manager
-install_script: cli/install.sh
+**Data Storage**:
+- Primary entities: ScanResult, CleanupAction, CleanupRule in PostgreSQL
+- Cache layer in Redis for performance optimization
+- Optional vector storage (Qdrant) for code similarity detection
 
-required_commands:
-  - name: status
-    description: Show scan history and system health
-    flags: [--json, --verbose]
-    
-  - name: help
-    description: Display command help and usage
-    flags: [--all, --command <name>]
-    
-  - name: version
-    description: Show CLI and API version
-    flags: [--json]
+**Integration Strategy**:
+- **Shared workflows first**: Create code-scanner.json n8n workflow for reusable scanning logic
+- **Resource CLI second**: Use resource-postgres and resource-redis CLI commands
+- **Direct API only when needed**: Real-time scan progress updates require direct endpoints
+- **Event-driven coordination**: Publish tidiness.scan.completed, tidiness.cleanup.executed events
 
-custom_commands:
-  - name: scan
-    description: Run a tidiness scan
-    api_endpoint: /api/v1/tidiness/scan
-    arguments:
-      - name: path
-        type: string
-        required: false
-        description: Specific path to scan (default: entire codebase)
-    flags:
-      - name: --types
-        description: Comma-separated issue types to detect
-      - name: --deep
-        description: Enable deep scan for complex patterns
-      - name: --exclude
-        description: Patterns to exclude from scan
-    output: Scan ID and progress updates
-    
-  - name: suggestions
-    description: List cleanup suggestions
-    api_endpoint: /api/v1/tidiness/suggestions
-    flags:
-      - name: --severity
-        description: Filter by severity (low|medium|high|critical)
-      - name: --limit
-        description: Number of suggestions to show
-      - name: --json
-        description: Output as JSON
-    output: Formatted list of suggestions
-    
-  - name: cleanup
-    description: Execute cleanup suggestions
-    api_endpoint: /api/v1/tidiness/cleanup
-    arguments:
-      - name: suggestion-ids
-        type: string
-        required: true
-        description: Comma-separated suggestion IDs or "all"
-    flags:
-      - name: --dry-run
-        description: Show what would be cleaned without executing
-      - name: --force
-        description: Skip confirmation prompts
-    output: Cleanup execution results
-    
-  - name: register-rule
-    description: Register custom cleanup rule
-    arguments:
-      - name: name
-        type: string
-        required: true
-      - name: pattern
-        type: string
-        required: true
-      - name: action
-        type: string
-        required: true
-    output: Rule registration confirmation
-```
+**Performance Criteria**:
+- Full scan < 60s for entire codebase
+- API response < 500ms per suggestion
+- Memory usage < 512MB during scan
+- False positive rate < 5% for automated cleanups
 
-### CLI-API Parity Requirements
-- Every API endpoint has corresponding CLI command
-- CLI provides both interactive and scriptable modes
-- JSON output available for all commands
-- Progress indicators for long-running operations
+**Non-Goals**:
+- Security credential scanning (delegated to secrets-manager)
+- Runtime monitoring (focus is static analysis)
+- Cross-repository analysis (v1 scope is single Vrooli installation)
 
-### Implementation Standards
-```yaml
-implementation_requirements:
-  - architecture: Go binary wrapping lib/ functions
-  - dependencies: Minimal - uses standard library primarily
-  - error_handling: Clear error messages with suggested fixes
-  - configuration: 
-      - ~/.vrooli/code-tidiness-manager/config.yaml
-      - Environment variables: CTM_* prefix
-      - Command flags override all
-  
-installation:
-  - install_script: Creates symlink in ~/.vrooli/bin/
-  - path_update: Adds to PATH if needed
-  - permissions: 755 on binary
-  - documentation: Comprehensive --help
-```
+## 🤝 Dependencies & Launch Plan
 
-## 🔄 Integration Requirements
+**Required Local Resources**:
+- **postgres**: Persistence layer for scan history, patterns, and learning data
+- **redis**: Caching for performance optimization during large scans
 
-### Upstream Dependencies
-**What capabilities must exist before this can function?**
-- **File System Access**: Read access to entire Vrooli codebase
-- **PostgreSQL**: Persistence layer for scan history and learning
-- **Redis**: Caching for performance optimization
-- **Git**: Understanding of repository structure and history
+**Optional Local Resources**:
+- **qdrant**: Vector storage for advanced code similarity detection (fallback: skip duplicate detection features)
+- **ollama**: AI-powered code analysis and suggestion refinement (fallback: rule-based analysis only)
 
-### Downstream Enablement
-**What future capabilities does this unlock?**
-- **Automated Code Quality**: Enables quality gates and enforcement
-- **Resource Optimization**: Identifies waste for optimization scenarios
-- **Technical Debt Management**: Quantifies and tracks debt over time
-- **Intelligent Refactoring**: Provides data for large-scale improvements
+**Scenario Dependencies**:
+- **Upstream**: File system access, git for repository structure
+- **Downstream enablement**: Unlocks code-quality-enforcer, resource-optimizer, scenario-health-monitor
 
-### Cross-Scenario Interactions
-```yaml
-provides_to:
-  - scenario: git-manager
-    capability: Pre-commit cleanup suggestions
-    interface: Event/API
-    
-  - scenario: scenario-health-monitor
-    capability: Technical debt metrics
-    interface: API
-    
-  - scenario: code-quality-enforcer
-    capability: Quality baseline and rules
-    interface: API/Events
-    
-consumes_from:
-  - scenario: ecosystem-manager
-    capability: New scenario notifications
-    fallback: Periodic full scans
-    
-  - scenario: resource-monitor
-    capability: System load metrics
-    fallback: Run without throttling
-```
+**Cross-Scenario Interactions**:
+- Provides to: git-manager (pre-commit suggestions), scenario-health-monitor (debt metrics), code-quality-enforcer (quality baseline)
+- Consumes from: ecosystem-manager (new scenario notifications), resource-monitor (system load metrics)
 
-## 🎨 Style and Branding Requirements
+**Technical Risks**:
+- False positive cleanups → Mitigation: Confidence scoring, dry-run mode, human review gates
+- Performance impact on large codebases → Mitigation: Incremental scanning, caching, throttling
+- Data loss from cleanup → Mitigation: Backup before cleanup, rollback capability, audit trail
 
-### UI/UX Style Guidelines
-```yaml
-style_profile:
-  category: professional
-  inspiration: GitHub Insights crossed with Marie Kondo minimalism
-  
-  visual_style:
-    color_scheme: light with accent colors for severity
-    typography: modern, clean sans-serif
-    layout: dashboard with cards and charts
-    animations: subtle transitions, progress animations
-  
-  personality:
-    tone: helpful and encouraging
-    mood: calm and organized
-    target_feeling: "My codebase is under control"
+**Launch Sequencing**:
+1. Core scanning engine + rule-based detection
+2. API + CLI with dry-run mode
+3. PostgreSQL/Redis integration
+4. Web dashboard for visualization
+5. Event publishing for cross-scenario coordination
+6. Git hooks and scheduled scanning
 
-style_references:
-  professional: 
-    - "Clean, data-driven dashboard like GitHub Insights"
-    - "Color coding: green=clean, yellow=attention, red=action needed"
-  unique_elements:
-    - "Cleanup progress as satisfying animations"
-    - "Before/after visualization of codebase health"
-    - "Gamified cleanliness score with trends"
-```
+## 🎨 UX & Branding
 
-### Target Audience Alignment
-- **Primary Users**: Developers, DevOps engineers, AI agents
-- **User Expectations**: Professional tool with clear actionable insights
-- **Accessibility**: WCAG AA compliance, keyboard navigation
-- **Responsive Design**: Desktop-first, tablet supported
+**Visual Palette**: Light theme with severity-based accent colors (green=clean, yellow=attention needed, red=action required). Modern, clean sans-serif typography. Dashboard layout with cards and charts inspired by GitHub Insights crossed with Marie Kondo minimalism.
 
-### Brand Consistency Rules
-- Professional design reflecting importance of code quality
-- Clean, organized interface mirroring the goal of clean code
-- Positive reinforcement for cleanup actions
-- Non-judgmental presentation of technical debt
+**Tone & Personality**: Helpful and encouraging, calm and organized. Target feeling: "My codebase is under control." Non-judgmental presentation of technical debt with positive reinforcement for cleanup actions.
 
-## 💰 Value Proposition
+**Accessibility Commitments**:
+- WCAG AA compliance for color contrast and text sizing
+- Full keyboard navigation support
+- Screen reader compatibility for all dashboard elements
+- Responsive design (desktop-first, tablet supported)
 
-### Business Value
-- **Primary Value**: Reduces maintenance costs by 30-40%
-- **Revenue Potential**: $15K - $30K per enterprise deployment
-- **Cost Savings**: 10-20 developer hours per month
-- **Market Differentiator**: Self-learning cleanup intelligence
+**Motion Language**: Subtle transitions for state changes, satisfying progress animations during cleanup operations, before/after visualizations of codebase health improvements.
 
-### Technical Value
-- **Reusability Score**: 9/10 - Every scenario benefits from clean code
-- **Complexity Reduction**: Makes large codebases manageable
-- **Innovation Enablement**: Clean code accelerates development
+**Voice Characteristics**: Professional and data-driven, focusing on actionable insights rather than blame. Clean, organized interface mirroring the goal of clean code.
 
-## 🧬 Evolution Path
+## 📎 Appendix
 
-### Version 1.0 (Current)
-- Core scanning engine with rule-based detection
-- Basic cleanup script generation
-- API and CLI interfaces
-- Simple web dashboard
-
-### Version 2.0 (Planned)
-- ML-based pattern recognition
-- Cross-scenario duplicate detection
-- Automated refactoring suggestions
-- Integration with CI/CD pipelines
-
-### Long-term Vision
-- Fully autonomous code maintenance
-- Predictive technical debt prevention
-- Cross-repository analysis for enterprises
-- Industry-specific cleanup patterns
-
-## 🔄 Scenario Lifecycle Integration
-
-### Direct Scenario Deployment
-```yaml
-direct_execution:
-  supported: true
-  structure_compliance:
-    - service.json with resource dependencies
-    - Database initialization scripts
-    - n8n workflows for scanning
-    - Health check endpoints
-    
-  deployment_targets:
-    - local: Docker Compose with postgres/redis
-    - kubernetes: StatefulSet for persistence
-    - cloud: Lambda for serverless scanning
-    
-  revenue_model:
-    - type: subscription
-    - pricing_tiers:
-        - free: 100 scans/month
-        - pro: Unlimited scans, $99/month
-        - enterprise: Custom rules, $499/month
-    - trial_period: 14 days
-```
-
-### Capability Discovery
-```yaml
-discovery:
-  registry_entry:
-    name: code-tidiness-manager
-    category: maintenance
-    capabilities: 
-      - technical_debt_detection
-      - cleanup_automation
-      - code_quality_metrics
-    interfaces:
-      - api: http://localhost:{port}/api/v1/tidiness
-      - cli: code-tidiness-manager
-      - events: tidiness.*
-      
-  metadata:
-    description: Automated code cleanup and technical debt management
-    keywords: [cleanup, maintenance, quality, technical-debt, refactoring]
-    dependencies: [postgres, redis]
-    enhances: [all scenarios benefit from clean code]
-```
-
-### Version Management
-```yaml
-versioning:
-  current: 1.0.0
-  minimum_compatible: 1.0.0
-  
-  breaking_changes: []
-      
-  deprecations: []
-```
-
-## 🚨 Risk Mitigation
-
-### Technical Risks
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| False positive cleanups | Medium | High | Confidence scoring, dry-run mode |
-| Performance impact on large codebases | Low | Medium | Incremental scanning, caching |
-| Data loss from cleanup | Low | Critical | Backup before cleanup, rollback capability |
-
-### Operational Risks
-- **Over-aggressive cleaning**: Conservative defaults, human review for complex issues
-- **Resource contention**: Throttling, off-peak scheduling
-- **Suggestion fatigue**: Prioritization, batching similar issues
-
-## ✅ Validation Criteria
-
-### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: code-tidiness-manager
-
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/code-tidiness-manager
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - test/run-tests.sh
-    
-  required_dirs:
-    - api
-    - cli
-    - initialization
-    - initialization/automation/n8n
-    - initialization/storage/postgres
-    - ui
-    - lib
-    - docs
-
-resources:
-  required: [postgres, redis]
-  optional: [qdrant, ollama]
-  health_timeout: 60
-
-tests:
-  - name: "PostgreSQL is accessible"
-    type: http
-    service: postgres
-    endpoint: /health
-    method: GET
-    expect:
-      status: 200
-      
-  - name: "Scan API endpoint responds"
-    type: http
-    service: api
-    endpoint: /api/v1/tidiness/scan
-    method: POST
-    body:
-      paths: ["test/"]
-    expect:
-      status: 201
-      body:
-        status: "started"
-        
-  - name: "CLI status command works"
-    type: exec
-    command: ./cli/code-tidiness-manager status --json
-    expect:
-      exit_code: 0
-      output_contains: ["healthy"]
-      
-  - name: "Database schema initialized"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('scan_results', 'cleanup_actions', 'cleanup_rules')"
-    expect:
-      rows: 
-        - count: 3
-        
-  - name: "Can detect backup files"
-    type: exec
-    command: ./cli/code-tidiness-manager scan --types backup_files test/
-    expect:
-      exit_code: 0
-      output_contains: ["scan_id"]
-```
-
-### Test Execution Gates
-```bash
-./test.sh --scenario code-tidiness-manager --validation complete
-```
-
-### Performance Validation
-- [ ] Scan completes in under 60 seconds for 10,000 files
-- [ ] API responses under 500ms for 95th percentile
-- [ ] Memory usage stays under 512MB
-- [ ] Zero data corruption in cleanup operations
-
-### Integration Validation
-- [ ] Discoverable via scenario registry
-- [ ] All API endpoints return expected schemas
-- [ ] CLI commands provide comprehensive help
-- [ ] Events published to message bus
-- [ ] Cleanup suggestions are actionable
-
-### Capability Verification
-- [ ] Detects all common cleanup patterns
-- [ ] Generates safe cleanup scripts
-- [ ] Tracks suggestion acceptance/rejection
-- [ ] Provides useful technical debt metrics
-- [ ] UI clearly shows cleanup opportunities
-
-## 📝 Implementation Notes
-
-### Design Decisions
-**Static Analysis vs Runtime**: Chose static analysis for safety and predictability
-- Alternative considered: Runtime monitoring
-- Decision driver: Safer to analyze without execution
-- Trade-offs: May miss runtime-only issues
-
-**Rule-based vs ML**: Starting with rules, adding ML in v2
-- Alternative considered: ML from start
-- Decision driver: Predictability and explainability
-- Trade-offs: Less sophisticated initially
-
-### Known Limitations
-- **Large binary files**: Skipped to avoid memory issues
-  - Workaround: Separate binary cleanup mode
-  - Future fix: Streaming analysis in v2
-  
-- **Cross-repository dependencies**: Cannot detect
-  - Workaround: Manual dependency mapping
-  - Future fix: Repository relationship tracking
-
-### Security Considerations
-- **Read-only by default**: Explicit permission for cleanup
-- **Audit trail**: All cleanups logged with rollback info
-- **No credential scanning**: Avoid security tool overlap
-
-## 🔗 References
-
-### Documentation
-- README.md - User guide and quick start
-- docs/api.md - Complete API specification
-- docs/rules.md - Cleanup rule documentation
-- docs/patterns.md - Common pattern library
-
-### Related PRDs
-- scenario-health-monitor - Consumes tidiness metrics
-- git-manager - Integrates with pre-commit
-- code-quality-enforcer - Uses tidiness as baseline
-
-### External Resources
+**External References**:
 - Clean Code principles by Robert Martin
 - Technical Debt Quadrant by Martin Fowler
 - SonarQube rule definitions for inspiration
-
----
-
-**Last Updated**: 2024-09-04  
-**Status**: Draft  
-**Owner**: AI Agent  
-**Review Cycle**: Weekly validation against implementation

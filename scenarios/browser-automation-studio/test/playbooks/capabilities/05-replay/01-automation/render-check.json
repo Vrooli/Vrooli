@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates that execution replay artifacts are persisted and can be accessed for rendering",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

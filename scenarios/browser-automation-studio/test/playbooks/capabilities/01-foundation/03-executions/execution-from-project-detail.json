@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates workflow execution triggered from project detail view and monitors execution status",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

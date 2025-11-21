@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates the execution viewer Replay tab displays timeline, screenshots, and replay controls",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

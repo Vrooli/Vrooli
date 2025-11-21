@@ -28,7 +28,7 @@
         "description": "Folder path for the seeded project"
       }
     ],
-    "reset": "project"
+    "reset": "none"
   },
   "nodes": [
     {

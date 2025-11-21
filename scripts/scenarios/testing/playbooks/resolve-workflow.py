@@ -23,8 +23,8 @@ NUMBER_PATTERN = re.compile(r"^-?\d+(?:\.\d+)?$")
 BOOLEAN_TRUE = {"true", "1", "yes", "on"}
 BOOLEAN_FALSE = {"false", "0", "no", "off"}
 SEED_STATE_RELATIVE_PATH = Path("test") / "artifacts" / "runtime" / "seed-state.json"
-RESET_LEVELS = {"none": 0, "project": 1, "global": 2}
-DEFAULT_RESET_LEVEL = "project"
+RESET_LEVELS = {"none": 0, "full": 1, "restart": 2}
+DEFAULT_RESET_LEVEL = "none"
 
 
 @dataclass(frozen=True)

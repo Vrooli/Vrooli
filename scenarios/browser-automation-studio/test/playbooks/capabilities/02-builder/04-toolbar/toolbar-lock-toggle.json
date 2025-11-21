@@ -2,7 +2,7 @@
   "metadata": {
     "description": "Validates locking and unlocking canvas to prevent/allow node interaction",
     "version": 1,
-    "reset": "project"
+    "reset": "none"
   },
   "settings": {
     "executionViewport": {

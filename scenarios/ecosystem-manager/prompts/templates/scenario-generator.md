@@ -8,7 +8,7 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 1. `vrooli scenario status {{TARGET}}`
    - Confirms scenario is set up correctly. Re-run at the end and capture notable warnings in your summary.
 2. `scenario-auditor audit {{TARGET}} --timeout 240`
-   - Expect failures (no code exists yet). Record the output path or summarize the key gaps for improvers.
+   - Expect failures (no code exists yet). Capture the summary-focused output (severity counts, top violations, artifact path) for your final handoff.
 
 ## Generator Deliverables
 1. **Research packet** – `{{PROJECT_PATH}}/scenarios/{{TARGET}}/docs/RESEARCH.md`
@@ -102,7 +102,7 @@ Future agents append to these files; call that out in README.md so progress rema
 - Include the command outputs (or summaries) in your final handoff so the next agent knows the exact starting point.
 
 ## Final Handoff (Required Format)
-1. **Validation Evidence** – Re-run the Quick Validation Loop (status, auditor, tests) and list the exact commands plus where logs/output are stored.
+1. **Validation Evidence** – Re-run the Quick Validation Loop (status + scenario-auditor) and list any important information/tips/links/findings.
 2. **Deliverables & Files** – Enumerate the docs/configs you created or edited (PRD, README, `requirements/index.json`, `docs/PROGRESS.md`, etc.). Mention any template steps you intentionally skipped.
 3. **Scenario Status** – Summarize what’s complete (research, scaffold, requirements), what remains open, and any known failures or blockers.
 4. **Next Iteration Notes** – Capture learnings, open questions, or prioritized recommendations so the next agent can continue seamlessly.
