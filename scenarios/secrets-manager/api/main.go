@@ -3074,6 +3074,19 @@ func ensureAnalyzerDeploymentReport(ctx context.Context, scenario string) *analy
 	}
 	report, err := loadAnalyzerDeploymentReport(scenario)
 	if err == nil && report != nil {
+		// Check if report is stale (> 24 hours old)
+		age := time.Since(report.GeneratedAt)
+		if age > 24*time.Hour {
+			logger.Info("analyzer report for %s is %v old, attempting refresh", scenario, age.Round(time.Hour))
+			// Try to refresh but don't fail if unavailable
+			if freshReport, fetchErr := fetchAnalyzerReportViaService(ctx, scenario); fetchErr == nil && freshReport != nil {
+				if persistErr := persistAnalyzerDeploymentReport(scenario, freshReport); persistErr == nil {
+					return freshReport
+				}
+			}
+			// Return stale report if refresh fails
+			logger.Info("using stale analyzer report for %s (refresh failed)", scenario)
+		}
 		return report
 	}
 	remoteReport, fetchErr := fetchAnalyzerReportViaService(ctx, scenario)
@@ -3545,6 +3558,16 @@ func buildJourneyCards(vaultStatus *VaultSecretsStatus, security *SecurityScanRe
 		}
 	}
 	journeys := []JourneyCard{
+		{
+			ID:          "orientation",
+			Title:       "Orientation",
+			Description: "Get familiar with your security posture and available workflows.",
+			Status:      "steady",
+			CtaLabel:    "Start Tour",
+			CtaAction:   "open-orientation-flow",
+			Primers:     []string{"Getting started"},
+			Badge:       "Start",
+		},
 		{
 			ID:          "configure-secrets",
 			Title:       "Configure Secrets",

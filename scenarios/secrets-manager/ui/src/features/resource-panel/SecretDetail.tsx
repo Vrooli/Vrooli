@@ -75,41 +75,78 @@ export const SecretDetail = ({
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-[0.2em] text-white/60">Add / update strategy</p>
           <div className="grid gap-2">
-            <select
-              value={strategyTier}
-              onChange={(event) => onSetStrategyTier(event.target.value)}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+            <label className="text-xs text-white/60">
+              Deployment Tier
+              <select
+                value={strategyTier}
+                onChange={(event) => onSetStrategyTier(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+              >
+                {tierReadiness.map((tier) => (
+                  <option key={tier.tier} value={tier.tier}>
+                    {tier.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-white/60">
+              Handling Strategy
+              <select
+                value={strategyHandling}
+                onChange={(event) => onSetStrategyHandling(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+              >
+                <option value="prompt">Prompt (ask user for value)</option>
+                <option value="generate">Generate (auto-create at build time)</option>
+                <option value="strip">Strip (exclude from bundle)</option>
+                <option value="delegate">Delegate (use cloud provider secret)</option>
+              </select>
+            </label>
+            {strategyHandling === "prompt" && (
+              <>
+                <label className="text-xs text-white/60">
+                  Prompt Label <span className="text-amber-300">*</span>
+                  <input
+                    value={strategyPrompt}
+                    onChange={(event) => onSetStrategyPrompt(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                    placeholder="e.g., Database Password"
+                    required
+                  />
+                </label>
+                <label className="text-xs text-white/60">
+                  Prompt Description <span className="text-amber-300">*</span>
+                  <textarea
+                    value={strategyDescription}
+                    onChange={(event) => onSetStrategyDescription(event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
+                    placeholder="Explain what this secret is used for and how to obtain it"
+                    rows={2}
+                    required
+                  />
+                </label>
+              </>
+            )}
+            {strategyHandling === "generate" && (
+              <div className="rounded-xl border border-cyan-400/30 bg-cyan-400/5 px-3 py-2 text-xs text-cyan-100">
+                ℹ️ This secret will be auto-generated at deployment time using a secure random generator.
+              </div>
+            )}
+            {strategyHandling === "strip" && (
+              <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 px-3 py-2 text-xs text-amber-100">
+                ⚠️ This secret will be excluded from the deployment bundle. Ensure the feature doesn't require it.
+              </div>
+            )}
+            {strategyHandling === "delegate" && (
+              <div className="rounded-xl border border-purple-400/30 bg-purple-400/5 px-3 py-2 text-xs text-purple-100">
+                ☁️ This secret will be managed by the cloud provider (e.g., AWS Secrets Manager, Vault).
+              </div>
+            )}
+            <Button
+              size="sm"
+              onClick={onApplyStrategy}
+              disabled={strategyHandling === "prompt" && (!strategyPrompt.trim() || !strategyDescription.trim())}
             >
-              {tierReadiness.map((tier) => (
-                <option key={tier.tier} value={tier.tier}>
-                  {tier.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={strategyHandling}
-              onChange={(event) => onSetStrategyHandling(event.target.value)}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
-            >
-              <option value="prompt">Prompt</option>
-              <option value="generate">Generate</option>
-              <option value="strip">Strip</option>
-              <option value="delegate">Delegate</option>
-            </select>
-            <input
-              value={strategyPrompt}
-              onChange={(event) => onSetStrategyPrompt(event.target.value)}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
-              placeholder="Prompt label"
-            />
-            <textarea
-              value={strategyDescription}
-              onChange={(event) => onSetStrategyDescription(event.target.value)}
-              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white"
-              placeholder="Prompt description"
-              rows={2}
-            />
-            <Button size="sm" onClick={onApplyStrategy}>
               Apply strategy
             </Button>
           </div>

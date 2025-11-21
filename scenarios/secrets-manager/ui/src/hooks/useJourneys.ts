@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { generateDeploymentManifest, type DeploymentManifestRequest, type DeploymentManifestResponse } from "../lib/api";
+import {
+  generateDeploymentManifest,
+  provisionSecrets,
+  type DeploymentManifestRequest,
+  type DeploymentManifestResponse,
+  type ProvisionSecretsPayload,
+  type ProvisionSecretsResponse
+} from "../lib/api";
 import { buildJourneySteps, type JourneyId } from "../features/journeys/journeySteps";
 
 interface UseJourneysOptions {
@@ -28,14 +35,22 @@ interface UseJourneysOptions {
 }
 
 export const useJourneys = (options: UseJourneysOptions) => {
-  const [activeJourney, setActiveJourney] = useState<JourneyId | null>(null);
+  // Default to orientation journey on mount
+  const [activeJourney, setActiveJourney] = useState<JourneyId | null>("orientation");
   const [journeyStep, setJourneyStep] = useState(0);
   const [deploymentScenario, setDeploymentScenario] = useState("picker-wheel");
   const [deploymentTier, setDeploymentTier] = useState("tier-2-desktop");
   const [resourceInput, setResourceInput] = useState("");
+  const [provisionResourceInput, setProvisionResourceInput] = useState("");
+  const [provisionSecretKey, setProvisionSecretKey] = useState("");
+  const [provisionSecretValue, setProvisionSecretValue] = useState("");
 
   const manifestMutation = useMutation<DeploymentManifestResponse, Error, DeploymentManifestRequest>({
     mutationFn: (payload) => generateDeploymentManifest(payload)
+  });
+
+  const provisionMutation = useMutation<ProvisionSecretsResponse, Error, ProvisionSecretsPayload>({
+    mutationFn: (payload) => provisionSecrets(payload)
   });
 
   const parsedResources = useMemo(() => {
@@ -55,6 +70,22 @@ export const useJourneys = (options: UseJourneysOptions) => {
     });
   }, [manifestMutation, deploymentScenario, deploymentTier, parsedResources]);
 
+  const handleProvisionSubmit = useCallback(() => {
+    provisionMutation.mutate({
+      resource: provisionResourceInput,
+      secret_key: provisionSecretKey,
+      secret_value: provisionSecretValue
+    });
+  }, [provisionMutation, provisionResourceInput, provisionSecretKey, provisionSecretValue]);
+
+  // Clear provision form on success
+  useEffect(() => {
+    if (provisionMutation.isSuccess) {
+      setProvisionSecretKey("");
+      setProvisionSecretValue("");
+    }
+  }, [provisionMutation.isSuccess]);
+
   const journeySteps = useMemo(
     () =>
       buildJourneySteps(activeJourney, {
@@ -64,6 +95,12 @@ export const useJourneys = (options: UseJourneysOptions) => {
         deploymentScenario,
         deploymentTier,
         resourceInput,
+        provisionResourceInput,
+        provisionSecretKey,
+        provisionSecretValue,
+        provisionIsLoading: provisionMutation.isPending,
+        provisionIsSuccess: provisionMutation.isSuccess,
+        provisionError: provisionMutation.error?.message,
         manifestData: manifestMutation.data,
         manifestIsLoading: manifestMutation.isPending,
         manifestIsError: manifestMutation.isError,
@@ -74,7 +111,11 @@ export const useJourneys = (options: UseJourneysOptions) => {
         onManifestRequest: handleManifestRequest,
         onSetDeploymentScenario: setDeploymentScenario,
         onSetDeploymentTier: setDeploymentTier,
-        onSetResourceInput: setResourceInput
+        onSetResourceInput: setResourceInput,
+        onSetProvisionResourceInput: setProvisionResourceInput,
+        onSetProvisionSecretKey: setProvisionSecretKey,
+        onSetProvisionSecretValue: setProvisionSecretValue,
+        onProvisionSubmit: handleProvisionSubmit
       }),
     [
       activeJourney,
@@ -84,6 +125,12 @@ export const useJourneys = (options: UseJourneysOptions) => {
       deploymentScenario,
       deploymentTier,
       resourceInput,
+      provisionResourceInput,
+      provisionSecretKey,
+      provisionSecretValue,
+      provisionMutation.isPending,
+      provisionMutation.isSuccess,
+      provisionMutation.error,
       manifestMutation.data,
       manifestMutation.isPending,
       manifestMutation.isError,
@@ -91,7 +138,8 @@ export const useJourneys = (options: UseJourneysOptions) => {
       options.topResourceNeedingAttention,
       options.onOpenResource,
       options.onRefetchVulnerabilities,
-      handleManifestRequest
+      handleManifestRequest,
+      handleProvisionSubmit
     ]
   );
 

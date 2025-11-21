@@ -150,6 +150,8 @@ export default function App() {
         <TierReadiness
           tierReadiness={tierReadiness}
           isLoading={orientationQuery.isLoading}
+          onOpenResource={openResourcePanel}
+          resourceInsights={resourceInsights}
         />
 
         <ResourceWorkbench

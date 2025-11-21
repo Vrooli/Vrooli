@@ -386,3 +386,24 @@ export const updateVulnerabilityStatus = (id: string, payload: UpdateVulnerabili
     method: "POST",
     body: JSON.stringify(payload)
   });
+
+export interface ProvisionSecretsPayload {
+  resource: string;
+  secret_key?: string;
+  secret_value?: string;
+  secrets?: Record<string, string>;
+}
+
+export interface ProvisionSecretsResponse {
+  success: boolean;
+  message?: string;
+  local_stored: number;
+  vault_stored: number;
+  total_provisioned: number;
+}
+
+export const provisionSecrets = (payload: ProvisionSecretsPayload) =>
+  jsonFetch<ProvisionSecretsResponse>("/secrets/provision", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });

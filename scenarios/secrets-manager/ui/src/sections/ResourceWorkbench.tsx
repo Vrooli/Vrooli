@@ -1,6 +1,7 @@
 import { Target } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { LoadingResourceCard } from "../components/ui/LoadingStates";
+import { HelpDialog } from "../components/ui/HelpDialog";
 import { classificationTone } from "../lib/constants";
 
 interface ResourceSecret {
@@ -27,9 +28,29 @@ interface ResourceWorkbenchProps {
 export const ResourceWorkbench = ({ resourceInsights, isLoading, onOpenResource }: ResourceWorkbenchProps) => (
   <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
     <div className="flex items-center justify-between">
-      <div>
-        <p className="text-xs uppercase tracking-[0.3em] text-white/60">Resource Workbench</p>
-        <h2 className="mt-1 text-2xl font-semibold text-white">Per-Resource Control</h2>
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-semibold text-white">Per-Resource Secret Management</h2>
+          <HelpDialog title="Resource Workbench">
+            <p>
+              Each resource (postgres, redis, vault, etc.) requires specific secrets to function. This workbench shows the configuration status per resource.
+            </p>
+            <div className="mt-3 space-y-2">
+              <p><strong className="text-white">Secret Classifications:</strong></p>
+              <ul className="ml-4 space-y-1">
+                <li><strong className="text-sky-200">Infrastructure:</strong> Critical secrets like database passwords - should never be bundled in desktop/mobile apps</li>
+                <li><strong className="text-purple-200">Service:</strong> App-level secrets like JWT keys - can be generated during deployment</li>
+                <li><strong className="text-amber-200">User:</strong> User-provided secrets like API keys - prompt user during setup</li>
+              </ul>
+            </div>
+            <p className="mt-3">
+              Click <strong className="text-white">Manage</strong> on any resource to configure secret classifications and deployment strategies.
+            </p>
+          </HelpDialog>
+        </div>
+        <p className="mt-1 text-sm text-white/60">
+          Configure secrets, classifications, and deployment strategies
+        </p>
       </div>
       <Target className="h-5 w-5 text-white/60" />
     </div>
