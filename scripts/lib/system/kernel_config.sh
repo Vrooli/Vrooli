@@ -127,8 +127,8 @@ kernel_config::configure_judge0() {
 }
 
 kernel_config::ensure_inotify_limits() {
-    local min_watches=${1:-524288}
-    local min_instances=${2:-1024}
+    local min_watches=${1:-1048576}
+    local min_instances=${2:-2048}
     local changed=false
     local current
 

@@ -8,6 +8,17 @@
  * linting. Do not hand-roll selector helpers or change this structure—update the
  * maps below so UI code, automation flows, and the manifest builder all stay in
  * sync across every scenario.
+ *
+ * ## Auto-Generated Manifest
+ *
+ * The `selectors.manifest.json` file is automatically generated from this file
+ * during the testing process. If you need to add or modify selectors:
+ *
+ * 1. Update the `literalSelectors` object below for static selectors
+ * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
+ * 3. The manifest will be regenerated automatically when tests run
+ *
+ * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
  */
 
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };

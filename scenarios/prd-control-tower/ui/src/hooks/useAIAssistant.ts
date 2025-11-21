@@ -15,6 +15,7 @@ interface UseAIAssistantResult {
   aiSection: string
   aiContext: string
   aiAction: AIAction
+  aiModel: string
   aiResult: string | null
   aiGenerating: boolean
   aiError: string | null
@@ -26,6 +27,7 @@ interface UseAIAssistantResult {
   setAISection: (section: string) => void
   setAIContext: (context: string) => void
   setAIAction: (action: AIAction) => void
+  setAIModel: (model: string) => void
   handleAIGenerate: () => Promise<void>
   handleQuickAction: (action: AIAction) => Promise<void>
   applyAIResult: (mode: 'insert' | 'replace') => void
@@ -41,6 +43,7 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
   const [aiSection, setAISection] = useState('Executive Summary')
   const [aiContext, setAIContext] = useState('')
   const [aiAction, setAIAction] = useState<AIAction>('')
+  const [aiModel, setAIModel] = useState<string>('default')
   const [aiResult, setAIResult] = useState<string | null>(null)
   const [aiGenerating, setAIGenerating] = useState(false)
   const [aiError, setAIError] = useState<string | null>(null)
@@ -75,10 +78,21 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     setAIGenerating(true)
     setAIError(null)
     try {
+      const payload: Record<string, string> = {
+        section: aiSection,
+        context: aiContext,
+        action: aiAction
+      }
+
+      // Only include model if it's not 'default'
+      if (aiModel && aiModel !== 'default') {
+        payload.model = aiModel
+      }
+
       const response = await fetch(buildApiUrl(`/drafts/${draftId}/ai/generate-section`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ section: aiSection, context: aiContext, action: aiAction }),
+        body: JSON.stringify(payload),
       })
       if (!response.ok) {
         const message = await response.text()
@@ -94,7 +108,7 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     } finally {
       setAIGenerating(false)
     }
-  }, [draftId, aiSection, aiContext, aiAction])
+  }, [draftId, aiSection, aiContext, aiAction, aiModel])
 
   const handleQuickAction = useCallback(async (action: AIAction) => {
     if (!aiContext.trim()) {
@@ -105,10 +119,21 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     setAIGenerating(true)
     setAIError(null)
     try {
+      const payload: Record<string, string> = {
+        section: '',
+        context: aiContext,
+        action
+      }
+
+      // Only include model if it's not 'default'
+      if (aiModel && aiModel !== 'default') {
+        payload.model = aiModel
+      }
+
       const response = await fetch(buildApiUrl(`/drafts/${draftId}/ai/generate-section`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ section: '', context: aiContext, action }),
+        body: JSON.stringify(payload),
       })
       if (!response.ok) {
         const message = await response.text()
@@ -124,7 +149,7 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     } finally {
       setAIGenerating(false)
     }
-  }, [draftId, aiContext])
+  }, [draftId, aiContext, aiModel])
 
   const applyAIResult = useCallback(
     (mode: 'insert' | 'replace') => {
@@ -158,6 +183,7 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     aiSection,
     aiContext,
     aiAction,
+    aiModel,
     aiResult,
     aiGenerating,
     aiError,
@@ -169,6 +195,7 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     setAISection,
     setAIContext,
     setAIAction,
+    setAIModel,
     handleAIGenerate,
     handleQuickAction,
     applyAIResult,

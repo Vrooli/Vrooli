@@ -249,6 +249,9 @@ function App() {
         setSelectedFolder(project.folder_path || "/");
       }
 
+      // Set view immediately so WorkflowBuilder renders even if loading fails
+      setCurrentView("project-workflow");
+
       try {
         await loadWorkflow(workflowId);
         const loadedWorkflow = useWorkflowStore.getState().currentWorkflow;
@@ -262,7 +265,6 @@ function App() {
             normalized.folderPath || project.folder_path || "/",
           );
         }
-        setCurrentView("project-workflow");
       } catch (error) {
         logger.error(
           "Failed to load workflow",

@@ -154,6 +154,7 @@ export function DraftEditorPane({
     aiSection,
     aiContext,
     aiAction,
+    aiModel,
     aiResult,
     aiGenerating,
     aiError,
@@ -165,6 +166,7 @@ export function DraftEditorPane({
     setAISection,
     setAIContext,
     setAIAction,
+    setAIModel,
     handleAIGenerate,
     handleQuickAction,
     applyAIResult,
@@ -346,6 +348,7 @@ export function DraftEditorPane({
         section={aiSection}
         context={aiContext}
         action={aiAction}
+        model={aiModel}
         generating={aiGenerating}
         result={aiResult}
         error={aiError}
@@ -356,6 +359,7 @@ export function DraftEditorPane({
         onSectionChange={setAISection}
         onContextChange={setAIContext}
         onActionChange={setAIAction}
+        onModelChange={setAIModel}
         onGenerate={handleAIGenerate}
         onQuickAction={handleQuickAction}
         onInsert={applyAIResult}

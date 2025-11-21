@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 SELECTOR_CACHE: Dict[str, Dict[str, Any]] = {}
+MANIFEST_REGENERATED: Set[str] = set()  # Track regenerated manifests to prevent loops
 MANIFEST_FILENAME = "selectors.manifest.json"
 SELECTOR_TOKEN_PATTERN = re.compile(r"@selector/([A-Za-z0-9_.-]+)(\([^)]*\))?")
 FIXTURE_TOKEN_PATTERN = re.compile(r"^@fixture/([A-Za-z0-9_.-]+)(\s*\(.*\))?$")
@@ -547,6 +548,50 @@ def load_selector_registry(scenario_dir: Path) -> Dict[str, Any]:
     return data
 
 
+def regenerate_selector_manifest(scenario_dir: Path, manifest_path: Path) -> bool:
+    """
+    Regenerate selector manifest by invoking build-selector-manifest.js.
+    Returns True if regeneration succeeded, False otherwise.
+    """
+    import subprocess
+
+    # Prevent infinite regeneration loops
+    manifest_key = str(manifest_path)
+    if manifest_key in MANIFEST_REGENERATED:
+        return False
+
+    app_root = scenario_dir.parent.parent
+    manifest_script = app_root / "scripts" / "scenarios" / "testing" / "playbooks" / "build-selector-manifest.js"
+
+    if not manifest_script.exists():
+        return False
+
+    try:
+        result = subprocess.run(
+            ["node", str(manifest_script), "--scenario", str(scenario_dir)],
+            capture_output=True,
+            text=True,
+            timeout=30,  # Reasonable timeout for compilation
+            check=True
+        )
+
+        # Mark as regenerated to prevent loops
+        MANIFEST_REGENERATED.add(manifest_key)
+
+        # Clear cache so reload will fetch fresh manifest
+        SELECTOR_CACHE.pop(manifest_key, None)
+
+        return True
+
+    except subprocess.CalledProcessError as e:
+        # Regeneration script failed - log but don't crash
+        print(f"Warning: Selector manifest regeneration failed: {e.stderr}", file=sys.stderr)
+        return False
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        print(f"Warning: Could not regenerate selector manifest: {e}", file=sys.stderr)
+        return False
+
+
 def parse_selector_arguments(argument_segment: str, pointer: str) -> Dict[str, str]:
     content = argument_segment.strip()
     if not content.startswith("(") or not content.endswith(")"):
@@ -737,12 +782,115 @@ def inject_selector_references(
                     )
 
             if resolved is None:
-                raise RuntimeError(
-                    "Selector reference '@selector/"
-                    + selector_key
-                    + "' not found. Define it in "
-                    + str(manifest_path)
-                )
+                # Attempt auto-regeneration on first encounter
+                manifest_key = str(manifest_path)
+                scenario_dir = manifest_path.parent.parent.parent.parent
+
+                if manifest_key not in MANIFEST_REGENERATED:
+                    # Try to regenerate manifest
+                    if regenerate_selector_manifest(scenario_dir, manifest_path):
+                        # Reload manifest from disk
+                        selector_registry = load_selector_registry(scenario_dir)
+                        if selector_registry:
+                            fresh_manifest = selector_registry.get("manifest") or {}
+                            fresh_selector_map = fresh_manifest.get("selectors", {})
+
+                            # Retry lookup with fresh manifest
+                            if args_segment:
+                                resolved = build_dynamic_selector(
+                                    selector_key,
+                                    args_segment,
+                                    fresh_manifest,
+                                    manifest_path,
+                                    pointer,
+                                )
+                            else:
+                                entry = fresh_selector_map.get(selector_key)
+                                if entry is not None:
+                                    resolved = entry.get("selector")
+                                else:
+                                    # Try dynamic selector
+                                    resolved = build_dynamic_selector(
+                                        selector_key,
+                                        args_segment,
+                                        fresh_manifest,
+                                        manifest_path,
+                                        pointer,
+                                    )
+
+                # If still not resolved after regeneration attempt, show error
+                if resolved is None:
+                    # Find similar selector keys using better matching
+                    all_selectors = list(selector_map.keys())
+                    dynamic_selectors = list(manifest.get("dynamicSelectors", {}).keys())
+                    all_keys = all_selectors + dynamic_selectors
+
+                    # Improved similarity matching
+                    suggestions = []
+                    selector_parts = selector_key.split('.')
+                    for key in all_keys:
+                        key_parts = key.split('.')
+                        # Match if any part of the selector matches
+                        if any(part in key_parts for part in selector_parts):
+                            suggestions.append(key)
+                        # Or if first part matches
+                        elif selector_parts and key_parts and selector_parts[0] == key_parts[0]:
+                            suggestions.append(key)
+
+                    # Sort by similarity (prefer closer matches)
+                    suggestions.sort(key=lambda k: (
+                        # Prioritize same first segment
+                        0 if k.split('.')[0] == selector_parts[0] else 1,
+                        # Then by length difference
+                        abs(len(k.split('.')) - len(selector_parts))
+                    ))
+
+                    # Get UI source path (where selectors are defined)
+                    selectors_ts_path = scenario_dir / "ui" / "src" / "consts" / "selectors.ts"
+
+                    error_msg = (
+                        f"\n{'='*80}\n"
+                        f"❌ SELECTOR NOT FOUND: @selector/{selector_key}\n"
+                        f"{'='*80}\n\n"
+                        f"📍 Error Location:\n"
+                        f"   Test file pointer: {pointer}\n\n"
+                    )
+
+                    if manifest_key in MANIFEST_REGENERATED:
+                        error_msg += (
+                            f"ℹ️  Note: Manifest was automatically regenerated but selector still not found.\n"
+                            f"   This means the selector is not registered in selectors.ts.\n\n"
+                        )
+                    else:
+                        error_msg += f"   The selector '@selector/{selector_key}' does not exist in the manifest.\n\n"
+
+                    if suggestions:
+                        error_msg += f"💡 Did you mean one of these?\n"
+                        for s in suggestions[:5]:
+                            error_msg += f"   • @selector/{s}\n"
+                        error_msg += "\n"
+
+                    error_msg += (
+                        f"📚 How to Fix This:\n\n"
+                        f"   1. Register the selector in {selectors_ts_path.relative_to(scenario_dir)}:\n"
+                        f"      Add to 'literalSelectors' object:\n"
+                        f"      {{\n"
+                        f"        myCategory: {{\n"
+                        f"          myElement: 'my-element',  // testId value\n"
+                        f"        }}\n"
+                        f"      }}\n\n"
+                        f"   2. Import and use it in your UI component:\n"
+                        f"      import {{ selectors }} from '@/consts/selectors';\n"
+                        f"      <div data-testid={{selectors.myCategory.myElement}}>...</div>\n\n"
+                        f"   3. Re-run your tests:\n"
+                        f"      The manifest will be automatically regenerated on next run.\n\n"
+                        f"   4. See documentation:\n"
+                        f"      docs/testing/guides/ui-automation-with-bas.md\n\n"
+                        f"ℹ️  Available: {len(all_selectors)} static selectors, {len(dynamic_selectors)} dynamic\n"
+                        f"{'='*80}\n"
+                    )
+
+                    raise RuntimeError(error_msg)
             return resolved
 
         replaced = SELECTOR_TOKEN_PATTERN.sub(_replace, definition)
