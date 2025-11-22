@@ -1,8 +1,7 @@
 {
   "_metadata": {
     "prd_section": "P0 - Human UI Dashboard",
-    "description": "React UI for humans to manage tidiness campaigns and view issues",
-    "last_synced_at": "2025-11-21T18:20:27.230Z"
+    "description": "React UI for humans to manage tidiness campaigns and view issues"
   },
   "requirements": [
     {
@@ -16,32 +15,11 @@
           "type": "test",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/01-light-scanning/ui/global-dashboard.json",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/01-light-scanning/ui/global-dashboard.json"
         }
       ],
       "notes": "Sortable by each column; clickable rows to drill into scenario detail",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-UI-002",
@@ -54,32 +32,11 @@
           "type": "test",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/01-light-scanning/ui/global-dashboard.json",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/01-light-scanning/ui/global-dashboard.json"
         }
       ],
       "notes": "Use emoji/icons from PRD branding hooks",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-UI-003",
@@ -92,32 +49,11 @@
           "type": "test",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json"
         }
       ],
       "notes": "Include long-file flag indicator",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-UI-004",
@@ -130,32 +66,11 @@
           "type": "test",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json"
         }
       ],
       "notes": "Default sort: descending by total issues",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-UI-005",
@@ -168,32 +83,11 @@
           "type": "test",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json"
         }
       ],
       "notes": "Filters should persist in URL query params",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-UI-006",
@@ -206,32 +100,11 @@
           "type": "test",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/04-ui-dashboard/ui/theme.json",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/04-ui-dashboard/ui/theme.json"
         }
       ],
       "notes": "Use Tailwind dark mode utilities",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-UI-007",
@@ -244,32 +117,11 @@
           "type": "test",
           "phase": "business",
           "status": "not_implemented",
-          "ref": "test/playbooks/capabilities/04-ui-dashboard/ui/accessibility.json",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "business",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/playbooks/capabilities/04-ui-dashboard/ui/accessibility.json"
         }
       ],
       "notes": "Arrow keys for table navigation, Enter to select",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     }
   ]
 }

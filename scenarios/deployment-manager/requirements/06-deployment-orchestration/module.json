@@ -1,0 +1,156 @@
+{
+  "module_id": "deployment-orchestration",
+  "title": "Deployment Orchestration",
+  "priority": "P0",
+  "description": "Execute deployments with real-time monitoring and scenario-to-* integration",
+  "requirements": [
+    {
+      "id": "DM-P0-028",
+      "category": "deployment-orchestration",
+      "prd_ref": "OT-P0-028",
+      "title": "One-Click Deployment Trigger",
+      "description": "Trigger deployment with single \"Deploy\" button after validation passes",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "deployment",
+        "ux"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-029",
+      "category": "deployment-orchestration",
+      "prd_ref": "OT-P0-029",
+      "title": "Profile Locking During Deployment",
+      "description": "Lock profile to prevent edits during active deployment",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "deployment",
+        "safety"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-030",
+      "category": "deployment-orchestration",
+      "prd_ref": "OT-P0-030",
+      "title": "Real-Time Log Streaming",
+      "description": "Stream deployment logs to UI with <2s latency via WebSocket or SSE",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "deployment",
+        "logging"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-031",
+      "category": "deployment-orchestration",
+      "prd_ref": "OT-P0-031",
+      "title": "Log Filtering and Search",
+      "description": "Enable log filtering by level (info/warning/error) and full-text search",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "deployment",
+        "logging"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-032",
+      "category": "deployment-orchestration",
+      "prd_ref": "OT-P0-032",
+      "title": "Deployment Failure Handling",
+      "description": "Capture error logs on failure and display \"Retry\" button with error context",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "deployment",
+        "error-handling"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-033",
+      "category": "deployment-orchestration",
+      "prd_ref": "OT-P0-033",
+      "title": "scenario-to-* Integration",
+      "description": "Call platform-specific packagers (scenario-to-desktop, scenario-to-ios, etc.) with deployment profile",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "deployment",
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-034",
+      "category": "deployment-orchestration",
+      "prd_ref": "OT-P0-034",
+      "title": "scenario-to-* Auto-Discovery",
+      "description": "Auto-discover installed scenario-to-* scenarios on startup, warn if missing required packagers",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "deployment",
+        "discovery"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    }
+  ],
+  "_metadata": {}
+}

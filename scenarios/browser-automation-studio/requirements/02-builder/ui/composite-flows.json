@@ -3,8 +3,7 @@
     "description": "Composite end-to-end user flow requirements that validate complete feature journeys",
     "last_validated_at": "2025-11-16T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T14:01:14.533Z"
+    "schema_version": "1.0.0"
   },
   "requirements": [
     {
@@ -21,32 +20,9 @@
           "ref": "test/playbooks/journeys/01-new-user/happy-path-new-user.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "41-step workflow covering: project creation → workflow building → node configuration → execution → history viewing → replay. Skips AI generation for deterministic testing.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "41-step workflow covering: project creation → workflow building → node configuration → execution → history viewing → replay. Skips AI generation for deterministic testing."
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-COMPOSITE-AI-PATH",
@@ -57,17 +33,7 @@
       "status": "pending",
       "criticality": "P1",
       "notes": "Automation playbook still pending (planned location: test/playbooks/journeys/happy-path-ai-generation.json)",
-      "validation": [],
-      "_sync_metadata": {
-        "last_updated": "2025-11-20T14:01:07.071Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "validation": []
     },
     {
       "id": "BAS-COMPOSITE-DEBUG-FLOW",
@@ -78,17 +44,7 @@
       "status": "pending",
       "criticality": "P1",
       "notes": "Automation playbook pending (planned: test/playbooks/journeys/debug-workflow-failure.json)",
-      "validation": [],
-      "_sync_metadata": {
-        "last_updated": "2025-11-20T14:01:07.071Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "validation": []
     },
     {
       "id": "BAS-COMPOSITE-EDIT-EXISTING",
@@ -99,17 +55,7 @@
       "status": "pending",
       "criticality": "P1",
       "notes": "Automation playbook pending (planned: test/playbooks/journeys/edit-existing-workflow.json)",
-      "validation": [],
-      "_sync_metadata": {
-        "last_updated": "2025-11-20T14:01:07.071Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "validation": []
     },
     {
       "id": "BAS-COMPOSITE-VERSION-RESTORE",
@@ -120,17 +66,7 @@
       "status": "pending",
       "criticality": "P2",
       "notes": "Automation playbook pending (planned: test/playbooks/journeys/version-history-restore.json)",
-      "validation": [],
-      "_sync_metadata": {
-        "last_updated": "2025-11-20T14:01:07.071Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "validation": []
     }
   ]
 }

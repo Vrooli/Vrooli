@@ -1,8 +1,7 @@
 {
   "_metadata": {
     "prd_section": "P0 - Agent-Callable Interface",
-    "description": "HTTP/CLI API for other agents to request tidiness recommendations",
-    "last_synced_at": "2025-11-21T18:29:33.662Z"
+    "description": "HTTP/CLI API for other agents to request tidiness recommendations"
   },
   "requirements": [
     {
@@ -16,32 +15,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "GET /api/v1/scenarios/{name}/issues?limit=N&severity=high",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-API-002",
@@ -54,32 +32,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "GET /api/v1/scenarios/{name}/issues?file=path/to/file.ts",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-API-003",
@@ -92,32 +49,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "GET /api/v1/scenarios/{name}/issues?category=dead_code",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-API-004",
@@ -130,34 +66,11 @@
           "type": "test",
           "phase": "unit",
           "status": "not_implemented",
-          "ref": "api/issue_ranker_test.go",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:29:20-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "api/issue_ranker_test.go"
         }
       ],
       "notes": "Define clear ranking formula in API docs",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:29:20-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-API-005",
@@ -170,32 +83,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/cli/agent-api.bats",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/cli/agent-api.bats"
         }
       ],
       "notes": "tidiness-manager issues <scenario> --limit 10 --category dead_code",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-API-006",
@@ -208,32 +100,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Schema must support querying by all filterable dimensions",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-API-007",
@@ -246,32 +117,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Enables audit trail and trend analysis",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     }
   ]
 }

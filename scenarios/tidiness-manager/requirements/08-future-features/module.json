@@ -1,8 +1,7 @@
 {
   "_metadata": {
     "prd_section": "P2 - Future Expansion Features",
-    "description": "Advanced capabilities for post-launch iteration",
-    "last_synced_at": "2025-11-21T18:00:24.821Z"
+    "description": "Advanced capabilities for post-launch iteration"
   },
   "requirements": [
     {
@@ -13,17 +12,7 @@
       "description": "Display code health metrics over time (% files long, % files with issues, avg issues per file)",
       "validation": [],
       "notes": "Requires time-series data aggregation from scan history",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-FF-002",
@@ -33,17 +22,7 @@
       "description": "Auto-create tasks in app-issue-tracker for high-severity tidiness issues",
       "validation": [],
       "notes": "Configurable severity threshold for task creation",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-FF-003",
@@ -53,17 +32,7 @@
       "description": "Call code-smell scenario for pattern-based analysis beyond structural issues",
       "validation": [],
       "notes": "Combine structural (tidiness) + pattern (code-smell) analysis",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-FF-004",
@@ -73,17 +42,7 @@
       "description": "Auto-apply safe fixes (e.g., dead import removal) with approval workflow",
       "validation": [],
       "notes": "Risk-based approval: auto for safe, manual for moderate/dangerous",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-FF-005",
@@ -93,17 +52,7 @@
       "description": "Allow humans to define custom tidiness rules (e.g., 'no files >X lines in api/handlers/')",
       "validation": [],
       "notes": "JSON/YAML rule definitions with regex or glob patterns",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-FF-006",
@@ -113,17 +62,7 @@
       "description": "Generate fleet-wide tidiness reports showing worst offenders across all scenarios",
       "validation": [],
       "notes": "Aggregate view for ecosystem health monitoring",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-FF-007",
@@ -133,17 +72,7 @@
       "description": "Webhook/API hooks for blocking PRs with new tidiness violations",
       "validation": [],
       "notes": "Compare baseline vs. PR branch tidiness scores",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-FF-008",
@@ -153,17 +82,7 @@
       "description": "Use file criticality heuristics (main.go > test fixtures) to rank issues",
       "validation": [],
       "notes": "Weighted scoring based on file role/location",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     }
   ]
 }

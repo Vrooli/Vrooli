@@ -1,0 +1,135 @@
+{
+  "module_id": "dependency-analysis",
+  "title": "Dependency Analysis & Fitness Scoring",
+  "priority": "P0",
+  "description": "Recursively analyze dependencies, calculate fitness scores, and identify blockers for multi-tier deployments",
+  "requirements": [
+    {
+      "id": "DM-P0-001",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-001",
+      "title": "Dependency Aggregation",
+      "description": "Recursively fetch all resource and scenario dependencies (depth 10) within 5 seconds",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "dependency-analysis",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-002",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-002",
+      "title": "Circular Dependency Detection",
+      "description": "Display clear error when circular dependencies detected (A → B → C → A)",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "dependency-analysis",
+        "error-handling"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-003",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-003",
+      "title": "Multi-Tier Fitness Scoring",
+      "description": "Calculate fitness score (0-100) for all 5 tiers within 2 seconds per dependency",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "fitness-scoring",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-004",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-004",
+      "title": "Fitness Score Breakdown",
+      "description": "Break down fitness into 4+ sub-scores: portability, resource requirements, licensing, platform support",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "fitness-scoring",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-005",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-005",
+      "title": "Blocker Identification",
+      "description": "Clearly state reason for blockers (fitness = 0) with actionable remediation",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "fitness-scoring",
+        "ux"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-006",
+      "category": "dependency-analysis",
+      "prd_ref": "OT-P0-006",
+      "title": "Aggregate Resource Tallies",
+      "description": "Display total memory, CPU, GPU, storage, network requirements with units",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "resource-analysis",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    }
+  ],
+  "_metadata": {}
+}

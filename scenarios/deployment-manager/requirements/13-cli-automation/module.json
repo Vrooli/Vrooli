@@ -1,0 +1,8 @@
+{
+  "module_id": "cli-automation",
+  "title": "CLI Automation Features",
+  "priority": "P2",
+  "description": "Batch operations, CI/CD integration, and CLI workflows",
+  "requirements": [],
+  "_metadata": {}
+}

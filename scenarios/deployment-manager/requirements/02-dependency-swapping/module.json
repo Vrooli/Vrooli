@@ -1,0 +1,114 @@
+{
+  "module_id": "dependency-swapping",
+  "title": "Dependency Swapping",
+  "priority": "P0",
+  "description": "Suggest, analyze, and apply dependency swaps to improve deployment fitness",
+  "requirements": [
+    {
+      "id": "DM-P0-007",
+      "category": "dependency-swapping",
+      "prd_ref": "OT-P0-007",
+      "title": "Swap Suggestions",
+      "description": "Suggest at least one swap for each blocker/low-fitness dependency (<50) or show \"No known alternatives\"",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "swapping",
+        "recommendations"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-008",
+      "category": "dependency-swapping",
+      "prd_ref": "OT-P0-008",
+      "title": "Swap Impact Analysis",
+      "description": "Show fitness delta, trade-offs (pros/cons), and migration effort estimate for each swap",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "swapping",
+        "analysis"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-009",
+      "category": "dependency-swapping",
+      "prd_ref": "OT-P0-009",
+      "title": "Non-Destructive Swaps",
+      "description": "Applying swaps updates deployment profile only, never modifies source code",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "swapping",
+        "safety"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-010",
+      "category": "dependency-swapping",
+      "prd_ref": "OT-P0-010",
+      "title": "Real-Time Recalculation",
+      "description": "Recalculate fitness and requirements within 1 second after swap application",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "swapping",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-011",
+      "category": "dependency-swapping",
+      "prd_ref": "OT-P0-011",
+      "title": "Cascading Swap Detection",
+      "description": "Detect and warn about cascading impacts (e.g., swapping postgres removes dependent scenario X)",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "swapping",
+        "validation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    }
+  ],
+  "_metadata": {}
+}

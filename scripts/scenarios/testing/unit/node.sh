@@ -219,19 +219,11 @@ testing::unit::run_node_tests() {
     local test_output
     local test_success=false
 
-    local -a coverage_args=("--coverage")
-    if [[ "$uses_vitest" == "true" ]]; then
-        coverage_args+=(
-            "--coverage.reporter=json-summary"
-            "--coverage.reportOnFailure"
-            "--coverage.thresholds.lines=0"
-            "--coverage.thresholds.functions=0"
-            "--coverage.thresholds.branches=0"
-            "--coverage.thresholds.statements=0"
-        )
-    fi
-
-    local -a runner_args=("${coverage_args[@]}")
+    # Note: For vitest 2.x, detailed coverage config (reporter, thresholds, etc.)
+    # must be in vite.config.ts. The --coverage flag is supported to enable coverage,
+    # but --coverage.* CLI flags are not supported and will cause errors.
+    # The test script in package.json should include --coverage for vitest.
+    local -a runner_args=()
     if [ "$verbose" != true ]; then
         runner_args+=("--silent")
     fi

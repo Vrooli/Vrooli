@@ -43,17 +43,73 @@ function parseManifestEntry(envEntry, manifestPath) {
   return readLatestManifestEntry(manifestPath);
 }
 
-function normalizeRequirementSnapshots(fileSnapshots) {
+/**
+ * Load sync metadata from coverage/sync/ directory
+ * @param {string} moduleFilePath - Absolute path to requirement module file
+ * @param {string} scenarioRoot - Scenario root directory
+ * @returns {object} Sync metadata object with requirements map
+ */
+function loadSyncMetadataForModule(moduleFilePath, scenarioRoot) {
+  const relativePath = path.relative(
+    path.join(scenarioRoot, 'requirements'),
+    moduleFilePath
+  );
+
+  // Transform path to match sync file naming
+  let syncFileName = relativePath
+    .replace(/^requirements\//, '')
+    .replace(/\/module\.json$/, '.json');
+
+  const syncFilePath = path.join(scenarioRoot, 'coverage', 'sync', syncFileName);
+
+  if (!fs.existsSync(syncFilePath)) {
+    // No sync file yet (first run or deleted) - return empty structure
+    return { requirements: {} };
+  }
+
+  try {
+    const content = fs.readFileSync(syncFilePath, 'utf8');
+    const parsed = JSON.parse(content);
+
+    // Validate structure
+    if (!parsed || typeof parsed !== 'object') {
+      console.warn(`Invalid sync file structure: ${syncFilePath}`);
+      return { requirements: {} };
+    }
+
+    if (!parsed.requirements || typeof parsed.requirements !== 'object') {
+      console.warn(`Sync file missing requirements object: ${syncFilePath}`);
+      return { requirements: {} };
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error(`Unable to load sync metadata from ${syncFilePath}: ${error.message}`);
+    return { requirements: {} };
+  }
+}
+
+function normalizeRequirementSnapshots(fileSnapshots, scenarioRoot) {
   const requirementMap = {};
   if (!Array.isArray(fileSnapshots)) {
     return requirementMap;
   }
+
   fileSnapshots.forEach((file) => {
+    // Load sync metadata from coverage/sync/ (NEW)
+    const syncData = loadSyncMetadataForModule(file.absolute_path, scenarioRoot);
+
     const requirements = Array.isArray(file.requirements) ? file.requirements : [];
     requirements.forEach((req) => {
       if (!req || !req.id) {
         return;
       }
+
+      // Get sync metadata from loaded sync file (not from requirement object)
+      const reqSyncMeta = syncData.requirements && syncData.requirements[req.id]
+        ? syncData.requirements[req.id]
+        : null;
+
       requirementMap[req.id] = {
         id: req.id,
         status: req.status || 'pending',
@@ -61,16 +117,21 @@ function normalizeRequirementSnapshots(fileSnapshots) {
         prd_ref: req.prd_ref || null,
         module: req.module || file.module || null,
         file: file.relative_path,
-        sync_metadata: req.sync_metadata || null,
+        sync_metadata: reqSyncMeta,  // Now from coverage/sync/
         validations: Array.isArray(req.validations)
-          ? req.validations.map((validation) => ({
-            type: validation.type || null,
-            ref: validation.ref || null,
-            status: validation.status || null,
-            phase: validation.phase || null,
-            workflow_id: validation.workflow_id || null,
-            sync_metadata: validation.sync_metadata || null,
-          }))
+          ? req.validations.map((validation, idx) => {
+              const valSyncMeta = reqSyncMeta && reqSyncMeta.validations
+                ? reqSyncMeta.validations[idx]
+                : null;
+              return {
+                type: validation.type || null,
+                ref: validation.ref || null,
+                status: validation.status || null,
+                phase: validation.phase || null,
+                workflow_id: validation.workflow_id || null,
+                sync_metadata: valSyncMeta,  // Now from coverage/sync/
+              };
+            })
           : [],
       };
     });
@@ -226,7 +287,7 @@ function writeSnapshot({
     return null;
   }
 
-  const requirementMap = normalizeRequirementSnapshots(fileSnapshots);
+  const requirementMap = normalizeRequirementSnapshots(fileSnapshots, scenarioRoot);
   const targets = deriveOperationalTargets(fileSnapshots);
   const payload = {
     scenario: scenarioName,

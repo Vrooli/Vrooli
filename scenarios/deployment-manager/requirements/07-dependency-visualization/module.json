@@ -1,0 +1,72 @@
+{
+  "module_id": "dependency-visualization",
+  "title": "Dependency Graph Visualization",
+  "priority": "P0",
+  "description": "Interactive visual representation of dependency trees with fitness scores",
+  "requirements": [
+    {
+      "id": "DM-P0-035",
+      "category": "dependency-visualization",
+      "prd_ref": "OT-P0-035",
+      "title": "Interactive Dependency Graph",
+      "description": "Render dependency tree as interactive graph (React Flow or d3-force) with color-coded fitness scores",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "visualization",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-036",
+      "category": "dependency-visualization",
+      "prd_ref": "OT-P0-036",
+      "title": "Table View Alternative",
+      "description": "Provide sortable table view with columns: name, type, fitness score, issues, suggested swaps",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "visualization",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-037",
+      "category": "dependency-visualization",
+      "prd_ref": "OT-P0-037",
+      "title": "Graph Rendering Performance",
+      "description": "Render dependency graph within 3 seconds for scenarios with ≤100 dependencies",
+      "status": "pending",
+      "criticality": "P0",
+      "tags": [
+        "visualization",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "ref": "test/phases/test-integration.sh"
+        }
+      ]
+    }
+  ],
+  "_metadata": {}
+}

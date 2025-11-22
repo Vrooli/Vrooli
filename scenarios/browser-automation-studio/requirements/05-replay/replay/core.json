@@ -3,8 +3,7 @@
     "description": "Replay and artifact persistence requirements",
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T14:01:14.535Z"
+    "schema_version": "1.0.0"
   },
   "requirements": [
     {
@@ -21,70 +20,23 @@
           "ref": "api/services/timeline_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Validates timeline persistence, retrieval, and query filters.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates timeline persistence, retrieval, and query filters."
         },
         {
           "type": "test",
           "ref": "test/phases/test-unit.sh",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Unit phase captures timeline service coverage thresholds.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Unit phase captures timeline service coverage thresholds."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/05-replay/01-automation/render-check.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "E2E validation that replay artifacts are persisted and accessible for rendering",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:43-05:00",
-            "test_duration_ms": 2000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "E2E validation that replay artifacts are persisted and accessible for rendering"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:43-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 3,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json",
-          "coverage/phase-results/integration.json",
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-REPLAY-EXPORT-BUNDLE",
@@ -100,106 +52,37 @@
           "ref": "api/services/exporter.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "Exporter generates ReplayMovieSpec with execution metadata.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Exporter generates ReplayMovieSpec with execution metadata."
         },
         {
           "type": "test",
           "ref": "api/services/exporter_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Unit tests validate export bundle generation and metadata.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Unit tests validate export bundle generation and metadata."
         },
         {
           "type": "test",
           "ref": "api/services/replay_renderer.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "ReplayRenderer generates video/gif from replay specs via Browserless (tested in unit phase).",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "ReplayRenderer generates video/gif from replay specs via Browserless (tested in unit phase)."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/05-replay/01-automation/render-check.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "End-to-end validation of replay export and rendering workflow.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "End-to-end validation of replay export and rendering workflow."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/05-replay/02-ui/execution-result-export.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates execution result export functionality and replay artifact availability in the UI",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates execution result export functionality and replay artifact availability in the UI"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:43-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/business.json",
-          "coverage/phase-results/integration.json",
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     }
   ]
 }

@@ -1,0 +1,8 @@
+{
+  "module_id": "advanced-features",
+  "title": "Advanced Features",
+  "priority": "P2",
+  "description": "Canary deployments, A/B testing, and advanced deployment strategies",
+  "requirements": [],
+  "_metadata": {}
+}

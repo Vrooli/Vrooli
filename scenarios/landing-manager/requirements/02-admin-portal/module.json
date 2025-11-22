@@ -14,11 +14,11 @@
         {
           "type": "automation",
           "phase": "business",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
-      "status": "pending",
+      "status": "in_progress",
       "notes": "API endpoint or CLI command to spawn Claude Code agent with structured brief"
     },
     {
@@ -31,11 +31,11 @@
         {
           "type": "automation",
           "phase": "business",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
-      "status": "pending",
+      "status": "in_progress",
       "dependencies": [
         "AGENT-TRIGGER"
       ],
@@ -50,13 +50,13 @@
       "validation": [
         {
           "type": "automation",
-          "phase": "business",
-          "status": "not_implemented",
+          "phase": "integration",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
-      "status": "pending",
-      "notes": "Admin routes should be on separate path (e.g., /admin) with no public references"
+      "status": "in_progress",
+      "notes": "Admin routes on /admin path with no public references. BAS playbook created."
     },
     {
       "id": "ADMIN-AUTH",
@@ -67,13 +67,13 @@
       "validation": [
         {
           "type": "automation",
-          "phase": "business",
-          "status": "not_implemented",
+          "phase": "integration",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
-      "status": "pending",
-      "notes": "Use bcrypt (Go: golang.org/x/crypto/bcrypt) or argon2 for password hashing"
+      "status": "in_progress",
+      "notes": "bcrypt authentication implemented (api/auth.go). Session management with httpOnly cookies. BAS playbook created."
     },
     {
       "id": "ADMIN-MODES",
@@ -84,16 +84,16 @@
       "validation": [
         {
           "type": "automation",
-          "phase": "business",
-          "status": "not_implemented",
+          "phase": "integration",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
-      "status": "pending",
+      "status": "in_progress",
       "dependencies": [
         "ADMIN-AUTH"
       ],
-      "notes": "UI should have clear mode switcher on admin home page"
+      "notes": "Admin home page (ui/src/pages/AdminHome.tsx) displays two mode cards. BAS playbook created."
     },
     {
       "id": "ADMIN-NAV",
@@ -104,16 +104,16 @@
       "validation": [
         {
           "type": "automation",
-          "phase": "business",
-          "status": "not_implemented",
+          "phase": "integration",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
-      "status": "pending",
+      "status": "in_progress",
       "dependencies": [
         "ADMIN-MODES"
       ],
-      "notes": "Test all navigation paths from admin home to ensure ≤ 3 clicks"
+      "notes": "Both mode cards accessible in 1 click from admin home. BAS playbook created."
     },
     {
       "id": "ADMIN-BREADCRUMB",
@@ -124,13 +124,13 @@
       "validation": [
         {
           "type": "automation",
-          "phase": "business",
-          "status": "not_implemented",
+          "phase": "integration",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
         }
       ],
-      "status": "pending",
-      "notes": "Format: Admin / Customization / Hero / Variant A"
+      "status": "in_progress",
+      "notes": "Breadcrumb component displays 'Admin' on admin home. BAS playbook created."
     }
   ],
   "_metadata": {}

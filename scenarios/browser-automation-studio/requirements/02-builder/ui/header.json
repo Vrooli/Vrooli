@@ -3,8 +3,7 @@
     "description": "Header and workflow management UI requirements",
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T14:01:14.533Z"
+    "schema_version": "1.0.0"
   },
   "requirements": [
     {
@@ -21,32 +20,9 @@
           "ref": "test/playbooks/capabilities/02-builder/05-header/header-title-edit.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Validates inline title editing with save/cancel affordances",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates inline title editing with save/cancel affordances"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-HEADER-EXECUTE",
@@ -62,32 +38,9 @@
           "ref": "test/playbooks/capabilities/02-builder/05-header/header-execute-workflow.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Validates execute button triggers workflow execution with loading/success states",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates execute button triggers workflow execution with loading/success states"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-HEADER-INFO-POPOVER",
@@ -103,32 +56,9 @@
           "ref": "test/playbooks/capabilities/02-builder/05-header/header-info-popover.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates info popover displays correct metadata and dismisses properly",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates info popover displays correct metadata and dismisses properly"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-HEADER-SAVE-STATUS",
@@ -144,32 +74,9 @@
           "ref": "test/playbooks/capabilities/02-builder/05-header/header-save-status.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Validates save status transitions through saving -> saved states",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates save status transitions through saving -> saved states"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     }
   ]
 }

@@ -183,6 +183,61 @@ function normalizeRelativePath(baseDir, filePath) {
   return path.relative(baseDir, filePath) || filePath;
 }
 
+/**
+ * Write sync metadata to coverage/sync/ directory
+ * @param {string} moduleFilePath - Absolute path to requirement module file
+ * @param {object} syncData - Sync metadata object
+ * @param {string} scenarioRoot - Scenario root directory
+ */
+function writeSyncMetadataFile(moduleFilePath, syncData, scenarioRoot) {
+  const relativePath = path.relative(
+    path.join(scenarioRoot, 'requirements'),
+    moduleFilePath
+  );
+
+  // Transform path: requirements/01-foo/module.json → 01-foo.json
+  //                requirements/index.json → index.json
+  let syncFileName = relativePath
+    .replace(/^requirements\//, '')  // Remove leading 'requirements/' if present
+    .replace(/\/module\.json$/, '.json');  // Replace '/module.json' with '.json'
+
+  // Handle index.json case
+  if (syncFileName === 'index.json') {
+    syncFileName = 'index.json';
+  }
+
+  const syncDir = path.join(scenarioRoot, 'coverage', 'sync');
+  const syncFilePath = path.join(syncDir, syncFileName);
+
+  fs.mkdirSync(path.dirname(syncFilePath), { recursive: true });
+
+  try {
+    fs.writeFileSync(syncFilePath, JSON.stringify(syncData, null, 2) + '\n', 'utf8');
+  } catch (error) {
+    console.error(`Failed to write sync metadata to ${syncFilePath}: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Remove all _sync_metadata blocks from requirement structure
+ * @param {object} parsed - Parsed requirement file
+ */
+function removeAllSyncMetadata(parsed) {
+  if (!parsed.requirements) return;
+
+  parsed.requirements.forEach(req => {
+    delete req._sync_metadata;
+
+    // NOTE: Property name is 'validation' (singular) in JSON files
+    if (Array.isArray(req.validation)) {
+      req.validation.forEach(val => {
+        delete val._sync_metadata;
+      });
+    }
+  });
+}
+
 function captureFileSnapshot(filePath, parsed, serializedContent, context) {
   if (!context || !Array.isArray(context.snapshotFiles)) {
     return;
@@ -204,13 +259,20 @@ function captureFileSnapshot(filePath, parsed, serializedContent, context) {
   const fileRequirements = Array.isArray(parsed.requirements) ? parsed.requirements : [];
   const moduleName = parsed._metadata && parsed._metadata.module ? parsed._metadata.module : null;
 
+  // Build sync file path for reference
+  const syncRelativePath = relativePath
+    .replace(/^requirements\//, '')
+    .replace(/\/module\.json$/, '.json');
+  const syncFilePath = `coverage/sync/${syncRelativePath}`;
+
   const requirementSnapshots = fileRequirements.map((req) => ({
     id: req.id,
     status: req.status,
     criticality: req.criticality || null,
     prd_ref: req.prd_ref || null,
     module: moduleName,
-    sync_metadata: req._sync_metadata || null,
+    // NOTE: sync_metadata will be loaded separately in snapshot.js
+    sync_metadata: null,  // Placeholder - filled by normalizeRequirementSnapshots
     validations: Array.isArray(req.validation)
       ? req.validation.map((validation) => ({
         type: validation.type || null,
@@ -218,13 +280,16 @@ function captureFileSnapshot(filePath, parsed, serializedContent, context) {
         status: validation.status || null,
         phase: validation.phase || null,
         workflow_id: validation.workflow_id || null,
-        sync_metadata: validation._sync_metadata || null,
+        // NOTE: sync_metadata will be loaded separately in snapshot.js
+        sync_metadata: null,  // Placeholder - filled by normalizeRequirementSnapshots
       }))
       : [],
   }));
 
   context.snapshotFiles.push({
     relative_path: relativePath,
+    absolute_path: filePath,  // NEW: Needed by loadSyncMetadataForModule
+    sync_file: syncFilePath,  // NEW: Track corresponding sync file
     hash,
     mtime,
     module: moduleName,
@@ -240,15 +305,22 @@ function syncRequirementFile(filePath, requirements, context = {}) {
 
   const originalContent = fs.readFileSync(filePath, 'utf8');
   const parsed = JSON.parse(originalContent);
-  let finalContent = originalContent;
   const updates = [];
-  let metadataChanged = false;
+  let statusChanged = false;  // Track status changes separately
   const testsRunCommands = normalizeTestCommands(context.testCommands);
 
   const requirementMap = new Map();
   (parsed.requirements || []).forEach((req, idx) => {
     requirementMap.set(req.id, idx);
   });
+
+  // Build sync data structure (for coverage/sync/)
+  const syncData = {
+    module_id: parsed.module_id || (parsed._metadata && parsed._metadata.module) || null,
+    module_file: normalizeRelativePath(context.scenarioRoot, filePath),
+    last_synced_at: new Date().toISOString(),
+    requirements: {}
+  };
 
   requirements.forEach((requirement) => {
     const requirementMeta = requirement.__meta;
@@ -257,6 +329,7 @@ function syncRequirementFile(filePath, requirements, context = {}) {
       ? requirementMeta.originalStatus
       : requirement.status;
 
+    // Process validations and check for status changes
     if (Array.isArray(requirement.validations)) {
       requirement.validations.forEach((validation, index) => {
         const derivedStatus = deriveValidationStatus(validation);
@@ -264,6 +337,7 @@ function syncRequirementFile(filePath, requirements, context = {}) {
 
         if (derivedStatus && derivedStatus !== validation.status) {
           validation.status = derivedStatus;
+          statusChanged = true;  // Validation status changed
           updates.push({
             type: 'validation',
             requirement: requirement.id,
@@ -275,12 +349,14 @@ function syncRequirementFile(filePath, requirements, context = {}) {
       });
     }
 
+    // Check requirement status
     const nextStatus = deriveRequirementStatus(requirement.status, validationStatuses);
     if (nextStatus && nextStatus !== originalStatus) {
       requirement.status = nextStatus;
       if (requirementMeta) {
         requirementMeta.originalStatus = nextStatus;
       }
+      statusChanged = true;  // Requirement status changed
       updates.push({
         type: 'requirement',
         requirement: requirement.id,
@@ -295,6 +371,8 @@ function syncRequirementFile(filePath, requirements, context = {}) {
     }
 
     const parsedRequirement = parsed.requirements[reqIndex];
+
+    // Update statuses in parsed structure (for potential write)
     parsedRequirement.status = requirement.status;
 
     if (Array.isArray(requirement.validations) && Array.isArray(parsedRequirement.validation)) {
@@ -305,30 +383,36 @@ function syncRequirementFile(filePath, requirements, context = {}) {
       });
     }
 
+    // Build sync metadata (ALWAYS, regardless of status changes)
     const evidenceLookup = buildEvidenceLookup(requirement.liveEvidence || []);
     const previousRequirementMetadata = (requirementMeta && requirementMeta.originalSyncMetadata)
       || parsedRequirement._sync_metadata
       || null;
+
     const nextRequirementMetadata = buildRequirementSyncMetadata(
       requirement,
       previousRequirementMetadata,
       testsRunCommands,
     );
 
-    if (!metadataEqual(previousRequirementMetadata, nextRequirementMetadata)) {
-      parsedRequirement._sync_metadata = nextRequirementMetadata;
-      metadataChanged = true;
-    }
+    // Store in syncData structure
+    syncData.requirements[requirement.id] = {
+      ...nextRequirementMetadata,
+      validations: {}
+    };
 
+    // Build validation sync metadata
     if (Array.isArray(requirement.validations) && Array.isArray(parsedRequirement.validation)) {
       requirement.validations.forEach((validation, idx) => {
         const parsedValidation = parsedRequirement.validation[idx];
         if (!parsedValidation) {
           return;
         }
+
         const validationMeta = validation && validation.__meta ? validation.__meta.originalSyncMetadata : null;
         const previousValidationMetadata = validationMeta || parsedValidation._sync_metadata || null;
         const manualEntry = context.manualEntries ? context.manualEntries.get(requirement.id) : null;
+
         const nextValidationMetadata = buildValidationSyncMetadata(
           validation,
           previousValidationMetadata,
@@ -337,24 +421,32 @@ function syncRequirementFile(filePath, requirements, context = {}) {
           manualEntry,
           context.manualManifestRelative,
         );
-        if (!metadataEqual(previousValidationMetadata, nextValidationMetadata)) {
-          parsedValidation._sync_metadata = nextValidationMetadata;
-          metadataChanged = true;
-        }
+
+        // Store in syncData structure
+        syncData.requirements[requirement.id].validations[idx] = nextValidationMetadata;
       });
     }
   });
 
-  if (updates.length > 0 || metadataChanged) {
-    if (!parsed._metadata) {
-      parsed._metadata = {};
+  // ALWAYS write sync file (contains timestamps, test_names, etc.)
+  writeSyncMetadataFile(filePath, syncData, context.scenarioRoot);
+
+  // ONLY write requirement file if status changed
+  if (statusChanged) {
+    // Remove ALL sync metadata before writing
+    removeAllSyncMetadata(parsed);
+
+    // Remove module-level last_synced_at
+    if (parsed._metadata) {
+      delete parsed._metadata.last_synced_at;
     }
-    parsed._metadata.last_synced_at = new Date().toISOString();
-    finalContent = `${JSON.stringify(parsed, null, 2)}\n`;
+
+    const finalContent = `${JSON.stringify(parsed, null, 2)}\n`;
     fs.writeFileSync(filePath, finalContent, 'utf8');
   }
 
-  captureFileSnapshot(filePath, parsed, finalContent, context);
+  // Capture snapshot (reads from requirement file + sync file)
+  captureFileSnapshot(filePath, parsed, originalContent, context);
 
   return updates;
 }

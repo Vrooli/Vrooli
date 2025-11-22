@@ -70,11 +70,11 @@
       "id": "fixture-assert-builder",
       "type": "assert",
       "data": {
-        "label": "Builder canvas visible",
-        "selector": "@selector/workflowBuilder.canvas.reactFlow",
+        "label": "Builder fully initialized and interactive",
+        "selector": "@selector/workflowBuilder.reactFlowReady",
         "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Workflow builder should be visible after opening"
+        "timeoutMs": 15000,
+        "failureMessage": "Workflow builder should be fully initialized and ready for automation. This indicates React Flow has completed its initialization, viewport calculations, and fitView animation."
       }
     }
   ],

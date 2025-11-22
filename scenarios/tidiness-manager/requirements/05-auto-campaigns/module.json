@@ -1,8 +1,7 @@
 {
   "_metadata": {
     "prd_section": "P1 - Automatic Campaign Management",
-    "description": "Background campaigns that systematically improve code health across scenarios",
-    "last_synced_at": "2025-11-21T18:20:27.230Z"
+    "description": "Background campaigns that systematically improve code health across scenarios"
   },
   "requirements": [
     {
@@ -16,32 +15,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Store config in postgres campaigns table",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-AC-002",
@@ -54,32 +32,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Prevent resource exhaustion and AI cost runaway",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-AC-003",
@@ -92,32 +49,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Query visited-tracker for completion status",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-AC-004",
@@ -130,32 +66,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Track session count in campaign state",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-AC-005",
@@ -168,32 +83,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "State transitions: ACTIVE ⇄ PAUSED",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-AC-006",
@@ -206,32 +100,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Preserve partial results and mark as 'terminated'",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.820Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-AC-007",
@@ -244,32 +117,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Threshold: 3 consecutive failures triggers error state",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-AC-008",
@@ -282,32 +134,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Notify via UI/logs when campaign errors out",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     }
   ]
 }

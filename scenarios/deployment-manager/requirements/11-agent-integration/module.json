@@ -1,0 +1,8 @@
+{
+  "module_id": "agent-integration",
+  "title": "Agent Integration (Migration Strategies)",
+  "priority": "P1",
+  "description": "AI-powered migration proposals and automatic issue creation",
+  "requirements": [],
+  "_metadata": {}
+}

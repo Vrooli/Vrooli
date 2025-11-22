@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "description": "Creates a new project and verifies it appears in the project list with success feedback",
+    "description": "Creates a new project and verifies navigation to project detail page",
     "version": 1,
     "reset": "full"
   },
@@ -90,32 +90,34 @@
       }
     },
     {
-      "id": "wait-for-modal-close",
-      "type": "wait",
+      "id": "assert-navigated-to-project",
+      "type": "evaluate",
       "data": {
-        "label": "Wait for modal to close and state to update",
-        "waitType": "duration",
-        "durationMs": 1000
+        "label": "Verify URL changed to project detail",
+        "expression": "window.location.pathname.startsWith('/projects/')",
+        "storeAs": "navigatedToProject"
       }
     },
     {
-      "id": "wait-for-render",
-      "type": "wait",
-      "data": {
-        "label": "Wait for React re-render",
-        "durationMs": 500,
-        "waitType": "duration"
-      }
-    },
-    {
-      "id": "assert-project-in-list",
+      "id": "assert-workflows-tab-visible",
       "type": "assert",
       "data": {
-        "label": "New project appears in list",
-        "selector": "@selector/projects.card",
+        "label": "Workflows tab is visible",
+        "selector": "@selector/workflows.tab",
         "assertMode": "exists",
         "timeoutMs": 10000,
-        "failureMessage": "Newly created project should appear in the projects grid"
+        "failureMessage": "Workflows tab should be visible on project detail page"
+      }
+    },
+    {
+      "id": "assert-new-workflow-button-visible",
+      "type": "assert",
+      "data": {
+        "label": "New workflow button is visible",
+        "selector": "@selector/workflows.newButton",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "New workflow button should be visible on workflows tab"
       }
     }
   ],
@@ -159,19 +161,19 @@
     {
       "id": "e8",
       "source": "click-create",
-      "target": "wait-for-modal-close",
+      "target": "assert-navigated-to-project",
       "type": "smoothstep"
     },
     {
       "id": "e9",
-      "source": "wait-for-modal-close",
-      "target": "wait-for-render",
+      "source": "assert-navigated-to-project",
+      "target": "assert-workflows-tab-visible",
       "type": "smoothstep"
     },
     {
       "id": "e10",
-      "source": "wait-for-render",
-      "target": "assert-project-in-list",
+      "source": "assert-workflows-tab-visible",
+      "target": "assert-new-workflow-button-visible",
       "type": "smoothstep"
     }
   ]

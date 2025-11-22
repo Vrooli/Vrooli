@@ -1,8 +1,7 @@
 {
   "_metadata": {
     "prd_section": "P1 - Data, Consistency & Auditability",
-    "description": "Scan history, configuration management, and audit trails",
-    "last_synced_at": "2025-11-21T18:20:27.231Z"
+    "description": "Scan history, configuration management, and audit trails"
   },
   "requirements": [
     {
@@ -16,32 +15,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Store in issues table as resource_id",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-DA-002",
@@ -54,32 +32,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "created_at timestamp for trend analysis",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-DA-003",
@@ -92,32 +49,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "campaign_id and session_id foreign keys",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-DA-004",
@@ -130,32 +66,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Long file lines, max scans per file, max concurrent campaigns",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-DA-005",
@@ -168,32 +83,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "E.g., allow longer files in generated code scenarios",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-DA-006",
@@ -206,32 +100,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Prevent accidental scan storms from agent loops",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-DA-007",
@@ -244,32 +117,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "GET /api/v1/scenarios/{name}/issues?force_scan=true",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-DA-008",
@@ -282,32 +134,11 @@
           "type": "test",
           "phase": "integration",
           "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Prevent overwhelming AI resources with concurrent scans",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.821Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     }
   ]
 }

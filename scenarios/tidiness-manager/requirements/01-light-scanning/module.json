@@ -1,8 +1,7 @@
 {
   "_metadata": {
     "prd_section": "P0 - Light Scanning Engine",
-    "description": "Cheap, fast static analysis using Makefile integration and file metrics",
-    "last_synced_at": "2025-11-21T18:29:33.660Z"
+    "description": "Cheap, fast static analysis using Makefile integration and file metrics"
   },
   "requirements": [
     {
@@ -16,34 +15,11 @@
           "type": "test",
           "phase": "unit",
           "status": "not_implemented",
-          "ref": "api/light_scanner_test.go",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:29:20-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "api/light_scanner_test.go"
         }
       ],
       "notes": "Must handle scenarios without Makefile gracefully (skip or warn)",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:29:20-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-LS-002",
@@ -56,34 +32,11 @@
           "type": "test",
           "phase": "unit",
           "status": "not_implemented",
-          "ref": "api/light_scanner_test.go",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:29:20-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "api/light_scanner_test.go"
         }
       ],
       "notes": "Parse typescript and Go type errors into structured format",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:29:20-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-LS-003",
@@ -96,34 +49,11 @@
           "type": "test",
           "phase": "unit",
           "status": "not_implemented",
-          "ref": "api/parsers_test.go",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:29:20-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "api/parsers_test.go"
         }
       ],
       "notes": "Support multiple linter formats (eslint, golangci-lint)",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:29:20-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-LS-004",
@@ -136,34 +66,11 @@
           "type": "test",
           "phase": "unit",
           "status": "not_implemented",
-          "ref": "api/parsers_test.go",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:29:20-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "api/parsers_test.go"
         }
       ],
       "notes": "Support typescript tsc and Go type errors",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:29:20-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-LS-005",
@@ -176,34 +83,11 @@
           "type": "test",
           "phase": "unit",
           "status": "not_implemented",
-          "ref": "api/file_metrics_test.go",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:29:20-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "api/file_metrics_test.go"
         }
       ],
       "notes": "Default patterns: src/**/*.{ts,tsx,go,js,jsx}",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:29:20-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-LS-006",
@@ -216,34 +100,11 @@
           "type": "test",
           "phase": "unit",
           "status": "not_implemented",
-          "ref": "api/file_metrics_test.go",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T13:29:20-05:00",
-            "test_duration_ms": 1000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "api/file_metrics_test.go"
         }
       ],
       "notes": "Default threshold: 400-600 lines (configurable per scenario)",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T13:29:20-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-LS-007",
@@ -256,32 +117,11 @@
           "type": "test",
           "phase": "performance",
           "status": "not_implemented",
-          "ref": "test/phases/test-performance.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "performance",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-performance.sh"
         }
       ],
       "notes": "Test with browser-automation-studio or similar",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.819Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     },
     {
       "id": "TM-LS-008",
@@ -294,32 +134,11 @@
           "type": "test",
           "phase": "performance",
           "status": "not_implemented",
-          "ref": "test/phases/test-performance.sh",
-          "_sync_metadata": {
-            "last_test_run": null,
-            "test_duration_ms": 0,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": null,
-            "source_phase": "performance",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "ref": "test/phases/test-performance.sh"
         }
       ],
       "notes": "Timeout handling with clear status reporting",
-      "status": "pending",
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T18:00:24.819Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      "status": "pending"
     }
   ]
 }

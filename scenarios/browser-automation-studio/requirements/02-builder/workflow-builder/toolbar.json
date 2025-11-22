@@ -3,8 +3,7 @@
     "description": "Workflow builder toolbar operation requirements",
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T14:01:14.535Z"
+    "schema_version": "1.0.0"
   },
   "requirements": [
     {
@@ -21,32 +20,9 @@
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-zoom-in.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates zoom in button functionality and canvas zoom level increase",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates zoom in button functionality and canvas zoom level increase"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-TOOLBAR-ZOOM-OUT",
@@ -62,32 +38,9 @@
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-zoom-out.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates zoom out button functionality and canvas zoom level decrease",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates zoom out button functionality and canvas zoom level decrease"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-TOOLBAR-FIT-VIEW",
@@ -103,32 +56,9 @@
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-fit-view.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates fit view centers canvas with all nodes visible",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates fit view centers canvas with all nodes visible"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-TOOLBAR-UNDO",
@@ -144,32 +74,9 @@
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-undo.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates undo reverts node addition, deletion, and position changes",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates undo reverts node addition, deletion, and position changes"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-TOOLBAR-REDO",
@@ -185,32 +92,9 @@
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-redo.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates redo re-applies undone changes",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates redo re-applies undone changes"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-TOOLBAR-LOCK-CANVAS",
@@ -226,32 +110,9 @@
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-lock-toggle.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates lock prevents node dragging and unlock re-enables interaction",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates lock prevents node dragging and unlock re-enables interaction"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-TOOLBAR-DUPLICATE",
@@ -267,32 +128,9 @@
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-duplicate-nodes.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates node duplication with proper positioning",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates node duplication with proper positioning"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-TOOLBAR-DELETE",
@@ -308,32 +146,9 @@
           "ref": "test/playbooks/capabilities/02-builder/04-toolbar/toolbar-delete-nodes.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates toolbar delete button removes selected nodes",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates toolbar delete button removes selected nodes"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     }
   ]
 }

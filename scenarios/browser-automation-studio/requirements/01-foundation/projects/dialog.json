@@ -3,8 +3,7 @@
     "description": "Project management UI behaviours",
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T14:01:14.532Z"
+    "schema_version": "1.0.0"
   },
   "requirements": [
     {
@@ -21,69 +20,23 @@
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-dialog-open.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "BAS workflow asserting modal visibility for each trigger once exported.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "BAS workflow asserting modal visibility for each trigger once exported."
         },
         {
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/components/ResponsiveDialog.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Auto-added from vitest evidence"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 3,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json",
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-PROJECT-DIALOG-CLOSE",
@@ -99,69 +52,23 @@
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-dialog-close.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "BAS workflow covering dismissal affordances (pending export).",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "BAS workflow covering dismissal affordances (pending export)."
         },
         {
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/components/ResponsiveDialog.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Auto-added from vitest evidence"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 3,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json",
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-PROJECT-CREATE-SUCCESS",
@@ -177,70 +84,23 @@
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-create.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "BAS workflow seeds unique project and checks API/UI consistency (pending export).",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:43-05:00",
-            "test_duration_ms": 2000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "BAS workflow seeds unique project and checks API/UI consistency (pending export)."
         },
         {
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Auto-added from vitest evidence"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:43-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 3,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/business.json",
-          "coverage/phase-results/integration.json",
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-PROJECT-CREATE-VALIDATION",
@@ -256,69 +116,23 @@
           "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-validation.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "BAS workflow submits failing payloads and asserts inline error copy (pending export).",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "BAS workflow submits failing payloads and asserts inline error copy (pending export)."
         },
         {
           "type": "test",
           "ref": "ui/src/components/ProjectModal.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Auto-added from vitest evidence"
         },
         {
           "type": "test",
           "ref": "ui/src/stores/projectStore.test.ts",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Auto-added from vitest evidence"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 3,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json",
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     }
   ]
 }

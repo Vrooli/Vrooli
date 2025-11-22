@@ -3,8 +3,7 @@
     "description": "AI workflow generation requirements",
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T14:01:14.535Z"
+    "schema_version": "1.0.0"
   },
   "requirements": [
     {
@@ -21,70 +20,23 @@
           "ref": "test/playbooks/capabilities/04-ai/01-automation/generated-smoke.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "BAS workflow exercising AI prompt → workflow generation → execution pipeline.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "BAS workflow exercising AI prompt → workflow generation → execution pipeline."
         },
         {
           "type": "test",
           "ref": "test/phases/test-integration.sh",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Integration phase invokes AI generation smoke tests.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Integration phase invokes AI generation smoke tests."
         },
         {
           "type": "test",
           "ref": "ui/src/stores/workflowStore.test.ts",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Auto-added from vitest evidence"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:43-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 2,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/business.json",
-          "coverage/phase-results/integration.json",
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-AI-GENERATION-VALIDATION",
@@ -100,69 +52,23 @@
           "ref": "api/services/ai_client_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Unit tests exist for AI client (TestNewOpenRouterClient, TestExecutePrompt_Validation) but don't use [REQ:ID] tags in test names. Future enhancement: add tags to t.Run() calls for requirement tracking.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Unit tests exist for AI client (TestNewOpenRouterClient, TestExecutePrompt_Validation) but don't use [REQ:ID] tags in test names. Future enhancement: add tags to t.Run() calls for requirement tracking."
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/04-ai/01-automation/generated-smoke.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "BAS workflow validates AI-generated workflow compilation, node references, and execution plan consistency.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "BAS workflow validates AI-generated workflow compilation, node references, and execution plan consistency."
         },
         {
           "type": "test",
           "ref": "ui/src/stores/workflowStore.test.ts",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Auto-added from vitest evidence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T08:52:41-05:00",
-            "test_duration_ms": 34000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/unit.json",
-            "source_phase": "unit",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Auto-added from vitest evidence"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 3,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json",
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-AI-SWITCH-MANUAL",
@@ -178,32 +84,9 @@
           "ref": "test/playbooks/capabilities/04-ai/02-ui/ai-modal-switch-to-manual.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates switching from AI modal to manual builder creates empty workflow and loads builder",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates switching from AI modal to manual builder creates empty workflow and loads builder"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-AI-EXAMPLE-PROMPT",
@@ -219,32 +102,9 @@
           "ref": "test/playbooks/capabilities/04-ai/02-ui/ai-modal-example-prompt.json",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Validates example prompt display and interaction in AI modal",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates example prompt display and interaction in AI modal"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     }
   ]
 }

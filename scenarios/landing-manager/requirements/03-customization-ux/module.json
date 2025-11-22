@@ -14,11 +14,11 @@
         {
           "type": "automation",
           "phase": "business",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/customization-ux/ui/customization.json"
         }
       ],
-      "status": "pending",
+      "status": "in_progress",
       "notes": "Use responsive grid: side-by-side on desktop (md+), stacked on mobile"
     },
     {
@@ -31,11 +31,11 @@
         {
           "type": "automation",
           "phase": "business",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/playbooks/capabilities/customization-ux/ui/customization.json"
         }
       ],
-      "status": "pending",
+      "status": "in_progress",
       "dependencies": [
         "CUSTOM-SPLIT"
       ],

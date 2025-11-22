@@ -4,8 +4,7 @@
     "module": "performance.vrooli",
     "last_validated_at": "2025-11-05T00:00:00Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T14:01:14.536Z"
+    "schema_version": "1.0.0"
   },
   "requirements": [
     {
@@ -25,33 +24,9 @@
           "threshold": 0.75,
           "phase": "performance",
           "status": "failing",
-          "notes": "Lighthouse audit via test-performance.sh phase",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:01:14-05:00",
-            "test_duration_ms": 31000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/performance.json",
-            "source_phase": "performance",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Lighthouse audit via test-performance.sh phase"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:01:14-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/lighthouse.json",
-          "coverage/phase-results/performance.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-A11Y-DASHBOARD",
@@ -70,33 +45,9 @@
           "threshold": 0.9,
           "phase": "performance",
           "status": "failing",
-          "notes": "Lighthouse audit via test-performance.sh phase",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:01:14-05:00",
-            "test_duration_ms": 31000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/performance.json",
-            "source_phase": "performance",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Lighthouse audit via test-performance.sh phase"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:01:14-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/lighthouse.json",
-          "coverage/phase-results/performance.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-PERF-WORKFLOW-INTERACTIVE",
@@ -115,33 +66,9 @@
           "threshold": 0.65,
           "phase": "performance",
           "status": "implemented",
-          "notes": "Lower threshold due to canvas + Monaco editor. Focus on interactivity metrics.",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:01:14-05:00",
-            "test_duration_ms": 31000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/performance.json",
-            "source_phase": "performance",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Lower threshold due to canvas + Monaco editor. Focus on interactivity metrics."
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:01:14-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 1,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/lighthouse.json",
-          "coverage/phase-results/performance.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-PERF-PROJECTS-PAGE",
@@ -159,33 +86,9 @@
           "category": "performance",
           "threshold": 0.75,
           "phase": "performance",
-          "status": "failing",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:01:14-05:00",
-            "test_duration_ms": 31000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/performance.json",
-            "source_phase": "performance",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "status": "failing"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:01:14-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/lighthouse.json",
-          "coverage/phase-results/performance.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-A11Y-MOBILE",
@@ -204,33 +107,9 @@
           "threshold": 0.9,
           "phase": "performance",
           "status": "failing",
-          "notes": "Mobile viewport validation",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:01:14-05:00",
-            "test_duration_ms": 31000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/performance.json",
-            "source_phase": "performance",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Mobile viewport validation"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:01:14-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/lighthouse.json",
-          "coverage/phase-results/performance.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     }
   ]
 }

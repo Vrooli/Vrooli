@@ -3,8 +3,7 @@
     "description": "Browser Automation Studio requirement registry (modular) - Parent-level requirements reference child modules declared under imports",
     "last_validated_at": "2025-11-04T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T14:01:14.531Z"
+    "schema_version": "1.0.0"
   },
   "meta": {
     "scenario": "browser-automation-studio",
@@ -49,17 +48,7 @@
         "BAS-PROJECT-CREATE-VALIDATION",
         "BAS-WORKFLOW-PERSIST-CRUD",
         "BAS-WORKFLOW-DEMO-SEED"
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-20T14:01:07.068Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-FUNC-002",
@@ -74,19 +63,7 @@
         "BAS-EXEC-TELEMETRY-AUTOMATION",
         "BAS-EXEC-HEARTBEAT-DETECTION",
         "BAS-EXEC-CLI-WATCH"
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-20T21:08:00-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [
-          "coverage/phase-results/unit.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-FUNC-003",
@@ -99,17 +76,7 @@
       "children": [
         "BAS-REPLAY-TIMELINE-PERSISTENCE",
         "BAS-REPLAY-EXPORT-BUNDLE"
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-20T14:01:07.069Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-FUNC-004",
@@ -122,17 +89,7 @@
       "children": [
         "BAS-AI-GENERATION-SMOKE",
         "BAS-AI-GENERATION-VALIDATION"
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-20T14:01:07.069Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-FUNC-005",
@@ -145,17 +102,7 @@
       "children": [
         "BAS-VERSION-AUTOSAVE",
         "BAS-VERSION-RESTORE"
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-20T14:01:07.069Z",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": true,
-        "phase_results": [],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     }
   ],
   "reporting": {

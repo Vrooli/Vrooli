@@ -101,11 +101,11 @@
       "id": "fixture-assert-builder-loaded",
       "type": "assert",
       "data": {
-        "label": "Workflow builder loaded",
-        "selector": "@selector/workflowBuilder.code.modeButton",
+        "label": "Workflow builder fully initialized and interactive",
+        "selector": "@selector/workflowBuilder.reactFlowReady",
         "assertMode": "exists",
         "timeoutMs": 15000,
-        "failureMessage": "Workflow builder should load after clicking workflow"
+        "failureMessage": "Workflow builder should be fully initialized and ready for automation. This indicates React Flow has completed its initialization, viewport calculations, and fitView animation."
       }
     },
     {

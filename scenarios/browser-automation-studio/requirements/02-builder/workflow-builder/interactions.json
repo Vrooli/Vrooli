@@ -3,8 +3,7 @@
     "description": "Workflow builder canvas interaction requirements",
     "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
-    "schema_version": "1.0.0",
-    "last_synced_at": "2025-11-21T14:01:14.534Z"
+    "schema_version": "1.0.0"
   },
   "requirements": [
     {
@@ -21,32 +20,9 @@
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/builder-add-node-from-palette.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates drag-and-drop from node palette to canvas with proper positioning",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates drag-and-drop from node palette to canvas with proper positioning"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-BUILDER-CREATE-CONNECTION",
@@ -62,32 +38,9 @@
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/builder-create-connection.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates edge creation between nodes using React Flow connection handles",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates edge creation between nodes using React Flow connection handles"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-BUILDER-DELETE-NODE",
@@ -103,32 +56,9 @@
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/builder-delete-node-keyboard.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates node deletion via keyboard with cleanup of connected edges",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates node deletion via keyboard with cleanup of connected edges"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     },
     {
       "id": "BAS-BUILDER-NODE-CONFIG",
@@ -144,140 +74,51 @@
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-properties-edit.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates node property panel opens, fields are editable, and changes persist",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates node property panel opens, fields are editable, and changes persist"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-navigate.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates Navigate node property configuration including URL editing and persistence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates Navigate node property configuration including URL editing and persistence"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-click.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates Click node selector configuration and persistence",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates Click node selector configuration and persistence"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-wait.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates Wait node configuration with dynamic field visibility based on wait type",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates Wait node configuration with dynamic field visibility based on wait type"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-assert.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates Assert node configuration with mode-specific conditional fields",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates Assert node configuration with mode-specific conditional fields"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-variable-flow.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates SetVariable and UseVariable node configuration for data flow (camelCase regression test)",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates SetVariable and UseVariable node configuration for data flow (camelCase regression test)"
         },
         {
           "type": "automation",
           "ref": "test/playbooks/capabilities/02-builder/02-canvas/node-config-dragdrop.json",
           "phase": "integration",
           "status": "failing",
-          "notes": "Validates DragDrop node configuration (regression test for camelCase compiler bug fix)",
-          "_sync_metadata": {
-            "last_test_run": "2025-11-21T09:00:41-05:00",
-            "test_duration_ms": 480000,
-            "auto_updated": true,
-            "test_names": [],
-            "phase_result": "coverage/phase-results/integration.json",
-            "source_phase": "integration",
-            "tests_run": [
-              "test/run-tests.sh"
-            ]
-          }
+          "notes": "Validates DragDrop node configuration (regression test for camelCase compiler bug fix)"
         }
-      ],
-      "_sync_metadata": {
-        "last_updated": "2025-11-21T09:00:41-05:00",
-        "updated_by": "auto-sync",
-        "test_coverage_count": 0,
-        "all_tests_passing": false,
-        "phase_results": [
-          "coverage/phase-results/integration.json"
-        ],
-        "tests_run": [
-          "test/run-tests.sh"
-        ]
-      }
+      ]
     }
   ]
 }
