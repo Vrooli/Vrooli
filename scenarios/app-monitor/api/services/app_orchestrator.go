@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"app-monitor-api/logger"
@@ -286,6 +287,7 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	}
 
 	s.mergeViewStats(ctx, apps)
+	s.mergeCompletenessScoresIntoApps(apps)
 
 	// Acquire lock only to update cache with fresh data
 	s.cache.mu.Lock()
@@ -433,6 +435,7 @@ func (s *AppService) fetchScenarioSummaries(ctx context.Context) ([]repository.A
 	}
 
 	s.mergeViewStats(ctx, apps)
+	s.mergeCompletenessScoresIntoApps(apps)
 
 	return apps, nil
 }
@@ -608,5 +611,177 @@ func (s *AppService) hydrateOrchestratorInBackground(logContext string) {
 		s.cache.mu.Lock()
 		s.cache.loading = false
 		s.cache.mu.Unlock()
+	}()
+}
+
+// =============================================================================
+// Completeness Score Fetching (Pass 3)
+// =============================================================================
+
+// fetchCompletenessScore fetches completeness score for a single scenario
+func (s *AppService) fetchCompletenessScore(ctx context.Context, scenarioName string) (*CompletenessResponse, error) {
+	output, err := executeVrooliCommand(ctx, 10*time.Second, "scenario", "completeness", scenarioName, "--json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get completeness for %s: %w", scenarioName, err)
+	}
+
+	var resp CompletenessResponse
+	if err := json.Unmarshal(output, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse completeness response for %s: %w", scenarioName, err)
+	}
+
+	return &resp, nil
+}
+
+// fetchCompletenessScores fetches completeness scores for all scenarios in parallel
+func (s *AppService) fetchCompletenessScores(ctx context.Context, scenarioNames []string) map[string]*CompletenessResponse {
+	results := make(map[string]*CompletenessResponse)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	// Limit concurrency to avoid overwhelming the system
+	semaphore := make(chan struct{}, 10)
+
+	for _, name := range scenarioNames {
+		wg.Add(1)
+		go func(scenarioName string) {
+			defer wg.Done()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			score, err := s.fetchCompletenessScore(ctx, scenarioName)
+			if err != nil {
+				logger.Warn(fmt.Sprintf("failed to fetch completeness for %s", scenarioName), err)
+				return
+			}
+
+			mu.Lock()
+			results[scenarioName] = score
+			mu.Unlock()
+		}(name)
+	}
+
+	wg.Wait()
+	return results
+}
+
+// mergeCompletenessIntoCache updates the orchestrator cache with completeness scores
+func (s *AppService) mergeCompletenessIntoCache(scores map[string]*CompletenessResponse) {
+	if len(scores) == 0 {
+		return
+	}
+
+	s.cache.mu.Lock()
+	defer s.cache.mu.Unlock()
+
+	for i := range s.cache.data {
+		app := &s.cache.data[i]
+		scenarioName := strings.ToLower(strings.TrimSpace(app.ScenarioName))
+
+		for key, score := range scores {
+			if strings.ToLower(strings.TrimSpace(key)) == scenarioName {
+				app.CompletenessScore = &score.Score
+				app.CompletenessClassification = score.Classification
+				break
+			}
+		}
+	}
+}
+
+// mergeCompletenessScoresIntoApps merges completeness scores from cache into the given apps slice
+func (s *AppService) mergeCompletenessScoresIntoApps(apps []repository.App) {
+	if s == nil || s.completenessCache == nil || len(apps) == 0 {
+		return
+	}
+
+	s.completenessCache.mu.RLock()
+	scores := s.completenessCache.data
+	s.completenessCache.mu.RUnlock()
+
+	if len(scores) == 0 {
+		return
+	}
+
+	for i := range apps {
+		app := &apps[i]
+		scenarioName := strings.ToLower(strings.TrimSpace(app.ScenarioName))
+
+		for key, score := range scores {
+			if strings.ToLower(strings.TrimSpace(key)) == scenarioName {
+				app.CompletenessScore = &score.Score
+				app.CompletenessClassification = score.Classification
+				break
+			}
+		}
+	}
+}
+
+// hydrateCompletenessInBackground spawns a goroutine to fetch and cache completeness scores
+// This is Pass 3 of the progressive loading system (Pass 1: summaries, Pass 2: status, Pass 3: completeness)
+func (s *AppService) hydrateCompletenessInBackground() {
+	if s == nil || s.completenessCache == nil {
+		return
+	}
+
+	// Check if we should hydrate
+	s.completenessCache.mu.RLock()
+	loading := s.completenessCache.loading
+	age := time.Since(s.completenessCache.timestamp)
+	s.completenessCache.mu.RUnlock()
+
+	if loading || age < completenessCacheTTL {
+		return
+	}
+
+	// Set loading flag
+	s.completenessCache.mu.Lock()
+	if s.completenessCache.loading {
+		s.completenessCache.mu.Unlock()
+		return
+	}
+	s.completenessCache.loading = true
+	s.completenessCache.mu.Unlock()
+
+	go func() {
+		defer func() {
+			s.completenessCache.mu.Lock()
+			s.completenessCache.loading = false
+			s.completenessCache.mu.Unlock()
+		}()
+
+		// Create detached context with generous timeout for completeness scoring
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+
+		// Get scenario names from current cache
+		s.cache.mu.RLock()
+		scenarioNames := make([]string, 0, len(s.cache.data))
+		for i := range s.cache.data {
+			if name := strings.TrimSpace(s.cache.data[i].ScenarioName); name != "" {
+				scenarioNames = append(scenarioNames, name)
+			}
+		}
+		s.cache.mu.RUnlock()
+
+		if len(scenarioNames) == 0 {
+			logger.Warn("no scenarios found for completeness hydration", nil)
+			return
+		}
+
+		// Fetch completeness scores
+		scores := s.fetchCompletenessScores(ctx, scenarioNames)
+
+		// Update completeness cache
+		s.completenessCache.mu.Lock()
+		s.completenessCache.data = scores
+		s.completenessCache.timestamp = s.timeNow()
+		s.completenessCache.mu.Unlock()
+
+		// Merge into orchestrator cache
+		s.mergeCompletenessIntoCache(scores)
+
+		logger.Info(fmt.Sprintf("completeness hydration complete: %d/%d scenarios", len(scores), len(scenarioNames)))
 	}()
 }

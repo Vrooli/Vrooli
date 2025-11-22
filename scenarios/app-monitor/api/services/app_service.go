@@ -33,6 +33,7 @@ func NewAppServiceWithOptions(repo repository.AppRepository, httpClient HTTPClie
 		httpClient:         httpClient,
 		timeNow:            timeProvider,
 		cache:              &orchestratorCache{},
+		completenessCache:  &completenessCache{data: make(map[string]*CompletenessResponse)},
 		viewStats:          make(map[string]*viewStatsEntry),
 		issueCache:         make(map[string]*issueCacheEntry),
 		issueCacheTTL:      issueTrackerCacheTTL,
@@ -68,6 +69,9 @@ func (s *AppService) GetAppsSummary(ctx context.Context) ([]repository.App, erro
 	if shouldHydrate {
 		s.hydrateOrchestratorInBackground("background hydration failed")
 	}
+
+	// Trigger Pass 3: Completeness score hydration
+	s.hydrateCompletenessInBackground()
 
 	return summaries, nil
 }

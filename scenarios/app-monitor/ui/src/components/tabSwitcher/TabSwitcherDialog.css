@@ -605,6 +605,55 @@
   letter-spacing: 0.02em;
 }
 
+.tab-card__thumb-overlay-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab-card__chip--completeness {
+  pointer-events: none;
+}
+
+.tab-card__chip--completeness svg {
+  flex-shrink: 0;
+}
+
+.tab-card__completeness-score {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Completeness level colors */
+.tab-card__chip--completeness-high {
+  background: rgba(50, 150, 70, 0.80);
+  color: rgba(240, 255, 243, 0.98);
+  border: 1px solid rgba(100, 220, 130, 0.4);
+  box-shadow: 0 6px 16px rgba(20, 100, 40, 0.45);
+}
+
+.tab-card__chip--completeness-medium {
+  background: rgba(180, 140, 30, 0.80);
+  color: rgba(255, 250, 235, 0.98);
+  border: 1px solid rgba(240, 200, 80, 0.4);
+  box-shadow: 0 6px 16px rgba(140, 100, 20, 0.45);
+}
+
+.tab-card__chip--completeness-low {
+  background: rgba(200, 100, 30, 0.80);
+  color: rgba(255, 245, 235, 0.98);
+  border: 1px solid rgba(255, 160, 80, 0.4);
+  box-shadow: 0 6px 16px rgba(160, 70, 20, 0.45);
+}
+
+.tab-card__chip--completeness-critical {
+  background: rgba(180, 40, 40, 0.80);
+  color: rgba(255, 240, 240, 0.98);
+  border: 1px solid rgba(255, 100, 100, 0.4);
+  box-shadow: 0 6px 16px rgba(140, 20, 20, 0.45);
+}
+
 .tab-card__status {
   display: inline-flex;
   align-items: center;

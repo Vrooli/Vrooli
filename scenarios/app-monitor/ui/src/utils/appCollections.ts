@@ -14,10 +14,14 @@ export type AppSortOption =
   | 'recently-updated'
   | 'recently-added'
   | 'most-viewed'
-  | 'least-viewed';
+  | 'least-viewed'
+  | 'completeness-high'
+  | 'completeness-low';
 
 export const APP_SORT_OPTIONS: Array<{ value: AppSortOption; label: string }> = [
   { value: 'status', label: 'Active first' },
+  { value: 'completeness-high', label: 'Completeness: High → Low' },
+  { value: 'completeness-low', label: 'Completeness: Low → High' },
   { value: 'recently-viewed', label: 'Recently viewed' },
   { value: 'least-recently-viewed', label: 'Least recently viewed' },
   { value: 'recently-updated', label: 'Recently updated' },
@@ -168,6 +172,27 @@ const compareByStatus = (a: App, b: App): number => {
   return compareByViewed(a, b, 1);
 };
 
+const compareByCompleteness = (a: App, b: App, direction: 1 | -1): number => {
+  const aScore = Number.isFinite(a.completeness_score) ? Number(a.completeness_score) : -1;
+  const bScore = Number.isFinite(b.completeness_score) ? Number(b.completeness_score) : -1;
+
+  // Place apps without scores at the end
+  if (aScore === -1 && bScore === -1) {
+    return compareByName(a, b);
+  }
+  if (aScore === -1) {
+    return 1;
+  }
+  if (bScore === -1) {
+    return -1;
+  }
+
+  if (aScore !== bScore) {
+    return direction * (bScore - aScore);
+  }
+  return compareByName(a, b);
+};
+
 export const sortApps = (apps: App[], sortOption: AppSortOption): App[] => {
   switch (sortOption) {
     case 'status':
@@ -188,6 +213,10 @@ export const sortApps = (apps: App[], sortOption: AppSortOption): App[] => {
       return [...apps].sort((a, b) => compareByViews(a, b, 1));
     case 'least-viewed':
       return [...apps].sort((a, b) => compareByViews(a, b, -1));
+    case 'completeness-high':
+      return [...apps].sort((a, b) => compareByCompleteness(a, b, 1));
+    case 'completeness-low':
+      return [...apps].sort((a, b) => compareByCompleteness(a, b, -1));
     default:
       return apps;
   }

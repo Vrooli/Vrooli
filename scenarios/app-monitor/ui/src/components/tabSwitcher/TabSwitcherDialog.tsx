@@ -1,7 +1,7 @@
 import { logger } from '@/services/logger';
 import { FormEvent, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Shuffle, Loader2, Eye, RefreshCw } from 'lucide-react';
+import { Layers, Server, Globe, Search, SlidersHorizontal, X, ExternalLink, Trash2, Plus, Shuffle, Loader2, Eye, RefreshCw, Target } from 'lucide-react';
 import clsx from 'clsx';
 import { selectScreenshotBySurface, useSurfaceMediaStore } from '@/state/surfaceMediaStore';
 import { useAppCatalog, normalizeAppSort, type AppSortOption } from '@/hooks/useAppCatalog';
@@ -735,6 +735,17 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
   ), [screenshot]);
   const hasScreenshot = Boolean(screenshot);
   const viewCountLabel = formatViewCount(app.view_count);
+  const completenessScore = app.completeness_score;
+  const hasCompletenessScore = typeof completenessScore === 'number' && completenessScore >= 0;
+  const completenessLevel = useMemo(() => {
+    if (!hasCompletenessScore || completenessScore == null) {
+      return 'none';
+    }
+    if (completenessScore >= 81) return 'high';     // 81-100: nearly_ready, production_ready
+    if (completenessScore >= 61) return 'medium';   // 61-80: mostly_complete
+    if (completenessScore >= 41) return 'low';      // 41-60: functional_incomplete
+    return 'critical';                              // 0-40: early_stage, foundation_laid
+  }, [completenessScore, hasCompletenessScore]);
   const statusClassName = useMemo(() => {
     const source = (app.status ?? 'unknown').toLowerCase();
     const normalized = source.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -767,7 +778,7 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
         style={thumbStyle}
         title={screenshot?.note ?? undefined}
       >
-        {(app.status || viewCountLabel) && (
+        {(app.status || viewCountLabel || hasCompletenessScore) && (
           <div className="tab-card__thumb-overlay">
             {app.status && (
               <span className="tab-card__status-indicator">
@@ -778,15 +789,32 @@ function AppTabCard({ app, onSelect }: { app: App; onSelect(app: App): void }) {
                 <span className="visually-hidden">Status: {statusLabel}</span>
               </span>
             )}
-            {viewCountLabel && (
-              <span
-                className="tab-card__chip tab-card__chip--muted tab-card__chip--views"
-                aria-label={`Views: ${viewCountLabel}`}
-              >
-                <Eye size={14} aria-hidden />
-                <span className="tab-card__views-count" aria-hidden>{viewCountLabel}</span>
-              </span>
-            )}
+            <div className="tab-card__thumb-overlay-right">
+              {hasCompletenessScore && (
+                <span
+                  className={clsx(
+                    'tab-card__chip',
+                    'tab-card__chip--muted',
+                    'tab-card__chip--completeness',
+                    `tab-card__chip--completeness-${completenessLevel}`
+                  )}
+                  aria-label={`Completeness: ${completenessScore}%`}
+                  title={`Completeness: ${completenessScore}/100${app.completeness_classification ? ` (${app.completeness_classification.replace(/_/g, ' ')})` : ''}`}
+                >
+                  <Target size={14} aria-hidden />
+                  <span className="tab-card__completeness-score" aria-hidden>{completenessScore}</span>
+                </span>
+              )}
+              {viewCountLabel && (
+                <span
+                  className="tab-card__chip tab-card__chip--muted tab-card__chip--views"
+                  aria-label={`Views: ${viewCountLabel}`}
+                >
+                  <Eye size={14} aria-hidden />
+                  <span className="tab-card__views-count" aria-hidden>{viewCountLabel}</span>
+                </span>
+              )}
+            </div>
           </div>
         )}
         {!hasScreenshot && (
@@ -1092,6 +1120,8 @@ function parseWebTabInput(value: string): { url: string; title: string } | null 
 }
 const APP_SORT_OPTIONS: Array<{ value: AppSortOption; label: string }> = [
   { value: 'status', label: 'Active first' },
+  { value: 'completeness-high', label: 'Completeness: High → Low' },
+  { value: 'completeness-low', label: 'Completeness: Low → High' },
   { value: 'recently-viewed', label: 'Recently viewed' },
   { value: 'least-recently-viewed', label: 'Least recently viewed' },
   { value: 'recently-updated', label: 'Recently updated' },

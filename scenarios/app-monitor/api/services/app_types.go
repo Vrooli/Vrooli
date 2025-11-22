@@ -22,8 +22,9 @@ var (
 
 // Cache and timing constants
 const (
-	orchestratorCacheTTL   = 90 * time.Second // Increased from 60s to reduce cache misses during slow scenario status calls
-	partialCacheTTL        = 45 * time.Second // Increased proportionally
+	orchestratorCacheTTL   = 90 * time.Second  // Increased from 60s to reduce cache misses during slow scenario status calls
+	partialCacheTTL        = 45 * time.Second  // Increased proportionally
+	completenessCacheTTL   = 24 * time.Hour    // Completeness scores change less frequently than runtime status
 	issueTrackerCacheTTL   = 30 * time.Second
 	issueTrackerFetchLimit = 50
 )
@@ -181,6 +182,7 @@ type AppService struct {
 	httpClient         HTTPClient
 	timeNow            TimeProvider
 	cache              *orchestratorCache
+	completenessCache  *completenessCache
 	viewStatsMu        sync.RWMutex
 	viewStats          map[string]*viewStatsEntry
 	issueCacheMu       sync.RWMutex
@@ -690,8 +692,26 @@ type IssueReportResult struct {
 // Completeness Score Types
 // =============================================================================
 
-// CompletenessScore represents the raw output from `vrooli scenario completeness`
+// CompletenessResponse represents the raw output from `vrooli scenario completeness --json`
+type CompletenessResponse struct {
+	Scenario       string   `json:"scenario"`
+	Category       string   `json:"category"`
+	Score          int      `json:"score"`
+	Classification string   `json:"classification"`
+	Warnings       []string `json:"warnings,omitempty"`
+	Recommendations []string `json:"recommendations,omitempty"`
+}
+
+// CompletenessScore represents human-readable completeness output for display
 type CompletenessScore struct {
 	Scenario string   `json:"scenario"`
 	Details  []string `json:"details"`
+}
+
+// completenessCache caches completeness scores to prevent excessive recalculation
+type completenessCache struct {
+	data      map[string]*CompletenessResponse // key: scenario name
+	timestamp time.Time
+	mu        sync.RWMutex
+	loading   bool
 }

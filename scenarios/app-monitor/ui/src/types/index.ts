@@ -38,6 +38,9 @@ export interface App {
   // Detailed insights (populated by GetApp for single app queries)
   tech_stack?: string[];
   dependencies?: AppDependency[];
+  // Completeness metrics (populated by Pass 3 hydration)
+  completeness_score?: number;
+  completeness_classification?: string;
 }
 
 export interface AppProxyPortInfo {
