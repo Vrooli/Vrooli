@@ -57,7 +57,7 @@ Create a new Recycler tab in the settings modal and extend the API schema:
 2. Enumerate `completed/` then `failed/` directories to find the first eligible task matching enabled types.
 3. Verify `processor_auto_requeue` is true and task not already in terminal status.
 4. Summarize output:
-   - If `results.output` present, call LLM with prompt returning JSON `{ "note": "", "classification": "full_complete|significant_progress|some_progress|uncertain" }`.
+   - If `results.output` present, call LLM with prompt returning plain text with classification and multi-section note (see Prompt Contract below).
    - On failure or missing output, fallback to conservative note (`Not sure current status`) and classification `uncertain`.
 5. Update note and streak counters:
    - `full_complete`: increment completion streak, reset failure streak.
@@ -85,16 +85,23 @@ Create a new Recycler tab in the settings modal and extend the API schema:
 
 ## Prompt Contract
 
-LLM prompt should request JSON response to keep parsing deterministic:
+LLM prompt requests a plain text response with this exact format:
 
 ```
-You are summarizing the latest execution of an ecosystem-manager task.
-Return JSON with keys:
-- note: string (one of the canonical note patterns, include trimmed summary)
-- classification: one of ["full_complete", "significant_progress", "some_progress", "uncertain"]
+classification: <full_complete|significant_progress|some_progress|uncertain>
+note:
+<multi-line note content with 5 required sections>
 ```
 
-Include relevant context: task title/type/operation, previous notes if needed, raw output text (truncated to safe length).
+The note must contain these sections in order:
+- **What was accomplished:** specific deliverables, files created/edited, operational targets completed
+- **Current status:** detailed status including what works, validation results
+- **Remaining issues or limitations:** specific blockers, failing tests, regressions, open TODOs
+- **Suggested next actions:** specific commands to run, priorities for next iteration
+- **Validation evidence:** specific commands run, test results, health check outputs
+
+Character limit: 4000 chars (prioritizing validation commands and specific blockers).
+Input is truncated to 12000 chars before being sent to the LLM.
 
 ## Failure Handling
 

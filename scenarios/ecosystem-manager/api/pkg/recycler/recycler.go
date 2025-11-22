@@ -170,36 +170,61 @@ func (r *Recycler) processOnce() error {
 
 func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.RecyclerSettings) error {
 	output := extractOutput(task.Results)
-	result := summarizer.DefaultResult()
-	var err error
+	now := timeutil.NowRFC3339()
+
+	// Get AI summary (notes only, NO classification)
+	var aiNote string
 	if strings.TrimSpace(output) != "" {
-		result, err = summarizer.GenerateNote(context.Background(), summarizer.Config{
+		result, err := summarizer.GenerateNote(context.Background(), summarizer.Config{
 			Provider: cfg.ModelProvider,
 			Model:    cfg.ModelName,
 		}, summarizer.Input{Output: output})
 		if err != nil {
 			log.Printf("Recycler summarizer error for task %s: %v", task.ID, err)
-			result = summarizer.DefaultResult()
+			aiNote = "Unable to generate summary"
+		} else {
+			aiNote = result.Note
 		}
 	}
 
-	now := timeutil.NowRFC3339()
+	// Get metrics classification (NEW - this is the source of truth)
+	// Use Title as fallback if Target is empty (generator tasks use title as scenario name)
+	scenarioName := task.Target
+	if scenarioName == "" {
+		scenarioName = task.Title
+	}
+
+	metricsResult, err := getCompletenessClassification(scenarioName)
+	if err != nil {
+		log.Printf("Completeness check failed for %s: %v", scenarioName, err)
+		// Fallback: treat as early stage if metrics unavailable
+		metricsResult = CompletenessResult{
+			Classification: "early_stage",
+			Score:          0,
+		}
+	}
+
+	// Build composite note with metrics prefix
+	compositeNote := buildCompositeNote(metricsResult, aiNote)
 
 	// Use structured results for recycler info
 	taskResults := tasks.FromMap(task.Results)
-	taskResults.SetRecyclerInfo(result.Classification, now)
+	taskResults.SetRecyclerInfo(metricsResult.Classification, now)
 	task.Results = taskResults.ToMap()
 
-	classification := strings.ToLower(result.Classification)
+	// NEW: Use metrics classification directly (no legacy mapping)
+	classification := strings.ToLower(metricsResult.Classification)
 	switch classification {
-	case "full_complete":
-		task.ConsecutiveCompletionClaims++
+	case "production_ready":
+		task.ConsecutiveCompletionClaims++ // 96-100: full increment (3x → finalize)
+	case "nearly_ready":
+		task.ConsecutiveCompletionClaims += 0.5 // 81-95: partial increment (6x → finalize)
 	default:
-		task.ConsecutiveCompletionClaims = 0
+		task.ConsecutiveCompletionClaims = 0 // <81: reset
 	}
 	task.ConsecutiveFailures = 0
 
-	task.Notes = result.Note
+	task.Notes = compositeNote
 	task.UpdatedAt = now
 
 	if shouldFinalize(task.ConsecutiveCompletionClaims, cfg.CompletionThreshold) {
@@ -276,7 +301,7 @@ func (r *Recycler) processFailedTask(task *tasks.TaskItem, cfg settings.Recycler
 
 	task.UpdatedAt = now
 
-	if shouldFinalize(task.ConsecutiveFailures, cfg.FailureThreshold) {
+	if shouldFinalize(float64(task.ConsecutiveFailures), cfg.FailureThreshold) {
 		task.Status = statusFailedBlocked
 		task.CurrentPhase = "blocked"
 		task.ProcessorAutoRequeue = false
@@ -347,11 +372,11 @@ func extractOutput(results map[string]any) string {
 	return ""
 }
 
-func shouldFinalize(streak, threshold int) bool {
+func shouldFinalize(streak float64, threshold int) bool {
 	if threshold <= 0 {
 		return false
 	}
-	return streak >= threshold
+	return streak >= float64(threshold)
 }
 
 func isTypeEnabled(taskType string, enabled string) bool {

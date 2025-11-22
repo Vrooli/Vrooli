@@ -6,7 +6,6 @@ const getApiBaseUrl = () => {
   if (API_BASE_URL === null) {
     API_BASE_URL = resolveApiBase({
       appendSuffix: true,
-      explicitUrl: import.meta.env.VITE_API_BASE_URL,
     });
   }
   return API_BASE_URL;

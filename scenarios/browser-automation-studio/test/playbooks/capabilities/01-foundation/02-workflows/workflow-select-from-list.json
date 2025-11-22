@@ -86,7 +86,7 @@
         "selector": "@selector/workflows.card:first-of-type",
         "timeoutMs": 5000,
         "resilience": {
-          "successSelector": "@selector/workflowBuilder.canvas.reactFlow",
+          "successSelector": "@selector/workflowBuilder.reactFlowReady",
           "successTimeoutMs": 20000
         }
       }
@@ -114,7 +114,7 @@
       "type": "assert",
       "data": {
         "label": "Verify builder elements exist",
-        "selector": "@selector/workflowBuilder.canvas.reactFlow",
+        "selector": "@selector/workflowBuilder.reactFlowReady",
         "assertMode": "exists",
         "timeoutMs": 20000,
         "failureMessage": "Workflow builder should render after selecting a workflow"

@@ -1,7 +1,6 @@
 package summarizer
 
 import (
-	"bufio"
 	"context"
 	_ "embed"
 	"errors"
@@ -167,102 +166,24 @@ func runOpenRouter(ctx context.Context, model, prompt string) (Result, error) {
 }
 
 func parseResult(raw string) (Result, error) {
-	scanner := bufio.NewScanner(strings.NewReader(raw))
-	scanner.Split(bufio.ScanLines)
+	// NEW: No classification parsing - just extract the note content
+	// The completeness metrics system will provide classification
 
-	var firstLine string
-	for scanner.Scan() {
-		candidate := strings.TrimSpace(scanner.Text())
-		if candidate == "" {
-			continue
-		}
-		firstLine = candidate
-		break
-	}
+	note := strings.TrimSpace(raw)
 
-	if firstLine == "" {
+	if note == "" {
 		return Result{}, errors.New("summarizer returned empty output")
 	}
-	if !strings.HasPrefix(strings.ToLower(firstLine), "classification:") {
-		return Result{}, fmt.Errorf("unexpected summarizer format: %s", firstLine)
-	}
 
-	classification := strings.TrimSpace(firstLine[len("classification:"):])
-	classification = strings.ToLower(classification)
-	switch classification {
-	case classificationFull, classificationSignificant, classificationSome, classificationUncertain:
-	case "partial_progress":
-		classification = classificationSome
-	default:
-		classification = classificationUncertain
-	}
-
-	noteStarted := false
-	var builder strings.Builder
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-
-		if !noteStarted {
-			if trimmed == "" {
-				continue
-			}
-			if strings.EqualFold(trimmed, "note:") {
-				noteStarted = true
-				continue
-			}
-
-			// No explicit note header; treat this line as the start of the note content.
-			noteStarted = true
-			builder.WriteString(line)
-			builder.WriteRune('\n')
-			continue
-		}
-
-		builder.WriteString(line)
-		builder.WriteRune('\n')
-	}
-
-	if !noteStarted {
-		return Result{}, errors.New("summarizer note content missing")
-	}
-
-	note := strings.TrimSpace(builder.String())
-	if note == "" {
-		note = "Not sure current status"
-		classification = classificationUncertain
-	}
-
-	return Result{Note: decorateNote(classification, note), Classification: classification}, nil
+	// Return note content only, no classification
+	return Result{
+		Note:           note,
+		Classification: "", // Not used - metrics system provides classification
+	}, nil
 }
 
-func decorateNote(classification, note string) string {
-	trimmed := strings.TrimSpace(note)
-	var lead string
-	switch classification {
-	case classificationFull:
-		lead = "Likely complete, but may benefit from additional validation/tidying. Notes from last time:"
-	case classificationSignificant:
-		lead = "Already pretty good, but could use some additional validation/tidying. Notes from last time:"
-	case classificationSome:
-		lead = "Notes from last time:"
-	case classificationUncertain:
-		lead = "Not sure current status"
-	default:
-		lead = "Notes from last time:"
-	}
-
-	if trimmed == "" {
-		return lead
-	}
-
-	if strings.HasPrefix(trimmed, lead) {
-		return trimmed
-	}
-
-	return lead + "\n\n" + trimmed
-}
+// decorateNote is no longer used - removed in favor of metrics-based classification
+// The completeness system provides the prefix based on objective scores
 
 func resolveVrooliRoot() string {
 	if root := os.Getenv("VROOLI_ROOT"); root != "" {
@@ -289,8 +210,8 @@ func resolveVrooliRoot() string {
 // DefaultResult returns a safe fallback result when summarization cannot be performed.
 func DefaultResult() Result {
 	return Result{
-		Note:           "Not sure current status",
-		Classification: classificationUncertain,
+		Note:           "Unable to generate summary - no execution output was captured",
+		Classification: "", // Not used - metrics system provides classification
 	}
 }
 

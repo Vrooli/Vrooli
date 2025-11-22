@@ -624,21 +624,46 @@ _load_resource_environment() {
     
     while IFS= read -r resource_name; do
         [[ -z "$resource_name" ]] && continue
-        
+
+        # Try exports.sh first (new v2.0 format), fallback to defaults.sh (legacy format)
         local exports_file="${APP_ROOT}/resources/${resource_name}/config/exports.sh"
-        
+        if [[ ! -f "$exports_file" ]]; then
+            exports_file="${APP_ROOT}/resources/${resource_name}/config/defaults.sh"
+        fi
+
         if [[ -f "$exports_file" ]]; then
             # Source the exports file in subshell and capture environment
             local resource_env
             resource_env=$(
                 # Temporarily suppress debug output
                 export DEBUG="${DEBUG:-false}"
-                
+
                 # Source the exports file in clean environment
                 (
+                    # Source secrets management library if available (needed for defaults.sh files)
+                    if [[ -f "${APP_ROOT}/scripts/lib/service/secrets.sh" ]]; then
+                        source "${APP_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
+                    fi
+
+                    # For defaults.sh files, pre-load secrets before sourcing
+                    # This ensures variables like OPENROUTER_API_KEY get their values from secrets.json
+                    if [[ "$exports_file" == */defaults.sh ]]; then
+                        # Load common secret patterns for this resource
+                        local resource_upper=$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+                        if declare -f secrets::resolve &>/dev/null; then
+                            # Try to resolve API key (common pattern)
+                            local api_key_var="${resource_upper}_API_KEY"
+                            local api_key_value
+                            api_key_value=$(secrets::resolve "${api_key_var}" 2>/dev/null || echo "")
+                            if [[ -n "$api_key_value" ]]; then
+                                export "${api_key_var}=${api_key_value}"
+                            fi
+                        fi
+                    fi
+
                     # Source the exports file
                     source "$exports_file" 2>/dev/null || exit 1
-                    
+
                     # Export all variables that match common patterns
                     env | grep -E "^(${resource_name^^}_|$(echo "$resource_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')_)" | while IFS='=' read -r key value; do
                         # Escape value for JSON (handle empty values correctly)

@@ -1,7 +1,7 @@
 id: scenario-generator-20251121-090221
 title: landing-manager
 type: scenario
-operation: generator
+operation: improver
 category: ""
 priority: critical
 effort_estimate: ""
@@ -11,389 +11,45 @@ blocks: []
 related_scenarios: []
 related_resources: []
 status: pending
-current_phase: pending
-started_at: ""
+current_phase: rate_limited
+started_at: "2025-11-21T23:46:39-05:00"
 completed_at: ""
-completion_count: 0
-last_completed_at: ""
+completion_count: 11
+last_completed_at: "2025-11-21T19:12:04-05:00"
 validation_criteria: []
 created_by: ""
 created_at: "2025-11-21T09:02:21-05:00"
-updated_at: "2025-11-21T09:24:46-05:00"
+updated_at: "2025-11-21T23:46:41-05:00"
 tags: []
-notes: |
-    ## 1. Scenario Description
-
-    **Name (working):** `landing-page-factory`
-    **Type:** Multi-step scenario
-    **Role:** Creates and manages *landing-page scenarios* (each landing page is its own scenario generated from a template).
-
-    ### 1.1. Purpose
-
-    `landing-page-factory` is a meta-scenario that:
-
-    * Provides **one or more templates** for SaaS-style landing pages (initially: *one* “SaaS Landing Page” template).
-    * Uses those templates to **generate new landing-page scenarios** via the Vrooli CLI.
-    * Ensures each generated landing page:
-
-      * Has a secure **admin portal** (hidden from public navigation).
-      * Fetches all content/config from an API.
-      * Supports **full-page A/B variants** with metrics per variant.
-      * Integrates **Stripe** for payments/subscriptions (fully wired, but customizable).
-      * Exposes **subscription verification endpoints** that other apps can query.
-    * Spawns an **agent on demand** to customize the landing page’s content and design, including branding assets the user uploads.
-
-    This scenario is **not** itself a landing page; it is the **factory + manager** for landing-page scenarios.
-
-    ---
-
-    ### 1.2. Core Responsibilities
-
-    1. **Template Management**
-
-       * Store landing page templates in `scripts/scenarios/templates/`.
-       * Initially ship one template: `saas-landing-page` (React + TS + Vite + Tailwind + shadcn).
-       * Provide commands / API endpoints to:
-
-         * List available landing-page templates.
-         * Inspect template metadata (fields, sections, metrics hooks).
-         * Generate a new landing-page scenario from a template + user input.
-
-    2. **Scenario Generation (Landing Pages)**
-
-       * Use Vrooli CLI to generate new landing-page scenarios:
-
-         * `vrooli scenario:new --template saas-landing-page --name "<Name>" --slug "<slug>"`
-       * Initialize:
-
-         * Frontend app (React/TS/Vite/Tailwind/shadcn).
-         * Go API for that landing page (payments, content, metrics).
-         * Default A/B configuration (at least 2 variants).
-       * Optionally call an **agent** immediately after creation to:
-
-         * Read user-supplied brief + assets.
-         * Customize sections (copy, layout choices, colors, etc.).
-         * Propose new A/B variants if requested.
-
-    3. **Admin Portal (Per Landing Page)**
-       Every generated landing-page scenario includes a **secret admin portal**:
-
-       * Not linked from the public landing page.
-       * Email/password authentication.
-       * Top-level “mode selector”:
-
-         * **Analytics / Metrics view**
-         * **Customization view**
-       * **Analytics / Metrics view**:
-
-         * Summaries of:
-
-           * Page visits
-           * Scroll depth
-           * Click tracking (especially CTAs)
-           * Form submissions (e.g. newsletter)
-           * Conversions (e.g. to Stripe subscription)
-         * Breakdown **per variant**.
-       * **Customization view**:
-
-         * Card list of “slides” / sections (hero, features, social proof, pricing, etc.).
-         * Each card opens a page with:
-
-           * Left column: **form** for the section content/config.
-           * Right column: **live preview** using the actual component with current A/B selection.
-         * Additional cards:
-
-           * **A/B test manager** (variants, weights, status).
-           * **Slide order manager** (reordering/enable/disable).
-         * Breadcrumb navigation on all admin pages.
-         * Admin pages are driven by **URL params** indicating which A/B variant is being edited; variant selection is switchable from any page.
-
-    4. **A/B Variant System (Per Landing Page)**
-
-       * A/B is **whole-page**; each variant is a full configuration of the landing page.
-       * **Variant selection rules:**
-
-         * If URL includes a variant slug param → **force** that variant.
-         * Else if `localStorage` contains a previously chosen variant ID → reuse it.
-         * Else → API returns a random variant based on weight, and frontend stores the chosen variant in `localStorage`.
-       * Variants have:
-
-         * `id`
-         * `slug` (for URL)
-         * `weight`
-         * `status` (active / archived / disabled)
-         * human-readable name/description.
-
-    5. **Metrics & Analytics (Per Landing Page)**
-
-       * All key events are tagged with:
-
-         * `variant_id`
-         * `variant_slug`
-         * timestamp
-         * optional `session_id`
-       * Metrics to capture:
-
-         * Page views
-         * Scroll depth bands (e.g. 25%, 50%, 75%, 100%)
-         * Click events (with element identifier)
-         * Form submissions (newsletter / contact / etc.)
-         * CTA clicks
-         * Conversion to paid (e.g., Stripe subscription success).
-       * Admin analytics view aggregates by:
-
-         * Variant
-         * Time ranges
-         * Funnel-ish counts (visit → CTA click → conversion).
-
-    6. **Payments & Subscriptions (Per Landing Page)**
-
-       * Built-in Stripe integration for:
-
-         * Checkout
-         * Subscriptions (e.g., multiple price tiers if needed).
-       * Each landing-page scenario ships with:
-
-         * Stripe config env vars.
-         * Go routes for:
-
-           * Creating checkout sessions.
-           * Handling webhook events.
-           * Listing active subscriptions for that product.
-       * **Subscription verification API model (Model 2):**
-
-         * Each landing page exposes its own verification endpoints:
-
-           * e.g. `GET /api/subscription/verify?user_id=...` (or token-based).
-           * `POST /api/subscription/cancel`.
-         * Deployed apps relying on that landing page (e.g., Vrooli Pro apps) call those endpoints to check if the user is subscribed to that specific bundle.
-
-    7. **Agent Integration**
-
-       * From the `landing-page-factory` scenario UI / CLI:
-
-         * User can select a landing-page scenario.
-         * Provide a config package:
-
-           * Text brief (target persona, tone, main selling points).
-           * Uploaded assets (logos, screenshots, brand guidelines).
-         * Spawn an agent to:
-
-           * Propose new A/B variants (layout + copy).
-           * Set initial content for all slides.
-           * Ensure the page is:
-
-             * visually distinctive (per the `<frontend_aesthetics>` instructions),
-             * Lighthouse-friendly (perf + accessibility).
-           * Optionally generate seed content for multiple personas/user types.
-
-    8. **Framework & Aesthetic**
-
-       * Default tech stack for generated landing pages:
-
-         * **Frontend:** React, TypeScript, Vite, TailwindCSS, shadcn, Lucide.
-         * **Backend:** Go API.
-       * The template should be explicitly guided by the `<frontend_aesthetics>` instructions:
-
-         * Avoid generic AI look.
-         * Unique, cohesive visual identity per landing page.
-         * Strong typography, bold color themes, and atmospheric backgrounds.
-       * The factory scenario’s description & metadata should embed this aesthetic guideline so design agents always see it.
-
-    9. **Versioning & Archival**
-
-       * Variants and slide configurations are versioned per landing page.
-       * Admins can:
-
-         * Archive/disable a variant (keeping stats).
-         * Hard delete (with confirmation) if needed.
-       * Version metadata includes:
-
-         * who/what created it (user vs agent),
-         * timestamps,
-         * key metrics snapshot (optional).
-
-    10. **Vrooli Pro / Future Bundles**
-
-        * The first instance will be the **Vrooli Pro** landing page:
-
-          * Sells a bundle of internal tools (browser-automation-studio, etc.).
-          * Must support:
-
-            * Video embed sections.
-            * Multiple personas (solopreneurs, developers, teams).
-            * Fully customizable A/B page variants.
-        * Future bundles (e.g. Vrooli Home) will use the same template but separate landing-page scenarios and subscription APIs.
-
-    ---
-
-    ## 2. Operational Targets
-
-    These are written so you can turn them into tests/checklists.
-
-    ### 2.1. Scenario-Level Targets
-
-    1. **Template availability**
-
-       * OT-1: `landing-page-factory` must expose at least one template (`saas-landing-page`) via Vrooli CLI and/or API: list, inspect, generate.
-       * OT-2: Template metadata must include required sections, optional sections, and supported metrics hooks.
-
-    2. **Scenario generation**
-
-       * OT-3: Creating a new landing-page scenario from the template must complete with a single CLI command or API call, without manual file editing.
-       * OT-4: Generated landing-page scenario must be runnable locally (frontend + Go API) with a single `docker-compose up` or equivalent script.
-
-    3. **Agent integration**
-
-       * OT-5: From the factory scenario, user must be able to trigger an “agent customization run” for a specific landing page.
-       * OT-6: The agent must receive a structured brief (text + assets references + goals) and write changes only via defined configuration APIs / files (no direct random FS edits).
-
-    ---
-
-    ### 2.2. Admin Portal Targets (Per Landing Page)
-
-    4. **Discoverability & security**
-
-       * OT-7: Admin portal must not be linked from any public page or sitemap.
-       * OT-8: Admin portal must be protected by email/password login, with passwords stored using a modern hash (e.g. bcrypt/argon2).
-
-    5. **Admin UX**
-
-       * OT-9: Admin home must show exactly two primary modes: “Analytics / Metrics” and “Customization.”
-       * OT-10: Navigating to any customization card must be possible in ≤ 3 clicks from the admin home.
-       * OT-11: All admin pages must display a breadcrumb indicating where the user is (e.g. `Admin / Customization / Hero Slide / Variant A`).
-
-    6. **Customization layout**
-
-       * OT-12: Each slide customization page must show:
-
-         * A form in one column.
-         * A live preview in the other column (side-by-side on large screens; stacked on small screens).
-       * OT-13: Changing a form field must update the preview within 300ms (debounced) without requiring a full page reload.
-
-    ---
-
-    ### 2.3. A/B Testing Targets
-
-    7. **Variant selection**
-
-       * OT-14: If a `variant_slug` is present in the URL, that variant must be used regardless of `localStorage`.
-       * OT-15: If no `variant_slug` in URL and a stored variant ID exists in `localStorage`, that variant must be used.
-       * OT-16: If neither is present, the API must select a variant based on weight and return its ID; the frontend must write that ID to `localStorage`.
-
-    8. **Variant management**
-
-       * OT-17: Admin must be able to:
-
-         * Create new variants.
-         * Update weights.
-         * Disable/archive a variant.
-         * Hard delete a variant (with confirm).
-       * OT-18: Archived variants must remain queryable for analytics but not be eligible for random selection.
-
-    9. **Metrics per variant**
-
-       * OT-19: All events (page visit, scroll depth, clicks, form submissions, conversions) must include `variant_id` in the payload.
-       * OT-20: Admin analytics view must allow filtering stats by variant and by a time range.
-
-    ---
-
-    ### 2.4. Metrics & Analytics Targets
-
-    10. **Event coverage**
-
-    * OT-21: At minimum, the system must emit events for:
-
-      * `page_view`
-      * `scroll_depth` (with bands)
-      * `click` (with element identifier)
-      * `form_submit`
-      * `conversion` (linked to Stripe payment success).
-    * OT-22: Metrics ingestion must be idempotent or deduplicated where feasible to avoid double-counting on retries.
-
-    11. **Analytics UX**
-
-    * OT-23: Analytics home must show:
-
-      * Total visitors (per time range),
-      * Conversion rate per variant,
-      * Top CTAs by click-through rate.
-    * OT-24: From a variant detail page, admin must be able to see at least:
-
-      * Views,
-      * CTA clicks,
-      * Conversions,
-      * Conversion rate,
-      * Trend over time (basic).
-
-    ---
-
-    ### 2.5. Payments & Subscription Targets
-
-    12. **Stripe integration**
-
-    * OT-25: Each landing-page scenario must include:
-
-      * Stripe keys loaded from environment variables.
-      * A route for creating checkout sessions.
-      * A webhook route for Stripe events (e.g. `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`).
-    * OT-26: All webhook endpoints must verify the Stripe signature before processing.
-
-    13. **Subscription verification**
-
-    * OT-27: Each landing-page API must expose a `GET /api/subscription/verify` endpoint that:
-
-      * Accepts a user identity (e.g. token or ID).
-      * Returns a simple status: active / inactive / trial / canceled.
-    * OT-28: Subscription verification responses must be cacheable (short TTL) but must not lag behind webhook changes by more than 60 seconds.
-
-    14. **Cancellation**
-
-    * OT-29: The API must expose a `POST /api/subscription/cancel` that:
-
-      * Validates the user.
-      * Initiates Stripe subscription cancellation.
-      * Returns a clear status (scheduled_to_cancel, canceled_immediately, error).
-
-    ---
-
-    ### 2.6. Performance & Accessibility Targets
-
-    15. **Performance**
-
-    * OT-30: For a default generated landing page (without heavy external scripts), Lighthouse performance score should be ≥ 90 on desktop out of the box.
-    * OT-31: Time to interactive on a cold load over typical broadband should be < 2.0 seconds for the main landing page.
-
-    16. **Accessibility**
-
-    * OT-32: Lighthouse accessibility score must be ≥ 90 for the generated template.
-    * OT-33: All interactive elements must be keyboard-accessible and have discernible labels.
-
-    ---
-
-    ### 2.7. Design / Aesthetic Targets
-
-    17. **Non-generic aesthetic**
-
-    * OT-34: The template specification must include the `<frontend_aesthetics>` block (or equivalent) in its description so that design agents always see explicit instructions to avoid generic “AI slop” UI.
-    * OT-35: The default template must:
-
-      * Declare a custom font stack (not Inter, Roboto, Arial, or system default),
-      * Use defined CSS variables for colors and spacing,
-      * Include at least one non-trivial background (e.g., layered gradients, shapes, or textures) rather than a flat solid.
-
-    18. **Video support**
-
-    * OT-36: The template must support at least one **video demo section**, configurable via admin (video URL, thumbnail, caption, layout).
-
-    ---
-
-    If you’d like, next step I can:
-
-    * Turn this into a **YAML/JSON scenario config** in the exact format Vrooli uses, or
-    * Draft the **Go + React folder structure** and initial files for `saas-landing-page` template, or
-    * Write the **agent prompt** for “Customize this landing page variant” using these operational targets.
-results: {}
+notes: |-
+    Notes from last time:
+
+    **What was accomplished:**
+    - Executed the command "claude --print --max-turns 100 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions"
+    - Started health monitor for claude-code with PID 2047834 and interval 30s
+
+    **Current status:**
+    - Non-TTY environment detected using automation-friendly settings
+    - Permission checks are disabled (WARNING)
+    - Execution of command "claude" is in progress
+
+    **Remaining issues or limitations:**
+    - Permission checks are disabled, which may impact security
+    - No indication that critical tests have been run or passed
+
+    **Suggested next actions:**
+    - Run the command "claude --validate" to check for validation errors
+    - Review the output of health monitor for claude-code (PID 2047834)
+
+    **Validation evidence:**
+    - Started health monitor for claude-code with PID 2047834 and interval 30s
+    - Executed the command "claude --print --max-turns 100 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions"
+results:
+    rate_limit_info:
+        hit_at: "2025-11-21T23:46:41-05:00"
+        message: Rate limited at 2025-11-21T23:46:41-05:00. Will retry after 1800 seconds.
+        retry_after: 1800
+    success: false
 consecutive_completion_claims: 0
 consecutive_failures: 0
-processor_auto_requeue: false
+processor_auto_requeue: true

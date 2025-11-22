@@ -33,7 +33,7 @@ type TaskItem struct {
 	Tags                        []string       `json:"tags" yaml:"tags"`
 	Notes                       string         `json:"notes" yaml:"notes"`
 	Results                     map[string]any `json:"results" yaml:"results"`
-	ConsecutiveCompletionClaims int            `json:"consecutive_completion_claims" yaml:"consecutive_completion_claims"`
+	ConsecutiveCompletionClaims float64        `json:"consecutive_completion_claims" yaml:"consecutive_completion_claims"`
 	ConsecutiveFailures         int            `json:"consecutive_failures" yaml:"consecutive_failures"`
 	ProcessorAutoRequeue        bool           `json:"processor_auto_requeue" yaml:"processor_auto_requeue"`
 }
