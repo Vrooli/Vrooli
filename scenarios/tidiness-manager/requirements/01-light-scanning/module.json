@@ -8,7 +8,6 @@
       "id": "TM-LS-001",
       "title": "Makefile integration for lint execution",
       "prd_ref": "OT-P0-001",
-      "criticality": "P0",
       "description": "Execute `make lint` for any scenario with a Makefile and capture full output",
       "validation": [
         {
@@ -25,7 +24,6 @@
       "id": "TM-LS-002",
       "title": "Makefile integration for type checking",
       "prd_ref": "OT-P0-001",
-      "criticality": "P0",
       "description": "Execute `make type` for any scenario with a Makefile and capture full output",
       "validation": [
         {
@@ -42,7 +40,6 @@
       "id": "TM-LS-003",
       "title": "Lint output parser",
       "prd_ref": "OT-P0-001",
-      "criticality": "P0",
       "description": "Parse lint outputs into structured issues with scenario, file path, line/column, message, and tool",
       "validation": [
         {
@@ -59,7 +56,6 @@
       "id": "TM-LS-004",
       "title": "Type output parser",
       "prd_ref": "OT-P0-001",
-      "criticality": "P0",
       "description": "Parse type checker outputs into structured issues",
       "validation": [
         {
@@ -76,7 +72,6 @@
       "id": "TM-LS-005",
       "title": "File metrics - line counting",
       "prd_ref": "OT-P0-002",
-      "criticality": "P0",
       "description": "Compute per-file line counts for all source files matching configurable glob patterns",
       "validation": [
         {
@@ -93,7 +88,6 @@
       "id": "TM-LS-006",
       "title": "File metrics - long file flagging",
       "prd_ref": "OT-P0-002",
-      "criticality": "P0",
       "description": "Flag files exceeding configurable line count threshold as 'long file' issues",
       "validation": [
         {
@@ -110,7 +104,6 @@
       "id": "TM-LS-007",
       "title": "Light scan performance - small scenarios",
       "prd_ref": "OT-P0-003",
-      "criticality": "P1",
       "description": "Light scans for scenarios <50 files must complete in under 60 seconds",
       "validation": [
         {
@@ -127,7 +120,6 @@
       "id": "TM-LS-008",
       "title": "Light scan performance - medium scenarios",
       "prd_ref": "OT-P0-003",
-      "criticality": "P1",
       "description": "Light scans for scenarios <200 files must complete in under 120 seconds",
       "validation": [
         {

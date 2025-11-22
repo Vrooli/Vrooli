@@ -8,7 +8,6 @@
       "id": "TM-IM-001",
       "title": "Mark issue as resolved",
       "prd_ref": "OT-P1-004",
-      "criticality": "P1",
       "description": "Allow marking issues as resolved with optional resolution notes",
       "validation": [
         {
@@ -25,7 +24,6 @@
       "id": "TM-IM-002",
       "title": "Mark issue as ignored",
       "prd_ref": "OT-P1-004",
-      "criticality": "P1",
       "description": "Allow marking issues as ignored with reason (e.g., false positive, intentional design)",
       "validation": [
         {
@@ -42,7 +40,6 @@
       "id": "TM-IM-003",
       "title": "Issue status filtering",
       "prd_ref": "OT-P1-004",
-      "criticality": "P1",
       "description": "Filter issues by status: open, resolved, ignored, all",
       "validation": [
         {
@@ -59,7 +56,6 @@
       "id": "TM-IM-004",
       "title": "Issue detail view",
       "prd_ref": "OT-P1-004",
-      "criticality": "P1",
       "description": "Display full agent notes, suggested remediation steps, and file context for selected issue",
       "validation": [
         {
@@ -76,7 +72,6 @@
       "id": "TM-IM-005",
       "title": "Issue de-duplication grouping",
       "prd_ref": "OT-P1-005",
-      "criticality": "P1",
       "description": "Group or link same logical issue from multiple sources (lint + type + AI)",
       "validation": [
         {
@@ -93,7 +88,6 @@
       "id": "TM-IM-006",
       "title": "Trigger one-off light scan",
       "prd_ref": "OT-P1-006",
-      "criticality": "P1",
       "description": "UI button to trigger immediate light scan for a scenario",
       "validation": [
         {
@@ -110,7 +104,6 @@
       "id": "TM-IM-007",
       "title": "Trigger one-off smart scan",
       "prd_ref": "OT-P1-006",
-      "criticality": "P1",
       "description": "UI button to trigger immediate smart scan for a scenario or file subset",
       "validation": [
         {
@@ -127,7 +120,6 @@
       "id": "TM-IM-008",
       "title": "Enable/disable campaign from UI",
       "prd_ref": "OT-P1-006",
-      "criticality": "P1",
       "description": "Toggle to enable or disable auto-tidiness campaign for a scenario",
       "validation": [
         {

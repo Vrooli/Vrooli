@@ -7,7 +7,6 @@
       "id": "AI-EDIT-001",
       "title": "AI Chat Integration",
       "prd_ref": "OT-P0-008",
-      "criticality": "P0",
       "description": "Connect AI chat panel to editor with context-aware code suggestions, refactors, and styling changes",
       "validation": [],
       "dependencies": [],
@@ -23,7 +22,6 @@
       "id": "AI-EDIT-002",
       "title": "Patch Review and Merge",
       "prd_ref": "OT-P1-001",
-      "criticality": "P1",
       "description": "Allow users to review AI-suggested diffs/patches before accepting and applying changes",
       "validation": [],
       "dependencies": [
@@ -41,7 +39,6 @@
       "id": "AI-EDIT-003",
       "title": "Enhanced AI Context",
       "prd_ref": "OT-P1-010",
-      "criticality": "P1",
       "description": "Include emulator viewport context and selected element info in AI requests for better suggestions",
       "validation": [],
       "dependencies": [

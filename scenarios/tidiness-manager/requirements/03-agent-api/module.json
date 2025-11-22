@@ -8,7 +8,6 @@
       "id": "TM-API-001",
       "title": "Scenario summary endpoint",
       "prd_ref": "OT-P0-007",
-      "criticality": "P0",
       "description": "Expose API endpoint to request top N tidiness issues for a given scenario",
       "validation": [
         {
@@ -25,7 +24,6 @@
       "id": "TM-API-002",
       "title": "File-scoped issue query",
       "prd_ref": "OT-P0-007",
-      "criticality": "P1",
       "description": "Support querying issues scoped to specific file or folder",
       "validation": [
         {
@@ -42,7 +40,6 @@
       "id": "TM-API-003",
       "title": "Category-scoped issue query",
       "prd_ref": "OT-P0-007",
-      "criticality": "P1",
       "description": "Support querying issues filtered by category (e.g., 'long files', 'dead code')",
       "validation": [
         {
@@ -59,7 +56,6 @@
       "id": "TM-API-004",
       "title": "Issue ranking heuristic",
       "prd_ref": "OT-P0-007",
-      "criticality": "P0",
       "description": "Rank returned issues by severity, occurrence count, and file criticality",
       "validation": [
         {
@@ -76,7 +72,6 @@
       "id": "TM-API-005",
       "title": "CLI wrapper for agent integration",
       "prd_ref": "OT-P0-007",
-      "criticality": "P0",
       "description": "Provide CLI commands that wrap HTTP API for agent consumption",
       "validation": [
         {
@@ -93,7 +88,6 @@
       "id": "TM-API-006",
       "title": "Issue storage in postgres",
       "prd_ref": "OT-P0-008",
-      "criticality": "P0",
       "description": "Store issues in postgres with all required fields (scenario, file, category, severity, notes, remediation, campaign metadata)",
       "validation": [
         {
@@ -110,7 +104,6 @@
       "id": "TM-API-007",
       "title": "Campaign metadata linkage",
       "prd_ref": "OT-P0-008",
-      "criticality": "P1",
       "description": "Link issues to campaign ID, session ID, and visit timestamp",
       "validation": [
         {

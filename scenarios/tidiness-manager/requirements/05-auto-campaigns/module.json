@@ -8,7 +8,6 @@
       "id": "TM-AC-001",
       "title": "Campaign configuration",
       "prd_ref": "OT-P1-001",
-      "criticality": "P1",
       "description": "Support campaigns with max_sessions, max_files_per_session, priority rules, optional category focus",
       "validation": [
         {
@@ -25,7 +24,6 @@
       "id": "TM-AC-002",
       "title": "Campaign concurrency limit",
       "prd_ref": "OT-P1-001",
-      "criticality": "P0",
       "description": "Enforce maximum K concurrent auto-tidiness campaigns (default K=3)",
       "validation": [
         {
@@ -42,7 +40,6 @@
       "id": "TM-AC-003",
       "title": "Campaign auto-completion - files visited",
       "prd_ref": "OT-P1-002",
-      "criticality": "P0",
       "description": "Transition campaign to 'completed' when all files in scope have at least one visit",
       "validation": [
         {
@@ -59,7 +56,6 @@
       "id": "TM-AC-004",
       "title": "Campaign auto-completion - max sessions",
       "prd_ref": "OT-P1-002",
-      "criticality": "P0",
       "description": "Transition campaign to 'completed' when max_sessions limit reached",
       "validation": [
         {
@@ -76,7 +72,6 @@
       "id": "TM-AC-005",
       "title": "Campaign pause/resume",
       "prd_ref": "OT-P1-002",
-      "criticality": "P1",
       "description": "Support manual pause and resume of active campaigns from UI",
       "validation": [
         {
@@ -93,7 +88,6 @@
       "id": "TM-AC-006",
       "title": "Campaign manual termination",
       "prd_ref": "OT-P1-002",
-      "criticality": "P1",
       "description": "Support manual termination of campaigns before completion",
       "validation": [
         {
@@ -110,7 +104,6 @@
       "id": "TM-AC-007",
       "title": "Campaign error detection",
       "prd_ref": "OT-P1-003",
-      "criticality": "P0",
       "description": "Mark campaigns as 'error' on repeated agent failures with visible error reason",
       "validation": [
         {
@@ -127,7 +120,6 @@
       "id": "TM-AC-008",
       "title": "Campaign safety controls",
       "prd_ref": "OT-P1-003",
-      "criticality": "P0",
       "description": "Auto-stop campaigns in error state to prevent resource waste",
       "validation": [
         {

@@ -7,7 +7,6 @@
       "id": "ADOPT-001",
       "title": "Apply to Scenario Workflow",
       "prd_ref": "OT-P0-010",
-      "criticality": "P0",
       "description": "Generate detailed adoption reports via app-issue-tracker with absolute paths, dependencies, and step-by-step integration instructions",
       "validation": [],
       "dependencies": [],
@@ -27,7 +26,6 @@
       "id": "ADOPT-002",
       "title": "Adoption Tracking Records",
       "prd_ref": "OT-P0-011",
-      "criticality": "P0",
       "description": "Track which scenarios have adopted which components, at which version, with timestamps",
       "validation": [],
       "dependencies": [
@@ -44,7 +42,6 @@
       "id": "ADOPT-003",
       "title": "Automated Adoption Verification",
       "prd_ref": "OT-P1-009",
-      "criticality": "P1",
       "description": "Confirm adopted files exist and validate header comments during adoption tracking",
       "validation": [],
       "dependencies": [
@@ -61,7 +58,6 @@
       "id": "ADOPT-004",
       "title": "Adoption Status Dashboard",
       "prd_ref": "OT-P1-005",
-      "criticality": "P1",
       "description": "Show which scenarios use which components, their versions, and update status (current/behind/modified)",
       "validation": [],
       "dependencies": [

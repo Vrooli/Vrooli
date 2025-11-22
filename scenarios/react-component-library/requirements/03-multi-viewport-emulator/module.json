@@ -7,7 +7,6 @@
       "id": "EMUL-001",
       "title": "Multi-Frame Support",
       "prd_ref": "OT-P0-006",
-      "criticality": "P0",
       "description": "Support simultaneous preview frames with independent viewport settings (desktop, mobile, tablet presets)",
       "validation": [],
       "dependencies": [],
@@ -23,7 +22,6 @@
       "id": "EMUL-002",
       "title": "Per-Frame Props Configuration",
       "prd_ref": "OT-P1-003",
-      "criticality": "P1",
       "description": "Support different props/variants per emulator frame with persistent settings per component",
       "validation": [],
       "dependencies": [

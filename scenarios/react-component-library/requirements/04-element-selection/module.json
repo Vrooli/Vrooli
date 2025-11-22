@@ -7,7 +7,6 @@
       "id": "ELEM-SEL-001",
       "title": "Selection Mode and Identifier Capture",
       "prd_ref": "OT-P0-007",
-      "criticality": "P0",
       "description": "Enable element selection mode allowing users to click and capture stable element identifiers",
       "validation": [],
       "dependencies": [],
@@ -22,7 +21,6 @@
       "id": "ELEM-SEL-002",
       "title": "Multi-Element Selection",
       "prd_ref": "OT-P1-002",
-      "criticality": "P1",
       "description": "Enable attaching multiple selected elements from different frames to a single AI chat message",
       "validation": [],
       "dependencies": [

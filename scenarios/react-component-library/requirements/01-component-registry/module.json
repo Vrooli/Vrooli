@@ -7,7 +7,6 @@
       "id": "COMP-REG-001",
       "title": "Component Registry with Metadata",
       "prd_ref": "OT-P0-001",
-      "criticality": "P0",
       "description": "Maintain registry of shared components with ID, name, description, tags, version, file path, and tech stack",
       "validation": [],
       "dependencies": [],
@@ -22,10 +21,11 @@
       "id": "COMP-REG-002",
       "title": "Header Comment Enforcement",
       "prd_ref": "OT-P0-002",
-      "criticality": "P0",
       "description": "Enforce standardized header comment block in all library components containing metadata and adoption tracking info",
       "validation": [],
-      "dependencies": ["COMP-REG-001"],
+      "dependencies": [
+        "COMP-REG-001"
+      ],
       "status": "planned",
       "notes": [
         "Header must include: libraryId, displayName, description, version, sourcePath, warning",
@@ -37,10 +37,12 @@
       "id": "COMP-REG-003",
       "title": "Component Indexing from Disk",
       "prd_ref": "OT-P0-003",
-      "criticality": "P0",
       "description": "Re-index library components from disk using header comment metadata without DB-only reliance",
       "validation": [],
-      "dependencies": ["COMP-REG-001", "COMP-REG-002"],
+      "dependencies": [
+        "COMP-REG-001",
+        "COMP-REG-002"
+      ],
       "status": "planned",
       "notes": [
         "File system is source of truth",

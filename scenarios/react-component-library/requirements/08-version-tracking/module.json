@@ -7,7 +7,6 @@
       "id": "VER-TRACK-001",
       "title": "Component Version Management",
       "prd_ref": "OT-P0-012",
-      "criticality": "P0",
       "description": "Track current version for each component using semver or incremental versioning",
       "validation": [],
       "dependencies": [],
@@ -23,7 +22,6 @@
       "id": "VER-TRACK-002",
       "title": "Change Detection and Diff Views",
       "prd_ref": "OT-P1-004",
-      "criticality": "P1",
       "description": "Detect divergence between library version and adopted files, show diff views (library vs adopted)",
       "validation": [],
       "dependencies": [

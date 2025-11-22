@@ -8,7 +8,6 @@
       "id": "TM-SS-001",
       "title": "AI batch configuration",
       "prd_ref": "OT-P0-004",
-      "criticality": "P0",
       "description": "Support configurable max files per batch, max tokens per request, max concurrent requests",
       "validation": [
         {
@@ -25,7 +24,6 @@
       "id": "TM-SS-002",
       "title": "AI issue recording",
       "prd_ref": "OT-P0-004",
-      "criticality": "P0",
       "description": "Record AI issues with scenario, file paths, category, severity, explanation, and remediation steps",
       "validation": [
         {
@@ -42,7 +40,6 @@
       "id": "TM-SS-003",
       "title": "visited-tracker campaign creation",
       "prd_ref": "OT-P0-005",
-      "criticality": "P0",
       "description": "Create new visited-tracker campaign if none exists for a scenario",
       "validation": [
         {
@@ -59,7 +56,6 @@
       "id": "TM-SS-004",
       "title": "visited-tracker campaign attachment",
       "prd_ref": "OT-P0-005",
-      "criticality": "P0",
       "description": "Attach to existing visited-tracker campaign when available",
       "validation": [
         {
@@ -76,7 +72,6 @@
       "id": "TM-SS-005",
       "title": "File prioritization - unvisited first",
       "prd_ref": "OT-P0-005",
-      "criticality": "P0",
       "description": "Prioritize unvisited files over visited files in smart scans",
       "validation": [
         {
@@ -93,7 +88,6 @@
       "id": "TM-SS-006",
       "title": "File prioritization - least visited",
       "prd_ref": "OT-P0-005",
-      "criticality": "P1",
       "description": "Among visited files, prioritize least-visited files",
       "validation": [
         {
@@ -110,7 +104,6 @@
       "id": "TM-SS-007",
       "title": "No duplicate analysis per session",
       "prd_ref": "OT-P0-006",
-      "criticality": "P0",
       "description": "Prevent analyzing the same file twice within a single smart scan session",
       "validation": [
         {
@@ -127,7 +120,6 @@
       "id": "TM-SS-008",
       "title": "Configurable max visits per file",
       "prd_ref": "OT-P0-006",
-      "criticality": "P1",
       "description": "Prevent analyzing files beyond configurable max visit count unless explicitly requested",
       "validation": [
         {
