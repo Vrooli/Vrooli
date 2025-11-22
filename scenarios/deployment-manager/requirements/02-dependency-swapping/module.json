@@ -10,8 +10,7 @@
       "prd_ref": "OT-P0-007",
       "title": "Swap Suggestions",
       "description": "Suggest at least one swap for each blocker/low-fitness dependency (<50) or show \"No known alternatives\"",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "swapping",
         "recommendations"
@@ -20,8 +19,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/dependency-swapping.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-007] tags"
         }
       ]
     },
@@ -31,8 +31,7 @@
       "prd_ref": "OT-P0-008",
       "title": "Swap Impact Analysis",
       "description": "Show fitness delta, trade-offs (pros/cons), and migration effort estimate for each swap",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "swapping",
         "analysis"
@@ -41,8 +40,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/dependency-swapping.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-008] tags"
         }
       ]
     },
@@ -52,8 +52,7 @@
       "prd_ref": "OT-P0-009",
       "title": "Non-Destructive Swaps",
       "description": "Applying swaps updates deployment profile only, never modifies source code",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "swapping",
         "safety"
@@ -62,8 +61,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/dependency-swapping.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-009] tags"
         }
       ]
     },
@@ -73,8 +73,7 @@
       "prd_ref": "OT-P0-010",
       "title": "Real-Time Recalculation",
       "description": "Recalculate fitness and requirements within 1 second after swap application",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "swapping",
         "performance"
@@ -83,8 +82,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/dependency-swapping.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-010] tags"
         }
       ]
     },
@@ -94,8 +94,7 @@
       "prd_ref": "OT-P0-011",
       "title": "Cascading Swap Detection",
       "description": "Detect and warn about cascading impacts (e.g., swapping postgres removes dependent scenario X)",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "swapping",
         "validation"
@@ -104,8 +103,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/dependency-swapping.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-011] tags"
         }
       ]
     }

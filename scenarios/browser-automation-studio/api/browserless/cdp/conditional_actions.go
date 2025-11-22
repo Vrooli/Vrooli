@@ -106,7 +106,7 @@ func (s *Session) evaluateExpressionCondition(ctx context.Context, expression st
         }
     })(%s)`, strconv.Quote(trimmed))
 
-	ctxWithTimeout, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
+	ctxWithTimeout, cancel := context.WithTimeout(s.GetCurrentContext(), time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	if err := s.evalWithFrame(ctxWithTimeout, script, &evaluation); err != nil {

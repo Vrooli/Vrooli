@@ -24,7 +24,7 @@ func (s *Session) ExecuteSetStorage(ctx context.Context, params runtime.Instruct
 		timeout = 15000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeout)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.GetCurrentContext(), time.Duration(timeout)*time.Millisecond)
 	defer cancel()
 
 	script, err := buildSetStorageScript(params)
@@ -66,7 +66,7 @@ func (s *Session) ExecuteGetStorage(ctx context.Context, params runtime.Instruct
 		timeout = 15000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeout)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.GetCurrentContext(), time.Duration(timeout)*time.Millisecond)
 	defer cancel()
 
 	script, err := buildGetStorageScript(params)
@@ -123,7 +123,7 @@ func (s *Session) ExecuteClearStorage(ctx context.Context, params runtime.Instru
 		timeout = 15000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeout)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.GetCurrentContext(), time.Duration(timeout)*time.Millisecond)
 	defer cancel()
 
 	script := buildClearStorageScript(params)

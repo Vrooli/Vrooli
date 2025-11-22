@@ -13,7 +13,6 @@
       "title": "Audio editing operations",
       "description": "Trim, merge, split, fade in/out, volume adjustment with proper timeout handling",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -31,7 +30,6 @@
       "title": "Audio normalization and quality enhancement",
       "description": "Noise reduction, auto-leveling tested successfully",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -49,7 +47,6 @@
       "title": "Format conversion",
       "description": "Convert between MP3, WAV, FLAC, AAC, OGG with quality settings",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -67,7 +64,6 @@
       "title": "Speed and pitch modification",
       "description": "Quality preservation using FFmpeg filters for tempo and pitch shifts",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -85,7 +81,6 @@
       "title": "Equalization and filtering",
       "description": "Low-pass, high-pass, band-pass, notch filters with frequency control",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -103,7 +98,6 @@
       "title": "Audio metadata extraction",
       "description": "ID3 tags, duration, bitrate supporting both file upload and ID-based extraction",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -121,7 +115,6 @@
       "title": "RESTful API",
       "description": "Comprehensive audio processing endpoints with proper error handling",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -139,7 +132,6 @@
       "title": "CLI interface",
       "description": "Full feature parity with batch processing support and audio-specific commands",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -157,7 +149,6 @@
       "title": "Audio transcription",
       "description": "Multiple language support with confidence scoring",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -175,7 +166,6 @@
       "title": "Speaker diarization",
       "description": "Speaker identification with timeline tracking",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -193,7 +183,6 @@
       "title": "Music and speech separation",
       "description": "Source isolation for music/speech separation",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -211,7 +200,6 @@
       "title": "Emotion detection",
       "description": "Sentiment analysis from voice patterns",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -229,7 +217,6 @@
       "title": "Language detection",
       "description": "Confidence scoring with dialect recognition",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -247,7 +234,6 @@
       "title": "Audio quality analysis",
       "description": "Noise floor measurement with spectral analysis",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -265,7 +251,6 @@
       "title": "Real-time audio processing",
       "description": "Streaming support for live processing",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -283,7 +268,6 @@
       "title": "Voice activity detection",
       "description": "Silence removal and speech segmentation implemented",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -301,7 +285,6 @@
       "title": "Voice cloning and synthesis",
       "description": "Custom voice training and AI-powered voice generation",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -319,7 +302,6 @@
       "title": "AI-powered music generation",
       "description": "Style and genre control for music creation",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -337,7 +319,6 @@
       "title": "Advanced podcast tools",
       "description": "Chapter markers, intro/outro automation, sponsor detection",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -355,7 +336,6 @@
       "title": "Audio fingerprinting",
       "description": "Content identification and duplicate detection",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -373,7 +353,6 @@
       "title": "Spatial audio processing",
       "description": "3D audio experiences and immersive soundscapes",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -391,7 +370,6 @@
       "title": "Voice enhancement for accessibility",
       "description": "Hearing aid optimization, clarity improvement",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -409,7 +387,6 @@
       "title": "Multi-track audio mixing",
       "description": "Automated mastering for professional quality",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -427,7 +404,6 @@
       "title": "Acoustic analysis",
       "description": "Room acoustics and audio environment assessment",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",

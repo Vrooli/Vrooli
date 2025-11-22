@@ -13,7 +13,6 @@
       "title": "Add node from palette to canvas via drag-and-drop",
       "description": "Users can drag node types from the palette and drop them onto the workflow canvas to add new workflow steps",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -31,7 +30,6 @@
       "title": "Create connections between workflow nodes",
       "description": "Users can connect workflow nodes by dragging from one node's output handle to another node's input handle, establishing execution order",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -49,7 +47,6 @@
       "title": "Delete nodes using keyboard shortcuts",
       "description": "Users can select workflow nodes and delete them using keyboard shortcuts (Delete/Backspace), with connected edges automatically removed",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -67,7 +64,6 @@
       "title": "Edit node properties via configuration panel",
       "description": "Users can click on a workflow node to open its property panel and modify configuration fields (selectors, timeouts, labels, etc.) with changes reflected immediately",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",

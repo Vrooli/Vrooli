@@ -13,7 +13,6 @@
       "title": "New user can complete full workflow creation and execution journey",
       "description": "Validates the complete new user experience from landing on dashboard through creating a project, building a workflow manually, executing it, and viewing execution results with replay. This is the primary marketing demo flow and represents the core value proposition of browser-automation-studio.",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -31,7 +30,6 @@
       "title": "New user can create workflow using AI generation",
       "description": "Validates the AI-assisted workflow creation path: Create project → Use AI prompt to generate workflow → Review generated workflow → Execute → View results",
       "status": "pending",
-      "criticality": "P1",
       "notes": "Automation playbook still pending (planned location: test/playbooks/journeys/happy-path-ai-generation.json)",
       "validation": []
     },
@@ -42,7 +40,6 @@
       "title": "User can debug and fix a failed workflow execution",
       "description": "Validates debugging workflow: Execute workflow with failing assertion → View execution details → Identify failure point → Edit workflow → Re-execute → Verify success",
       "status": "pending",
-      "criticality": "P1",
       "notes": "Automation playbook pending (planned: test/playbooks/journeys/debug-workflow-failure.json)",
       "validation": []
     },
@@ -53,7 +50,6 @@
       "title": "User can edit and re-run existing workflow",
       "description": "Validates workflow editing: Open existing workflow → Add/modify nodes → Create/modify connections → Save changes → Execute updated workflow → Compare execution results",
       "status": "pending",
-      "criticality": "P1",
       "notes": "Automation playbook pending (planned: test/playbooks/journeys/edit-existing-workflow.json)",
       "validation": []
     },
@@ -64,7 +60,6 @@
       "title": "User can view version history and restore previous version",
       "description": "Validates version control workflow: Make changes to workflow → View version history → Compare versions → Restore previous version → Verify restoration",
       "status": "pending",
-      "criticality": "P2",
       "notes": "Automation playbook pending (planned: test/playbooks/journeys/version-history-restore.json)",
       "validation": []
     }

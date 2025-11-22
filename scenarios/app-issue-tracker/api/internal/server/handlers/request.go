@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	defaultMaxBodyBytes int64 = 10 << 20 // 10 MiB - increased to support issue reports with multiple screenshots
+	defaultMaxBodyBytes int64 = 10 << 20 // 10 MiB default; higher limits are declared per-handler when needed
 )
 
 var (

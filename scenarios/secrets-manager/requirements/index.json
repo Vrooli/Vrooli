@@ -25,7 +25,6 @@
       "title": "Repository secret manifest discovery",
       "description": "Enumerate every config/secrets manifest across scenarios/resources and normalize keys + metadata for downstream validation.",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "vault",
@@ -48,7 +47,6 @@
       "title": "Persist secret requirements in Postgres",
       "description": "Create and maintain the resource_secrets / secret_validations tables plus seeding scripts that describe each required secret.",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "postgres",
@@ -70,7 +68,6 @@
       "title": "Vault CLI integration with graceful fallback",
       "description": "Drive `resource-vault secrets validate/check` for canonical status and fall back to local parsing when CLI output is unavailable.",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "vault",
@@ -93,7 +90,6 @@
       "title": "Vault health endpoint",
       "description": "Expose `/api/v1/vault/secrets/status` with totals, missing secrets, timestamps, and per-resource health that other surfaces can consume.",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "criticality": "P0",
       "status": "not_implemented",
       "tags": [
         "api",
@@ -122,7 +118,6 @@
       "title": "Resource secrets workspace",
       "description": "Provide per-resource views with secret lists, owners, rotation notes, and inline actions to sync or open provisioning flows.",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "ui",
@@ -145,7 +140,6 @@
       "title": "Cross-scenario code scanning",
       "description": "Scan Go/TypeScript files for hardcoded secrets, SQL injection, and http misuse with component metadata for each finding.",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "criticality": "P0",
       "status": "not_implemented",
       "tags": [
         "scanner",
@@ -168,7 +162,6 @@
       "title": "Risk scoring and severity weighting",
       "description": "Calculate overall risk and per-vulnerability severity counts so compliance consumers see the weighted exposure.",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "criticality": "P0",
       "status": "not_implemented",
       "tags": [
         "scoring",
@@ -190,7 +183,6 @@
       "title": "Remediation intelligence",
       "description": "Attach remediation steps, ownership hints, and jump-to-code links for every vulnerability so operators know the next best action.",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "security",
@@ -213,7 +205,6 @@
       "title": "Unified compliance aggregator",
       "description": "Blend vault coverage, vulnerability stats, and risk scores into `/security/compliance` for dashboard + CLI consumption.",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "criticality": "P0",
       "status": "not_implemented",
       "tags": [
         "compliance",
@@ -242,7 +233,6 @@
       "title": "Lifecycle health instrumentation",
       "description": "Expose `/health` plus lifecycle metadata so the orchestrator can monitor API/UI availability and restart as needed.",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "criticality": "P0",
       "status": "not_implemented",
       "tags": [
         "lifecycle",
@@ -271,7 +261,6 @@
       "title": "Tier strategy metadata",
       "description": "Store per-tier handling strategies (strip/generate/prompt/delegate) for every secret and surface them via API + CLI.",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "deployment",
@@ -293,7 +282,6 @@
       "title": "Bundle manifest export",
       "description": "Generate machine-readable bundles describing selected secrets, tiers, prompts, and generators for deployment-manager and scenario-to-*.",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "deployment",
@@ -316,7 +304,6 @@
       "title": "Deployment-manager handshake",
       "description": "Expose `/deployment/secrets` + webhook push so deployment-manager can visualize plans, request updates, and confirm readiness.",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "deployment",
@@ -339,7 +326,6 @@
       "title": "Scenario-to-* integration",
       "description": "Provide SDK/CLI helpers so scenario-to-desktop/mobile/cloud can request tier manifests and receive scoped secrets during packaging.",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "deployment",
@@ -361,7 +347,6 @@
       "title": "Guided provisioning API",
       "description": "Enable `/vault/secrets/provision` (and CLI helper) to accept secret payloads, write to Vault, and trigger validation refreshes.",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "criticality": "P1",
       "status": "complete",
       "tags": [
         "vault",
@@ -383,7 +368,6 @@
       "title": "CLI status proxy",
       "description": "`secrets-manager status` should call `/health`, respect env/config overrides, and emit JSON for automation.",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
-      "criticality": "P1",
       "status": "not_implemented",
       "tags": [
         "cli",
@@ -405,7 +389,6 @@
       "title": "CLI wrappers for vault/compliance/vulnerabilities",
       "description": "Expose thin commands that forward filters to the API instead of re-implementing parsing or data munging locally.",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
-      "criticality": "P1",
       "status": "not_implemented",
       "tags": [
         "cli",
@@ -427,7 +410,6 @@
       "title": "Dashboard hero metrics",
       "description": "Show top-line counts (configured resources, risk score, missing secrets) sourced directly from compliance + vault endpoints.",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "criticality": "P1",
       "status": "not_implemented",
       "tags": [
         "ui",
@@ -449,7 +431,6 @@
       "title": "Vault coverage module",
       "description": "Display per-resource coverage bars, severity badges, and missing secret callouts with automatic refresh via React Query.",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "criticality": "P1",
       "status": "not_implemented",
       "tags": [
         "ui",
@@ -471,7 +452,6 @@
       "title": "Vulnerability filter panel",
       "description": "Allow filtering by severity, component, or type with responsive tables that mirror the `/vulnerabilities` API params.",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "criticality": "P1",
       "status": "not_implemented",
       "tags": [
         "ui",
@@ -493,7 +473,6 @@
       "title": "Compliance callout",
       "description": "Highlight the blended risk score with textual guidance plus iconography that reflects severity thresholds.",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "criticality": "P1",
       "status": "not_implemented",
       "tags": [
         "ui",
@@ -515,7 +494,6 @@
       "title": "Accessible dark-chrome theme",
       "description": "Apply consistent typography, contrast, and motion guidelines so the cyberpunk aesthetic still passes WCAG AA.",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "criticality": "P1",
       "status": "complete",
       "tags": [
         "ux",
@@ -537,7 +515,6 @@
       "title": "Orientation landing hub",
       "description": "Design the home view with hero stats, deployment readiness tiles, and journey cards (configure secrets, fix vulns, prep deployments).",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "ux",
@@ -559,7 +536,6 @@
       "title": "Guided remedial flows",
       "description": "Provide multi-step wizards for each journey so operators move from detection to resolution with progress indicators and contextual help.",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "ux",
@@ -581,7 +557,6 @@
       "title": "Contextual action rail",
       "description": "Every table/detail panel should surface the next action (open provisioning, file issue, run scan) with inline status + blockers.",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "criticality": "P0",
       "status": "complete",
       "tags": [
         "ux",
@@ -603,7 +578,6 @@
       "title": "Historical validation telemetry",
       "description": "Track secret validation runs + scan events over time to power compliance deltas and future analytics.",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
-      "criticality": "P1",
       "status": "not_implemented",
       "tags": [
         "postgres",
@@ -625,7 +599,6 @@
       "title": "File content gateway",
       "description": "Provide a secure `/files/content` endpoint for reviewing snippets referenced by vulnerabilities with path safeguards.",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
-      "criticality": "P1",
       "status": "planned",
       "tags": [
         "security",
@@ -647,7 +620,6 @@
       "title": "Schema + seed automation",
       "description": "Lifecycle `setup` must run schema + seed SQL files and remain idempotent so agents can reset environments quickly.",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
-      "criticality": "P1",
       "status": "complete",
       "tags": [
         "lifecycle",
@@ -669,7 +641,6 @@
       "title": "Phased testing alignment",
       "description": "`test/run-tests.sh` must execute structure/unit/integration/performance phases and emit artifacts referencing `[REQ:ID]` tags.",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
-      "criticality": "P1",
       "status": "complete",
       "tags": [
         "testing",
@@ -691,7 +662,6 @@
       "title": "Auto-remediation suggestions",
       "description": "Surface remediation text or trigger claude-code agents that can automatically patch common vulnerability classes.",
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
-      "criticality": "P2",
       "status": "planned",
       "tags": [
         "ai",
@@ -705,7 +675,6 @@
       "title": "Trend analytics",
       "description": "Compute and display rolling averages plus anomaly detection for risk scores and vault coverage deltas.",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
-      "criticality": "P2",
       "status": "planned",
       "tags": [
         "analytics",
@@ -719,7 +688,6 @@
       "title": "Policy gating hooks",
       "description": "Expose an API/CLI to block deployments or scenario actions until secrets + security thresholds are satisfied.",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
-      "criticality": "P2",
       "status": "planned",
       "tags": [
         "policy",
@@ -733,7 +701,6 @@
       "title": "CI-friendly export",
       "description": "Provide a CLI/API command that exports validated secrets and vulnerability summaries for CI pipelines without manual parsing.",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
-      "criticality": "P2",
       "status": "planned",
       "tags": [
         "cli",

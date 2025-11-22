@@ -10,8 +10,7 @@
       "prd_ref": "OT-P0-012",
       "title": "Profile Creation",
       "description": "Create new deployment profile in ≤ 3 clicks from home screen",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "profile",
         "ux"
@@ -20,8 +19,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/profile-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-012] tags"
         }
       ]
     },
@@ -31,8 +31,7 @@
       "prd_ref": "OT-P0-013",
       "title": "Auto-Save with Debounce",
       "description": "Auto-save profile edits with 500ms debounce (or manual save button)",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "profile",
         "persistence"
@@ -41,8 +40,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/profile-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-013] tags"
         }
       ]
     },
@@ -52,8 +52,7 @@
       "prd_ref": "OT-P0-014",
       "title": "Profile Export/Import",
       "description": "Support profile export/import in JSON format for version control",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "profile",
         "portability"
@@ -62,8 +61,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/profile-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-014] tags"
         }
       ]
     },
@@ -73,8 +73,7 @@
       "prd_ref": "OT-P0-015",
       "title": "Profile Versioning",
       "description": "Create new version for each edit with timestamp and user attribution",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "profile",
         "versioning"
@@ -83,8 +82,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/profile-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-015] tags"
         }
       ]
     },
@@ -94,8 +94,7 @@
       "prd_ref": "OT-P0-016",
       "title": "Version History View",
       "description": "Display version history list with diffs showing changes",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "profile",
         "ui"
@@ -104,8 +103,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/profile-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-016] tags"
         }
       ]
     },
@@ -115,8 +115,7 @@
       "prd_ref": "OT-P0-017",
       "title": "Version Rollback",
       "description": "Restore all profile settings (swaps, secrets, env vars) within 2 seconds when rolling back",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "profile",
         "versioning"
@@ -125,8 +124,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/profile-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-017] tags"
         }
       ]
     }

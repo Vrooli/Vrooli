@@ -12,7 +12,6 @@
       "title": "Multi-language storage",
       "description": "Store algorithm implementations in Python, JavaScript, Go, Java, C++",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "Algorithm execution",
       "description": "Execute and validate algorithms using Judge0 resource",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "Search capability",
       "description": "Provide search by algorithm name, category, and complexity",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "API endpoints",
       "description": "API endpoints for algorithm retrieval and validation",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "CLI tool",
       "description": "CLI for testing custom implementations against library",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -102,7 +97,6 @@
       "title": "PostgreSQL storage",
       "description": "PostgreSQL storage for algorithms, metadata, and test results",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -120,7 +114,6 @@
       "title": "Performance benchmarking",
       "description": "Performance benchmarking with time/space complexity analysis",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -138,7 +131,6 @@
       "title": "Execution trace",
       "description": "Visual algorithm execution trace for debugging",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -156,7 +148,6 @@
       "title": "Contribution system",
       "description": "Contribution system for adding new algorithms",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -174,7 +165,6 @@
       "title": "Algorithm comparison",
       "description": "Algorithm comparison tool (multiple implementations side-by-side)",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -192,7 +182,6 @@
       "title": "n8n integration",
       "description": "Integration with n8n for automated testing workflows",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",

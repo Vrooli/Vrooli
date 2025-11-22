@@ -12,7 +12,6 @@
       "title": "Complete brand generation pipeline",
       "description": "Generate logos, color palettes, typography, slogans, and marketing copy through AI-powered workflows",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "Professional web UI for brand management",
       "description": "Provide interactive interface for creating, viewing, and managing brand assets",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -48,7 +46,6 @@
       "title": "ComfyUI integration for visual assets",
       "description": "Generate logos, icons, and favicons using AI image generation workflows",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "Automated Claude Code app integration",
       "description": "Apply generated brands to existing Vrooli applications through automated agent workflows",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "Brand asset storage and export",
       "description": "Store brand data in PostgreSQL and assets in MinIO with export packaging system",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -102,7 +97,6 @@
       "title": "N8n workflow orchestration",
       "description": "Coordinate brand generation and integration processes through automated workflows",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -120,7 +114,6 @@
       "title": "API endpoints for brand operations",
       "description": "Provide REST API for creating, retrieving, and integrating brand identities",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -138,7 +131,6 @@
       "title": "Database schema for brand storage",
       "description": "Store brand metadata, color systems, typography, and integration tracking",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -156,7 +148,6 @@
       "title": "Asset management system",
       "description": "Handle multiple asset formats (PNG, SVG, ICO) with version tracking",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -174,7 +165,6 @@
       "title": "Ollama integration for copy generation",
       "description": "Generate brand copy, slogans, and marketing text using local LLM",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -192,7 +182,6 @@
       "title": "Brand template library",
       "description": "Provide industry-specific templates for common verticals",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -210,7 +199,6 @@
       "title": "Color palette analyzer",
       "description": "Analyze color harmony and accessibility compliance",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -228,7 +216,6 @@
       "title": "Brand guideline generation",
       "description": "Auto-generate comprehensive brand guideline documents",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -246,7 +233,6 @@
       "title": "Multi-format asset variants",
       "description": "Generate logos in multiple sizes and formats automatically",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -264,7 +250,6 @@
       "title": "Brand asset versioning",
       "description": "Track brand evolution with version history and rollback capability",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -282,7 +267,6 @@
       "title": "Integration backup system",
       "description": "Create app backups before applying brand changes",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -300,7 +284,6 @@
       "title": "Real-time preview system",
       "description": "Show live brand asset previews during generation",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -318,7 +301,6 @@
       "title": "Qdrant semantic search",
       "description": "Find similar brands using vector embeddings for differentiation",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -336,7 +318,6 @@
       "title": "Vault integration for secrets",
       "description": "Securely manage API keys and integration tokens",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -354,7 +335,6 @@
       "title": "Brand export packaging",
       "description": "Package complete brand assets with guidelines for distribution",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -372,7 +352,6 @@
       "title": "Brand consistency checker",
       "description": "Validate brand application across multiple applications",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "automation",
@@ -390,7 +369,6 @@
       "title": "A/B testing for variants",
       "description": "Test multiple brand versions with performance tracking",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "automation",
@@ -408,7 +386,6 @@
       "title": "Brand analytics dashboard",
       "description": "Track brand usage and performance metrics",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -426,7 +403,6 @@
       "title": "External design tool integration",
       "description": "Connect with Figma, Adobe tools for advanced workflows",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -444,7 +420,6 @@
       "title": "ML-based brand optimization",
       "description": "Learn from feedback to improve future brand generation",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -462,7 +437,6 @@
       "title": "Multi-brand management",
       "description": "Handle multiple brand identities for enterprise scenarios",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -480,7 +454,6 @@
       "title": "Automated brand evolution",
       "description": "Adapt brands based on market feedback and trends",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "automation",
@@ -498,7 +471,6 @@
       "title": "Real-time consistency monitoring",
       "description": "Alert on brand guideline violations across deployments",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "automation",

@@ -25,9 +25,12 @@
       "title": "WCAG 2.1 AA compliance scanning",
       "description": "Automated scanning engine for all scenario UIs using axe-core integration.",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["wcag", "scanning", "axe-core"],
+      "tags": [
+        "wcag",
+        "scanning",
+        "axe-core"
+      ],
       "validation": []
     },
     {
@@ -36,9 +39,11 @@
       "title": "API endpoints for on-demand audits",
       "description": "REST API accepting scenario ID and WCAG level for triggering accessibility audits.",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["api", "audit"],
+      "tags": [
+        "api",
+        "audit"
+      ],
       "validation": []
     },
     {
@@ -47,9 +52,11 @@
       "title": "Auto-remediation for common issues",
       "description": "Automatic fixes for contrast, alt text, ARIA labels and other common accessibility issues.",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["remediation", "automation"],
+      "tags": [
+        "remediation",
+        "automation"
+      ],
       "validation": []
     },
     {
@@ -58,9 +65,11 @@
       "title": "Browserless visual regression testing",
       "description": "Integration with Browserless for DOM analysis and visual testing.",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["browserless", "testing"],
+      "tags": [
+        "browserless",
+        "testing"
+      ],
       "validation": []
     },
     {
@@ -69,9 +78,11 @@
       "title": "Compliance dashboard",
       "description": "Dashboard showing all scenarios' accessibility scores and violation details.",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["dashboard", "ui"],
+      "tags": [
+        "dashboard",
+        "ui"
+      ],
       "validation": []
     },
     {
@@ -80,9 +91,11 @@
       "title": "CLI audit commands",
       "description": "CLI commands for audit, fix, and report generation.",
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["cli", "tooling"],
+      "tags": [
+        "cli",
+        "tooling"
+      ],
       "validation": []
     },
     {
@@ -91,9 +104,11 @@
       "title": "Machine learning for pattern recognition",
       "description": "ML model training on successful fixes to improve auto-remediation.",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["ml", "learning"],
+      "tags": [
+        "ml",
+        "learning"
+      ],
       "validation": []
     },
     {
@@ -102,9 +117,11 @@
       "title": "Accessible component library",
       "description": "Reusable library of accessible UI patterns for other scenarios.",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["components", "library"],
+      "tags": [
+        "components",
+        "library"
+      ],
       "validation": []
     },
     {
@@ -113,9 +130,11 @@
       "title": "Scheduled audit workflows",
       "description": "N8n workflows for automated periodic audits.",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["n8n", "scheduler"],
+      "tags": [
+        "n8n",
+        "scheduler"
+      ],
       "validation": []
     },
     {
@@ -124,9 +143,11 @@
       "title": "VPAT documentation generator",
       "description": "Automated VPAT/compliance report generation for enterprise compliance.",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["vpat", "reporting"],
+      "tags": [
+        "vpat",
+        "reporting"
+      ],
       "validation": []
     },
     {
@@ -135,9 +156,11 @@
       "title": "Git hook integration",
       "description": "Pre-deployment validation via git hooks.",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["git", "validation"],
+      "tags": [
+        "git",
+        "validation"
+      ],
       "validation": []
     },
     {
@@ -146,9 +169,11 @@
       "title": "Real-time monitoring",
       "description": "Continuous accessibility monitoring for live scenarios.",
       "prd_ref": "Operational Targets > P1 > OT-P1-006",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["monitoring", "realtime"],
+      "tags": [
+        "monitoring",
+        "realtime"
+      ],
       "validation": []
     },
     {
@@ -157,9 +182,11 @@
       "title": "Screen reader testing simulation",
       "description": "Automated screen reader compatibility testing.",
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
-      "criticality": "P2",
       "status": "pending",
-      "tags": ["screen-reader", "testing"],
+      "tags": [
+        "screen-reader",
+        "testing"
+      ],
       "validation": []
     },
     {
@@ -168,9 +195,11 @@
       "title": "Keyboard navigation flow analysis",
       "description": "Automated keyboard nav path validation.",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
-      "criticality": "P2",
       "status": "pending",
-      "tags": ["keyboard", "navigation"],
+      "tags": [
+        "keyboard",
+        "navigation"
+      ],
       "validation": []
     },
     {
@@ -179,9 +208,11 @@
       "title": "Custom Vrooli accessibility rules",
       "description": "Custom rules specific to Vrooli UI patterns.",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
-      "criticality": "P2",
       "status": "pending",
-      "tags": ["rules", "custom"],
+      "tags": [
+        "rules",
+        "custom"
+      ],
       "validation": []
     },
     {
@@ -190,9 +221,11 @@
       "title": "Multi-language accessibility support",
       "description": "Accessibility checks for internationalized content.",
       "prd_ref": "Operational Targets > P2 > OT-P2-004",
-      "criticality": "P2",
       "status": "pending",
-      "tags": ["i18n", "language"],
+      "tags": [
+        "i18n",
+        "language"
+      ],
       "validation": []
     },
     {
@@ -201,9 +234,11 @@
       "title": "Voice navigation testing",
       "description": "Voice control compatibility validation.",
       "prd_ref": "Operational Targets > P2 > OT-P2-005",
-      "criticality": "P2",
       "status": "pending",
-      "tags": ["voice", "testing"],
+      "tags": [
+        "voice",
+        "testing"
+      ],
       "validation": []
     }
   ]

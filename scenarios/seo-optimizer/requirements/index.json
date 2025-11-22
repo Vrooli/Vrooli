@@ -12,7 +12,6 @@
       "title": "SEO audit endpoint performs comprehensive webpage analysis",
       "description": "API endpoint POST /api/v1/seo/audit accepts URL and returns overall score, title analysis, meta tag analysis, content quality metrics, and technical SEO checks with actionable recommendations.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "AI-powered SEO insights via shared Ollama workflow",
       "description": "Integration with initialization/n8n/ollama.json workflow to provide AI-generated content recommendations, semantic analysis, and advanced optimization suggestions.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "PostgreSQL storage for audit history and results",
       "description": "Schema includes SEOAudit and KeywordAnalysis tables with proper relationships. API supports storing audit results and retrieving historical data for tracking improvements.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "Keyword research functionality with volume and difficulty metrics",
       "description": "API endpoint for keyword analysis returns search volume estimates, difficulty scores, and relevance metrics to guide content optimization decisions.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "Content optimization suggestions based on target keywords",
       "description": "Analysis engine provides specific recommendations for improving content including keyword density, placement, semantic variations, and readability improvements.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -102,7 +97,6 @@
       "title": "Competitor analysis comparing SEO performance",
       "description": "API accepts multiple URLs for comparative analysis, identifying gaps and opportunities relative to competitor pages on similar topics or keywords.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -120,7 +114,6 @@
       "title": "Redis caching layer for improved performance",
       "description": "Optional Redis integration caches audit results and API responses with graceful fallback to PostgreSQL when Redis is unavailable.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -138,7 +131,6 @@
       "title": "Rank tracking over time for target keywords",
       "description": "Historical rank monitoring stores daily/weekly position data for target keywords, enabling trend analysis and performance visualization.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -156,7 +148,6 @@
       "title": "Bulk URL auditing for site-wide SEO assessment",
       "description": "API supports batch processing of multiple URLs in a single request with parallel execution and aggregated reporting for entire websites or sections.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -174,7 +165,6 @@
       "title": "PDF report generation with visualizations",
       "description": "Report generator creates professional PDF documents with charts, executive summaries, and detailed findings suitable for client or stakeholder presentation.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",

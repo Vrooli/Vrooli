@@ -25,9 +25,11 @@
       "title": "Live reasoning session monitoring",
       "description": "Display active agent reasoning processes with real-time updates via WebSocket.",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["monitoring", "realtime"],
+      "tags": [
+        "monitoring",
+        "realtime"
+      ],
       "validation": []
     },
     {
@@ -36,9 +38,11 @@
       "title": "Decision tree visualization",
       "description": "Visual representation of reasoning chains and decision paths.",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["visualization", "decision-tree"],
+      "tags": [
+        "visualization",
+        "decision-tree"
+      ],
       "validation": []
     },
     {
@@ -47,9 +51,11 @@
       "title": "Performance metrics dashboard",
       "description": "Live charts for reasoning speed, accuracy, resource utilization.",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["metrics", "charts"],
+      "tags": [
+        "metrics",
+        "charts"
+      ],
       "validation": []
     },
     {
@@ -58,9 +64,11 @@
       "title": "Agent health status display",
       "description": "System vitals for each active reasoning agent.",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["health", "status"],
+      "tags": [
+        "health",
+        "status"
+      ],
       "validation": []
     },
     {
@@ -69,9 +77,11 @@
       "title": "Pattern selection interface",
       "description": "Quick access to reasoning patterns (SWOT, Pros/Cons, Risk Assessment).",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["patterns", "selection"],
+      "tags": [
+        "patterns",
+        "selection"
+      ],
       "validation": []
     },
     {
@@ -80,9 +90,11 @@
       "title": "Execution queue management",
       "description": "Manage pending and active reasoning tasks in queue.",
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
-      "criticality": "P0",
       "status": "pending",
-      "tags": ["queue", "orchestration"],
+      "tags": [
+        "queue",
+        "orchestration"
+      ],
       "validation": []
     },
     {
@@ -91,9 +103,11 @@
       "title": "Resource allocation monitoring",
       "description": "Monitor and control CPU, memory, model usage for reasoning agents.",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["resources", "allocation"],
+      "tags": [
+        "resources",
+        "allocation"
+      ],
       "validation": []
     },
     {
@@ -102,9 +116,11 @@
       "title": "History browser",
       "description": "Search and review past reasoning sessions with filtering.",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["history", "search"],
+      "tags": [
+        "history",
+        "search"
+      ],
       "validation": []
     },
     {
@@ -113,9 +129,11 @@
       "title": "Decision quality metrics",
       "description": "Track reasoning accuracy over time with trend analysis.",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["quality", "analytics"],
+      "tags": [
+        "quality",
+        "analytics"
+      ],
       "validation": []
     },
     {
@@ -124,9 +142,11 @@
       "title": "Pattern effectiveness comparison",
       "description": "Compare success rates of different reasoning frameworks.",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["patterns", "comparison"],
+      "tags": [
+        "patterns",
+        "comparison"
+      ],
       "validation": []
     },
     {
@@ -135,9 +155,11 @@
       "title": "Performance heatmaps",
       "description": "Visualize system load and bottlenecks across reasoning processes.",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["heatmap", "visualization"],
+      "tags": [
+        "heatmap",
+        "visualization"
+      ],
       "validation": []
     },
     {
@@ -146,9 +168,11 @@
       "title": "Trend analysis",
       "description": "Long-term patterns in agent decision-making with statistical insights.",
       "prd_ref": "Operational Targets > P1 > OT-P1-006",
-      "criticality": "P1",
       "status": "pending",
-      "tags": ["trends", "analytics"],
+      "tags": [
+        "trends",
+        "analytics"
+      ],
       "validation": []
     },
     {
@@ -157,9 +181,11 @@
       "title": "Multi-agent orchestration",
       "description": "Coordinate reasoning across multiple agents with dependency management.",
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
-      "criticality": "P2",
       "status": "pending",
-      "tags": ["multi-agent", "coordination"],
+      "tags": [
+        "multi-agent",
+        "coordination"
+      ],
       "validation": []
     },
     {
@@ -168,9 +194,11 @@
       "title": "Custom reasoning patterns",
       "description": "Create and save custom reasoning frameworks for reuse.",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
-      "criticality": "P2",
       "status": "pending",
-      "tags": ["custom", "patterns"],
+      "tags": [
+        "custom",
+        "patterns"
+      ],
       "validation": []
     },
     {
@@ -179,9 +207,11 @@
       "title": "Real-time collaboration",
       "description": "Multi-user monitoring and control with conflict resolution.",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
-      "criticality": "P2",
       "status": "pending",
-      "tags": ["collaboration", "multi-user"],
+      "tags": [
+        "collaboration",
+        "multi-user"
+      ],
       "validation": []
     },
     {
@@ -190,9 +220,11 @@
       "title": "Advanced analytics export",
       "description": "Export reasoning data for external analysis in multiple formats.",
       "prd_ref": "Operational Targets > P2 > OT-P2-004",
-      "criticality": "P2",
       "status": "pending",
-      "tags": ["export", "analytics"],
+      "tags": [
+        "export",
+        "analytics"
+      ],
       "validation": []
     },
     {
@@ -201,9 +233,11 @@
       "title": "Automated optimization",
       "description": "AI-driven reasoning workflow optimization based on performance data.",
       "prd_ref": "Operational Targets > P2 > OT-P2-005",
-      "criticality": "P2",
       "status": "pending",
-      "tags": ["optimization", "ai"],
+      "tags": [
+        "optimization",
+        "ai"
+      ],
       "validation": []
     }
   ]

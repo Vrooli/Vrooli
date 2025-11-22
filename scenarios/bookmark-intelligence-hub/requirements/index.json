@@ -12,7 +12,6 @@
       "title": "Multi-tenant authentication with profile-specific processing",
       "description": "Implement multi-tenant authentication system that isolates bookmark processing per user profile with secure credential storage.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "Modular social platform integration for X, Reddit, TikTok",
       "description": "Build modular integration system supporting X, Reddit, and TikTok with extensible plugin architecture for future platforms.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "AI-powered content categorization with user-defined buckets",
       "description": "Implement AI categorization engine using Ollama/Qdrant for semantic matching with user-configurable category buckets and rules.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "Action suggestion engine with approval/rejection workflow",
       "description": "Build action suggestion system that analyzes categorized content and proposes workflow actions with user approval mechanisms.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "Cross-scenario integration API for consuming organized data",
       "description": "Expose REST API endpoints allowing other scenarios to query organized bookmark data and subscribe to categorization events.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -102,7 +97,6 @@
       "title": "Real-time bookmark processing with configurable polling intervals",
       "description": "Implement bookmark processing engine with configurable polling intervals and queue-based processing for real-time updates.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -120,7 +114,6 @@
       "title": "Integration with data-structurer for unstructured text processing",
       "description": "Integrate with data-structurer scenario to extract structured data from unstructured social media content.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -138,7 +131,6 @@
       "title": "Integration with scenario-authenticator for multi-tenant support",
       "description": "Integrate with scenario-authenticator for centralized user management and authentication across scenarios.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -156,7 +148,6 @@
       "title": "Intelligent learning system improving categorization over time",
       "description": "Implement feedback loop system that learns from user approval/rejection patterns to improve categorization accuracy.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -174,7 +165,6 @@
       "title": "Bulk action approval for similar content types",
       "description": "Add bulk approval UI and API endpoints allowing users to approve/reject multiple similar actions at once.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -192,7 +182,6 @@
       "title": "Export functionality to external systems (CSV, JSON, API)",
       "description": "Implement export capabilities allowing users to extract organized bookmark data in CSV, JSON formats or via API webhooks.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -210,7 +199,6 @@
       "title": "Advanced filtering and search across organized bookmarks",
       "description": "Build search and filtering system supporting full-text search, category filters, date ranges, and semantic similarity.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -228,7 +216,6 @@
       "title": "Browser extension for real-time bookmark categorization",
       "description": "Develop browser extension that categorizes bookmarks in real-time as users save them across platforms.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -246,7 +233,6 @@
       "title": "Mobile app for on-the-go bookmark management",
       "description": "Build mobile application for iOS/Android enabling bookmark review and action approval on mobile devices.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -264,7 +250,6 @@
       "title": "Advanced analytics on bookmark patterns and productivity outcomes",
       "description": "Implement analytics dashboard showing bookmark patterns, categorization trends, and productivity metrics from action completions.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -282,7 +267,6 @@
       "title": "Integration with calendar systems for time-based action scheduling",
       "description": "Integrate with calendar services to automatically schedule follow-up actions based on bookmark content and timing patterns.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -300,7 +284,6 @@
       "title": "Collaborative bookmark sharing within teams",
       "description": "Add team collaboration features allowing shared bookmark collections, collective categorization, and team action workflows.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",

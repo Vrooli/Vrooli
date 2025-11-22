@@ -13,7 +13,6 @@
       "title": "Telemetry stream includes screenshots, console, and network events",
       "description": "Confirms the execution service emits complete telemetry payloads within latency targets and the UI processors consume heartbeat and assertion events correctly.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -80,7 +79,6 @@
       "title": "Telemetry smoke automation validates live streaming",
       "description": "Runs an end-to-end workflow that asserts screenshots, highlight metadata, console, and network events are captured and export packages are generated.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -112,7 +110,6 @@
       "title": "Heartbeat stalls trigger operator alerts",
       "description": "Ensures the CLI and automation surface stalled heartbeat warnings when telemetry pauses beyond the configured threshold.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -144,7 +141,6 @@
       "title": "CLI execution watch surfaces telemetry and heartbeat state",
       "description": "Confirms the CLI reflects progress, warning, and recovery events while tailing live executions.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -169,7 +165,6 @@
       "title": "Stop/cancel running workflow executions",
       "description": "Users can stop or cancel a running workflow execution from the UI, with the execution status updated to 'cancelled' and resources properly cleaned up",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",

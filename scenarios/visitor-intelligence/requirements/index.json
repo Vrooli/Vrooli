@@ -12,7 +12,6 @@
       "title": "JavaScript tracking pixel with fingerprinting",
       "description": "Implement client-side fingerprinting library achieving 40-60% visitor identification rate across sessions using browser characteristics and device parameters.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "Real-time visitor session tracking with PostgreSQL storage",
       "description": "Track visitor sessions with events, page views, and behavioral data stored in PostgreSQL with optimized schema and indexing.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "RESTful API for visitor data retrieval and management",
       "description": "Provide GET/POST endpoints for tracking pixels, visitor profiles, and analytics queries with sub-100ms response times.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "One-line integration script for any scenario",
       "description": "Distribute tracking script via simple script tag integration that works across all Vrooli scenarios with minimal configuration.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -84,7 +80,6 @@
       "title": "Privacy-compliant data collection with GDPR controls",
       "description": "Implement consent management, data retention limits, and purging capabilities to ensure GDPR compliance and user privacy protection.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -102,7 +97,6 @@
       "title": "Real-time dashboard showing live visitor activity",
       "description": "Build UI displaying current visitors, session counts, top pages, and real-time activity streams.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -120,7 +114,6 @@
       "title": "Visitor profile enrichment with behavioral insights",
       "description": "Analyze visitor patterns to generate insights about intent, preferences, and conversion likelihood.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -138,7 +131,6 @@
       "title": "Event-driven retention trigger system",
       "description": "Publish visitor.identified and visitor.abandoned events for downstream scenarios to trigger retention workflows.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -156,7 +148,6 @@
       "title": "Cross-scenario visitor journey tracking",
       "description": "Track visitor movement across multiple Vrooli scenarios in unified profiles with session continuity.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -174,7 +165,6 @@
       "title": "Audience segmentation and export tools",
       "description": "Enable filtering, segmentation, and CSV export of visitor cohorts for marketing campaigns.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -192,7 +182,6 @@
       "title": "Predictive analytics using Ollama for intent inference",
       "description": "Use local LLMs to predict visitor intent and conversion probability based on behavioral patterns.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -210,7 +199,6 @@
       "title": "WebSocket real-time notifications",
       "description": "Push live visitor activity updates to connected dashboard clients via WebSocket connections.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -228,7 +216,6 @@
       "title": "Advanced fingerprinting with Canvas/WebGL",
       "description": "Enhance identification rate using canvas fingerprinting and WebGL parameters for improved visitor tracking.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -246,7 +233,6 @@
       "title": "Integration with external marketing tools",
       "description": "Export visitor data to email platforms and CRM systems for external campaign management.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",

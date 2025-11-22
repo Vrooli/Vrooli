@@ -12,7 +12,6 @@
       "title": "Create new draft from template or existing PRD",
       "description": "Verifies POST /api/v1/drafts creates draft in database and filesystem with proper metadata.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "Draft content persists to database and filesystem atomically",
       "description": "Ensures PUT /api/v1/drafts/{id} updates both database record and draft file with proper error handling.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "Draft deletion removes database record and filesystem entry",
       "description": "Validates DELETE /api/v1/drafts/{id} cleans up both database and filesystem with confirmation.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "Publishing atomically updates PRD.md and clears draft",
       "description": "Confirms POST /api/v1/drafts/{id}/publish writes PRD.md with backup and removes draft safely.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "Draft editor supports split-pane editing with live preview",
       "description": "Confirms DraftEditorPane renders edit/split/preview modes with textarea and markdown rendering.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",

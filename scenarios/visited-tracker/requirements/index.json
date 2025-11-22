@@ -8,7 +8,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "validation_method": "CLI commands create campaigns and match files against patterns",
-      "tags": ["core", "campaign", "patterns"]
+      "tags": [
+        "core",
+        "campaign",
+        "patterns"
+      ]
     },
     {
       "id": "VT-REQ-002",
@@ -18,7 +22,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "validation_method": "Visit counts increment correctly and persist across sessions",
-      "tags": ["core", "tracking", "persistence"]
+      "tags": [
+        "core",
+        "tracking",
+        "persistence"
+      ]
     },
     {
       "id": "VT-REQ-003",
@@ -28,7 +36,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "validation_method": "Staleness scores calculated correctly and prioritize modified/unvisited files",
-      "tags": ["core", "algorithm", "priority"]
+      "tags": [
+        "core",
+        "algorithm",
+        "priority"
+      ]
     },
     {
       "id": "VT-REQ-004",
@@ -38,7 +50,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "validation_method": "CLI commands execute successfully and integrate with maintenance scenarios",
-      "tags": ["interface", "cli", "integration"]
+      "tags": [
+        "interface",
+        "cli",
+        "integration"
+      ]
     },
     {
       "id": "VT-REQ-005",
@@ -48,7 +64,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "validation_method": "Campaign data persists correctly across service restarts",
-      "tags": ["storage", "json", "persistence"]
+      "tags": [
+        "storage",
+        "json",
+        "persistence"
+      ]
     },
     {
       "id": "VT-REQ-006",
@@ -58,7 +78,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "validation_method": "API endpoints return correct data and support campaign management",
-      "tags": ["api", "http", "integration"]
+      "tags": [
+        "api",
+        "http",
+        "integration"
+      ]
     },
     {
       "id": "VT-REQ-007",
@@ -68,7 +92,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "validation_method": "UI displays campaigns, files, and staleness data with functional CRUD operations",
-      "tags": ["ui", "web", "visualization"]
+      "tags": [
+        "ui",
+        "web",
+        "visualization"
+      ]
     },
     {
       "id": "VT-REQ-008",
@@ -78,7 +106,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "validation_method": "File sync discovers new files and removes deleted files correctly",
-      "tags": ["sync", "filesystem", "glob"]
+      "tags": [
+        "sync",
+        "filesystem",
+        "glob"
+      ]
     },
     {
       "id": "VT-REQ-009",
@@ -88,7 +120,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "validation_method": "Prioritization queries return correctly sorted files by staleness and visit count",
-      "tags": ["priority", "query", "sorting"]
+      "tags": [
+        "priority",
+        "query",
+        "sorting"
+      ]
     },
     {
       "id": "VT-REQ-010",
@@ -98,7 +134,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
       "validation_method": "Exported campaigns import correctly with all tracking data preserved",
-      "tags": ["export", "import", "portability"]
+      "tags": [
+        "export",
+        "import",
+        "portability"
+      ]
     },
     {
       "id": "VT-REQ-011",
@@ -108,7 +148,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "validation_method": "TBD",
-      "tags": ["analytics", "trends", "future"]
+      "tags": [
+        "analytics",
+        "trends",
+        "future"
+      ]
     },
     {
       "id": "VT-REQ-012",
@@ -118,7 +162,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "validation_method": "TBD",
-      "tags": ["git", "vcs", "future"]
+      "tags": [
+        "git",
+        "vcs",
+        "future"
+      ]
     },
     {
       "id": "VT-REQ-013",
@@ -128,7 +176,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "validation_method": "TBD",
-      "tags": ["multi-project", "scaling", "future"]
+      "tags": [
+        "multi-project",
+        "scaling",
+        "future"
+      ]
     },
     {
       "id": "VT-REQ-014",
@@ -138,7 +190,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-004",
       "validation_method": "TBD",
-      "tags": ["automation", "discovery", "future"]
+      "tags": [
+        "automation",
+        "discovery",
+        "future"
+      ]
     }
   ],
   "metadata": {

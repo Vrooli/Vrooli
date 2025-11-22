@@ -44,7 +44,7 @@ func (s *Session) ExecuteGesture(ctx context.Context, opts gestureOptions) (*Ste
 		"duration":  opts.DurationMs,
 	}}
 
-	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(opts.TimeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.GetCurrentContext(), time.Duration(opts.TimeoutMs)*time.Millisecond)
 	defer cancel()
 
 	anchorX, anchorY, err := s.resolveGestureAnchor(timeoutCtx, opts)

@@ -9,35 +9,45 @@
       "priority": "P0",
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "ST-LIFECYCLE-SETUP",
           "title": "Setup phase execution",
           "description": "Successfully complete all setup steps including binary build and CLI installation",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "ST-LIFECYCLE-DEVELOP",
           "title": "Development server startup",
           "description": "Start API server in background and verify process health",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "ST-LIFECYCLE-TEST",
           "title": "Test suite execution",
           "description": "Run phased test suite and achieve coverage targets",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "ST-LIFECYCLE-STOP",
           "title": "Clean shutdown",
           "description": "Terminate all processes cleanly without orphaned resources",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -48,21 +58,27 @@
       "priority": "P0",
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "ST-HEALTH-RESPONSE",
           "title": "Health endpoint response",
           "description": "Return 200 status with valid JSON health data",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "ST-HEALTH-PERFORMANCE",
           "title": "Health endpoint performance",
           "description": "Respond within 50ms under normal conditions",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -73,21 +89,27 @@
       "priority": "P0",
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "ST-COVERAGE-UNIT",
           "title": "Unit test coverage",
           "description": "93.75% statement coverage with 100% function coverage",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "ST-COVERAGE-INTEGRATION",
           "title": "Integration test coverage",
           "description": "Validate live server functionality and concurrent request handling",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -98,28 +120,36 @@
       "priority": "P1",
       "status": "validated",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "ST-TEST-DEPENDENCIES",
           "title": "Dependency phase tests",
           "description": "Validate Node.js, npm, PostgreSQL, and system utilities",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "ST-TEST-STRUCTURE",
           "title": "Structure phase tests",
           "description": "Verify required files, JSON configs, and test infrastructure",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "ST-TEST-PERFORMANCE",
           "title": "Performance phase tests",
           "description": "Validate <50ms response times and >500 req/s throughput",
           "status": "validated",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     }

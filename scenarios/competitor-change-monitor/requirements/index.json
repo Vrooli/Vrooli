@@ -10,27 +10,35 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "status": "pending",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "CCM-WEB-001",
           "title": "Website change detection",
           "description": "Monitor and detect changes in competitor website content",
-          "validation": ["test"],
+          "validation": [
+            "test"
+          ],
           "status": "pending"
         },
         {
           "id": "CCM-GIT-001",
           "title": "GitHub repository monitoring",
           "description": "Track commits, releases, and repository changes",
-          "validation": ["test"],
+          "validation": [
+            "test"
+          ],
           "status": "pending"
         },
         {
           "id": "CCM-API-001",
           "title": "Public API monitoring",
           "description": "Monitor changes in public API endpoints and responses",
-          "validation": ["test"],
+          "validation": [
+            "test"
+          ],
           "status": "pending"
         }
       ]
@@ -43,20 +51,26 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "status": "pending",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "CCM-STORE-001",
           "title": "Change history persistence",
           "description": "Store all detected changes in PostgreSQL with full audit trail",
-          "validation": ["test"],
+          "validation": [
+            "test"
+          ],
           "status": "pending"
         },
         {
           "id": "CCM-DIFF-001",
           "title": "Content diff generation",
           "description": "Generate and store meaningful diffs of changed content",
-          "validation": ["test"],
+          "validation": [
+            "test"
+          ],
           "status": "pending"
         }
       ]
@@ -69,20 +83,26 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "status": "pending",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "CCM-AI-001",
           "title": "Change categorization",
           "description": "Automatically categorize changes (pricing, features, marketing, legal, repository)",
-          "validation": ["test"],
+          "validation": [
+            "test"
+          ],
           "status": "pending"
         },
         {
           "id": "CCM-AI-002",
           "title": "Impact assessment",
           "description": "Assess business impact and strategic significance of changes",
-          "validation": ["test"],
+          "validation": [
+            "test"
+          ],
           "status": "pending"
         }
       ]
@@ -95,20 +115,27 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "status": "pending",
-      "validation": ["test", "manual"],
+      "validation": [
+        "test",
+        "manual"
+      ],
       "children": [
         {
           "id": "CCM-ALERT-001",
           "title": "Alert configuration",
           "description": "Configure alert thresholds and notification preferences",
-          "validation": ["manual"],
+          "validation": [
+            "manual"
+          ],
           "status": "pending"
         },
         {
           "id": "CCM-ALERT-002",
           "title": "Real-time notifications",
           "description": "Deliver alerts via UI notifications and configured channels",
-          "validation": ["manual"],
+          "validation": [
+            "manual"
+          ],
           "status": "pending"
         }
       ]
@@ -121,20 +148,26 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "status": "pending",
-      "validation": ["test"],
+      "validation": [
+        "test"
+      ],
       "children": [
         {
           "id": "CCM-SCHED-001",
           "title": "n8n workflow orchestration",
           "description": "Schedule and execute monitoring workflows via n8n",
-          "validation": ["test"],
+          "validation": [
+            "test"
+          ],
           "status": "pending"
         },
         {
           "id": "CCM-SCHED-002",
           "title": "Configurable scan intervals",
           "description": "Allow users to configure scanning frequency per competitor",
-          "validation": ["manual"],
+          "validation": [
+            "manual"
+          ],
           "status": "pending"
         }
       ]
@@ -147,27 +180,35 @@
       "priority": "P0",
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "status": "pending",
-      "validation": ["manual"],
+      "validation": [
+        "manual"
+      ],
       "children": [
         {
           "id": "CCM-UI-001",
           "title": "Timeline view",
           "description": "Display competitor changes in chronological timeline format",
-          "validation": ["manual"],
+          "validation": [
+            "manual"
+          ],
           "status": "pending"
         },
         {
           "id": "CCM-UI-002",
           "title": "Data tables with sorting",
           "description": "Sortable, filterable tables for competitor and change data",
-          "validation": ["manual"],
+          "validation": [
+            "manual"
+          ],
           "status": "pending"
         },
         {
           "id": "CCM-UI-003",
           "title": "Real-time notification panel",
           "description": "Live notification panel for recent alerts and changes",
-          "validation": ["manual"],
+          "validation": [
+            "manual"
+          ],
           "status": "pending"
         }
       ]

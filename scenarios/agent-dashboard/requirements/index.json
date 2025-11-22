@@ -25,9 +25,11 @@
       "title": "Discover all agents across resources",
       "description": "Enumerate agents across all installed Vrooli resources via resource CLI.",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "criticality": "P0",
       "status": "complete",
-      "tags": ["discovery", "agents"],
+      "tags": [
+        "discovery",
+        "agents"
+      ],
       "validation": []
     },
     {
@@ -36,9 +38,11 @@
       "title": "Display real-time agent status",
       "description": "Show active/inactive/error states with auto-refresh every 30 seconds.",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "criticality": "P0",
       "status": "complete",
-      "tags": ["monitoring", "status"],
+      "tags": [
+        "monitoring",
+        "status"
+      ],
       "validation": []
     },
     {
@@ -47,9 +51,11 @@
       "title": "Show agent metadata",
       "description": "Display PID, uptime, command, capabilities for each agent.",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "criticality": "P0",
       "status": "complete",
-      "tags": ["metadata", "display"],
+      "tags": [
+        "metadata",
+        "display"
+      ],
       "validation": []
     },
     {
@@ -58,9 +64,11 @@
       "title": "Basic agent control",
       "description": "Stop agents via resource CLI integration.",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "criticality": "P0",
       "status": "complete",
-      "tags": ["control", "lifecycle"],
+      "tags": [
+        "control",
+        "lifecycle"
+      ],
       "validation": []
     },
     {
@@ -69,9 +77,11 @@
       "title": "Real-time log viewer",
       "description": "Log viewer with follow capability and streaming support.",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
-      "criticality": "P0",
       "status": "complete",
-      "tags": ["logs", "streaming"],
+      "tags": [
+        "logs",
+        "streaming"
+      ],
       "validation": []
     },
     {
@@ -80,9 +90,11 @@
       "title": "Auto-refresh polling",
       "description": "Poll every 30 seconds with rate limiting to avoid resource overload.",
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
-      "criticality": "P0",
       "status": "complete",
-      "tags": ["polling", "refresh"],
+      "tags": [
+        "polling",
+        "refresh"
+      ],
       "validation": []
     },
     {
@@ -91,9 +103,11 @@
       "title": "Cyberpunk-themed UI",
       "description": "Cyberpunk theme with scan animations and Matrix-inspired aesthetics.",
       "prd_ref": "Operational Targets > P0 > OT-P0-007",
-      "criticality": "P0",
       "status": "complete",
-      "tags": ["ui", "theme"],
+      "tags": [
+        "ui",
+        "theme"
+      ],
       "validation": []
     },
     {
@@ -102,9 +116,11 @@
       "title": "Radar view with agent visualization",
       "description": "Radar with moving dots and color-coded health status.",
       "prd_ref": "Operational Targets > P0 > OT-P0-008",
-      "criticality": "P0",
       "status": "complete",
-      "tags": ["radar", "visualization"],
+      "tags": [
+        "radar",
+        "visualization"
+      ],
       "validation": []
     },
     {
@@ -113,9 +129,11 @@
       "title": "Agent cards with metrics",
       "description": "Display memory, CPU metrics when available from resource CLI.",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "criticality": "P1",
       "status": "complete",
-      "tags": ["metrics", "monitoring"],
+      "tags": [
+        "metrics",
+        "monitoring"
+      ],
       "validation": []
     },
     {
@@ -124,9 +142,11 @@
       "title": "Radar hover tooltips",
       "description": "Tooltips showing agent details on radar hover.",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "criticality": "P1",
       "status": "complete",
-      "tags": ["tooltips", "ux"],
+      "tags": [
+        "tooltips",
+        "ux"
+      ],
       "validation": []
     },
     {
@@ -135,9 +155,11 @@
       "title": "Agent search and filtering",
       "description": "Filter by name, type, or status with real-time search.",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
-      "criticality": "P1",
       "status": "complete",
-      "tags": ["search", "filtering"],
+      "tags": [
+        "search",
+        "filtering"
+      ],
       "validation": []
     },
     {
@@ -146,9 +168,11 @@
       "title": "Log export functionality",
       "description": "Download/export log files for offline analysis.",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
-      "criticality": "P1",
       "status": "complete",
-      "tags": ["export", "logs"],
+      "tags": [
+        "export",
+        "logs"
+      ],
       "validation": []
     },
     {
@@ -157,9 +181,11 @@
       "title": "Keyboard shortcuts",
       "description": "Shortcuts for common operations with help modal (press ?).",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
-      "criticality": "P1",
       "status": "complete",
-      "tags": ["keyboard", "shortcuts"],
+      "tags": [
+        "keyboard",
+        "shortcuts"
+      ],
       "validation": []
     },
     {
@@ -168,9 +194,11 @@
       "title": "Responsive design",
       "description": "Works on different screen sizes with mobile-friendly layout.",
       "prd_ref": "Operational Targets > P1 > OT-P1-006",
-      "criticality": "P1",
       "status": "complete",
-      "tags": ["responsive", "mobile"],
+      "tags": [
+        "responsive",
+        "mobile"
+      ],
       "validation": []
     },
     {
@@ -179,9 +207,11 @@
       "title": "Agent performance history",
       "description": "Session-only performance graphs with sparklines.",
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
-      "criticality": "P2",
       "status": "complete",
-      "tags": ["analytics", "history"],
+      "tags": [
+        "analytics",
+        "history"
+      ],
       "validation": []
     },
     {
@@ -190,9 +220,11 @@
       "title": "Multiple log viewers",
       "description": "Open multiple log viewers simultaneously for comparison.",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
-      "criticality": "P2",
       "status": "complete",
-      "tags": ["logs", "multi-view"],
+      "tags": [
+        "logs",
+        "multi-view"
+      ],
       "validation": []
     },
     {
@@ -201,9 +233,11 @@
       "title": "Agent capability discovery",
       "description": "Search agents by capability for intelligent routing.",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
-      "criticality": "P2",
       "status": "complete",
-      "tags": ["capability", "search"],
+      "tags": [
+        "capability",
+        "search"
+      ],
       "validation": []
     },
     {
@@ -212,9 +246,11 @@
       "title": "Custom radar themes",
       "description": "Multiple theme options with localStorage persistence.",
       "prd_ref": "Operational Targets > P2 > OT-P2-004",
-      "criticality": "P2",
       "status": "complete",
-      "tags": ["themes", "customization"],
+      "tags": [
+        "themes",
+        "customization"
+      ],
       "validation": []
     },
     {
@@ -223,9 +259,11 @@
       "title": "Agent grouping by resource",
       "description": "Group agents by resource type for organized viewing.",
       "prd_ref": "Operational Targets > P2 > OT-P2-005",
-      "criticality": "P2",
       "status": "complete",
-      "tags": ["grouping", "organization"],
+      "tags": [
+        "grouping",
+        "organization"
+      ],
       "validation": []
     }
   ]

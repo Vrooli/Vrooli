@@ -48,6 +48,8 @@ type Session struct {
 	targetContexts     map[target.ID]context.Context
 	targetCancels      map[target.ID]context.CancelFunc
 	currentTargetID    target.ID
+	activeOperations   int                // Count of active operations using current context
+	operationCond      *sync.Cond         // Condition variable for waiting on operations to complete
 	tabs               map[target.ID]*tabRecord
 	tabOrder           []target.ID
 	tabMu              sync.RWMutex
@@ -112,6 +114,7 @@ func NewSession(ctx context.Context, browserlessURL string, viewportWidth, viewp
 		targetCancels:  make(map[target.ID]context.CancelFunc),
 		tabs:           make(map[target.ID]*tabRecord),
 	}
+	s.operationCond = sync.NewCond(&s.ctxMu)
 
 	wsURL, err := resolveBrowserlessWebSocketURL(ctx, browserlessURL)
 	if err != nil {
@@ -452,13 +455,27 @@ func (s *Session) activateTargetContext(ctx context.Context, targetID target.ID)
 }
 
 func (s *Session) switchToTarget(targetID target.ID, closeOld bool) error {
+	s.log.WithFields(map[string]interface{}{
+		"targetID": targetID,
+		"closeOld": closeOld,
+	}).Info("[TARGET] switchToTarget called")
+
 	ctx, err := s.ensureTargetContext(targetID)
 	if err != nil {
 		return err
 	}
 	var previous target.ID
 	s.ctxMu.Lock()
+	// Wait for all active operations to complete before switching contexts
+	for s.activeOperations > 0 {
+		s.log.WithField("active_ops", s.activeOperations).Info("[TARGET] Waiting for operations to complete before context switch")
+		s.operationCond.Wait()
+	}
 	previous = s.currentTargetID
+	s.log.WithFields(map[string]interface{}{
+		"previous": previous,
+		"new":      targetID,
+	}).Info("[TARGET] Switching context")
 	s.ctx = ctx
 	s.currentTargetID = targetID
 	s.ctxMu.Unlock()
@@ -466,12 +483,14 @@ func (s *Session) switchToTarget(targetID target.ID, closeOld bool) error {
 		s.log.WithError(err).Warn("failed to activate target")
 	}
 	if closeOld && previous != "" && previous != targetID {
+		s.log.WithField("previous", previous).Info("[TARGET] Closing old target")
 		go s.closeTarget(previous)
 	}
 	return nil
 }
 
 func (s *Session) closeTarget(targetID target.ID) {
+	s.log.WithField("targetID", targetID).Info("[TARGET] closeTarget called")
 	s.ctxMu.Lock()
 	cancel, ok := s.targetCancels[targetID]
 	if ok {
@@ -482,6 +501,7 @@ func (s *Session) closeTarget(targetID target.ID) {
 	}
 	s.ctxMu.Unlock()
 	if ok {
+		s.log.WithField("targetID", targetID).Info("[TARGET] Cancelling target context")
 		cancel()
 	}
 	s.removeTab(targetID)
@@ -489,6 +509,7 @@ func (s *Session) closeTarget(targetID target.ID) {
 		executor := cdp.WithExecutor(runCtx, chromedp.FromContext(runCtx).Browser)
 		return target.CloseTarget(targetID).Do(executor)
 	}))
+	s.log.WithField("targetID", targetID).Info("[TARGET] Target closed")
 }
 
 // handleConsoleLog processes console.log events
@@ -588,6 +609,54 @@ func (s *Session) Close() error {
 
 // Context returns the browser context for executing actions
 func (s *Session) Context() context.Context {
+	return s.ctx
+}
+
+// BeginOperation marks the start of an operation, incrementing the active operation
+// counter and returning the current context. This prevents the context from being
+// cancelled/switched while the operation is active.
+//
+// IMPORTANT: Must be paired with EndOperation() using defer.
+func (s *Session) BeginOperation() context.Context {
+	s.ctxMu.Lock()
+	defer s.ctxMu.Unlock()
+	s.activeOperations++
+	s.log.WithFields(map[string]interface{}{
+		"active_ops":       s.activeOperations,
+		"current_ctx_err":  s.ctx.Err(),
+		"current_targetID": s.currentTargetID,
+	}).Info("[OPERATION] Operation started")
+	return s.ctx
+}
+
+// EndOperation marks the end of an operation, decrementing the active operation
+// counter and signaling any waiting context switches.
+func (s *Session) EndOperation() {
+	s.ctxMu.Lock()
+	defer s.ctxMu.Unlock()
+	s.activeOperations--
+	s.log.WithFields(map[string]interface{}{
+		"active_ops": s.activeOperations,
+		"ctx_err":    s.ctx.Err(),
+	}).Info("[OPERATION] Operation ended")
+	if s.activeOperations == 0 {
+		s.log.Info("[OPERATION] All operations complete, broadcasting")
+		s.operationCond.Broadcast()
+	}
+}
+
+// GetCurrentContext returns a thread-safe snapshot of the current browser context.
+// This method should be used when deriving child contexts (e.g., with WithTimeout)
+// to prevent race conditions when s.ctx is updated by concurrent operations like
+// tab switching or target changes.
+//
+// Using this method ensures that derived contexts remain valid for the duration
+// of an operation, even if the session switches to a different target mid-operation.
+//
+// DEPRECATED: Use BeginOperation/EndOperation instead for operation-level protection.
+func (s *Session) GetCurrentContext() context.Context {
+	s.ctxMu.RLock()
+	defer s.ctxMu.RUnlock()
 	return s.ctx
 }
 

@@ -12,7 +12,6 @@
       "title": "Create, edit, and delete startup profiles via CLI and UI",
       "description": "Users can define custom profiles specifying resources and scenarios through both command-line and web interfaces",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -37,7 +36,6 @@
       "title": "Activate profiles that start/stop specific resources and scenarios",
       "description": "Profile activation orchestrates full environment setup including resource startup and scenario deployment",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -62,7 +60,6 @@
       "title": "Profile persistence in local configuration files",
       "description": "Profiles survive system restarts and can be version controlled through Postgres storage",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -80,7 +77,6 @@
       "title": "CLI interface: vrooli-orchestrator activate <profile-name>",
       "description": "Command-line activation enables scripting and automation workflows",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -98,7 +94,6 @@
       "title": "Basic profile metadata (name, description, target_audience)",
       "description": "Profiles are self-documenting and discoverable through metadata fields",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -116,7 +111,6 @@
       "title": "Integration with main vrooli CLI for resource/scenario lifecycle",
       "description": "Orchestrator uses standard Vrooli lifecycle management commands",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -134,7 +128,6 @@
       "title": "Profile templates for common use cases (developer, business, household)",
       "description": "Pre-built profiles reduce setup friction for common scenarios",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -152,7 +145,6 @@
       "title": "Auto-open browser tabs for configured dashboards",
       "description": "Profiles can launch web interfaces automatically using browserless",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -170,7 +162,6 @@
       "title": "Idle shutdown timers for resource management",
       "description": "Automatic cleanup saves resources when profiles are idle",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -188,7 +179,6 @@
       "title": "Environment variable overrides per profile",
       "description": "Profiles can customize scenario behavior through environment variables",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -206,7 +196,6 @@
       "title": "Profile validation and dependency checking",
       "description": "Pre-activation checks prevent runtime errors",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -224,7 +213,6 @@
       "title": "Web UI dashboard for visual profile management",
       "description": "Non-technical users can manage profiles visually",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -242,7 +230,6 @@
       "title": "Usage analytics and profile optimization recommendations",
       "description": "System learns which profiles work best for different contexts",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -260,7 +247,6 @@
       "title": "Profile sharing and versioning",
       "description": "Teams can share and iterate on profile configurations",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -278,7 +264,6 @@
       "title": "Conditional activation based on time/context",
       "description": "Profiles activate automatically based on calendar or system state",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -296,7 +281,6 @@
       "title": "Integration with calendar for automatic profile switching",
       "description": "Work/personal mode switching based on schedule",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -314,7 +298,6 @@
       "title": "Resource usage monitoring and optimization",
       "description": "Profiles adapt to available system resources",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",

@@ -13,7 +13,6 @@
       "title": "Graceful error handling with informative messages",
       "description": "System handles invalid inputs, missing elements, and runtime errors gracefully without crashes, providing clear error messages to users",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",

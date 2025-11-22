@@ -13,7 +13,6 @@
       "title": "New project dialog opens from primary entry points",
       "description": "Verifies the modal opens via the \"Create Project\" button, keyboard shortcuts, and toolbar menu so operators can begin authoring without page reloads.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -45,7 +44,6 @@
       "title": "New project dialog closes through all affordances",
       "description": "Ensures the modal dismisses through the X button, cancel button, backdrop click, and Escape key, restoring the underlying canvas state.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -77,7 +75,6 @@
       "title": "Operators can create a project from the dialog",
       "description": "Confirms validated submissions persist projects, show success toasts, and refresh the project list with the new entry selected.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -109,7 +106,6 @@
       "title": "Project creation enforces inline validation rules",
       "description": "Covers empty name, duplicate detection, and invalid characters with accessible error messaging surfaced inside the dialog.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",

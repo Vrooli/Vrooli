@@ -12,7 +12,6 @@
       "title": "AI generates PRD sections from prompts",
       "description": "Verifies POST /api/v1/drafts/{id}/ai/generate-section calls resource-openrouter with context and returns generated markdown.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "AI prompts include existing PRD, violations, and template context",
       "description": "Ensures buildPrompt includes draft content, structure violations, and missing sections in context.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "AI assistant rewrites selections for template compliance",
       "description": "Confirms AIAssistantDialog accepts section selection, generates revision, and allows insert/replace operations.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",

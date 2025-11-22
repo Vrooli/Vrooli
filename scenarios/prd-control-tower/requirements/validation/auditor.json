@@ -14,7 +14,6 @@
       "title": "Validation service calls scenario-auditor API for PRD structure checks",
       "description": "Verifies POST /api/v1/drafts/{id}/validate calls scenario-auditor with draft content and returns violations.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -32,7 +31,6 @@
       "title": "Validation results cache in PostgreSQL with timestamp",
       "description": "Ensures validation results persist to database and are reused until draft content changes.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -50,7 +48,6 @@
       "title": "Draft workspace displays violations with severity and recommendations",
       "description": "Confirms StructureChecklist component renders missing sections and violation counts from validation API.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",

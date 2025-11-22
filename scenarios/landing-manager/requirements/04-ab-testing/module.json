@@ -8,7 +8,6 @@
       "id": "AB-URL",
       "title": "URL variant selection",
       "prd_ref": "OT-P0-014",
-      "criticality": "P0",
       "description": "If variant_slug in URL, force that variant regardless of localStorage",
       "validation": [
         {
@@ -26,7 +25,6 @@
       "id": "AB-STORAGE",
       "title": "localStorage persistence",
       "prd_ref": "OT-P0-015",
-      "criticality": "P0",
       "description": "If no URL slug and localStorage has variant ID, reuse that variant",
       "validation": [
         {
@@ -47,7 +45,6 @@
       "id": "AB-API",
       "title": "API weight-based selection",
       "prd_ref": "OT-P0-016",
-      "criticality": "P0",
       "description": "If neither URL nor localStorage, API selects variant by weight and frontend stores it in localStorage",
       "validation": [
         {
@@ -69,7 +66,6 @@
       "id": "AB-CRUD",
       "title": "Variant CRUD operations",
       "prd_ref": "OT-P0-017",
-      "criticality": "P0",
       "description": "Admin can create, update weights, disable/archive, and hard delete variants (with confirmation)",
       "validation": [
         {
@@ -87,7 +83,6 @@
       "id": "AB-ARCHIVE",
       "title": "Archived variant handling",
       "prd_ref": "OT-P0-018",
-      "criticality": "P0",
       "description": "Archived variants remain queryable for analytics but ineligible for random selection",
       "validation": [
         {

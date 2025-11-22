@@ -13,7 +13,6 @@
       "title": "Autosave prevents data loss and manages conflicts",
       "description": "Debounced autosave writes workflow drafts, prevents overwrites when conflicts exist, and surfaces state to the UI header.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -45,7 +44,6 @@
       "title": "Version history exposes restore flows across API, UI, and CLI",
       "description": "Ensures version listing, diffing, and restore endpoints are available and parity exists between CLI and UI flows.",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",

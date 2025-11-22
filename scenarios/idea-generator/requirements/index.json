@@ -12,7 +12,6 @@
       "title": "Campaign-based idea organization with color coding",
       "description": "Full CRUD operations for campaigns with color coding and metadata",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "Interactive dice-roll interface for instant idea generation",
       "description": "Single-click AI-powered idea generation via custom web interface with magic dice animation",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -48,7 +46,6 @@
       "title": "Document intelligence with PDF/DOCX processing",
       "description": "Upload and extract context from research documents using unstructured-io",
       "status": "blocked",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "Semantic search across ideas and documents",
       "description": "Vector similarity search using Qdrant for discovering related ideas and documents",
       "status": "blocked",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "Real-time chat refinement with AI agents",
       "description": "WebSocket-based conversational refinement with specialized AI agents",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -102,7 +97,6 @@
       "title": "Six specialized agent types",
       "description": "Revise, Research, Critique, Expand, Synthesize, and Validate agents with distinct capabilities",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -120,7 +114,6 @@
       "title": "Context-aware generation using uploaded documents",
       "description": "Generate ideas informed by extracted document context and semantic connections",
       "status": "partial",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -138,7 +131,6 @@
       "title": "Vector embeddings for semantic connections",
       "description": "Store and query idea embeddings in Qdrant using nomic-embed-text model",
       "status": "blocked",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -156,7 +148,6 @@
       "title": "Chat history persistence and searchability",
       "description": "Store and search conversation history across refinement sessions",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -174,7 +165,6 @@
       "title": "Idea evolution tracking with version history",
       "description": "Track how ideas evolve through multiple refinement iterations",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -192,7 +182,6 @@
       "title": "Drag-and-drop document upload interface",
       "description": "Intuitive file upload with visual progress and format validation",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -210,7 +199,6 @@
       "title": "WebSocket-based real-time collaboration",
       "description": "Multiple users collaborating on campaigns simultaneously",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -228,7 +216,6 @@
       "title": "Export capabilities for refined ideas",
       "description": "Export ideas with refinement history to markdown, JSON, or CSV formats",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -246,7 +233,6 @@
       "title": "Team collaboration with shared campaigns",
       "description": "Multi-user workspace with permissions and activity feeds",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -264,7 +250,6 @@
       "title": "API integrations for external data sources",
       "description": "Connect to research databases, news feeds, and market data",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -282,7 +267,6 @@
       "title": "Mobile-responsive design for on-the-go ideation",
       "description": "Optimized mobile experience with touch-friendly interactions",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -300,7 +284,6 @@
       "title": "Custom agent creation toolkit",
       "description": "User-defined agent personalities and specializations",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -318,7 +301,6 @@
       "title": "Advanced analytics and insights",
       "description": "Track ideation patterns, identify trends, and measure idea quality",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",

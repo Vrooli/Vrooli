@@ -12,7 +12,6 @@
       "title": "Intelligent model selection",
       "description": "Intelligent model selection based on task type, complexity, and resource availability",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -29,7 +28,6 @@
       "title": "Memory pressure monitoring",
       "description": "Real-time memory pressure monitoring and resource-aware routing",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -46,7 +44,6 @@
       "title": "Automatic failover",
       "description": "Automatic failover with graceful degradation chains",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -63,7 +60,6 @@
       "title": "Cost-aware routing",
       "description": "Cost-aware routing with budget controls and optimization",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -80,7 +76,6 @@
       "title": "Performance monitoring",
       "description": "Performance monitoring and response time optimization",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -97,7 +92,6 @@
       "title": "Circuit breakers",
       "description": "Circuit breakers for automatic failure detection and isolation",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -114,7 +108,6 @@
       "title": "REST API",
       "description": "REST API exposing all orchestration capabilities",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -131,7 +124,6 @@
       "title": "Real-time dashboard",
       "description": "Real-time dashboard for monitoring system health and performance",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -148,7 +140,6 @@
       "title": "ML model prediction",
       "description": "Machine learning model prediction for optimal routing",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -165,7 +156,6 @@
       "title": "Adaptive learning",
       "description": "Adaptive learning from usage patterns and performance history",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -182,7 +172,6 @@
       "title": "Multi-region support",
       "description": "Multi-region deployment support with geo-routing",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -199,7 +188,6 @@
       "title": "Advanced analytics",
       "description": "Advanced analytics and cost optimization insights",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -216,7 +204,6 @@
       "title": "Webhook notifications",
       "description": "Webhook notifications for critical system events",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -233,7 +220,6 @@
       "title": "API rate limiting",
       "description": "API rate limiting and quota management",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -250,7 +236,6 @@
       "title": "Audit logging",
       "description": "Comprehensive audit logging and compliance features",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",

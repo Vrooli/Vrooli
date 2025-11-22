@@ -12,7 +12,6 @@
       "title": "Backlog accepts freeform text input and parses it into entries",
       "description": "Verifies BacklogIntakeCard accepts multiline text and creates backlog entries with proper metadata.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -37,7 +36,6 @@
       "title": "Backlog entries display in table with preview panel",
       "description": "Ensures BacklogEntriesTable renders entries and BacklogPreviewPanel shows details on selection.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -55,7 +53,6 @@
       "title": "Backlog entries convert to drafts with one-click action",
       "description": "Confirms convert-to-draft action creates new draft from backlog entry content and marks entry as converted.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",

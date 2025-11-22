@@ -13,7 +13,6 @@
       "title": "Inline workflow title editing updates workflow name",
       "description": "Users can click the edit icon next to the workflow title to edit the name inline, with changes persisted on save",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -31,7 +30,6 @@
       "title": "Execute button runs current workflow",
       "description": "Users can click the execute button in the header to run the current workflow and see execution feedback",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -49,7 +47,6 @@
       "title": "Info button displays workflow metadata popover",
       "description": "Users can click the info icon to view workflow metadata including creation date, last modified, folder path, and execution stats",
       "status": "in_progress",
-      "criticality": "P1",
       "validation": [
         {
           "type": "automation",
@@ -67,7 +64,6 @@
       "title": "Save status indicator shows autosave state",
       "description": "The header displays real-time save status (saving, saved, error) to provide feedback on workflow persistence",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",

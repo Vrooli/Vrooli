@@ -13,7 +13,6 @@
       "title": "Zoom in button increases canvas zoom level",
       "description": "Users can click the zoom in button to incrementally increase the canvas zoom level for detailed node editing",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -31,7 +30,6 @@
       "title": "Zoom out button decreases canvas zoom level",
       "description": "Users can click the zoom out button to incrementally decrease the canvas zoom level for workflow overview",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -49,7 +47,6 @@
       "title": "Fit view centers and sizes canvas to show all nodes",
       "description": "Users can click fit view to automatically center and zoom the canvas to display all workflow nodes",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -67,7 +64,6 @@
       "title": "Undo button reverts the last canvas change",
       "description": "Users can click undo to revert the most recent canvas modification (node add/delete/move, connection changes)",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -85,7 +81,6 @@
       "title": "Redo button re-applies undone changes",
       "description": "Users can click redo to re-apply the most recently undone change",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -103,7 +98,6 @@
       "title": "Lock/unlock canvas prevents/allows node interaction",
       "description": "Users can toggle canvas lock to prevent accidental node movements and edits during review",
       "status": "in_progress",
-      "criticality": "P1",
       "validation": [
         {
           "type": "automation",
@@ -121,7 +115,6 @@
       "title": "Duplicate button copies selected nodes",
       "description": "Users can select nodes and click duplicate to create copies with offset positions",
       "status": "in_progress",
-      "criticality": "P1",
       "validation": [
         {
           "type": "automation",
@@ -139,7 +132,6 @@
       "title": "Delete button removes selected nodes",
       "description": "Users can select nodes and click the delete button to remove them (alternative to keyboard shortcut)",
       "status": "in_progress",
-      "criticality": "P1",
       "validation": [
         {
           "type": "automation",

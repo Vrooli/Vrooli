@@ -25,7 +25,6 @@
       "title": "Core CRUD operations for comments",
       "description": "Create, read, update, delete operations for comments with proper authentication",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -42,7 +41,6 @@
       "title": "Thread/reply support with nested comment structure",
       "description": "Hierarchical comment organization with parent-child relationships",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -59,7 +57,6 @@
       "title": "Integration with session-authenticator for user authentication",
       "description": "Verify user tokens and retrieve user profile information",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -76,7 +73,6 @@
       "title": "Integration with notification-hub for comment notifications",
       "description": "Send notifications for replies, mentions, and new comments",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -93,7 +89,6 @@
       "title": "PostgreSQL persistence with robust schema design",
       "description": "ACID-compliant storage with proper indexing and relationships",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -110,7 +105,6 @@
       "title": "REST API for programmatic access by other scenarios",
       "description": "Complete API surface with health checks and versioning",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -127,7 +121,6 @@
       "title": "JavaScript SDK for easy integration into any web UI",
       "description": "Framework-agnostic SDK with comprehensive documentation",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -144,7 +137,6 @@
       "title": "Admin dashboard for per-scenario configuration management",
       "description": "UI for configuring auth requirements, moderation, and themes",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -161,7 +153,6 @@
       "title": "Markdown rendering support for comment display",
       "description": "Safe markdown parsing with XSS prevention",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -178,7 +169,6 @@
       "title": "Per-scenario authentication requirements",
       "description": "Configurable optional vs required login per scenario",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -195,7 +185,6 @@
       "title": "API response time < 200ms for 95% of CRUD operations",
       "description": "Meet performance SLA targets under normal load",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -212,7 +201,6 @@
       "title": "Database query time < 100ms for comment fetching",
       "description": "Optimized queries with proper indexing for 10k+ comments",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -229,7 +217,6 @@
       "title": "Resource usage < 512MB memory, < 20% CPU",
       "description": "Efficient resource utilization under normal load",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -246,7 +233,6 @@
       "title": "CLI tool with status, help, version commands",
       "description": "Operational commands for service management",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -263,7 +249,6 @@
       "title": "CLI list and create commands for comment management",
       "description": "User-facing commands for comment operations",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -280,7 +265,6 @@
       "title": "CLI config command for scenario configuration",
       "description": "Administrative commands for per-scenario settings",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -297,7 +281,6 @@
       "title": "CLI moderate command for admin operations",
       "description": "Moderation commands for content management",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -314,7 +297,6 @@
       "title": "Event publishing for comment.created",
       "description": "Emit events for downstream consumers like notification-hub",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -330,8 +312,7 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "title": "Real-time comment updates via WebSocket",
       "description": "Live updates without polling for improved UX",
-      "status": "planned",
-      "criticality": "P1"
+      "status": "planned"
     },
     {
       "id": "CS-P1-002",
@@ -339,8 +320,7 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "title": "Comment search and filtering capabilities",
       "description": "Full-text search across comment content",
-      "status": "planned",
-      "criticality": "P1"
+      "status": "planned"
     },
     {
       "id": "CS-P1-003",
@@ -348,8 +328,7 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "title": "User mention system",
       "description": "@username notifications with proper user lookup",
-      "status": "planned",
-      "criticality": "P1"
+      "status": "planned"
     },
     {
       "id": "CS-P1-004",
@@ -357,8 +336,7 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "title": "Comment edit history and version tracking",
       "description": "Audit trail of all comment modifications",
-      "status": "planned",
-      "criticality": "P1"
+      "status": "planned"
     },
     {
       "id": "CS-P1-005",
@@ -366,8 +344,7 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
       "title": "Configurable comment themes per scenario",
       "description": "Custom styling to match host scenario branding",
-      "status": "planned",
-      "criticality": "P1"
+      "status": "planned"
     },
     {
       "id": "CS-P1-006",
@@ -375,8 +352,7 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-006",
       "title": "Rich media attachment support",
       "description": "Image and file uploads (configurable per scenario)",
-      "status": "planned",
-      "criticality": "P1"
+      "status": "planned"
     },
     {
       "id": "CS-P1-007",
@@ -384,8 +360,7 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-007",
       "title": "Comment voting/rating system",
       "description": "User engagement features for comment quality",
-      "status": "planned",
-      "criticality": "P1"
+      "status": "planned"
     },
     {
       "id": "CS-P1-008",
@@ -393,8 +368,7 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-008",
       "title": "Export functionality for comment data",
       "description": "Data portability for analysis and backup",
-      "status": "planned",
-      "criticality": "P1"
+      "status": "planned"
     },
     {
       "id": "CS-P1-009",
@@ -402,8 +376,7 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-009",
       "title": "Throughput of 1000 comments/second sustained",
       "description": "Scale to high-traffic scenarios",
-      "status": "planned",
-      "criticality": "P1"
+      "status": "planned"
     },
     {
       "id": "CS-P1-010",
@@ -411,8 +384,7 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-010",
       "title": "WebSocket latency < 50ms",
       "description": "Real-time message delivery performance",
-      "status": "planned",
-      "criticality": "P1"
+      "status": "planned"
     },
     {
       "id": "CS-P2-001",
@@ -420,8 +392,7 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "title": "Integration hooks for AI-moderation-system scenario",
       "description": "Automated content moderation via ML models",
-      "status": "planned",
-      "criticality": "P2"
+      "status": "planned"
     },
     {
       "id": "CS-P2-002",
@@ -429,8 +400,7 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "title": "Comment analytics and engagement metrics",
       "description": "Insights dashboard for community health",
-      "status": "planned",
-      "criticality": "P2"
+      "status": "planned"
     },
     {
       "id": "CS-P2-003",
@@ -438,8 +408,7 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "title": "Advanced formatting toolbar for comment composition",
       "description": "Rich text editing experience",
-      "status": "planned",
-      "criticality": "P2"
+      "status": "planned"
     },
     {
       "id": "CS-P2-004",
@@ -447,8 +416,7 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-004",
       "title": "Comment templates and quick replies",
       "description": "Productivity features for common responses",
-      "status": "planned",
-      "criticality": "P2"
+      "status": "planned"
     },
     {
       "id": "CS-P2-005",
@@ -456,8 +424,7 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-005",
       "title": "Bulk moderation operations",
       "description": "Administrative efficiency for large-scale moderation",
-      "status": "planned",
-      "criticality": "P2"
+      "status": "planned"
     },
     {
       "id": "CS-P2-006",
@@ -465,8 +432,7 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-006",
       "title": "Comment scheduling functionality",
       "description": "Delayed publishing for strategic timing",
-      "status": "planned",
-      "criticality": "P2"
+      "status": "planned"
     },
     {
       "id": "CS-P2-007",
@@ -474,8 +440,7 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-007",
       "title": "Mobile-responsive comment widget",
       "description": "Optimized mobile experience",
-      "status": "planned",
-      "criticality": "P2"
+      "status": "planned"
     },
     {
       "id": "CS-P2-008",
@@ -483,8 +448,7 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-008",
       "title": "Voice comments and transcription",
       "description": "Accessibility and convenience features",
-      "status": "planned",
-      "criticality": "P2"
+      "status": "planned"
     },
     {
       "id": "CS-P2-009",
@@ -492,8 +456,7 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-009",
       "title": "AI-powered comment suggestions",
       "description": "Intelligent reply recommendations",
-      "status": "planned",
-      "criticality": "P2"
+      "status": "planned"
     },
     {
       "id": "CS-P2-010",
@@ -501,8 +464,7 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-010",
       "title": "Cross-scenario user reputation system",
       "description": "Community-wide trust and credibility scores",
-      "status": "planned",
-      "criticality": "P2"
+      "status": "planned"
     }
   ]
 }

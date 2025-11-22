@@ -14,7 +14,6 @@
       "title": "Dashboard loads with acceptable performance score",
       "description": "Home page (dashboard) must achieve Lighthouse performance score of 0.75+ on desktop. This ensures users experience fast initial load and time-to-interactive for the primary entry point.",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "lighthouse",
@@ -35,7 +34,6 @@
       "title": "Dashboard meets WCAG 2.1 AA accessibility standards",
       "description": "Dashboard page achieves Lighthouse accessibility score of 0.90+, ensuring keyboard navigation, screen reader support, color contrast, and ARIA labeling meet WCAG 2.1 AA standards.",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "lighthouse",
@@ -56,7 +54,6 @@
       "title": "Workflow builder becomes interactive within acceptable timeframe",
       "description": "Workflow builder page achieves Lighthouse performance score of 0.65+. Lower threshold accounts for heavy Monaco editor and React Flow canvas initialization. Focus on Time to Interactive (TTI) and Total Blocking Time (TBT).",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "lighthouse",
@@ -77,7 +74,6 @@
       "title": "Projects page loads efficiently",
       "description": "Projects listing/management page achieves Lighthouse performance score of 0.75+, ensuring fast navigation between projects.",
       "status": "in_progress",
-      "criticality": "P1",
       "validation": [
         {
           "type": "lighthouse",
@@ -97,7 +93,6 @@
       "title": "Mobile UI meets accessibility standards",
       "description": "Mobile viewport maintains Lighthouse accessibility score of 0.90+, ensuring touch targets, viewport configuration, and responsive design maintain accessibility on mobile devices.",
       "status": "in_progress",
-      "criticality": "P1",
       "validation": [
         {
           "type": "lighthouse",

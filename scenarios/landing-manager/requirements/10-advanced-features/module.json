@@ -8,7 +8,6 @@
       "id": "TMPL-MULTI",
       "title": "Additional templates",
       "prd_ref": "OT-P2-001",
-      "criticality": "P2",
       "description": "Support multiple landing page templates (SaaS, Product Launch, Lead Magnet, Event Registration)",
       "validation": [
         {
@@ -25,7 +24,6 @@
       "id": "TMPL-MARKET",
       "title": "Template marketplace",
       "prd_ref": "OT-P2-002",
-      "criticality": "P2",
       "description": "Community-contributed templates with ratings and reviews",
       "validation": [
         {
@@ -45,7 +43,6 @@
       "id": "AB-SIGNIFICANCE",
       "title": "Statistical significance testing",
       "prd_ref": "OT-P2-003",
-      "criticality": "P2",
       "description": "Admin dashboard shows confidence intervals and statistical significance for A/B tests",
       "validation": [
         {
@@ -62,7 +59,6 @@
       "id": "AB-AUTO-WINNER",
       "title": "Automatic winner selection",
       "prd_ref": "OT-P2-004",
-      "criticality": "P2",
       "description": "System automatically promotes winning variant after reaching significance threshold",
       "validation": [
         {
@@ -82,7 +78,6 @@
       "id": "AB-BANDIT",
       "title": "Multi-armed bandit",
       "prd_ref": "OT-P2-005",
-      "criticality": "P2",
       "description": "Implement Thompson sampling or UCB for dynamic traffic allocation",
       "validation": [
         {
@@ -99,7 +94,6 @@
       "id": "METRIC-HEATMAP",
       "title": "Heatmap visualization",
       "prd_ref": "OT-P2-006",
-      "criticality": "P2",
       "description": "Click heatmaps and scroll maps per variant",
       "validation": [
         {
@@ -116,7 +110,6 @@
       "id": "METRIC-REPLAY",
       "title": "Session replay",
       "prd_ref": "OT-P2-007",
-      "criticality": "P2",
       "description": "Record and replay user sessions for UX analysis",
       "validation": [
         {
@@ -133,7 +126,6 @@
       "id": "METRIC-FUNNEL",
       "title": "Funnel analysis",
       "prd_ref": "OT-P2-008",
-      "criticality": "P2",
       "description": "Multi-step conversion funnel tracking (landing → CTA → checkout → success)",
       "validation": [
         {
@@ -150,7 +142,6 @@
       "id": "AGENT-VARIANTS",
       "title": "Agent-generated variants",
       "prd_ref": "OT-P2-009",
-      "criticality": "P2",
       "description": "Agent automatically generates and deploys A/B test variants based on conversion data",
       "validation": [
         {
@@ -167,7 +158,6 @@
       "id": "AGENT-MVT",
       "title": "Multivariate testing",
       "prd_ref": "OT-P2-010",
-      "criticality": "P2",
       "description": "Test multiple elements simultaneously (hero copy + CTA button + pricing)",
       "validation": [
         {
@@ -184,7 +174,6 @@
       "id": "AGENT-PERSONA",
       "title": "Persona-based variants",
       "prd_ref": "OT-P2-011",
-      "criticality": "P2",
       "description": "Generate variants optimized for different user personas",
       "validation": [
         {
@@ -201,7 +190,6 @@
       "id": "INTEG-CRM",
       "title": "CRM integration",
       "prd_ref": "OT-P2-012",
-      "criticality": "P2",
       "description": "Push leads to HubSpot, Salesforce, or custom CRMs",
       "validation": [
         {
@@ -218,7 +206,6 @@
       "id": "INTEG-EMAIL",
       "title": "Email marketing integration",
       "prd_ref": "OT-P2-013",
-      "criticality": "P2",
       "description": "Sync subscribers to Mailchimp, ConvertKit, etc.",
       "validation": [
         {
@@ -235,7 +222,6 @@
       "id": "INTEG-WEBHOOK",
       "title": "Webhook notifications",
       "prd_ref": "OT-P2-014",
-      "criticality": "P2",
       "description": "Custom webhooks for landing page events (form submit, conversion, etc.)",
       "validation": [
         {

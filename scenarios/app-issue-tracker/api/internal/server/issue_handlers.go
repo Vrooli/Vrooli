@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	maxIssuePayloadBytes  int64 = 2 << 20 // 2 MiB
+	maxIssuePayloadBytes  int64 = 128 << 20 // 128 MiB to comfortably handle large log dumps and multiple screenshots
 	defaultIssueListLimit       = 20
 	defaultSearchLimit          = 10
 	maxIssueListLimit           = 200

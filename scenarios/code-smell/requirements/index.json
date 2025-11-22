@@ -12,7 +12,6 @@
       "title": "Hot-reloadable rules engine",
       "description": "Verifies the rules engine reads from JSON/YAML configuration and can reload rules without service restart",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "AI-powered pattern detection",
       "description": "Ensures integration with resource-claude-code for AI-powered pattern detection beyond regex",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "Avoid redundant checks via visited-tracker",
       "description": "Confirms integration with visited-tracker to skip analysis of unchanged files",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "Auto-fix safe patterns",
       "description": "Verifies auto-fix capability for safe patterns like whitespace and imports",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "Review queue UI",
       "description": "Confirms review queue UI displays violations needing approval/denial for dangerous changes",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -102,7 +97,6 @@
       "title": "API endpoints for code reviews",
       "description": "Ensures API endpoints exist for other scenarios to request code reviews programmatically",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -120,7 +114,6 @@
       "title": "Detect Vrooli-specific smells",
       "description": "Verifies detection and fixing of Vrooli-specific smells like hard-coded ports and paths",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -138,7 +131,6 @@
       "title": "Learning mode tracking",
       "description": "Confirms learning mode tracks approved/rejected fixes to improve future suggestions",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -156,7 +148,6 @@
       "title": "Statistics dashboard",
       "description": "Ensures dashboard displays smell statistics across the codebase",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -174,7 +165,6 @@
       "title": "Rule editor UI",
       "description": "Verifies rule editor UI allows adding patterns without editing configuration files",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -192,7 +182,6 @@
       "title": "Fix history view",
       "description": "Confirms history view tracks and displays what's been fixed over time",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -210,7 +199,6 @@
       "title": "Batch processing mode",
       "description": "Verifies batch processing mode for fixing multiple files in a single operation",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -228,7 +216,6 @@
       "title": "Configurable risk levels",
       "description": "Ensures risk levels are configurable for different fix categories",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",

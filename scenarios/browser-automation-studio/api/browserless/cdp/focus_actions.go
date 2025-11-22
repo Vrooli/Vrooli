@@ -18,7 +18,7 @@ func (s *Session) ExecuteFocus(ctx context.Context, selector string, timeoutMs, 
 		timeoutMs = 30000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.GetCurrentContext(), time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	if err := chromedp.Run(timeoutCtx,
@@ -55,7 +55,7 @@ func (s *Session) ExecuteBlur(ctx context.Context, selector string, timeoutMs, w
 		timeoutMs = 30000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.GetCurrentContext(), time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	script := fmt.Sprintf(`(() => {

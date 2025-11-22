@@ -25,7 +25,6 @@
       "title": "Real-time scenario status monitoring",
       "description": "Display running/stopped/error states for all scenarios with live updates",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -50,7 +49,6 @@
       "title": "Application lifecycle control",
       "description": "Start, stop, and restart scenarios through UI and API",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -68,7 +66,6 @@
       "title": "Resource health tracking",
       "description": "Monitor status of core resources (PostgreSQL, Redis, Ollama, etc.)",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -86,7 +83,6 @@
       "title": "Performance metrics display",
       "description": "Show CPU, memory, network, and disk usage per scenario",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -104,7 +100,6 @@
       "title": "Live log streaming",
       "description": "Stream real-time logs from running scenarios with filtering",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -122,7 +117,6 @@
       "title": "Matrix cyberpunk UI theme",
       "description": "Deliver distinctive green-on-black aesthetic with terminal fonts and glow effects",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -140,7 +134,6 @@
       "title": "Docker container integration",
       "description": "Monitor and control scenarios via Docker API",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -158,7 +151,6 @@
       "title": "Historical performance analytics",
       "description": "Store and visualize performance trends over time",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -176,7 +168,6 @@
       "title": "Automated health alerts",
       "description": "Notify operators of degraded health or failures",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -194,7 +185,6 @@
       "title": "Batch scenario operations",
       "description": "Execute start/stop/restart on multiple scenarios simultaneously",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -212,7 +202,6 @@
       "title": "Interactive terminal interface",
       "description": "Built-in command interface for system operations",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -230,7 +219,6 @@
       "title": "Custom dashboard layouts",
       "description": "Allow users to customize metric panels and views",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -248,7 +236,6 @@
       "title": "Advanced log analysis",
       "description": "Search, filter, and export logs with pattern matching",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -266,7 +253,6 @@
       "title": "Multi-server monitoring",
       "description": "Aggregate monitoring across distributed Vrooli installations",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -284,7 +270,6 @@
       "title": "Mobile-optimized interface",
       "description": "Responsive design with mobile-first interactions",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",
@@ -302,7 +287,6 @@
       "title": "Predictive health modeling",
       "description": "ML-based predictions of resource exhaustion or failures",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -320,7 +304,6 @@
       "title": "Integration with external APM tools",
       "description": "Export metrics to Prometheus, Grafana, Datadog",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -338,7 +321,6 @@
       "title": "Role-based access control",
       "description": "Limit operations based on user permissions",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -356,7 +338,6 @@
       "title": "Scenario dependency visualization",
       "description": "Graph view of inter-scenario dependencies",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "manual",

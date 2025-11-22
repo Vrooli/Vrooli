@@ -13,7 +13,6 @@
       "title": "Project list displays and allows navigation to project detail",
       "description": "Users can view projects on the dashboard and click a project card to navigate to its detail view",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -31,7 +30,6 @@
       "title": "Project search filters the project list",
       "description": "Users can search for projects by name or description, with results updating in real-time",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -49,7 +47,6 @@
       "title": "Project editing updates name and description",
       "description": "Users can edit project details through a modal dialog, with changes reflected immediately",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -67,7 +64,6 @@
       "title": "Workflow creation and builder loading",
       "description": "Users can create new workflows and have the workflow builder load successfully",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -85,7 +81,6 @@
       "title": "Workflow selection from project detail",
       "description": "Users can select workflows from the project detail list and load them into the builder",
       "status": "in_progress",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -103,7 +98,6 @@
       "title": "Execution history tab displays and allows viewing execution details",
       "description": "Users can switch to execution history tab and select executions to view detailed information",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -121,7 +115,6 @@
       "title": "Workflow execution from project detail",
       "description": "Users can trigger workflow execution from the project detail view and see execution indicators",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -139,7 +132,6 @@
       "title": "Switch between Workflows and Executions tabs in Project Detail",
       "description": "Users can navigate between Workflows and Executions tabs in the project detail view to see different content sections",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",
@@ -157,7 +149,6 @@
       "title": "Execution viewer displays Replay tab with timeline and screenshots",
       "description": "The execution viewer Replay tab shows the execution timeline, screenshots, and replay controls for viewing past workflow runs",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "automation",

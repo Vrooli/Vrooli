@@ -68,7 +68,7 @@
   "definitions": {
     "requirement": {
       "type": "object",
-      "required": ["id", "title", "status", "criticality"],
+      "required": ["id", "title", "status", "prd_ref"],
       "properties": {
         "id": {
           "type": "string",
@@ -82,7 +82,7 @@
         },
         "prd_ref": {
           "type": "string",
-          "description": "Reference to PRD section this requirement traces to"
+          "description": "Reference to operational target or PRD section (e.g., 'OT-P0-001' or 'Functional Requirements > Core Features'). For operational target format (OT-P[012]-NNN), criticality is automatically derived."
         },
         "title": {
           "type": "string",
@@ -97,11 +97,6 @@
           "type": "string",
           "enum": ["pending", "planned", "in_progress", "complete", "not_implemented"],
           "description": "Current implementation status"
-        },
-        "criticality": {
-          "type": "string",
-          "enum": ["P0", "P1", "P2"],
-          "description": "Priority level (P0=critical, P1=important, P2=nice-to-have)"
         },
         "tags": {
           "type": "array",

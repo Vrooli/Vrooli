@@ -10,8 +10,7 @@
       "prd_ref": "OT-P0-018",
       "title": "Secret Identification",
       "description": "Identify all required secrets within 3 seconds when profile created or swaps applied",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "secrets",
         "integration"
@@ -20,8 +19,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/secret-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-018] tags"
         }
       ]
     },
@@ -31,8 +31,7 @@
       "prd_ref": "OT-P0-019",
       "title": "Secret Categorization",
       "description": "Categorize secrets as required, optional, dev-only, user-supplied, vault-managed",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "secrets",
         "classification"
@@ -41,8 +40,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/secret-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-019] tags"
         }
       ]
     },
@@ -52,8 +52,7 @@
       "prd_ref": "OT-P0-020",
       "title": "Desktop/Mobile Secret Templates",
       "description": "Generate .env.template with human-friendly descriptions for desktop/mobile tiers",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "secrets",
         "templates"
@@ -62,8 +61,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/secret-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-020] tags"
         }
       ]
     },
@@ -73,8 +73,7 @@
       "prd_ref": "OT-P0-021",
       "title": "SaaS/Enterprise Secret References",
       "description": "Generate Vault/AWS Secrets Manager references in correct format for cloud tiers",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "secrets",
         "cloud"
@@ -83,8 +82,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/secret-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-021] tags"
         }
       ]
     },
@@ -94,8 +94,7 @@
       "prd_ref": "OT-P0-022",
       "title": "Secret Validation Testing",
       "description": "Provide \"Test API key\" buttons that call endpoints to validate secrets before deployment",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "secrets",
         "validation"
@@ -104,8 +103,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/secret-management.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-022] tags"
         }
       ]
     }

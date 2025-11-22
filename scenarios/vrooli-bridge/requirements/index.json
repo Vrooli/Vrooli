@@ -8,7 +8,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "validation_method": "Scanner finds test projects at various depths and returns accurate project metadata",
-      "tags": ["core", "filesystem", "discovery"]
+      "tags": [
+        "core",
+        "filesystem",
+        "discovery"
+      ]
     },
     {
       "id": "VRB-REQ-002",
@@ -18,7 +22,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "validation_method": "Generated documentation contains correct Vrooli references and project-specific guidance",
-      "tags": ["core", "documentation", "templates"]
+      "tags": [
+        "core",
+        "documentation",
+        "templates"
+      ]
     },
     {
       "id": "VRB-REQ-003",
@@ -28,7 +36,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "validation_method": "CLAUDE.md files created/updated with Vrooli references without overwriting existing content",
-      "tags": ["core", "documentation", "integration"]
+      "tags": [
+        "core",
+        "documentation",
+        "integration"
+      ]
     },
     {
       "id": "VRB-REQ-004",
@@ -38,7 +50,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "validation_method": "Status accurately reflects project state and timestamps update on integration changes",
-      "tags": ["core", "tracking", "metadata"]
+      "tags": [
+        "core",
+        "tracking",
+        "metadata"
+      ]
     },
     {
       "id": "VRB-REQ-005",
@@ -48,7 +64,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "validation_method": "All CLI commands execute successfully with proper output and error handling",
-      "tags": ["cli", "interface", "commands"]
+      "tags": [
+        "cli",
+        "interface",
+        "commands"
+      ]
     },
     {
       "id": "VRB-REQ-006",
@@ -58,7 +78,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "validation_method": "Project data persists across restarts and queries execute within 50ms",
-      "tags": ["database", "postgres", "persistence"]
+      "tags": [
+        "database",
+        "postgres",
+        "persistence"
+      ]
     },
     {
       "id": "VRB-REQ-007",
@@ -68,7 +92,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "validation_method": "Project types correctly identified and appropriate scenario recommendations provided",
-      "tags": ["detection", "recommendations", "intelligence"]
+      "tags": [
+        "detection",
+        "recommendations",
+        "intelligence"
+      ]
     },
     {
       "id": "VRB-REQ-008",
@@ -78,7 +106,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "validation_method": "Version mismatches detected and outdated projects flagged in UI",
-      "tags": ["versioning", "tracking", "updates"]
+      "tags": [
+        "versioning",
+        "tracking",
+        "updates"
+      ]
     },
     {
       "id": "VRB-REQ-009",
@@ -88,7 +120,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "validation_method": "Bulk operations complete successfully with detailed progress and error reporting",
-      "tags": ["bulk", "operations", "efficiency"]
+      "tags": [
+        "bulk",
+        "operations",
+        "efficiency"
+      ]
     },
     {
       "id": "VRB-REQ-010",
@@ -98,7 +134,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "validation_method": "Health checks accurately detect missing or corrupted integration files",
-      "tags": ["health", "validation", "monitoring"]
+      "tags": [
+        "health",
+        "validation",
+        "monitoring"
+      ]
     },
     {
       "id": "VRB-REQ-011",
@@ -108,7 +148,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
       "validation_method": "Projects can be tagged, filtered by tags, and categories displayed in UI",
-      "tags": ["organization", "tagging", "filtering"]
+      "tags": [
+        "organization",
+        "tagging",
+        "filtering"
+      ]
     },
     {
       "id": "VRB-REQ-012",
@@ -118,7 +162,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "validation_method": "TBD",
-      "tags": ["automation", "updates", "future"]
+      "tags": [
+        "automation",
+        "updates",
+        "future"
+      ]
     },
     {
       "id": "VRB-REQ-013",
@@ -128,7 +176,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "validation_method": "TBD",
-      "tags": ["visualization", "dependencies", "future"]
+      "tags": [
+        "visualization",
+        "dependencies",
+        "future"
+      ]
     },
     {
       "id": "VRB-REQ-014",
@@ -138,7 +190,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "validation_method": "TBD",
-      "tags": ["templates", "customization", "future"]
+      "tags": [
+        "templates",
+        "customization",
+        "future"
+      ]
     },
     {
       "id": "VRB-REQ-015",
@@ -148,7 +204,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-004",
       "validation_method": "TBD",
-      "tags": ["analytics", "metrics", "future"]
+      "tags": [
+        "analytics",
+        "metrics",
+        "future"
+      ]
     }
   ],
   "metadata": {

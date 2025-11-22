@@ -12,7 +12,6 @@
       "title": "Core chart types: bar, line, pie, scatter, area charts with configurable data inputs",
       "description": "Support for basic chart types with configurable data inputs and automatic rendering",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "JSON/CSV/direct data object ingestion with automatic data type detection",
       "description": "Support multiple data input formats with automatic type detection and parsing",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "Default professional styling themes (light, dark, corporate, minimal)",
       "description": "Provide built-in professional themes for consistent chart styling",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "CLI interface for programmatic chart generation by other scenarios",
       "description": "Command-line interface enabling automation and cross-scenario integration",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "Export capabilities: PNG, SVG formats for different use cases",
       "description": "Multi-format export supporting web, print, and integration scenarios",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -102,7 +97,6 @@
       "title": "PostgreSQL integration for chart template and style persistence",
       "description": "Database-backed storage for templates, styles, and generation history",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -120,7 +114,6 @@
       "title": "Web UI for style management and preview with mock data",
       "description": "User interface for creating, managing, and previewing chart styles",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -138,7 +131,6 @@
       "title": "Advanced chart types: gantt, heatmap, treemap charts",
       "description": "Extended chart type support for specialized business use cases",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -156,7 +148,6 @@
       "title": "Candlestick charts for financial data",
       "description": "Specialized financial chart type for stock and market data visualization",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -174,7 +165,6 @@
       "title": "Custom style builder with live preview and color palette management",
       "description": "Interactive style creation with real-time preview and palette tools",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -192,7 +182,6 @@
       "title": "Chart animation and interactivity options for web displays",
       "description": "Dynamic chart features including animations and user interactions",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -210,7 +199,6 @@
       "title": "PDF export with vector graphics for print-quality reports",
       "description": "High-quality PDF generation for professional reporting and print",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -228,7 +216,6 @@
       "title": "Chart composition (multiple charts in single canvas)",
       "description": "Multi-chart layouts with grid, horizontal, and vertical arrangements",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -246,7 +233,6 @@
       "title": "Data transformation pipeline (aggregation, filtering, sorting)",
       "description": "Built-in data processing for common transformation operations",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -264,7 +250,6 @@
       "title": "Template library with industry-specific presets",
       "description": "Pre-configured chart templates for common business verticals",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",

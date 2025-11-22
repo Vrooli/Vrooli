@@ -12,7 +12,6 @@
       "title": "Campaign management - Create, organize, and manage marketing campaigns",
       "description": "Users can create new campaigns with metadata (name, description, goals), organize them in a list view, and manage campaign lifecycle.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -29,7 +28,6 @@
       "title": "Document upload and processing - Support multiple file formats",
       "description": "Users can upload brand guidelines, product docs, and context materials in PDF, DOCX, TXT, and XLSX formats for use in content generation.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -46,7 +44,6 @@
       "title": "AI content generation - Generate marketing content across multiple types",
       "description": "Users can generate marketing content for blog posts, social media, emails, and advertisements using AI integration with Ollama or external services.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -63,7 +60,6 @@
       "title": "Content type selection - Support distinct content types with appropriate parameters",
       "description": "System provides distinct content type options (blog, social, email, ads) with appropriate generation parameters and output formatting for each type.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -80,7 +76,6 @@
       "title": "Document context integration - Use uploaded documents in generation",
       "description": "AI content generation incorporates uploaded documents as context to produce brand-aligned, contextually relevant content.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -97,7 +92,6 @@
       "title": "Generated content review - Display, edit, and refine AI output",
       "description": "Users can view AI-generated content, make edits, and refine results before saving to ensure quality and brand alignment.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -114,7 +108,6 @@
       "title": "Content persistence - Save and retrieve generated content",
       "description": "System persists generated content associated with campaigns and allows retrieval for future reference and editing.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -131,7 +124,6 @@
       "title": "Responsive UI - Functional interface across viewports",
       "description": "UI provides functional, accessible interface across mobile, tablet, and desktop viewports with appropriate layouts and interactions.",
       "status": "pending",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -148,7 +140,6 @@
       "title": "Content calendar - Schedule and visualize content timeline",
       "description": "Users can view scheduled content across campaigns in a monthly calendar view with drag-and-drop scheduling support.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -165,7 +156,6 @@
       "title": "Template gallery - Browse and apply pre-built templates",
       "description": "Users can browse pre-built content templates by category and content type, and apply them to generate content faster.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -182,7 +172,6 @@
       "title": "Document search - Search uploaded documents",
       "description": "Users can search uploaded documents by name, content keywords, and campaign association to quickly find relevant context materials.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -199,7 +188,6 @@
       "title": "Campaign filtering - Filter content by campaign",
       "description": "Users can filter documents and generated content by campaign context to focus on specific marketing initiatives.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -216,7 +204,6 @@
       "title": "Usage analytics dashboard - Track generation metrics",
       "description": "Dashboard displays content generation volume, estimated time saved, and campaign activity metrics to measure productivity.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -233,7 +220,6 @@
       "title": "Image inclusion toggle - Optional image generation",
       "description": "Users can optionally request image generation or image recommendations alongside text content generation.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -250,7 +236,6 @@
       "title": "Content regeneration - Generate variations with adjusted prompts",
       "description": "Users can regenerate content variations by adjusting generation prompts and parameters to explore different creative directions.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -267,7 +252,6 @@
       "title": "Batch document upload - Process multiple files simultaneously",
       "description": "Users can upload multiple document files in a single operation for efficient bulk context material processing.",
       "status": "pending",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",

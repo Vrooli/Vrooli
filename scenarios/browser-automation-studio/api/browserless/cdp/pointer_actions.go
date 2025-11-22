@@ -30,7 +30,7 @@ func (s *Session) ExecuteHover(ctx context.Context, selector string, timeoutMs, 
 		durationMs = 10000
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeoutCtx, cancel := context.WithTimeout(s.GetCurrentContext(), time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
 
 	box, err := s.resolveElementBox(timeoutCtx, selector)
@@ -103,10 +103,16 @@ func (s *Session) ExecuteDragAndDrop(ctx context.Context, opts dragDropOptions, 
 		opts.holdMs = 0
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(s.ctx, time.Duration(timeoutMs)*time.Millisecond)
+	baseCtx := s.BeginOperation()
+	defer s.EndOperation()
+	s.log.WithField("baseCtx_err", baseCtx.Err()).Info("[DRAG] Got base context via BeginOperation")
+
+	timeoutCtx, cancel := context.WithTimeout(baseCtx, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancel()
+	s.log.WithField("timeoutCtx_err", timeoutCtx.Err()).Info("[DRAG] Created timeout context")
 
 	sourceBox, err := s.resolveElementBox(timeoutCtx, opts.sourceSelector)
+	s.log.WithField("timeoutCtx_err_after_resolve", timeoutCtx.Err()).WithField("err", err).Info("[DRAG] Resolved source element box")
 	if err != nil {
 		result.Error = fmt.Sprintf("drag source %s unavailable: %v", opts.sourceSelector, err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
@@ -142,17 +148,18 @@ func (s *Session) ExecuteDragAndDrop(ctx context.Context, opts dragDropOptions, 
 		approachSteps = 1
 	}
 	approachDuration := opts.durationMs / 3
+	s.log.WithField("timeoutCtx_err_before_move", timeoutCtx.Err()).Info("[DRAG] About to call movePointerSmooth")
 	if err := s.movePointerSmooth(timeoutCtx, sourceX, sourceY, approachSteps, approachDuration); err != nil {
+		s.log.WithField("timeoutCtx_err_after_move_fail", timeoutCtx.Err()).WithError(err).Error("[DRAG] movePointerSmooth failed")
 		result.Error = fmt.Sprintf("failed to move pointer to source: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err
 	}
 
-	if err := input.DispatchMouseEvent(input.MousePressed, sourceX, sourceY).
-		WithButton(input.Left).
-		WithButtons(1).
-		WithClickCount(1).
-		Do(timeoutCtx); err != nil {
+	// Use chromedp.MouseEvent wrapper to ensure proper context metadata
+	if err := chromedp.Run(timeoutCtx, chromedp.MouseEvent(input.MousePressed, sourceX, sourceY, func(p *input.DispatchMouseEventParams) *input.DispatchMouseEventParams {
+		return p.WithButton(input.Left).WithButtons(1).WithClickCount(1)
+	})); err != nil {
 		result.Error = fmt.Sprintf("failed to press mouse: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err
@@ -172,11 +179,10 @@ func (s *Session) ExecuteDragAndDrop(ctx context.Context, opts dragDropOptions, 
 		return result, err
 	}
 
-	if err := input.DispatchMouseEvent(input.MouseReleased, dropX, dropY).
-		WithButton(input.Left).
-		WithButtons(0).
-		WithClickCount(1).
-		Do(timeoutCtx); err != nil {
+	// Use chromedp.MouseEvent wrapper to ensure proper context metadata
+	if err := chromedp.Run(timeoutCtx, chromedp.MouseEvent(input.MouseReleased, dropX, dropY, func(p *input.DispatchMouseEventParams) *input.DispatchMouseEventParams {
+		return p.WithButton(input.Left).WithButtons(0).WithClickCount(1)
+	})); err != nil {
 		result.Error = fmt.Sprintf("failed to release mouse: %v", err)
 		result.DurationMs = int(time.Since(start).Milliseconds())
 		return result, err

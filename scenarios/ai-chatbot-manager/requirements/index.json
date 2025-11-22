@@ -12,7 +12,6 @@
       "title": "Multi-chatbot management",
       "description": "Create and configure multiple chatbots with custom personalities and knowledge bases",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -29,7 +28,6 @@
       "title": "Widget embedding",
       "description": "Generate embeddable JavaScript widgets for website integration",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -46,7 +44,6 @@
       "title": "Real-time conversations",
       "description": "Real-time WebSocket-powered conversations with Ollama AI models",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -63,7 +60,6 @@
       "title": "Conversation storage",
       "description": "Conversation storage and retrieval with full chat history",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -80,7 +76,6 @@
       "title": "Lead capture",
       "description": "Lead capture and contact information collection",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -97,7 +92,6 @@
       "title": "Basic analytics",
       "description": "Basic analytics dashboard showing conversation volume and engagement",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -114,7 +108,6 @@
       "title": "Multi-tenancy",
       "description": "Multi-tenant architecture supporting different client configurations",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -131,7 +124,6 @@
       "title": "A/B testing",
       "description": "A/B testing different chatbot personalities and conversation flows",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -148,7 +140,6 @@
       "title": "CRM integration",
       "description": "Integration with external CRMs and lead management systems",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -165,7 +156,6 @@
       "title": "Advanced analytics",
       "description": "Advanced analytics with conversion tracking and user journey mapping",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -182,7 +172,6 @@
       "title": "Human escalation",
       "description": "Automated escalation to human agents when AI confidence is low",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -199,7 +188,6 @@
       "title": "Widget branding",
       "description": "Custom branding and styling for chat widgets",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",

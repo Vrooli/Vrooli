@@ -32,7 +32,6 @@
       "title": "Catalog view with comprehensive PRD status indicators",
       "description": "Tracks the complete experience for browsing all scenarios/resources with accurate status badges (Has PRD, Draft pending, Violations, Missing). Child implementation requirements cover enumeration, filtering, and status display.",
       "status": "complete",
-      "criticality": "P0",
       "children": [
         "PCT-CATALOG-ENUMERATE",
         "PCT-CATALOG-VIEW-PRD",
@@ -47,7 +46,6 @@
       "title": "Complete draft lifecycle management",
       "description": "Tracks draft CRUD operations with atomic file persistence, database synchronization, and publishing workflow. Child implementation requirements cover API endpoints and UI components.",
       "status": "complete",
-      "criticality": "P0",
       "children": [
         "PCT-DRAFT-CREATE",
         "PCT-DRAFT-SAVE",
@@ -63,7 +61,6 @@
       "title": "Idea backlog with freeform text intake and conversion",
       "description": "Captures backlog intake workflows where users paste freeform notes and convert them to drafts or save to backlog for later triage.",
       "status": "complete",
-      "criticality": "P0",
       "children": [
         "PCT-BACKLOG-INTAKE",
         "PCT-BACKLOG-PREVIEW",
@@ -77,7 +74,6 @@
       "title": "Requirements registry parsing and operational target linkage",
       "description": "Validates that modular requirements/ folders are ingested correctly, operational targets are extracted from PRD checklists, and linkage is surfaced in the draft workspace.",
       "status": "complete",
-      "criticality": "P0",
       "children": [
         "PCT-REQ-PARSE",
         "PCT-REQ-TARGETS",
@@ -91,7 +87,6 @@
       "title": "AI-powered PRD content generation",
       "description": "Enables AI-assisted section generation and rewriting via resource-openrouter integration with context-aware prompts.",
       "status": "complete",
-      "criticality": "P0",
       "children": [
         "PCT-AI-GENERATE",
         "PCT-AI-CONTEXT",
@@ -105,7 +100,6 @@
       "title": "PRD structure validation via scenario-auditor",
       "description": "Integrates with scenario-auditor to validate PRD structure compliance and surface violations with actionable feedback.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",

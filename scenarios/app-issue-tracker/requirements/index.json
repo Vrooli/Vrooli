@@ -8,7 +8,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "validation_method": "API GET /health returns 200 with storage field populated",
-      "tags": ["api", "health-check", "monitoring"]
+      "tags": [
+        "api",
+        "health-check",
+        "monitoring"
+      ]
     },
     {
       "id": "AIT-REQ-002",
@@ -18,7 +22,12 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "validation_method": "app-issue-tracker create followed by list shows new issue in YAML store",
-      "tags": ["core", "api", "cli", "storage"]
+      "tags": [
+        "core",
+        "api",
+        "cli",
+        "storage"
+      ]
     },
     {
       "id": "AIT-REQ-003",
@@ -28,7 +37,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "validation_method": "API returns filtered results based on status parameter",
-      "tags": ["api", "core", "search"]
+      "tags": [
+        "api",
+        "core",
+        "search"
+      ]
     },
     {
       "id": "AIT-REQ-004",
@@ -38,7 +51,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "validation_method": "Issues persist correctly in data/issues/active, completed, failed directories",
-      "tags": ["storage", "core", "yaml"]
+      "tags": [
+        "storage",
+        "core",
+        "yaml"
+      ]
     },
     {
       "id": "AIT-REQ-005",
@@ -48,7 +65,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "validation_method": "Investigation endpoint starts unified-resolver agent in background",
-      "tags": ["ai", "api", "investigation"]
+      "tags": [
+        "ai",
+        "api",
+        "investigation"
+      ]
     },
     {
       "id": "AIT-REQ-006",
@@ -58,7 +79,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "validation_method": "Investigation with auto_resolve produces transcript and applies fixes",
-      "tags": ["ai", "automation", "investigation"]
+      "tags": [
+        "ai",
+        "automation",
+        "investigation"
+      ]
     },
     {
       "id": "AIT-REQ-007",
@@ -68,7 +93,10 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P0 > OT-P0-007",
       "validation_method": "CLI commands execute successfully and interact with API",
-      "tags": ["cli", "core"]
+      "tags": [
+        "cli",
+        "core"
+      ]
     },
     {
       "id": "AIT-REQ-008",
@@ -78,7 +106,11 @@
       "status": "pending",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "validation_method": "Search returns semantically similar issues when Qdrant available",
-      "tags": ["search", "ai", "qdrant"],
+      "tags": [
+        "search",
+        "ai",
+        "qdrant"
+      ],
       "notes": "Blocked: Qdrant not available, feature disabled with keyword fallback"
     },
     {
@@ -89,7 +121,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "validation_method": "UI accessible on Vite dev server with functional issue display",
-      "tags": ["ui", "react", "web"]
+      "tags": [
+        "ui",
+        "react",
+        "web"
+      ]
     },
     {
       "id": "AIT-REQ-010",
@@ -99,7 +135,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "validation_method": "POST /api/v1/issues/{id}/create-pr endpoint wired and functional",
-      "tags": ["git", "github", "integration"]
+      "tags": [
+        "git",
+        "github",
+        "integration"
+      ]
     },
     {
       "id": "AIT-REQ-011",
@@ -109,7 +149,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "validation_method": "All export formats working via /api/v1/export endpoint",
-      "tags": ["export", "api", "reporting"]
+      "tags": [
+        "export",
+        "api",
+        "reporting"
+      ]
     },
     {
       "id": "AIT-REQ-012",
@@ -119,7 +163,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
       "validation_method": "CORS configurable, security documentation complete",
-      "tags": ["security", "cors", "config"]
+      "tags": [
+        "security",
+        "cors",
+        "config"
+      ]
     },
     {
       "id": "AIT-REQ-013",
@@ -129,7 +177,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P1 > OT-P1-006",
       "validation_method": "avg_resolution_hours calculated and exposed in API",
-      "tags": ["analytics", "performance", "metrics"]
+      "tags": [
+        "analytics",
+        "performance",
+        "metrics"
+      ]
     },
     {
       "id": "AIT-REQ-014",
@@ -139,7 +191,11 @@
       "status": "validated",
       "prd_ref": "Operational Targets > P1 > OT-P1-007",
       "validation_method": "test-integration.sh covers health, stats, CORS, export, git endpoints",
-      "tags": ["testing", "integration", "validation"]
+      "tags": [
+        "testing",
+        "integration",
+        "validation"
+      ]
     },
     {
       "id": "AIT-REQ-015",
@@ -149,7 +205,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "validation_method": "TBD",
-      "tags": ["analytics", "dashboard", "future"]
+      "tags": [
+        "analytics",
+        "dashboard",
+        "future"
+      ]
     },
     {
       "id": "AIT-REQ-016",
@@ -159,7 +219,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "validation_method": "TBD",
-      "tags": ["ai", "agents", "future"]
+      "tags": [
+        "ai",
+        "agents",
+        "future"
+      ]
     },
     {
       "id": "AIT-REQ-017",
@@ -169,7 +233,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "validation_method": "TBD",
-      "tags": ["integration", "webhooks", "future"]
+      "tags": [
+        "integration",
+        "webhooks",
+        "future"
+      ]
     }
   ],
   "metadata": {

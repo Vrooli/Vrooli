@@ -26,7 +26,6 @@
       "title": "Multi-format audio upload",
       "description": "Support MP3, WAV, M4A, OGG, FLAC formats with drag-and-drop interface",
       "status": "pending",
-      "criticality": "P0",
       "validation": []
     },
     {
@@ -36,7 +35,6 @@
       "title": "Real-time transcription",
       "description": "Automatic speech-to-text using Whisper AI with progress indicators",
       "status": "pending",
-      "criticality": "P0",
       "validation": []
     },
     {
@@ -46,7 +44,6 @@
       "title": "AI-powered summarization",
       "description": "Generate concise summaries and key insights from transcribed content",
       "status": "pending",
-      "criticality": "P0",
       "validation": []
     },
     {
@@ -56,7 +53,6 @@
       "title": "Semantic search capability",
       "description": "Vector-based search across all transcriptions using embeddings",
       "status": "pending",
-      "criticality": "P0",
       "validation": []
     },
     {
@@ -66,7 +62,6 @@
       "title": "Waveform visualization",
       "description": "Canvas-based audio visualization with playback controls",
       "status": "pending",
-      "criticality": "P0",
       "validation": []
     },
     {
@@ -76,7 +71,6 @@
       "title": "Transcription history",
       "description": "Persistent storage and retrieval of processed audio files",
       "status": "pending",
-      "criticality": "P0",
       "validation": []
     },
     {
@@ -86,7 +80,6 @@
       "title": "Professional dashboard UI",
       "description": "Data-dense analytics interface with dark theme optimized for audio work",
       "status": "pending",
-      "criticality": "P0",
       "validation": []
     },
     {
@@ -96,7 +89,6 @@
       "title": "Batch processing",
       "description": "Handle multiple audio files simultaneously with queue management",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -106,7 +98,6 @@
       "title": "Custom analysis prompts",
       "description": "User-defined analytical queries for specific insights",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -116,7 +107,6 @@
       "title": "Multi-language support",
       "description": "Process and transcribe audio in various languages",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -126,7 +116,6 @@
       "title": "Advanced search filters",
       "description": "Filter by date, duration, language, confidence score",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -136,7 +125,6 @@
       "title": "Export capabilities",
       "description": "Export transcriptions and analyses to PDF, TXT, JSON formats",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -146,7 +134,6 @@
       "title": "Speaker identification",
       "description": "Detect and label different speakers in audio content",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -156,7 +143,6 @@
       "title": "Sentiment analysis",
       "description": "Analyze emotional tone and sentiment in transcribed content",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -166,7 +152,6 @@
       "title": "Real-time streaming",
       "description": "Live audio transcription and analysis",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -176,7 +161,6 @@
       "title": "Speaker diarization",
       "description": "Advanced speaker separation and identification",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -186,7 +170,6 @@
       "title": "Audio filtering",
       "description": "Noise reduction and quality enhancement preprocessing",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -196,7 +179,6 @@
       "title": "API extensions",
       "description": "Public API for third-party integrations",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -206,7 +188,6 @@
       "title": "Webhook automation",
       "description": "Event-driven notifications for completed transcriptions",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -216,7 +197,6 @@
       "title": "Custom vocabulary",
       "description": "Domain-specific terminology training for improved accuracy",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -226,7 +206,6 @@
       "title": "Collaborative annotations",
       "description": "Multi-user highlighting and note-taking on transcripts",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     }
   ]

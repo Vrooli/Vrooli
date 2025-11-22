@@ -8,7 +8,6 @@
       "id": "METRIC-TAG",
       "title": "Event variant tagging",
       "prd_ref": "OT-P0-019",
-      "criticality": "P0",
       "description": "All events (page view, scroll, clicks, forms, conversions) include variant_id in payload",
       "validation": [
         {
@@ -39,41 +38,39 @@
       "id": "METRIC-FILTER",
       "title": "Analytics variant filtering",
       "prd_ref": "OT-P0-020",
-      "criticality": "P0",
       "description": "Admin analytics view filters stats by variant and time range",
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go unit test verifies filtering by variant slug and date range",
           "ref": "api/metrics_service_test.go:TestGetVariantStats_FilterBySlug",
           "test_duration_ms": 0,
-          "last_test_run": "2025-11-21",
+          "last_test_run": "2025-11-22",
           "phase_result": ""
         },
         {
           "type": "test",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Business test validates GET /api/v1/metrics/variants endpoint with query params",
           "ref": ".vrooli/endpoints.json:metrics-variant-stats",
           "test_duration_ms": 0,
-          "last_test_run": "2025-11-21",
+          "last_test_run": "2025-11-22",
           "phase_result": ""
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "METRIC-TAG"
       ],
-      "notes": "API supports variant slug and date range filtering. UI dashboard pending implementation."
+      "notes": "API supports variant slug and date range filtering. UI dashboard implemented in AdminAnalytics.tsx with time range and variant filtering."
     },
     {
       "id": "METRIC-EVENTS",
       "title": "Minimum event coverage",
       "prd_ref": "OT-P0-021",
-      "criticality": "P0",
       "description": "System emits events for: page_view, scroll_depth (bands), click (element ID), form_submit, conversion (Stripe success)",
       "validation": [
         {
@@ -104,7 +101,6 @@
       "id": "METRIC-IDEMPOTENT",
       "title": "Metrics idempotency",
       "prd_ref": "OT-P0-022",
-      "criticality": "P0",
       "description": "Metrics ingestion is idempotent or deduplicated to avoid double-counting on retries",
       "validation": [
         {
@@ -128,31 +124,30 @@
       "id": "METRIC-SUMMARY",
       "title": "Analytics summary",
       "prd_ref": "OT-P0-023",
-      "criticality": "P0",
       "description": "Analytics home shows total visitors, conversion rate per variant, top CTAs by CTR",
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go unit test verifies summary aggregation (total visitors, variant stats, top CTA, CTR)",
           "ref": "api/metrics_service_test.go:TestGetAnalyticsSummary",
           "test_duration_ms": 0,
-          "last_test_run": "2025-11-21",
+          "last_test_run": "2025-11-22",
           "phase_result": ""
         },
         {
           "type": "test",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Business test validates GET /api/v1/metrics/summary endpoint",
           "ref": ".vrooli/endpoints.json:metrics-summary",
           "test_duration_ms": 0,
-          "last_test_run": "2025-11-21",
+          "last_test_run": "2025-11-22",
           "phase_result": ""
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "METRIC-TAG",
         "METRIC-EVENTS"
@@ -163,31 +158,30 @@
       "id": "METRIC-DETAIL",
       "title": "Variant detail view",
       "prd_ref": "OT-P0-024",
-      "criticality": "P0",
       "description": "Variant detail page shows views, CTA clicks, conversions, conversion rate, basic trend",
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go unit test verifies variant stats include views, CTA clicks, conversions, conversion rate",
           "ref": "api/metrics_service_test.go:TestGetVariantStats",
           "test_duration_ms": 0,
-          "last_test_run": "2025-11-21",
+          "last_test_run": "2025-11-22",
           "phase_result": ""
         },
         {
           "type": "test",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Business test validates GET /api/v1/metrics/variants endpoint returns detailed stats",
           "ref": ".vrooli/endpoints.json:metrics-variant-stats",
           "test_duration_ms": 0,
-          "last_test_run": "2025-11-21",
+          "last_test_run": "2025-11-22",
           "phase_result": ""
         }
       ],
-      "status": "complete",
+      "status": "in_progress",
       "dependencies": [
         "METRIC-SUMMARY"
       ],

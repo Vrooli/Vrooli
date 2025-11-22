@@ -10,8 +10,7 @@
       "prd_ref": "OT-P0-023",
       "title": "Comprehensive Validation Checks",
       "description": "Run 6+ checks: fitness threshold, secret completeness, licensing, resource limits, platform requirements, dependency compatibility",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "validation",
         "deployment"
@@ -20,8 +19,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/pre-deployment-validation.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-023] tags"
         }
       ]
     },
@@ -31,8 +31,7 @@
       "prd_ref": "OT-P0-024",
       "title": "Fast Validation Execution",
       "description": "Complete all validation checks within 10 seconds for scenarios with ≤50 dependencies",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "validation",
         "performance"
@@ -41,8 +40,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/pre-deployment-validation.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-024] tags"
         }
       ]
     },
@@ -52,8 +52,7 @@
       "prd_ref": "OT-P0-025",
       "title": "Validation Report UI",
       "description": "Display pass/fail/warning status with color coding (green/red/yellow) for each check",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "validation",
         "ui"
@@ -62,8 +61,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/pre-deployment-validation.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-025] tags"
         }
       ]
     },
@@ -73,8 +73,7 @@
       "prd_ref": "OT-P0-026",
       "title": "Actionable Remediation Steps",
       "description": "Provide at least one actionable step for each failed check (e.g., \"Upload code signing certificate here\")",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "validation",
         "ux"
@@ -83,8 +82,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/pre-deployment-validation.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-026] tags"
         }
       ]
     },
@@ -94,8 +94,7 @@
       "prd_ref": "OT-P0-027",
       "title": "SaaS Cost Estimation",
       "description": "Estimate monthly cost (compute, storage, bandwidth) within ±20% accuracy for SaaS/cloud tiers",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "validation",
         "cost-estimation"
@@ -104,8 +103,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/pre-deployment-validation.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-027] tags"
         }
       ]
     }

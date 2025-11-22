@@ -10,7 +10,9 @@
       "priority": "P0",
       "status": "pending",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "validation_methods": ["integration"]
+      "validation_methods": [
+        "integration"
+      ]
     },
     {
       "id": "AP-P0-002",
@@ -19,7 +21,10 @@
       "priority": "P0",
       "status": "pending",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "validation_methods": ["test", "integration"]
+      "validation_methods": [
+        "test",
+        "integration"
+      ]
     },
     {
       "id": "AP-P0-003",
@@ -28,7 +33,9 @@
       "priority": "P0",
       "status": "pending",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "validation_methods": ["integration"]
+      "validation_methods": [
+        "integration"
+      ]
     },
     {
       "id": "AP-P0-004",
@@ -37,7 +44,10 @@
       "priority": "P0",
       "status": "pending",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "validation_methods": ["test", "integration"]
+      "validation_methods": [
+        "test",
+        "integration"
+      ]
     },
     {
       "id": "AP-P0-005",
@@ -46,7 +56,10 @@
       "priority": "P0",
       "status": "pending",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
-      "validation_methods": ["test", "integration"]
+      "validation_methods": [
+        "test",
+        "integration"
+      ]
     },
     {
       "id": "AP-P0-006",
@@ -55,7 +68,9 @@
       "priority": "P0",
       "status": "pending",
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
-      "validation_methods": ["test"]
+      "validation_methods": [
+        "test"
+      ]
     },
     {
       "id": "AP-P1-001",
@@ -64,7 +79,9 @@
       "priority": "P1",
       "status": "pending",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "validation_methods": ["integration"]
+      "validation_methods": [
+        "integration"
+      ]
     },
     {
       "id": "AP-P1-002",
@@ -73,7 +90,10 @@
       "priority": "P1",
       "status": "pending",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "validation_methods": ["test", "integration"]
+      "validation_methods": [
+        "test",
+        "integration"
+      ]
     },
     {
       "id": "AP-P1-003",
@@ -82,7 +102,9 @@
       "priority": "P1",
       "status": "pending",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
-      "validation_methods": ["manual"]
+      "validation_methods": [
+        "manual"
+      ]
     },
     {
       "id": "AP-P1-004",
@@ -91,7 +113,9 @@
       "priority": "P1",
       "status": "pending",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
-      "validation_methods": ["manual"]
+      "validation_methods": [
+        "manual"
+      ]
     },
     {
       "id": "AP-P1-005",
@@ -100,7 +124,9 @@
       "priority": "P1",
       "status": "pending",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
-      "validation_methods": ["integration"]
+      "validation_methods": [
+        "integration"
+      ]
     },
     {
       "id": "AP-P2-001",
@@ -109,7 +135,9 @@
       "priority": "P2",
       "status": "pending",
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
-      "validation_methods": ["manual"]
+      "validation_methods": [
+        "manual"
+      ]
     },
     {
       "id": "AP-P2-002",
@@ -118,7 +146,9 @@
       "priority": "P2",
       "status": "pending",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
-      "validation_methods": ["manual"]
+      "validation_methods": [
+        "manual"
+      ]
     },
     {
       "id": "AP-P2-003",
@@ -127,7 +157,9 @@
       "priority": "P2",
       "status": "pending",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
-      "validation_methods": ["manual"]
+      "validation_methods": [
+        "manual"
+      ]
     },
     {
       "id": "AP-P2-004",
@@ -136,7 +168,9 @@
       "priority": "P2",
       "status": "pending",
       "prd_ref": "Operational Targets > P2 > OT-P2-004",
-      "validation_methods": ["manual"]
+      "validation_methods": [
+        "manual"
+      ]
     }
   ]
 }

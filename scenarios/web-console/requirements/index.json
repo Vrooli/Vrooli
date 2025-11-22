@@ -7,7 +7,10 @@
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "priority": "P0",
       "status": "completed",
-      "validation": ["test", "manual"]
+      "validation": [
+        "test",
+        "manual"
+      ]
     },
     {
       "id": "WC-P0-002",
@@ -16,7 +19,10 @@
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "priority": "P0",
       "status": "completed",
-      "validation": ["test", "manual"]
+      "validation": [
+        "test",
+        "manual"
+      ]
     },
     {
       "id": "WC-P0-003",
@@ -25,7 +31,10 @@
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "priority": "P0",
       "status": "completed",
-      "validation": ["test", "manual"]
+      "validation": [
+        "test",
+        "manual"
+      ]
     },
     {
       "id": "WC-P0-004",
@@ -34,7 +43,9 @@
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "priority": "P0",
       "status": "completed",
-      "validation": ["manual"]
+      "validation": [
+        "manual"
+      ]
     },
     {
       "id": "WC-P0-005",
@@ -43,7 +54,9 @@
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "priority": "P0",
       "status": "completed",
-      "validation": ["test"]
+      "validation": [
+        "test"
+      ]
     },
     {
       "id": "WC-P0-006",
@@ -52,7 +65,9 @@
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "priority": "P0",
       "status": "completed",
-      "validation": ["manual"]
+      "validation": [
+        "manual"
+      ]
     },
     {
       "id": "WC-P1-001",
@@ -61,7 +76,9 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "priority": "P1",
       "status": "pending",
-      "validation": ["test"]
+      "validation": [
+        "test"
+      ]
     },
     {
       "id": "WC-P1-002",
@@ -70,7 +87,9 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "priority": "P1",
       "status": "pending",
-      "validation": ["test"]
+      "validation": [
+        "test"
+      ]
     },
     {
       "id": "WC-P1-003",
@@ -79,7 +98,10 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "priority": "P1",
       "status": "pending",
-      "validation": ["test", "manual"]
+      "validation": [
+        "test",
+        "manual"
+      ]
     },
     {
       "id": "WC-P1-004",
@@ -88,7 +110,9 @@
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "priority": "P1",
       "status": "completed",
-      "validation": ["manual"]
+      "validation": [
+        "manual"
+      ]
     },
     {
       "id": "WC-P2-001",
@@ -97,7 +121,9 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "priority": "P2",
       "status": "pending",
-      "validation": ["manual"]
+      "validation": [
+        "manual"
+      ]
     },
     {
       "id": "WC-P2-002",
@@ -106,7 +132,9 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "priority": "P2",
       "status": "pending",
-      "validation": ["test"]
+      "validation": [
+        "test"
+      ]
     },
     {
       "id": "WC-P2-003",
@@ -115,7 +143,9 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "priority": "P2",
       "status": "pending",
-      "validation": ["manual"]
+      "validation": [
+        "manual"
+      ]
     },
     {
       "id": "WC-P2-004",
@@ -124,7 +154,9 @@
       "prd_ref": "Operational Targets > P2 > OT-P2-004",
       "priority": "P2",
       "status": "pending",
-      "validation": ["test"]
+      "validation": [
+        "test"
+      ]
     }
   ]
 }

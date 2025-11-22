@@ -12,7 +12,6 @@
       "title": "Catalog enumerates all scenarios and resources with PRD status",
       "description": "Verifies GET /api/v1/catalog returns complete list of entities by globbing scenarios/*/PRD.md and resources/*/PRD.md, detecting draft presence, and extracting descriptions.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -37,7 +36,6 @@
       "title": "Published PRD viewer renders markdown correctly",
       "description": "Confirms GET /api/v1/catalog/{type}/{name} returns PRD content with proper markdown formatting.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -62,7 +60,6 @@
       "title": "Catalog displays accurate status badges for each entity",
       "description": "Ensures UI renders ✅ Has PRD, ⚠️ Violations, ❌ Missing, 📝 Draft Pending badges based on API response.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -80,7 +77,6 @@
       "title": "Catalog supports search and filter operations",
       "description": "Confirms search input filters entities by name/type and UI updates reactively.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",

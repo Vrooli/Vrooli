@@ -8,7 +8,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "validation_method": "Tasks transition correctly between folders with proper metadata updates",
-      "tags": ["core", "storage", "lifecycle"]
+      "tags": [
+        "core",
+        "storage",
+        "lifecycle"
+      ]
     },
     {
       "id": "SWM-REQ-002",
@@ -18,7 +22,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "validation_method": "Priority scores calculated correctly and tasks ordered by priority",
-      "tags": ["core", "priority", "algorithm"]
+      "tags": [
+        "core",
+        "priority",
+        "algorithm"
+      ]
     },
     {
       "id": "SWM-REQ-003",
@@ -28,7 +36,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "validation_method": "Dispatcher successfully calls scenario CLIs and captures results",
-      "tags": ["integration", "cli", "dispatcher"]
+      "tags": [
+        "integration",
+        "cli",
+        "dispatcher"
+      ]
     },
     {
       "id": "SWM-REQ-004",
@@ -38,7 +50,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "validation_method": "UI displays tasks in kanban layout with functional drag-and-drop",
-      "tags": ["ui", "dashboard", "kanban"]
+      "tags": [
+        "ui",
+        "dashboard",
+        "kanban"
+      ]
     },
     {
       "id": "SWM-REQ-005",
@@ -48,7 +64,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "validation_method": "Agent monitor panel shows active tasks with real-time updates",
-      "tags": ["monitoring", "ui", "realtime"]
+      "tags": [
+        "monitoring",
+        "ui",
+        "realtime"
+      ]
     },
     {
       "id": "SWM-REQ-006",
@@ -58,7 +78,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "validation_method": "YAML files in manual/ directory are parsed and tasks appear in backlog",
-      "tags": ["core", "manual", "yaml"]
+      "tags": [
+        "core",
+        "manual",
+        "yaml"
+      ]
     },
     {
       "id": "SWM-REQ-007",
@@ -68,7 +92,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "validation_method": "System adjusts weights after task completion and shows improved predictions",
-      "tags": ["learning", "ai", "optimization"]
+      "tags": [
+        "learning",
+        "ai",
+        "optimization"
+      ]
     },
     {
       "id": "SWM-REQ-008",
@@ -78,7 +106,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "validation_method": "Patterns stored in Qdrant and retrieved for similar new tasks",
-      "tags": ["ai", "qdrant", "patterns"]
+      "tags": [
+        "ai",
+        "qdrant",
+        "patterns"
+      ]
     },
     {
       "id": "SWM-REQ-009",
@@ -88,7 +120,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "validation_method": "Failed tasks have increasing cooldown periods before retry",
-      "tags": ["reliability", "cooldown", "backoff"]
+      "tags": [
+        "reliability",
+        "cooldown",
+        "backoff"
+      ]
     },
     {
       "id": "SWM-REQ-010",
@@ -98,7 +134,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "validation_method": "Tasks with dependencies execute in correct order",
-      "tags": ["dependencies", "ordering", "graph"]
+      "tags": [
+        "dependencies",
+        "ordering",
+        "graph"
+      ]
     },
     {
       "id": "SWM-REQ-011",
@@ -108,7 +148,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
       "validation_method": "Problems in PROBLEMS.md automatically generate tasks with correct priority",
-      "tags": ["automation", "scanning", "problems"]
+      "tags": [
+        "automation",
+        "scanning",
+        "problems"
+      ]
     },
     {
       "id": "SWM-REQ-012",
@@ -118,7 +162,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-006",
       "validation_method": "AI tasks auto-move to staged when yolo_mode=true",
-      "tags": ["automation", "config", "yolo"]
+      "tags": [
+        "automation",
+        "config",
+        "yolo"
+      ]
     },
     {
       "id": "SWM-REQ-013",
@@ -128,7 +176,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "validation_method": "TBD",
-      "tags": ["observability", "tracing", "future"]
+      "tags": [
+        "observability",
+        "tracing",
+        "future"
+      ]
     },
     {
       "id": "SWM-REQ-014",
@@ -138,7 +190,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "validation_method": "TBD",
-      "tags": ["mobile", "ui", "future"]
+      "tags": [
+        "mobile",
+        "ui",
+        "future"
+      ]
     },
     {
       "id": "SWM-REQ-015",
@@ -148,7 +204,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "validation_method": "TBD",
-      "tags": ["analytics", "visualization", "future"]
+      "tags": [
+        "analytics",
+        "visualization",
+        "future"
+      ]
     },
     {
       "id": "SWM-REQ-016",
@@ -158,7 +218,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-004",
       "validation_method": "TBD",
-      "tags": ["templates", "productivity", "future"]
+      "tags": [
+        "templates",
+        "productivity",
+        "future"
+      ]
     },
     {
       "id": "SWM-REQ-017",
@@ -168,7 +232,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-005",
       "validation_method": "TBD",
-      "tags": ["distributed", "multi-cluster", "future"]
+      "tags": [
+        "distributed",
+        "multi-cluster",
+        "future"
+      ]
     }
   ],
   "metadata": {

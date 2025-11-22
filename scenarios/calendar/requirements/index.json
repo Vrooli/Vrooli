@@ -12,7 +12,6 @@
       "title": "Multi-user event creation with authentication",
       "description": "Verifies event creation works with scenario-authenticator JWT validation and user isolation.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -29,7 +28,6 @@
       "title": "Recurring event patterns",
       "description": "Ensures daily, weekly, monthly, and custom recurrence patterns generate correct event instances.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -46,7 +44,6 @@
       "title": "Event reminders via notification-hub",
       "description": "Validates reminder scheduling and delivery through notification-hub integration.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "integration",
@@ -63,7 +60,6 @@
       "title": "Natural language scheduling with Ollama",
       "description": "Confirms chat interface parses natural language scheduling requests and creates events.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -80,7 +76,6 @@
       "title": "Event-triggered code execution",
       "description": "Verifies webhook automation triggers when events start based on automation_config.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -97,7 +92,6 @@
       "title": "PostgreSQL storage with CRUD",
       "description": "Ensures full create, read, update, delete operations on events with proper schema.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -114,7 +108,6 @@
       "title": "AI-powered semantic search",
       "description": "Validates Qdrant vector embeddings enable semantic event search.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -131,7 +124,6 @@
       "title": "REST API for programmatic access",
       "description": "Confirms 28+ REST endpoints available for cross-scenario event scheduling.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -148,7 +140,6 @@
       "title": "Professional calendar UI",
       "description": "Verifies React UI serves week/month/agenda views with drag-drop scheduling.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -165,7 +156,6 @@
       "title": "Schedule optimization with AI",
       "description": "Validates AI-powered schedule optimization suggestions based on constraints.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -182,7 +172,6 @@
       "title": "Smart conflict detection",
       "description": "Ensures conflict detection returns 409 responses with resolution suggestions.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -199,7 +188,6 @@
       "title": "Timezone handling",
       "description": "Validates timezone conversion and storage for distributed teams.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -216,7 +204,6 @@
       "title": "Event categorization and filtering",
       "description": "Confirms auto-categorization and filtering by event type, tags, and custom categories.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -233,7 +220,6 @@
       "title": "Bulk operations and batch scheduling",
       "description": "Verifies atomic creation, update, and deletion of multiple events in single transactions.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -250,7 +236,6 @@
       "title": "iCal import/export",
       "description": "Ensures iCal format import and export for external calendar synchronization.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -267,7 +252,6 @@
       "title": "Event templates",
       "description": "Validates creation and usage of reusable event templates for common meeting types.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -284,7 +268,6 @@
       "title": "Attendance tracking and RSVP",
       "description": "Confirms RSVP functionality and attendance tracking with check-in methods.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -301,7 +284,6 @@
       "title": "External calendar synchronization",
       "description": "Validates OAuth integration and bidirectional sync with Google Calendar and Outlook.",
       "status": "complete",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -318,7 +300,6 @@
       "title": "Meeting preparation automation",
       "description": "Ensures automatic agenda generation and pre-work suggestions for meetings.",
       "status": "complete",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -335,7 +316,6 @@
       "title": "Travel time calculation",
       "description": "Validates smart travel time estimation and automatic buffer insertion between events.",
       "status": "complete",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -352,7 +332,6 @@
       "title": "Resource double-booking prevention",
       "description": "Confirms resource booking system prevents conflicts for rooms, equipment, and personnel.",
       "status": "complete",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -369,7 +348,6 @@
       "title": "Advanced analytics on scheduling patterns",
       "description": "Validates comprehensive analytics with productivity metrics and recommendations.",
       "status": "complete",
-      "criticality": "P2",
       "validation": [
         {
           "type": "test",
@@ -386,7 +364,6 @@
       "title": "Voice-activated scheduling",
       "description": "Enables voice-activated scheduling through audio scenario integration.",
       "status": "pending",
-      "criticality": "P2",
       "validation": [
         {
           "type": "integration",

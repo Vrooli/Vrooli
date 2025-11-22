@@ -12,7 +12,6 @@
       "title": "Plugin architecture supporting dynamic loading",
       "description": "Plugin system loads graph type modules dynamically with base interface, isolation, and lifecycle management",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "Core API for graph CRUD operations",
       "description": "REST API endpoints for create, read, update, delete, and validate graph operations",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "Mind map plugin with FreeMind format support",
       "description": "FreeMind (.mm) format import/export with hierarchical visualization",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +63,6 @@
       "title": "Process modeling plugin with BPMN 2.0 support",
       "description": "BPMN 2.0 format support for business workflow diagrams",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -84,7 +80,6 @@
       "title": "Graph conversion engine for compatible formats",
       "description": "Automatic format translation between compatible graph types maintaining data integrity",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -109,7 +104,6 @@
       "title": "PostgreSQL storage for graph metadata and relationships",
       "description": "Database schema with JSONB for flexible graph data structures",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",
@@ -127,7 +121,6 @@
       "title": "Dashboard UI showing all available graph types",
       "description": "Visual gallery with plugin cards, descriptions, and quick actions",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -145,7 +138,6 @@
       "title": "CLI interface for programmatic graph operations",
       "description": "Command-line tool for create, list, validate, convert, render operations",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -163,7 +155,6 @@
       "title": "Mermaid diagram plugin for lightweight visualizations",
       "description": "Mermaid format support for markdown-embedded diagrams",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -181,7 +172,6 @@
       "title": "Cytoscape.js plugin for network visualizations",
       "description": "Network/graph visualizations with force-directed layouts",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "manual",
@@ -199,7 +189,6 @@
       "title": "Graph search and query interface",
       "description": "Full-text search across graph name, description, and tags with case-insensitive matching",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -217,7 +206,6 @@
       "title": "UML plugin supporting class, sequence, and activity diagrams",
       "description": "UML diagram support for software design documentation",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -227,7 +215,6 @@
       "title": "RDF/OWL plugin for semantic web graphs",
       "description": "Semantic web graph support with ontology validation",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -237,7 +224,6 @@
       "title": "GraphML/GEXF import/export for Gephi compatibility",
       "description": "Network analysis tool compatibility via standard formats",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -247,7 +233,6 @@
       "title": "Real-time collaborative editing via WebSockets",
       "description": "Multi-user editing with conflict resolution and presence awareness",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -257,7 +242,6 @@
       "title": "Advanced query interface (SPARQL, GraphQL)",
       "description": "Sophisticated query languages for complex graph operations",
       "status": "pending",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -267,7 +251,6 @@
       "title": "XMind and CmapTools format support",
       "description": "Additional mind mapping tool compatibility",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -277,7 +260,6 @@
       "title": "DMN plugin for Decision Model Notation",
       "description": "Business rules and decision modeling support",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -287,7 +269,6 @@
       "title": "CMMN plugin for Case Management",
       "description": "Case Management Model and Notation for flexible processes",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -297,7 +278,6 @@
       "title": "SysML and ArchiMate plugins",
       "description": "Systems engineering and enterprise architecture modeling",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -307,7 +287,6 @@
       "title": "D3.js custom visualization builder",
       "description": "Custom visualization templates with interactive controls",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -317,7 +296,6 @@
       "title": "AI-powered graph suggestions and auto-completion",
       "description": "Intelligent recommendations based on context and patterns",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -327,7 +305,6 @@
       "title": "Version control and diff visualization for graphs",
       "description": "Git-style versioning with visual diff capabilities",
       "status": "pending",
-      "criticality": "P2",
       "validation": []
     }
   ]

@@ -9,31 +9,42 @@
       "priority": "P0",
       "status": "pending",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
-      "validation": ["test", "manual"],
+      "validation": [
+        "test",
+        "manual"
+      ],
       "children": [
         {
           "id": "CT-CHORE-CREATE",
           "title": "Create chore with metadata",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "CT-CHORE-LIST",
           "title": "List chores with filtering",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "CT-CHORE-UPDATE",
           "title": "Update chore properties",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "CT-CHORE-DELETE",
           "title": "Delete chore safely",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -44,25 +55,34 @@
       "priority": "P0",
       "status": "pending",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
-      "validation": ["test", "manual"],
+      "validation": [
+        "test",
+        "manual"
+      ],
       "children": [
         {
           "id": "CT-USER-CREATE",
           "title": "Create user profile with preferences",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "CT-USER-STATS",
           "title": "Track individual user statistics",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "CT-USER-ASSIGN",
           "title": "Assign chores to users",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -73,31 +93,42 @@
       "priority": "P0",
       "status": "pending",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
-      "validation": ["test", "manual"],
+      "validation": [
+        "test",
+        "manual"
+      ],
       "children": [
         {
           "id": "CT-POINTS-AWARD",
           "title": "Award points on task completion",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "CT-ACHIEVEMENTS",
           "title": "Unlock achievements based on activity",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "CT-LEADERBOARD",
           "title": "Maintain real-time family leaderboard",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "CT-STREAKS",
           "title": "Track and reward completion streaks",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -108,25 +139,33 @@
       "priority": "P0",
       "status": "pending",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
-      "validation": ["manual"],
+      "validation": [
+        "manual"
+      ],
       "children": [
         {
           "id": "CT-COMPLETE-API",
           "title": "Complete chore via API",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "CT-COMPLETE-UI",
           "title": "Completion UI with animations",
           "status": "pending",
-          "validation": ["manual"]
+          "validation": [
+            "manual"
+          ]
         },
         {
           "id": "CT-COMPLETE-FEEDBACK",
           "title": "Instant point and achievement updates",
           "status": "pending",
-          "validation": ["manual"]
+          "validation": [
+            "manual"
+          ]
         }
       ]
     },
@@ -137,19 +176,26 @@
       "priority": "P1",
       "status": "pending",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
-      "validation": ["test", "manual"],
+      "validation": [
+        "test",
+        "manual"
+      ],
       "children": [
         {
           "id": "CT-SCHEDULE-GENERATE",
           "title": "Generate AI schedule for week",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         },
         {
           "id": "CT-SCHEDULE-LEARN",
           "title": "Learn from completion patterns",
           "status": "pending",
-          "validation": ["test"]
+          "validation": [
+            "test"
+          ]
         }
       ]
     },
@@ -160,19 +206,25 @@
       "priority": "P1",
       "status": "pending",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
-      "validation": ["manual"],
+      "validation": [
+        "manual"
+      ],
       "children": [
         {
           "id": "CT-ANALYTICS-RATES",
           "title": "Display completion rate metrics",
           "status": "pending",
-          "validation": ["manual"]
+          "validation": [
+            "manual"
+          ]
         },
         {
           "id": "CT-ANALYTICS-TRENDS",
           "title": "Visualize habit trends over time",
           "status": "pending",
-          "validation": ["manual"]
+          "validation": [
+            "manual"
+          ]
         }
       ]
     }

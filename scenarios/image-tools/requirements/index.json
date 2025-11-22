@@ -8,7 +8,11 @@
       "status": "complete",
       "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "validation_method": "Compression endpoints tested across all supported formats",
-      "tags": ["core", "compression", "formats"]
+      "tags": [
+        "core",
+        "compression",
+        "formats"
+      ]
     },
     {
       "id": "IMG-REQ-002",
@@ -18,7 +22,11 @@
       "status": "complete",
       "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "validation_method": "Conversion API endpoint validates all format combinations",
-      "tags": ["core", "conversion", "formats"]
+      "tags": [
+        "core",
+        "conversion",
+        "formats"
+      ]
     },
     {
       "id": "IMG-REQ-003",
@@ -28,7 +36,11 @@
       "status": "complete",
       "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "validation_method": "Resize endpoint supports all three algorithms with proper output validation",
-      "tags": ["core", "resize", "algorithms"]
+      "tags": [
+        "core",
+        "resize",
+        "algorithms"
+      ]
     },
     {
       "id": "IMG-REQ-004",
@@ -38,7 +50,11 @@
       "status": "complete",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "validation_method": "Metadata endpoint strips EXIF data while preserving image quality",
-      "tags": ["core", "metadata", "privacy"]
+      "tags": [
+        "core",
+        "metadata",
+        "privacy"
+      ]
     },
     {
       "id": "IMG-REQ-005",
@@ -48,7 +64,11 @@
       "status": "complete",
       "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "validation_method": "API integration tests validate all endpoints with proper error handling",
-      "tags": ["api", "rest", "endpoints"]
+      "tags": [
+        "api",
+        "rest",
+        "endpoints"
+      ]
     },
     {
       "id": "IMG-REQ-006",
@@ -58,7 +78,11 @@
       "status": "complete",
       "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "validation_method": "CLI commands tested for compress, resize, convert operations",
-      "tags": ["cli", "tooling", "parity"]
+      "tags": [
+        "cli",
+        "tooling",
+        "parity"
+      ]
     },
     {
       "id": "IMG-REQ-007",
@@ -68,7 +92,11 @@
       "status": "complete",
       "prd_ref": "Operational Targets > P0 > OT-P0-007",
       "validation_method": "Plugin registry validates all format handlers are registered",
-      "tags": ["architecture", "plugins", "extensibility"]
+      "tags": [
+        "architecture",
+        "plugins",
+        "extensibility"
+      ]
     },
     {
       "id": "IMG-REQ-008",
@@ -78,7 +106,11 @@
       "status": "complete",
       "prd_ref": "Operational Targets > P0 > OT-P0-008",
       "validation_method": "UI displays before/after images with fallback handling",
-      "tags": ["ui", "preview", "comparison"]
+      "tags": [
+        "ui",
+        "preview",
+        "comparison"
+      ]
     },
     {
       "id": "IMG-REQ-009",
@@ -88,7 +120,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "validation_method": "TBD",
-      "tags": ["ai", "upscaling", "ml"]
+      "tags": [
+        "ai",
+        "upscaling",
+        "ml"
+      ]
     },
     {
       "id": "IMG-REQ-010",
@@ -98,7 +134,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "validation_method": "TBD",
-      "tags": ["batch", "performance", "bulk"]
+      "tags": [
+        "batch",
+        "performance",
+        "bulk"
+      ]
     },
     {
       "id": "IMG-REQ-011",
@@ -108,7 +148,11 @@
       "status": "complete",
       "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "validation_method": "Preset endpoints return 5 built-in profiles with correct settings",
-      "tags": ["presets", "usability", "profiles"]
+      "tags": [
+        "presets",
+        "usability",
+        "profiles"
+      ]
     },
     {
       "id": "IMG-REQ-012",
@@ -118,7 +162,11 @@
       "status": "complete",
       "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "validation_method": "WebP plugin validates compression and conversion operations",
-      "tags": ["formats", "webp", "modern"]
+      "tags": [
+        "formats",
+        "webp",
+        "modern"
+      ]
     },
     {
       "id": "IMG-REQ-013",
@@ -128,7 +176,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-005",
       "validation_method": "TBD",
-      "tags": ["formats", "avif", "future"]
+      "tags": [
+        "formats",
+        "avif",
+        "future"
+      ]
     },
     {
       "id": "IMG-REQ-014",
@@ -138,7 +190,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-006",
       "validation_method": "TBD",
-      "tags": ["ui", "ux", "bulk"]
+      "tags": [
+        "ui",
+        "ux",
+        "bulk"
+      ]
     },
     {
       "id": "IMG-REQ-015",
@@ -148,7 +204,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P1 > OT-P1-007",
       "validation_method": "TBD",
-      "tags": ["ai", "optimization", "recommendations"]
+      "tags": [
+        "ai",
+        "optimization",
+        "recommendations"
+      ]
     },
     {
       "id": "IMG-REQ-016",
@@ -158,7 +218,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "validation_method": "TBD",
-      "tags": ["filters", "effects", "future"]
+      "tags": [
+        "filters",
+        "effects",
+        "future"
+      ]
     },
     {
       "id": "IMG-REQ-017",
@@ -168,7 +232,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "validation_method": "TBD",
-      "tags": ["ai", "cropping", "detection"]
+      "tags": [
+        "ai",
+        "cropping",
+        "detection"
+      ]
     },
     {
       "id": "IMG-REQ-018",
@@ -178,7 +246,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "validation_method": "TBD",
-      "tags": ["ai", "formats", "optimization"]
+      "tags": [
+        "ai",
+        "formats",
+        "optimization"
+      ]
     },
     {
       "id": "IMG-REQ-019",
@@ -188,7 +260,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-004",
       "validation_method": "TBD",
-      "tags": ["cdn", "integration", "delivery"]
+      "tags": [
+        "cdn",
+        "integration",
+        "delivery"
+      ]
     },
     {
       "id": "IMG-REQ-020",
@@ -198,7 +274,11 @@
       "status": "planned",
       "prd_ref": "Operational Targets > P2 > OT-P2-005",
       "validation_method": "TBD",
-      "tags": ["watermark", "protection", "branding"]
+      "tags": [
+        "watermark",
+        "protection",
+        "branding"
+      ]
     }
   ],
   "metadata": {

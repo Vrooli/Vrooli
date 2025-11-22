@@ -29,17 +29,52 @@ func (s *Session) movePointerSmoothWithButtons(ctx context.Context, targetX, tar
 		stepDelay = time.Duration(durationMs) * time.Millisecond / time.Duration(steps)
 	}
 
+	s.log.WithFields(map[string]interface{}{
+		"ctx_err":    ctx.Err(),
+		"steps":      steps,
+		"durationMs": durationMs,
+		"startX":     startX,
+		"startY":     startY,
+		"targetX":    targetX,
+		"targetY":    targetY,
+	}).Info("[POINTER] Starting movePointerSmoothWithButtons")
+
 	for i := 1; i <= steps; i++ {
 		nextX := startX + deltaX*float64(i)
 		nextY := startY + deltaY*float64(i)
-		event := input.DispatchMouseEvent(input.MouseMoved, nextX, nextY)
+
+		s.log.WithFields(map[string]interface{}{
+			"step":    i,
+			"ctx_err": ctx.Err(),
+			"x":       nextX,
+			"y":       nextY,
+		}).Info("[POINTER] About to dispatch mouse event via chromedp.Run")
+
+		// Use chromedp.MouseEvent to create an Action, then execute via chromedp.Run
+		// This ensures the context has proper executor/target metadata
+		mouseAction := chromedp.MouseEvent(input.MouseMoved, nextX, nextY)
 		if buttons > 0 {
-			event = event.WithButtons(buttons)
+			mouseAction = chromedp.MouseEvent(input.MouseMoved, nextX, nextY, func(p *input.DispatchMouseEventParams) *input.DispatchMouseEventParams {
+				return p.WithButtons(buttons)
+			})
 		}
-		if err := event.Do(ctx); err != nil {
+
+		if err := chromedp.Run(ctx, mouseAction); err != nil {
+			s.log.WithFields(map[string]interface{}{
+				"step":    i,
+				"ctx_err": ctx.Err(),
+				"err":     err.Error(),
+			}).Error("[POINTER] Mouse event dispatch failed")
 			return err
 		}
+		s.log.WithField("step", i).Info("[POINTER] Mouse event dispatched successfully")
+
 		if err := waitWithContext(ctx, stepDelay); err != nil {
+			s.log.WithFields(map[string]interface{}{
+				"step":      i,
+				"ctx_err":   ctx.Err(),
+				"stepDelay": stepDelay,
+			}).Error("[POINTER] Wait failed")
 			return err
 		}
 	}

@@ -40,7 +40,6 @@
       "title": "Persist visual workflows with nodes/edges and folder hierarchy",
       "description": "Tracks the complete experience for creating and managing projects and workflows. Child implementation requirements cover dialog affordances, validation, and persistence.",
       "status": "in_progress",
-      "criticality": "P0",
       "children": [
         "BAS-PROJECT-DIALOG-OPEN",
         "BAS-PROJECT-DIALOG-CLOSE",
@@ -57,7 +56,6 @@
       "title": "Stream execution telemetry (screenshots, progress, logs) while runs are active",
       "description": "Aggregates execution runtime behaviours, including websocket telemetry, CLI observability, and automation coverage.",
       "status": "complete",
-      "criticality": "P0",
       "children": [
         "BAS-EXEC-TELEMETRY-STREAM",
         "BAS-EXEC-TELEMETRY-AUTOMATION",
@@ -72,7 +70,6 @@
       "title": "Persist normalized execution artifacts for replay & video rendering",
       "description": "Ensures replay artifacts are persisted, queryable, and exportable for downstream renderers.",
       "status": "in_progress",
-      "criticality": "P1",
       "children": [
         "BAS-REPLAY-TIMELINE-PERSISTENCE",
         "BAS-REPLAY-EXPORT-BUNDLE"
@@ -85,7 +82,6 @@
       "title": "AI-generated workflows validated against the execution plan",
       "description": "Validates that AI prompts produce executable workflows with deterministic smoke coverage.",
       "status": "in_progress",
-      "criticality": "P0",
       "children": [
         "BAS-AI-GENERATION-SMOKE",
         "BAS-AI-GENERATION-VALIDATION"
@@ -98,7 +94,6 @@
       "title": "Conflict-aware autosave with auditable version history",
       "description": "Captures autosave behaviour, version history presentation, and restore flows across UI and API.",
       "status": "in_progress",
-      "criticality": "P0",
       "children": [
         "BAS-VERSION-AUTOSAVE",
         "BAS-VERSION-RESTORE"

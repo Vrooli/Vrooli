@@ -12,7 +12,6 @@
       "title": "Requirements registry loader ingests modular index.json + imports",
       "description": "Verifies GET /api/v1/catalog/{type}/{name}/requirements parses requirements/ folder with index.json and imports, returning flattened requirement tree.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -30,7 +29,6 @@
       "title": "Operational target parser extracts checklist items from PRD",
       "description": "Ensures GET /api/v1/catalog/{type}/{name}/targets parses PRD for functional requirement checklists and flags targets with no linked requirements.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -48,7 +46,6 @@
       "title": "Draft workspace surfaces target coverage and unmatched requirements",
       "description": "Confirms DraftEditorPane displays OperationalTargetsPanel and RequirementSummaryPanel with linkage heuristics via prd_ref.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "manual",

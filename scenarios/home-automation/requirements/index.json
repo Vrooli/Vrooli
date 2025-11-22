@@ -16,7 +16,6 @@
       "title": "Device control via Home Assistant CLI integration",
       "description": "Implements basic device control through Home Assistant CLI integration with API endpoints for device discovery, control, and state monitoring.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -41,7 +40,6 @@
       "title": "User authentication and profile-based permissions",
       "description": "Integrates with scenario-authenticator for user authentication and implements profile-based permission validation for device access control.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -66,7 +64,6 @@
       "title": "Calendar-driven automation scheduling",
       "description": "Implements calendar integration for schedule-aware automation triggers and context switching with graceful fallback when calendar unavailable.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -91,7 +88,6 @@
       "title": "AI-powered automation generation",
       "description": "Implements natural language automation creation using resource-claude-code with safety validation and YAML code generation.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -116,7 +112,6 @@
       "title": "Real-time device status monitoring and health checks",
       "description": "Implements health check endpoints reporting system status and all dependency health including database, device controller, calendar scheduler, and safety validator.",
       "status": "complete",
-      "criticality": "P0",
       "validation": [
         {
           "type": "test",
@@ -141,7 +136,6 @@
       "title": "Scene management with intelligent suggestions",
       "description": "Implements scene creation, activation, and pattern-based intelligent suggestions for common automation scenarios.",
       "status": "planned",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -151,7 +145,6 @@
       "title": "Energy usage optimization with cost analysis",
       "description": "Implements energy monitoring, usage optimization algorithms, and cost analysis reporting for device automation.",
       "status": "planned",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -161,7 +154,6 @@
       "title": "Mobile-responsive UI with real-time controls",
       "description": "Implements mobile-responsive UI design with real-time device control capabilities and touch-optimized interactions.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -179,7 +171,6 @@
       "title": "Automated conflict resolution between automations",
       "description": "Implements detection and automated resolution of conflicting automation rules to prevent contradictory device commands.",
       "status": "planned",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -189,7 +180,6 @@
       "title": "Integration with shared n8n workflows",
       "description": "Implements integration with shared n8n workflow patterns in initialization/n8n/ for common automation orchestration.",
       "status": "planned",
-      "criticality": "P1",
       "validation": []
     },
     {
@@ -199,7 +189,6 @@
       "title": "Machine learning-based usage pattern recognition",
       "description": "Implements ML algorithms to recognize and predict user behavior patterns for proactive automation suggestions.",
       "status": "planned",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -209,7 +198,6 @@
       "title": "Voice control integration",
       "description": "Implements voice command processing through existing audio resources for hands-free device control.",
       "status": "planned",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -219,7 +207,6 @@
       "title": "Advanced scheduling with weather integration",
       "description": "Implements weather data integration for predictive automation scheduling based on forecast conditions.",
       "status": "planned",
-      "criticality": "P2",
       "validation": []
     },
     {
@@ -229,7 +216,6 @@
       "title": "Multi-home management for property managers",
       "description": "Implements multi-property management capabilities allowing property managers to control multiple homes from single interface.",
       "status": "planned",
-      "criticality": "P2",
       "validation": []
     }
   ]

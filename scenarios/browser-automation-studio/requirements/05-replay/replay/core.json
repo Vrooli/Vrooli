@@ -13,7 +13,6 @@
       "title": "Timeline artifacts persist normalized execution events",
       "description": "Ensures execution artifacts are normalized, stored, and queryable so the replay UI and marketing renderer consume consistent payloads.",
       "status": "complete",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
@@ -45,7 +44,6 @@
       "title": "Replay exports portable bundles for marketing and sharing",
       "description": "Confirms the export endpoint generates self-contained bundles (screenshots, timeline JSON, metadata) that work offline.",
       "status": "in_progress",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
