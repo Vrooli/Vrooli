@@ -57,7 +57,6 @@ Browser Automation Studio (BAS) enables **declarative UI testing** through JSON 
 {
   "metadata": {
     "description": "Test project creation flow",
-    "requirement": "BAS-PROJECT-CREATE",
     "version": 1
   },
   "settings": {
@@ -104,12 +103,12 @@ Browser Automation Studio (BAS) enables **declarative UI testing** through JSON 
 
 ### Key Components
 
-**metadata**: Links workflow to requirement, describes purpose
+**metadata**: Describes purpose and declares reset scope. Requirement linkage now happens in `requirements/*.json` via `validation.ref` entries (the registry builder pulls those IDs automatically), so skip `metadata.requirement` entirely.
 ```json
 {
   "description": "Human-readable purpose",
-  "requirement": "REQ-ID-FROM-REGISTRY",
-  "version": 1  // Increment when workflow changes significantly
+  "version": 1,             // Increment when workflow changes significantly
+  "reset": "none"          // "none" (default) or "full" (reseed all state)
 }
 ```
 
@@ -146,6 +145,15 @@ Browser Automation Studio (BAS) enables **declarative UI testing** through JSON 
   "type": "smoothstep"         // Visual style (doesn't affect execution)
 }
 ```
+
+## Workflow Stories & Registry Order
+
+- Prefix every folder under `test/playbooks/` with a two-digit ordinal (for example `01-foundation`, `02-builder`). The runner performs a depth-first traversal through this tree, so the prefixes form the canonical execution story.
+- After editing or moving a workflow, regenerate the registry: `node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario <path>`. The generated `test/playbooks/registry.json` is the source of truth for ordering, fixtures, and reset requirements.
+- Inspect the registry to ensure the dotted `order` key matches your expectations (e.g., `01.02.03` for the third workflow within `02-builder`). If the order is wrong, rename the folder or file with the desired prefix and regenerate. When in doubt, run `browser-automation-studio playbooks order` to print the story (order, reset, requirement count, description) without opening JSON files.
+- `browser-automation-studio playbooks scaffold <folder> <name>` is the fastest way to add a new workflow skeleton. It pre-populates metadata/reset and drops a placeholder `navigate` + `wait` chain under the requested folder so you can immediately wire it into requirements.
+- `browser-automation-studio playbooks verify` scans `test/playbooks/` and warns about folders missing the `NN-` prefixes. Run it whenever you add/move directories to keep the traversal predictable.
+- `metadata.reset` (`none`, `full`) tells the runner when to reseed. Set it to `none` for read-only flows so multiple playbooks can run back-to-back without tearing down BAS. Use `full` when mutations require completely reseeding state.
 
 ## Node Types Reference
 
@@ -200,9 +208,130 @@ Browser Automation Studio (BAS) enables **declarative UI testing** through JSON 
 ```
 
 **Best practices**:
-- Always use `data-testid` selectors
+- Always use `@selector/` references instead of raw CSS selectors
 - Set `waitForSelector` to ensure element exists
 - Add `waitForMs` if subsequent nodes need time to react
+
+## Selector Registry System
+
+BAS uses a **centralized selector registry** to eliminate hardcoded CSS selectors and prevent drift between UI code and tests.
+
+### How It Works
+
+**Single Source of Truth**: All selectors are defined in `ui/src/consts/selectors.ts`:
+
+```typescript
+const literalSelectors = {
+  dashboard: {
+    newProjectButton: "dashboard-new-project-button",
+  },
+  workflows: {
+    tab: "workflows-tab",
+    newButton: "new-workflow-button",
+  },
+} as const;
+```
+
+**In UI Components**: Import and use the selector:
+
+```typescript
+import { selectors } from '@/consts/selectors';
+
+<button data-testid={selectors.dashboard.newProjectButton}>
+  New Project
+</button>
+```
+
+**In Workflows**: Reference with `@selector/` prefix:
+
+```json
+{
+  "type": "click",
+  "data": {
+    "selector": "@selector/dashboard.newProjectButton"
+  }
+}
+```
+
+### Benefits
+
+- ✅ **No drift** - UI and tests use the same selector source
+- ✅ **Type-safe** - UI code gets TypeScript autocomplete
+- ✅ **Maintainable** - Rename once in selectors.ts, updates everywhere
+- ✅ **Auto-regeneration** - Manifest rebuilds automatically when needed
+
+### Auto-Regeneration
+
+The selector manifest (`ui/src/consts/selectors.manifest.json`) is automatically regenerated when tests detect it's stale. **You never need to manually regenerate it.**
+
+**Workflow:**
+
+1. Add selector to `selectors.ts`
+2. Import and use it in your UI component
+3. Reference it in test workflow with `@selector/`
+4. Run tests → **manifest auto-regenerates** on first use
+
+**If you get a "selector not found" error:**
+
+The error message will tell you if:
+- The manifest was auto-regenerated but selector still not found → **Register it in selectors.ts first**
+- The selector exists but has a typo → **Suggestions are shown**
+
+### Dynamic Selectors
+
+For selectors with parameters, use `defineDynamicSelector`:
+
+```typescript
+const dynamicSelectorDefinitions = {
+  projects: {
+    cardByName: defineDynamicSelector({
+      description: "Dashboard project card filtered by name",
+      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
+      params: { name: { type: "string" } },
+    }),
+  },
+} as const;
+```
+
+**In workflows:**
+
+```json
+{
+  "selector": "@selector/projects.cardByName(name=My Project)"
+}
+```
+
+## Resilience Settings
+
+Nodes that interact with the DOM can include a `resilience` object to centralize retries and selector readiness checks. The builder exposes these fields via a dedicated panel, so authors no longer need to duplicate `wait` + `click` chains.
+
+```json
+{
+  "id": "click-primary-cta",
+  "type": "click",
+  "data": {
+    "label": "Start onboarding",
+    "selector": "@selector/cta.primary",
+    "resilience": {
+      "maxAttempts": 3,
+      "delayMs": 1500,
+      "backoffFactor": 1.5,
+      "preconditionSelector": "@selector/app.shell.ready",
+      "preconditionTimeoutMs": 10000,
+      "successSelector": "@selector/onboarding.stepTwo",
+      "successTimeoutMs": 15000
+    }
+  }
+}
+```
+
+- `maxAttempts`, `delayMs`, and `backoffFactor` wire up the executor's retry engine (attempts = retries + 1).
+- `preconditionSelector` waits for additional DOM state before the node executes, with optional `preconditionTimeoutMs` and `preconditionWaitMs` for fine-tuning.
+- `successSelector` confirms the UI reached the expected state before the workflow advances. Pair it with `successTimeoutMs`/`successWaitMs` when transitions involve animations.
+
+`workflow lint --strict` validates these fields, and integration logs surface misconfigurations alongside selector warnings.
+
+> **Default behavior:** When a node omits `resilience`, BAS automatically waits for the node's selector (or `waitForSelector` when present), retries the step up to three total attempts with a ~750 ms delay and light backoff, and reuses the node timeout when gating DOM readiness. Setting `maxAttempts` to `1` (or providing explicit values) disables those defaults per node.
 
 ### Type Node
 
@@ -364,7 +493,6 @@ When writing workflows programmatically, follow this pattern:
 {
   "metadata": {
     "description": "Test complete project creation with validation",
-    "requirement": "MY-PROJECT-CREATE",
     "version": 1
   },
   "settings": {
@@ -510,11 +638,16 @@ graph TB
 ## Storage Location
 
 - Each scenario owns its automation assets under `scenarios/<name>/test/playbooks/`.
-- Group related flows into subdirectories (`executions/`, `projects/`, `replay/`, etc.) for
-  readability.
+- Use the canonical layout: `capabilities/<operational-target>/<surface>/` for feature coverage
+  (01-foundation, 02-builder, 03-execution, 04-ai, 05-replay, 06-nonfunctional), `journeys/<flow>/`
+  for cross-surface flows, plus `__subflows/` and `__seeds/` for reusable fragments.
+- Keep `test/playbooks/README.md` under 100 lines describing how folders tie back to requirements
+  and selectors.
 - Workflow definitions are exported JSON payloads from the BAS UI/API. Do not hand-edit the graph
   structure—regenerate from BAS when behaviour changes.
 - Optionally attach metadata in `workflow.metadata` to describe intent, version, or requirement IDs.
+- Avoid compatibility shims—move files into the final layout immediately rather than keeping legacy
+  duplicates.
 
 ## Execution Helper
 
@@ -524,7 +657,7 @@ Use the shared helper in `scripts/scenarios/testing/playbooks/browser-automation
 source "${APP_ROOT}/scripts/scenarios/testing/playbooks/browser-automation-studio.sh"
 
 if testing::playbooks::bas::run_workflow \
-    --file "test/playbooks/executions/telemetry-smoke.json" \
+    --file "test/playbooks/capabilities/03-execution/01-automation/telemetry-smoke.json" \
     --scenario "browser-automation-studio"; then
   testing::phase::add_requirement --id BAS-EXEC-TELEMETRY-AUTOMATION --status passed \
     --evidence "Telemetry workflow executed"
@@ -569,7 +702,7 @@ Annotate requirement validations with the `automation` type and reference the wo
 ```yaml
 validation:
   - type: automation
-    ref: test/playbooks/projects/demo-sanity.json
+    ref: test/playbooks/capabilities/02-builder/01-projects/demo-sanity.json
     scenario: browser-automation-studio   # optional override
     status: planned
     notes: Replays the seeded demo workflow end-to-end.
@@ -648,7 +781,36 @@ vrooli scenario status browser-automation-studio
 
 ### Selector Not Found
 
-**Symptom**: Workflow fails at specific step with "selector not found" or timeout error
+**Symptom**: Workflow fails with "selector not found" error during resolution or execution
+
+**For @selector/ references:**
+
+The error message will automatically tell you:
+1. If manifest was auto-regenerated (selector truly doesn't exist in selectors.ts)
+2. Similar selectors you might have meant
+3. Exact steps to register a new selector
+
+**Solution**: Register the selector in `ui/src/consts/selectors.ts` first:
+
+```typescript
+const literalSelectors = {
+  myFeature: {
+    submitButton: "my-feature-submit-btn",  // testId value
+  },
+};
+```
+
+Then import and use it in your UI:
+
+```typescript
+import { selectors } from '@/consts/selectors';
+
+<button data-testid={selectors.myFeature.submitButton}>Submit</button>
+```
+
+The manifest will auto-regenerate when you run tests again.
+
+**For raw CSS selectors (legacy workflows):**
 
 **Causes**:
 1. `data-testid` doesn't exist in UI
@@ -683,6 +845,8 @@ vrooli scenario status browser-automation-studio
 "[data-testid=name]"    // ❌ Missing quotes
 "data-testid='name'"    // ❌ Missing brackets
 ```
+
+**Recommendation**: Migrate to `@selector/` references to prevent drift and get better error messages.
 
 ### Workflow Times Out
 
@@ -790,35 +954,48 @@ vrooli scenario start browser-automation-studio --clean-stale
 **Symptom**: Workflow executes successfully but requirement shows "failing"
 
 **Causes**:
-1. Workflow metadata doesn't match requirement ID
-2. Requirement validation missing `type: automation` entry
-3. Phase script not calling `testing::phase::add_requirement`
+1. Requirement module is missing a `type: "automation"` validation pointing at the workflow
+2. The registry is stale (workflow moved but `registry.json` was not regenerated)
+3. Phase script skipped `testing::phase::add_requirement`
 
 **Solutions**:
 ```json
-// 1. Check metadata.requirement matches registry
-{
-  "metadata": {
-    "requirement": "BAS-PROJECT-CREATE"  // Must match registry ID exactly
-  }
-}
-
-// 2. Add automation validation to requirement
+// 1. Add automation validation to the requirement JSON
 {
   "id": "BAS-PROJECT-CREATE",
   "validation": [
     {
       "type": "automation",
-      "ref": "test/playbooks/ui/projects/create.json",
+      "ref": "test/playbooks/capabilities/01-foundation/01-projects/new-project-create.json",
       "phase": "integration"
     }
   ]
 }
 
-// 3. Verify phase script uses helper
-// test/phases/test-integration.sh should call:
+// 2. Regenerate + inspect registry order/reset metadata
+node scripts/scenarios/testing/playbooks/build-registry.mjs --scenario scenarios/browser-automation-studio
+cat scenarios/browser-automation-studio/test/playbooks/registry.json | jq '.playbooks[] | select(.file | test("new-project-create"))'
+
+// 3. Verify the integration phase uses the helper
 testing::phase::run_bas_automation_validations --scenario "$SCENARIO_NAME"
 ```
+
+If the requirement still fails, inspect `coverage/automation/test/playbooks/.../new-project-create.timeline.json` to see the exact step output and review the paired screenshot captured during failure.
+
+## Logging & Failure Artifacts
+
+- Successful workflows now emit a single summary line. Set `TESTING_PLAYBOOKS_VERBOSE=1` to stream every heartbeat/step in real time while authoring a new flow.
+- When a workflow fails, the runner prints the buffered heartbeat log and writes two artifacts: `coverage/automation/<workflow>.timeline.json` (full timeline) and `coverage/automation/<workflow>.png` (latest screenshot if available). Inspect these files before rerunning slow suites.
+- The registry lists each playbook's `reset` level. Use `"reset": "none"` for read-only flows; use `"reset": "full"` when mutations require completely reseeding Browser Automation Studio state.
+
+## Reusable Subflows & Seed Data
+
+- **Subflows:** Store shared setup/prelude workflows under `test/playbooks/__subflows/`. Each file must declare `metadata.fixture_id` (kebab-case slug). Reference the subflow from any `workflowCall` node by setting `workflowId` to `@fixture/<slug>(key=value, ...)`. The resolver validates parameter types (string/number/boolean/enum), substitutes `${fixture.param}` tokens throughout the nested flow, and throws if required parameters are missing. Strings containing spaces or punctuation must be quoted, while runtime store references can be passed as `@store/<key>`.
+- **Fixture requirements:** When a fixture guarantees requirement coverage (for example, "Demo workflow is seeded"), list those IDs in `metadata.requirements`. The resolver bubbles them up to the calling workflow's `metadata.requirementsFromFixtures`, and the phase helper records pass/fail evidence for every propagated requirement automatically.
+- **Validation:** Structural tests fail when subflows are missing `fixture_id`, define duplicate slugs, are never referenced, or when a playbook references a slug that does not exist.
+- **Seed Data:** Keep deterministic seed scripts in `test/playbooks/__seeds/`. Provide an `apply.sh` to populate data (projects, workflows, etc.) and a matching `cleanup.sh` to remove it. The integration runner automatically executes `apply.sh` after Browser Automation Studio is healthy and always calls `cleanup.sh` at phase completion—even when tests fail—so the scenario returns to a clean state.
+- **Portability:** All Vrooli scenarios that lean on BAS e2e workflows share the same conventions (`__subflows` + `__seeds`), which keeps automation projects portable and prevents stray workflows from polluting the main BAS authoring experience.
+- **Canonical fixtures:** The Browser Automation Studio scenario ships `open-demo-project` (dashboard → Demo project detail), `open-builder-from-demo` (loads a fresh builder from that project), and `open-demo-workflow` (opens the seeded Demo workflow inside the builder). Reuse them instead of rebuilding those sequences in every workflow.
 
 ## See Also
 

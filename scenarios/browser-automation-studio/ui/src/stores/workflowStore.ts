@@ -575,15 +575,22 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   },
   
   loadWorkflow: async (id: string) => {
+    console.log("[DEBUG] loadWorkflow called", { workflowId: id });
     try {
       clearAutosaveTimer();
       const config = await getConfig();
+      console.log("[DEBUG] loadWorkflow: fetching from API", { url: `${config.API_URL}/workflows/${id}` });
       const response = await fetch(`${config.API_URL}/workflows/${id}`);
+      console.log("[DEBUG] loadWorkflow: response received", { ok: response.ok, status: response.status });
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[DEBUG] loadWorkflow: API error", { status: response.status, errorText });
         throw new Error(`Failed to load workflow: ${response.status}`);
       }
       const workflow = await response.json();
+      console.log("[DEBUG] loadWorkflow: workflow data received", { hasWorkflow: !!workflow, workflowId: workflow?.id });
       const normalized = normalizeWorkflowResponse(workflow);
+      console.log("[DEBUG] loadWorkflow: normalized workflow", { hasNodes: !!normalized.nodes, nodeCount: normalized.nodes?.length });
       const fingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
       set({
         currentWorkflow: normalized,
@@ -602,7 +609,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       conflictWorkflow: null,
       conflictMetadata: null,
     });
+      console.log("[DEBUG] loadWorkflow: SUCCESS, workflow loaded into store");
     } catch (error) {
+      console.error("[DEBUG] loadWorkflow: FAILED", error);
       logger.error('Failed to load workflow', { component: 'WorkflowStore', action: 'loadWorkflow', workflowId: id }, error);
 
       // Set error state so UI knows loading failed
@@ -624,9 +633,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   },
   
   createWorkflow: async (name: string, folderPath: string, projectId?: string) => {
+    console.log("[DEBUG] createWorkflow called", { name, folderPath, projectId });
     try {
       clearAutosaveTimer();
       const config = await getConfig();
+      console.log("[DEBUG] createWorkflow: posting to API", { url: `${config.API_URL}/workflows/create` });
       const response = await fetch(`${config.API_URL}/workflows/create`, {
         method: 'POST',
         headers: {
@@ -642,12 +653,16 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           }
         }),
       });
+      console.log("[DEBUG] createWorkflow: response received", { ok: response.ok, status: response.status });
       if (!response.ok) {
         const message = await response.text();
+        console.error("[DEBUG] createWorkflow: API error", { status: response.status, message });
         throw new Error(message || `Failed to create workflow: ${response.status}`);
       }
       const workflow = await response.json();
+      console.log("[DEBUG] createWorkflow: workflow data received", { hasWorkflow: !!workflow, workflowId: workflow?.id });
       const normalized = normalizeWorkflowResponse(workflow);
+      console.log("[DEBUG] createWorkflow: normalized workflow", { hasNormalized: !!normalized, normalizedId: normalized?.id });
       const fingerprint = computeWorkflowFingerprint(normalized, normalized.nodes, normalized.edges);
       set({
         currentWorkflow: normalized,
@@ -666,8 +681,10 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         conflictWorkflow: null,
         conflictMetadata: null,
       });
+      console.log("[DEBUG] createWorkflow: SUCCESS, returning normalized workflow");
       return normalized;
     } catch (error) {
+      console.error("[DEBUG] createWorkflow: FAILED", error);
       logger.error('Failed to create workflow', { component: 'WorkflowStore', action: 'createWorkflow', name, projectId }, error);
       throw error;
     }

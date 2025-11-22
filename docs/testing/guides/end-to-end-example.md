@@ -90,7 +90,7 @@ Create or edit `requirements/projects/core.json`:
     {
       "id": "BAS-PROJECT-CREATE",
       "category": "projects.core",
-      "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "title": "Users can create projects from dashboard",
       "description": "Validates project creation flow including dialog opening, form validation, API persistence, and navigation to project detail page.",
       "status": "pending",
@@ -499,7 +499,7 @@ func TestCreateProject(t *testing.T) {
 ```
 
 **Key elements**:
-- `metadata.requirement`: Links to requirement ID
+- `metadata`: Describes the workflow (and its `reset` scope). Requirement linkage now comes from `requirements/*.json` via `validation.ref` entries, so the workflow JSON does **not** embed a requirement ID.
 - Node types: `navigate`, `click`, `type`, `assert`, `screenshot`, `wait`
 - Selectors use `data-testid` from UI code
 - Linear flow with branching for screenshot
@@ -639,7 +639,7 @@ Generated: 2025-11-05T18:30:00.000Z
 #### BAS-PROJECT-CREATE (P0)
 **Category**: projects.core
 **Title**: Users can create projects from dashboard
-**PRD Ref**: Functional Requirements > Must Have > Visual workflow builder
+**PRD Ref**: Operational Targets > P0 > OT-P0-001
 **Live Status**: ✅ All validations passing
 
 **Validations**:
@@ -666,7 +666,7 @@ Generated: 2025-11-05T18:30:00.000Z
 1. **Test Execution** → Tags extracted
    - Vitest: `vitest-requirement-reporter` extracts `[REQ:ID]` from suite/test names
    - Go: Phase script parses `go test -v` output for `[REQ:ID]` patterns
-   - BAS: `metadata.requirement` field links workflow to requirement
+   - BAS: `requirements/*.json` entries reference playbooks via `validation.ref`, so coverage links back to workflows without relying on playbook metadata
 
 2. **Phase Results** → Evidence collected
    - Saved to `coverage/phase-results/unit.json`:

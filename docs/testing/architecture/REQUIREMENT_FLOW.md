@@ -355,6 +355,61 @@ func TestWorkflowCRUD(t *testing.T) {
 
 **Key Insight**: Reports provide **point-in-time snapshots** and **metrics** for CI/CD gates.
 
+### Stage 7: Drift Detection
+
+**Input**: `coverage/<scenario>/requirements-sync/latest.json` snapshot + live filesystem state
+
+**Process**:
+
+1. `scenario::requirements::quick_check` shells out to `scripts/requirements/drift-check.js`:
+   - Computes SHA256 hashes for every `requirements/**/*.json` module
+   - Reads the last snapshot to compare hashes + mtimes
+   - Loads PRD checkboxes through `scripts/prd/parser.js` so operational-target checklists remain canonical
+   - Walks `coverage/phase-results/`/`ui/coverage/vitest-requirements.json` for the newest evidence timestamp
+2. Differences are surfaced as structured JSON (`drift.status`, `file_drift`, `artifact_stale`, `prd`), so `vrooli scenario status` can emit targeted remediation hints instead of generic warnings.
+
+**Output**: Drift warnings rendered directly in `scenario status`:
+
+```
+Requirements: 🔴 Drift detected (3 issue(s))
+  • Requirement files changed outside auto-sync (mismatched: 1, new: 1, missing: 1)
+  • PRD mismatch (2 status differences, 1 missing targets)
+  • Newer coverage artifacts detected (2025-11-21T08:30:02Z); rerun auto-sync
+```
+
+**Key Insight**: Agents no longer need to guess if PRD checkboxes or requirement files are stale—`scenario status` refuses to trust manual edits unless they originate from the synced evidence path.
+
+### Stage 8: Sync Snapshot & Drift Inputs
+
+**Input**: Synced requirement files + recorded test commands + run manifest
+**Output**: `coverage/requirements-sync/latest.json` + manifest log entries
+
+**Process**:
+
+1. After `scripts/requirements/report.js --mode sync` updates the registry, the tool now writes a canonical snapshot under `coverage/requirements-sync/latest.json` inside the scenario. Payload includes:
+   - `tests_run`: commands captured by `testing::suite::run` (exact entrypoint + args used).
+   - `manifest`: the run-manifest entry emitted by `_testing_suite_sync_requirements` (timestamp + commands, appended to `coverage/requirements-sync/run-log.jsonl`).
+   - `files`: each `requirements/**/*.json` module with SHA-256 hash, mtime, module name, and every requirement/validation’s `_sync_metadata`.
+   - `requirements`: flattened map of requirement → `{status, criticality, prd_ref, file, sync_metadata, validations...}` for fast diffing.
+   - `operational_targets`: rollups derived from `prd_ref` + folder layout so PRD checklists can be compared later.
+   - `summary`: direct output from `enrichment.computeSummary` (total counts, criticality gap, etc.).
+2. `_testing_suite_sync_requirements` writes/updates `coverage/requirements-sync/run-log.jsonl` before invoking `report.js --mode sync`. Each JSON line records when the suite last ran and the resolved commands so drift detectors can verify that a sync wasn’t executed without fresh tests.
+3. Downstream tools (e.g., `vrooli scenario status`) consume `latest.json` to detect drift:
+   - Requirement files edited since the last snapshot (hash mismatch).
+   - Snapshot timestamp older than latest `coverage/phase-results/*.json` artifact.
+   - Operational targets marked complete in PRD but not in the snapshot.
+4. `report.js --mode sync` now feeds the snapshot rollups back into `PRD.md`, flipping each operational-target checkbox based on the requirement aggregate instead of trusting manual edits. If an OT regresses, the checkbox reverts automatically, keeping the spec honest.
+5. `_testing_suite_sync_requirements` refuses to call `report.js --mode sync` unless every required phase executed during that run. When agents try to invoke the sync manually, the tool enforces the same rule unless they explicitly pass `--allow-partial-sync` (or set `REQUIREMENTS_SYNC_ALLOW_PARTIAL=1`). The env variable `REQUIREMENTS_SYNC_PHASE_STATUS` records which phases ran, so snapshots always point to a full, non-partial suite.
+6. The test harness treats `coverage/<scenario>/requirements-sync/` as a protected directory: artifact cleanup and log rotation skip this path so snapshots and `run-log.jsonl` survive between runs.
+
+**Inspection**: `vrooli scenario requirements snapshot <name>` reads `coverage/requirements-sync/latest.json`, prints the commands that produced it, target completion counts, and any expiring manual validations so agents can verify provenance without opening the raw JSON.
+
+**Key Insight**: The snapshot decouples “tests produced this evidence” from “files currently say X,” giving CLI commands deterministic data for drift warnings without re-running sync.
+
+### PRD Alignment Lint
+
+- `vrooli scenario requirements lint-prd <name>` parses `PRD.md` and the modular requirements registry to ensure every operational target maps to at least one requirement (and that every requirement references a valid `OT-P*-###` entry). Run it whenever you add targets or reorganize folders so drift detection can trust the `prd_ref` links.
+
 ## Data Flow Summary
 
 | Stage | Input | Output | Automation Level |
@@ -581,7 +636,7 @@ describe('projectStore', () => {
 ```json
 {
   "id": "BAS-WORKFLOW-PERSIST-CRUD",
-  "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+  "prd_ref": "Operational Targets > P0 > OT-P0-001",
   "title": "Workflows persist nodes, edges, and metadata"
 }
 ```
@@ -592,7 +647,7 @@ Creates bidirectional traceability: PRD → requirement → tests → results.
 
 Don't manually add `validation` entries unless:
 - Test hasn't run yet (status: `planned`)
-- Test is manual verification (type: `manual`)
+- Test is manual verification (type: `manual`) and logged with `vrooli scenario requirements manual-log`
 - Test is external tool/service
 
 For normal unit/integration/automation tests, let auto-sync create entries.

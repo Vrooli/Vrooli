@@ -253,19 +253,59 @@ function App() {
       setCurrentView("project-workflow");
 
       try {
-        await loadWorkflow(workflowId);
-        const loadedWorkflow = useWorkflowStore.getState().currentWorkflow;
-        if (!loadedWorkflow) {
-          throw new Error('Workflow data not loaded');
+        console.log("[DEBUG] openWorkflow called", {
+          workflowId,
+          projectId: project.id,
+          hasWorkflowData: !!options?.workflowData,
+        });
+
+        if (options?.workflowData) {
+          console.log("[DEBUG] Using provided workflowData", { workflowId });
+          // When workflowData is provided (e.g., from createWorkflow), use it directly
+          // to avoid redundant API call that could fail and cause navigation away
+          const normalized = transformWorkflow(options.workflowData);
+          console.log("[DEBUG] Normalized workflow from workflowData", {
+            hasNormalized: !!normalized,
+            normalizedId: normalized?.id,
+          });
+          if (normalized) {
+            setSelectedWorkflow(normalized);
+            setSelectedFolder(
+              normalized.folderPath || project.folder_path || "/",
+            );
+          }
+          // Verify the store is populated (createWorkflow should have done this)
+          const storeWorkflow = useWorkflowStore.getState().currentWorkflow;
+          console.log("[DEBUG] Checking workflow store", {
+            hasStoreWorkflow: !!storeWorkflow,
+            storeWorkflowId: storeWorkflow?.id,
+            expectedWorkflowId: workflowId,
+          });
+          if (!storeWorkflow || storeWorkflow.id !== workflowId) {
+            console.warn("[DEBUG] Store not populated, loading from API", { workflowId });
+            await loadWorkflow(workflowId);
+          } else {
+            console.log("[DEBUG] Store already populated, skipping API call", { workflowId });
+          }
+        } else {
+          console.log("[DEBUG] No workflowData, loading from API", { workflowId });
+          // No workflowData provided, load from API (e.g., direct URL navigation)
+          await loadWorkflow(workflowId);
+          const loadedWorkflow = useWorkflowStore.getState().currentWorkflow;
+          if (!loadedWorkflow) {
+            throw new Error('Workflow data not loaded');
+          }
+          const normalized = transformWorkflow(loadedWorkflow);
+          if (normalized) {
+            setSelectedWorkflow(normalized);
+            setSelectedFolder(
+              normalized.folderPath || project.folder_path || "/",
+            );
+          }
         }
-        const normalized = transformWorkflow(loadedWorkflow);
-        if (normalized) {
-          setSelectedWorkflow(normalized);
-          setSelectedFolder(
-            normalized.folderPath || project.folder_path || "/",
-          );
-        }
+        console.log("[DEBUG] openWorkflow completed successfully", { workflowId });
       } catch (error) {
+        console.error("[DEBUG] openWorkflow FAILED:", error);
         logger.error(
           "Failed to load workflow",
           {
@@ -273,16 +313,19 @@ function App() {
             action: "openWorkflow",
             workflowId,
             projectId: project.id,
+            errorMessage: error instanceof Error ? error.message : String(error),
           },
           error,
         );
         toast.error(`Failed to load workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.warn("[DEBUG] Navigating back to project due to error", { workflowId });
         openProject(project, { replace: options?.replace ?? false });
       }
     },
     [
       loadWorkflow,
       navigateToDashboard,
+      openProject,
       safeNavigate,
       setCurrentProject,
       transformWorkflow,
@@ -328,24 +371,51 @@ function App() {
   };
 
   const handleSwitchToManualBuilder = async () => {
+    console.log("[DEBUG] handleSwitchToManualBuilder called", {
+      hasCurrentProject: !!currentProject,
+      currentProjectId: currentProject?.id,
+    });
+
     if (!currentProject?.id) {
+      console.error("[DEBUG] No current project, cannot switch to manual builder");
       toast.error("Select a project before using the manual builder.");
       return;
     }
 
+    // Close modal immediately BEFORE async operation
+    // This ensures the modal closes instantly for the user and tests don't fail
+    // waiting for the async workflow creation to complete
+    console.log("[DEBUG] Closing AI modal immediately");
+    setShowAIModal(false);
+
     // Create a new empty workflow and switch to the manual builder
     const workflowName = `new-workflow-${Date.now()}`;
     const folderPath = selectedFolder || "/";
+    console.log("[DEBUG] Creating new workflow", { workflowName, folderPath });
+
     try {
       const workflow = await useWorkflowStore
         .getState()
         .createWorkflow(workflowName, folderPath, currentProject.id);
+      console.log("[DEBUG] Workflow created", {
+        hasWorkflow: !!workflow,
+        workflowId: workflow?.id,
+      });
+
       if (currentProject && workflow?.id) {
+        console.log("[DEBUG] Calling openWorkflow with workflowData");
         await openWorkflow(currentProject, workflow.id, {
           workflowData: workflow as Record<string, unknown>,
         });
+        console.log("[DEBUG] openWorkflow completed");
+      } else {
+        console.error("[DEBUG] Missing currentProject or workflow.id", {
+          hasCurrentProject: !!currentProject,
+          hasWorkflowId: !!workflow?.id,
+        });
       }
     } catch (error) {
+      console.error("[DEBUG] handleSwitchToManualBuilder FAILED:", error);
       logger.error(
         "Failed to create workflow",
         {
@@ -384,46 +454,60 @@ function App() {
 
   useEffect(() => {
     const resolvePath = async (path: string, replace = false) => {
+      console.log("[DEBUG] resolvePath called", { path, replace });
       const normalized = path.replace(/\/+/g, "/").replace(/\/$/, "") || "/";
 
       if (normalized === "/") {
+        console.log("[DEBUG] resolvePath: navigating to dashboard");
         navigateToDashboard(replace);
         return;
       }
 
       const segments = normalized.split("/").filter(Boolean);
+      console.log("[DEBUG] resolvePath segments", { segments });
+
       if (segments[0] !== "projects" || !segments[1]) {
+        console.log("[DEBUG] resolvePath: invalid path, navigating to dashboard");
         navigateToDashboard(replace);
         return;
       }
 
       const projectId = segments[1];
+      console.log("[DEBUG] resolvePath: loading project", { projectId });
       const projectState = useProjectStore.getState();
       let project: Project | null | undefined = projectState.projects.find(
         (p) => p.id === projectId,
       );
       if (!project) {
+        console.log("[DEBUG] resolvePath: project not in cache, fetching from API");
         project = (await projectState.getProject(projectId)) as Project | null;
         if (project) {
+          console.log("[DEBUG] resolvePath: project fetched, adding to store");
           useProjectStore.setState((state) => ({
             projects: state.projects.some((p) => p.id === project!.id)
               ? state.projects
               : [project!, ...state.projects],
           }));
         }
+      } else {
+        console.log("[DEBUG] resolvePath: project found in cache");
       }
 
       if (!project) {
+        console.error("[DEBUG] resolvePath: project not found, navigating to dashboard");
         navigateToDashboard(replace);
         return;
       }
 
       if (segments.length >= 4 && segments[2] === "workflows") {
         const workflowId = segments[3];
+        console.log("[DEBUG] resolvePath: calling openWorkflow", { workflowId, hasProject: !!project });
         await openWorkflow(project, workflowId, { replace });
+        console.log("[DEBUG] resolvePath: openWorkflow completed");
         return;
       }
 
+      console.log("[DEBUG] resolvePath: opening project view");
       openProject(project, { replace });
     };
 

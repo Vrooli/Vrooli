@@ -533,6 +533,32 @@ const literalSelectors = {
     newButton: "new-workflow-button",
     newButtonFab: "new-workflow-button-fab",
   },
+  // Landing Manager Admin Portal selectors
+  landingManager: {
+    admin: {
+      login: {
+        email: "admin-login-email",
+        password: "admin-login-password",
+        submit: "admin-login-submit",
+        error: "admin-login-error",
+      },
+      breadcrumb: "admin-breadcrumb",
+      mode: {
+        analytics: "admin-mode-analytics",
+        customization: "admin-mode-customization",
+      },
+      analytics: {
+        filters: "analytics-filters",
+        timeRange: "analytics-time-range",
+        variantFilter: "analytics-variant-filter",
+        totalVisitors: "analytics-total-visitors",
+        conversionRate: "analytics-conversion-rate",
+        topCta: "analytics-top-cta",
+        variantPerformance: "analytics-variant-performance",
+        variantDetail: "analytics-variant-detail",
+      },
+    },
+  },
 } as const;
 
 const dynamicSelectorDefinitions = {
@@ -615,7 +641,7 @@ const dynamicSelectorDefinitions = {
   workflowBuilder: {
     reactFlowReady: defineDynamicSelector({
       description: "React Flow canvas when fully initialized and ready for interaction",
-      selectorPattern: '[data-testid="react-flow-canvas"][data-builder-ready="true"]',
+      selectorPattern: '[data-testid="workflow-builder-canvas"][data-builder-ready="true"]',
     }),
     nodes: {
       upload: {

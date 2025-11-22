@@ -242,6 +242,34 @@ function main() {
             errors.push(`${outputLabel} must define either 'ref' (file path) or 'workflow_id'.`);
           }
 
+          // VALIDATION SPECIFICITY CHECK: Forbid generic phase script references
+          if (ref && vType === 'test') {
+            const phaseScriptPattern = /^test\/phases\/test-[a-z]+\.sh$/;
+            if (phaseScriptPattern.test(ref)) {
+              const otherValidations = validations.filter((v, i) => i !== validationIndex);
+              const hasSpecificTest = otherValidations.some(v =>
+                v.type === 'test' && v.ref && !phaseScriptPattern.test(v.ref)
+              );
+              const hasAutomation = otherValidations.some(v =>
+                v.type === 'automation' && (v.ref || v.workflow_id)
+              );
+
+              if (!hasSpecificTest && !hasAutomation) {
+                errors.push(
+                  `${outputLabel} references generic phase script '${ref}' without specific test validation.\n\n` +
+                  `  ❌ FORBIDDEN: test/phases/*.sh as sole validation (too vague, zero traceability)\n\n` +
+                  `  ✅ ALLOWED patterns for integration tests:\n` +
+                  `     • test/cli/*.bats              (CLI integration tests with [REQ:${requirementId}] tags)\n` +
+                  `     • api/**/*_test.go              (Go integration tests)\n` +
+                  `     • type: "automation" + test/playbooks/*.json (UI e2e workflows)\n\n` +
+                  `  💡 Phase scripts orchestrate test execution but aren't tests themselves.\n` +
+                  `     Point to specific test files or automation workflows instead.\n\n` +
+                  `  📖 See: docs/testing/guides/requirement-tracking.md#validation-specificity-requirements`
+                );
+              }
+            }
+          }
+
           const shouldCheckRef = Boolean(ref && !workflowId);
           if (shouldCheckRef) {
             const lowerStatus = validationStatus.toLowerCase();

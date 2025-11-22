@@ -17,7 +17,7 @@
     ]
   },
   "imports": [
-    "01-foundation/01-projects/dialog.json",
+    "01-foundation/projects/dialog.json",
     "01-foundation/ui/user-flows.json",
     "01-foundation/persistence/version-history.json",
     "02-builder/ui/header.json",
@@ -30,7 +30,7 @@
     "04-ai/ai/generation.json",
     "05-replay/replay/core.json",
     "06-nonfunctional/performance/lighthouse.json",
-    "06-nonfunctional/01-error-handling/graceful-degradation.json"
+    "06-nonfunctional/error-handling/graceful-degradation.json"
   ],
   "requirements": [
     {

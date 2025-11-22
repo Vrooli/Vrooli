@@ -279,11 +279,17 @@ _testing_playbooks__execute_adhoc_workflow() {
     local api_base="$1"
     local workflow_json="$2"
 
-    # Read workflow JSON and extract metadata
-    local flow_def="$workflow_json"
+    # Extract the inner flow_definition from the workflow JSON
+    # Workflow files can have two structures:
+    # 1. Direct: {metadata: {...}, nodes: [...], edges: [...]} (test playbooks)
+    # 2. Wrapped: {flow_definition: {metadata: {...}, nodes: [...], edges: [...]}} (saved workflows)
+    # The API expects just the flow_definition part
+    local flow_def
+    flow_def=$(printf '%s' "$workflow_json" | jq '.flow_definition // .')
 
+    # Extract metadata for the request
     local name
-    name=$(printf '%s' "$flow_def" | jq -r '.metadata.name // .metadata.description // empty')
+    name=$(printf '%s' "$workflow_json" | jq -r '.flow_definition.metadata.name // .metadata.name // .flow_definition.metadata.description // .metadata.description // empty')
     if [ -z "$name" ]; then
         name=$(basename "$workflow_path" .json)
     fi
@@ -477,6 +483,28 @@ testing::playbooks::run_workflow() {
     if ! workflow_json=$(_testing_playbooks__read_workflow_definition "$workflow_path" "$scenario_dir"); then
         echo "❌ Failed to load workflow definition $workflow_path" >&2
         return 1
+    fi
+
+    # Substitute environment variables in workflow JSON (e.g., ${BASE_URL}, {{UI_PORT}})
+    # Determine the scenario being tested (not the BAS scenario that executes workflows)
+    local tested_scenario_name
+    tested_scenario_name=$(basename "$scenario_dir")
+
+    # Get UI_PORT for the scenario being tested
+    local ui_port
+    ui_port=$(vrooli scenario port "$tested_scenario_name" UI_PORT 2>/dev/null || true)
+    if [ -n "$ui_port" ]; then
+        # Extract port number from "UI_PORT=12345" format if needed
+        if printf '%s' "$ui_port" | grep -q '='; then
+            ui_port=$(printf '%s' "$ui_port" | awk -F= '/UI_PORT/{gsub(/ /,"");print $2}')
+        fi
+        ui_port=$(printf '%s' "$ui_port" | tr -d '\r\n ')
+
+        # Substitute ${BASE_URL} with actual UI URL and {{UI_PORT}} with port number
+        local base_url="http://localhost:${ui_port}"
+        workflow_json=$(printf '%s' "$workflow_json" | jq --arg url "$base_url" --arg port "$ui_port" '
+            walk(if type == "string" then gsub("\\$\\{BASE_URL\\}"; $url) | gsub("\\{\\{UI_PORT\\}\\}"; $port) else . end)
+        ')
     fi
 
     local fixture_requirements

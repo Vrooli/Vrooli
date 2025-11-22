@@ -113,14 +113,14 @@ func jsonMapToStd(m database.JSONMap) map[string]any {
 	return result
 }
 
-func (h *Handler) validateWorkflowDefinitionStrict(w http.ResponseWriter, r *http.Request, definition map[string]any) bool {
+func (h *Handler) validateWorkflowDefinition(w http.ResponseWriter, r *http.Request, definition map[string]any, strict bool) bool {
 	if h == nil || h.workflowValidator == nil {
 		return true
 	}
 	if definition == nil || len(definition) == 0 {
 		return true
 	}
-	result, err := h.workflowValidator.Validate(r.Context(), definition, workflowvalidator.Options{Strict: true})
+	result, err := h.workflowValidator.Validate(r.Context(), definition, workflowvalidator.Options{Strict: strict})
 	if err != nil {
 		if h.log != nil {
 			h.log.WithError(err).Error("Failed to validate workflow definition")
@@ -133,6 +133,10 @@ func (h *Handler) validateWorkflowDefinitionStrict(w http.ResponseWriter, r *htt
 		return false
 	}
 	return true
+}
+
+func (h *Handler) validateWorkflowDefinitionStrict(w http.ResponseWriter, r *http.Request, definition map[string]any) bool {
+	return h.validateWorkflowDefinition(w, r, definition, true)
 }
 
 func definitionFromNodesEdges(nodes, edges []any, fallback map[string]any) map[string]any {
@@ -174,7 +178,13 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 
-	if !h.validateWorkflowDefinitionStrict(w, r, req.FlowDefinition) {
+	// Skip validation for empty workflows to allow manual building from scratch
+	// Empty workflows (no nodes) are valid starting points for the visual builder
+	hasNodes := req.FlowDefinition != nil && len(req.FlowDefinition) > 0
+	if nodes, ok := req.FlowDefinition["nodes"].([]interface{}); ok {
+		hasNodes = len(nodes) > 0
+	}
+	if hasNodes && !h.validateWorkflowDefinition(w, r, req.FlowDefinition, false) {
 		return
 	}
 
@@ -597,7 +607,9 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.validateWorkflowDefinitionStrict(w, r, req.FlowDefinition) {
+	// Use non-strict validation for adhoc workflows since they may come from other scenarios
+	// with selectors not registered in this BAS instance
+	if !h.validateWorkflowDefinition(w, r, req.FlowDefinition, false) {
 		return
 	}
 

@@ -71,44 +71,9 @@ node scripts/requirements/report.js --scenario browser-automation-studio --mode 
 
 ## Registry Structure
 
-### Single-File Format
-
-**Best for:** Simple scenarios with <20 requirements
-
-**Location:** `docs/requirements.json`
-
-```json
-{
-  "_metadata": {
-    "description": "My scenario requirements",
-    "last_validated_at": "2025-11-05T00:00:00.000Z",
-    "auto_sync_enabled": true,
-    "schema_version": "1.0.0"
-  },
-  "requirements": [
-    {
-      "id": "MY-REQ-001",
-      "title": "Basic requirement",
-      "status": "complete",
-      "criticality": "P0",
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/handlers_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        }
-      ]
-    }
-  ]
-}
-```
-
 ### Modular Format
 
-**Best for:** Complex scenarios with 20+ requirements organized by feature
-
-**Location:** `requirements/` directory
+**Location:** `requirements/` directory (mandatory for all scenarios)
 
 **Structure:**
 ```
@@ -241,6 +206,40 @@ Each requirement can have multiple validation methods tracking how it's verified
 - `phase`: `unit`, `integration`, `business`, `performance`
 - `status`: `not_implemented`, `planned`, `implemented`, `failing`
 
+**Validation Specificity Requirements:**
+
+The `ref` field MUST point to **specific test files**, not generic phase orchestration scripts.
+
+✅ **ALLOWED patterns:**
+```json
+// Go unit/integration tests
+{"type": "test", "ref": "api/handlers/projects_test.go", "phase": "unit"}
+
+// Vitest unit tests
+{"type": "test", "ref": "ui/src/stores/__tests__/projectStore.test.ts", "phase": "unit"}
+
+// CLI BATS integration tests
+{"type": "test", "ref": "test/cli/dependency-analysis.bats", "phase": "integration"}
+```
+
+❌ **FORBIDDEN patterns:**
+```json
+// Generic phase scripts - TOO VAGUE, ZERO TRACEABILITY
+{"type": "test", "ref": "test/phases/test-integration.sh"}
+{"type": "test", "ref": "test/phases/test-unit.sh"}
+```
+
+**Why this matters:**
+- Phase scripts **orchestrate** test execution but don't contain tests themselves
+- Pointing to a phase script provides **zero traceability** to actual test code
+- Auto-sync cannot verify which specific tests validate which requirements
+- Creates gaming opportunity: many requirements → same vague reference
+
+**Correct approach:**
+- **CLI testing**: `test/cli/*.bats` files with `[REQ:ID]` tags
+- **UI automation**: Use `type: "automation"` (see below)
+- **API integration**: Specific Go test files `api/**/*_test.go`
+
 #### Type: automation
 
 **Purpose:** Browser Automation Studio workflow tests
@@ -268,7 +267,7 @@ Each requirement can have multiple validation methods tracking how it's verified
 
 #### Type: manual
 
-**Purpose:** Manual verification steps or exploratory testing
+**Purpose:** Last-resort coverage for work that cannot yet be automated (e.g., quarterly penetration audits), or as a temporary measure before tests are written. Manual validations **must** be logged through `vrooli scenario requirements manual-log` so they include `validated_at`, `validated_by`, and expiration metadata. `vrooli scenario status` surfaces every manual validation—expired or not—so loops know they still require human action and should be replaced with automated checks.
 
 ```json
 {
@@ -276,9 +275,13 @@ Each requirement can have multiple validation methods tracking how it's verified
   "ref": "docs/testing/runbooks/security-audit.md",
   "phase": "integration",
   "status": "planned",
-  "notes": "Security penetration testing checklist"
+  "notes": "Security penetration testing checklist (logged via manual manifest; expires in 30 days)"
 }
 ```
+
+**Best practice:**
+- Document the workflow now, but prioritize building Browser Automation Studio workflows (see [UI Automation with BAS](ui-automation-with-bas.md)) or other scripted validations so future loops can retire the manual entry.
+- Run `vrooli scenario requirements manual-log my-scenario BAS-SECURITY-AUDIT --status passed --notes "Quarterly pen test" --artifact docs/security-report.pdf` immediately after completing the manual step. The CLI writes to `coverage/manual-validations/log.jsonl`, and auto-sync propagates the evidence into `_sync_metadata.manual` so drift detection can warn when it expires.
 
 ## Test Integration
 
@@ -482,6 +485,21 @@ else
 fi
 ```
 
+Only full suites can produce a snapshot: `_testing_suite_sync_requirements` inspects the phases that ran during the current execution and skips `report.js --mode sync` whenever you run presets like `quick` or `smoke`. To override (for debugging), set `TESTING_REQUIREMENTS_SYNC_FORCE=1` before running tests. Manual invocations must pass `--allow-partial-sync` (or export `REQUIREMENTS_SYNC_ALLOW_PARTIAL=1`) if you truly need to update requirements from a partial run.
+
+After the sync completes, the runner now emits an immutable snapshot under `coverage/requirements-sync/latest.json` plus a manifest entry in `coverage/requirements-sync/run-log.jsonl`:
+
+- `latest.json` contains the executed commands, a hash + mtime for every requirement module, the flattened `_sync_metadata` for each requirement/validation, and operational-target rollups derived from `prd_ref`/folder structure. CLI tooling reads this file to detect drift without re-running sync.
+- `run-log.jsonl` captures a JSON line per suite run (`timestamp`, `scenario`, `commands`). `_testing_suite_sync_requirements` appends to this log before invoking `report.js --mode sync`, so drift detectors can warn when someone edits requirement files without executing tests.
+
+`vrooli scenario status` now consumes these artifacts automatically. The requirements quick check runs `scripts/requirements/drift-check.js`, which (a) hashes every requirements module, (b) compares against `coverage/requirements-sync/latest.json`, (c) parses the scenario's PRD via `scripts/prd/parser.js`, and (d) inspects `coverage/phase-results`/`ui/coverage/vitest-requirements.json` for fresher evidence. If any mismatch is detected, the CLI prints explicit remediation steps ("Requirement files changed outside auto-sync" / "PRD mismatch" / "Newer coverage artifacts detected"). Agents no longer need to manually speculate whether a checkbox or JSON edit is trustworthy—the command refuses to treat requirements as complete until tests regenerate the snapshot.
+
+**Bonus:** `report.js --mode sync` now feeds those rollups back into `PRD.md`. Each operational-target checkbox is toggled based on the aggregated requirement status, so the spec stays honest without manual edits. When a regression lands, the checkbox reverts automatically.
+
+Need to inspect the stored evidence? Run `vrooli scenario requirements snapshot <scenario>` to print the synced-at timestamp, executed commands, operational-target completion totals, and any expiring manual validations pulled straight from `coverage/requirements-sync/latest.json`.
+
+The test harness treats `coverage/<scenario>/requirements-sync/` as a reserved directory. Artifact cleanup and log rotation skip this folder so the snapshot (`latest.json`) and run log survive between suites.
+
 ## Commands
 
 ### Initialize Registry
@@ -549,6 +567,18 @@ vrooli scenario status <name>
 - ID pattern validation
 - Reference path existence
 - Import resolution for modular registries
+
+### Lint PRD Alignment
+
+```bash
+# Ensure every OT-P*-### entry in PRD.md has at least one requirement
+vrooli scenario requirements lint-prd <name>
+
+# Machine-readable output
+vrooli scenario requirements lint-prd <name> --json
+```
+
+Run this lint whenever you add operational targets or reorganize the numbered requirement folders. It flags PRD targets without linked requirements and requirements referencing unknown `OT-*` identifiers so drift detection has reliable `prd_ref` data.
 
 ### Sync from Tests
 
@@ -881,6 +911,27 @@ node scripts/requirements/report.js --scenario <name> --mode sync
 
 # Remove orphaned validations
 node scripts/requirements/report.js --scenario <name> --mode sync --prune-stale
+```
+
+### Snapshot or Manifest Drift Warnings
+
+**Symptom:** `vrooli scenario status` reports that the requirements snapshot is missing/stale or that the manifest log predates your latest edits.
+
+**Causes:**
+1. `coverage/requirements-sync/latest.json` not generated because sync was skipped or interrupted.
+2. `coverage/requirements-sync/run-log.jsonl` missing entries (for example, running `report.js --mode sync` directly instead of via `test/run-tests.sh`).
+3. `jq` unavailable on the host, preventing `_testing_suite_sync_requirements` from recording the manifest entry.
+
+**Solutions:**
+```bash
+# Always rerun the suite so the manifest + snapshot regenerate from fresh evidence
+test/run-tests.sh
+
+# Ensure jq is installed; the runner depends on it for manifest JSON
+sudo apt-get install jq
+
+# Remove stale snapshot to force a clean rebuild on the next run
+rm -f coverage/requirements-sync/latest.json
 ```
 
 ## Best Practices

@@ -34,7 +34,6 @@ Controls auto-sync behavior and file documentation.
     "description": "Human-readable description of this requirements module",
     "module": "projects.ui",
     "last_validated_at": "2025-11-05T00:00:00.000Z",
-    "last_synced_at": "2025-11-05T05:25:07.566Z",
     "auto_sync_enabled": true,
     "schema_version": "1.0.0"
   }
@@ -46,7 +45,6 @@ Controls auto-sync behavior and file documentation.
 | `description` | string | - | What requirements this file contains |
 | `module` | string | - | Module name (e.g., `projects.ui`, `execution.telemetry`) |
 | `last_validated_at` | ISO 8601 | - | When requirements were last manually reviewed |
-| `last_synced_at` | ISO 8601 | Auto | When file was last auto-synced from test results |
 | `auto_sync_enabled` | boolean | `true` | Whether auto-sync should update this file |
 | `schema_version` | string | `"1.0.0"` | Schema version this file conforms to |
 
@@ -129,7 +127,7 @@ Declares child requirement files to import.
   "criticality": "P0",
 
   "category": "workflow.builder",
-  "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+  "prd_ref": "Operational Targets > P0 > OT-P0-001",
   "description": "Validates compiler, database, and API layers so workflows round-trip",
   "tags": ["storage", "persistence", "crud"],
   "children": ["BAS-PROJECT-CREATE", "BAS-WORKFLOW-SAVE"],
@@ -221,14 +219,40 @@ Each requirement can have multiple validation entries proving it's implemented c
   "notes": "Auto-added from vitest evidence"
 }
 
-// Integration test
+// CLI BATS integration test
 {
   "type": "test",
-  "ref": "test/phases/test-integration.sh",
+  "ref": "test/cli/profile-operations.bats",
   "phase": "integration",
-  "status": "implemented"
+  "status": "implemented",
+  "notes": "BATS tests with [REQ:ID] tags"
 }
 ```
+
+**Validation Specificity Requirements:**
+
+**CRITICAL**: The `ref` field MUST point to **specific test files**, not generic phase orchestration scripts.
+
+✅ **ALLOWED:**
+```json
+// Go unit/integration tests
+{"ref": "api/handlers/projects_test.go"}
+
+// Vitest unit tests
+{"ref": "ui/src/**/*.test.{ts,tsx}"}
+
+// CLI BATS integration tests
+{"ref": "test/cli/*.bats"}
+```
+
+❌ **FORBIDDEN:**
+```json
+// Generic phase scripts - TOO VAGUE
+{"ref": "test/phases/test-integration.sh"}
+{"ref": "test/phases/test-unit.sh"}
+```
+
+**Why**: Phase scripts orchestrate test execution but don't contain tests themselves. They provide zero traceability to actual test code and create gaming opportunities where many requirements point to the same vague reference.
 
 **Auto-detection:**
 - Vitest tests: Phase parser reads `ui/coverage/vitest-requirements.json`
@@ -272,7 +296,7 @@ Each requirement can have multiple validation entries proving it's implemented c
 
 #### Type: manual
 
-**Purpose**: Manual verification steps, exploratory testing, security audits
+**Purpose**: Explicitly documented exceptions (e.g., quarterly penetration tests that cannot be automated yet). Manual entries should be rare, short-lived, and backed by artifacts **logged via** `vrooli scenario requirements manual-log` so auto-sync can track `validated_at`, `validated_by`, and `expires_at` metadata.
 
 ```json
 {
@@ -280,14 +304,16 @@ Each requirement can have multiple validation entries proving it's implemented c
   "ref": "docs/testing/runbooks/security-audit.md",
   "phase": "integration",
   "status": "planned",
-  "notes": "Quarterly security penetration testing checklist"
+  "notes": "Quarterly security penetration testing checklist (expires 30 days after last run)"
 }
 ```
 
 **Usage:**
-- Reference runbooks, checklists, or documentation
-- Not auto-executed by phase scripts
-- Status updated manually
+- Reference runbooks, checklists, or documentation that describe the manual procedure.
+- Record every execution with `vrooli scenario requirements manual-log <scenario> <REQ-ID> --status passed --notes "..."` (the CLI stores entries in `coverage/manual-validations/log.jsonl`).
+- Log entries expire automatically (30-day default) so rerun the checklist before the deadline or convert it to an automated BAS workflow.
+- `report.js --mode sync` consumes the manifest and updates `_sync_metadata.manual` fields. `vrooli scenario status` surfaces any expired or missing manual records.
+- Treat manual entries as temporary bridges. Prefer replacing them with Browser Automation Studio workflows or other automated validations—see [UI Automation with BAS](../guides/ui-automation-with-bas.md) for UI/component coverage patterns.
 
 ## Complete Examples
 
@@ -316,7 +342,7 @@ Each requirement can have multiple validation entries proving it's implemented c
 {
   "id": "BAS-WORKFLOW-PERSIST-CRUD",
   "category": "workflow.builder",
-  "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+  "prd_ref": "Operational Targets > P0 > OT-P0-001",
   "title": "Workflows persist nodes, edges, and metadata",
   "description": "Validates compiler, database, and API layers so workflows round-trip with folder hierarchy and normalized metadata required for execution planning.",
   "status": "complete",
@@ -362,7 +388,7 @@ Each requirement can have multiple validation entries proving it's implemented c
 {
   "id": "BAS-FUNC-001",
   "category": "foundation",
-  "prd_ref": "Functional Requirements > Must Have > Visual workflow builder",
+  "prd_ref": "Operational Targets > P0 > OT-P0-001",
   "title": "Persist visual workflows with nodes/edges and folder hierarchy",
   "description": "Tracks the complete experience for creating and managing projects and workflows. Child implementation requirements cover dialog affordances, validation, and persistence.",
   "status": "in_progress",
@@ -432,38 +458,114 @@ Each requirement can have multiple validation entries proving it's implemented c
 }
 ```
 
-## Auto-Sync Metadata (Internal)
+## Sync Metadata Storage
 
-**Warning**: These fields are auto-generated by `report.js --mode sync`. Do not edit manually.
+As of November 2025, sync metadata (test run timestamps, test names, durations, etc.) is stored separately from requirement files in `coverage/sync/*.json` files.
 
-### Requirement _sync_metadata
+### Rationale
+
+Requirement files (`requirements/**/*.json`) are git-tracked and should only contain semantic state (status, descriptions, etc.). Ephemeral test metadata belongs in the gitignored `coverage/` directory.
+
+**Benefit**: Running tests no longer dirties requirement files with timestamp-only changes. Git status stays clean between test runs.
+
+### Storage Location
+
+- **Requirement files**: `requirements/01-module-name/module.json`
+- **Sync metadata**: `coverage/sync/01-module-name.json`
+
+### What Lives Where
+
+**In requirement files** (git-tracked):
+- Requirement IDs, titles, descriptions
+- Status fields (updated only when tests pass/fail)
+- PRD references, criticality, dependencies
+- Validation definitions (type, ref, phase)
+
+**In sync metadata files** (gitignored):
+- Test run timestamps (`last_updated`, `last_test_run`)
+- Test execution durations (`test_duration_ms`)
+- Test names that cover each requirement (`test_names`)
+- Phase result file references (`phase_results`, `phase_result`)
+- Tests run commands (`tests_run`)
+
+### Sync Metadata File Format
+
+**File**: `coverage/sync/01-template-management.json`
 
 ```json
 {
-  "_sync_metadata": {
-    "last_updated": "2025-11-05T05:25:07.566Z",
-    "updated_by": "auto-sync",
-    "test_coverage_count": 3,
-    "all_tests_passing": true
+  "module_id": "template-management",
+  "module_file": "requirements/01-template-management/module.json",
+  "last_synced_at": "2025-11-21T22:45:00.000Z",
+  "requirements": {
+    "TMPL-AVAILABILITY": {
+      "last_updated": "2025-11-21T22:45:00.000Z",
+      "updated_by": "auto-sync",
+      "test_coverage_count": 3,
+      "all_tests_passing": true,
+      "phase_results": [
+        "coverage/phase-results/integration.json"
+      ],
+      "tests_run": [
+        "test/run-tests.sh"
+      ],
+      "validations": {
+        "0": {
+          "last_test_run": "2025-11-21T22:45:00.000Z",
+          "test_duration_ms": 1000,
+          "auto_updated": true,
+          "test_names": [
+            "[REQ:TMPL-AVAILABILITY] CLI command 'template list' executes successfully"
+          ],
+          "phase_result": "coverage/phase-results/integration.json",
+          "source_phase": "integration",
+          "tests_run": ["test/run-tests.sh"]
+        }
+      }
+    }
   }
 }
 ```
 
-### Validation _sync_metadata
+### How It Works
 
+1. **Test Execution**: Tests run and produce `coverage/phase-results/*.json`
+2. **Sync Process**: `report.js --mode sync` reads phase results
+3. **File Updates**:
+   - **ALWAYS writes**: `coverage/sync/*.json` (all metadata, every run)
+   - **ONLY writes when status changes**: `requirements/**/*.json` (semantic changes only)
+4. **Snapshot Generation**: Combines data from both sources for reporting
+
+### Accessing Sync Metadata
+
+**In snapshots** (`coverage/requirements-sync/latest.json`):
 ```json
 {
-  "_sync_metadata": {
-    "last_test_run": "2025-11-05T05:31:49.378Z",
-    "test_duration_ms": 567,
-    "auto_updated": true,
-    "test_names": [
-      "projectStore > creates a new project successfully",
-      "projectStore > handles project creation errors"
-    ]
+  "requirements": {
+    "TMPL-AVAILABILITY": {
+      "id": "TMPL-AVAILABILITY",
+      "status": "complete",
+      "sync_metadata": {
+        "last_updated": "2025-11-21T22:45:00.000Z",
+        "test_coverage_count": 3,
+        "all_tests_passing": true
+      },
+      "validations": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "sync_metadata": {
+            "last_test_run": "2025-11-21T22:45:00.000Z",
+            "test_names": ["..."]
+          }
+        }
+      ]
+    }
   }
 }
 ```
+
+The snapshot loader (`snapshot.js`) automatically merges requirement file data with sync metadata from `coverage/sync/` files.
 
 ## Validation Rules
 
@@ -472,7 +574,7 @@ The JSON schema enforces these constraints:
 1. **ID Pattern**: Must match `[A-Z][A-Z0-9]+-[A-Z0-9-]+`
 2. **Status Enum**: Must be one of the defined status values
 3. **Criticality Enum**: Must be `P0`, `P1`, or `P2`
-4. **Validation Type**: Must be `test`, `automation`, or `manual`
+4. **Validation Type**: Must be `test`, `automation`, `manual`, or `lighthouse`
 5. **Phase Name**: Must be valid phase name
 6. **Imports Pattern**: Must be `*.json` files
 7. **Required Fields**: `id`, `title`, `status`, `criticality` on requirements; `type`, `phase`, `status` on validations

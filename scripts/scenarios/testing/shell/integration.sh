@@ -161,7 +161,10 @@ testing::integration::validate_all() {
 
     testing::integration::build_playbook_registry "$scenario_dir"
 
-    if ! testing::phase::run_bas_automation_validations --scenario "$scenario_name" --manage-runtime auto; then
+    # Run BAS workflow validations
+    # NOTE: Do NOT pass --scenario here. The workflow runner defaults to "browser-automation-studio"
+    # which is the scenario that executes workflows. $scenario_name is the scenario BEING TESTED.
+    if ! testing::phase::run_bas_automation_validations --manage-runtime auto; then
         local bas_rc=$?
         if [ "$bas_rc" -ne 0 ] && [ "$bas_rc" -ne 200 ]; then
             testing::phase::add_error "Browser Automation Studio workflow validations failed"

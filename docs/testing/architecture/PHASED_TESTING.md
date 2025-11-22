@@ -80,6 +80,11 @@ By keeping scenario-specific wiring in this wrapper and delegating orchestration
   - `README.md` (documentation)
   - `PRD.md` (requirements)
 - Validates directory structure
+- Runs the Browserless UI smoke harness: rebuilds if bundles are stale, opens the production UI via Browserless, waits for `@vrooli/iframe-bridge` to signal readiness, captures screenshots/console/network traces, and fails fast when Browserless is offline
+- Smoke results are stored under `coverage/<scenario>/ui-smoke/` and available via `vrooli scenario ui-smoke <name>` when debugging locally
+- Override the harness only when needed via `.vrooli/testing.json → structure.ui_smoke` (defaults enable it automatically and suit most scenarios)
+- Detailed usage + troubleshooting live in [docs/testing/guides/ui-smoke.md](../guides/ui-smoke.md)
+- Because Browserless needs to load the running scenario, the structure phase now requests runtime auto-start before validations begin.
 
 ### Phase 2: Dependencies (30 seconds)
 **Purpose**: Verify all dependencies are available and compatible
@@ -94,7 +99,7 @@ By keeping scenario-specific wiring in this wrapper and delegating orchestration
 
 ```mermaid
 graph TD
-    START[Test Run Start] --> STRUCTURE[Phase 1: Structure<br/>15s<br/>Files & Config]
+    START[Test Run Start] --> STRUCTURE[Phase 1: Structure<br/>120s<br/>Files, Bundles, UI Smoke]
 
     STRUCTURE -->|Pass| DEPS[Phase 2: Dependencies<br/>30s<br/>Packages & Resources]
     STRUCTURE -->|Fail| FAIL[❌ Test Run Failed]
@@ -299,7 +304,7 @@ lib/testing/
 - Verbose mode support
 
 ### 3. Requirement Traceability
-- `testing::phase::init` reads the scenario requirement registry (`docs/requirements.json` or modular `requirements/`) to determine which requirement IDs each phase is responsible for. Missing coverage triggers warnings by default and can be promoted to hard failures by exporting `TESTING_REQUIREMENTS_ENFORCE=1` (or `VROOLI_REQUIREMENTS_ENFORCE=1`).
+- `testing::phase::init` reads the scenario requirement registry under `requirements/` to determine which requirement IDs each phase is responsible for. Missing coverage triggers warnings by default and can be promoted to hard failures by exporting `TESTING_REQUIREMENTS_ENFORCE=1` (or `VROOLI_REQUIREMENTS_ENFORCE=1`).
 - Unit and integration phases write per-phase summaries to `coverage/phase-results/<phase>.json`, enabling downstream tooling (like `scripts/requirements/report.js`) to surface live requirement coverage.
 - `testing::phase::run_workflow_yaml` executes YAML-defined automations (documents stored under `automation/`) and automatically updates requirement state. Workflows declare CLI commands, optional timeouts, and success patterns in a human-readable manifest.
 - The Go and Node.js unit runners now recognize `REQ:<ID>` markers in test names/output (`t.Run("... [REQ:ABC-123]", ...)`, `it('...', { /* ... */ })`) and record pass/fail/skipped statuses for each tagged requirement.
@@ -616,7 +621,7 @@ For comprehensive safety guidelines, see [Safety Guidelines](../safety/GUIDELINE
 
 ## Requirement Reporting
 
-- Maintain a requirements registry (`docs/requirements.json` or `requirements/`) within each scenario to map PRD items to validation assets (phases, unit tests, workflows, automations).
+- Maintain a requirements registry (`requirements/`) within each scenario to map PRD items to validation assets (phases, unit tests, workflows, automations).
 - `testing::phase::init` automatically inspects this file and warns when a phase omits expected requirement updates; export `TESTING_REQUIREMENTS_ENFORCE=1` (or `VROOLI_REQUIREMENTS_ENFORCE=1`) to treat missing coverage as a failure.
 - Use `REQ:<ID>` markers in Go/Vitest test names to have the unit runners automatically register requirement outcomes.
 - Execute YAML-defined automations through `testing::phase::run_workflow_yaml --file automation/...` to keep requirement evidence aligned with phase results.
