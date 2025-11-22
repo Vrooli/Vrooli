@@ -14,12 +14,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Resolved issues hidden from default view but queryable",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-IM-002",
@@ -31,12 +31,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Ignored issues hidden from default view but queryable",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-IM-003",
@@ -48,12 +48,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Default view: open issues only",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-IM-004",
@@ -65,12 +65,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Split-pane layout similar to scenario-auditor",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-IM-005",
@@ -99,12 +99,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Show scan progress and refresh results on completion",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-IM-007",
@@ -116,12 +116,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Warn about AI cost; show batch progress",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-IM-008",
@@ -133,12 +133,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Show current campaign status and next scheduled session",
-      "status": "pending"
+      "status": "in_progress"
     }
   ]
 }

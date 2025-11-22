@@ -14,12 +14,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Store in issues table as resource_id",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-DA-002",
@@ -31,12 +31,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "created_at timestamp for trend analysis",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-DA-003",
@@ -48,12 +48,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "campaign_id and session_id foreign keys",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-DA-004",
@@ -65,12 +65,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Long file lines, max scans per file, max concurrent campaigns",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-DA-005",
@@ -82,12 +82,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "E.g., allow longer files in generated code scenarios",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-DA-006",
@@ -99,12 +99,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Prevent accidental scan storms from agent loops",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-DA-007",
@@ -116,12 +116,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "GET /api/v1/scenarios/{name}/issues?force_scan=true",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-DA-008",
@@ -133,12 +133,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Prevent overwhelming AI resources with concurrent scans",
-      "status": "pending"
+      "status": "in_progress"
     }
   ]
 }

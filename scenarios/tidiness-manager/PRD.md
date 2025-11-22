@@ -14,9 +14,9 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Makefile-based light scanning | Execute `make lint` and `make type` for any scenario and parse outputs into structured issues
-- [ ] OT-P0-002 | File metrics collection | Compute per-file line counts and flag files exceeding configurable thresholds
-- [ ] OT-P0-003 | Light scan performance | Complete light scans for typical scenarios in under 60-120 seconds or surface clear timeout status
+- [x] OT-P0-001 | Makefile-based light scanning | Execute `make lint` and `make type` for any scenario and parse outputs into structured issues
+- [x] OT-P0-002 | File metrics collection | Compute per-file line counts and flag files exceeding configurable thresholds
+- [x] OT-P0-003 | Light scan performance | Complete light scans for typical scenarios in under 60-120 seconds or surface clear timeout status
 - [ ] OT-P0-004 | AI batch scanning | Process files in batches using resource-claude-code/resource-codes with configurable limits
 - [ ] OT-P0-005 | visited-tracker integration | Create/attach to campaigns and prioritize unvisited/least-visited files for smart scans
 - [ ] OT-P0-006 | No file hammering | Prevent analyzing the same file twice within a session or beyond configurable max visits

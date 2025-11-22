@@ -4,6 +4,38 @@ Track issues, blockers, and deferred decisions here. Keep open issues at the top
 
 ## Open Issues
 
+### BAS Workflow Validation Blocker
+**Status**: Open (Blocked by UI implementation)
+**Severity**: Medium
+**Description**: Integration phase failing because 4 BAS UI workflows reference selectors that don't exist in the template UI yet. Workflows have been converted to new BAS schema (nodes/edges format) but BAS strict mode validation rejects @selector/ tokens when the underlying data-testid selectors aren't defined in ui/src/consts/selectors.ts.
+**Affected Workflows**:
+- test/playbooks/capabilities/01-light-scanning/ui/global-dashboard.json (TM-UI-001)
+- test/playbooks/capabilities/01-light-scanning/ui/scenario-detail.json (TM-UI-003, TM-UI-004)
+- test/playbooks/capabilities/04-ui-dashboard/ui/accessibility.json (TM-UI-007)
+- test/playbooks/capabilities/04-ui-dashboard/ui/theme.json (TM-UI-006)
+**Root Cause**: UI is placeholder React template. Needs actual dashboard implementation with scenario table, file table, and interactive components to define proper selectors.
+**Mitigation**: Workflows are properly structured and ready to execute once UI components exist.
+**Next Steps**: Implement OT-P0-009 UI Dashboard module to add real components and selectors (TM-UI-001, TM-UI-003, TM-UI-004, TM-UI-006, TM-UI-007).
+
+---
+
+### Vitest 2.x CLI Coverage Incompatibility
+**Status**: Open (Systemic issue)
+**Severity**: Low
+**Description**: The test runner (scripts/scenarios/testing/unit/node.sh) passes vitest 1.x-style CLI coverage flags (`--coverage.reporter`, `--coverage.thresholds.*`) which are not supported in vitest 2.x. This causes Node.js unit tests to fail during phased testing.
+**Mitigation**:
+- Coverage configuration moved to vite.config.ts for vitest 2.x compatibility
+- Placeholder tests created to verify test infrastructure works
+- Manual `pnpm test` works correctly (without CLI coverage flags)
+**Root Cause**: Systemic - affects all scenarios using vitest 2.x. The test runner script needs to detect vitest version and adjust flags accordingly.
+**Next Steps**:
+- File issue with test framework maintainers (outside scenario scope)
+- For now, configure coverage in vite.config.ts (already done)
+- Update test runner to detect vitest 2.x and skip incompatible flags (cross-scenario fix)
+
+---
+
+
 ### AI Cost Control
 **Status**: Open
 **Severity**: High

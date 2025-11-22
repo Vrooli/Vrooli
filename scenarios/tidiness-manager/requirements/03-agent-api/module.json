@@ -14,12 +14,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "GET /api/v1/scenarios/{name}/issues?limit=N&severity=high",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-API-002",
@@ -31,12 +31,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "GET /api/v1/scenarios/{name}/issues?file=path/to/file.ts",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-API-003",
@@ -48,12 +48,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "GET /api/v1/scenarios/{name}/issues?category=dead_code",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-API-004",
@@ -99,12 +99,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Schema must support querying by all filterable dimensions",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-API-007",
@@ -116,12 +116,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Enables audit trail and trend analysis",
-      "status": "pending"
+      "status": "in_progress"
     }
   ]
 }

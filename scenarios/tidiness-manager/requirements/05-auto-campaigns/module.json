@@ -14,12 +14,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Store config in postgres campaigns table",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-AC-002",
@@ -31,12 +31,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Prevent resource exhaustion and AI cost runaway",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-AC-003",
@@ -48,12 +48,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Query visited-tracker for completion status",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-AC-004",
@@ -65,12 +65,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Track session count in campaign state",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-AC-005",
@@ -82,12 +82,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "State transitions: ACTIVE ⇄ PAUSED",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-AC-006",
@@ -99,12 +99,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Preserve partial results and mark as 'terminated'",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-AC-007",
@@ -116,12 +116,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Threshold: 3 consecutive failures triggers error state",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-AC-008",
@@ -133,12 +133,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Notify via UI/logs when campaign errors out",
-      "status": "pending"
+      "status": "in_progress"
     }
   ]
 }

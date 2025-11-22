@@ -266,21 +266,49 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
+  // Dashboard
   scenarioTable: 'scenario-table',
   scenarioTableHeader: {
     name: 'scenario-table-header-name',
+    health: 'scenario-table-header-health',
     lightIssues: 'scenario-table-header-light-issues',
     aiIssues: 'scenario-table-header-ai-issues',
     longFiles: 'scenario-table-header-long-files',
+    visitPercent: 'scenario-table-header-visit-percent',
+    campaignStatus: 'scenario-table-header-campaign-status',
   },
   scenarioTableRow: 'scenario-table-row',
+
+  // Scenario Detail
   fileTable: 'file-table',
   fileTableHeader: {
     path: 'file-table-header-path',
     lines: 'file-table-header-lines',
     issues: 'file-table-header-issues',
+    visitCount: 'file-table-header-visit-count',
   },
   fileTableRow: 'file-table-row',
+
+  // Actions
+  runLightScanButton: 'run-light-scan-button',
+  viewAllIssuesButton: 'view-all-issues-button',
+  viewFileDetailsButton: 'view-file-details-button',
+
+  // Filters
+  statusFilter: 'status-filter',
+  categoryFilter: 'category-filter',
+  severityFilter: 'severity-filter',
+
+  // Campaign
+  newCampaignButton: 'new-campaign-button',
+  pauseCampaignButton: 'pause-campaign-button',
+  resumeCampaignButton: 'resume-campaign-button',
+  stopCampaignButton: 'stop-campaign-button',
+
+  // Settings
+  longFileThresholdInput: 'long-file-threshold-input',
+  maxScansPerFileInput: 'max-scans-per-file-input',
+  saveSettingsButton: 'save-settings-button',
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {

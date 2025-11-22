@@ -68,6 +68,11 @@ func (s *Server) setupRoutes() {
 	// Expose health at both root (for infrastructure) and /api/v1 (for clients)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+
+	// Light scanning endpoints
+	s.router.HandleFunc("/api/v1/scan/light", s.handleLightScan).Methods("POST")
+	s.router.HandleFunc("/api/v1/scan/light/parse-lint", s.handleParseLint).Methods("POST")
+	s.router.HandleFunc("/api/v1/scan/light/parse-type", s.handleParseType).Methods("POST")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -111,7 +116,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"
 	dbStatus := "connected"
 
-	if err := s.db.PingContext(r.Context()); err != nil {
+	if s.db == nil {
+		status = "unhealthy"
+		dbStatus = "not initialized"
+	} else if err := s.db.PingContext(r.Context()); err != nil {
 		status = "unhealthy"
 		dbStatus = "disconnected"
 	}
@@ -131,21 +139,40 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// loggingMiddleware prints simple request logs
+// loggingMiddleware prints structured request logs
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+		// Structured logging for better observability
+		logJSON(map[string]interface{}{
+			"method":   r.Method,
+			"uri":      r.RequestURI,
+			"duration": time.Since(start).String(),
+			"type":     "request",
+		})
 	})
 }
 
 func (s *Server) log(msg string, fields map[string]interface{}) {
 	if len(fields) == 0 {
-		log.Println(msg)
+		logJSON(map[string]interface{}{
+			"message": msg,
+		})
 		return
 	}
-	log.Printf("%s | %v", msg, fields)
+	fields["message"] = msg
+	logJSON(fields)
+}
+
+// logJSON outputs structured JSON logs for better observability
+func logJSON(fields map[string]interface{}) {
+	fields["timestamp"] = time.Now().UTC().Format(time.RFC3339)
+	if data, err := json.Marshal(fields); err == nil {
+		log.Println(string(data))
+	} else {
+		log.Printf("ERROR: failed to marshal log: %v", err)
+	}
 }
 
 func requireEnv(key string) string {

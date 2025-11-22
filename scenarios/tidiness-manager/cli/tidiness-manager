@@ -175,17 +175,198 @@ cmd_version() {
     fi
 }
 
+cmd_scan() {
+    local scenario_path="."
+    local timeout_sec="120"
+
+    # Parse named arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --scenario-path)
+                scenario_path="$2"
+                shift 2
+                ;;
+            --timeout)
+                timeout_sec="$2"
+                shift 2
+                ;;
+            *)
+                # Support positional arguments for backwards compatibility
+                if [[ "$scenario_path" == "." ]]; then
+                    scenario_path="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    echo -e "${BLUE}Running light scan on $scenario_path...${NC}"
+
+    local abs_path
+    abs_path=$(cd "$scenario_path" && pwd 2>/dev/null)
+    if [[ -z "$abs_path" ]]; then
+        echo -e "${RED}✗${NC} Invalid scenario path: $scenario_path"
+        return 1
+    fi
+
+    local request_body
+    request_body=$(jq -n --arg path "$abs_path" --argjson timeout "$timeout_sec" \
+        '{scenario_path: $path, timeout_sec: $timeout}')
+
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${API_TOKEN:-}" \
+        -d "$request_body" \
+        "${API_BASE}/scan/light" || true)
+
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} API request failed"
+        return 1
+    fi
+
+    # Check for error
+    error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
+    if [[ -n "$error" ]]; then
+        echo -e "${RED}✗${NC} Scan failed: $error"
+        return 1
+    fi
+
+    # Display results
+    echo -e "${GREEN}✓${NC} Scan complete"
+    echo "$response" | jq -r '
+        "  Scenario: \(.scenario // "unknown")",
+        "  Duration: \(.duration_ms // 0)ms",
+        "",
+        "📊 Results:",
+        "  Lint issues: \(.lint_issues // 0)",
+        "  Type issues: \(.type_issues // 0)",
+        "  Long files: \(.long_files // 0)",
+        "  Total files scanned: \(.total_files // 0)"
+    ' 2>/dev/null || echo "$response"
+}
+
+cmd_issues() {
+    local scenario="${1:-.}"
+    local category="${2:-all}"
+    local severity="${3:-all}"
+    local limit="${4:-50}"
+
+    echo -e "${BLUE}Fetching tidiness issues for $scenario...${NC}"
+
+    # Build query parameters
+    local query="?limit=$limit"
+    if [[ "$category" != "all" ]]; then
+        query="${query}&category=$category"
+    fi
+    if [[ "$severity" != "all" ]]; then
+        query="${query}&severity=$severity"
+    fi
+
+    response=$(api_request GET "/issues${query}" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} API request failed"
+        return 1
+    fi
+
+    # Check for error
+    error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
+    if [[ -n "$error" ]]; then
+        echo -e "${RED}✗${NC} Failed to fetch issues: $error"
+        return 1
+    fi
+
+    # Display results
+    echo -e "${GREEN}✓${NC} Issues retrieved"
+    echo "$response" | jq -r '
+        if type == "array" then
+            "Total issues: \(length)",
+            "",
+            (if length > 0 then .[] | "  • [\(.category)] \(.file_path): \(.description)" else "  No issues found" end)
+        else
+            .
+        end
+    ' 2>/dev/null || echo "$response"
+}
+
+cmd_campaigns() {
+    local subcommand="${1:-list}"
+    local scenario="${2:-}"
+
+    echo -e "${BLUE}Managing campaigns...${NC}"
+
+    case "$subcommand" in
+        list)
+            response=$(api_request GET "/campaigns" || true)
+            if [[ -z "$response" ]]; then
+                echo -e "${RED}✗${NC} API request failed"
+                return 1
+            fi
+
+            echo -e "${GREEN}✓${NC} Campaigns retrieved"
+            echo "$response" | jq -r '
+                if type == "array" then
+                    "Total campaigns: \(length)",
+                    "",
+                    (if length > 0 then .[] | "  • \(.name) [\(.status)]: \(.scenario)" else "  No campaigns found" end)
+                else
+                    .
+                end
+            ' 2>/dev/null || echo "$response"
+            ;;
+        start|pause|stop)
+            if [[ -z "$scenario" ]]; then
+                echo -e "${RED}✗${NC} Scenario name required for $subcommand"
+                return 1
+            fi
+
+            local request_body
+            request_body=$(jq -n --arg scenario "$scenario" --arg action "$subcommand" \
+                '{scenario: $scenario, action: $action}')
+
+            response=$(curl -s -X POST \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer ${API_TOKEN:-}" \
+                -d "$request_body" \
+                "${API_BASE}/campaigns" || true)
+
+            if [[ -z "$response" ]]; then
+                echo -e "${RED}✗${NC} API request failed"
+                return 1
+            fi
+
+            error=$(echo "$response" | jq -r '.error // empty' 2>/dev/null || true)
+            if [[ -n "$error" ]]; then
+                echo -e "${RED}✗${NC} Failed to $subcommand campaign: $error"
+                return 1
+            fi
+
+            echo -e "${GREEN}✓${NC} Campaign $subcommand successful"
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown campaign subcommand: $subcommand"
+            echo "Valid subcommands: list, start, pause, stop"
+            return 1
+            ;;
+    esac
+}
+
 cmd_help() {
     cat <<'EOF'
 tidiness-manager - Command-line interface for Tidiness Manager
 
-Usage: tidiness-manager <command>
+Usage: tidiness-manager <command> [args]
 
 Commands:
-    status          Check API and dependency health
-    configure       View or update CLI configuration
-    version         Show CLI version
-    help            Show this help message
+    status                        Check API and dependency health
+    scan [path] [timeout]         Run light scan on scenario (default: current dir, 120s)
+    issues [scenario] [cat] [sev] [lim]
+                                  List tidiness issues (default: current dir, all, all, 50)
+    campaigns [list|start|pause|stop] [scenario]
+                                  Manage auto-tidiness campaigns
+    configure [key val]           View or update CLI configuration
+    version                       Show CLI version
+    help                          Show this help message
 EOF
 }
 
@@ -211,7 +392,7 @@ main() {
         API_BASE="${env_api_base%/}"
     fi
 
-    if [[ "$command" == "status" ]]; then
+    if [[ "$command" == "status" || "$command" == "scan" || "$command" == "issues" || "$command" == "campaigns" ]]; then
         if [[ -z "$API_BASE" ]]; then
             if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
                 echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
@@ -223,6 +404,15 @@ main() {
     case "$command" in
         status)
             cmd_status
+            ;;
+        scan)
+            cmd_scan "$@"
+            ;;
+        issues)
+            cmd_issues "$@"
+            ;;
+        campaigns)
+            cmd_campaigns "$@"
             ;;
         configure|config)
             cmd_configure "$@"

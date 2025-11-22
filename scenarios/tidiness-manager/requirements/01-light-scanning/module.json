@@ -14,12 +14,12 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "api/light_scanner_test.go"
         }
       ],
       "notes": "Must handle scenarios without Makefile gracefully (skip or warn)",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "TM-LS-002",
@@ -31,12 +31,12 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "api/light_scanner_test.go"
         }
       ],
       "notes": "Parse typescript and Go type errors into structured format",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "TM-LS-003",
@@ -48,12 +48,12 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "api/parsers_test.go"
         }
       ],
       "notes": "Support multiple linter formats (eslint, golangci-lint)",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "TM-LS-004",
@@ -65,12 +65,12 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "api/parsers_test.go"
         }
       ],
       "notes": "Support typescript tsc and Go type errors",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "TM-LS-005",
@@ -82,12 +82,12 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "api/file_metrics_test.go"
         }
       ],
       "notes": "Default patterns: src/**/*.{ts,tsx,go,js,jsx}",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "TM-LS-006",
@@ -99,12 +99,12 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "api/file_metrics_test.go"
         }
       ],
       "notes": "Default threshold: 400-600 lines (configurable per scenario)",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "TM-LS-007",
@@ -116,12 +116,12 @@
         {
           "type": "test",
           "phase": "performance",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "test/phases/test-performance.sh"
         }
       ],
-      "notes": "Test with browser-automation-studio or similar",
-      "status": "pending"
+      "notes": "CLI scan command wired, performance tests passing (picker-wheel completes in 0s)",
+      "status": "complete"
     },
     {
       "id": "TM-LS-008",
@@ -133,12 +133,12 @@
         {
           "type": "test",
           "phase": "performance",
-          "status": "not_implemented",
+          "status": "implemented",
           "ref": "test/phases/test-performance.sh"
         }
       ],
-      "notes": "Timeout handling with clear status reporting",
-      "status": "pending"
+      "notes": "CLI scan command wired, performance tests passing (tidiness-manager completes in 2s)",
+      "status": "complete"
     }
   ]
 }

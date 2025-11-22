@@ -88,7 +88,7 @@
             ]
           },
           {
-            "type": "command_available",
+            "type": "cli",
             "command": "tidiness-manager"
           },
           {

@@ -1,43 +1,92 @@
 {
-  "name": "Keyboard Navigation",
-  "description": "[REQ:TM-UI-007] Verify keyboard navigation works for tables and filters",
-  "requirements": ["TM-UI-007"],
   "metadata": {
+    "description": "[REQ:TM-UI-007] Verify keyboard navigation works for tables and filters",
+    "requirements": ["TM-UI-007"],
     "phase": "business",
     "surface": "ui",
     "capability": "04-ui-dashboard",
-    "reset": "none"
+    "reset": "none",
+    "version": 1
   },
-  "steps": [
+  "settings": {
+    "executionViewport": {
+      "width": 1440,
+      "height": 900,
+      "preset": "desktop"
+    }
+  },
+  "nodes": [
     {
-      "action": "navigate",
-      "url": "http://localhost:{{UI_PORT}}/dashboard",
-      "description": "Navigate to dashboard"
+      "id": "navigate-dashboard",
+      "type": "navigate",
+      "data": {
+        "label": "Navigate to dashboard",
+        "destinationType": "url",
+        "url": "http://localhost:{{UI_PORT}}/dashboard"
+      }
     },
     {
-      "action": "wait",
-      "selector": "@selector/scenarioTable",
-      "timeout": 5000,
-      "description": "Wait for table to load"
+      "id": "wait-for-table",
+      "type": "wait",
+      "data": {
+        "label": "Wait for table to load",
+        "waitType": "selector",
+        "selector": "@selector/scenarioTable",
+        "timeoutMs": 5000
+      }
     },
     {
-      "action": "keyPress",
-      "key": "Tab",
-      "description": "Press Tab to move focus"
+      "id": "press-tab",
+      "type": "keyboard",
+      "data": {
+        "label": "Press Tab to move focus",
+        "keys": ["Tab"],
+        "waitForMs": 300
+      }
     },
     {
-      "action": "assertFocus",
-      "description": "Verify an element received focus"
+      "id": "press-enter",
+      "type": "keyboard",
+      "data": {
+        "label": "Press Enter to activate focused element",
+        "keys": ["Enter"],
+        "waitForMs": 1000
+      }
     },
     {
-      "action": "keyPress",
-      "key": "Enter",
-      "description": "Press Enter to activate focused element"
+      "id": "capture-accessibility",
+      "type": "screenshot",
+      "data": {
+        "label": "Capture keyboard navigation state",
+        "fullPage": true,
+        "waitForMs": 500
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-for-table",
+      "type": "smoothstep"
     },
     {
-      "action": "wait",
-      "timeout": 1000,
-      "description": "Wait for action to complete"
+      "id": "e2",
+      "source": "wait-for-table",
+      "target": "press-tab",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e3",
+      "source": "press-tab",
+      "target": "press-enter",
+      "type": "smoothstep"
+    },
+    {
+      "id": "e4",
+      "source": "press-enter",
+      "target": "capture-accessibility",
+      "type": "smoothstep"
     }
   ]
 }

@@ -31,12 +31,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Categories: dead_code, duplication, length, complexity, style",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-SS-003",
@@ -48,12 +48,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Graceful fallback if visited-tracker unavailable",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-SS-004",
@@ -65,12 +65,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Query by scenario name and campaign type",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-SS-005",
@@ -116,12 +116,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Track analyzed files in session state",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "TM-SS-008",
@@ -133,12 +133,12 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
+          "status": "failing",
           "ref": "test/phases/test-integration.sh"
         }
       ],
       "notes": "Default: 3 visits max per file",
-      "status": "pending"
+      "status": "in_progress"
     }
   ]
 }
