@@ -1,25 +1,188 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
-	"math"
-	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
-	"strconv"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
-
-	"github.com/vrooli/scenarios/react-component-library/handlers"
-	"github.com/vrooli/scenarios/react-component-library/middleware"
-	"github.com/vrooli/scenarios/react-component-library/services"
 )
+
+// Config holds minimal runtime configuration
+type Config struct {
+	Port        string
+	DatabaseURL string
+}
+
+// Server wires the HTTP router and database connection
+type Server struct {
+	config *Config
+	db     *sql.DB
+	router *mux.Router
+}
+
+// NewServer initializes configuration, database, and routes
+func NewServer() (*Server, error) {
+	dbURL, err := resolveDatabaseURL()
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := &Config{
+		Port:        requireEnv("API_PORT"),
+		DatabaseURL: dbURL,
+	}
+
+	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	srv := &Server{
+		config: cfg,
+		db:     db,
+		router: mux.NewRouter(),
+	}
+
+	srv.setupRoutes()
+	return srv, nil
+}
+
+func (s *Server) setupRoutes() {
+	s.router.Use(loggingMiddleware)
+	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
+	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+}
+
+// Start launches the HTTP server with graceful shutdown
+func (s *Server) Start() error {
+	s.log("starting server", map[string]interface{}{
+		"service": "react-component-library-api",
+		"port":    s.config.Port,
+	})
+
+	httpServer := &http.Server{
+		Addr:         fmt.Sprintf(":%s", s.config.Port),
+		Handler:      handlers.RecoveryHandler()(s.router),
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			s.log("server startup failed", map[string]interface{}{"error": err.Error()})
+			log.Fatal(err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := httpServer.Shutdown(ctx); err != nil {
+		return fmt.Errorf("server shutdown failed: %w", err)
+	}
+
+	s.log("server stopped", nil)
+	return nil
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	status := "healthy"
+	dbStatus := "connected"
+
+	if err := s.db.PingContext(r.Context()); err != nil {
+		status = "unhealthy"
+		dbStatus = "disconnected"
+	}
+
+	response := map[string]interface{}{
+		"status":    status,
+		"service":   "React Component Library API",
+		"version":   "1.0.0",
+		"readiness": status == "healthy",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"dependencies": map[string]string{
+			"database": dbStatus,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// loggingMiddleware prints simple request logs
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
+	})
+}
+
+func (s *Server) log(msg string, fields map[string]interface{}) {
+	if len(fields) == 0 {
+		log.Println(msg)
+		return
+	}
+	log.Printf("%s | %v", msg, fields)
+}
+
+func requireEnv(key string) string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		log.Fatalf("environment variable %s is required. Run the scenario via 'vrooli scenario run <name>' so lifecycle exports it.", key)
+	}
+	return value
+}
+
+func resolveDatabaseURL() (string, error) {
+	if raw := strings.TrimSpace(os.Getenv("DATABASE_URL")); raw != "" {
+		return raw, nil
+	}
+
+	host := strings.TrimSpace(os.Getenv("POSTGRES_HOST"))
+	port := strings.TrimSpace(os.Getenv("POSTGRES_PORT"))
+	user := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
+	password := strings.TrimSpace(os.Getenv("POSTGRES_PASSWORD"))
+	name := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
+
+	if host == "" || port == "" || user == "" || password == "" || name == "" {
+		return "", fmt.Errorf("DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB must be set by the lifecycle system")
+	}
+
+	pgURL := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(user, password),
+		Host:   fmt.Sprintf("%s:%s", host, port),
+		Path:   name,
+	}
+	values := pgURL.Query()
+	values.Set("sslmode", "disable")
+	pgURL.RawQuery = values.Encode()
+
+	return pgURL.String(), nil
+}
 
 func main() {
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
@@ -34,228 +197,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: .env file not found: %v", err)
-	}
-
-	// Initialize database
-	db, err := initDatabase()
+	server, err := NewServer()
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	defer db.Close()
-
-	// Initialize services
-	componentService := services.NewComponentService(db)
-	testingService := services.NewTestingService()
-	aiService := services.NewAIService()
-	searchService := services.NewSearchService()
-
-	// Initialize handlers
-	componentHandler := handlers.NewComponentHandler(componentService, testingService, aiService, searchService)
-	healthHandler := handlers.NewHealthHandler(db)
-
-	// Setup router
-	router := setupRouter(componentHandler, healthHandler)
-
-	// Start server - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("❌ API_PORT environment variable is required")
-	}
-	log.Printf("🚀 React Component Library API starting on port %s", port)
-	log.Printf("📚 API Documentation: http://localhost:%s/api/docs", port)
-	log.Printf("🔍 Health Check: http://localhost:%s/health", port)
-
-	if err := router.Run(":" + port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
-}
-
-func initDatabase() (*sql.DB, error) {
-	// Database configuration - support both POSTGRES_URL and individual components
-	connStr := os.Getenv("POSTGRES_URL")
-	if connStr == "" {
-		// Try to build from individual components - REQUIRED, no defaults
-		dbHost := os.Getenv("POSTGRES_HOST")
-		dbPort := os.Getenv("POSTGRES_PORT")
-		dbUser := os.Getenv("POSTGRES_USER")
-		dbPassword := os.Getenv("POSTGRES_PASSWORD")
-		dbName := os.Getenv("POSTGRES_DB")
-		dbSchema := os.Getenv("DB_SCHEMA")
-
-		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
-		}
-
-		if dbSchema == "" {
-			dbSchema = "react_component_library" // This is application-specific, not a credential
-		}
-
-		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable search_path=%s",
-			dbHost, dbPort, dbUser, dbPassword, dbName, dbSchema)
+		log.Fatalf("failed to initialize server: %v", err)
 	}
 
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+	if err := server.Start(); err != nil {
+		log.Fatalf("server stopped with error: %v", err)
 	}
-
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Implement exponential backoff for database connection
-	maxRetries := 10
-	baseDelay := 1 * time.Second
-	maxDelay := 30 * time.Second
-
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📊 Database URL configured")
-
-	var pingErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		pingErr = db.Ping()
-		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
-			break
-		}
-
-		// Calculate exponential backoff delay
-		delay := time.Duration(math.Min(
-			float64(baseDelay)*math.Pow(2, float64(attempt)),
-			float64(maxDelay),
-		))
-
-		// Add random jitter to prevent thundering herd
-		jitterRange := float64(delay) * 0.25
-		jitter := time.Duration(jitterRange * rand.Float64())
-		actualDelay := delay + jitter
-
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-
-		// Provide detailed status every few attempts
-		if attempt > 0 && attempt%3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
-		}
-
-		time.Sleep(actualDelay)
-	}
-
-	if pingErr != nil {
-		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
-	}
-
-	log.Println("🎉 Database connection pool established successfully!")
-	return db, nil
-}
-
-func setupRouter(componentHandler *handlers.ComponentHandler, healthHandler *handlers.HealthHandler) *gin.Engine {
-	// Set gin mode based on environment
-	if os.Getenv("GIN_MODE") == "" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	router := gin.New()
-
-	// Middleware
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
-	router.Use(middleware.SecurityHeaders())
-	router.Use(middleware.RequestID())
-	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:*", "https://*.vrooli.com"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Content-Length", "Accept-Encoding", "Authorization", "X-Request-ID"},
-		ExposeHeaders:    []string{"X-Request-ID"},
-		AllowCredentials: true,
-	}))
-
-	// Rate limiting middleware - with sensible defaults for non-sensitive config
-	rateLimitRPM, _ := strconv.Atoi(getEnvWithDefault("RATE_LIMIT_RPM", "200"))
-	aiRateLimitRPM, _ := strconv.Atoi(getEnvWithDefault("AI_RATE_LIMIT_RPM", "10"))
-	router.Use(middleware.RateLimit(rateLimitRPM, aiRateLimitRPM))
-
-	// Health endpoints
-	router.GET("/health", healthHandler.HealthCheck)
-	router.GET("/api/metrics", healthHandler.Metrics)
-
-	// API documentation
-	router.GET("/api/docs", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"name":        "React Component Library API",
-			"version":     "1.0.0",
-			"description": "AI-powered React component library with accessibility testing and performance benchmarking",
-			"endpoints": gin.H{
-				"components": gin.H{
-					"GET /api/v1/components":               "List all components with optional filters",
-					"POST /api/v1/components":              "Create a new component",
-					"GET /api/v1/components/{id}":          "Get component details",
-					"PUT /api/v1/components/{id}":          "Update component",
-					"DELETE /api/v1/components/{id}":       "Delete component",
-					"GET /api/v1/components/search":        "Search components using natural language",
-					"POST /api/v1/components/generate":     "Generate component using AI",
-					"POST /api/v1/components/{id}/test":    "Run accessibility/performance tests",
-					"POST /api/v1/components/{id}/export":  "Export component in various formats",
-					"POST /api/v1/components/{id}/improve": "Get AI improvement suggestions",
-				},
-			},
-		})
-	})
-
-	// API v1 routes
-	v1 := router.Group("/api/v1")
-	{
-		// Component CRUD operations
-		v1.GET("/components", componentHandler.ListComponents)
-		v1.POST("/components", componentHandler.CreateComponent)
-		v1.GET("/components/:id", componentHandler.GetComponent)
-		v1.PUT("/components/:id", componentHandler.UpdateComponent)
-		v1.DELETE("/components/:id", componentHandler.DeleteComponent)
-
-		// Component search and discovery
-		v1.GET("/components/search", componentHandler.SearchComponents)
-
-		// AI-powered features
-		v1.POST("/components/generate", middleware.AIRateLimit(), componentHandler.GenerateComponent)
-		v1.POST("/components/:id/improve", middleware.AIRateLimit(), componentHandler.ImproveComponent)
-
-		// Testing and analysis
-		v1.POST("/components/:id/test", componentHandler.TestComponent)
-		v1.GET("/components/:id/benchmark", componentHandler.BenchmarkComponent)
-
-		// Export and sharing
-		v1.POST("/components/:id/export", componentHandler.ExportComponent)
-		v1.GET("/components/:id/versions", componentHandler.GetComponentVersions)
-
-		// Analytics
-		v1.GET("/analytics/usage", componentHandler.GetUsageAnalytics)
-		v1.GET("/analytics/popular", componentHandler.GetPopularComponents)
-	}
-
-	// Serve static files for UI (in production)
-	if gin.Mode() == gin.ReleaseMode {
-		router.Static("/static", "./ui/build/static")
-		router.StaticFile("/", "./ui/build/index.html")
-		router.NoRoute(func(c *gin.Context) {
-			c.File("./ui/build/index.html")
-		})
-	}
-
-	return router
-}
-
-// getEnvWithDefault - ONLY for non-sensitive configuration values like rate limits, UI settings
-// NEVER use for credentials, database passwords, API keys, or security-sensitive values
-func getEnvWithDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

@@ -1,307 +1,142 @@
 # React Component Library
 
-**AI-powered React component showcase with accessibility testing, performance benchmarking, and live component playground**
+Central UI for designing, previewing, editing, and tracking shared React UI components across the Vrooli ecosystem.
 
-The React Component Library scenario provides a comprehensive platform for building, testing, showcasing, and sharing reusable React components across all Vrooli scenarios. It combines a live component playground with AI-powered generation, automated accessibility testing, performance analysis, and export capabilities.
+## Overview
 
-## 🎯 Purpose & Value
+React Component Library provides a comprehensive workflow hub for component creation, AI-powered refinement, multi-viewport testing, and adoption tracking. It enables:
 
-### Core Capability
-Every React component built becomes a **permanent asset** that accelerates all future UI development across the Vrooli ecosystem. This creates a recursive improvement cycle where each component makes all future scenarios more capable.
+- **Component Registry**: Centralized registry of shared UI components with metadata and versioning
+- **Code Editor & Preview**: Full-featured TSX editor with live preview in isolated iframes
+- **Multi-Viewport Emulator**: Simultaneous preview across desktop, mobile, and tablet viewports
+- **AI-Powered Editing**: Context-aware code suggestions and refactoring via resource-openrouter
+- **Element Selection**: iframe-bridge integration for precise element targeting
+- **Adoption Workflow**: Integration with app-issue-tracker for component adoption across scenarios
+- **Version Tracking**: Track component versions, detect changes, and view diffs
 
-### Key Features
-- **🎨 Interactive Component Showcase** - Storybook-like interface with live code playground
-- **🤖 AI-Powered Generation** - Create components using natural language descriptions
-- **♿ Accessibility Testing** - Automated WCAG 2.1 compliance checking
-- **⚡ Performance Benchmarking** - Real-time render time, bundle size, and memory analysis  
-- **🔍 Semantic Search** - Find components using natural language queries
-- **📦 Multi-Format Export** - Export as npm packages, CDN links, or raw code
-- **🔄 Version Management** - Track component evolution and breaking changes
-- **📊 Usage Analytics** - Monitor component adoption across scenarios
+## Purpose
 
-## 🏗️ Architecture
+This scenario eliminates component duplication across scenarios, accelerates UI development with AI assistance, ensures design consistency through a shared library, and enables systematic component evolution with version tracking and diff views.
 
-### Technology Stack
-- **Backend API**: Go with Gin framework
-- **Frontend UI**: React with TypeScript
-- **Database**: PostgreSQL for component metadata and analytics
-- **Vector Search**: Qdrant for semantic component discovery
-- **File Storage**: MinIO for screenshots and exported packages
-- **AI Integration**: Claude-code for component generation and improvement
+## Quick Start
 
-### Resource Dependencies
-```yaml
-Required:
-  - postgres: Component metadata, versions, test results
-  - qdrant: Semantic search for component patterns
-  - claude-code: AI-powered component generation
-  - minio: Component screenshots and export storage
-
-Optional:
-  - redis: Performance caching (improves search speed)
-  - browserless: Automated screenshot generation
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Vrooli platform with required resources enabled
-- Node.js 16+ and Go 1.21+ (for development)
-
-### Quick Setup
 ```bash
-# Setup the scenario (includes all dependencies)
-vrooli scenario setup react-component-library
+# From repo root
+cd scenarios/react-component-library
 
-# Start the component library
-vrooli scenario run react-component-library
-
-# Install CLI globally
-cd cli && ./install.sh
-```
-
-### Access Points
-- **Web Interface**: http://localhost:36092
-- **API Documentation**: http://localhost:15092/api/docs
-- **CLI Help**: `react-component-library --help`
-
-## 💻 Usage
-
-### Web Interface
-The primary interface provides:
-- **Dashboard**: Overview of components, recent activity, and quick actions
-- **Component Library**: Browse and search existing components
-- **Live Playground**: Interactive component testing with real-time preview
-- **AI Generator**: Natural language component generation
-- **Testing Suite**: Accessibility and performance analysis
-- **Analytics**: Usage patterns and component popularity
-
-### CLI Commands
-```bash
-# Create a new component
-react-component-library create Button form --template button
-
-# Search for components
-react-component-library search "modal dialog component"
-
-# Generate component with AI
-react-component-library generate "responsive data table with sorting"
-
-# Run accessibility tests
-react-component-library test MyComponent --accessibility
-
-# Export component
-react-component-library export Button --format npm-package
-
-# Check system status
-react-component-library status --verbose
-```
-
-### API Integration
-Other scenarios can programmatically access components:
-```bash
-# Search for components
-curl "http://localhost:15092/api/v1/components/search?query=button"
-
-# Generate new component
-curl -X POST http://localhost:15092/api/v1/components/generate \
-  -H "Content-Type: application/json" \
-  -d '{"description": "modal dialog with backdrop", "accessibility_level": "AA"}'
-
-# Run tests on component  
-curl -X POST http://localhost:15092/api/v1/components/{id}/test \
-  -H "Content-Type: application/json" \
-  -d '{"test_types": ["accessibility", "performance"]}'
-```
-
-## 🧪 Component Testing
-
-### Automated Test Types
-- **Accessibility**: WCAG 2.1 compliance using axe-core
-- **Performance**: Render time, bundle size, memory usage
-- **Visual Regression**: Screenshot comparison for UI consistency
-- **Unit Tests**: Jest/React Testing Library integration
-- **Code Quality**: ESLint analysis with best practices
-
-### Test Configuration
-```javascript
-// Example test request
-{
-  "test_types": ["accessibility", "performance"],
-  "test_config": {
-    "accessibility_level": "AA",
-    "performance_budget": {
-      "render_time_ms": 16,
-      "bundle_size_kb": 10
-    }
-  }
-}
-```
-
-## 🤖 AI-Powered Features
-
-### Component Generation
-Describe components in natural language:
-```bash
-react-component-library generate "responsive navigation menu with dropdown, mobile hamburger, and accessibility support"
-```
-
-### Intelligent Improvement
-Get AI suggestions for existing components:
-```bash
-react-component-library improve MyComponent --focus accessibility,performance
-```
-
-### Semantic Search
-Find components using natural language:
-```bash
-react-component-library search "data visualization with charts and filtering"
-```
-
-## 📦 Export & Sharing
-
-### Export Formats
-- **npm Package**: Ready-to-install package with dependencies
-- **CDN**: Hosted JavaScript for script tag inclusion
-- **Raw Code**: Copy-paste TypeScript/JSX code
-- **ZIP Archive**: Complete component with dependencies and examples
-
-### Cross-Scenario Integration
-```typescript
-// Import component in other scenarios
-import { Button, Modal, DataTable } from '@vrooli/react-components';
-
-// Use in your React applications
-function MyApp() {
-  return (
-    <div>
-      <Button variant="primary">Click me</Button>
-      <Modal isOpen={true}>Content</Modal>
-    </div>
-  );
-}
-```
-
-## 📊 Analytics & Insights
-
-### Usage Metrics
-- Component popularity and adoption rates
-- Performance trends over time
-- Accessibility compliance scores
-- Cross-scenario usage patterns
-
-### Quality Dashboard
-- Test pass/fail rates
-- Performance benchmarks
-- Code quality scores
-- AI generation success rates
-
-## 🔧 Development
-
-### Local Development
-```bash
-# Install dependencies
-cd api && go mod download
-cd ui && npm install
+# Setup (builds API, UI, installs CLI)
+vrooli scenario run react-component-library --setup
 
 # Start development servers
-vrooli scenario develop react-component-library
+make dev
+# OR
+vrooli scenario run react-component-library --dev
+
+# Access UI
+open http://localhost:$(vrooli scenario port react-component-library UI_PORT)
 ```
 
-### Testing
+## Running Tests
+
 ```bash
-# Run all tests
-vrooli scenario test react-component-library
+# Run all test phases
+make test
 
-# Individual test suites
-cd api && go test ./...
-cd ui && npm test
-react-component-library test --all
+# Or run specific phases
+cd test
+./run-tests.sh
 ```
 
-### API Endpoints
-Full API documentation available at `/api/docs` when running.
+Tests are organized by phase:
+- **Structure**: Validates scenario structure, configuration, and basic health
+- **Unit**: Tests individual components and functions
+- **Integration**: Tests API endpoints and component interactions
+- **Business**: Tests business logic and workflows
+- **Performance**: Tests performance benchmarks and optimization
 
-Key endpoints:
-- `GET /api/v1/components` - List components
-- `POST /api/v1/components` - Create component
-- `GET /api/v1/components/search` - Search components
-- `POST /api/v1/components/generate` - AI generate component
-- `POST /api/v1/components/{id}/test` - Run tests
+Tag tests with `[REQ:ID]` to link them to requirements in `requirements/`.
 
-## 🌟 Best Practices
+## CLI Usage
 
-### Component Development
-- Use TypeScript for better type safety
-- Include comprehensive prop interfaces
-- Add accessibility attributes by default
-- Optimize for performance and bundle size
-- Include usage examples and documentation
+```bash
+# Check status
+react-component-library status
 
-### Testing Strategy
-- Test accessibility from the start
-- Monitor performance budgets
-- Use visual regression testing for UI changes
-- Maintain high test coverage
+# List components
+react-component-library components list
 
-### AI Generation Tips
-- Provide specific, detailed descriptions
-- Include accessibility requirements
-- Specify style preferences
-- Mention any dependencies or constraints
+# Search components
+react-component-library components search --query "button"
 
-## 🔮 Future Roadmap
+# Show adoption status
+react-component-library adoptions list
+```
 
-### Upcoming Features
-- **Visual Component Composer**: Drag-and-drop component builder
-- **Design System Generator**: Automated branded component libraries  
-- **Component Marketplace**: Rating and review system
-- **Advanced Analytics**: Usage prediction and optimization
-- **Multi-framework Support**: Vue and Svelte component generation
+## Architecture
 
-### Integration Plans
-- **Figma Integration**: Import designs as components
-- **Storybook Export**: Generate Storybook configurations
-- **Testing Automation**: Continuous component quality monitoring
-- **Performance Monitoring**: Real-time component performance tracking
+### Frontend (ui/)
+- React 18+ with TypeScript
+- TailwindCSS + shadcn/ui components
+- Lucide icons
+- Monaco Editor or CodeMirror for code editing
+- iframe-bridge for element selection
+- Vite for fast HMR
 
-## 🤝 Contributing
+### Backend (api/)
+- Go API server
+- PostgreSQL for component registry and adoption tracking
+- REST API for component CRUD, search, and adoption workflows
 
-### Adding New Component Templates
-1. Create template in `templates/` directory
-2. Add template metadata and preview
-3. Update template registry
-4. Test generation and export
+### Dependencies
+- **postgres**: Component registry, adoption records, version history
+- **resource-openrouter**: AI-powered code editing and refactoring
+- **app-issue-tracker**: Integration for adoption workflow issue generation
+- **app-monitor**: Reference for iframe-bridge patterns
 
-### Extending AI Capabilities
-1. Enhance generation prompts in `api/services/ai.go`
-2. Add new improvement focus areas
-3. Implement custom model integrations
-4. Update CLI commands for new features
+## Development Guidelines
 
-## 📚 Resources
+1. **PRD First**: See [PRD.md](PRD.md) for operational targets and requirements
+2. **Track Progress**: Update [docs/PROGRESS.md](docs/PROGRESS.md) when landing work
+3. **Log Problems**: Document issues in [docs/PROBLEMS.md](docs/PROBLEMS.md)
+4. **Link Tests**: Tag tests with `[REQ:ID]` to connect to requirements
 
-- **PRD**: Complete product requirements in `PRD.md`
-- **API Docs**: Live documentation at `/api/docs`
-- **CLI Reference**: `react-component-library help`
-- **Architecture**: Technical details in `docs/architecture.md`
+## Component Header Format
 
-## 🆘 Troubleshooting
+All library components must include a standardized header comment:
 
-### Common Issues
-- **API Connection Failed**: Ensure all required resources are running
-- **Component Not Found**: Check component ID and search index
-- **Test Failures**: Verify component code syntax and dependencies
-- **Export Errors**: Check MinIO storage availability
+```tsx
+/**
+ * @libraryId react-component-library:ButtonPrimary
+ * @displayName Primary Button
+ * @description High-emphasis CTA button for primary actions.
+ * @version 1.2.0
+ * @sourcePath /path/to/library/components/ButtonPrimary.tsx
+ * @warning DO NOT REMOVE OR EDIT THIS COMMENT.
+ *          Used by react-component-library to track shared component adoption.
+ */
+```
 
-### Getting Help
-- Check component library status: `react-component-library status`
-- View logs: `vrooli scenario logs react-component-library`
-- API health: `curl http://localhost:15092/health`
-- Web interface: http://localhost:36092
+This header enables:
+- Component registry indexing from disk
+- Adoption tracking across scenarios
+- Version management and change detection
+- Diff views between library and adopted versions
 
----
+## Documentation
 
-**Built with ❤️ for the Vrooli ecosystem**
+- [PRD.md](PRD.md) - Product requirements and operational targets
+- [docs/PROGRESS.md](docs/PROGRESS.md) - Development progress log
+- [docs/PROBLEMS.md](docs/PROBLEMS.md) - Known issues and deferred ideas
+- [docs/RESEARCH.md](docs/RESEARCH.md) - Research notes and references
+- [requirements/](requirements/) - Technical requirements registry
 
-*Every component you create becomes a permanent capability that makes all future development faster and more consistent across the platform.*
+## Related Scenarios
+
+- **app-monitor**: Reference for iframe-bridge integration and emulator patterns
+- **app-issue-tracker**: Integration target for adoption workflow
+- **brand-manager**: Future integration for design tokens and theming
+- **tidiness-manager**: Could leverage component library for UI consistency
+
+## License
+
+MIT

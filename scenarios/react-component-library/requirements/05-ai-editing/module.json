@@ -1,0 +1,58 @@
+{
+  "id": "05-ai-editing",
+  "title": "AI-Powered Editing via resource-openrouter",
+  "description": "AI chat integration for code suggestions, refactors, and styling changes with patch review",
+  "requirements": [
+    {
+      "id": "AI-EDIT-001",
+      "title": "AI Chat Integration",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "Connect AI chat panel to editor with context-aware code suggestions, refactors, and styling changes",
+      "validation": [],
+      "dependencies": [],
+      "notes": [
+        "resource-openrouter integration",
+        "Chat panel alongside editor/preview",
+        "AI receives: component code, header metadata, selected elements",
+        "AI can propose code edits, refactors, styling changes"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AI-EDIT-002",
+      "title": "Patch Review and Merge",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "Allow users to review AI-suggested diffs/patches before accepting and applying changes",
+      "validation": [],
+      "dependencies": [
+        "AI-EDIT-001"
+      ],
+      "notes": [
+        "AI suggestions as diffs/patches, not full file replacement",
+        "Diff view for user review",
+        "Accept/reject mechanism",
+        "Preview auto-refreshes on accept"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AI-EDIT-003",
+      "title": "Enhanced AI Context",
+      "prd_ref": "OT-P1-010",
+      "criticality": "P1",
+      "description": "Include emulator viewport context and selected element info in AI requests for better suggestions",
+      "validation": [],
+      "dependencies": [
+        "AI-EDIT-001"
+      ],
+      "notes": [
+        "Include viewport sizes and frames in AI context",
+        "Include selected element info from iframe-bridge",
+        "Embed frontend aesthetics instructions in system prompt"
+      ],
+      "status": "planned"
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "id": "07-adoption-workflow",
+  "title": "Component Adoption Workflow",
+  "description": "Integration with app-issue-tracker for generating detailed adoption reports and tracking",
+  "requirements": [
+    {
+      "id": "ADOPT-001",
+      "title": "Apply to Scenario Workflow",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "description": "Generate detailed adoption reports via app-issue-tracker with absolute paths, dependencies, and step-by-step integration instructions",
+      "validation": [],
+      "dependencies": [],
+      "notes": [
+        "Prompt for target scenario and destination path",
+        "Generate app-issue-tracker entry with:",
+        "- Library component libraryId and sourcePath",
+        "- Target scenario identifier",
+        "- Target file paths",
+        "- Step-by-step integration instructions",
+        "- Required dependencies",
+        "- Wiring details (routes, layouts, components)"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "ADOPT-002",
+      "title": "Adoption Tracking Records",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "description": "Track which scenarios have adopted which components, at which version, with timestamps",
+      "validation": [],
+      "dependencies": [
+        "ADOPT-001"
+      ],
+      "notes": [
+        "Store adoption records: libraryId, scenario, file path, version, timestamp",
+        "Create record when adoption issue is marked complete",
+        "Query adoption status by component or scenario"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "ADOPT-003",
+      "title": "Automated Adoption Verification",
+      "prd_ref": "OT-P1-009",
+      "criticality": "P1",
+      "description": "Confirm adopted files exist and validate header comments during adoption tracking",
+      "validation": [],
+      "dependencies": [
+        "ADOPT-002"
+      ],
+      "notes": [
+        "Verify adopted file exists at target path",
+        "Validate header comment is present and correct",
+        "Update adoption status based on verification"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "ADOPT-004",
+      "title": "Adoption Status Dashboard",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "description": "Show which scenarios use which components, their versions, and update status (current/behind/modified)",
+      "validation": [],
+      "dependencies": [
+        "ADOPT-002"
+      ],
+      "notes": [
+        "Dashboard view: components and their adoptions",
+        "Per-scenario view: components used",
+        "Status indicators: up-to-date, behind, locally modified"
+      ],
+      "status": "planned"
+    }
+  ]
+}

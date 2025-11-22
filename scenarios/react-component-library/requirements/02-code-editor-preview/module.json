@@ -1,0 +1,76 @@
+{
+  "id": "02-code-editor-preview",
+  "title": "Code Editor & Live Preview",
+  "description": "Full-featured code editor with TSX support and isolated iframe preview with live refresh",
+  "requirements": [
+    {
+      "id": "EDIT-PREV-001",
+      "title": "Code Editor with TSX Support",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "Provide full-featured code editor with syntax highlighting, lint/type feedback, and undo/redo",
+      "validation": [],
+      "dependencies": [],
+      "notes": [
+        "Consider Monaco Editor or CodeMirror",
+        "TSX syntax highlighting required",
+        "Basic linting and type error display",
+        "Undo/redo functionality"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "EDIT-PREV-002",
+      "title": "Live Preview Renderer",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "Render components in isolated iframe with configurable props/variants and auto-refresh on changes",
+      "validation": [],
+      "dependencies": [
+        "EDIT-PREV-001"
+      ],
+      "notes": [
+        "iframe isolation for component preview",
+        "Configurable props/variants UI",
+        "Auto-refresh on save or AI-applied edits",
+        "Target < 1-2 seconds for recompile and refresh"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "EDIT-PREV-003",
+      "title": "Multi-File Component Support",
+      "prd_ref": "OT-P1-008",
+      "criticality": "P1",
+      "description": "Support editing and previewing components with helper files and related modules",
+      "validation": [],
+      "dependencies": [
+        "EDIT-PREV-001",
+        "EDIT-PREV-002"
+      ],
+      "notes": [
+        "Allow opening multiple related files",
+        "Track file dependencies",
+        "Refresh preview when any dependency changes"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "EDIT-PREV-004",
+      "title": "Preview Shell Configuration",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "description": "Support wrapping previews in configurable shell (theme providers, routers, context)",
+      "validation": [],
+      "dependencies": [
+        "EDIT-PREV-002"
+      ],
+      "notes": [
+        "Allow custom preview wrapper configuration",
+        "Support theme providers, routers, context",
+        "Per-component shell settings"
+      ],
+      "status": "planned"
+    }
+  ]
+}

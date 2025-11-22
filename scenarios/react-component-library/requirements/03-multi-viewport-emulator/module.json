@@ -1,0 +1,40 @@
+{
+  "id": "03-multi-viewport-emulator",
+  "title": "Multi-Viewport Emulator",
+  "description": "Simultaneous preview frames with independent viewport settings and configurable props",
+  "requirements": [
+    {
+      "id": "EMUL-001",
+      "title": "Multi-Frame Support",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "Support simultaneous preview frames with independent viewport settings (desktop, mobile, tablet presets)",
+      "validation": [],
+      "dependencies": [],
+      "notes": [
+        "Support at least 2 frames simultaneously",
+        "Independent viewport settings per frame (width, height, zoom)",
+        "Presets for desktop, tablet, popular phone sizes",
+        "Custom viewport size support"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "EMUL-002",
+      "title": "Per-Frame Props Configuration",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "Support different props/variants per emulator frame with persistent settings per component",
+      "validation": [],
+      "dependencies": [
+        "EMUL-001"
+      ],
+      "notes": [
+        "Each frame can have different props/variants",
+        "Persist frame settings per component",
+        "Use cases: dark/light mode, different states"
+      ],
+      "status": "planned"
+    }
+  ]
+}

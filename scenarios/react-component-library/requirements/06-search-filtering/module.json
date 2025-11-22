@@ -1,0 +1,40 @@
+{
+  "id": "06-search-filtering",
+  "title": "Search & Filtering",
+  "description": "Searchable component library with free-text search and category/tag filtering",
+  "requirements": [
+    {
+      "id": "SEARCH-001",
+      "title": "Free-Text Search and Tag Filtering",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "Provide searchable component library with free-text search and category/tag filtering",
+      "validation": [],
+      "dependencies": [],
+      "notes": [
+        "Free-text search by name, description, tags",
+        "Filter by category (form, CTA, hero, card, dashboard)",
+        "Real-time result narrowing",
+        "Quick preview from search results"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "SEARCH-002",
+      "title": "Component Categories and Organization",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "description": "Organize components by categories (form, CTA, hero, card, dashboard, etc.)",
+      "validation": [],
+      "dependencies": [
+        "SEARCH-001"
+      ],
+      "notes": [
+        "Define standard category taxonomy",
+        "Support multiple categories per component",
+        "Category-based browsing UI"
+      ],
+      "status": "planned"
+    }
+  ]
+}

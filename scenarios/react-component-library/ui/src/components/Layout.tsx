@@ -1,142 +1,99 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation } from "react-router-dom";
 import {
-  HomeIcon,
-  CubeIcon,
-  PlusIcon,
-  SparklesIcon,
-  BeakerIcon,
-  ChartBarIcon,
-  Bars3Icon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+  Layers,
+  Code2,
+  GitBranch,
+  Moon,
+  Sun,
+  Search,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { useUIStore } from "../store/ui-store";
+import { cn } from "../lib/utils";
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-const navigation = [
-  { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Component Library', href: '/library', icon: CubeIcon },
-  { name: 'Create Component', href: '/create', icon: PlusIcon },
-  { name: 'AI Generator', href: '/generate', icon: SparklesIcon },
-  { name: 'Testing', href: '/testing', icon: BeakerIcon },
-  { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
-];
-
-const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+export function Layout() {
   const location = useLocation();
+  const { theme, toggleTheme, searchQuery, setSearchQuery } = useUIStore();
+
+  const navItems = [
+    { path: "/", label: "Library", icon: Layers },
+    { path: "/adoptions", label: "Adoptions", icon: GitBranch },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-gray-800 z-50">
-            <div className="flex h-16 items-center justify-between px-4">
-              <h1 className="text-xl font-bold text-white">Component Library</h1>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="text-gray-300 hover:text-white"
-              >
-                <XMarkIcon className="h-6 w-6" />
-              </button>
+    <div className="flex h-screen flex-col bg-slate-950 text-slate-50">
+      {/* Header */}
+      <header className="border-b border-white/10 bg-slate-900/50 backdrop-blur">
+        <div className="flex h-16 items-center px-6">
+          <div className="flex items-center space-x-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
+              <Code2 className="h-5 w-5" />
             </div>
-            <nav className="flex-1 space-y-1 px-2 pb-4">
-              {navigation.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
-                      isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    }`}
-                  >
-                    <item.icon className="mr-3 h-5 w-5" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </nav>
+            <div>
+              <h1 className="text-lg font-semibold">Component Library</h1>
+              <p className="text-xs text-slate-400">Design, preview, and track shared components</p>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-gray-800 overflow-y-auto">
-          <div className="flex items-center justify-center h-16 px-4 bg-gray-900">
-            <h1 className="text-xl font-bold text-white">⚛️ Component Library</h1>
-          </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
-                    isActive
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }`}
-                >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-      </div>
+          <div className="ml-auto flex items-center space-x-4">
+            {/* Search - only show on library page */}
+            {location.pathname === "/" && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  type="search"
+                  placeholder="Search components..."
+                  className="w-64 pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            )}
 
-      {/* Main content */}
-      <div className="lg:pl-64">
-        {/* Top bar */}
-        <div className="sticky top-0 z-30 bg-gray-800 border-b border-gray-700">
-          <div className="flex h-16 items-center gap-x-4 px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-            <button
-              type="button"
-              className="text-gray-300 hover:text-white lg:hidden"
-              onClick={() => setSidebarOpen(true)}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
             >
-              <Bars3Icon className="h-6 w-6" />
-            </button>
-
-            <div className="flex flex-1 items-center justify-between">
-              <div className="flex items-center gap-x-4">
-                <h2 className="text-lg font-semibold text-white">
-                  {navigation.find(item => item.href === location.pathname)?.name || 'Dashboard'}
-                </h2>
-              </div>
-              
-              <div className="flex items-center gap-x-4">
-                <div className="text-sm text-gray-400">
-                  React Component Library v1.0.0
-                </div>
-                <div className="h-6 w-6 rounded-full bg-blue-600 flex items-center justify-center">
-                  <span className="text-xs font-medium text-white">AI</span>
-                </div>
-              </div>
-            </div>
+              {theme === "dark" ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
+            </Button>
           </div>
         </div>
 
-        {/* Page content */}
-        <main className="min-h-screen bg-gray-900 text-white">
-          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-            {children}
-          </div>
-        </main>
-      </div>
+        {/* Navigation */}
+        <nav className="flex space-x-1 px-6">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            return (
+              <Link key={item.path} to={item.path}>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "flex items-center space-x-2 rounded-b-none",
+                    isActive &&
+                      "border-b-2 border-blue-500 bg-slate-800/50 text-blue-400"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Button>
+              </Link>
+            );
+          })}
+        </nav>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-hidden">
+        <Outlet />
+      </main>
     </div>
   );
-};
-
-export default Layout;
+}

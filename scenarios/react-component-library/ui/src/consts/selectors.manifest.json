@@ -1,0 +1,42 @@
+{
+  "_metadata": {
+    "description": "UI element selectors for automated testing with browser-automation-studio",
+    "auto_generated": true,
+    "last_updated": "2025-11-22"
+  },
+  "selectors": {
+    "header": {
+      "logo": "[data-testid='app-logo']",
+      "search": "input[type='search']",
+      "themeToggle": "button[aria-label='Toggle theme']"
+    },
+    "library": {
+      "componentCard": "[data-testid='component-card']",
+      "newComponentButton": "button:has-text('New Component')",
+      "searchInput": "input[placeholder='Search components...']"
+    },
+    "editor": {
+      "codeEditor": ".monaco-editor",
+      "saveButton": "button:has-text('Save')",
+      "addFrameButton": "button:has-text('Add Frame')",
+      "selectionModeButton": "button:has-text('Select Elements')",
+      "aiAssistantButton": "button:has-text('AI Assistant')"
+    },
+    "emulator": {
+      "frame": "[data-testid='emulator-frame']",
+      "iframe": "iframe[title^='Preview:']",
+      "removeButton": "button:has(svg.lucide-x)"
+    },
+    "aiChat": {
+      "chatPanel": "[data-testid='ai-chat-panel']",
+      "messageInput": "input[placeholder*='Ask for help']",
+      "sendButton": "button:has(svg.lucide-send)",
+      "messageContainer": "[data-testid='message']"
+    },
+    "adoptions": {
+      "adoptionCard": "[data-testid='adoption-card']",
+      "newAdoptionButton": "button:has-text('New Adoption')",
+      "statusBadge": "[data-testid='status-badge']"
+    }
+  }
+}

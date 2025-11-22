@@ -1,797 +1,161 @@
 # Product Requirements Document (PRD)
 
-## 🎯 Capability Definition
+> **Template Version**: 2.0
+> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
+> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
-### Core Capability
-**What permanent capability does this scenario add to Vrooli?**
-React Component Library provides a comprehensive platform for building, testing, showcasing, and sharing reusable React components across all Vrooli scenarios. It combines a live component playground with AI-powered generation, accessibility testing, performance analysis, and export capabilities. Every component built becomes a permanent asset that accelerates all future UI development.
+## 🎯 Overview
 
-### Intelligence Amplification
-**How does this capability make future agents smarter?**
-- **Component Reuse**: Agents can reference proven, tested components instead of building from scratch
-- **Pattern Recognition**: Common UI patterns become searchable and discoverable via semantic search
-- **Quality Gates**: Automated accessibility and performance testing ensures all components meet standards
-- **AI Enhancement**: Direct claude-code integration enables intelligent component modification and generation
-- **Cross-Pollination**: Components from one scenario can be adapted and reused in completely different contexts
+**Purpose**: Central UI for designing, previewing, editing, and tracking shared React UI components across the Vrooli ecosystem. This scenario provides a comprehensive workflow hub for component creation, AI-powered refinement, multi-viewport testing, and adoption tracking.
 
-### Recursive Value
-**What new scenarios become possible after this exists?**
-1. **ui-design-system**: Enterprise design system generator that exports branded component libraries
-2. **app-prototyper**: Rapid prototyping tool using pre-built components with drag-and-drop interface
-3. **component-marketplace**: Scenario that packages and sells component libraries as commercial products
-4. **accessibility-auditor**: Specialized scenario that performs deep accessibility analysis across all UIs
-5. **performance-optimizer**: Component-level performance profiling and optimization recommendations
+**Primary users/verticals**:
+- Frontend developers building and maintaining UI components
+- Design system managers coordinating shared component libraries
+- Coding agents implementing component adoption via app-issue-tracker
+- Product teams ensuring consistent UI/UX across scenarios
 
-## 📊 Success Metrics
+**Deployment surfaces**:
+- Web UI with live preview, multi-viewport emulator, and code editor
+- REST API for component registry, versioning, and adoption tracking
+- CLI for component queries and adoption workflow automation
+- Integration with app-issue-tracker for adoption issue generation
 
-### Functional Requirements
-- **Must Have (P0)**
-  - [ ] Interactive component showcase with live code playground
-  - [ ] Component isolation system (sandbox rendering without conflicts)
-  - [ ] Automated accessibility testing (WCAG 2.1 AA compliance checking)
-  - [ ] Performance benchmarking (render time, bundle size, memory usage)
-  - [ ] AI-powered component generation via claude-code integration
-  - [ ] Component versioning and dependency management
-  - [ ] Export system (copy code, download package, CDN links)
-  - [ ] Semantic search across all components and patterns
-  - [ ] Integration with Qdrant for component pattern storage
-  
-- **Should Have (P1)**
-  - [ ] Visual regression testing with screenshot comparison
-  - [ ] Component composition builder (combine components visually)
-  - [ ] Real-time collaborative editing with multiple users
-  - [ ] Theme system integration (test components across different themes)
-  - [ ] Mobile/responsive preview modes
-  - [ ] Component usage analytics across scenarios
-  - [ ] Integration with existing Vrooli scenarios for component adoption
-  
-- **Nice to Have (P2)**
-  - [ ] Component animation timeline editor
-  - [ ] Advanced accessibility simulation (screen reader testing)
-  - [ ] Auto-generated component documentation from code
-  - [ ] Component marketplace with rating/review system
+**Value promise**: Eliminates component duplication across scenarios, accelerates UI development with AI-powered editing, ensures design consistency through shared library, and enables systematic component evolution with version tracking and diff views.
 
-### Performance Criteria
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| Component Render Time | < 16ms for 95% of components | Performance profiler |
-| Search Response Time | < 200ms for semantic search | API monitoring |
-| Playground Load Time | < 2s for component isolation | Browser performance API |
-| Bundle Size Analysis | Real-time calculation < 100ms | Webpack bundle analyzer |
-| Accessibility Scan | < 5s for complete WCAG audit | axe-core integration |
+## 🎯 Operational Targets
 
-### Quality Gates
-- [ ] All P0 requirements implemented and tested
-- [ ] Integration tests pass with PostgreSQL, Qdrant, and claude-code
-- [ ] Performance targets met under load (100 concurrent component renders)
-- [ ] Documentation complete (README, API docs, CLI help, component authoring guide)
-- [ ] Scenario can generate and test components via API/CLI
-- [ ] Accessibility compliance verified for showcase interface itself
+### 🔴 P0 – Must ship for viability
 
-## 🏗️ Technical Architecture
+- [ ] OT-P0-001 | Component Registry with Metadata | Maintain registry of shared components with ID, name, description, tags, version, file path, and tech stack
+- [ ] OT-P0-002 | Header Comment Enforcement | Enforce standardized header comment block in all library components containing metadata and adoption tracking info
+- [ ] OT-P0-003 | Component Indexing from Disk | Re-index library components from disk using header comment metadata without DB-only reliance
+- [ ] OT-P0-004 | Code Editor with TSX Support | Provide full-featured code editor with syntax highlighting, lint/type feedback, and undo/redo
+- [ ] OT-P0-005 | Live Preview Renderer | Render components in isolated iframe with configurable props/variants and auto-refresh on changes
+- [ ] OT-P0-006 | Multi-Frame Emulator | Support simultaneous preview frames with independent viewport settings (desktop, mobile, tablet presets)
+- [ ] OT-P0-007 | iframe-bridge Element Selection | Enable element selection mode allowing users to click and capture stable element identifiers
+- [ ] OT-P0-008 | AI Editing via resource-openrouter | Connect AI chat panel to editor with context-aware code suggestions, refactors, and styling changes
+- [ ] OT-P0-009 | Search and Tag Filtering | Provide searchable component library with free-text search and category/tag filtering
+- [ ] OT-P0-010 | Apply to Scenario Workflow | Generate detailed adoption reports via app-issue-tracker with absolute paths, dependencies, and step-by-step integration instructions
+- [ ] OT-P0-011 | Adoption Tracking Records | Track which scenarios have adopted which components, at which version, with timestamps
+- [ ] OT-P0-012 | Component Version Management | Track current version for each component using semver or incremental versioning
 
-### Resource Dependencies
-```yaml
-required:
-  - resource_name: postgres
-    purpose: Component metadata, versions, usage analytics, user sessions
-    integration_pattern: Direct API via Go database libraries
-    access_method: PostgreSQL connection pools
-    
-  - resource_name: qdrant
-    purpose: Semantic search for component patterns and documentation
-    integration_pattern: Shared workflow preferred, CLI fallback
-    access_method: Shared workflow "qdrant-search.json" → resource-qdrant CLI
-    
-  - resource_name: minio
-    purpose: Component screenshots, exported packages, static assets
-    integration_pattern: CLI commands via resource-minio
-    access_method: resource-minio upload/download commands
-    
-  - resource_name: claude-code
-    purpose: AI-powered component generation and modification
-    integration_pattern: Direct integration with claude-code CLI
-    access_method: resource-claude-code commands for code generation
-    
-optional:
-  - resource_name: redis
-    purpose: Caching component metadata and search results
-    fallback: In-memory caching with reduced performance
-    access_method: resource-redis CLI commands
-    
-  - resource_name: browserless
-    purpose: Automated screenshot generation for visual regression testing
-    fallback: Manual screenshot capture via browser automation
-    access_method: resource-browserless screenshot commands
-```
+### 🟠 P1 – Should have post-launch
 
-### Resource Integration Standards
-```yaml
-integration_priorities:
-  1_shared_workflows:
-    - workflow: qdrant-search.json
-      location: initialization/automation/n8n/
-      purpose: Semantic search across component documentation and patterns
-    - workflow: component-tester.json
-      location: initialization/automation/n8n/
-      purpose: Automated accessibility and performance testing pipeline
-  
-  2_resource_cli:
-    - command: resource-claude-code generate --type react-component
-      purpose: AI-powered component generation
-    - command: resource-minio upload --bucket component-assets
-      purpose: Store component screenshots and exports
-    - command: resource-browserless screenshot --selector component-preview
-      purpose: Visual regression testing screenshots
-  
-  3_direct_api:
-    - justification: Real-time component rendering requires direct WebSocket
-      endpoint: /api/v1/components/preview/ws
-    - justification: Performance profiling needs direct browser API access
-      endpoint: /api/v1/components/benchmark
-```
+- [ ] OT-P1-001 | AI Patch Review and Merge | Allow users to review AI-suggested diffs/patches before accepting and applying changes
+- [ ] OT-P1-002 | Multi-Element Selection | Enable attaching multiple selected elements from different frames to a single AI chat message
+- [ ] OT-P1-003 | Per-Frame Props Configuration | Support different props/variants per emulator frame with persistent settings per component
+- [ ] OT-P1-004 | Change Detection and Diff Views | Detect divergence between library version and adopted files, show diff views (library vs adopted)
+- [ ] OT-P1-005 | Adoption Status Dashboard | Show which scenarios use which components, their versions, and update status (current/behind/modified)
+- [ ] OT-P1-006 | Component Categories and Organization | Organize components by categories (form, CTA, hero, card, dashboard, etc.)
+- [ ] OT-P1-007 | Preview Shell Configuration | Support wrapping previews in configurable shell (theme providers, routers, context)
+- [ ] OT-P1-008 | Multi-File Component Support | Support editing and previewing components with helper files and related modules
+- [ ] OT-P1-009 | Automated Adoption Verification | Confirm adopted files exist and validate header comments during adoption tracking
+- [ ] OT-P1-010 | AI Context Enhancement | Include emulator viewport context and selected element info in AI requests for better suggestions
 
-### Data Models
-```yaml
-primary_entities:
-  - name: Component
-    storage: postgres
-    schema: |
-      {
-        id: UUID
-        name: string
-        category: string
-        description: text
-        code: text
-        props_schema: jsonb
-        created_at: timestamp
-        updated_at: timestamp
-        version: semver
-        author: string
-        usage_count: integer
-        accessibility_score: float
-        performance_metrics: jsonb
-        tags: string[]
-      }
-    relationships: Links to ComponentVersions, TestResults, UsageAnalytics
-    
-  - name: ComponentVersion
-    storage: postgres
-    schema: |
-      {
-        id: UUID
-        component_id: UUID
-        version: semver
-        code: text
-        changelog: text
-        breaking_changes: text[]
-        deprecated: boolean
-      }
-    relationships: Belongs to Component
-    
-  - name: TestResult
-    storage: postgres
-    schema: |
-      {
-        id: UUID
-        component_id: UUID
-        test_type: enum[accessibility, performance, visual]
-        results: jsonb
-        passed: boolean
-        score: float
-        tested_at: timestamp
-      }
-    relationships: Belongs to Component
-    
-  - name: ComponentPattern
-    storage: qdrant
-    schema: Vector embeddings of component descriptions, usage patterns, and code
-    relationships: Semantic similarity search across all components
-```
+### 🟢 P2 – Future / expansion ideas
 
-### API Contract
-```yaml
-endpoints:
-  - method: POST
-    path: /api/v1/components
-    purpose: Create new component with code and metadata
-    input_schema: |
-      {
-        name: string
-        category: string
-        description: string
-        code: string
-        props_schema: object
-        tags: string[]
-      }
-    output_schema: |
-      {
-        id: UUID
-        version: string
-        accessibility_score: float
-        performance_metrics: object
-        test_results: object[]
-      }
-    sla:
-      response_time: 500ms
-      availability: 99.5%
-      
-  - method: GET
-    path: /api/v1/components/search
-    purpose: Semantic search across components using natural language
-    input_schema: |
-      {
-        query: string
-        category?: string
-        tags?: string[]
-        min_accessibility_score?: float
-      }
-    output_schema: |
-      {
-        components: Component[]
-        total: integer
-        search_time_ms: integer
-      }
-    sla:
-      response_time: 200ms
-      availability: 99.9%
-      
-  - method: POST
-    path: /api/v1/components/generate
-    purpose: AI-generated component creation via claude-code
-    input_schema: |
-      {
-        description: string
-        requirements: string[]
-        style_preferences: object
-        accessibility_level: enum
-      }
-    output_schema: |
-      {
-        generated_code: string
-        component_name: string
-        props_schema: object
-        explanation: string
-      }
-    sla:
-      response_time: 5000ms
-      availability: 95%
-      
-  - method: POST
-    path: /api/v1/components/{id}/test
-    purpose: Run accessibility and performance tests on component
-    input_schema: |
-      {
-        test_types: enum[]
-        test_config: object
-      }
-    output_schema: |
-      {
-        test_results: TestResult[]
-        overall_score: float
-        recommendations: string[]
-      }
-    sla:
-      response_time: 3000ms
-      availability: 99%
-```
+- [ ] OT-P2-001 | Component Story/Demo Files | Support creating and editing story files for component variants and usage examples
+- [ ] OT-P2-002 | Visual Component Diff Viewer | Show side-by-side visual comparison of component versions in preview
+- [ ] OT-P2-003 | Bulk Component Updates | Push library component updates to multiple adopted scenarios with automatic PR creation
+- [ ] OT-P2-004 | Component Usage Analytics | Track which components are most adopted, least modified, and highest ROI
+- [ ] OT-P2-005 | Design Token Integration | Sync with brand-manager or design token systems for consistent theming
+- [ ] OT-P2-006 | Screenshot Testing Integration | Auto-capture screenshots across viewports for visual regression testing
+- [ ] OT-P2-007 | Component Playground Sharing | Generate shareable URLs for component previews with specific props/viewports
+- [ ] OT-P2-008 | AI-Powered Component Generation | Generate new components from natural language descriptions with preview
+- [ ] OT-P2-009 | Component Dependency Graph | Visualize which components depend on or are composed from other components
+- [ ] OT-P2-010 | Export to Figma/Design Tools | Generate design assets or Figma components from library components
 
-### Event Interface
-```yaml
-published_events:
-  - name: component.created
-    payload: {component_id: UUID, name: string, category: string}
-    subscribers: [usage-analytics, component-marketplace]
-    
-  - name: component.tested
-    payload: {component_id: UUID, test_type: string, score: float}
-    subscribers: [quality-dashboard, performance-monitor]
-    
-  - name: component.used
-    payload: {component_id: UUID, scenario: string, context: string}
-    subscribers: [analytics-engine, recommendation-system]
-    
-consumed_events:
-  - name: scenario.ui_updated
-    action: Scan for potential component extraction opportunities
-    
-  - name: accessibility.standards_updated
-    action: Re-run accessibility tests on all components
-```
+## 🧱 Tech Direction Snapshot
 
-## 🖥️ CLI Interface Contract
+**Preferred stacks / frameworks**:
+- Frontend: React 18+, TypeScript, TailwindCSS, shadcn/ui, Lucide icons
+- Backend: Go API server for registry, versioning, and adoption tracking
+- Code Editor: Monaco Editor or CodeMirror with TSX language support
+- Preview: iframe-based isolation with iframe-bridge for element selection
+- AI Integration: resource-openrouter for code editing and refactoring
+- Build: Vite for fast HMR and preview recompilation
 
-### Command Structure
-```yaml
-cli_binary: react-component-library
-install_script: cli/install.sh
+**Data + storage expectations**:
+- PostgreSQL: Component registry, adoption records, version history
+- File system: Source of truth for component files with header comment metadata
+- Component metadata: Indexed from header comments, persisted in DB for query performance
 
-required_commands:
-  - name: status
-    description: Show component library status and resource health
-    flags: [--json, --verbose, --show-stats]
-    
-  - name: help
-    description: Display command help and usage
-    flags: [--all, --command <name>]
-    
-  - name: version
-    description: Show CLI and API version information
-    flags: [--json]
+**Integration strategy**:
+- iframe-bridge: Element selection and inspection in preview frames
+- resource-openrouter: AI-powered code editing and refactoring
+- app-issue-tracker: Adoption workflow issue generation for coding agents
+- Emulator inspired by app-monitor but extended for multi-frame support
 
-custom_commands:
-  - name: create
-    description: Create a new React component
-    api_endpoint: /api/v1/components
-    arguments:
-      - name: name
-        type: string
-        required: true
-        description: Component name in PascalCase
-      - name: category
-        type: string
-        required: true
-        description: Component category (form, layout, display, etc.)
-    flags:
-      - name: --interactive
-        description: Launch interactive component builder
-      - name: --template <template>
-        description: Use predefined template (button, modal, form, etc.)
-      - name: --ai-generate
-        description: Generate component using AI based on description
-    output: Component creation details with ID and initial test results
-    
-  - name: test
-    description: Run tests on component(s)
-    api_endpoint: /api/v1/components/{id}/test
-    arguments:
-      - name: component
-        type: string
-        required: false
-        description: Component name or ID (tests all if omitted)
-    flags:
-      - name: --accessibility
-        description: Run accessibility tests only
-      - name: --performance
-        description: Run performance benchmarks only
-      - name: --visual
-        description: Run visual regression tests
-      - name: --fix
-        description: Apply AI-generated fixes for failing tests
-    output: Test results summary with pass/fail status and scores
-    
-  - name: search
-    description: Search components by description or requirements
-    api_endpoint: /api/v1/components/search
-    arguments:
-      - name: query
-        type: string
-        required: true
-        description: Natural language description of desired component
-    flags:
-      - name: --category <category>
-        description: Filter by component category
-      - name: --min-score <score>
-        description: Minimum accessibility score
-      - name: --json
-        description: Output results as JSON
-    output: List of matching components with relevance scores
-    
-  - name: export
-    description: Export component for use in other projects
-    api_endpoint: /api/v1/components/{id}/export
-    arguments:
-      - name: component
-        type: string
-        required: true
-        description: Component name or ID to export
-    flags:
-      - name: --format <format>
-        description: Export format (npm-package, cdn, raw-code)
-      - name: --output <path>
-        description: Output directory or filename
-      - name: --include-deps
-        description: Include all dependencies in export
-    output: Export location and usage instructions
-    
-  - name: generate
-    description: AI-generate component from natural language description
-    api_endpoint: /api/v1/components/generate
-    arguments:
-      - name: description
-        type: string
-        required: true
-        description: Natural language description of desired component
-    flags:
-      - name: --style <style>
-        description: Style preference (minimal, material, bootstrap, custom)
-      - name: --accessibility <level>
-        description: Accessibility level (A, AA, AAA)
-      - name: --interactive
-        description: Iterative refinement mode
-    output: Generated component code and explanation
-    
-  - name: improve
-    description: AI-powered component improvement suggestions
-    api_endpoint: /api/v1/components/{id}/improve
-    arguments:
-      - name: component
-        type: string
-        required: true
-        description: Component name or ID to improve
-    flags:
-      - name: --focus <area>
-        description: Focus area (accessibility, performance, code-quality)
-      - name: --apply
-        description: Automatically apply suggested improvements
-    output: Improvement suggestions and optional automatic application
-```
+**Non-goals / guardrails**:
+- Not a full design tool replacement (Figma, Sketch) - focus on code-first workflow
+- Not supporting non-React frameworks in initial release
+- Not managing runtime component hot-swapping in production scenarios
+- Not handling binary assets or image optimization (delegate to image-tools)
 
-## 🔄 Integration Requirements
+## 🤝 Dependencies & Launch Plan
 
-### Upstream Dependencies
-**What capabilities must exist before this can function?**
-- **PostgreSQL**: Required for component metadata storage and versioning
-- **Qdrant**: Essential for semantic search across component patterns
-- **Claude-code**: Critical for AI-powered component generation and improvement
-- **MinIO**: Needed for storing component screenshots and exported packages
+**Required resources**:
+- postgres: Component registry, adoption tracking, version history
+- resource-openrouter: AI-powered code editing and component refactoring
 
-### Downstream Enablement
-**What future capabilities does this unlock?**
-- **Design System Generation**: Automated creation of branded component libraries
-- **Component Marketplace**: Commercial distribution of component libraries
-- **UI Prototyping**: Drag-and-drop interface builders using pre-built components
-- **Accessibility Auditing**: Deep accessibility analysis across all Vrooli UIs
-- **Performance Optimization**: Component-level performance profiling and recommendations
+**Scenario dependencies**:
+- app-issue-tracker: Integration for generating adoption workflow issues
+- app-monitor: Reference for iframe-bridge and emulator patterns
 
-### Cross-Scenario Interactions
-```yaml
-provides_to:
-  - scenario: ui-designer
-    capability: Pre-built component catalog for rapid prototyping
-    interface: API/CLI
-    
-  - scenario: accessibility-auditor
-    capability: Component-level accessibility testing framework
-    interface: API/CLI
-    
-  - scenario: performance-optimizer
-    capability: Component performance benchmarking data
-    interface: Events/API
-    
-  - scenario: design-system-generator
-    capability: Component library export and packaging
-    interface: API
-    
-consumes_from:
-  - scenario: claude-code
-    capability: AI-powered code generation and improvement
-    fallback: Manual component creation only
-    
-  - scenario: system-monitor
-    capability: Performance metrics and resource usage data
-    fallback: Basic performance testing only
-```
+**Operational risks**:
+- AI hallucination in code suggestions could break components (mitigate with diff review)
+- Header comment deletion by developers would break adoption tracking (enforce with linting/validation)
+- Component version drift across scenarios could create inconsistency (address with P1 change detection)
+- Large component files may cause editor/preview performance issues (optimize with lazy loading)
 
-## 🎨 Style and Branding Requirements
+**Launch sequencing**:
+1. P0 core (registry, editor, preview, emulator, AI editing, adoption workflow)
+2. Basic component library with 5-10 common components seeded
+3. Integration testing with 2-3 existing scenarios adopting components
+4. P1 features (diff views, adoption status, multi-element selection)
+5. P2 expansion (analytics, bulk updates, design token integration)
 
-### UI/UX Style Guidelines
-```yaml
-style_profile:
-  category: professional-creative
-  inspiration: "Modern development tools (Storybook, CodePen, Figma)"
-  
-  visual_style:
-    color_scheme: dark
-    typography: modern-monospace
-    layout: dashboard-with-playground
-    animations: subtle-functional
-  
-  personality:
-    tone: professional-but-approachable
-    mood: focused-creative
-    target_feeling: "Professional confidence with creative inspiration"
+## 🎨 UX & Branding
 
-style_references:
-  professional: 
-    - "Storybook: Clean component isolation with comprehensive controls"
-    - "VS Code: Familiar developer experience with dark theme"
-  creative:
-    - "CodePen: Inspiring playground environment for experimentation"
-    - "Figma: Collaborative design tool aesthetics"
-```
+**Look & feel**:
+- Modern, professional component library UI with clean typography
+- Side-by-side editor and preview layout with resizable panels
+- Multi-viewport emulator inspired by browser dev tools and app-monitor
+- Light/dark theme support with preference persistence
+- Syntax-highlighted code editor with subtle glow on focus
+- Smooth transitions between component selection and preview updates
 
-### Target Audience Alignment
-- **Primary Users**: Frontend developers, UI designers, scenario builders
-- **User Expectations**: Professional development tool with powerful features but intuitive interface
-- **Accessibility**: WCAG 2.1 AA compliance (dogfooding our own testing capabilities)
-- **Responsive Design**: Desktop-first (development focus), tablet support for reviews, basic mobile for quick previews
+**Accessibility**:
+- WCAG 2.1 AA minimum for all UI controls
+- Keyboard navigation for editor, preview, and emulator controls
+- Screen reader announcements for preview updates and AI suggestions
+- Focus indicators on all interactive elements
+- Accessible color contrast in both light and dark themes
 
-### Brand Consistency Rules
-- **Scenario Identity**: Professional development platform with creative inspiration elements
-- **Vrooli Integration**: Seamlessly integrates with Vrooli ecosystem while maintaining unique identity
-- **Professional vs Fun**: Professional design with subtle creative touches - this is a serious tool that should inspire creativity
+**Voice & messaging**:
+- Professional and tool-focused: "Design, preview, and track shared components"
+- Clear action verbs: "Apply to scenario", "Review changes", "Accept patch"
+- Minimal jargon, clear onboarding for new library contributors
+- Error messages guide users toward fixes (e.g., "Add header comment to enable tracking")
 
-## 💰 Value Proposition
+**Branding hooks**:
+- Component library icon: layered squares or building blocks
+- Primary color: Tailwind blue-600 for primary actions
+- Accent: green for success states, amber for warnings (version drift)
+- Typography: Inter or similar modern sans-serif for UI, monospace for code
+- Iconography: Lucide icons throughout for consistency with other scenarios
 
-### Business Value
-- **Primary Value**: Accelerates UI development across all Vrooli scenarios by providing reusable, tested components
-- **Revenue Potential**: $15K - $50K per deployment (enterprise component libraries are valuable)
-- **Cost Savings**: Reduces UI development time by 60-80% through component reuse
-- **Market Differentiator**: AI-powered component generation with built-in accessibility and performance testing
+## 📎 Appendix
 
-### Technical Value
-- **Reusability Score**: 10/10 - Every Vrooli scenario with a UI benefits from this capability
-- **Complexity Reduction**: Complex UI patterns become simple component imports
-- **Innovation Enablement**: Enables rapid prototyping, design system generation, and automated accessibility compliance
+**Related Scenarios**:
+- app-monitor: Reference for iframe-bridge integration and emulator patterns
+- app-issue-tracker: Integration target for adoption workflow
+- brand-manager: Future integration for design tokens and theming
+- tidiness-manager: Could leverage component library for UI consistency
 
-## 🧬 Evolution Path
-
-### Version 1.0 (Current)
-- Component showcase with live playground
-- Basic accessibility and performance testing
-- AI-powered component generation
-- Semantic search and categorization
-- Export capabilities (copy/paste, npm package)
-
-### Version 2.0 (Planned)
-- Visual component composition builder
-- Advanced accessibility simulation (screen reader testing)
-- Component marketplace with ratings/reviews
-- Real-time collaborative editing
-- Integration with popular design tools (Figma, Sketch)
-
-### Long-term Vision
-- Becomes the de facto standard for React component development in the AI era
-- Integration with emerging AI coding assistants beyond claude-code
-- Advanced component optimization through machine learning
-- Automated component generation from design mockups
-
-## 🔄 Scenario Lifecycle Integration
-
-### Direct Scenario Deployment
-```yaml
-direct_execution:
-  supported: true
-  structure_compliance:
-    - Complete service.json with resource dependencies
-    - PostgreSQL schema initialization
-    - Component testing pipeline setup
-    - Health check endpoints for all services
-    
-  deployment_targets:
-    - local: Docker Compose with hot-reloading for development
-    - kubernetes: Scalable deployment with persistent storage
-    - cloud: AWS/GCP deployment with CDN for component assets
-    
-  revenue_model:
-    - type: subscription
-    - pricing_tiers: 
-      - Developer: $29/month (individual use)
-      - Team: $149/month (up to 10 users)
-      - Enterprise: $499/month (unlimited users, advanced features)
-    - trial_period: 14 days
-```
-
-### Capability Discovery
-```yaml
-discovery:
-  registry_entry:
-    name: react-component-library
-    category: development-tools
-    capabilities: [component-showcase, accessibility-testing, ai-generation, performance-benchmarking]
-    interfaces:
-      - api: /api/v1/components/*
-      - cli: react-component-library
-      - events: component.*
-      
-  metadata:
-    description: "AI-powered React component library with accessibility testing and performance benchmarking"
-    keywords: [react, components, accessibility, testing, ai-generation, ui-library]
-    dependencies: [postgres, qdrant, claude-code, minio]
-    enhances: [all scenarios with React UIs]
-```
-
-### Version Management
-```yaml
-versioning:
-  current: 1.0.0
-  minimum_compatible: 1.0.0
-  
-  breaking_changes: []
-  
-  deprecations: []
-```
-
-## 🚨 Risk Mitigation
-
-### Technical Risks
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| Component rendering conflicts | Medium | High | Sandboxed iframe isolation |
-| AI generation quality varies | High | Medium | Human review + testing pipeline |
-| Large component bundles | Medium | Medium | Bundle size monitoring + warnings |
-| Accessibility false positives | Low | Medium | Multiple testing tools + manual review |
-
-### Operational Risks
-- **Drift Prevention**: PRD serves as single source of truth, validated by comprehensive test suite
-- **Version Compatibility**: Semantic versioning with automated compatibility testing
-- **Resource Conflicts**: Proper resource allocation through service.json priorities
-- **Style Drift**: Automated UI testing to ensure interface consistency
-- **CLI Consistency**: Comprehensive test coverage ensuring CLI-API parity
-
-## ✅ Validation Criteria
-
-### Declarative Test Specification
-```yaml
-version: 1.0
-scenario: react-component-library
-
-structure:
-  required_files:
-    - .vrooli/service.json
-    - PRD.md
-    - api/main.go
-    - api/go.mod
-    - cli/react-component-library
-    - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/automation/n8n/qdrant-search.json
-    - initialization/automation/n8n/component-tester.json
-    - scenario-test.yaml
-    - ui/package.json
-    - ui/src/App.tsx
-    
-  required_dirs:
-    - api
-    - cli
-    - ui
-    - initialization
-    - initialization/automation/n8n
-    - initialization/storage/postgres
-
-resources:
-  required: [postgres, qdrant, claude-code, minio]
-  optional: [redis, browserless]
-  health_timeout: 90
-
-tests:
-  - name: "PostgreSQL component schema exists"
-    type: sql
-    service: postgres
-    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('components', 'component_versions', 'test_results')"
-    expect:
-      rows: 
-        - count: 3
-        
-  - name: "Component creation API works"
-    type: http
-    service: api
-    endpoint: /api/v1/components
-    method: POST
-    body:
-      name: "TestButton"
-      category: "form"
-      description: "Test button component"
-      code: "const TestButton = () => <button>Test</button>;"
-    expect:
-      status: 201
-      body:
-        id: "uuid-pattern"
-        
-  - name: "Component search API works"
-    type: http
-    service: api
-    endpoint: /api/v1/components/search
-    method: GET
-    query:
-      query: "button component"
-    expect:
-      status: 200
-      body:
-        components: "array"
-        
-  - name: "CLI component creation works"
-    type: exec
-    command: ./cli/react-component-library create TestCLIButton form --template button
-    expect:
-      exit_code: 0
-      output_contains: ["Component created successfully"]
-      
-  - name: "Component testing pipeline works"
-    type: exec
-    command: ./cli/react-component-library test TestButton --accessibility
-    expect:
-      exit_code: 0
-      output_contains: ["accessibility", "score"]
-      
-  - name: "AI component generation works"
-    type: exec
-    command: ./cli/react-component-library generate "simple modal dialog" --style minimal
-    expect:
-      exit_code: 0
-      output_contains: ["Generated component", "modal"]
-```
-
-### Performance Validation
-- [ ] Component rendering time < 16ms for 95th percentile
-- [ ] Search response time < 200ms for semantic queries
-- [ ] API response times meet all SLA targets
-- [ ] UI loads within 2 seconds on typical development hardware
-- [ ] Memory usage < 512MB during normal operation
-
-### Integration Validation
-- [ ] Successfully integrates with all required resources
-- [ ] All API endpoints functional and documented
-- [ ] CLI commands executable with comprehensive help
-- [ ] Shared workflows properly registered in n8n
-- [ ] Component events properly published to message bus
-
-### Capability Verification
-- [ ] Can create, test, and export React components
-- [ ] AI generation produces valid, compilable components
-- [ ] Accessibility testing accurately identifies issues
-- [ ] Performance benchmarking provides meaningful metrics
-- [ ] Search functionality finds relevant components
-- [ ] Components can be successfully used in other scenarios
-
-## 📝 Implementation Notes
-
-### Design Decisions
-**Component Isolation Strategy**: Chose iframe-based sandboxing over Shadow DOM
-- Alternative considered: Shadow DOM isolation
-- Decision driver: Better isolation guarantees and familiar debugging experience
-- Trade-offs: Slightly higher memory overhead for complete isolation benefits
-
-**AI Integration Approach**: Direct claude-code CLI integration over API
-- Alternative considered: Custom LLM integration
-- Decision driver: Leverage existing Vrooli AI capabilities
-- Trade-offs: Dependency on claude-code availability for AI features
-
-**Testing Framework Selection**: Multi-tool approach (axe-core + lighthouse + custom)
-- Alternative considered: Single testing framework
-- Decision driver: More comprehensive coverage and reduced false positives
-- Trade-offs: More complex setup for better accuracy
-
-### Known Limitations
-- **Component Compatibility**: Only supports React 16.8+ (hooks-based components)
-  - Workaround: Provide class component conversion utilities
-  - Future fix: Add support for other frameworks (Vue, Svelte) in v2.0
-  
-- **Large Component Performance**: Very large components may have rendering delays
-  - Workaround: Bundle size warnings and optimization suggestions
-  - Future fix: Lazy loading and virtual scrolling for large component lists
-
-### Security Considerations
-- **Data Protection**: Component code is stored encrypted in PostgreSQL
-- **Access Control**: Role-based access for component creation/modification
-- **Audit Trail**: All component changes logged with user attribution
-- **Code Execution**: Sandboxed component rendering prevents XSS attacks
-
-## 🔗 References
-
-### Documentation
-- README.md - User-facing overview and quick start guide
-- docs/api.md - Complete API specification with examples
-- docs/cli.md - CLI documentation with usage examples
-- docs/component-authoring.md - Guide for creating high-quality components
-- docs/testing.md - Testing framework documentation
-- docs/ai-integration.md - AI-powered features documentation
-
-### Related PRDs
-- Will link to design-system-generator PRD when created
-- Will link to ui-prototyper PRD when created
-- Will reference accessibility-auditor PRD when created
-
-### External Resources
-- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/) - Accessibility standards
-- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) - Testing best practices
-- [Storybook](https://storybook.js.org/) - Inspiration for component showcase
-- [axe-core](https://github.com/dequelabs/axe-core) - Accessibility testing engine
-
----
-
-**Last Updated**: 2025-01-28  
-**Status**: Draft  
-**Owner**: AI Agent  
-**Review Cycle**: Weekly validation against implementation progress
+**External References**:
+- shadcn/ui: Component architecture and structure patterns
+- Storybook: Component story/demo file patterns for future enhancement
+- Radix UI: Accessible component primitives used by shadcn
+- Monaco Editor: Potential code editor implementation

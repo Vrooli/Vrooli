@@ -1,0 +1,40 @@
+{
+  "id": "04-element-selection",
+  "title": "Element Selection via iframe-bridge",
+  "description": "iframe-bridge integration for element selection and attachment to AI chat",
+  "requirements": [
+    {
+      "id": "ELEM-SEL-001",
+      "title": "Selection Mode and Identifier Capture",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "Enable element selection mode allowing users to click and capture stable element identifiers",
+      "validation": [],
+      "dependencies": [],
+      "notes": [
+        "Visual highlight on element selection",
+        "Capture stable identifier (DOM path, data attributes, component name)",
+        "Selection mode toggle per frame"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "ELEM-SEL-002",
+      "title": "Multi-Element Selection",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "Enable attaching multiple selected elements from different frames to a single AI chat message",
+      "validation": [],
+      "dependencies": [
+        "ELEM-SEL-001"
+      ],
+      "notes": [
+        "Support selecting multiple elements",
+        "Elements can come from different frames",
+        "Clear visual indication of selected elements",
+        "Attach all selections to AI chat message"
+      ],
+      "status": "planned"
+    }
+  ]
+}

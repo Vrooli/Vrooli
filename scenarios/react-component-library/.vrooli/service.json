@@ -1,25 +1,23 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
-  "version": "2.0.0",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "react-component-library",
     "displayName": "React Component Library",
-    "description": "AI-powered React component library with accessibility testing, performance benchmarking, and live component playground",
-    "version": "1.0.0",
-    "category": "development-tools",
+    "description": "Central UI for designing, previewing, editing, and tracking shared React UI components with AI-powered live editing and multi-viewport emulation",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
     "tags": [
-      "react",
-      "components",
-      "ui-library",
-      "accessibility-testing",
-      "performance-benchmarking",
-      "ai-generation",
-      "developer-tools",
-      "storybook-alternative",
-      "component-showcase"
+      "react-ui",
+      "go-api",
+      "component-library",
+      "ui-designer",
+      "preview-emulator",
+      "ai-editing",
+      "iframe-bridge"
     ],
-    "parent": "vrooli",
-    "type": "scenario",
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -42,207 +40,111 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "range": "15000-19999",
-      "port": 15092,
-      "description": "Component library API port for component CRUD and testing"
+      "description": "Go API server",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "35000-39999",
-      "port": 36092,
-      "description": "Component showcase and playground UI port"
+      "description": "React UI",
+      "range": "35000-39999"
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket channel",
+      "range": "25000-29999"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "React Component Library health check configuration",
-      "endpoints": {
-        "api": "/health",
-        "ui": "/health",
-        "metrics": "/api/metrics"
-      },
+      "description": "Standard API/UI health checks",
+      "startup_grace_period": 15000,
       "checks": [
         {
-          "name": "api_endpoint",
+          "name": "api",
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
         },
         {
-          "name": "ui_endpoint",
+          "name": "ui",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
           "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "component_api",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/api/v1/components",
-          "critical": true,
-          "timeout": 3000,
-          "interval": 60000
+          "interval": 30000,
+          "critical": false
         }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 15000
+      ]
     },
     "setup": {
-      "description": "Initialize React Component Library",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/react-component-library-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "react-component-library",
-            "targets": [
-              "react-component-library"
-            ]
-          },
-          {
-            "type": "files",
-            "targets": [
-              "ui/package.json",
-              "initialization/storage/postgres/schema.sql"
-            ]
-          },
-          {
-            "type": "directories",
-            "targets": [
-              "initialization/automation/n8n",
-              "cli",
-              "ui/src"
-            ]
-          }
-        ]
-      },
+      "description": "Build API & UI, install CLI",
       "steps": [
         {
-          "name": "verify-structure",
-          "run": "echo '📁 Verifying React Component Library structure...' && ls -la"
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI into ~/.vrooli/bin"
         },
         {
           "name": "build-api",
-          "run": "cd api && echo '🔨 Building Go API...' && go mod download && go build -o react-component-library-api .",
-          "description": "Build Go API server for component management"
+          "run": "cd api && go mod download && go build -o react-component-library-api .",
+          "description": "Compile Go API server"
         },
         {
-          "name": "install-ui-deps",
-          "run": "cd ui && echo '📦 Installing UI dependencies with pnpm...' && pnpm install --filter .",
-          "description": "Install React UI dependencies"
+          "name": "install-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies"
         },
         {
           "name": "build-ui",
-          "run": "cd ui && echo '⚛️ Building React UI...' && npm run build",
-          "description": "Build React UI for production"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && echo '🔧 Installing CLI...' && ./install.sh",
-          "description": "Install CLI binary to PATH"
-        },
-        {
-          "name": "setup-database",
-          "run": "echo '🗃️ Setting up PostgreSQL schema...' && resource-postgres content execute \"$(cat initialization/storage/postgres/schema.sql)\"",
-          "description": "Initialize PostgreSQL schema for component storage"
-        },
-        {
-          "name": "setup-n8n-workflows",
-          "run": "echo '🔄 Registering n8n workflows...' && ls initialization/automation/n8n/",
-          "description": "Verify n8n workflow files are present"
-        },
-        {
-          "name": "verify-resources",
-          "run": "echo '✅ Verifying resource connections...' && resource-postgres status && resource-qdrant status && resource-minio status",
-          "description": "Verify all required resources are accessible"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '🚀 React Component Library setup complete!' && echo '  📚 Component Library: http://localhost:${UI_PORT}' && echo '  🔌 API: http://localhost:${API_PORT}' && echo '  💻 CLI: react-component-library --help'",
-          "description": "Display key endpoints after setup"
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
         }
       ]
     },
     "develop": {
-      "description": "Start React Component Library with production UI bundle",
+      "description": "Launch API and Vite dev server",
       "steps": [
         {
           "name": "start-api",
           "run": "cd api && ./react-component-library-api",
-          "condition": {
-            "file_exists": "api/react-component-library-api"
-          },
           "background": true,
-          "description": "Start Go API server in background"
+          "description": "Start Go API server"
         },
         {
           "name": "start-ui",
-          "run": "cd ui && echo '⚛️ Starting React UI server...' && API_URL=http://localhost:${API_PORT} node scripts/update-health.js && node server.js",
+          "run": "cd ui && node server.js",
           "background": true,
+          "description": "Serve production UI bundle",
           "condition": {
             "file_exists": "ui/dist/index.html"
-          },
-          "description": "Start Express server with built React app"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:$API_PORT\" && echo \"UI: http://localhost:$UI_PORT\"",
-          "description": "Display service URLs"
+          }
         }
       ]
     },
     "test": {
-      "description": "Comprehensive phased testing for react-component-library",
+      "description": "Execute phased test suite",
       "steps": [
         {
-          "name": "run-phased-tests",
-          "run": "test/run-tests.sh",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "shutdown": {
-      "description": "Gracefully stop React Component Library services",
-      "steps": [
-        {
-          "name": "stop-services",
-          "run": "echo '🛑 Stopping React Component Library services...' && pkill -f react-component-library-api || true && pkill -f 'npm start' || true && pkill -f 'serve.*build' || true",
-          "description": "Stop all running services"
-        },
-        {
-          "name": "cleanup-temp",
-          "run": "echo '🧹 Cleaning up temporary files...' && rm -rf /tmp/component-* 2>/dev/null || true",
-          "description": "Clean up temporary component files"
+          "name": "run-tests",
+          "run": "cd test && ./run-tests.sh",
+          "description": "Run structure/unit/integration/business/performance phases"
         }
       ]
     },
     "stop": {
-      "description": "Force stop React Component Library services",
+      "description": "Stop background processes",
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"react-component-library-api\" || true; sleep 1; pkill -9 -f \"react-component-library-api\" 2>/dev/null || true",
-          "description": "Force stop API process"
+          "run": "pkill -f 'react-component-library-api' || true",
+          "description": "Stop Go API"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/react-component-library.*server\\.js\" || true; pkill -f \"scenarios/react-component-library.*serve\" || true; sleep 1; pkill -9 -f \"scenarios/react-component-library\" 2>/dev/null || true",
-          "description": "Force stop UI processes"
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }
@@ -253,38 +155,21 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "description": "Component metadata, versions, test results, and usage analytics storage",
-        "schema": "react_component_library"
+        "description": "Primary relational data store",
+        "schema": "react-component-library"
       },
-      "qdrant": {
-        "type": "qdrant",
+      "resource-openrouter": {
+        "type": "ai-gateway",
         "enabled": true,
         "required": true,
-        "description": "Semantic search for component patterns, documentation, and code similarity"
-      },
-      "claude-code": {
-        "type": "claude-code",
+        "description": "AI-powered code editing and component refactoring"
+      }
+    },
+    "scenarios": {
+      "app-issue-tracker": {
         "enabled": true,
         "required": true,
-        "description": "AI-powered component generation, improvement suggestions, and code analysis"
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "description": "Storage for component screenshots, exported packages, and static assets"
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": false,
-        "required": false,
-        "description": "Caching for component metadata and search results (performance optimization)"
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": false,
-        "required": false,
-        "description": "Automated screenshot generation for visual regression testing"
+        "description": "Integration for component adoption workflow"
       }
     }
   }

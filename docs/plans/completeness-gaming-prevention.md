@@ -172,7 +172,40 @@ function validateRequirementRefs(requirements) {
 
 **Goal**: Require requirements to be validated across multiple test layers (API, UI, e2e)
 
-#### 2.1 Define Validation Layers
+#### 2.1 Detect Scenario Components
+
+**File**: `scripts/scenarios/lib/completeness-data.js` (new helper)
+
+**Rationale**: Don't penalize API-only scenarios for missing UI tests when they have no UI component.
+
+```javascript
+/**
+ * Detect which components exist in the scenario
+ * @param {string} scenarioRoot - Scenario root directory
+ * @returns {Set<string>} Set of component types (API, UI)
+ */
+function detectScenarioComponents(scenarioRoot) {
+  const components = new Set();
+
+  // Check for API component
+  const apiDir = path.join(scenarioRoot, 'api');
+  if (fs.existsSync(apiDir)) {
+    const hasGoFiles = fs.readdirSync(apiDir).some(f => f.endsWith('.go'));
+    if (hasGoFiles) components.add('API');
+  }
+
+  // Check for UI component
+  const uiDir = path.join(scenarioRoot, 'ui');
+  if (fs.existsSync(uiDir)) {
+    const pkgJson = path.join(uiDir, 'package.json');
+    if (fs.existsSync(pkgJson)) components.add('UI');
+  }
+
+  return components;
+}
+```
+
+#### 2.2 Define Validation Layers
 
 ```javascript
 const VALIDATION_LAYERS = {
@@ -202,7 +235,7 @@ const VALIDATION_LAYERS = {
 };
 ```
 
-#### 2.2 Layer Detection Function
+#### 2.3 Layer Detection Function
 
 **File**: `scripts/scenarios/lib/completeness-data.js` (new helper)
 
@@ -243,40 +276,100 @@ function detectValidationLayers(requirement) {
 }
 ```
 
-#### 2.3 Requirement Pass Calculation Enhancement
+#### 2.4 Derive Criticality from Operational Targets
+
+**BREAKING CHANGE**: Remove `criticality` field from requirements entirely.
+
+**Rationale**:
+- Operational targets already define priority (OT-P0-001, OT-P1-002, OT-P2-003)
+- Having a separate `criticality` field on requirements creates:
+  - **Redundancy**: Two sources of truth for importance
+  - **Gaming vector**: Agents can mark critical features as P2 to avoid diversity requirements
+  - **Misalignment**: Requirement priority can diverge from PRD operational target priority
+- **Solution**: Derive criticality from `prd_ref` field (OT-P0-XXX → P0 requirement)
+
+**Implementation**: Add helper function to extract criticality from prd_ref
+
+```javascript
+/**
+ * Derive requirement criticality from operational target reference
+ * @param {object} requirement - Requirement object
+ * @returns {string} Criticality level (P0, P1, P2)
+ */
+function deriveRequirementCriticality(requirement) {
+  const prdRef = requirement.prd_ref || '';
+  const match = prdRef.match(/OT-([Pp][0-2])-\d{3}/);
+
+  if (match) {
+    return match[1].toUpperCase();  // Extract P0, P1, or P2 from OT-P0-001
+  }
+
+  // Default to P2 if no operational target reference
+  return 'P2';
+}
+```
+
+**Migration**: All requirement files must:
+1. Remove `"criticality"` field from requirement objects
+2. Ensure `"prd_ref"` field references correct operational target (OT-P0-XXX, OT-P1-XXX, OT-P2-XXX)
+3. Update auto-sync to use derived criticality
+
+#### 2.5 Requirement Pass Calculation Enhancement
 
 **File**: `scripts/scenarios/lib/completeness-data.js`
 
-**Function**: `calculateRequirementPass(requirements, syncData)`
+**Function**: `calculateRequirementPass(requirements, syncData, scenarioRoot)`
 
 **Enhancement Strategy**:
-- P0 requirements: Require ≥2 layers (strict)
-- P1 requirements: Require ≥2 layers (strict)
-- P2 requirements: Allow 1 layer (lenient)
+- **P0/P1 requirements**: Require ≥2 AUTOMATED layers within available components
+- **P2 requirements**: Allow 1 AUTOMATED layer (lenient)
+- **Component-aware**: Don't require UI tests for API-only scenarios
+- **Manual validations**: Track separately, DON'T count toward diversity
 
-**Rationale**: Critical requirements (P0/P1) should have robust multi-layer validation. Nice-to-have features (P2) can have simpler validation.
+**Rationale**: Critical requirements (P0/P1) should have robust multi-layer AUTOMATED validation. Manual validations are temporary measures before automation. Diversity requirements should match available scenario components.
 
 ```javascript
-function calculateRequirementPass(requirements, syncData) {
+function calculateRequirementPass(requirements, syncData, scenarioRoot) {
   let passing = 0;
   let total = requirements.length;
   const syncMetadata = syncData.requirements || syncData;
 
+  // Detect available components once for the scenario
+  const scenarioComponents = detectScenarioComponents(scenarioRoot);
+
   for (const req of requirements) {
-    const criticality = (req.criticality || 'P2').toUpperCase();
+    // DERIVE criticality from prd_ref (no longer use req.criticality)
+    const criticality = deriveRequirementCriticality(req);
     const status = req.status || 'pending';
     const reqMeta = syncMetadata[req.id];
 
-    // Detect validation layers
-    const layers = detectValidationLayers(req);
+    // Detect validation layers (returns {automated: Set, has_manual: boolean})
+    const layerAnalysis = detectValidationLayers(req, scenarioRoot);
 
-    // Minimum layer requirement based on criticality
+    // Filter to only applicable AUTOMATED layers based on scenario components
+    const applicableLayers = new Set();
+    if (scenarioComponents.has('API') && layerAnalysis.automated.has('API')) {
+      applicableLayers.add('API');
+    }
+    if (scenarioComponents.has('UI') && layerAnalysis.automated.has('UI')) {
+      applicableLayers.add('UI');
+    }
+    // E2E is always applicable (AUTOMATED layer)
+    if (layerAnalysis.automated.has('E2E')) {
+      applicableLayers.add('E2E');
+    }
+    // MANUAL is tracked separately, NOT counted toward diversity
+
+    // Minimum AUTOMATED layer requirement based on criticality and available components
+    // For API-only: Need API test + E2E
+    // For UI-only: Need UI test + E2E
+    // For Full-stack: Need (API + UI) OR (API + E2E) OR (UI + E2E)
     const minLayers = (criticality === 'P0' || criticality === 'P1') ? 2 : 1;
 
     // Requirement passes if:
     // 1. Status indicates completion (validated/implemented/complete)
     // 2. Sync metadata shows completion
-    // 3. Has sufficient validation layer diversity
+    // 3. Has sufficient AUTOMATED validation layer diversity (applicable layers only)
     const statusPasses = (
       status === 'validated' ||
       status === 'implemented' ||
@@ -289,7 +382,7 @@ function calculateRequirementPass(requirements, syncData) {
       (reqMeta.sync_metadata && reqMeta.sync_metadata.all_tests_passing === true)
     );
 
-    const diversityPasses = layers.size >= minLayers;
+    const diversityPasses = applicableLayers.size >= minLayers;
 
     // All three conditions must be true
     if ((statusPasses || syncPasses) && diversityPasses) {
@@ -302,9 +395,280 @@ function calculateRequirementPass(requirements, syncData) {
 ```
 
 **Migration Strategy**:
-- Add `diversity_pass` field to requirement metadata during sync
+- Add `diversity_pass` and `applicable_layers` fields to requirement metadata during sync
 - Surface diversity failures in `vrooli scenario completeness` output
-- Provide actionable recommendations (e.g., "Add UI tests for REQ-001")
+- Provide component-aware recommendations (e.g., "Add E2E tests for REQ-001" for API-only scenarios)
+
+**Component-Aware Diversity Examples**:
+```javascript
+// Full-stack scenario (API + UI components)
+// P0 requirement needs ≥2 AUTOMATED layers from: [API, UI, E2E]
+// (MANUAL doesn't count toward diversity)
+✅ API + UI
+✅ API + E2E
+✅ UI + E2E
+❌ API only (insufficient diversity)
+❌ API + MANUAL (manual doesn't count - needs 2 automated layers)
+
+// API-only scenario (no UI component)
+// P0 requirement needs ≥2 AUTOMATED layers from: [API, E2E]
+// (MANUAL doesn't count, UI tests ignored - no UI component exists)
+✅ API + E2E
+❌ API only (insufficient diversity)
+❌ API + MANUAL (manual doesn't count - needs 2 automated layers)
+❌ API + UI (UI tests ignored - no UI component exists)
+
+// UI-only scenario (no API component)
+// P0 requirement needs ≥2 AUTOMATED layers from: [UI, E2E]
+// (MANUAL doesn't count, API tests ignored - no API component exists)
+✅ UI + E2E
+❌ UI only (insufficient diversity)
+❌ UI + MANUAL (manual doesn't count - needs 2 automated layers)
+```
+
+---
+
+### Phase 2.5: Basic Test Quality Detection (High Priority)
+
+**Goal**: Prevent superficial test files that exist only to satisfy diversity requirements
+
+**Rationale**: Agents could game multi-layer validation by creating empty or trivial test files:
+```go
+// api/placeholder_test.go (5 lines, no actual tests)
+package api
+import "testing"
+// File exists, counts as "API layer" validation
+```
+
+This bypasses the intent of diversity requirements. We need basic quality heuristics to catch blatant gaming.
+
+#### 2.5.1 Test Quality Analysis Function
+
+**File**: `scripts/scenarios/lib/completeness-data.js` (new helper)
+
+```javascript
+/**
+ * Analyze test file quality using basic heuristics
+ * @param {string} testFilePath - Relative path to test file
+ * @param {string} scenarioRoot - Scenario root directory
+ * @returns {object} Quality analysis results
+ */
+function analyzeTestFileQuality(testFilePath, scenarioRoot) {
+  const fullPath = path.join(scenarioRoot, testFilePath);
+
+  if (!fs.existsSync(fullPath)) {
+    return {
+      exists: false,
+      is_meaningful: false,
+      reason: 'file_not_found'
+    };
+  }
+
+  const content = fs.readFileSync(fullPath, 'utf8');
+  const lines = content.split('\n');
+  const nonEmptyLines = lines.filter(l => l.trim().length > 0);
+
+  // Remove comment-only lines
+  const nonCommentLines = nonEmptyLines.filter(l => {
+    const t = l.trim();
+    return !t.startsWith('//') &&
+           !t.startsWith('/*') &&
+           !t.startsWith('*') &&
+           !t.startsWith('#');  // Python/shell comments
+  });
+
+  // Count test functions
+  const testFunctionMatches = content.match(/func Test|@test|test\(|it\(|describe\(|def test_/gi);
+  const testFunctionCount = testFunctionMatches ? testFunctionMatches.length : 0;
+
+  // Count assertions
+  const assertionMatches = content.match(/assert|expect|require|Should|Equal|Contains|Error|True|False|toBe|toHaveBeenCalled/gi);
+  const assertionCount = assertionMatches ? assertionMatches.length : 0;
+  const assertionDensity = nonCommentLines.length > 0 ? assertionCount / nonCommentLines.length : 0;
+
+  // Quality heuristics (ENHANCED)
+  const hasMinimumCode = nonCommentLines.length >= 20;  // At least 20 LOC
+  const hasAssertions = assertionCount > 0;
+  const hasMultipleTestFunctions = testFunctionCount >= 3;  // Require ≥3 test functions
+  const hasGoodAssertionDensity = assertionDensity >= 0.1;  // ≥1 assertion per 10 LOC
+  const hasTestFunctions = testFunctionCount > 0;
+
+  // Calculate quality score (0-5, need ≥4 to pass)
+  const qualityScore =
+    (hasMinimumCode ? 1 : 0) +
+    (hasAssertions ? 1 : 0) +
+    (hasTestFunctions ? 1 : 0) +
+    (hasMultipleTestFunctions ? 1 : 0) +
+    (hasGoodAssertionDensity ? 1 : 0);
+
+  return {
+    exists: true,
+    loc: nonCommentLines.length,
+    has_assertions: hasAssertions,
+    has_test_functions: hasTestFunctions,
+    test_function_count: testFunctionCount,
+    assertion_count: assertionCount,
+    assertion_density: assertionDensity,
+    is_meaningful: qualityScore >= 4,  // Need 4+ indicators (was 2)
+    quality_score: qualityScore,
+    reason: qualityScore < 4 ? 'insufficient_quality' : 'ok'
+  };
+}
+```
+
+#### 2.5.2 Playbook Quality Analysis Function
+
+**File**: `scripts/scenarios/lib/completeness-data.js` (new helper)
+
+```javascript
+/**
+ * Analyze e2e playbook quality
+ * @param {string} playbookPath - Relative path to playbook file
+ * @param {string} scenarioRoot - Scenario root directory
+ * @returns {object} Quality analysis results
+ */
+function analyzePlaybookQuality(playbookPath, scenarioRoot) {
+  const fullPath = path.join(scenarioRoot, playbookPath);
+
+  if (!fs.existsSync(fullPath)) {
+    return { exists: false, is_meaningful: false, reason: 'file_not_found' };
+  }
+
+  try {
+    const content = fs.readFileSync(fullPath, 'utf8');
+    const parsed = JSON.parse(content);
+
+    const hasSteps = Array.isArray(parsed.steps) && parsed.steps.length > 0;
+    const stepCount = parsed.steps ? parsed.steps.length : 0;
+    const hasActions = parsed.steps && parsed.steps.some(s => s.action || s.type);
+    const fileSize = Buffer.byteLength(content, 'utf8');
+
+    return {
+      exists: true,
+      step_count: stepCount,
+      has_actions: hasActions,
+      file_size: fileSize,
+      is_meaningful: hasSteps && hasActions && fileSize >= 100,  // ≥100 bytes, has steps with actions
+      reason: !hasSteps ? 'no_steps' : !hasActions ? 'no_actions' : 'ok'
+    };
+  } catch (error) {
+    return { exists: true, is_meaningful: false, reason: 'parse_error' };
+  }
+}
+```
+
+#### 2.5.3 Integration with Validation Layer Detection
+
+**File**: `scripts/scenarios/lib/completeness-data.js`
+
+**Function**: `detectValidationLayers(requirement, scenarioRoot)` (add scenarioRoot param)
+
+**Enhancement**: Filter out low-quality test refs AND manual validations from layer detection
+
+```javascript
+function detectValidationLayers(requirement, scenarioRoot) {
+  const automatedLayers = new Set();
+  const hasManual = (requirement.validation || []).some(v => v.type === 'manual');
+
+  (requirement.validation || []).forEach(v => {
+    const ref = (v.ref || '').toLowerCase();
+
+    // IMPORTANT: Skip manual validations for layer diversity
+    // Manual validations are temporary measures, not automated test evidence
+    if (v.type === 'manual') {
+      return;
+    }
+
+    // Skip validations that don't reference actual test files
+    if (!ref && !v.workflow_id) {
+      return;
+    }
+
+    // Check quality for test type validations with file refs
+    if (v.type === 'test' && ref) {
+      const quality = analyzeTestFileQuality(ref, scenarioRoot);
+      if (!quality.is_meaningful) {
+        // Don't count low-quality tests toward layer diversity
+        console.warn(`Validation ref excluded (low quality): ${ref} - ${quality.reason}`);
+        return;
+      }
+    }
+
+    // Check quality for automation type validations (playbooks)
+    if (v.type === 'automation' && ref && ref.match(/\.(json|yaml)$/)) {
+      const quality = analyzePlaybookQuality(ref, scenarioRoot);
+      if (!quality.is_meaningful) {
+        console.warn(`Playbook ref excluded (low quality): ${ref} - ${quality.reason}`);
+        return;
+      }
+    }
+
+    // Check API layer
+    if (VALIDATION_LAYERS.API.patterns.some(p => p.test(ref))) {
+      automatedLayers.add('API');
+    }
+
+    // Check UI layer
+    if (VALIDATION_LAYERS.UI.patterns.some(p => p.test(ref))) {
+      automatedLayers.add('UI');
+    }
+
+    // Check E2E layer
+    if (VALIDATION_LAYERS.E2E.patterns.some(p => p.test(ref))) {
+      automatedLayers.add('E2E');
+    }
+  });
+
+  return {
+    automated: automatedLayers,  // Use this for diversity requirement
+    has_manual: hasManual        // Track separately, don't count toward diversity
+  };
+}
+```
+
+#### 2.5.4 Quality Warning in Gaming Detection
+
+**File**: `scripts/scenarios/lib/gaming-detection.js`
+
+Add low-quality test detection to `detectGamingPatterns()`:
+
+```javascript
+// Pattern 6: Low-quality test files
+const lowQualityTests = [];
+requirements.forEach(req => {
+  (req.validation || []).forEach(v => {
+    if (v.type === 'test' && v.ref) {
+      const quality = analyzeTestFileQuality(v.ref, scenarioRoot);
+      if (quality.exists && !quality.is_meaningful) {
+        lowQualityTests.push({
+          requirement: req.id,
+          ref: v.ref,
+          quality_score: quality.quality_score,
+          reason: quality.reason
+        });
+      }
+    }
+  });
+});
+
+if (lowQualityTests.length > 0) {
+  patterns.low_quality_tests = {
+    severity: 'medium',
+    detected: true,
+    count: lowQualityTests.length,
+    files: lowQualityTests,
+    message: `${lowQualityTests.length} test file(s) appear superficial (< 20 LOC, missing assertions, or no test functions)`,
+    recommendation: 'Add meaningful test logic with assertions and edge case coverage'
+  };
+  warnings.push(patterns.low_quality_tests);
+}
+```
+
+**Impact**:
+- Superficial test files won't count toward layer diversity
+- Warnings surfaced during completeness calculation
+- No scoring penalty initially (Stage 1-2), just flagged
+- Future: Apply small penalty in Stage 3 if pattern is widespread
 
 ---
 
@@ -421,7 +785,7 @@ function calculateQualityScore(metrics) {
 **Approach**: Calculate acceptable 1:1 ratio based on total OT count
 
 ```
-Acceptable 1:1 ratio = min(0.5, 5 / total_targets)
+Acceptable 1:1 ratio = min(0.2, 5 / total_targets)
 
 Examples:
 - 5 targets  → max 1 allowed (20%)
@@ -578,14 +942,26 @@ function detectGamingPatterns(metrics, requirements, targets) {
 
   if (unsupportedRefCount > 0) {
     const ratio = unsupportedRefCount / Math.max(metrics.requirements.total, 1);
+
+    // Build component-aware recommendation
+    const scenarioComponents = detectScenarioComponents(scenarioRoot);
+    const validSources = [];
+    if (scenarioComponents.has('API')) {
+      validSources.push('api/**/*_test.go (API unit tests)');
+    }
+    if (scenarioComponents.has('UI')) {
+      validSources.push('ui/src/**/*.test.tsx (UI unit tests)');
+    }
+    validSources.push('test/playbooks/**/*.{json,yaml} (e2e automation)');
+
     patterns.unsupported_test_directory = {
       severity: ratio > 0.5 ? 'high' : 'medium',
       detected: true,
       count: unsupportedRefCount,
       total: metrics.requirements.total,
       ratio: ratio,
-      message: `${unsupportedRefCount}/${metrics.requirements.total} requirements reference unsupported test/ directories. Only test/playbooks/*.{json,yaml} is valid.`,
-      recommendation: 'Move validation refs to: api/**/*_test.go, ui/src/**/*.test.tsx, or test/playbooks/**/*.{json,yaml}'
+      message: `${unsupportedRefCount}/${metrics.requirements.total} requirements reference unsupported test/ directories. Valid sources for this scenario:\n${validSources.map(s => `  • ${s}`).join('\n')}`,
+      recommendation: 'Move validation refs to supported test sources listed above'
     };
     warnings.push(patterns.unsupported_test_directory);
   }
@@ -619,11 +995,25 @@ function detectGamingPatterns(metrics, requirements, targets) {
   }
 
   // Pattern 5: Missing validation diversity
+  const scenarioComponents = detectScenarioComponents(scenarioRoot);
   const diversityIssues = requirements.filter(req => {
-    const layers = detectValidationLayers(req);
-    const criticality = (req.criticality || 'P2').toUpperCase();
+    const layerAnalysis = detectValidationLayers(req, scenarioRoot);
+    const criticality = deriveRequirementCriticality(req);  // Derive from prd_ref
     const minLayers = (criticality === 'P0' || criticality === 'P1') ? 2 : 1;
-    return layers.size < minLayers;
+
+    // Filter to applicable automated layers only
+    const applicableLayers = new Set();
+    if (scenarioComponents.has('API') && layerAnalysis.automated.has('API')) {
+      applicableLayers.add('API');
+    }
+    if (scenarioComponents.has('UI') && layerAnalysis.automated.has('UI')) {
+      applicableLayers.add('UI');
+    }
+    if (layerAnalysis.automated.has('E2E')) {
+      applicableLayers.add('E2E');
+    }
+
+    return applicableLayers.size < minLayers;
   });
 
   if (diversityIssues.length > 0) {
@@ -632,10 +1022,47 @@ function detectGamingPatterns(metrics, requirements, targets) {
       detected: true,
       count: diversityIssues.length,
       total: requirements.length,
-      message: `${diversityIssues.length} critical requirements (P0/P1) lack multi-layer validation`,
-      recommendation: 'Add validations across API, UI, and e2e layers for critical requirements'
+      message: `${diversityIssues.length} critical requirements (P0/P1) lack multi-layer AUTOMATED validation`,
+      recommendation: 'Add automated validations across API, UI, and e2e layers for critical requirements (manual validations don\'t count toward diversity)'
     };
     warnings.push(patterns.missing_validation_diversity);
+  }
+
+  // Pattern 6: Excessive manual validation usage
+  const totalValidations = requirements.reduce((sum, r) =>
+    sum + (r.validation || []).length, 0
+  );
+  const manualValidations = requirements.reduce((sum, r) =>
+    sum + (r.validation || []).filter(v => v.type === 'manual').length, 0
+  );
+
+  // Count manual validations for COMPLETE requirements (suspicious)
+  const completeWithManual = requirements.filter(req => {
+    const status = (req.status || '').toLowerCase();
+    const isComplete = status === 'complete' || status === 'validated' || status === 'implemented';
+    const hasManual = (req.validation || []).some(v => v.type === 'manual');
+    const hasAutomated = (req.validation || []).some(v => v.type !== 'manual');
+
+    // Only flag if COMPLETE with manual validation but NO automated tests
+    return isComplete && hasManual && !hasAutomated;
+  });
+
+  const manualRatio = manualValidations / Math.max(totalValidations, 1);
+
+  // Flag if: (a) >10% manual overall OR (b) ≥5 complete requirements with ONLY manual validation
+  if (manualRatio > 0.10 || completeWithManual.length >= 5) {
+    patterns.excessive_manual_validations = {
+      severity: completeWithManual.length >= 10 ? 'high' : 'medium',
+      detected: true,
+      ratio: manualRatio,
+      count: manualValidations,
+      complete_with_manual: completeWithManual.length,
+      message: manualRatio > 0.10
+        ? `${Math.round(manualRatio * 100)}% of validations are manual (max 10% recommended). Manual validations are intended as temporary measures before automated tests are implemented.`
+        : `${completeWithManual.length} requirements marked complete with ONLY manual validations. Automated tests should replace manual validations for completed requirements.`,
+      recommendation: 'Replace manual validations with automated tests (API tests, UI tests, or e2e automation). Manual validations should be temporary measures for pending/in_progress requirements.'
+    };
+    warnings.push(patterns.excessive_manual_validations);
   }
 
   return {
@@ -716,10 +1143,33 @@ if (gamingAnalysis.has_warnings) {
 - ✅ Update examples to show multi-layer validation
 
 ##### requirement-schema.md
-- ✅ Document allowed validation ref patterns
+- ✅ Document allowed validation ref patterns (with clear rationale)
 - ✅ Add validation rules for `ref` field
 - ✅ Clarify `type` field values and their meanings
 - ✅ Add examples showing proper vs. improper validation structures
+- ✅ Add component-aware validation examples (API-only, UI-only, full-stack)
+- ✅ **Add directory structure diagram** showing valid vs. invalid test sources:
+
+```
+test/
+├── phases/          ❌ Orchestration (not test sources)
+├── cli/             ❌ CLI wrapper tests (not requirement validation)
+├── unit/            ❌ Test runners (not test sources)
+├── integration/     ❌ Test runners (not test sources)
+└── playbooks/       ✅ E2e automation (actual test sources)
+
+api/
+└── **/*_test.go     ✅ API unit tests (actual test sources)
+
+ui/src/
+└── **/*.test.tsx    ✅ UI unit tests (actual test sources)
+```
+
+**Rationale for test/ directory restrictions**:
+- `test/phases/`: Orchestration scripts that run tests, not test sources themselves
+- `test/cli/`, `test/unit/`, `test/integration/`: Test runner scripts or CLI-specific tests
+- Only `test/playbooks/` contains actual test sources (e2e automation workflows)
+- Actual unit tests live alongside the code they test (api/, ui/src/)
 
 #### 6.2 New Documentation
 
@@ -728,10 +1178,67 @@ if (gamingAnalysis.has_warnings) {
 **Contents**:
 - Valid vs. invalid validation sources (with examples)
 - Multi-layer validation strategy (API + UI + e2e)
+- Component-aware validation (API-only, UI-only, full-stack scenarios)
+- **Quality over Quantity**: Meaningful tests vs. superficial checkbox tests
 - Operational target grouping guidelines
 - Test-to-requirement ratio recommendations
 - How to avoid gaming patterns
 - Browser-automation-studio as reference implementation
+
+**Key Section: Quality Over Quantity**
+```markdown
+### Quality Over Quantity
+
+Multi-layer validation is required, but the tests must be **meaningful**:
+
+❌ **Bad**: Superficial tests that just exist
+```json
+// Empty test file with no logic
+{"ref": "api/placeholder_test.go"}  // 5 lines, only imports, no assertions
+```
+
+✅ **Good**: Tests that actually validate the requirement
+```json
+// Comprehensive test validating business logic
+{"ref": "api/dependency_analyzer_test.go"}  // 150 lines, 12 test cases, edge cases covered
+```
+
+**Key indicators of meaningful tests**:
+- **Non-trivial**: ≥20 lines of code (shows actual test logic)
+- **Multiple assertions**: Tests verify multiple aspects of behavior
+- **Edge cases**: Tests cover happy path AND error conditions
+- **Integration points**: Tests verify interactions with dependencies
+- **Clear purpose**: Test names/descriptions explain what's being validated
+
+**Example - Meaningful API Test**:
+```go
+// api/analyzer_test.go
+func TestDependencyAnalyzer_RecursiveResolution(t *testing.T) {
+    // Setup: Create test dependency graph
+    analyzer := NewAnalyzer()
+
+    // Test Case 1: Linear dependencies (A → B → C)
+    assert.Equal(t, 3, len(analyzer.Resolve("A")))
+
+    // Test Case 2: Circular dependency detection
+    assert.Error(t, analyzer.Resolve("CircularA"))
+
+    // Test Case 3: Missing dependency handling
+    assert.Empty(t, analyzer.Resolve("NonExistent"))
+
+    // Test Case 4: Performance (≤5s for depth 10)
+    start := time.Now()
+    analyzer.Resolve("DeepTree")
+    assert.Less(t, time.Since(start), 5*time.Second)
+}
+```
+
+**Red Flags for Superficial Tests**:
+- Test file exists but has no test functions/cases
+- Only tests the "happy path" (no error handling)
+- No assertions (test just calls function and returns)
+- Copy-pasted from another requirement without changes
+```
 
 **File**: `docs/testing/reference/gaming-prevention.md` (NEW)
 
@@ -748,24 +1255,32 @@ if (gamingAnalysis.has_warnings) {
 
 ### Phase Breakdown
 
-| Phase | Priority | Estimated Time | Dependencies |
-|-------|----------|----------------|--------------|
-| **Phase 1**: Validation Source Filtering | P0 | 1 day | None |
-| **Phase 2**: Validation Diversity | P0 | 1 day | Phase 1 |
-| **Phase 3**: Duplicate Ref Detection | P1 | 0.5 days | Phase 1 |
-| **Phase 4**: Target Grouping Validation | P1 | 0.5 days | None |
-| **Phase 5**: Gaming Detection & Warnings | P0 | 1 day | All above |
-| **Phase 6**: Documentation Updates | P1 | 1 day | Phase 5 (for examples) |
+| Phase | Priority | Estimated Time | Dependencies | Notes |
+|-------|----------|----------------|--------------|-------|
+| **Phase 1**: Validation Source Filtering | P0 | 1 day | None | Straightforward rejection logic |
+| **Phase 2**: Validation Diversity + Components | P0 | 1.5 days | Phase 1 | Component detection adds complexity |
+| **Phase 2.5**: Basic Test Quality Detection | P0 | 0.5 days | Phase 2 | Quality heuristics (LOC, assertions, test functions) |
+| **Phase 3**: Duplicate Ref Detection | P1 | 0.5 days | Phase 1 | Simple ref counting |
+| **Phase 4**: Target Grouping Validation | P1 | 0.5 days | None | Threshold calculation |
+| **Phase 5**: Gaming Detection & Warnings | P0 | 1.5 days | All above | Integration testing on real scenarios |
+| **Phase 6**: Documentation Updates | P1 | 2-2.5 days | Phase 5 | 4 doc updates + 2 new docs + quality section + diagrams |
 
-**Total Estimated Time**: 5 days
+**Total Estimated Time**: 8.5-9 days
+
+**Realistic Timeline**: Plan for **10-12 days** to account for:
+- Iteration based on Stage 1 detection results
+- Edge cases discovered during real scenario testing
+- Documentation review and refinement
+- Buffer for unexpected complexity
 
 ### Rollout Strategy
 
-#### Stage 1: Detection Only (Week 1)
+#### Stage 1: Detection Only (Days 1-3)
 - Implement all detection logic
 - Output warnings but **don't change scores**
 - Gather data on existing scenarios
 - Validate detection accuracy
+- Run on all scenarios to identify false positives
 
 **Command**: `vrooli scenario completeness <name> --detect-gaming`
 
@@ -778,11 +1293,12 @@ Score: 96/100 (Production Ready)
   🟡 100% of operational targets have 1:1 requirement mapping
 ```
 
-#### Stage 2: Soft Enforcement (Week 2)
+#### Stage 2: Soft Enforcement (Days 4-10)
 - Apply scoring penalties
 - Generate detailed reports for affected scenarios
 - Provide migration guidance
 - Support agents in fixing issues
+- Monitor ecosystem-manager agent responses
 
 **Command**: `vrooli scenario completeness <name>` (penalties active)
 
@@ -802,11 +1318,14 @@ Quality: 35/50 (-15 from gaming penalties)
      💡 Break monolithic test files into focused tests
 ```
 
-#### Stage 3: Full Enforcement (Week 3+)
+#### Stage 3: Full Enforcement (Days 11-14+)
 - Auto-sync rejects invalid refs during `vrooli scenario requirements sync`
 - Completeness score reflects true validation quality
 - Documentation updated with examples
 - ecosystem-manager agents trained on new patterns
+- Monitor for unintended consequences
+
+**Timeline Rationale**: P0 priority issue requires faster resolution than 3+ weeks. Compressed timeline (10-14 days) maintains validation rigor while accelerating rollout.
 
 ---
 
@@ -841,6 +1360,89 @@ describe('Gaming Pattern Detection', () => {
   test('detects missing validation diversity', () => {
     // Setup P0 requirement with only 1 validation layer
     // Assert: diversity warning generated
+  });
+
+  test('detects low-quality test files', () => {
+    // Setup scenario with empty/trivial test files (<20 LOC, no assertions)
+    // Assert: low quality warning, files excluded from layer detection
+  });
+
+  test('detects excessive manual validations', () => {
+    // Setup scenario with >10% manual validations
+    // Assert: manual validation warning with correct threshold
+  });
+});
+```
+
+**File**: `scripts/scenarios/lib/__tests__/completeness-data.test.js`
+
+```javascript
+describe('Component-Aware Requirement Pass Calculation', () => {
+  test('API-only scenario: P0 req passes with API + E2E', () => {
+    const scenarioRoot = createAPIOnlyFixture();  // Has api/, no ui/
+    const req = {
+      id: 'REQ-001',
+      criticality: 'P0',
+      status: 'complete',
+      validation: [
+        { type: 'test', ref: 'api/analyzer_test.go' },
+        { type: 'automation', ref: 'test/playbooks/e2e.json' }
+      ]
+    };
+    const result = calculateRequirementPass([req], {}, scenarioRoot);
+    expect(result.passing).toBe(1);  // Should pass (2 applicable layers: API + E2E)
+  });
+
+  test('API-only scenario: P0 req with UI test ignored', () => {
+    const scenarioRoot = createAPIOnlyFixture();
+    const req = {
+      id: 'REQ-001',
+      criticality: 'P0',
+      status: 'complete',
+      validation: [
+        { type: 'test', ref: 'api/analyzer_test.go' },
+        { type: 'test', ref: 'ui/src/fake.test.tsx' }  // UI test when no UI component
+      ]
+    };
+    const result = calculateRequirementPass([req], {}, scenarioRoot);
+    expect(result.passing).toBe(0);  // Should fail (only 1 applicable layer: API)
+  });
+
+  test('Full-stack scenario: P0 req passes with API + UI', () => {
+    const scenarioRoot = createFullStackFixture();  // Has api/ and ui/
+    const req = {
+      id: 'REQ-001',
+      criticality: 'P0',
+      status: 'complete',
+      validation: [
+        { type: 'test', ref: 'api/test.go' },
+        { type: 'test', ref: 'ui/src/test.tsx' }
+      ]
+    };
+    const result = calculateRequirementPass([req], {}, scenarioRoot);
+    expect(result.passing).toBe(1);  // Should pass (2 applicable layers: API + UI)
+  });
+
+  test('Low-quality test file excluded from layers', () => {
+    const scenarioRoot = createFullStackFixture();
+    const req = {
+      id: 'REQ-001',
+      criticality: 'P0',
+      status: 'complete',
+      validation: [
+        { type: 'test', ref: 'api/placeholder_test.go' },  // 5 lines, no tests
+        { type: 'test', ref: 'ui/src/test.tsx' }
+      ]
+    };
+
+    // Mock low-quality API test
+    fs.writeFileSync(
+      path.join(scenarioRoot, 'api/placeholder_test.go'),
+      'package api\nimport "testing"\n// Empty\n'
+    );
+
+    const result = calculateRequirementPass([req], {}, scenarioRoot);
+    expect(result.passing).toBe(0);  // Should fail (API test excluded, only 1 layer: UI)
   });
 });
 ```
@@ -879,16 +1481,33 @@ Create fixture scenarios demonstrating each gaming pattern:
 - [ ] test/playbooks/**/*.{json,yaml} refs accepted
 - [ ] API test refs (api/**/*_test.go) accepted
 - [ ] UI test refs (ui/src/**/*.test.tsx) accepted
-- [ ] Warning logged for each rejected ref
+- [ ] Warning logged for each rejected ref with clear rationale
 - [ ] browser-automation-studio: all validations still accepted
 - [ ] deployment-manager: 37 validations rejected
 
-### Phase 2: Validation Diversity
-- [ ] detectValidationLayers() correctly identifies API, UI, E2E, MANUAL
-- [ ] P0/P1 requirements require ≥2 layers to pass
-- [ ] P2 requirements require ≥1 layer to pass
-- [ ] Completeness breakdown shows diversity_pass field
-- [ ] Recommendations generated for diversity failures
+### Phase 2.5: Enhanced Test Quality Detection
+- [ ] analyzeTestFileQuality() detects files with <20 LOC, no assertions, <3 test functions, or low assertion density
+- [ ] Quality score requires ≥4 of 5 indicators (was 2 of 3)
+- [ ] analyzePlaybookQuality() detects empty/trivial playbooks (<100 bytes, no steps, no actions)
+- [ ] Low-quality tests excluded from layer diversity counting
+- [ ] Low-quality playbooks excluded from E2E layer counting
+- [ ] Quality warnings surfaced in gaming detection
+- [ ] browser-automation-studio: no quality warnings
+- [ ] Empty/trivial test files and playbooks flagged correctly
+
+### Phase 2: Validation Diversity + Criticality Derivation
+- [ ] deriveRequirementCriticality() correctly extracts P0/P1/P2 from prd_ref (OT-P0-XXX format)
+- [ ] Requirements with no prd_ref default to P2
+- [ ] detectScenarioComponents() correctly identifies API and UI components
+- [ ] detectValidationLayers() returns {automated: Set, has_manual: boolean}
+- [ ] MANUAL validations excluded from automated layer count
+- [ ] Component-aware diversity: Only requires tests for existing components
+- [ ] P0/P1 requirements require ≥2 AUTOMATED layers (from applicable layers) to pass
+- [ ] P2 requirements require ≥1 AUTOMATED layer to pass
+- [ ] Completeness breakdown shows diversity_pass and applicable_layers fields
+- [ ] Recommendations are component-aware (don't suggest UI tests for API-only scenarios)
+- [ ] API-only scenario: Requires API + E2E (manual doesn't count)
+- [ ] Full-stack scenario: Can satisfy with API + UI OR API + E2E OR UI + E2E (manual doesn't count)
 
 ### Phase 3: Duplicate Ref Detection
 - [ ] analyzeTestRefUsage() detects violations (≥4 requirements per file)
@@ -903,25 +1522,38 @@ Create fixture scenarios demonstrating each gaming pattern:
 - [ ] Recommendations provided for suspicious targets
 
 ### Phase 5: Gaming Detection
-- [ ] All 5 gaming patterns detected correctly
+- [ ] All 7 gaming patterns detected correctly (including quality + manual)
 - [ ] Warnings displayed with severity levels (high/medium)
-- [ ] Recommendations actionable and specific
+- [ ] Recommendations actionable, specific, and component-aware
+- [ ] Unsupported directory warnings show valid sources for scenario's components
+- [ ] Manual validation warnings check both ratio (>10%) and complete-with-manual count (≥5)
+- [ ] Manual validation warnings explain temporary nature of manual tests
 - [ ] JSON output includes gaming_analysis field
 - [ ] No duplicate detection code (reuses helpers)
 
 ### Phase 6: Documentation
 - [ ] All 4 existing docs updated with gaming prevention guidance
+- [ ] Component-aware validation examples added to requirement-schema.md
 - [ ] validation-best-practices.md created with clear examples
+- [ ] "Quality over Quantity" section added with meaningful test indicators
 - [ ] gaming-prevention.md created with pattern catalog
 - [ ] browser-automation-studio referenced as gold standard
 - [ ] Migration guide provided for existing scenarios
 
 ### Overall System
-- [ ] browser-automation-studio score unchanged (62/100)
+- [ ] browser-automation-studio score unchanged (62/100 ±2)
 - [ ] deployment-manager score reduced (96 → 65-70/100)
 - [ ] landing-manager score reduced (similar magnitude)
+- [ ] API-only scenarios not penalized for missing UI tests
+- [ ] Scenarios with low manual validation usage (<10%) not flagged
+- [ ] Complete requirements with manual+automated validation not flagged
 - [ ] Zero false positives on properly-structured scenarios
-- [ ] Clear, actionable warnings for all gaming patterns
+- [ ] Clear, actionable, component-aware warnings for all gaming patterns
+- [ ] Low-quality test files excluded from layer diversity
+- [ ] Low-quality playbooks excluded from E2E layer
+- [ ] Manual validations don't count toward diversity requirement
+- [ ] Criticality derived from prd_ref (OT-P0-XXX format)
+- [ ] All requirement files have criticality field removed
 - [ ] ecosystem-manager agents can understand and avoid patterns
 
 ---
@@ -946,14 +1578,18 @@ Create fixture scenarios demonstrating each gaming pattern:
 // BEFORE (invalid)
 {
   "id": "DM-P0-001",
+  "prd_ref": "OT-P0-001",
+  "criticality": "P0",  // ← REMOVE THIS (redundant with prd_ref)
   "validation": [
-    {"type": "test", "ref": "test/cli/dependency-analysis.bats"}
+    {"type": "test", "ref": "test/cli/dependency-analysis.bats"}  // ← Invalid ref
   ]
 }
 
 // AFTER (valid)
 {
   "id": "DM-P0-001",
+  "prd_ref": "OT-P0-001",  // ← P0 criticality derived from this
+  // NO criticality field (removed)
   "validation": [
     {"type": "test", "ref": "api/analyzer_test.go", "phase": "unit"},
     {"type": "test", "ref": "ui/src/components/DependencyGraph.test.tsx", "phase": "unit"},
@@ -964,9 +1600,41 @@ Create fixture scenarios demonstrating each gaming pattern:
 
 #### Warning: "Missing multi-layer validation"
 **Action**:
-1. Identify requirement criticality (P0/P1 needs ≥2 layers)
-2. Add validations for missing layers
-3. Ensure at least: API test + UI test OR API test + e2e playbook
+1. Check requirement's operational target (prd_ref: OT-P0-XXX → P0 criticality)
+2. P0/P1 requirements need ≥2 AUTOMATED layers
+3. Check scenario components (API, UI, or both)
+4. Add AUTOMATED validations for missing layers based on available components:
+   - **Full-stack scenario**: API test + UI test OR API test + e2e OR UI test + e2e
+   - **API-only scenario**: API test + e2e (UI tests not applicable)
+   - **UI-only scenario**: UI test + e2e (API tests not applicable)
+5. **IMPORTANT**: Manual validations DON'T count toward diversity
+
+**Example - API-only scenario**:
+```json
+// Scenario has api/ directory but no ui/ directory
+{
+  "id": "DM-P0-001",
+  "prd_ref": "OT-P0-001",  // ← P0 criticality derived from operational target
+  "validation": [
+    {"type": "test", "ref": "api/analyzer_test.go", "phase": "unit"},
+    {"type": "automation", "ref": "test/playbooks/dependency-viz/analyze.json", "phase": "integration"}
+  ]
+  // ✅ Passes: 2 automated layers (API + E2E) for API-only scenario
+}
+```
+
+**Example - What NOT to do**:
+```json
+{
+  "id": "DM-P0-001",
+  "prd_ref": "OT-P0-001",
+  "validation": [
+    {"type": "test", "ref": "api/analyzer_test.go", "phase": "unit"},
+    {"type": "manual", "notes": "Manually verified"}  // ← DOESN'T count toward diversity
+  ]
+  // ❌ Fails: Only 1 automated layer (API). Manual doesn't count.
+}
+```
 
 #### Warning: "Duplicate test refs"
 **Action**:
@@ -987,10 +1655,13 @@ Create fixture scenarios demonstrating each gaming pattern:
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | **False positives** on legitimate scenarios | High - Could block valid work | Stage 1 (detection only) validates accuracy before enforcement |
+| **Agents add superficial tests** to game diversity | High - Tests exist but don't validate | Phase 2.5 quality detection (LOC, assertions, test functions), excludes low-quality files from layer counting |
+| **API-only scenarios penalized** for missing UI tests | High - Unfair scoring | Component detection (Phase 2) makes diversity requirements component-aware |
+| **Manual validation flagged inappropriately** | Medium - Small amounts are legitimate | Low threshold (10%), check status (pending/in_progress vs. complete), focus on complete requirements |
 | **Resistance from agents** to fixing issues | Medium - Slows progress | Provide clear migration guide, actionable recommendations |
-| **Breaking changes** to existing workflows | High - Disrupts current scenarios | Phased rollout, soft enforcement period |
-| **Documentation gaps** causing confusion | Medium - Agents repeat mistakes | Comprehensive docs with examples, FAQ section |
-| **Threshold tuning** needed for edge cases | Low - Some scenarios don't fit model | Make thresholds configurable, gather feedback |
+| **Breaking changes** to existing workflows | High - Disrupts current scenarios | Phased rollout, soft enforcement period, compressed to 10-14 days |
+| **Documentation gaps** causing confusion | Medium - Agents repeat mistakes | Comprehensive docs with examples, FAQ section, component-aware guidance, directory diagrams |
+| **Threshold tuning** needed for edge cases | Low - Some scenarios don't fit model | Gather feedback during Stage 1-2, adjust thresholds before Stage 3 |
 
 ---
 
@@ -1002,6 +1673,8 @@ Create fixture scenarios demonstrating each gaming pattern:
 - ✅ Zero gaming warnings on browser-automation-studio
 - ✅ 90%+ of gamed scenarios show ≥3 gaming pattern warnings
 - ✅ Validation diversity compliance: 80%+ of P0/P1 requirements have ≥2 layers
+- ✅ Low-quality test files correctly identified and excluded (<5% false positive rate)
+- ✅ Manual validation warnings: <5% false positives on legitimate pending work
 
 ### Qualitative
 - ✅ Agents understand and can fix gaming warnings
@@ -1014,11 +1687,83 @@ Create fixture scenarios demonstrating each gaming pattern:
 
 ## Next Steps
 
-1. **Review this plan** with stakeholders
+1. ✅ **Plan reviewed and updated** - Addressed critical gaps:
+   - Added Phase 2.5: Basic Test Quality Detection (prevents superficial file gaming)
+   - Added manual validation abuse detection (10% threshold, status-aware)
+   - Enhanced Phase 1 rationale with directory structure diagram
+   - Updated Phase 6 timeline (1.5 → 2-2.5 days for realistic documentation effort)
+   - Added component-aware test coverage examples
+   - Compressed rollout timeline (3+ weeks → 10-14 days for P0 priority)
 2. **Validate approach** with sample implementation on deployment-manager
 3. **Begin Phase 1** implementation (validation source filtering)
 4. **Test on fixtures** to verify detection accuracy
 5. **Iterate based on feedback** before full rollout
+
+## Key Improvements Made
+
+### 0. Remove Criticality Field from Requirements (Phase 2) - **BREAKING CHANGE**
+- Criticality now derived from operational target reference (prd_ref: OT-P0-XXX → P0)
+- Eliminates redundancy (two sources of truth for importance)
+- Prevents gaming vector (marking critical features as P2 to avoid diversity)
+- Ensures requirement priority aligns with PRD operational target priority
+- Simplifies requirement schema and validation logic
+
+### 1. Component-Aware Validation (Phase 2)
+- Detects whether scenario has API, UI, or both components
+- Diversity requirements adapt to available components
+- API-only scenarios not penalized for missing UI tests
+- Full-stack scenarios can satisfy diversity with any 2 layers
+
+### 2. Enhanced Test Quality Detection (Phase 2.5) - **ENHANCED**
+- **Stronger heuristics**: Requires ≥4 of 5 quality indicators (was 2 of 3)
+  - Minimum code (≥20 LOC)
+  - Has assertions
+  - Has test functions
+  - Multiple test functions (≥3)
+  - Good assertion density (≥0.1 assertions per LOC)
+- **Playbook quality checks**: Detects empty/trivial e2e playbooks
+- Low-quality tests excluded from layer diversity counting
+- Low-quality playbooks excluded from E2E layer counting
+- Prevents agents from gaming diversity with superficial files
+- Quality warnings surfaced during completeness calculation
+
+### 3. Manual Validations Don't Count Toward Diversity (Phase 2.5) - **CRITICAL**
+- **Manual validations excluded from diversity layer counting**
+- Prevents gaming: Can't satisfy P0/P1 diversity with API + manual
+- Requires ≥2 AUTOMATED layers for critical requirements
+- Manual validations tracked separately (has_manual flag)
+- Rationale: Manual validations are temporary measures before automation
+
+### 4. Manual Validation Limits (Phase 5) - **ENHANCED**
+- Detects excessive manual validation usage (>10% threshold)
+- Status-aware: flags complete requirements with ONLY manual validation
+- Contextual: allows manual validations for pending/in_progress work
+- Contextual: allows manual validations alongside automated tests
+- Dual check: ratio-based (>10%) and count-based (≥5 complete with only manual)
+
+### 5. Enhanced Warning Context (Phase 5)
+- Warnings show valid test sources for scenario's specific components
+- Agents receive actionable, component-specific recommendations
+- Reduces confusion about which test types are applicable
+
+### 6. Clearer Test Directory Rationale (Phase 6) - ENHANCED
+- Added directory structure diagram showing valid vs. invalid sources
+- Explains WHY test/phases/, test/cli/, etc. are rejected
+- Makes distinction between test orchestration and test sources explicit
+
+### 7. Quality Over Quantity Documentation (Phase 6)
+- Added section on meaningful vs. superficial tests
+- Provides indicators of test quality (LOC, assertions, edge cases)
+- Mitigates risk of agents gaming diversity with trivial tests
+- Includes examples of good vs. bad test validation
+
+### 8. Realistic Timeline & Rollout (Overall) - UPDATED
+- Timeline: 10-12 days (enhanced Phase 2.5, criticality derivation, realistic Phase 6 estimate)
+- Rollout: Stage 1 (5-7 days), Stage 2 (10-14 days), Stage 3 (5-7 days) = 20-28 days total
+- Component-aware test coverage examples added
+- Comprehensive acceptance criteria with enhanced test quality checks
+- Manual validation exclusion from diversity
+- Criticality field removal from requirements schema
 
 ---
 

@@ -1,0 +1,42 @@
+{
+  "id": "08-version-tracking",
+  "title": "Component Version Tracking & Diff Views",
+  "description": "Version management, change detection, and diff views for library and adopted components",
+  "requirements": [
+    {
+      "id": "VER-TRACK-001",
+      "title": "Component Version Management",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "description": "Track current version for each component using semver or incremental versioning",
+      "validation": [],
+      "dependencies": [],
+      "notes": [
+        "Version stored in header comment",
+        "Support semver (1.2.3) or incremental (v1, v2)",
+        "Version updates tracked in registry",
+        "Version history optional for P1/P2"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "VER-TRACK-002",
+      "title": "Change Detection and Diff Views",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "Detect divergence between library version and adopted files, show diff views (library vs adopted)",
+      "validation": [],
+      "dependencies": [
+        "VER-TRACK-001"
+      ],
+      "notes": [
+        "Periodic or on-demand scans of adopted files",
+        "Compare library version vs adopted version",
+        "Compare file content for divergence",
+        "Flag locally modified files",
+        "Diff views: library@version vs adopted, library@latest vs adopted"
+      ],
+      "status": "planned"
+    }
+  ]
+}
