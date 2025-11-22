@@ -11,16 +11,18 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 /**
- * Load threshold configuration
+ * Load threshold configuration from completeness-config.json
  * @returns {object} Threshold configuration object
  */
 function loadThresholds() {
-  const thresholdsPath = path.join(__dirname, 'completeness-thresholds.json');
+  const configPath = path.join(__dirname, 'completeness-config.json');
   try {
-    const content = fs.readFileSync(thresholdsPath, 'utf8');
-    return JSON.parse(content);
+    const content = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(content);
+    // Extract thresholds section from unified config
+    return config.thresholds;
   } catch (error) {
-    console.error(`Unable to load thresholds from ${thresholdsPath}: ${error.message}`);
+    console.error(`Unable to load thresholds from ${configPath}: ${error.message}`);
     throw error;
   }
 }

@@ -1,9 +1,23 @@
 'use strict';
 
 /**
- * Validation quality issue detection
- * Identifies testing anti-patterns and validation quality issues
- * @module scenarios/lib/validation-quality
+ * Validation Quality Analyzer
+ *
+ * Identifies testing anti-patterns and validation quality issues in scenario test suites.
+ * This module analyzes requirements, tests, and operational targets to detect potential
+ * "gaming" behavior where tests are created to inflate metrics rather than provide genuine
+ * validation.
+ *
+ * Penalties Applied (see completeness-config.json for values):
+ * - Invalid test locations: Up to -25pts (ratio-based, 25pt multiplier)
+ * - Monolithic test files: Up to -15pts (2pts per violation)
+ * - Ungrouped targets: Up to -10pts (10pt multiplier on ratio)
+ * - Insufficient layers: Up to -20pts (20pt multiplier on ratio)
+ * - Superficial tests: Up to -10pts (1pt per low-quality file)
+ * - Missing automation: Up to -15pts (ratio-based + count-based)
+ * - Suspicious 1:1 ratio: -5pts (fixed penalty)
+ *
+ * @module scenarios/lib/validation-quality-analyzer
  */
 
 const componentDetector = require('./validators/component-detector');
@@ -11,28 +25,77 @@ const layerDetector = require('./validators/layer-detector');
 const duplicateDetector = require('./validators/duplicate-detector');
 const targetGroupingValidator = require('./validators/target-grouping-validator');
 const testQualityAnalyzer = require('./validators/test-quality-analyzer');
+const { getPenaltyConfig, getValidationConfig } = require('./utils/config-loader');
 
 /**
  * Detect validation quality issues in a scenario
- * @param {object} metrics - Completeness metrics
- * @param {array} requirements - Requirements array
+ *
+ * Analyzes a scenario's test suite for anti-patterns and validation quality issues.
+ * Returns actionable recommendations and applies penalties based on severity.
+ *
+ * Detection heuristics:
+ * 1. **Insufficient test coverage**: Detects suspicious 1:1 test-to-requirement ratios
+ * 2. **Invalid test locations**: Flags refs to unsupported test/ directories
+ * 3. **Monolithic test files**: Identifies tests validating ≥4 requirements
+ * 4. **Ungrouped operational targets**: Detects excessive 1:1 target-to-requirement mappings
+ * 5. **Insufficient validation layers**: Checks for multi-layer validation on P0/P1 requirements
+ * 6. **Superficial test implementation**: Analyzes test files for meaningful content
+ * 7. **Missing test automation**: Flags excessive manual validation usage
+ *
+ * @param {object} metrics - Completeness metrics from collectMetrics()
+ * @param {array} requirements - Requirements array with validation refs
  * @param {array} targets - Operational targets array
- * @param {string} scenarioRoot - Scenario root directory
- * @returns {object} Detection results with issues and penalties
+ * @param {string} scenarioRoot - Absolute path to scenario directory
+ * @returns {object} Analysis with issues[], patterns{}, and total_penalty
+ *
+ * @example
+ * const analysis = detectValidationQualityIssues(metrics, reqs, targets, root);
+ * console.log(`Found ${analysis.issue_count} issues (-${analysis.total_penalty}pts)`);
+ *
+ * @example Output structure
+ * {
+ *   has_issues: true,
+ *   issue_count: 3,
+ *   issues: [
+ *     {
+ *       severity: 'high',
+ *       detected: true,
+ *       penalty: 25,
+ *       message: '37/37 requirements reference unsupported test/ directories...',
+ *       recommendation: 'Move validation refs to supported test sources...',
+ *       why_it_matters: 'Requirements must be validated by actual tests...',
+ *       description: 'Test files must live in recognized test locations...'
+ *     }
+ *   ],
+ *   patterns: {
+ *     invalid_test_location: { ... },
+ *     monolithic_test_files: { ... }
+ *   },
+ *   total_penalty: 72,
+ *   overall_severity: 'high'
+ * }
  */
 function detectValidationQualityIssues(metrics, requirements, targets, scenarioRoot) {
   const issues = [];
   const patterns = {};
   let totalPenalty = 0;
 
+  // Load configuration
+  const validationConfig = getValidationConfig();
+
+  // ========================================================================
   // Issue 1: Insufficient test coverage (suspicious 1:1 ratio)
+  // ========================================================================
+  const penaltyConfig1 = getPenaltyConfig('insufficient_test_coverage');
   const testReqRatio = metrics.tests.total / Math.max(metrics.requirements.total, 1);
-  if (Math.abs(testReqRatio - 1.0) < 0.1) {  // Within 10% of 1:1
-    const penalty = 5;
+  const ratioTolerance = validationConfig.acceptable_ratios?.test_to_requirement_tolerance || 0.10;
+
+  if (Math.abs(testReqRatio - 1.0) < ratioTolerance) {
+    const penalty = penaltyConfig1.base_penalty;
     totalPenalty += penalty;
 
     patterns.insufficient_test_coverage = {
-      severity: 'medium',
+      severity: penaltyConfig1.severity,
       detected: true,
       penalty: penalty,
       ratio: testReqRatio,
@@ -44,7 +107,10 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
     issues.push(patterns.insufficient_test_coverage);
   }
 
+  // ========================================================================
   // Issue 2: Invalid test location (unsupported test/ directories)
+  // ========================================================================
+  const penaltyConfig2 = getPenaltyConfig('invalid_test_location');
   const unsupportedRefCount = requirements.filter(r =>
     (r.validation || []).some(v => {
       const ref = (v.ref || '').toLowerCase();
@@ -56,7 +122,10 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
 
   if (unsupportedRefCount > 0) {
     const ratio = unsupportedRefCount / Math.max(metrics.requirements.total, 1);
-    const penalty = Math.round(ratio * 25);
+    const penalty = Math.min(
+      Math.round(ratio * penaltyConfig2.multiplier),
+      penaltyConfig2.max_penalty
+    );
     totalPenalty += penalty;
 
     // Build component-aware recommendation
@@ -70,8 +139,10 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
     }
     validSources.push('test/playbooks/**/*.{json,yaml} (e2e automation)');
 
+    const severity = ratio > (penaltyConfig2.severity_threshold || 0.5) ? 'high' : 'medium';
+
     patterns.invalid_test_location = {
-      severity: ratio > 0.5 ? 'high' : 'medium',
+      severity,
       detected: true,
       penalty: penalty,
       count: unsupportedRefCount,
@@ -85,14 +156,24 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
     issues.push(patterns.invalid_test_location);
   }
 
+  // ========================================================================
   // Issue 3: Monolithic test files (duplicate test refs)
+  // ========================================================================
+  const penaltyConfig3 = getPenaltyConfig('monolithic_test_files');
   const refAnalysis = duplicateDetector.analyzeTestRefUsage(requirements);
+
   if (refAnalysis.violations.length > 0) {
-    const penalty = Math.min(refAnalysis.violations.length * 2, 15);
+    const penalty = Math.min(
+      refAnalysis.violations.length * penaltyConfig3.per_violation,
+      penaltyConfig3.max_penalty
+    );
     totalPenalty += penalty;
 
+    const hasSevereViolations = refAnalysis.violations.some(v => v.severity === 'high');
+    const severity = hasSevereViolations ? 'high' : 'medium';
+
     patterns.monolithic_test_files = {
-      severity: refAnalysis.violations.some(v => v.severity === 'high') ? 'high' : 'medium',
+      severity,
       detected: true,
       penalty: penalty,
       violations: refAnalysis.violations.length,
@@ -105,19 +186,32 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
     issues.push(patterns.monolithic_test_files);
   }
 
-  // Issue 4: Ungrouped operational targets (excessive 1:1 target-to-requirement mappings)
+  // ========================================================================
+  // Issue 4: Ungrouped operational targets (excessive 1:1 mappings)
+  // ========================================================================
+  const penaltyConfig4 = getPenaltyConfig('ungrouped_operational_targets');
   const groupingAnalysis = targetGroupingValidator.analyzeTargetGrouping(targets, requirements);
+
   if (groupingAnalysis.violations.length > 0) {
-    const penalty = Math.round(groupingAnalysis.one_to_one_ratio * 10);
+    const penalty = Math.min(
+      Math.round(groupingAnalysis.one_to_one_ratio * penaltyConfig4.multiplier),
+      penaltyConfig4.max_penalty
+    );
     totalPenalty += penalty;
 
+    const severity = groupingAnalysis.one_to_one_ratio > (penaltyConfig4.severity_threshold || 0.5)
+      ? 'high'
+      : 'medium';
+
+    const acceptableRatio = validationConfig.acceptable_ratios?.one_to_one_target_mapping || 0.15;
+
     patterns.ungrouped_operational_targets = {
-      severity: groupingAnalysis.one_to_one_ratio > 0.5 ? 'high' : 'medium',
+      severity,
       detected: true,
       penalty: penalty,
       ratio: groupingAnalysis.one_to_one_ratio,
       count: groupingAnalysis.one_to_one_count,
-      message: `${Math.round(groupingAnalysis.one_to_one_ratio * 100)}% of operational targets have 1:1 requirement mapping (max ${Math.round(groupingAnalysis.acceptable_ratio * 100)}% recommended)`,
+      message: `${Math.round(groupingAnalysis.one_to_one_ratio * 100)}% of operational targets have 1:1 requirement mapping (max ${Math.round(acceptableRatio * 100)}% recommended)`,
       recommendation: 'Group related requirements under shared operational targets from the PRD',
       why_it_matters: 'Operational targets from the PRD typically represent high-level business capabilities that encompass multiple related requirements. A 1:1 mapping suggests requirements were auto-generated from targets rather than properly decomposed.',
       description: 'Operational targets should group related requirements under cohesive business objectives. Excessive 1:1 mappings indicate lack of proper requirement decomposition and PRD understanding.'
@@ -125,9 +219,11 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
     issues.push(patterns.ungrouped_operational_targets);
   }
 
+  // ========================================================================
   // Issue 5: Insufficient validation layers (missing validation diversity)
+  // ========================================================================
+  const penaltyConfig5 = getPenaltyConfig('insufficient_validation_layers');
   const scenarioComponents = componentDetector.detectScenarioComponents(scenarioRoot);
-  const applicableLayers = componentDetector.getApplicableLayers(scenarioComponents);
 
   const diversityIssues = requirements.filter(req => {
     const criticality = layerDetector.deriveRequirementCriticality(req);
@@ -146,16 +242,24 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
       applicable.add('E2E');
     }
 
-    const minLayers = (criticality === 'P0' || criticality === 'P1') ? 2 : 1;
+    const minLayersP0 = validationConfig.min_layers?.p0_requirements || 2;
+    const minLayersP1 = validationConfig.min_layers?.p1_requirements || 2;
+    const minLayers = (criticality === 'P0' || criticality === 'P1')
+      ? (criticality === 'P0' ? minLayersP0 : minLayersP1)
+      : 1;
+
     return applicable.size < minLayers;
   });
 
   if (diversityIssues.length > 0) {
-    const penalty = Math.round((diversityIssues.length / Math.max(requirements.length, 1)) * 20);
+    const penalty = Math.min(
+      Math.round((diversityIssues.length / Math.max(requirements.length, 1)) * penaltyConfig5.multiplier),
+      penaltyConfig5.max_penalty
+    );
     totalPenalty += penalty;
 
     patterns.insufficient_validation_layers = {
-      severity: 'high',
+      severity: penaltyConfig5.severity,
       detected: true,
       penalty: penalty,
       count: diversityIssues.length,
@@ -168,8 +272,12 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
     issues.push(patterns.insufficient_validation_layers);
   }
 
+  // ========================================================================
   // Issue 6: Superficial test implementation (low-quality test files)
+  // ========================================================================
+  const penaltyConfig6 = getPenaltyConfig('superficial_test_implementation');
   const lowQualityTests = [];
+
   requirements.forEach(req => {
     (req.validation || []).forEach(v => {
       if (v.type === 'test' && v.ref) {
@@ -187,11 +295,14 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
   });
 
   if (lowQualityTests.length > 0) {
-    const penalty = Math.min(lowQualityTests.length, 10);
+    const penalty = Math.min(
+      lowQualityTests.length * penaltyConfig6.per_file,
+      penaltyConfig6.max_penalty
+    );
     totalPenalty += penalty;
 
     patterns.superficial_test_implementation = {
-      severity: 'medium',
+      severity: penaltyConfig6.severity,
       detected: true,
       penalty: penalty,
       count: lowQualityTests.length,
@@ -204,7 +315,10 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
     issues.push(patterns.superficial_test_implementation);
   }
 
+  // ========================================================================
   // Issue 7: Missing test automation (excessive manual validation usage)
+  // ========================================================================
+  const penaltyConfig7 = getPenaltyConfig('missing_test_automation');
   const totalValidations = requirements.reduce((sum, r) =>
     sum + (r.validation || []).length, 0
   );
@@ -224,21 +338,31 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
   });
 
   const manualRatio = manualValidations / Math.max(totalValidations, 1);
+  const acceptableManualRatio = validationConfig.acceptable_ratios?.manual_validation || 0.10;
+  const completeThreshold = validationConfig.complete_with_manual_threshold || 5;
 
   // Flag if: (a) >10% manual overall OR (b) ≥5 complete requirements with ONLY manual validation
-  if (manualRatio > 0.10 || completeWithManual.length >= 5) {
-    const penalty = Math.round(manualRatio * 10) + Math.min(completeWithManual.length, 5);
+  if (manualRatio > acceptableManualRatio || completeWithManual.length >= completeThreshold) {
+    const penalty = Math.min(
+      Math.round(manualRatio * penaltyConfig7.ratio_multiplier) +
+        Math.min(completeWithManual.length * penaltyConfig7.per_complete_requirement, penaltyConfig7.max_complete_count),
+      penaltyConfig7.max_penalty
+    );
     totalPenalty += penalty;
 
+    const severity = completeWithManual.length >= (penaltyConfig7.severity_threshold || 10)
+      ? 'high'
+      : 'medium';
+
     patterns.missing_test_automation = {
-      severity: completeWithManual.length >= 10 ? 'high' : 'medium',
+      severity,
       detected: true,
       penalty: penalty,
       ratio: manualRatio,
       count: manualValidations,
       complete_with_manual: completeWithManual.length,
-      message: manualRatio > 0.10
-        ? `${Math.round(manualRatio * 100)}% of validations are manual (max 10% recommended). Manual validations are intended as temporary measures before automated tests are implemented.`
+      message: manualRatio > acceptableManualRatio
+        ? `${Math.round(manualRatio * 100)}% of validations are manual (max ${Math.round(acceptableManualRatio * 100)}% recommended). Manual validations are intended as temporary measures before automated tests are implemented.`
         : `${completeWithManual.length} requirements marked complete with ONLY manual validations. Automated tests should replace manual validations for completed requirements.`,
       recommendation: 'Replace manual validations with automated tests (API tests, UI tests, or e2e automation). Manual validations should be temporary measures for pending/in_progress requirements.',
       why_it_matters: 'Manual validations are not repeatable, not run in CI/CD, and provide no regression protection. Completed requirements must have automated tests to ensure they stay working as the codebase evolves.',
@@ -247,6 +371,9 @@ function detectValidationQualityIssues(metrics, requirements, targets, scenarioR
     issues.push(patterns.missing_test_automation);
   }
 
+  // ========================================================================
+  // Return analysis results
+  // ========================================================================
   return {
     has_issues: issues.length > 0,
     issue_count: issues.length,

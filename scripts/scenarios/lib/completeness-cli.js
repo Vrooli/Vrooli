@@ -19,7 +19,7 @@ const {
 } = require('./completeness');
 
 const { collectMetrics } = require('./completeness-data');
-const { detectValidationQualityIssues } = require('./gaming-detection');
+const { detectValidationQualityIssues } = require('./validation-quality-analyzer');
 const {
   formatValidationIssues,
   formatScoreSummary,
@@ -29,6 +29,9 @@ const {
   formatActionPlan,
   formatComparison
 } = require('./completeness-output-formatter');
+
+// Output formatting constant
+const SUBSECTION_SEPARATOR = '━'.repeat(68);
 
 function showHelp() {
   console.log(`
@@ -65,6 +68,31 @@ Examples:
 `);
 }
 
+/**
+ * Validate metrics object structure
+ * @param {object} metrics - Metrics object to validate
+ * @throws {Error} If metrics are invalid
+ */
+function validateMetrics(metrics) {
+  const required = ['scenario', 'category', 'requirements', 'targets', 'tests'];
+  for (const field of required) {
+    if (!metrics[field]) {
+      throw new Error(`Invalid metrics: missing required field '${field}'`);
+    }
+  }
+
+  // Validate structure
+  if (typeof metrics.requirements.total !== 'number' || typeof metrics.requirements.passing !== 'number') {
+    throw new Error('Invalid metrics: requirements must have total and passing counts');
+  }
+  if (typeof metrics.targets.total !== 'number' || typeof metrics.targets.passing !== 'number') {
+    throw new Error('Invalid metrics: targets must have total and passing counts');
+  }
+  if (typeof metrics.tests.total !== 'number' || typeof metrics.tests.passing !== 'number') {
+    throw new Error('Invalid metrics: tests must have total and passing counts');
+  }
+}
+
 function main() {
   const args = process.argv.slice(2);
 
@@ -74,19 +102,46 @@ function main() {
   }
 
   const scenarioName = args[0];
+
+  // Validate scenario name
+  if (!scenarioName || scenarioName.startsWith('--')) {
+    console.error('Error: Scenario name is required');
+    console.error('Usage: vrooli scenario completeness <scenario-name> [options]');
+    process.exit(1);
+  }
+
   const formatArg = args.indexOf('--format');
   const format = formatArg !== -1 && args[formatArg + 1] ? args[formatArg + 1] : 'human';
   const verbose = args.includes('--verbose');
   const showMetrics = args.includes('--metrics');
 
   if (!['json', 'human'].includes(format)) {
-    console.error(`Invalid format: ${format}. Use 'json' or 'human'.`);
+    console.error(`Error: Invalid format '${format}'. Use 'json' or 'human'.`);
     process.exit(1);
   }
 
   // Determine scenario root
   const vrooliRoot = process.env.VROOLI_ROOT || path.join(__dirname, '../../..');
   const scenarioRoot = path.join(vrooliRoot, 'scenarios', scenarioName);
+
+  // Validate scenario exists
+  const fs = require('node:fs');
+  if (!fs.existsSync(scenarioRoot)) {
+    console.error(`Error: Scenario '${scenarioName}' not found at ${scenarioRoot}`);
+    console.error(`\nAvailable scenarios:`);
+    try {
+      const scenarios = fs.readdirSync(path.join(vrooliRoot, 'scenarios'))
+        .filter(f => fs.statSync(path.join(vrooliRoot, 'scenarios', f)).isDirectory())
+        .slice(0, 10);  // Show first 10
+      scenarios.forEach(s => console.error(`  - ${s}`));
+      if (scenarios.length === 10) {
+        console.error(`  ... and more`);
+      }
+    } catch (err) {
+      // Ignore errors listing scenarios
+    }
+    process.exit(1);
+  }
 
   // Load thresholds
   let thresholdsConfig;
@@ -101,8 +156,14 @@ function main() {
   let metrics;
   try {
     metrics = collectMetrics(scenarioRoot);
+    // Validate metrics structure
+    validateMetrics(metrics);
   } catch (error) {
     console.error(`Failed to collect metrics for ${scenarioName}: ${error.message}`);
+    if (verbose) {
+      console.error('\nStack trace:');
+      console.error(error.stack);
+    }
     process.exit(1);
   }
 
@@ -173,7 +234,7 @@ function main() {
     // 4. Detailed Metrics (only if --metrics flag - shows sub-breakdowns)
     if (showMetrics) {
       console.log('');
-      console.log('━'.repeat(68));
+      console.log(SUBSECTION_SEPARATOR);
       console.log(formatDetailedMetrics(breakdown, thresholds));
     }
 

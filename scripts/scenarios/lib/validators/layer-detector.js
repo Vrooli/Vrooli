@@ -154,7 +154,7 @@ function detectValidationLayers(requirement, scenarioRoot) {
         const quality = testQualityAnalyzer.analyzeTestFileQuality(refOriginal, scenarioRoot);
         if (!quality.is_meaningful) {
           // Don't count low-quality tests toward layer diversity
-          console.warn(`[gaming-prevention] Validation ref excluded (low quality): ${refOriginal} - ${quality.reason}`);
+          // Note: Low-quality tests are reported separately via superficial_test_implementation detection
           return;
         }
       } else {
@@ -167,7 +167,8 @@ function detectValidationLayers(requirement, scenarioRoot) {
     if (v.type === 'automation' && refOriginal && refOriginal.match(/\.(json|yaml)$/)) {
       const quality = testQualityAnalyzer.analyzePlaybookQuality(refOriginal, scenarioRoot);
       if (!quality.is_meaningful) {
-        console.warn(`[gaming-prevention] Playbook ref excluded (low quality): ${refOriginal} - ${quality.reason}`);
+        // Don't count low-quality playbooks toward layer diversity
+        // Note: Low-quality playbooks are reported separately via superficial_test_implementation detection
         return;
       }
     }

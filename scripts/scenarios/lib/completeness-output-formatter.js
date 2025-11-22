@@ -6,6 +6,10 @@
  * @module scenarios/lib/completeness-output-formatter
  */
 
+// Output formatting constants
+const SECTION_SEPARATOR = '='.repeat(68);
+const SUBSECTION_SEPARATOR = '━'.repeat(68);
+
 /**
  * Format validation issues section (prioritized at top of output)
  * @param {object} validationQualityAnalysis - Validation quality analysis
@@ -16,9 +20,9 @@ function formatValidationIssues(validationQualityAnalysis, options = {}) {
   const { verbose = false } = options;
 
   if (!validationQualityAnalysis.has_issues) {
-    return `${'='.repeat(68)}
+    return `${SECTION_SEPARATOR}
 ✅ No Validation Issues Detected
-${'='.repeat(68)}
+${SECTION_SEPARATOR}
 
 All tests follow recommended patterns and best practices.
 `;
@@ -34,9 +38,9 @@ All tests follow recommended patterns and best practices.
   const severityIcon = isCritical ? '🚨' : '⚠️';
   const severityLabel = isCritical ? 'CRITICAL ' : '';
 
-  lines.push('='.repeat(68));
+  lines.push(SECTION_SEPARATOR);
   lines.push(`${severityIcon} ${severityLabel}VALIDATION ISSUES DETECTED`);
-  lines.push('='.repeat(68));
+  lines.push(SECTION_SEPARATOR);
   lines.push('');
 
   if (isCritical) {
@@ -62,7 +66,7 @@ All tests follow recommended patterns and best practices.
   // Show high severity issues
   if (highSeverityIssues.length > 0) {
     lines.push('Top Issues (Fix These First):');
-    lines.push('━'.repeat(68));
+    lines.push(SUBSECTION_SEPARATOR);
     lines.push('');
 
     highSeverityIssues.forEach(issue => {
@@ -73,7 +77,7 @@ All tests follow recommended patterns and best practices.
   // Show medium severity issues (collapsed by default)
   if (mediumSeverityIssues.length > 0) {
     if (verbose || highSeverityIssues.length === 0) {
-      lines.push('━'.repeat(68));
+      lines.push(SUBSECTION_SEPARATOR);
       lines.push('');
       lines.push(`🟡 ${highSeverityIssues.length > 0 ? 'Minor Issues' : 'Issues Found'} (${mediumSeverityIssues.length} issues, -${mediumSeverityIssues.reduce((sum, i) => sum + i.penalty, 0)}pts total)`);
       lines.push('');
@@ -82,7 +86,7 @@ All tests follow recommended patterns and best practices.
         lines.push(...formatIssueDetail(issue, verbose));
       });
     } else {
-      lines.push('━'.repeat(68));
+      lines.push(SUBSECTION_SEPARATOR);
       lines.push('');
       lines.push(`🟡 Minor Issues (${mediumSeverityIssues.length} issues, -${mediumSeverityIssues.reduce((sum, i) => sum + i.penalty, 0)}pts total)`);
       lines.push('');
@@ -225,9 +229,9 @@ function generateContextualRecommendations(issue) {
 function formatScoreSummary(totalScore, breakdown, classification, validationQualityAnalysis) {
   const lines = [];
 
-  lines.push('='.repeat(68));
+  lines.push(SECTION_SEPARATOR);
   lines.push(`📊 COMPLETENESS SCORE: ${totalScore}/100 (${classification.replace(/_/g, '_')})`);
-  lines.push('='.repeat(68));
+  lines.push(SECTION_SEPARATOR);
   lines.push('');
   lines.push(`  Final Score:        ${totalScore}/100`);
   lines.push(`  Base Score:         ${breakdown.base_score}/100`);
@@ -346,9 +350,9 @@ function formatBaseMetrics(breakdown, thresholds) {
 function formatDetailedMetrics(breakdown, thresholds) {
   const lines = [];
 
-  lines.push('='.repeat(68));
+  lines.push(SECTION_SEPARATOR);
   lines.push('📊 DETAILED METRICS BREAKDOWN');
-  lines.push('='.repeat(68));
+  lines.push(SECTION_SEPARATOR);
   lines.push('');
 
   // Quality Metrics
@@ -419,9 +423,9 @@ function formatDetailedMetrics(breakdown, thresholds) {
 function formatActionPlan(breakdown, validationQualityAnalysis, thresholds) {
   const lines = [];
 
-  lines.push('='.repeat(68));
+  lines.push(SECTION_SEPARATOR);
   lines.push('🎯 RECOMMENDED ACTION PLAN');
-  lines.push('='.repeat(68));
+  lines.push(SECTION_SEPARATOR);
   lines.push('');
 
   if (validationQualityAnalysis.has_issues) {
@@ -614,26 +618,10 @@ function generatePriorityRecommendations(breakdown, thresholds) {
 function formatComparison(scenarioName, totalScore, validationPenalty, invalidRefRatio) {
   const lines = [];
 
-  lines.push('='.repeat(68));
+  lines.push(SECTION_SEPARATOR);
   lines.push('');
 
-  // Only show comparison if there are severe issues OR if score is low
-  if (validationPenalty > 30 || totalScore < 50) {
-    lines.push('💡 Compare to similar scenarios:');
-
-    // Show reference scenarios (excluding current scenario)
-    const referenceScenarios = [
-      { name: 'browser-automation-studio', score: 43, penalty: 24, invalidRefs: 11 },
-      { name: 'landing-manager', score: 8, penalty: 52, invalidRefs: 15 },
-    ].filter(s => s.name !== scenarioName);
-
-    referenceScenarios.forEach(s => {
-      lines.push(`   ${s.name.padEnd(27)} ${s.score}/100 (-${s.penalty}pts penalty, ${s.invalidRefs}% invalid refs)`);
-    });
-    lines.push(`   ${scenarioName.padEnd(27)} ${totalScore}/100 (-${validationPenalty}pts penalty, ${Math.round(invalidRefRatio * 100)}% invalid refs) ← YOU ARE HERE`);
-    lines.push('');
-  }
-
+  // Provide guidance based on scenario state (without hardcoded comparison data)
   if (validationPenalty > 50) {
     lines.push('🎓 Study browser-automation-studio as reference for proper test structure:');
     lines.push('   • Has API tests: api/**/*_test.go');
