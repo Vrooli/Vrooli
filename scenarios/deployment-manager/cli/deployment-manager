@@ -11,6 +11,7 @@ readonly SCENARIO_ID="deployment-manager"
 readonly DEFAULT_TOKEN=""
 CONFIG_API_BASE=""
 API_BASE=""
+OUTPUT_FORMAT="text"
 
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
@@ -58,15 +59,18 @@ detect_api_base() {
         return 0
     fi
 
-    if [[ -n "${API_PORT:-}" ]]; then
-        echo "http://${API_HOST:-localhost}:${API_PORT}/api/v1"
-        return 0
-    fi
-
+    # Prefer detected port (from vrooli scenario port) over env var
+    # because env var might be from a different scenario
     local detected_port
     detected_port="$(detect_api_port)"
     if [[ -n "$detected_port" ]]; then
-        echo "http://localhost:${detected_port}/api/v1"
+        echo "http://localhost:${detected_port}"
+        return 0
+    fi
+
+    # Fall back to API_PORT env var if detection fails
+    if [[ -n "${API_PORT:-}" ]]; then
+        echo "http://${API_HOST:-localhost}:${API_PORT}"
         return 0
     fi
 
@@ -114,6 +118,40 @@ api_request() {
     fi
 
     curl -s -X "$method" "${headers[@]}" "$url"
+}
+
+log_info() {
+    if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+        return 0
+    fi
+    echo -e "${BLUE}${1}${NC}"
+}
+
+log_success() {
+    if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+        return 0
+    fi
+    echo -e "${GREEN}✓${NC} ${1}"
+}
+
+log_error() {
+    if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+        echo "$1" >&2
+    else
+        echo -e "${RED}✗${NC} ${1}" >&2
+    fi
+}
+
+tier_to_number() {
+    local tier="$1"
+    case "$tier" in
+        local|1) echo "1" ;;
+        desktop|2) echo "2" ;;
+        mobile|3) echo "3" ;;
+        saas|4) echo "4" ;;
+        enterprise|5) echo "5" ;;
+        *) echo "$tier" ;;
+    esac
 }
 
 cmd_status() {
@@ -175,17 +213,600 @@ cmd_version() {
     fi
 }
 
+cmd_analyze() {
+    local scenario=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                OUTPUT_FORMAT="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        log_error "Scenario name is required"
+        echo "Usage: $CLI_NAME analyze <scenario> [--format json]"
+        return 1
+    fi
+
+    log_info "Analyzing dependencies for '$scenario'..."
+    response=$(api_request GET "/api/v1/dependencies/analyze/$scenario" || true)
+    if [[ -z "$response" ]]; then
+        log_error "Failed to analyze dependencies"
+        return 1
+    fi
+
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_fitness() {
+    local scenario=""
+    local tier="2"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tier)
+                tier="$2"
+                shift 2
+                ;;
+            --format)
+                OUTPUT_FORMAT="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        log_error "Scenario name is required"
+        echo "Usage: $CLI_NAME fitness <scenario> [--tier <tier>] [--format json]"
+        return 1
+    fi
+
+    log_info "Calculating fitness scores for '$scenario' (tier $tier)..."
+    local payload=$(jq -n --arg s "$scenario" --argjson t "[$tier]" '{scenario: $s, tiers: $t}')
+    response=$(curl -s -X POST -H 'Content-Type: application/json' -d "$payload" "${API_BASE}/api/v1/fitness/score" || true)
+
+    if [[ -z "$response" ]]; then
+        log_error "Failed to calculate fitness scores"
+        return 1
+    fi
+
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_profiles() {
+    local subcmd="${1:-list}"
+    shift || true
+
+    case "$subcmd" in
+        list)
+            echo -e "${BLUE}Listing deployment profiles...${NC}"
+            response=$(api_request GET "/api/v1/profiles" || true)
+            if [[ -z "$response" ]]; then
+                echo -e "${RED}✗${NC} Failed to list profiles"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        *)
+            echo -e "${RED}✗${NC} Unknown profiles subcommand: $subcmd"
+            echo "Valid subcommands: list"
+            return 1
+            ;;
+    esac
+}
+
+cmd_profile() {
+    local subcmd="${1:-}"
+    shift || true
+
+    case "$subcmd" in
+        create)
+            local name="${1:-}"
+            local scenario=""
+            local tier="2"
+
+            if [[ -z "$name" ]]; then
+                log_error "Profile name is required"
+                echo "Usage: $CLI_NAME profile create <name> [<scenario>] [--scenario <scenario>] [--tier <tier>] [--format json]"
+                return 1
+            fi
+            shift
+
+            # Check if next arg is a scenario name (not a flag)
+            if [[ $# -gt 0 && "$1" != --* ]]; then
+                scenario="$1"
+                shift
+            fi
+
+            # Parse flags
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --scenario)
+                        scenario="$2"
+                        shift 2
+                        ;;
+                    --tier)
+                        tier="$2"
+                        shift 2
+                        ;;
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        log_error "Unknown flag: $1"
+                        return 1
+                        ;;
+                esac
+            done
+
+            if [[ -z "$scenario" ]]; then
+                log_error "Scenario is required (either as positional arg or --scenario flag)"
+                return 1
+            fi
+
+            # Convert tier name to number
+            local tier_num=$(tier_to_number "$tier")
+
+            log_info "Creating profile '$name' for scenario '$scenario' (tier $tier)..."
+            local payload=$(jq -n --arg n "$name" --arg s "$scenario" --argjson t "[$tier_num]" \
+                '{name: $n, scenario: $s, tiers: $t, swaps: {}, secrets: {}, settings: {}}')
+            response=$(curl -s -X POST -H 'Content-Type: application/json' -d "$payload" "${API_BASE}/api/v1/profiles" || true)
+
+            if [[ -z "$response" ]]; then
+                log_error "Failed to create profile"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        list)
+            shift || true
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+            log_info "Listing deployment profiles..."
+            response=$(api_request GET "/api/v1/profiles" || true)
+            if [[ -z "$response" ]]; then
+                log_error "Failed to list profiles"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        show)
+            local profile_id="${1:-}"
+            shift || true
+
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+
+            if [[ -z "$profile_id" ]]; then
+                log_error "Profile ID is required"
+                echo "Usage: $CLI_NAME profile show <profile_id> [--format json]"
+                return 1
+            fi
+            log_info "Fetching profile '$profile_id'..."
+            response=$(api_request GET "/api/v1/profiles/$profile_id" || true)
+            if [[ -z "$response" ]]; then
+                log_error "Failed to fetch profile"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        delete)
+            local profile_id="${1:-}"
+            shift || true
+
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+
+            if [[ -z "$profile_id" ]]; then
+                log_error "Profile ID is required"
+                echo "Usage: $CLI_NAME profile delete <profile_id> [--format json]"
+                return 1
+            fi
+            log_info "Deleting profile '$profile_id'..."
+            response=$(curl -s -X DELETE -H 'Content-Type: application/json' "${API_BASE}/api/v1/profiles/$profile_id" || true)
+            if [[ -z "$response" ]]; then
+                log_error "Failed to delete profile"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        *)
+            log_error "Unknown profile subcommand: $subcmd"
+            echo "Valid subcommands: create, list, show, delete"
+            return 1
+            ;;
+    esac
+}
+
+cmd_deploy() {
+    local profile_id="${1:-}"
+    if [[ -z "$profile_id" ]]; then
+        echo -e "${RED}✗${NC} Profile ID is required"
+        echo "Usage: $CLI_NAME deploy <profile_id>"
+        return 1
+    fi
+
+    echo -e "${BLUE}Deploying profile '$profile_id'...${NC}"
+    response=$(curl -s -X POST -H 'Content-Type: application/json' "${API_BASE}/api/v1/deploy/$profile_id" || true)
+    if [[ -z "$response" ]]; then
+        echo -e "${RED}✗${NC} Failed to deploy profile"
+        return 1
+    fi
+
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
+cmd_deployment() {
+    local subcmd="${1:-status}"
+    shift || true
+
+    case "$subcmd" in
+        status)
+            local deployment_id="${1:-}"
+            shift || true
+
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+
+            if [[ -z "$deployment_id" ]]; then
+                log_error "Deployment ID is required"
+                echo "Usage: $CLI_NAME deployment status <deployment_id> [--format json]"
+                return 1
+            fi
+
+            log_info "Checking deployment status for '$deployment_id'..."
+            response=$(api_request GET "/api/v1/deployments/$deployment_id" || true)
+            if [[ -z "$response" ]]; then
+                log_error "Failed to get deployment status"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        *)
+            log_error "Unknown deployment subcommand: $subcmd"
+            echo "Valid subcommands: status"
+            return 1
+            ;;
+    esac
+}
+
+cmd_swaps() {
+    local subcmd="${1:-list}"
+    shift || true
+
+    case "$subcmd" in
+        list)
+            local scenario="${1:-}"
+            shift || true
+
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+
+            if [[ -z "$scenario" ]]; then
+                log_error "Scenario name is required"
+                echo "Usage: $CLI_NAME swaps list <scenario> [--format json]"
+                return 1
+            fi
+            log_info "Fetching swap suggestions for '$scenario'..."
+            response=$(api_request GET "/api/v1/swaps/suggest/$scenario" || true)
+            if [[ -z "$response" ]]; then
+                log_error "Failed to fetch swap suggestions"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        analyze)
+            local from="${1:-}"
+            local to="${2:-}"
+            shift 2 || true
+
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+
+            if [[ -z "$from" ]] || [[ -z "$to" ]]; then
+                log_error "Both 'from' and 'to' dependencies are required"
+                echo "Usage: $CLI_NAME swaps analyze <from> <to> [--format json]"
+                return 1
+            fi
+            log_info "Analyzing swap impact: $from -> $to..."
+            response=$(api_request GET "/api/v1/swaps/analyze/$from/$to" || true)
+            if [[ -z "$response" ]]; then
+                log_error "Failed to analyze swap impact"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        cascade)
+            local from="${1:-}"
+            local to="${2:-}"
+            shift 2 || true
+
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+
+            if [[ -z "$from" ]] || [[ -z "$to" ]]; then
+                log_error "Both 'from' and 'to' dependencies are required"
+                echo "Usage: $CLI_NAME swaps cascade <from> <to> [--format json]"
+                return 1
+            fi
+            log_info "Checking cascade impact: $from -> $to..."
+            response=$(api_request GET "/api/v1/swaps/cascade/$from/$to" || true)
+            if [[ -z "$response" ]]; then
+                log_error "Failed to check cascade impact"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        info)
+            local swap_id="${1:-}"
+            shift || true
+
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+
+            if [[ -z "$swap_id" ]]; then
+                log_error "Swap ID is required"
+                echo "Usage: $CLI_NAME swaps info <swap_id> [--format json]"
+                return 1
+            fi
+            log_info "Fetching swap details for '$swap_id'..."
+            response=$(api_request GET "/api/v1/swaps/$swap_id" || true)
+            if [[ -z "$response" ]]; then
+                log_error "Failed to fetch swap details"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        --help|-h)
+            cat <<'EOF'
+Swap Commands:
+    swaps list <scenario>           List swap suggestions for scenario
+    swaps analyze <from> <to>       Analyze swap impact (fitness delta)
+    swaps cascade <from> <to>       Check cascade impact of swap
+    swaps info <swap_id>            Get detailed swap information
+EOF
+            ;;
+        *)
+            log_error "Unknown swaps subcommand: $subcmd"
+            echo "Valid subcommands: list, analyze, cascade, info"
+            return 1
+            ;;
+    esac
+}
+
+cmd_packagers() {
+    local subcmd="${1:-list}"
+    shift || true
+
+    case "$subcmd" in
+        list)
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+
+            log_info "Listing available packagers..."
+            response=$(api_request GET "/api/v1/packagers" || true)
+            if [[ -z "$response" ]]; then
+                log_error "Failed to list packagers"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        discover)
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --format)
+                        OUTPUT_FORMAT="$2"
+                        shift 2
+                        ;;
+                    *)
+                        shift
+                        ;;
+                esac
+            done
+
+            log_info "Discovering packagers..."
+            response=$(curl -s -X POST -H 'Content-Type: application/json' "${API_BASE}/api/v1/packagers/discover" || true)
+            if [[ -z "$response" ]]; then
+                log_error "Failed to discover packagers"
+                return 1
+            fi
+            echo "$response" | jq '.' 2>/dev/null || echo "$response"
+            ;;
+        --help|-h)
+            cat <<'EOF'
+Packager Commands:
+    packagers list       List available packagers (scenario-to-*)
+    packagers discover   Discover installed packagers
+EOF
+            ;;
+        *)
+            log_error "Unknown packagers subcommand: $subcmd"
+            echo "Valid subcommands: list, discover"
+            return 1
+            ;;
+    esac
+}
+
+cmd_package() {
+    local profile_id="${1:-}"
+    shift || true
+
+    local packager=""
+    local dry_run=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --packager)
+                packager="$2"
+                shift 2
+                ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            --format)
+                OUTPUT_FORMAT="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$profile_id" ]]; then
+        log_error "Profile ID is required"
+        echo "Usage: $CLI_NAME package <profile_id> --packager <name> [--dry-run] [--format json]"
+        return 1
+    fi
+
+    if [[ -z "$packager" ]]; then
+        log_error "--packager is required"
+        return 1
+    fi
+
+    log_info "Packaging profile '$profile_id' with '$packager'..."
+    local payload=$(jq -n --arg p "$packager" --argjson d "$dry_run" '{packager: $p, dry_run: $d}')
+    response=$(curl -s -X POST -H 'Content-Type: application/json' -d "$payload" "${API_BASE}/api/v1/package/$profile_id" || true)
+
+    if [[ -z "$response" ]]; then
+        log_error "Failed to package profile"
+        return 1
+    fi
+    echo "$response" | jq '.' 2>/dev/null || echo "$response"
+}
+
 cmd_help() {
     cat <<'EOF'
 deployment-manager - Command-line interface for Deployment Manager
 
-Usage: deployment-manager <command>
+Usage: deployment-manager <command> [args]
 
 Commands:
-    status          Check API and dependency health
-    configure       View or update CLI configuration
-    version         Show CLI version
-    help            Show this help message
+    status                                    Check API and dependency health
+    analyze <scenario> [--format json]        Analyze scenario dependencies
+    fitness <scenario> [--tier <n>]           Calculate platform fitness scores
+
+    profiles list [--format json]             List all deployment profiles
+    profile create <name> --scenario <s> ...  Create new deployment profile
+    profile show <id> [--format json]         Show profile details
+    profile delete <id> [--format json]       Delete a profile
+    profile list [--format json]              List all profiles
+
+    swaps list <scenario> [--format json]     List swap suggestions
+    swaps analyze <from> <to>                 Analyze swap impact
+    swaps cascade <from> <to>                 Check cascade effects
+    swaps info <swap_id>                      Get swap details
+
+    packagers list [--format json]            List available packagers
+    packagers discover [--format json]        Discover packagers
+    package <profile_id> --packager <name>    Package a profile
+
+    deploy <profile_id>                       Deploy a profile
+    deployment status <id> [--format json]    Check deployment status
+
+    configure [key] [value]                   View or update CLI configuration
+    version                                   Show CLI version
+    help                                      Show this help message
+
+Note: Add --format json to any command for machine-readable output
 EOF
 }
 
@@ -211,18 +832,52 @@ main() {
         API_BASE="${env_api_base%/}"
     fi
 
-    if [[ "$command" == "status" ]]; then
-        if [[ -z "$API_BASE" ]]; then
-            if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
-                echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
-                exit 1
+    # Commands that require API_BASE (all except configure, version, help)
+    case "$command" in
+        configure|config|version|--version|-v|help|--help|-h)
+            # These commands don't need API_BASE
+            ;;
+        *)
+            # All other commands require API_BASE
+            if [[ -z "$API_BASE" ]]; then
+                if ! API_BASE=$(resolve_api_base "$CONFIG_API_BASE"); then
+                    echo -e "${RED}✗${NC} Unable to determine API base URL. Ensure the scenario is running via 'vrooli scenario run $SCENARIO_ID' or configure it with '$CLI_NAME configure api_base <url>'."
+                    exit 1
+                fi
             fi
-        fi
-    fi
+            ;;
+    esac
 
     case "$command" in
         status)
             cmd_status
+            ;;
+        analyze)
+            cmd_analyze "$@"
+            ;;
+        fitness)
+            cmd_fitness "$@"
+            ;;
+        profiles)
+            cmd_profiles "$@"
+            ;;
+        profile)
+            cmd_profile "$@"
+            ;;
+        swaps)
+            cmd_swaps "$@"
+            ;;
+        packagers)
+            cmd_packagers "$@"
+            ;;
+        package)
+            cmd_package "$@"
+            ;;
+        deploy)
+            cmd_deploy "$@"
+            ;;
+        deployment)
+            cmd_deployment "$@"
             ;;
         configure|config)
             cmd_configure "$@"
@@ -234,7 +889,7 @@ main() {
             cmd_help
             ;;
         *)
-            echo -e "${RED}✗${NC} Unknown command: $command"
+            log_error "Unknown command: $command"
             echo "Run '$CLI_NAME help' for usage information"
             exit 1
             ;;

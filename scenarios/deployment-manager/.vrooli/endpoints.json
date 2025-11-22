@@ -29,10 +29,10 @@
     },
     {
       "id": "analyze_dependencies",
-      "path": "/api/v1/dependencies/analyze/:scenario",
+      "path": "/api/v1/dependencies/analyze/{scenario}",
       "method": "GET",
       "summary": "Analyze scenario dependencies",
-      "description": "Recursively fetches all resource and scenario dependencies for a given scenario",
+      "description": "Recursively fetches all resource and scenario dependencies for a given scenario [REQ:DM-P0-001][REQ:DM-P0-002][REQ:DM-P0-006]",
       "category": "analysis",
       "response": {
         "type": "object",
@@ -51,14 +51,15 @@
       ],
       "cli_mapping": {
         "command": "deployment-manager analyze <scenario>"
-      }
+      },
+      "experimental": true
     },
     {
       "id": "score_fitness",
       "path": "/api/v1/fitness/score",
       "method": "POST",
       "summary": "Calculate platform fitness scores",
-      "description": "Scores dependency fitness for specified deployment tiers (1-5)",
+      "description": "Scores dependency fitness for specified deployment tiers (1-5) [REQ:DM-P0-003][REQ:DM-P0-004][REQ:DM-P0-005]",
       "category": "analysis",
       "request": {
         "type": "object",
@@ -83,14 +84,15 @@
       ],
       "cli_mapping": {
         "command": "deployment-manager fitness <scenario> --tier <tier>"
-      }
+      },
+      "experimental": true
     },
     {
       "id": "list_profiles",
       "path": "/api/v1/profiles",
       "method": "GET",
       "summary": "List deployment profiles",
-      "description": "Returns all deployment profiles with summary info",
+      "description": "Returns all deployment profiles with summary info [REQ:DM-P0-012][REQ:DM-P0-015]",
       "category": "profiles",
       "response": {
         "type": "array",
@@ -104,14 +106,15 @@
       ],
       "cli_mapping": {
         "command": "deployment-manager profiles list"
-      }
+      },
+      "experimental": true
     },
     {
       "id": "create_profile",
       "path": "/api/v1/profiles",
       "method": "POST",
       "summary": "Create deployment profile",
-      "description": "Creates a new deployment profile for a scenario and target tier(s)",
+      "description": "Creates a new deployment profile for a scenario and target tier(s) [REQ:DM-P0-007][REQ:DM-P0-012][REQ:DM-P0-013][REQ:DM-P0-014]",
       "category": "profiles",
       "request": {
         "type": "object",
@@ -139,14 +142,15 @@
       ],
       "cli_mapping": {
         "command": "deployment-manager profile create <name> --scenario <scenario> --tier <tier>"
-      }
+      },
+      "experimental": true
     },
     {
       "id": "deploy",
-      "path": "/api/v1/deploy/:profile_id",
+      "path": "/api/v1/deploy/{profile_id}",
       "method": "POST",
       "summary": "Deploy a profile",
-      "description": "Orchestrates deployment of a profile to its target tier(s)",
+      "description": "Orchestrates deployment of a profile to its target tier(s) [REQ:DM-P0-028][REQ:DM-P0-029][REQ:DM-P0-032][REQ:DM-P0-033]",
       "category": "deployment",
       "response": {
         "type": "object",
@@ -164,14 +168,15 @@
       ],
       "cli_mapping": {
         "command": "deployment-manager deploy <profile_id>"
-      }
+      },
+      "experimental": true
     },
     {
       "id": "deployment_status",
-      "path": "/api/v1/deployments/:deployment_id",
+      "path": "/api/v1/deployments/{deployment_id}",
       "method": "GET",
       "summary": "Get deployment status",
-      "description": "Returns current status and metadata for a deployment",
+      "description": "Returns current status and metadata for a deployment [REQ:DM-P0-030][REQ:DM-P0-031]",
       "category": "deployment",
       "response": {
         "type": "object",
@@ -192,7 +197,8 @@
       ],
       "cli_mapping": {
         "command": "deployment-manager deployment status <deployment_id>"
-      }
+      },
+      "experimental": true
     }
   ],
   "cli_commands": [

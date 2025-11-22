@@ -1,0 +1,252 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Search, Loader2, AlertCircle, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Badge } from "../components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { analyzeDependencies } from "../lib/api";
+
+const TIER_NAMES: Record<string, string> = {
+  local: "Local/Dev",
+  desktop: "Desktop",
+  mobile: "Mobile",
+  saas: "SaaS/Cloud",
+  enterprise: "Enterprise",
+};
+
+function getFitnessColor(score: number): string {
+  if (score >= 75) return "text-green-400";
+  if (score >= 50) return "text-yellow-400";
+  if (score > 0) return "text-orange-400";
+  return "text-red-400";
+}
+
+function getFitnessIcon(score: number) {
+  if (score >= 75) return CheckCircle2;
+  if (score >= 50) return AlertTriangle;
+  return AlertCircle;
+}
+
+export function Analyze() {
+  const [scenario, setScenario] = useState("");
+  const [queryScenario, setQueryScenario] = useState("");
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["analyze", queryScenario],
+    queryFn: () => analyzeDependencies(queryScenario),
+    enabled: !!queryScenario,
+  });
+
+  const handleAnalyze = (e: React.FormEvent) => {
+    e.preventDefault();
+    setQueryScenario(scenario);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold">Dependency Analysis</h1>
+        <p className="text-slate-400 mt-1">
+          Analyze scenario dependencies and calculate fitness scores for deployment tiers
+        </p>
+      </div>
+
+      {/* Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Analyze Scenario</CardTitle>
+          <CardDescription>
+            Enter a scenario name to analyze its dependencies and deployment fitness
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAnalyze} className="flex gap-3">
+            <div className="flex-1">
+              <Label htmlFor="scenario" className="sr-only">Scenario Name</Label>
+              <Input
+                id="scenario"
+                placeholder="e.g., picker-wheel"
+                value={scenario}
+                onChange={(e) => setScenario(e.target.value)}
+              />
+            </div>
+            <Button type="submit" disabled={!scenario || isLoading}>
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Search className="mr-2 h-4 w-4" />
+              )}
+              Analyze
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Error */}
+      {error && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-200">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5" />
+            <p className="text-sm">Failed to analyze: {(error as Error).message}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Results */}
+      {data && (
+        <div className="space-y-6">
+          {/* Circular Dependencies Warning */}
+          {data.circular_dependencies.length > 0 && (
+            <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4 text-yellow-200">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 mt-0.5" />
+                <div>
+                  <p className="font-medium">Circular Dependencies Detected</p>
+                  <ul className="text-sm mt-2 space-y-1">
+                    {data.circular_dependencies.map((dep, i) => (
+                      <li key={i}>{dep}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fitness Scores */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Deployment Fitness Scores</CardTitle>
+              <CardDescription>
+                Overall fitness for each deployment tier (0-100 scale)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(data.tiers).map(([tierKey, scores]) => {
+                  const Icon = getFitnessIcon(scores.overall);
+                  return (
+                    <div
+                      key={tierKey}
+                      className="rounded-lg border border-white/10 bg-white/5 p-4"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-medium">{TIER_NAMES[tierKey] || tierKey}</h3>
+                        <Icon className={`h-5 w-5 ${getFitnessColor(scores.overall)}`} />
+                      </div>
+                      <div className={`text-3xl font-bold ${getFitnessColor(scores.overall)}`}>
+                        {scores.overall}
+                      </div>
+                      <div className="mt-3 space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Portability</span>
+                          <span className={getFitnessColor(scores.portability)}>
+                            {scores.portability}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Resources</span>
+                          <span className={getFitnessColor(scores.resources)}>
+                            {scores.resources}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Licensing</span>
+                          <span className={getFitnessColor(scores.licensing)}>
+                            {scores.licensing}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Platform Support</span>
+                          <span className={getFitnessColor(scores.platform_support)}>
+                            {scores.platform_support}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Resource Requirements */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Aggregate Resource Requirements</CardTitle>
+              <CardDescription>
+                Total resources needed to run this scenario
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                  <div className="text-sm text-slate-400">Memory</div>
+                  <div className="text-lg font-semibold mt-1">
+                    {data.aggregate_requirements.memory}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                  <div className="text-sm text-slate-400">CPU</div>
+                  <div className="text-lg font-semibold mt-1">
+                    {data.aggregate_requirements.cpu}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                  <div className="text-sm text-slate-400">GPU</div>
+                  <div className="text-lg font-semibold mt-1">
+                    {data.aggregate_requirements.gpu}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                  <div className="text-sm text-slate-400">Storage</div>
+                  <div className="text-lg font-semibold mt-1">
+                    {data.aggregate_requirements.storage}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                  <div className="text-sm text-slate-400">Network</div>
+                  <div className="text-lg font-semibold mt-1">
+                    {data.aggregate_requirements.network}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Dependencies Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Dependency Tree</CardTitle>
+              <CardDescription>
+                All resources and scenarios required by {queryScenario}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="overview">
+                <TabsList>
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="raw">Raw Data</TabsTrigger>
+                </TabsList>
+                <TabsContent value="overview" className="mt-4">
+                  <p className="text-sm text-slate-400">
+                    Dependency tree visualization coming soon. View raw data for now.
+                  </p>
+                </TabsContent>
+                <TabsContent value="raw" className="mt-4">
+                  <pre className="rounded-lg bg-black/40 p-4 text-xs overflow-auto max-h-96">
+                    {JSON.stringify(data.dependencies, null, 2)}
+                  </pre>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}

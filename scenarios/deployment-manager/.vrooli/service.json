@@ -87,13 +87,26 @@
     "setup": {
       "description": "Build API & UI, install CLI, initialize database",
       "condition": {
-        "binaries": [
-          "api/deployment-manager-api"
-        ],
-        "commands": [
-          "deployment-manager"
-        ],
-        "ui-bundle": "ui/dist/index.html"
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/deployment-manager-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "deployment-manager",
+            "targets": [
+              "deployment-manager"
+            ]
+          }
+        ]
       },
       "steps": [
         {
@@ -113,13 +126,13 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm install; else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && npm install; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then if [ -z \"${API_PORT:-}\" ]; then echo 'API_PORT must be provided by the lifecycle system'; exit 1; fi; cd ui && VITE_API_BASE_URL=\"http://localhost:${API_PORT}/api/v1\" pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI (requires lifecycle-assigned API_PORT)"
+          "run": "if [ -f ui/package.json ]; then cd ui && npm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI"
         },
         {
           "name": "show-urls",
@@ -142,7 +155,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.cjs",
+          "run": "cd ui && node server.js",
           "background": true,
           "description": "Serve production UI bundle",
           "condition": {
@@ -176,8 +189,8 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f 'pnpm run dev' || true",
-          "description": "Stop Vite dev server"
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
         }
       ]
     }

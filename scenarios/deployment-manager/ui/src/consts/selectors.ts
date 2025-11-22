@@ -266,12 +266,50 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+  layout: {
+    rootContainer: 'app-root',
+    navDashboard: 'nav-dashboard',
+    navProfiles: 'nav-profiles',
+    navAnalyze: 'nav-analyze',
+    navDeployments: 'nav-deployments',
   },
-  */
+  dashboard: {
+    heading: 'dashboard-heading',
+    newProfileButton: 'new-profile-button',
+    profileCard: 'profile-card',
+  },
+  profiles: {
+    list: 'profiles-list',
+    item: 'profile-item',
+  },
+  profileForm: {
+    form: 'profile-form',
+    nameInput: 'profile-name-input',
+    scenarioInput: 'profile-scenario-input',
+    tierSelector: 'tier-selector',
+    createSubmit: 'create-profile-submit',
+  },
+  analyze: {
+    form: 'analyze-form',
+    scenarioInput: 'scenario-input',
+    analyzeButton: 'analyze-button',
+    fitnessScores: 'fitness-scores',
+    dependencyTree: 'dependency-tree',
+  },
+  profileDetail: {
+    detail: 'profile-detail',
+    deployButton: 'deploy-button',
+    config: 'profile-config',
+  },
+  deployments: {
+    list: 'deployments-list',
+    item: 'deployment-item',
+    status: 'deployment-status',
+    logs: 'deployment-logs',
+  },
+  health: {
+    status: 'health-status',
+  },
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {

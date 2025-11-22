@@ -4,11 +4,11 @@
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
 #
 # Usage:
-#   make           - Show help
-#   make start     - Start this scenario
+#   make           - Show this help message
+#   make start     - Start this scenario (uses Vrooli lifecycle)
 #   make stop      - Stop this scenario
-#   make test      - Run all tests
-#   make logs      - Show scenario logs
+#   make test      - Run all tests (API, UI, CLI)
+#   make logs      - Show recent logs for this scenario
 #   make clean     - Clean build artifacts
 
 .PHONY: help start stop test logs clean run dev status build build-api build-ui test-api test-ui test-cli logs-follow db-reset db-migrate validate install-deps fmt fmt-go fmt-ui lint lint-go lint-ui check r s d t l c b f
@@ -27,11 +27,17 @@ RED := \033[1;31m
 RESET := \033[0m
 
 help: ## Show this help message
-	@echo "$(BLUE)🏗️  $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo "$(BLUE)🏗️  $(SCENARIO_NAME) Scenario$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make <command>"
+	@echo "  make            Show this help message"
+	@echo "  make start      Start the scenario"
+	@echo "  make stop       Stop the scenario"
+	@echo "  make test       Run all tests"
+	@echo "  make logs       Show scenario logs"
+	@echo "  make clean      Clean build artifacts"
 	@echo ""
+	@echo "$(YELLOW)Scenario Commands$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET)"
