@@ -66,7 +66,7 @@
       "data": {
         "label": "Verify screenshot display area exists",
         "expression": "!!document.querySelector('img[src*=\"data:image\"], canvas, [class*=\"screenshot\"]')",
-        "storeAs": "hasScreenshotDisplay"
+        "storeResult": "hasScreenshotDisplay"
       }
     },
     {
@@ -75,7 +75,7 @@
       "data": {
         "label": "Verify console tab exists",
         "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"console\"]')).some(el => el.textContent?.includes('Console'))",
-        "storeAs": "hasConsoleTab",
+        "storeResult": "hasConsoleTab",
         "continueOnError": true
       }
     },
@@ -85,7 +85,7 @@
       "data": {
         "label": "Verify network tab exists",
         "expression": "Array.from(document.querySelectorAll('[role=\"tab\"], button, [class*=\"network\"]')).some(el => el.textContent?.includes('Network'))",
-        "storeAs": "hasNetworkTab",
+        "storeResult": "hasNetworkTab",
         "continueOnError": true
       }
     },
@@ -113,7 +113,7 @@
       "data": {
         "label": "Verify telemetry data is updating",
         "expression": "document.querySelectorAll('[class*=\"telemetry\"], [class*=\"event\"], [class*=\"log\"]').length > 0",
-        "storeAs": "hasTelemetryData"
+        "storeResult": "hasTelemetryData"
       }
     },
     {
@@ -131,7 +131,7 @@
       "data": {
         "label": "Verify heartbeat/timestamp display",
         "expression": "!!document.querySelector('[class*=\"timestamp\"], [class*=\"time\"], time')",
-        "storeAs": "hasTimestamps"
+        "storeResult": "hasTimestamps"
       }
     },
     {

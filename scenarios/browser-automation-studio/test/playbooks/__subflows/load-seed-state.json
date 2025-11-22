@@ -54,7 +54,7 @@
       "data": {
         "label": "Store seed project name",
         "expression": "\"${fixture.projectName}\"",
-        "storeAs": "seed.projectName"
+        "storeResult": "seed.projectName"
       }
     },
     {
@@ -63,7 +63,7 @@
       "data": {
         "label": "Store seed project id",
         "expression": "\"${fixture.projectId}\"",
-        "storeAs": "seed.projectId"
+        "storeResult": "seed.projectId"
       }
     },
     {
@@ -72,7 +72,7 @@
       "data": {
         "label": "Store seed project folder",
         "expression": "\"${fixture.projectFolder}\"",
-        "storeAs": "seed.projectFolder"
+        "storeResult": "seed.projectFolder"
       }
     },
     {
@@ -81,7 +81,7 @@
       "data": {
         "label": "Store seed workflow name",
         "expression": "\"${fixture.workflowName}\"",
-        "storeAs": "seed.workflowName"
+        "storeResult": "seed.workflowName"
       }
     },
     {
@@ -90,7 +90,7 @@
       "data": {
         "label": "Store seed workflow id",
         "expression": "\"${fixture.workflowId}\"",
-        "storeAs": "seed.workflowId"
+        "storeResult": "seed.workflowId"
       }
     }
   ],

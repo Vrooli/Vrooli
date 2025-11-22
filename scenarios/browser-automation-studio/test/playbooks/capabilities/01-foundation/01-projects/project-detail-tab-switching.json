@@ -46,7 +46,7 @@
       "data": {
         "label": "Verify workflow list/grid is visible",
         "expression": "(() => { const workflows = document.querySelectorAll('@selector/workflows.card'); return workflows.length > 0 || document.querySelector('@selector/workflowBuilder.search.input') !== null; })()",
-        "storeAs": "workflowContentVisible"
+        "storeResult": "workflowContentVisible"
       }
     },
     {
@@ -99,7 +99,7 @@
       "data": {
         "label": "Verify execution history content is visible",
         "expression": "(() => { return document.querySelector('@selector/executions.list.root, @selector/executions.filters.all, @selector/executions.list.refreshButton') !== null; })()",
-        "storeAs": "executionContentVisible"
+        "storeResult": "executionContentVisible"
       }
     },
     {

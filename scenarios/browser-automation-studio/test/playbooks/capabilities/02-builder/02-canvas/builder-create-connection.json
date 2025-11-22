@@ -37,7 +37,7 @@
       "data": {
         "label": "Check we have at least 2 nodes",
         "expression": "document.querySelectorAll('.react-flow__node').length >= 2",
-        "storeAs": "hasMultipleNodes"
+        "storeResult": "hasMultipleNodes"
       }
     },
     {
@@ -46,7 +46,7 @@
       "data": {
         "label": "Count initial connections",
         "expression": "document.querySelectorAll('.react-flow__edge').length",
-        "storeAs": "initialEdgeCount"
+        "storeResult": "initialEdgeCount"
       }
     },
     {
@@ -64,7 +64,7 @@
       "data": {
         "label": "Get first node output handle",
         "expression": "(() => { const firstNode = document.querySelector('.react-flow__node:first-of-type'); if (!firstNode) return null; const handle = firstNode.querySelector('.react-flow__handle-bottom, .react-flow__handle-right, .react-flow__handle[data-handlepos=\"bottom\"], .react-flow__handle[data-handlepos=\"right\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
-        "storeAs": "firstNodeHandle"
+        "storeResult": "firstNodeHandle"
       }
     },
     {
@@ -73,7 +73,7 @@
       "data": {
         "label": "Get second node input handle",
         "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node'); if (nodes.length < 2) return null; const secondNode = nodes[1]; const handle = secondNode.querySelector('.react-flow__handle-top, .react-flow__handle-left, .react-flow__handle[data-handlepos=\"top\"], .react-flow__handle[data-handlepos=\"left\"]'); if (!handle) return null; const rect = handle.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
-        "storeAs": "secondNodeHandle"
+        "storeResult": "secondNodeHandle"
       }
     },
     {
@@ -103,7 +103,7 @@
       "data": {
         "label": "Count final connections",
         "expression": "document.querySelectorAll('.react-flow__edge').length",
-        "storeAs": "finalEdgeCount"
+        "storeResult": "finalEdgeCount"
       }
     },
     {
@@ -112,7 +112,7 @@
       "data": {
         "label": "Verify connection was added",
         "expression": "(() => { const initial = Number({{initialEdgeCount}} || 0); const final = Number({{finalEdgeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
-        "storeAs": "connectionWasAdded"
+        "storeResult": "connectionWasAdded"
       }
     },
     {

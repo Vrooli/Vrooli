@@ -19,6 +19,7 @@ const {
 } = require('./completeness');
 
 const { collectMetrics } = require('./completeness-data');
+const { detectGamingPatterns } = require('./gaming-detection');
 
 function showHelp() {
   console.log(`
@@ -107,6 +108,14 @@ function main() {
   const stalenessCheck = checkStaleness(metrics.lastTestRun);
   const warnings = stalenessCheck.warning ? [stalenessCheck] : [];
 
+  // PHASE 5: Detect gaming patterns
+  const gamingAnalysis = detectGamingPatterns(
+    metrics,
+    metrics.rawRequirements,
+    metrics.targets ? Object.values(metrics.targets) : [],
+    scenarioRoot
+  );
+
   // Generate recommendations
   const recommendations = generateRecommendations(breakdown, thresholds);
 
@@ -124,7 +133,8 @@ function main() {
         ui: breakdown.ui
       },
       warnings: warnings,
-      recommendations: recommendations
+      recommendations: recommendations,
+      gaming_analysis: gamingAnalysis  // Include gaming analysis in JSON output
     };
     console.log(JSON.stringify(output, null, 2));
   } else {
@@ -140,6 +150,19 @@ function main() {
       console.log('Warnings:');
       warnings.forEach(w => {
         console.log(`  ⚠️  ${w.message}${w.action ? `. ${w.action}` : ''}`);
+      });
+    }
+
+    // PHASE 5: Display gaming pattern warnings
+    if (gamingAnalysis.has_warnings) {
+      console.log('');
+      console.log('⚠️  Gaming Pattern Warnings:');
+      console.log('');
+      gamingAnalysis.warnings.forEach(warning => {
+        const icon = warning.severity === 'high' ? '🔴' : '🟡';
+        console.log(`${icon} ${warning.message}`);
+        console.log(`   💡 ${warning.recommendation}`);
+        console.log('');
       });
     }
 

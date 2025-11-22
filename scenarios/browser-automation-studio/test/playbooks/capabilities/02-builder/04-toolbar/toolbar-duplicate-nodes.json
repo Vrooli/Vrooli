@@ -26,7 +26,7 @@
       "data": {
         "label": "Count initial nodes",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "initialCount"
+        "storeResult": "initialCount"
       }
     },
     {
@@ -64,7 +64,7 @@
       "data": {
         "label": "Count nodes after duplicate",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "finalCount"
+        "storeResult": "finalCount"
       }
     },
     {
@@ -73,7 +73,7 @@
       "data": {
         "label": "Verify node count increased",
         "expression": "(() => { const initial = parseInt(localStorage.getItem('initialCount') || '0'); const final = parseInt(localStorage.getItem('finalCount') || '0'); return final > initial; })()",
-        "storeAs": "nodeDuplicated"
+        "storeResult": "nodeDuplicated"
       }
     },
     {

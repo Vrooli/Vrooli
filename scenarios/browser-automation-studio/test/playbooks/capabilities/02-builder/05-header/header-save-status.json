@@ -120,7 +120,7 @@
       "data": {
         "label": "Check for saved indicator",
         "expression": "(() => { const status = document.querySelector('@selector/header.saveStatus.indicator'); return status ? status.textContent || status.innerHTML : ''; })()",
-        "storeAs": "saveStatus"
+        "storeResult": "saveStatus"
       }
     },
     {

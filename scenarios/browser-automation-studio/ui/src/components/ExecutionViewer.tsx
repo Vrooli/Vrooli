@@ -3330,7 +3330,7 @@ function ActiveExecutionViewer({
         {activeTab === "replay" ? (
           <div
             className="flex-1 overflow-auto p-3 space-y-3"
-            data-testid={selectors.replay.viewer}
+            data-testid={selectors.replay.player}
           >
             {!hasTimeline && (
               <div className="rounded-lg border border-dashed border-slate-700/60 bg-slate-900/60 px-4 py-3 text-sm text-slate-200/80">

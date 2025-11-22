@@ -69,7 +69,7 @@
       "data": {
         "label": "Check if error message is displayed",
         "expression": "!!document.querySelector('[class*=\"error\"], [role=\"alert\"], [class*=\"toast\"]')",
-        "storeAs": "errorDisplayed",
+        "storeResult": "errorDisplayed",
         "continueOnError": true
       }
     },
@@ -119,7 +119,7 @@
       "data": {
         "label": "System should recover gracefully",
         "expression": "true",
-        "storeAs": "recoveredGracefully"
+        "storeResult": "recoveredGracefully"
       }
     },
     {

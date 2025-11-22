@@ -86,7 +86,7 @@
       "data": {
         "label": "Verify URL contains /projects/",
         "expression": "window.location.pathname.includes('/projects/')",
-        "storeAs": "urlChanged"
+        "storeResult": "urlChanged"
       }
     },
     {

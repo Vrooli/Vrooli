@@ -55,7 +55,7 @@
       "data": {
         "label": "Check if on workflows tab",
         "expression": "document.querySelector('@selector/workflows.card, @selector/workflowBuilder.search.input, @selector/toolbar.root') !== null",
-        "storeAs": "onWorkflowsTab"
+        "storeResult": "onWorkflowsTab"
       }
     },
     {
@@ -97,7 +97,7 @@
       "data": {
         "label": "Verify URL contains /workflows/",
         "expression": "window.location.pathname.includes('/workflows/')",
-        "storeAs": "urlChanged"
+        "storeResult": "urlChanged"
       }
     },
     {

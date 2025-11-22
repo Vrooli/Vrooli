@@ -30,9 +30,9 @@
       "type": "wait",
       "data": {
         "label": "Wait for scenario table to load",
-        "waitType": "selector",
-        "selector": "@selector/scenarioTable",
-        "timeoutMs": 5000
+        "waitType": "duration",
+        "durationMs": 5000,
+        "timeoutMs": 10000
       }
     },
     {

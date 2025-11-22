@@ -26,7 +26,7 @@
       "data": {
         "label": "Count initial nodes",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "initialCount"
+        "storeResult": "initialCount"
       }
     },
     {
@@ -64,7 +64,7 @@
       "data": {
         "label": "Count after add",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "afterAddCount"
+        "storeResult": "afterAddCount"
       }
     },
     {
@@ -83,7 +83,7 @@
       "data": {
         "label": "Count after undo",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "afterUndoCount"
+        "storeResult": "afterUndoCount"
       }
     },
     {

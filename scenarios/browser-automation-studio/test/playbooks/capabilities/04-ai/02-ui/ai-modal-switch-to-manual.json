@@ -107,7 +107,7 @@
       "data": {
         "label": "Verify URL changed to workflow view",
         "expression": "window.location.pathname.includes('/workflows/')",
-        "storeAs": "urlChangedToWorkflow"
+        "storeResult": "urlChangedToWorkflow"
       }
     },
     {

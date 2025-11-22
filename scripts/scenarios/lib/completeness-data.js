@@ -26,6 +26,9 @@ const { calculateRequirementPass } = require('./analyzers/requirement-analyzer')
 const { extractOperationalTargets, calculateTargetPass } = require('./analyzers/target-analyzer');
 const { collectUIMetrics } = require('./analyzers/ui-analyzer');
 
+// Validators (for duplicate analysis)
+const duplicateDetector = require('./validators/duplicate-detector');
+
 /**
  * Collect all metrics for a scenario
  * @param {string} scenarioRoot - Scenario root directory
@@ -38,11 +41,14 @@ function collectMetrics(scenarioRoot) {
   const syncData = loadSyncMetadata(scenarioRoot);
   const testResults = loadTestResults(scenarioRoot);
 
-  // Analyze the data
+  // Analyze the data (pass scenarioRoot for diversity enforcement)
   const operationalTargets = extractOperationalTargets(requirements, syncData);
-  const requirementPass = calculateRequirementPass(requirements, syncData);
+  const requirementPass = calculateRequirementPass(requirements, syncData, scenarioRoot);
   const targetPass = calculateTargetPass(operationalTargets, requirements, syncData);
   const uiMetrics = collectUIMetrics(scenarioRoot);
+
+  // Analyze duplicate test ref usage (for gaming detection)
+  const duplicateAnalysis = duplicateDetector.analyzeTestRefUsage(requirements);
 
   return {
     scenario: path.basename(scenarioRoot),
@@ -55,7 +61,8 @@ function collectMetrics(scenarioRoot) {
     },
     lastTestRun: testResults.lastRun,
     rawRequirements: requirements,  // Include for depth calculation
-    ui: uiMetrics  // Include UI metrics
+    ui: uiMetrics,  // Include UI metrics
+    duplicate_analysis: duplicateAnalysis  // Include for penalty calculation
   };
 }
 

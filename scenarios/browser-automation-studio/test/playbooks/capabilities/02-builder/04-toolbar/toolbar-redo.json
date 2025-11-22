@@ -55,7 +55,7 @@
       "data": {
         "label": "Count after add",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "afterAddCount"
+        "storeResult": "afterAddCount"
       }
     },
     {
@@ -74,7 +74,7 @@
       "data": {
         "label": "Count after undo",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "afterUndoCount"
+        "storeResult": "afterUndoCount"
       }
     },
     {
@@ -93,7 +93,7 @@
       "data": {
         "label": "Count after redo",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "afterRedoCount"
+        "storeResult": "afterRedoCount"
       }
     },
     {

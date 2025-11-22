@@ -55,7 +55,7 @@
       "data": {
         "label": "Check for execution indicators",
         "expression": "document.querySelector('@selector/executions.list.item, @selector/executions.viewer.status, @selector/executions.viewer.stopButton') !== null",
-        "storeAs": "executionStarted"
+        "storeResult": "executionStarted"
       }
     },
     {

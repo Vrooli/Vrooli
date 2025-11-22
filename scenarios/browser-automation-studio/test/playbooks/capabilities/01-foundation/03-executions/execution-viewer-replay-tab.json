@@ -83,7 +83,7 @@
       "data": {
         "label": "Check if Replay tab exists",
         "expression": "(() => { const replayTab = document.querySelector('@selector/executions.tabs.replay'); return replayTab !== null; })()",
-        "storeAs": "hasReplayTab"
+        "storeResult": "hasReplayTab"
       }
     },
     {
@@ -106,7 +106,7 @@
       "data": {
         "label": "Verify replay-related content exists",
         "expression": "(() => { const screenshots = document.querySelectorAll('@selector/executions.viewer.screenshot, @selector/replay.screenshot'); const timeline = document.querySelector('@selector/replay.timeline, @selector/replay.viewer'); return screenshots.length > 0 || timeline !== null; })()",
-        "storeAs": "hasReplayContent"
+        "storeResult": "hasReplayContent"
       }
     },
     {
@@ -124,7 +124,7 @@
       "data": {
         "label": "Check if screenshots are displayed",
         "expression": "(() => { const images = document.querySelectorAll('img[src*=\"screenshot\"], img[src*=\"execution\"], img[alt*=\"screenshot\"]'); return images.length > 0; })()",
-        "storeAs": "hasScreenshots"
+        "storeResult": "hasScreenshots"
       }
     },
     {
@@ -133,7 +133,7 @@
       "data": {
         "label": "Check if timeline/controls exist",
         "expression": "(() => { return document.querySelector('@selector/replay.player') !== null; })()",
-        "storeAs": "hasTimelineControls"
+        "storeResult": "hasTimelineControls"
       }
     }
   ],

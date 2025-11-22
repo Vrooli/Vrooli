@@ -30,8 +30,8 @@
       "type": "wait",
       "data": {
         "label": "Wait for file table to load",
-        "waitType": "selector",
-        "selector": "@selector/fileTable",
+        "waitType": "duration",
+        "durationMs": 1000,
         "timeoutMs": 5000
       }
     },

@@ -37,7 +37,7 @@
       "data": {
         "label": "Count initial nodes",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "initialNodeCount"
+        "storeResult": "initialNodeCount"
       }
     },
     {
@@ -75,7 +75,7 @@
       "data": {
         "label": "Count nodes after delete",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "finalNodeCount"
+        "storeResult": "finalNodeCount"
       }
     },
     {
@@ -84,7 +84,7 @@
       "data": {
         "label": "Verify node count decreased",
         "expression": "(() => { const initial = parseInt(localStorage.getItem('initialNodeCount') || '0'); const final = parseInt(localStorage.getItem('finalNodeCount') || '0'); return final < initial; })()",
-        "storeAs": "nodeWasDeleted"
+        "storeResult": "nodeWasDeleted"
       }
     },
     {

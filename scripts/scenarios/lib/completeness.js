@@ -53,9 +53,19 @@ function calculateQualityScore(metrics) {
     ? metrics.tests.passing / metrics.tests.total
     : 0;
 
-  const reqPoints = Math.round(reqPassRate * 20);
+  let reqPoints = Math.round(reqPassRate * 20);
   const targetPoints = Math.round(targetPassRate * 15);
   const testPoints = Math.round(testPassRate * 15);
+
+  // PHASE 3: Apply penalty for excessive test ref duplication
+  let duplicatePenalty = 0;
+  if (metrics.duplicate_analysis && metrics.duplicate_analysis.violations.length > 0) {
+    const duplicateRatio = metrics.duplicate_analysis.duplicate_ratio;
+
+    // Penalty: -1 point per 10% of requirements validated by duplicate refs
+    duplicatePenalty = Math.min(Math.round(duplicateRatio * 10), 5);  // Max 5 point penalty
+    reqPoints = Math.max(reqPoints - duplicatePenalty, 0);
+  }
 
   return {
     score: reqPoints + targetPoints + testPoints,
@@ -64,7 +74,8 @@ function calculateQualityScore(metrics) {
       passing: metrics.requirements.passing,
       total: metrics.requirements.total,
       rate: reqPassRate,
-      points: reqPoints
+      points: reqPoints,
+      duplicate_penalty: duplicatePenalty
     },
     target_pass_rate: {
       passing: metrics.targets.passing,

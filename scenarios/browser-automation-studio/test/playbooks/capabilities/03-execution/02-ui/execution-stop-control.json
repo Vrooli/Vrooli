@@ -39,7 +39,7 @@
       "data": {
         "label": "Check execution is running",
         "expression": "document.querySelector('[class*=\"running\"], [class*=\"executing\"], svg.lucide-loader') !== null",
-        "storeAs": "executionRunning"
+        "storeResult": "executionRunning"
       }
     },
     {

@@ -78,7 +78,7 @@
       "data": {
         "label": "Generate unique project name",
         "expression": "`E2E Test Project ${Date.now()}`",
-        "storeAs": "projectName"
+        "storeResult": "projectName"
       }
     },
     {

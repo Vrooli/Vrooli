@@ -110,7 +110,7 @@
       "data": {
         "label": "Check for execution feedback",
         "expression": "(() => { const button = document.querySelector('@selector/header.buttons.execute'); if (!button) { return false; } const viewer = document.querySelector('@selector/executions.viewer.root'); return button.hasAttribute('disabled') || viewer !== null; })()",
-        "storeAs": "hasExecutionFeedback"
+        "storeResult": "hasExecutionFeedback"
       }
     },
     {

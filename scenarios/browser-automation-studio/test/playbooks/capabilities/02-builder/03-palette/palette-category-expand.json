@@ -56,7 +56,7 @@
       "data": {
         "label": "Check for expandable category headers",
         "expression": "document.querySelector('@selector/nodePalette.category(category=navigation)') !== null",
-        "storeAs": "hasCategoryHeaders"
+        "storeResult": "hasCategoryHeaders"
       }
     },
     {
@@ -85,7 +85,7 @@
       "data": {
         "label": "Verify categories can be interacted with",
         "expression": "true",
-        "storeAs": "categoryTestComplete"
+        "storeResult": "categoryTestComplete"
       }
     }
   ],

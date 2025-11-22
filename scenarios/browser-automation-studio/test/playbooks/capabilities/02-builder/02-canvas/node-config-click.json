@@ -171,7 +171,7 @@
       "data": {
         "label": "Verify selector persisted",
         "expression": "document.querySelector('.react-flow__node.selected input[placeholder*=\"Selector\" i]')?.value === '#test-button'",
-        "storeAs": "selectorPersisted"
+        "storeResult": "selectorPersisted"
       }
     },
     {

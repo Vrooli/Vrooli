@@ -53,7 +53,7 @@
       "data": {
         "label": "Verify no projects shown",
         "expression": "document.querySelectorAll('@selector/projects.card').length === 0",
-        "storeAs": "noResults"
+        "storeResult": "noResults"
       }
     },
     {

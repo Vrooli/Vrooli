@@ -214,7 +214,7 @@ bash scripts/scenarios/testing/shell/validate-playbook-linkage.sh \
      "category": "ui",
      "title": "New feature description",
      "status": "in_progress",
-     "criticality": "P0",
+     "prd_ref": "OT-P0-001",
      "validation": [{
        "type": "automation",
        "ref": "test/playbooks/ui/new-feature.json",

@@ -54,7 +54,7 @@
       "data": {
         "label": "Generate unique project name",
         "expression": "`Test Project ${Date.now()}`",
-        "storeAs": "projectName"
+        "storeResult": "projectName"
       }
     },
     {
@@ -95,7 +95,7 @@
       "data": {
         "label": "Verify URL changed to project detail",
         "expression": "window.location.pathname.startsWith('/projects/')",
-        "storeAs": "navigatedToProject"
+        "storeResult": "navigatedToProject"
       }
     },
     {

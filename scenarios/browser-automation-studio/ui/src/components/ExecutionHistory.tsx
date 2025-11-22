@@ -173,31 +173,46 @@ function ExecutionHistory({
     switch (status) {
       case "running":
         return (
-          <span className={`${baseClasses} bg-blue-500/20 text-blue-400`}>
+          <span
+            className={`${baseClasses} bg-blue-500/20 text-blue-400`}
+            data-testid="execution-status-running"
+          >
             Running
           </span>
         );
       case "completed":
         return (
-          <span className={`${baseClasses} bg-green-500/20 text-green-400`}>
+          <span
+            className={`${baseClasses} bg-green-500/20 text-green-400`}
+            data-testid="execution-status-completed"
+          >
             Completed
           </span>
         );
       case "failed":
         return (
-          <span className={`${baseClasses} bg-red-500/20 text-red-400`}>
+          <span
+            className={`${baseClasses} bg-red-500/20 text-red-400`}
+            data-testid="execution-status-failed"
+          >
             Failed
           </span>
         );
       case "cancelled":
         return (
-          <span className={`${baseClasses} bg-yellow-500/20 text-yellow-400`}>
+          <span
+            className={`${baseClasses} bg-yellow-500/20 text-yellow-400`}
+            data-testid="execution-status-cancelled"
+          >
             Cancelled
           </span>
         );
       default:
         return (
-          <span className={`${baseClasses} bg-gray-500/20 text-gray-400`}>
+          <span
+            className={`${baseClasses} bg-gray-500/20 text-gray-400`}
+            data-testid="execution-status-pending"
+          >
             Pending
           </span>
         );

@@ -52,7 +52,7 @@
       "data": {
         "label": "Get zoomed in level",
         "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
-        "storeAs": "zoomedInLevel"
+        "storeResult": "zoomedInLevel"
       }
     },
     {
@@ -74,7 +74,7 @@
       "data": {
         "label": "Get zoom out level",
         "expression": "(() => { const viewport = document.querySelector('.react-flow__viewport'); if (!viewport) return null; const transform = viewport.style.transform || 'translate(0px, 0px) scale(1)'; const match = transform.match(/scale\\(([\\d.]+)\\)/); return match ? parseFloat(match[1]) : 1; })()",
-        "storeAs": "zoomedOutLevel"
+        "storeResult": "zoomedOutLevel"
       }
     },
     {

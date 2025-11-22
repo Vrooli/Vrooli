@@ -85,7 +85,7 @@
       "data": {
         "label": "Verify favorite was toggled",
         "expression": "true",
-        "storeAs": "favoriteTestComplete"
+        "storeResult": "favoriteTestComplete"
       }
     }
   ],

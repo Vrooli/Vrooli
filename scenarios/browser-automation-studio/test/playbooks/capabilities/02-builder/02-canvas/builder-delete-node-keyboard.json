@@ -47,7 +47,7 @@
       "data": {
         "label": "Count initial nodes",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "initialNodeCount"
+        "storeResult": "initialNodeCount"
       }
     },
     {
@@ -105,7 +105,7 @@
       "data": {
         "label": "Count remaining nodes",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "finalNodeCount"
+        "storeResult": "finalNodeCount"
       }
     },
     {
@@ -114,7 +114,7 @@
       "data": {
         "label": "Verify node count decreased",
         "expression": "(() => { const initial = Number({{initialNodeCount}} || 0); const final = Number({{finalNodeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final < initial; })()",
-        "storeAs": "nodeWasDeleted"
+        "storeResult": "nodeWasDeleted"
       }
     },
     {

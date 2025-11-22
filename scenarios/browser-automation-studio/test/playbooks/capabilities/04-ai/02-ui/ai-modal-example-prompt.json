@@ -84,7 +84,7 @@
       "data": {
         "label": "Verify prompt textarea has content",
         "expression": "(() => { const textarea = document.querySelector('textarea[placeholder*=\"prompt\"], textarea[placeholder*=\"describe\"], textarea'); if (!textarea) return false; return textarea.value.length > 10; })()",
-        "storeAs": "promptHasContent"
+        "storeResult": "promptHasContent"
       }
     },
     {
@@ -93,7 +93,7 @@
       "data": {
         "label": "Verify workflow name input has content",
         "expression": "(() => { const input = document.querySelector('input[placeholder*=\"name\"], input[type=\"text\"]'); if (!input) return false; return input.value.length > 0; })()",
-        "storeAs": "nameHasContent"
+        "storeResult": "nameHasContent"
       }
     },
     {
@@ -111,7 +111,7 @@
       "data": {
         "label": "Generate button should be enabled",
         "expression": "(() => { const button = document.querySelector('@selector/ai.modal.generateButton'); if (!button) return false; return !button.disabled && !button.hasAttribute('disabled'); })()",
-        "storeAs": "generateButtonEnabled"
+        "storeResult": "generateButtonEnabled"
       }
     }
   ],

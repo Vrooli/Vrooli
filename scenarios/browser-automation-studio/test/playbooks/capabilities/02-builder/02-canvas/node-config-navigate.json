@@ -181,7 +181,7 @@
       "data": {
         "label": "Verify URL value persisted",
         "expression": "document.querySelector('.react-flow__node.selected[data-type=\"navigate\"] input[type=\"text\"]')?.value.includes('example.com/test-page') ?? false",
-        "storeAs": "urlPersisted"
+        "storeResult": "urlPersisted"
       }
     },
     {

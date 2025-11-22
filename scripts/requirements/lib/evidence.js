@@ -24,16 +24,30 @@ function detectValidationSource(validation) {
     return null;
   }
 
-  if (validation.type === 'test') {
-    const phaseMatch = ref.match(/test\/phases\/test-([a-z0-9_-]+)\.sh$/);
-    if (phaseMatch) {
-      return { kind: 'phase', name: phaseMatch[1] };
+  // PHASE 1: Reject unsupported test/ directories (except test/playbooks/)
+  if (ref.startsWith('test/')) {
+    // Only allow test/playbooks/ for e2e automation
+    if (ref.startsWith('test/playbooks/') && (ref.endsWith('.json') || ref.endsWith('.yaml'))) {
+      const slug = path.basename(ref, path.extname(ref));
+      return { kind: 'automation', name: slug };
     }
-    // Recognize vitest test files (ui/src/.../*.test.{ts,tsx})
-    if (ref.startsWith('ui/src/') && (ref.endsWith('.test.ts') || ref.endsWith('.test.tsx'))) {
+
+    // Reject everything else under test/ (test/cli/, test/phases/, test/unit/, test/integration/, etc.)
+    // Rationale:
+    // - test/phases/: Orchestration scripts that run tests, not test sources
+    // - test/cli/: CLI wrapper tests, not requirement validation
+    // - test/unit/, test/integration/: Test runner scripts or infrastructure
+    // - Only test/playbooks/ contains actual test sources (e2e automation)
+    console.warn(`[gaming-prevention] Validation ref rejected: ${ref} (unsupported test/ directory - only test/playbooks/*.{json,yaml} allowed)`);
+    return null;
+  }
+
+  if (validation.type === 'test') {
+    // Recognize vitest test files (ui/src/.../*.test.{ts,tsx,js,jsx})
+    if (ref.startsWith('ui/src/') && ref.match(/\.test\.(ts|tsx|js|jsx)$/)) {
       return { kind: 'phase', name: 'unit' };
     }
-    // Recognize Go test files
+    // Recognize Go test files (api/**/*_test.go or api/**/tests/**)
     if (ref.endsWith('_test.go') || ref.includes('/tests/')) {
       return { kind: 'phase', name: 'unit' };
     }

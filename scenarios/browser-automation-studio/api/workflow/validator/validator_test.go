@@ -344,3 +344,79 @@ func TestValidatorWorkflowCallInlineDefinition(t *testing.T) {
 		t.Fatalf("expected inline workflow definition to be valid, got %+v", res.Errors)
 	}
 }
+
+func TestValidatorRejectsStoreAsField(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	// Playbook using deprecated "storeAs" instead of "storeResult"
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "evaluate-wrong",
+				"type": "evaluate",
+				"data": map[string]any{
+					"expression": "document.title",
+					"storeAs":    "pageTitle", // ❌ Wrong field name
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+
+	// Should be invalid due to storeAs field
+	if res.Valid {
+		t.Fatalf("expected validation to fail for evaluate node with 'storeAs' field")
+	}
+
+	// Check that error mentions storeAs
+	foundStoreAsError := false
+	for _, issue := range res.Errors {
+		if issue.Code == "WF_SCHEMA_INVALID" {
+			foundStoreAsError = true
+			t.Logf("Schema validation error: %s", issue.Message)
+		}
+	}
+
+	if !foundStoreAsError {
+		t.Fatalf("expected schema error for 'storeAs' field, got errors: %+v", res.Errors)
+	}
+}
+
+func TestValidatorAcceptsStoreResultField(t *testing.T) {
+	v, err := NewValidator()
+	if err != nil {
+		t.Fatalf("failed to init validator: %v", err)
+	}
+
+	// Playbook using correct "storeResult" field
+	workflow := map[string]any{
+		"nodes": []any{
+			map[string]any{
+				"id":   "evaluate-correct",
+				"type": "evaluate",
+				"data": map[string]any{
+					"expression":  "document.title",
+					"storeResult": "pageTitle", // ✅ Correct field name
+				},
+			},
+		},
+		"edges": []any{},
+	}
+
+	res, err := v.Validate(context.Background(), workflow, Options{})
+	if err != nil {
+		t.Fatalf("validation returned error: %v", err)
+	}
+
+	if !res.Valid {
+		t.Fatalf("expected workflow with 'storeResult' to be valid, got errors: %+v", res.Errors)
+	}
+}

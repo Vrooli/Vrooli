@@ -90,7 +90,7 @@
       "data": {
         "label": "Verify lock toggle completed",
         "expression": "true",
-        "storeAs": "lockToggleComplete"
+        "storeResult": "lockToggleComplete"
       }
     }
   ],

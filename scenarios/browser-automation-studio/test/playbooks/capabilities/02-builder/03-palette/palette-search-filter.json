@@ -46,7 +46,7 @@
       "data": {
         "label": "Count all nodes",
         "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
-        "storeAs": "totalNodes"
+        "storeResult": "totalNodes"
       }
     },
     {
@@ -67,7 +67,7 @@
       "data": {
         "label": "Count filtered",
         "expression": "document.querySelectorAll('@selector/nodePalette.visibleCardList').length",
-        "storeAs": "filteredNodes"
+        "storeResult": "filteredNodes"
       }
     },
     {
@@ -108,7 +108,7 @@
       "data": {
         "label": "Count after clear",
         "expression": "document.querySelectorAll('@selector/nodePalette.cardList').length",
-        "storeAs": "clearedNodes"
+        "storeResult": "clearedNodes"
       }
     }
   ],

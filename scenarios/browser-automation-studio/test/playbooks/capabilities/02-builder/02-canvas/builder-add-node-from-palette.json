@@ -37,7 +37,7 @@
       "data": {
         "label": "Count initial nodes on canvas",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "initialNodeCount"
+        "storeResult": "initialNodeCount"
       }
     },
     {
@@ -66,7 +66,7 @@
       "data": {
         "label": "Get navigate node card position",
         "expression": "(() => { const card = document.querySelector('@selector/nodePalette.cards.navigate'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
-        "storeAs": "nodePalettePosition"
+        "storeResult": "nodePalettePosition"
       }
     },
     {
@@ -75,7 +75,7 @@
       "data": {
         "label": "Calculate canvas drop position",
         "expression": "(() => { const canvas = document.querySelector('@selector/workflowBuilder.canvas.root'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
-        "storeAs": "canvasDropPosition"
+        "storeResult": "canvasDropPosition"
       }
     },
     {
@@ -95,7 +95,7 @@
       "data": {
         "label": "Count nodes after drag",
         "expression": "document.querySelectorAll('.react-flow__node').length",
-        "storeAs": "finalNodeCount"
+        "storeResult": "finalNodeCount"
       }
     },
     {
@@ -104,7 +104,7 @@
       "data": {
         "label": "Verify node count increased",
         "expression": "(() => { const initial = Number({{initialNodeCount}} || 0); const final = Number({{finalNodeCount}} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
-        "storeAs": "nodeWasAdded"
+        "storeResult": "nodeWasAdded"
       }
     },
     {

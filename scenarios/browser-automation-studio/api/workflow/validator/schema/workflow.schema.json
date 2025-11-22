@@ -118,13 +118,7 @@
           ]
         },
         "data": {
-          "type": "object",
-          "properties": {
-            "resilience": {
-              "$ref": "#/definitions/resilience"
-            }
-          },
-          "additionalProperties": true
+          "type": "object"
         },
         "width": {
           "type": "number"
@@ -137,6 +131,371 @@
         },
         "dragging": {
           "type": "boolean"
+        }
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "evaluate" }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/evaluateNodeData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "click" }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/clickNodeData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "assert" }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/assertNodeData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "navigate" }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/navigateNodeData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "wait" }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/waitNodeData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "type" }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/typeNodeData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "screenshot" }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/screenshotNodeData"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "workflowCall" }
+            }
+          },
+          "then": {
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/workflowCallNodeData"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "commonNodeFields": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "Human-readable description of this step"
+        },
+        "resilience": {
+          "$ref": "#/definitions/resilience"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum time to wait for this step to complete"
+        },
+        "waitForMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Additional wait time after step completes"
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Whether to continue workflow execution if this step fails"
+        },
+        "retryAttempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Number of retry attempts on failure"
+        },
+        "retryDelayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Delay between retry attempts"
+        },
+        "retryBackoffFactor": {
+          "type": "number",
+          "minimum": 1,
+          "description": "Multiplier for retry delay on each attempt"
+        }
+      }
+    },
+    "evaluateNodeData": {
+      "allOf": [
+        { "$ref": "#/definitions/commonNodeFields" }
+      ],
+      "type": "object",
+      "required": ["expression"],
+      "properties": {
+        "expression": {
+          "type": "string",
+          "minLength": 1,
+          "description": "JavaScript expression to evaluate in the browser context"
+        },
+        "storeResult": {
+          "type": "string",
+          "description": "Variable name to store the evaluation result"
+        }
+      },
+      "propertyNames": {
+        "not": {
+          "enum": ["storeAs"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "clickNodeData": {
+      "allOf": [
+        { "$ref": "#/definitions/commonNodeFields" }
+      ],
+      "type": "object",
+      "required": ["selector"],
+      "properties": {
+        "selector": {
+          "type": "string",
+          "minLength": 1,
+          "description": "CSS selector or data-testid for the element to click"
+        },
+        "clickCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "description": "Number of clicks (1=single, 2=double, 3=triple)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "assertNodeData": {
+      "allOf": [
+        { "$ref": "#/definitions/commonNodeFields" }
+      ],
+      "type": "object",
+      "required": ["selector", "assertMode"],
+      "properties": {
+        "selector": {
+          "type": "string",
+          "minLength": 1,
+          "description": "CSS selector or data-testid for the element to assert"
+        },
+        "assertMode": {
+          "type": "string",
+          "enum": ["exists", "not_exists", "visible", "hidden", "text_equals", "text_contains", "attribute_equals", "attribute_contains"],
+          "description": "Type of assertion to perform"
+        },
+        "expectedValue": {
+          "description": "Expected value for comparison assertions"
+        },
+        "attributeName": {
+          "type": "string",
+          "description": "Attribute name for attribute assertions"
+        },
+        "caseSensitive": {
+          "type": "boolean",
+          "description": "Whether text comparison is case-sensitive"
+        },
+        "failureMessage": {
+          "type": "string",
+          "description": "Custom error message on assertion failure"
+        }
+      },
+      "additionalProperties": true
+    },
+    "navigateNodeData": {
+      "allOf": [
+        { "$ref": "#/definitions/commonNodeFields" }
+      ],
+      "type": "object",
+      "required": ["destinationType"],
+      "properties": {
+        "destinationType": {
+          "type": "string",
+          "enum": ["url", "scenario"],
+          "description": "Whether navigating to a URL or scenario"
+        },
+        "url": {
+          "type": "string",
+          "description": "Target URL (required when destinationType=url)"
+        },
+        "scenario": {
+          "type": "string",
+          "description": "Scenario name (required when destinationType=scenario)"
+        },
+        "scenarioPath": {
+          "type": "string",
+          "description": "Path within scenario (optional)"
+        },
+        "waitUntil": {
+          "type": "string",
+          "enum": ["load", "domcontentloaded", "networkidle0", "networkidle2"],
+          "description": "Event to wait for after navigation"
+        }
+      },
+      "additionalProperties": true
+    },
+    "waitNodeData": {
+      "allOf": [
+        { "$ref": "#/definitions/commonNodeFields" }
+      ],
+      "type": "object",
+      "properties": {
+        "waitType": {
+          "type": "string",
+          "enum": ["element", "duration", "delay", "time"],
+          "description": "Type of wait to perform"
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector (required for element wait)"
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Duration in milliseconds (required for duration wait)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "typeNodeData": {
+      "allOf": [
+        { "$ref": "#/definitions/commonNodeFields" }
+      ],
+      "type": "object",
+      "required": ["selector"],
+      "properties": {
+        "selector": {
+          "type": "string",
+          "minLength": 1,
+          "description": "CSS selector or data-testid for the input element"
+        },
+        "text": {
+          "type": "string",
+          "description": "Text to type into the element"
+        },
+        "value": {
+          "type": "string",
+          "description": "Alias for text field"
+        },
+        "variable": {
+          "type": "string",
+          "description": "Variable name containing text to type"
+        },
+        "clear": {
+          "type": "boolean",
+          "description": "Whether to clear existing text before typing"
+        },
+        "delayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Delay between keystrokes"
+        }
+      },
+      "additionalProperties": true
+    },
+    "screenshotNodeData": {
+      "allOf": [
+        { "$ref": "#/definitions/commonNodeFields" }
+      ],
+      "type": "object",
+      "properties": {
+        "fullPage": {
+          "type": "boolean",
+          "description": "Capture full scrollable page (true) or viewport only (false)"
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector to screenshot specific element"
+        }
+      },
+      "additionalProperties": true
+    },
+    "workflowCallNodeData": {
+      "allOf": [
+        { "$ref": "#/definitions/commonNodeFields" }
+      ],
+      "type": "object",
+      "properties": {
+        "workflowId": {
+          "type": "string",
+          "description": "ID or fixture reference of workflow to call"
+        },
+        "workflowDefinition": {
+          "type": "object",
+          "description": "Inline workflow definition"
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Parameters to pass to the called workflow"
         }
       },
       "additionalProperties": true

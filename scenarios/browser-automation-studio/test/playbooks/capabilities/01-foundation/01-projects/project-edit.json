@@ -26,7 +26,7 @@
       "data": {
         "label": "Store original project name",
         "expression": "document.querySelector('h1')?.textContent?.trim() || 'Unknown'",
-        "storeAs": "originalName"
+        "storeResult": "originalName"
       }
     },
     {
@@ -56,7 +56,7 @@
       "data": {
         "label": "Generate updated project name",
         "expression": "`Updated Project ${Date.now()}`",
-        "storeAs": "updatedName"
+        "storeResult": "updatedName"
       }
     },
     {

@@ -77,7 +77,7 @@
       "data": {
         "label": "Check if properties UI appeared",
         "expression": "document.querySelector('[role=\"dialog\"], [class*=\"properties\"], [class*=\"config\"], [class*=\"settings\"]') !== null || document.querySelector('input, textarea, select') !== null",
-        "storeAs": "propertiesVisible"
+        "storeResult": "propertiesVisible"
       }
     },
     {

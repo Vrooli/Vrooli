@@ -71,7 +71,7 @@
       "data": {
         "label": "Get original title",
         "expression": "document.querySelector('@selector/header.title.text')?.textContent?.trim() || ''",
-        "storeAs": "originalTitle"
+        "storeResult": "originalTitle"
       }
     },
     {
