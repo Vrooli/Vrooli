@@ -1254,3 +1254,63 @@ func (s *AppService) resolveFallbackURL(app *repository.App, url string) (string
 	// For any other format, assume it's meant to be an http URL
 	return "http://" + trimmedURL, nil
 }
+
+// =============================================================================
+// Completeness Score Diagnostics
+// =============================================================================
+
+// GetAppCompleteness executes `vrooli scenario completeness <scenario>`
+// and returns the raw text output for display.
+func (s *AppService) GetAppCompleteness(ctx context.Context, appID string) (*CompletenessScore, error) {
+	id := strings.TrimSpace(appID)
+	if id == "" {
+		return nil, ErrAppIdentifierRequired
+	}
+
+	app, err := s.GetApp(ctx, id)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return nil, fmt.Errorf("%w: %v", ErrAppNotFound, err)
+		}
+		return nil, err
+	}
+
+	scenarioName := strings.TrimSpace(app.ScenarioName)
+	if scenarioName == "" {
+		scenarioName = strings.TrimSpace(app.Name)
+	}
+	if scenarioName == "" {
+		scenarioName = id
+	}
+
+	commandIdentifier := resolveScenarioCommandIdentifier(app, id)
+	if commandIdentifier == "" {
+		commandIdentifier = scenarioName
+	}
+
+	// Execute vrooli scenario completeness (without --json for human-readable output)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "completeness", commandIdentifier)
+	cmd.Env = append(os.Environ(), "TERM=dumb")
+	output, cmdErr := cmd.CombinedOutput()
+	if cmdErr != nil {
+		trimmed := strings.TrimSpace(string(output))
+		if trimmed != "" {
+			return nil, fmt.Errorf("failed to execute vrooli scenario completeness: %s", trimmed)
+		}
+		return nil, fmt.Errorf("failed to execute vrooli scenario completeness: %w", cmdErr)
+	}
+
+	// Split output into lines for display
+	outputStr := strings.TrimSpace(string(output))
+	lines := strings.Split(outputStr, "\n")
+
+	result := &CompletenessScore{
+		Scenario: scenarioName,
+		Details:  lines,
+	}
+
+	return result, nil
+}

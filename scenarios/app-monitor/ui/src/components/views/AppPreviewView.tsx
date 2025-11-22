@@ -47,6 +47,7 @@ import { useProxyMetadataSynchronization } from '@/hooks/useProxyMetadataSynchro
 import { useAppViewRecording } from '@/hooks/useAppViewRecording';
 import { useAppDiagnostics } from '@/hooks/useAppDiagnostics';
 import { useLighthouseHistory } from '@/hooks/useLighthouseHistory';
+import { useAppCompleteness } from '@/hooks/useAppCompleteness';
 import { PREVIEW_TIMEOUTS, PREVIEW_MESSAGES } from './previewConstants';
 import type { PreviewLocationState } from '@/types/preview';
 import { isPreviewLocationState } from '@/types/preview';
@@ -161,6 +162,11 @@ const AppPreviewView = () => {
   const { history: preloadedLighthouseHistory, loading: lighthouseLoading, error: lighthouseError, refetch: refetchLighthouse } = useLighthouseHistory(
     currentApp?.id ?? null,
     { enabled: true }
+  );
+
+  const { completeness: preloadedCompleteness, loading: completenessLoading } = useAppCompleteness(
+    currentApp?.id ?? null,
+    { enabled: true, refetchOnOpen: false }
   );
 
   const scenarioDisplayName = useMemo(() => {
@@ -1400,6 +1406,8 @@ const AppPreviewView = () => {
           lighthouseLoading={lighthouseLoading}
           lighthouseError={lighthouseError}
           onRefetchLighthouse={refetchLighthouse}
+          preloadedCompleteness={preloadedCompleteness}
+          completenessLoading={completenessLoading}
         />
       )}
 

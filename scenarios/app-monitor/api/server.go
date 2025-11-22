@@ -142,6 +142,7 @@ func setupRouter(h *Handlers, cfg *config.Config) *gin.Engine {
 		v1.GET("/apps/:id/diagnostics/status", h.app.GetAppScenarioStatus)
 		v1.GET("/apps/:id/diagnostics/health", h.app.CheckAppHealth)
 		v1.GET("/apps/:id/diagnostics/localhost", h.app.CheckAppLocalhostUsage)
+		v1.GET("/apps/:id/completeness", h.app.GetAppCompleteness)
 		v1.GET("/apps/:id/docs", h.app.GetAppDocuments)
 		v1.GET("/apps/:id/docs/*path", h.app.GetAppDocument)
 		v1.GET("/apps/:id/docs-search", h.app.SearchAppDocuments)

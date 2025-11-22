@@ -21,6 +21,7 @@ import type {
   ReportNetworkState,
   ReportHealthChecksState,
   ReportAppStatusState,
+  ReportCompletenessState,
 } from './useReportIssueState';
 
 interface ReportLogsSectionProps {
@@ -29,12 +30,14 @@ interface ReportLogsSectionProps {
   network: ReportNetworkState;
   health: ReportHealthChecksState;
   status: ReportAppStatusState;
+  completeness: ReportCompletenessState;
   bridgeCaps: string[];
   appLogsPanelId: string;
   consoleLogsPanelId: string;
   networkPanelId: string;
   healthPanelId: string;
   statusPanelId: string;
+  completenessPanelId: string;
 }
 
 const ReportLogsSection = ({
@@ -43,12 +46,14 @@ const ReportLogsSection = ({
   network,
   health,
   status,
+  completeness,
   bridgeCaps,
   appLogsPanelId,
   consoleLogsPanelId,
   networkPanelId,
   healthPanelId,
   statusPanelId,
+  completenessPanelId,
 }: ReportLogsSectionProps) => {
   const hasLogsCapability = bridgeCaps.includes('logs') || consoleLogs.fromFallback;
   const hasNetworkCapability = bridgeCaps.includes('network') || network.fromFallback;
@@ -678,6 +683,94 @@ const ReportLogsSection = ({
           <p className="report-dialog__logs-empty">Status snapshot did not include detailed output.</p>
         ) : (
           <pre className="report-dialog__logs-content">{status.snapshot.details.join('\n')}</pre>
+        )}
+      </div>
+    </section>
+
+    <section className="report-dialog__logs-section">
+      <div className="report-dialog__logs-header">
+        <label
+          className={clsx(
+            'report-dialog__logs-include',
+            !completeness.includeCompleteness && 'report-dialog__logs-include--off',
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={completeness.includeCompleteness}
+            onChange={(event) => completeness.setIncludeCompleteness(event.target.checked)}
+            aria-label="Include completeness score in report"
+          />
+          <span className="report-dialog__logs-title">Completeness score</span>
+        </label>
+        <button
+          type="button"
+          className="report-dialog__logs-toggle"
+          onClick={completeness.toggleExpanded}
+          aria-expanded={completeness.expanded}
+          aria-controls={completenessPanelId}
+          aria-label={completeness.expanded ? 'Hide completeness score' : 'Show completeness score'}
+        >
+          {completeness.expanded ? (
+            <EyeOff aria-hidden size={18} />
+          ) : (
+            <Eye aria-hidden size={18} />
+          )}
+        </button>
+      </div>
+      <div
+        id={completenessPanelId}
+        className="report-dialog__logs-panel"
+        style={completeness.expanded ? undefined : { display: 'none' }}
+        aria-hidden={!completeness.expanded}
+      >
+        <div className="report-dialog__logs-meta">
+          <span>
+            {completeness.loading
+              ? 'Fetching completeness score…'
+              : completeness.data
+                ? `Completeness analysis${completeness.formattedCapturedAt ? ` (captured ${completeness.formattedCapturedAt})` : ''}.`
+                : completeness.error
+                  ? 'Completeness score unavailable.'
+                  : 'No completeness score captured.'}
+          </span>
+          <button
+            type="button"
+            className="report-dialog__logs-refresh"
+            onClick={() => completeness.fetch()}
+            disabled={completeness.loading}
+          >
+            {completeness.loading ? (
+              <Loader2 aria-hidden size={14} className="spinning" />
+            ) : (
+              <RefreshCw aria-hidden size={14} />
+            )}
+            <span>{completeness.loading ? 'Loading' : 'Refresh'}</span>
+          </button>
+        </div>
+        {completeness.loading ? (
+          <div className="report-dialog__logs-loading">
+            <Loader2 aria-hidden size={18} className="spinning" />
+            <span>Calculating completeness score…</span>
+          </div>
+        ) : completeness.error ? (
+          <div className="report-dialog__logs-message">
+            <p>{completeness.error}</p>
+            <button
+              type="button"
+              className="report-dialog__button report-dialog__button--ghost"
+              onClick={() => completeness.fetch()}
+              disabled={completeness.loading}
+            >
+              Retry
+            </button>
+          </div>
+        ) : !completeness.data ? (
+          <p className="report-dialog__logs-empty">No completeness data available.</p>
+        ) : completeness.data.details.length === 0 ? (
+          <p className="report-dialog__logs-empty">Completeness analysis did not include detailed output.</p>
+        ) : (
+          <pre className="report-dialog__logs-content">{completeness.data.details.join('\n')}</pre>
         )}
       </div>
     </section>

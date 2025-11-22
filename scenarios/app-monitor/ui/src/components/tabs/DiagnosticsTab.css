@@ -510,3 +510,62 @@
   border-color: rgba(0, 255, 170, 0.5);
   box-shadow: 0 0 16px rgba(0, 255, 128, 0.2);
 }
+
+.diagnostics-auditor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: rgba(0, 28, 24, 0.2);
+  border: 1px solid rgba(0, 255, 170, 0.15);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.diagnostics-auditor__overview {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.diagnostics-auditor__severity {
+  font-weight: 600;
+  margin: 0;
+}
+
+.diagnostics-auditor__counts {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.4rem 0 0;
+}
+
+.diagnostics-tag {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: rgba(0, 255, 170, 0.1);
+  border: 1px solid rgba(0, 255, 170, 0.3);
+}
+
+.diagnostics-auditor__steps ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.diagnostics-auditor__violations {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.diagnostics-auditor__artifact a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--matrix-cyan);
+  text-decoration: none;
+}
+
+.diagnostics-auditor__artifact a:hover {
+  text-decoration: underline;
+}

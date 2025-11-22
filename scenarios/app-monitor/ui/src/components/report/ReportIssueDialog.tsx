@@ -40,6 +40,7 @@ const REPORT_CONSOLE_LOGS_PANEL_ID = 'app-report-dialog-console';
 const REPORT_NETWORK_PANEL_ID = 'app-report-dialog-network';
 const REPORT_HEALTH_PANEL_ID = 'app-report-dialog-health';
 const REPORT_STATUS_PANEL_ID = 'app-report-dialog-status';
+const REPORT_COMPLETENESS_PANEL_ID = 'app-report-dialog-completeness';
 
 interface ReportIssueDialogProps {
   isOpen: boolean;
@@ -100,6 +101,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     network,
     health,
     status,
+    completeness,
     existingIssues,
     diagnostics,
     screenshot,
@@ -128,6 +130,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
     },
     { name: 'health checks', loading: health.includeHealthChecks && health.loading },
     { name: 'app status', loading: status.includeAppStatus && status.loading },
+    { name: 'completeness score', loading: completeness.includeCompleteness && completeness.loading },
   ].filter(source => source.loading);
 
   const dataLoadingCount = dataLoadingSources.length;
@@ -421,12 +424,14 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                   network,
                   health,
                   status,
+                  completeness,
                   bridgeCaps: bridgeState.caps,
                   appLogsPanelId: REPORT_APP_LOGS_PANEL_ID,
                   consoleLogsPanelId: REPORT_CONSOLE_LOGS_PANEL_ID,
                   networkPanelId: REPORT_NETWORK_PANEL_ID,
                   healthPanelId: REPORT_HEALTH_PANEL_ID,
                   statusPanelId: REPORT_STATUS_PANEL_ID,
+                  completenessPanelId: REPORT_COMPLETENESS_PANEL_ID,
                 }}
               />
           </div>

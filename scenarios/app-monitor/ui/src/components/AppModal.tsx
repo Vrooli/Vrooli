@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { Copy, ExternalLink, Play, RotateCcw, ScrollText, Square, FileText, Activity, Layers, AlertCircle, CheckCircle, Loader, Zap } from 'lucide-react';
+import { Copy, ExternalLink, Play, RotateCcw, ScrollText, Square, FileText, Activity, Layers, AlertCircle, CheckCircle, Loader, Zap, Award } from 'lucide-react';
 import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
-import type { App, AppProxyMetadata, AppProxyPortInfo, CompleteDiagnostics } from '@/types';
+import type { App, AppProxyMetadata, AppProxyPortInfo, CompleteDiagnostics, CompletenessScore } from '@/types';
 import { buildPreviewUrl } from '@/utils/appPreview';
 import type { LighthouseHistory } from '@/hooks/useLighthouseHistory';
 import TechStackTab from './tabs/TechStackTab';
 import DiagnosticsTab from './tabs/DiagnosticsTab';
 import DocumentationTab from './tabs/DocumentationTab';
 import LighthouseTab from './tabs/LighthouseTab';
+import CompletenessTab from './tabs/CompletenessTab';
 import './AppModal.css';
 
 interface AppModalProps {
@@ -25,6 +26,8 @@ interface AppModalProps {
   lighthouseLoading?: boolean;
   lighthouseError?: string | null;
   onRefetchLighthouse?: () => Promise<void>;
+  preloadedCompleteness?: CompletenessScore | null;
+  completenessLoading?: boolean;
 }
 
 type OtherPort = { label: string; value: string };
@@ -32,7 +35,7 @@ type OtherPort = { label: string; value: string };
 const FOCUSABLE_SELECTORS =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
-type TabType = 'overview' | 'diagnostics' | 'tech-stack' | 'docs' | 'lighthouse';
+type TabType = 'overview' | 'diagnostics' | 'tech-stack' | 'docs' | 'lighthouse' | 'completeness';
 
 export default function AppModal({
   app,
@@ -48,6 +51,8 @@ export default function AppModal({
   lighthouseLoading: externalLighthouseLoading,
   lighthouseError: externalLighthouseError,
   onRefetchLighthouse,
+  preloadedCompleteness,
+  completenessLoading: externalCompletenessLoading,
 }: AppModalProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [hasCopiedPreviewUrl, setHasCopiedPreviewUrl] = useState(false);
@@ -66,6 +71,8 @@ export default function AppModal({
   const lighthouseLoading = externalLighthouseLoading ?? false;
   const lighthouseError = externalLighthouseError ?? null;
   const refetchLighthouse = onRefetchLighthouse ?? (async () => {});
+  const completeness = preloadedCompleteness ?? null;
+  const completenessLoading = externalCompletenessLoading ?? false;
 
   useEffect(() => {
     if (!isOpen) {
@@ -368,6 +375,15 @@ export default function AppModal({
             <Zap size={16} aria-hidden />
             <span>Performance</span>
           </button>
+          <button
+            type="button"
+            className={clsx('modal-tab', { 'modal-tab--active': activeTab === 'completeness' })}
+            onClick={() => setActiveTab('completeness')}
+            aria-label="Completeness score tab"
+          >
+            <Award size={16} aria-hidden />
+            <span>Completeness</span>
+          </button>
         </div>
 
         <div className="modal-body" id={descriptionId}>
@@ -414,6 +430,10 @@ export default function AppModal({
 
           {activeTab === 'lighthouse' && (
             <LighthouseTab app={app} history={lighthouseHistory} loading={lighthouseLoading} error={lighthouseError} onRefetch={refetchLighthouse} />
+          )}
+
+          {activeTab === 'completeness' && (
+            <CompletenessTab completeness={completeness} loading={completenessLoading} />
           )}
         </div>
 

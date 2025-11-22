@@ -33,6 +33,8 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
   const hasHealthChecks = diagnostics.health_checks && diagnostics.health_checks.checks.length > 0;
   const hasBridgeViolations = diagnostics.bridge_rules && diagnostics.bridge_rules.violations.length > 0;
   const hasLocalhostFindings = diagnostics.localhost_usage && diagnostics.localhost_usage.findings.length > 0;
+  const auditorSummary = diagnostics.auditor_summary;
+  const hasAuditorSummary = Boolean(auditorSummary && auditorSummary.total > 0);
   const hasIssues = diagnostics.issues && diagnostics.issues.total_count > 0;
   const hasWarnings = diagnostics.warnings.length > 0;
 
@@ -62,6 +64,77 @@ export default function DiagnosticsTab({ diagnostics, loading }: DiagnosticsTabP
           )}
         </div>
       </section>
+
+      {/* Scenario-Auditor Summary */}
+      {hasAuditorSummary && auditorSummary && (
+        <section className="diagnostics-section">
+          <h3 className="diagnostics-section__title">
+            <AlertTriangle size={18} />
+            <span>Scenario-auditor Summary ({auditorSummary.total} issues)</span>
+          </h3>
+          <div className="diagnostics-auditor">
+            <div className="diagnostics-auditor__overview">
+              <div>
+                <p className="diagnostics-auditor__severity">Highest severity: <strong>{auditorSummary.highest_severity || 'unknown'}</strong></p>
+                <p className="diagnostics-auditor__counts">
+                  {Object.entries(auditorSummary.by_severity || {}).map(([severity, count]) => (
+                    <span key={`severity-${severity}`} className={`diagnostics-tag diagnostics-tag--${severity}`}>
+                      {severity}: {count}
+                    </span>
+                  ))}
+                </p>
+              </div>
+              {auditorSummary.recommended_steps && auditorSummary.recommended_steps.length > 0 && (
+                <div className="diagnostics-auditor__steps">
+                  <p>Next steps:</p>
+                  <ul>
+                    {auditorSummary.recommended_steps.slice(0, 3).map((step, index) => (
+                      <li key={`step-${index}`}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            {auditorSummary.top_violations && auditorSummary.top_violations.length > 0 && (
+              <div className="diagnostics-auditor__violations">
+                {auditorSummary.top_violations.slice(0, 5).map((violation) => (
+                  <div key={violation.id} className="diagnostics-violation">
+                    <div className="diagnostics-violation__header">
+                      <span className="diagnostics-violation__title">{violation.title || violation.rule_id || violation.id}</span>
+                      <span className={`diagnostics-violation__severity diagnostics-violation__severity--${violation.severity}`}>
+                        {violation.severity}
+                      </span>
+                    </div>
+                    {violation.file_path && (
+                      <code className="diagnostics-violation__file">
+                        {violation.file_path}{violation.line_number ? `:${violation.line_number}` : ''}
+                      </code>
+                    )}
+                    {violation.recommendation && (
+                      <div className="diagnostics-violation__recommendation">
+                        <Info size={14} />
+                        <span>{violation.recommendation}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {auditorSummary.top_violations.length > 5 && (
+                  <p className="diagnostics-violations__more">
+                    ...and {auditorSummary.top_violations.length - 5} more prioritized violations
+                  </p>
+                )}
+              </div>
+            )}
+            {auditorSummary.artifact?.path && (
+              <div className="diagnostics-auditor__artifact">
+                <a href={`/${auditorSummary.artifact.path}`} target="_blank" rel="noreferrer">
+                  <ExternalLink size={14} /> View full artifact
+                </a>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Aggregated Warnings */}
       {hasWarnings && (

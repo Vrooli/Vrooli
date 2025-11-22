@@ -56,6 +56,7 @@ import { useReportHealthData, type ReportHealthDataState } from './useReportHeal
 import { useReportAppStatusData, type ReportAppStatusDataState } from './useReportAppStatusData';
 import { useReportExistingIssues, type ReportExistingIssuesState } from './useReportExistingIssues';
 import { useReportDiagnosticsData, type ReportDiagnosticsDataState } from './useReportDiagnosticsData';
+import { useReportCompletenessData, type ReportCompletenessDataState } from './useReportCompletenessData';
 
 interface BridgePreviewState {
   isSupported: boolean;
@@ -119,6 +120,7 @@ interface ReportIssueStateResult {
   network: ReportNetworkDataState;
   health: ReportHealthDataState;
   status: ReportAppStatusDataState;
+  completeness: ReportCompletenessDataState;
   existingIssues: ReportExistingIssuesState;
   diagnostics: ReportDiagnosticsDataState;
   screenshot: ReturnType<typeof useReportScreenshot>;
@@ -201,6 +203,7 @@ const useReportIssueState = ({
 
   const health = useReportHealthData({ app, appId });
   const status = useReportAppStatusData({ app, appId });
+  const completeness = useReportCompletenessData({ app, appId });
   const existingIssues = useReportExistingIssues({ app, appId, isOpen });
 
   const diagnostics = useReportDiagnosticsData({
@@ -261,7 +264,8 @@ const useReportIssueState = ({
     network.reset();
     health.reset();
     status.reset();
-  }, [logs, consoleLogs, network, health, status]);
+    completeness.reset();
+  }, [logs, consoleLogs, network, health, status, completeness]);
 
   // Form handlers
   const handleReportMessageChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -444,6 +448,10 @@ const useReportIssueState = ({
         }
       }
 
+      if (completeness.includeCompleteness && completeness.data) {
+        payload.completenessScore = completeness.data;
+      }
+
       // Validate payload size before submission to prevent 413 errors
       const sizeEstimate = estimateReportPayloadSize(payload);
       const sizeValidation = validatePayloadSize(sizeEstimate.total);
@@ -609,6 +617,7 @@ const useReportIssueState = ({
     void network.fetch({ force: true });
     void health.fetch({ force: true });
     void status.fetch({ force: true });
+    void completeness.fetch({ force: true });
     void diagnostics.refreshDiagnostics();
 
     setShouldResetOnNextOpen(false);
@@ -622,6 +631,7 @@ const useReportIssueState = ({
     network,
     health,
     status,
+    completeness,
     diagnostics,
     resetState,
   ]);
@@ -655,6 +665,7 @@ const useReportIssueState = ({
     network,
     health,
     status,
+    completeness,
     existingIssues,
     diagnostics,
     screenshot,
@@ -675,6 +686,7 @@ export type ReportLogsState = ReportLogsDataState;
 export type ReportNetworkState = ReportNetworkDataState;
 export type ReportHealthChecksState = ReportHealthDataState;
 export type ReportAppStatusState = ReportAppStatusDataState;
+export type ReportCompletenessState = ReportCompletenessDataState;
 export type ReportScreenshotState = ReturnType<typeof useReportScreenshot>;
 
 export type {

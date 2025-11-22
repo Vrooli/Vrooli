@@ -245,6 +245,7 @@ export interface ReportIssuePayload {
   appStatusLabel?: string | null;
   appStatusSeverity?: ReportIssueAppStatusSeverity | null;
   appStatusCapturedAt?: string | null;
+  completenessScore?: import('@/types').CompletenessScore;
   captures?: ReportIssueCapturePayload[];
 }
 
@@ -503,6 +504,17 @@ export const appService = {
       return data.data ?? null;
     } catch (error) {
       logger.error(`Failed to fetch complete diagnostics for ${appId}`, error);
+      return null;
+    }
+  },
+
+  // Get completeness score for an app
+  async getAppCompleteness(appId: string): Promise<import('@/types').CompletenessScore | null> {
+    try {
+      const { data } = await api.get<ApiResponse<import('@/types').CompletenessScore>>(`/apps/${encodeURIComponent(appId)}/completeness`);
+      return data.data ?? null;
+    } catch (error) {
+      logger.error(`Failed to fetch completeness score for ${appId}`, error);
       return null;
     }
   },

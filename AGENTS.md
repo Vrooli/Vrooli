@@ -41,11 +41,16 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 
 ### Understanding Scenarios
 Scenarios are NOT just test cases or demos. They serve triple duty:
-1. **Validation:** Prove agents can autonomously build complex systems (from SaaS businesses to AI assistants)
-2. **Products:** Generate real revenue when deployed ($10K-50K typical value per scenario)
+1. **Products:** Generate real revenue when deployed
+2. **Validation:** Serve as implementation references for building future scenarios
+
 3. **Capabilities:** Become new tools that enhance Vrooli itself or solve future problems
 
-When working with scenarios, remember: **You're not building tests. You're building businesses and expanding intelligence.**
+When working with scenarios, remember: **You're building businesses and expanding intelligence.**
+
+### Deployment Vision
+- Current deployments run via the Tier 1 local stack (full Vrooli installation + app-monitor Cloudflare tunnel).
+- Future tiers (desktop, mobile, SaaS, enterprise) are documented in the [Deployment Hub](docs/deployment/README.md); consult it whenever considering packaging or delivery tasks.
 
 ### Working with Resources
 Local resources (Ollama, PostgreSQL, etc.) aren't just "integrations" - they're the building blocks of emergent capability:
@@ -124,8 +129,6 @@ vrooli scenario start <scenario-name>        # ✅ ALTERNATIVE - CLI management
 **Resource Management**:
 - Enable/disable resources by editing `.vrooli/service.json`
 - Resources marked as enabled will be installed on next setup run
-- Use `--resources <specific>` to override and install specific resources
-- Remember: More resources = more capabilities = smarter agents
 
 ## ⏱️ Timeout Guidelines for Long-Running Commands
 **Remember to set appropriate timeouts when running:**

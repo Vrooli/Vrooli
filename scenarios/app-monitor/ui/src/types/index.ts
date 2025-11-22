@@ -196,6 +196,36 @@ export interface BridgeDiagnosticsReport {
   results: BridgeRuleReport[];
 }
 
+export interface ScenarioAuditorArtifactRef {
+  path: string;
+  checksum?: string;
+  size_bytes?: number;
+  created_at?: string;
+}
+
+export interface ScenarioAuditorViolationExcerpt {
+  id: string;
+  severity: string;
+  rule_id?: string;
+  title?: string;
+  file_path?: string;
+  line_number?: number;
+  scenario?: string;
+  source?: string;
+  recommendation?: string;
+}
+
+export interface ScenarioAuditorSummary {
+  total: number;
+  by_severity: Record<string, number>;
+  by_rule?: Array<Record<string, unknown>>;
+  highest_severity: string;
+  top_violations: ScenarioAuditorViolationExcerpt[];
+  artifact?: ScenarioAuditorArtifactRef | null;
+  recommended_steps?: string[];
+  generated_at: string;
+}
+
 export interface AppLogStream {
   key: string;
   label: string;
@@ -368,6 +398,7 @@ export interface CompleteDiagnostics {
   // Compliance
   bridge_rules?: BridgeDiagnosticsReport;
   localhost_usage?: LocalhostUsageReport;
+  auditor_summary?: ScenarioAuditorSummary;
 
   // Metadata
   tech_stack?: TechStackInfo;
@@ -377,4 +408,10 @@ export interface CompleteDiagnostics {
   warnings: DiagnosticWarning[];
   severity: 'ok' | 'warn' | 'error' | 'unknown' | 'degraded';
   summary?: string;
+}
+
+// Completeness Score Types
+export interface CompletenessScore {
+  scenario: string;
+  details: string[];
 }

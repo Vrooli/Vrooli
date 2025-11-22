@@ -513,6 +513,39 @@ type BridgeDiagnosticsReport struct {
 	Results      []BridgeRuleReport    `json:"results"`
 }
 
+// ScenarioAuditorArtifactRef references persisted scan artifacts
+type ScenarioAuditorArtifactRef struct {
+	Path      string `json:"path"`
+	Checksum  string `json:"checksum,omitempty"`
+	SizeBytes int64  `json:"size_bytes,omitempty"`
+	CreatedAt string `json:"created_at,omitempty"`
+}
+
+// ScenarioAuditorViolationExcerpt mirrors the summary payload for violations
+type ScenarioAuditorViolationExcerpt struct {
+	ID             string `json:"id"`
+	Severity       string `json:"severity"`
+	RuleID         string `json:"rule_id,omitempty"`
+	Title          string `json:"title,omitempty"`
+	FilePath       string `json:"file_path,omitempty"`
+	LineNumber     int    `json:"line_number,omitempty"`
+	Scenario       string `json:"scenario,omitempty"`
+	Source         string `json:"source,omitempty"`
+	Recommendation string `json:"recommendation,omitempty"`
+}
+
+// ScenarioAuditorSummary captures the actionable digest from scenario-auditor
+type ScenarioAuditorSummary struct {
+	Total            int                               `json:"total"`
+	BySeverity       map[string]int                    `json:"by_severity"`
+	ByRule           []map[string]any                  `json:"by_rule,omitempty"`
+	HighestSeverity  string                            `json:"highest_severity"`
+	TopViolations    []ScenarioAuditorViolationExcerpt `json:"top_violations"`
+	Artifact         *ScenarioAuditorArtifactRef       `json:"artifact,omitempty"`
+	RecommendedSteps []string                          `json:"recommended_steps,omitempty"`
+	GeneratedAt      string                            `json:"generated_at"`
+}
+
 // scenarioAuditorRuleResponse represents the API response from scenario-auditor rule tests
 type scenarioAuditorRuleResponse struct {
 	RuleID       string                     `json:"rule_id"`
@@ -651,4 +684,14 @@ type IssueReportResult struct {
 	IssueID  string
 	Message  string
 	IssueURL string
+}
+
+// =============================================================================
+// Completeness Score Types
+// =============================================================================
+
+// CompletenessScore represents the raw output from `vrooli scenario completeness`
+type CompletenessScore struct {
+	Scenario string   `json:"scenario"`
+	Details  []string `json:"details"`
 }

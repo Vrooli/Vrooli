@@ -2,7 +2,11 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +89,7 @@ type CompleteDiagnostics struct {
 	// Compliance
 	BridgeRules    *BridgeDiagnosticsReport `json:"bridge_rules,omitempty"`
 	LocalhostUsage *LocalhostUsageReport    `json:"localhost_usage,omitempty"`
+	AuditorSummary *ScenarioAuditorSummary  `json:"auditor_summary,omitempty"`
 
 	// Metadata
 	TechStack *TechStackInfo    `json:"tech_stack,omitempty"`
@@ -98,34 +103,37 @@ type CompleteDiagnostics struct {
 
 // DiagnosticOptions controls which diagnostics to fetch
 type DiagnosticOptions struct {
-	IncludeHealth        bool `json:"include_health"`
-	IncludeIssues        bool `json:"include_issues"`
-	IncludeBridgeRules   bool `json:"include_bridge_rules"`
-	IncludeLocalhostScan bool `json:"include_localhost_scan"`
-	IncludeTechStack     bool `json:"include_tech_stack"`
-	IncludeDocuments     bool `json:"include_documents"`
-	IncludeStatus        bool `json:"include_status"`
+	IncludeHealth         bool `json:"include_health"`
+	IncludeIssues         bool `json:"include_issues"`
+	IncludeBridgeRules    bool `json:"include_bridge_rules"`
+	IncludeLocalhostScan  bool `json:"include_localhost_scan"`
+	IncludeTechStack      bool `json:"include_tech_stack"`
+	IncludeDocuments      bool `json:"include_documents"`
+	IncludeStatus         bool `json:"include_status"`
+	IncludeAuditorSummary bool `json:"include_auditor_summary"`
 }
 
 // DefaultDiagnosticOptions returns options with all diagnostics enabled
 func DefaultDiagnosticOptions() DiagnosticOptions {
 	return DiagnosticOptions{
-		IncludeHealth:        true,
-		IncludeIssues:        true,
-		IncludeBridgeRules:   true,
-		IncludeLocalhostScan: true,
-		IncludeTechStack:     true,
-		IncludeDocuments:     true,
-		IncludeStatus:        true,
+		IncludeHealth:         true,
+		IncludeIssues:         true,
+		IncludeBridgeRules:    true,
+		IncludeLocalhostScan:  true,
+		IncludeTechStack:      true,
+		IncludeDocuments:      true,
+		IncludeStatus:         true,
+		IncludeAuditorSummary: true,
 	}
 }
 
 // FastDiagnosticOptions returns options for quick checks (health + status only)
 func FastDiagnosticOptions() DiagnosticOptions {
 	return DiagnosticOptions{
-		IncludeHealth:    true,
-		IncludeStatus:    true,
-		IncludeTechStack: true,
+		IncludeHealth:         true,
+		IncludeStatus:         true,
+		IncludeTechStack:      true,
+		IncludeAuditorSummary: false,
 	}
 }
 
@@ -305,6 +313,32 @@ func (s *AppService) GetCompleteDiagnostics(ctx context.Context, appID string, o
 		}()
 	}
 
+	// Fetch scenario-auditor summary (if requested)
+	if opts.IncludeAuditorSummary {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			summary, err := s.fetchScenarioAuditorSummary(ctx, scenarioName)
+			if err != nil {
+				logger.Warn(fmt.Sprintf("failed to fetch scenario-auditor summary for %s", id), err)
+				mu.Lock()
+				result.Warnings = append(result.Warnings, DiagnosticWarning{
+					Source:   "scenario-auditor",
+					Severity: "info",
+					Message:  fmt.Sprintf("Scenario-auditor summary unavailable: %v", err),
+				})
+				mu.Unlock()
+				return
+			}
+			if summary == nil {
+				return
+			}
+			mu.Lock()
+			result.AuditorSummary = summary
+			mu.Unlock()
+		}()
+	}
+
 	// Wait for all goroutines to complete
 	wg.Wait()
 
@@ -481,6 +515,22 @@ func (s *AppService) aggregateWarnings(diag *CompleteDiagnostics) []DiagnosticWa
 		}
 	}
 
+	// Scenario-auditor summary
+	if diag.AuditorSummary != nil && diag.AuditorSummary.Total > 0 {
+		sev := strings.ToLower(diag.AuditorSummary.HighestSeverity)
+		severity := "info"
+		if sev == "critical" {
+			severity = "error"
+		} else if sev == "high" {
+			severity = "warn"
+		}
+		warnings = append(warnings, DiagnosticWarning{
+			Source:   "scenario-auditor",
+			Severity: severity,
+			Message:  fmt.Sprintf("%d standards/security violation%s (max severity %s)", diag.AuditorSummary.Total, plural(diag.AuditorSummary.Total), diag.AuditorSummary.HighestSeverity),
+		})
+	}
+
 	// Issue tracker warnings
 	if diag.Issues != nil && diag.Issues.OpenCount > 0 {
 		warnings = append(warnings, DiagnosticWarning{
@@ -517,6 +567,18 @@ func (s *AppService) calculateOverallSeverity(diag *CompleteDiagnostics) Diagnos
 		case ScenarioStatusSeverityError:
 			hasError = true
 		case ScenarioStatusSeverityWarn:
+			hasWarn = true
+		}
+	}
+
+	// Scenario-auditor summary severity
+	if diag.AuditorSummary != nil && diag.AuditorSummary.Total > 0 {
+		switch strings.ToLower(diag.AuditorSummary.HighestSeverity) {
+		case "critical":
+			hasError = true
+		case "high":
+			hasWarn = true
+		default:
 			hasWarn = true
 		}
 	}
@@ -586,8 +648,14 @@ func (s *AppService) generateDiagnosticSummary(diag *CompleteDiagnostics) string
 	if diag.LocalhostUsage != nil {
 		violationCount += len(diag.LocalhostUsage.Findings)
 	}
+	if diag.AuditorSummary != nil {
+		violationCount += diag.AuditorSummary.Total
+	}
 	if violationCount > 0 {
 		parts = append(parts, fmt.Sprintf("%d compliance finding%s", violationCount, plural(violationCount)))
+	}
+	if diag.AuditorSummary != nil && diag.AuditorSummary.Total > 0 {
+		parts = append(parts, fmt.Sprintf("scenario-auditor: %d issue%s (max %s)", diag.AuditorSummary.Total, plural(diag.AuditorSummary.Total), diag.AuditorSummary.HighestSeverity))
 	}
 
 	if len(parts) == 0 {
@@ -595,4 +663,56 @@ func (s *AppService) generateDiagnosticSummary(diag *CompleteDiagnostics) string
 	}
 
 	return strings.Join(parts, " • ")
+}
+
+type scenarioAuditorSummaryResponse struct {
+	Summary *ScenarioAuditorSummary `json:"summary"`
+}
+
+func (s *AppService) fetchScenarioAuditorSummary(ctx context.Context, scenarioName string) (*ScenarioAuditorSummary, error) {
+	baseURL, err := s.scenarioAuditorBaseURL(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	values := url.Values{}
+	values.Set("scenario", scenarioName)
+	values.Set("limit", "20")
+	requestURL := fmt.Sprintf("%s/api/v1/standards/violations/summary?%s", baseURL, values.Encode())
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("scenario not found in scenario-auditor")
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("scenario-auditor summary returned status %d", resp.StatusCode)
+	}
+
+	var payload scenarioAuditorSummaryResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, err
+	}
+
+	return payload.Summary, nil
+}
+
+func (s *AppService) scenarioAuditorBaseURL(ctx context.Context) (string, error) {
+	if override := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_API_BASE_URL")); override != "" {
+		return override, nil
+	}
+	port, err := s.locateScenarioAuditorAPIPort(ctx)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("http://localhost:%d", port), nil
 }

@@ -557,3 +557,27 @@ func (h *AppHandler) SearchAppDocuments(c *gin.Context) {
 		"data":    results,
 	})
 }
+
+// GetAppCompleteness returns completeness score metrics for an application
+func (h *AppHandler) GetAppCompleteness(c *gin.Context) {
+	id := c.Param("id")
+
+	completeness, err := h.appService.GetAppCompleteness(c.Request.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, services.ErrAppIdentifierRequired):
+			status = http.StatusBadRequest
+		case errors.Is(err, services.ErrAppNotFound):
+			status = http.StatusNotFound
+		}
+
+		c.JSON(status, errorResponse(err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    completeness,
+	})
+}
