@@ -8,6 +8,7 @@ set -euo pipefail
 scenario::completeness::score() {
     local scenario_name="${1:-}"
     local format="human"
+    local extra_args=()
 
     # Parse options
     shift || true
@@ -23,6 +24,11 @@ scenario::completeness::score() {
                 ;;
             --json)
                 format="json"
+                shift
+                ;;
+            --verbose|--metrics)
+                # Pass through to Node.js CLI
+                extra_args+=("$1")
                 shift
                 ;;
             --help|-h)
@@ -49,10 +55,14 @@ Calculate objective completeness score based on:
 Options:
   --format <type>    Output format: json (machine-readable) or human (default)
   --json             Shorthand for --format json
+  --verbose          Show detailed explanations and per-requirement breakdowns
+  --metrics          Show full detailed metrics breakdown (implies --verbose)
   --help, -h         Show this help message
 
 Examples:
   vrooli scenario completeness deployment-manager
+  vrooli scenario completeness deployment-manager --verbose
+  vrooli scenario completeness deployment-manager --metrics
   vrooli scenario completeness deployment-manager --json
   vrooli scenario completeness deployment-manager --format json
 
@@ -98,7 +108,7 @@ HELP
     fi
 
     # Execute the Node.js CLI
-    if ! node "$cli_script" "$scenario_name" --format "$format"; then
+    if ! node "$cli_script" "$scenario_name" --format "$format" "${extra_args[@]+"${extra_args[@]}"}"; then
         log::error "Completeness calculation failed for $scenario_name"
         return 1
     fi

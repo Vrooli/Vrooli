@@ -53,19 +53,9 @@ function calculateQualityScore(metrics) {
     ? metrics.tests.passing / metrics.tests.total
     : 0;
 
-  let reqPoints = Math.round(reqPassRate * 20);
+  const reqPoints = Math.round(reqPassRate * 20);
   const targetPoints = Math.round(targetPassRate * 15);
   const testPoints = Math.round(testPassRate * 15);
-
-  // PHASE 3: Apply penalty for excessive test ref duplication
-  let duplicatePenalty = 0;
-  if (metrics.duplicate_analysis && metrics.duplicate_analysis.violations.length > 0) {
-    const duplicateRatio = metrics.duplicate_analysis.duplicate_ratio;
-
-    // Penalty: -1 point per 10% of requirements validated by duplicate refs
-    duplicatePenalty = Math.min(Math.round(duplicateRatio * 10), 5);  // Max 5 point penalty
-    reqPoints = Math.max(reqPoints - duplicatePenalty, 0);
-  }
 
   return {
     score: reqPoints + targetPoints + testPoints,
@@ -74,8 +64,7 @@ function calculateQualityScore(metrics) {
       passing: metrics.requirements.passing,
       total: metrics.requirements.total,
       rate: reqPassRate,
-      points: reqPoints,
-      duplicate_penalty: duplicatePenalty
+      points: reqPoints
     },
     target_pass_rate: {
       passing: metrics.targets.passing,
@@ -320,18 +309,25 @@ function calculateUIScore(uiMetrics, thresholds) {
  * @param {object} metrics - Input metrics
  * @param {array} requirements - Array of requirement objects
  * @param {object} thresholds - Category thresholds
+ * @param {object} validationQualityAnalysis - Optional validation quality analysis with penalties
  * @returns {object} Complete score breakdown
  */
-function calculateCompletenessScore(metrics, requirements, thresholds) {
+function calculateCompletenessScore(metrics, requirements, thresholds, validationQualityAnalysis = null) {
   const quality = calculateQualityScore(metrics);
   const coverage = calculateCoverageScore(metrics, requirements);
   const quantity = calculateQuantityScore(metrics, thresholds);
   const ui = calculateUIScore(metrics.ui, thresholds);
 
-  const totalScore = quality.score + coverage.score + quantity.score + ui.score;
+  const baseScore = quality.score + coverage.score + quantity.score + ui.score;
+
+  // Apply validation quality penalties if provided
+  const validationPenalty = validationQualityAnalysis ? validationQualityAnalysis.total_penalty : 0;
+  const finalScore = Math.max(baseScore - validationPenalty, 0);
 
   return {
-    score: totalScore,
+    base_score: baseScore,
+    validation_penalty: validationPenalty,
+    score: finalScore,
     quality,
     coverage,
     quantity,

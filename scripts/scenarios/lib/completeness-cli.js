@@ -19,11 +19,20 @@ const {
 } = require('./completeness');
 
 const { collectMetrics } = require('./completeness-data');
-const { detectGamingPatterns } = require('./gaming-detection');
+const { detectValidationQualityIssues } = require('./gaming-detection');
+const {
+  formatValidationIssues,
+  formatScoreSummary,
+  formatQualityAssessment,
+  formatBaseMetrics,
+  formatDetailedMetrics,
+  formatActionPlan,
+  formatComparison
+} = require('./completeness-output-formatter');
 
 function showHelp() {
   console.log(`
-Usage: vrooli scenario completeness <scenario-name> [--format json|human]
+Usage: vrooli scenario completeness <scenario-name> [options]
 
 Calculate objective completeness score for a scenario based on:
   Quality (50%):
@@ -44,10 +53,14 @@ Calculate objective completeness score for a scenario based on:
 
 Options:
   --format <type>    Output format: json (machine-readable) or human (default)
+  --verbose          Show detailed explanations and per-requirement breakdowns
+  --metrics          Show full detailed metrics breakdown (implies --verbose)
   --help, -h         Show this help message
 
 Examples:
   vrooli scenario completeness deployment-manager
+  vrooli scenario completeness deployment-manager --verbose
+  vrooli scenario completeness deployment-manager --metrics
   vrooli scenario completeness deployment-manager --format json
 `);
 }
@@ -63,6 +76,8 @@ function main() {
   const scenarioName = args[0];
   const formatArg = args.indexOf('--format');
   const format = formatArg !== -1 && args[formatArg + 1] ? args[formatArg + 1] : 'human';
+  const verbose = args.includes('--verbose');
+  const showMetrics = args.includes('--metrics');
 
   if (!['json', 'human'].includes(format)) {
     console.error(`Invalid format: ${format}. Use 'json' or 'human'.`);
@@ -94,11 +109,20 @@ function main() {
   // Get category thresholds
   const thresholds = getCategoryThresholds(metrics.category, thresholdsConfig);
 
-  // Calculate completeness score
+  // Detect validation quality issues first (needed for penalty calculation)
+  const validationQualityAnalysis = detectValidationQualityIssues(
+    metrics,
+    metrics.rawRequirements,
+    metrics.targets ? Object.values(metrics.targets) : [],
+    scenarioRoot
+  );
+
+  // Calculate completeness score with validation penalties
   const breakdown = calculateCompletenessScore(
     metrics,
     metrics.rawRequirements,
-    thresholds
+    thresholds,
+    validationQualityAnalysis
   );
 
   const totalScore = breakdown.score;
@@ -108,14 +132,6 @@ function main() {
   const stalenessCheck = checkStaleness(metrics.lastTestRun);
   const warnings = stalenessCheck.warning ? [stalenessCheck] : [];
 
-  // PHASE 5: Detect gaming patterns
-  const gamingAnalysis = detectGamingPatterns(
-    metrics,
-    metrics.rawRequirements,
-    metrics.targets ? Object.values(metrics.targets) : [],
-    scenarioRoot
-  );
-
   // Generate recommendations
   const recommendations = generateRecommendations(breakdown, thresholds);
 
@@ -124,7 +140,9 @@ function main() {
     const output = {
       scenario: metrics.scenario,
       category: metrics.category,
-      score: totalScore,
+      base_score: breakdown.base_score,
+      validation_penalty: breakdown.validation_penalty,
+      final_score: totalScore,
       classification: classification,
       breakdown: {
         quality: breakdown.quality,
@@ -134,17 +152,32 @@ function main() {
       },
       warnings: warnings,
       recommendations: recommendations,
-      gaming_analysis: gamingAnalysis  // Include gaming analysis in JSON output
+      validation_quality_analysis: validationQualityAnalysis
     };
     console.log(JSON.stringify(output, null, 2));
   } else {
-    // Human-readable output
+    // Human-readable output with new formatter
     console.log(`Scenario: ${metrics.scenario}`);
     console.log(`Category: ${metrics.category}`);
-    console.log(`Completeness Score: ${totalScore}/100 (${classification.replace(/_/g, ' ')})`);
-    console.log('');
-    console.log(formatBreakdownHuman(breakdown, thresholds));
 
+    // 1. Validation Issues (top priority - always shown)
+    console.log(formatValidationIssues(validationQualityAnalysis, { verbose: verbose || showMetrics }));
+
+    // 2. Score Summary
+    console.log(formatScoreSummary(totalScore, breakdown, classification, validationQualityAnalysis));
+
+    // 3. Base Metrics (always shown)
+    console.log('');
+    console.log(formatBaseMetrics(breakdown, thresholds));
+
+    // 4. Detailed Metrics (only if --metrics flag - shows sub-breakdowns)
+    if (showMetrics) {
+      console.log('');
+      console.log('━'.repeat(68));
+      console.log(formatDetailedMetrics(breakdown, thresholds));
+    }
+
+    // 5. Warnings (if any)
     if (warnings.length > 0) {
       console.log('');
       console.log('Warnings:');
@@ -153,30 +186,19 @@ function main() {
       });
     }
 
-    // PHASE 5: Display gaming pattern warnings
-    if (gamingAnalysis.has_warnings) {
-      console.log('');
-      console.log('⚠️  Gaming Pattern Warnings:');
-      console.log('');
-      gamingAnalysis.warnings.forEach(warning => {
-        const icon = warning.severity === 'high' ? '🔴' : '🟡';
-        console.log(`${icon} ${warning.message}`);
-        console.log(`   💡 ${warning.recommendation}`);
-        console.log('');
-      });
-    }
-
-    if (recommendations.length > 0) {
-      console.log('');
-      console.log('Priority Actions:');
-      recommendations.forEach(rec => {
-        console.log(`  • ${rec}`);
-      });
-    }
-
+    // 6. Action Plan
     console.log('');
-    console.log(`Classification: ${classification}`);
-    console.log(getClassificationPrefix(classification, totalScore));
+    console.log(formatActionPlan(breakdown, validationQualityAnalysis, thresholds));
+
+    // 7. Comparison Context
+    console.log('');
+    const invalidRefCount = validationQualityAnalysis.patterns.invalid_test_location?.count || 0;
+    const invalidRefRatio = invalidRefCount / Math.max(metrics.requirements.total, 1);
+    console.log(formatComparison(metrics.scenario, totalScore, breakdown.validation_penalty, invalidRefRatio));
+
+    // 8. Help text
+    console.log('');
+    console.log('Use --help to see all available flags and options.');
   }
 }
 
