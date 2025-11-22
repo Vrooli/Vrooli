@@ -8,6 +8,17 @@
  * linting. Do not hand-roll selector helpers or change this structure—update the
  * maps below so UI code, automation flows, and the manifest builder all stay in
  * sync across every scenario.
+ *
+ * ## Auto-Generated Manifest
+ *
+ * The `selectors.manifest.json` file is automatically generated from this file
+ * during the testing process. If you need to add or modify selectors:
+ *
+ * 1. Update the `literalSelectors` object below for static selectors
+ * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
+ * 3. The manifest will be regenerated automatically when tests run
+ *
+ * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
  */
 
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
@@ -255,25 +266,127 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+  admin: {
+    login: {
+      email: 'admin-login-email',
+      passwordField: 'admin-login-password',
+      submit: 'admin-login-submit',
+      error: 'admin-login-error',
+    },
+    breadcrumb: 'admin-breadcrumb',
+    nav: {
+      home: 'nav-home',
+      analytics: 'nav-analytics',
+      customization: 'nav-customization',
+      logout: 'nav-logout',
+    },
+    mode: {
+      analytics: 'admin-mode-analytics',
+      customization: 'admin-mode-customization',
+    },
+    analytics: {
+      filters: 'analytics-filters',
+      timeRange: 'analytics-time-range',
+      variantFilter: 'analytics-variant-filter',
+      totalVisitors: 'analytics-total-visitors',
+      conversionRate: 'analytics-conversion-rate',
+      topCta: 'analytics-top-cta',
+      variantPerformance: 'analytics-variant-performance',
+      variantDetail: 'analytics-variant-detail',
+    },
+    customization: {
+      triggerAgent: 'trigger-agent-customization',
+      createVariant: 'create-variant',
+      addSection: 'add-section',
+    },
+    variant: {
+      nameInput: 'variant-name-input',
+      slugInput: 'variant-slug-input',
+      descriptionInput: 'variant-description-input',
+      weightInput: 'variant-weight-input',
+      save: 'save-variant',
+    },
+    section: {
+      form: 'section-form',
+      preview: 'section-preview',
+      typeInput: 'section-type-input',
+      enabledInput: 'section-enabled-input',
+      orderInput: 'section-order-input',
+      save: 'save-section',
+      content: {
+        titleInput: 'content-title-input',
+        subtitleInput: 'content-subtitle-input',
+        ctaTextInput: 'content-cta-text-input',
+        ctaUrlInput: 'content-cta-url-input',
+        imageUrlInput: 'content-image-url-input',
+      },
+    },
+    agent: {
+      briefInput: 'agent-brief-input',
+      assetsInput: 'agent-assets-input',
+      previewInput: 'agent-preview-input',
+      submit: 'agent-submit',
+    },
   },
-  */
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-      params: { name: { type: 'string' } },
+  admin: {
+    analytics: {
+      variantRow: defineDynamicSelector({
+        description: 'Analytics variant performance row by variant ID',
+        testIdPattern: 'analytics-variant-row-${id}',
+        params: { id: { type: 'number' } },
+      }),
+      viewDetails: defineDynamicSelector({
+        description: 'View details button for specific variant',
+        testIdPattern: 'analytics-view-details-${id}',
+        params: { id: { type: 'number' } },
+      }),
+    },
+    customization: {
+      variantCard: defineDynamicSelector({
+        description: 'Variant card by slug',
+        testIdPattern: 'variant-card-${slug}',
+        params: { slug: { type: 'string' } },
+      }),
+      editVariant: defineDynamicSelector({
+        description: 'Edit variant button by slug',
+        testIdPattern: 'edit-variant-${slug}',
+        params: { slug: { type: 'string' } },
+      }),
+      previewVariant: defineDynamicSelector({
+        description: 'Preview variant button by slug',
+        testIdPattern: 'preview-variant-${slug}',
+        params: { slug: { type: 'string' } },
+      }),
+      archiveVariant: defineDynamicSelector({
+        description: 'Archive variant button by slug',
+        testIdPattern: 'archive-variant-${slug}',
+        params: { slug: { type: 'string' } },
+      }),
+      deleteVariant: defineDynamicSelector({
+        description: 'Delete variant button by slug',
+        testIdPattern: 'delete-variant-${slug}',
+        params: { slug: { type: 'string' } },
+      }),
+      section: defineDynamicSelector({
+        description: 'Section item by ID',
+        testIdPattern: 'section-${id}',
+        params: { id: { type: 'number' } },
+      }),
+      editSection: defineDynamicSelector({
+        description: 'Edit section button by ID',
+        testIdPattern: 'edit-section-${id}',
+        params: { id: { type: 'number' } },
+      }),
+    },
+    breadcrumb: defineDynamicSelector({
+      description: 'Breadcrumb segment by index',
+      testIdPattern: 'breadcrumb-${index}',
+      params: { index: { type: 'number' } },
     }),
   },
-  */
 };
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);

@@ -12,15 +12,20 @@
       "description": "Each landing page includes Stripe keys from environment variables",
       "validation": [
         {
-          "type": "manual",
-          "phase": "integration",
-          "status": "not_implemented",
-          "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go:TestNewStripeService"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "initialization/configuration/landing-manager.env"
         }
       ],
-      "status": "pending",
-      "notes": "Env vars: STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET"
+      "status": "complete",
+      "notes": "Env vars: STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET implemented in stripe_service.go and env file"
     },
     {
       "id": "STRIPE-ROUTES",
@@ -30,18 +35,172 @@
       "description": "Each landing page includes routes for creating checkout sessions and handling webhook events",
       "validation": [
         {
-          "type": "manual",
-          "phase": "integration",
-          "status": "not_implemented",
-          "notes": "Placeholder - needs test implementation",
-          "ref": "TBD"
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go:TestCreateCheckoutSession"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_handlers.go:handleCheckoutCreate"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_handlers.go:handleStripeWebhook"
+        },
+        {
+          "type": "api",
+          "phase": "business",
+          "status": "implemented",
+          "ref": ".vrooli/endpoints.json:checkout-create"
+        },
+        {
+          "type": "api",
+          "phase": "business",
+          "status": "implemented",
+          "ref": ".vrooli/endpoints.json:webhook-stripe"
         }
       ],
-      "status": "pending",
+      "status": "complete",
       "dependencies": [
         "STRIPE-CONFIG"
       ],
-      "notes": "Routes: POST /api/checkout/create, POST /api/webhooks/stripe"
+      "notes": "Routes: POST /api/checkout/create, POST /api/webhooks/stripe - implemented with handlers and endpoints"
+    },
+    {
+      "id": "STRIPE-SIG",
+      "title": "Webhook signature verification",
+      "prd_ref": "OT-P0-027",
+      "criticality": "P0",
+      "description": "All webhook endpoints verify Stripe signature before processing",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go:TestVerifyWebhookSignature"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service.go:VerifyWebhookSignature"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go:TestHandleWebhook_CheckoutCompleted"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "STRIPE-ROUTES"
+      ],
+      "notes": "HMAC-SHA256 signature verification implemented with proper timing attack protection"
+    },
+    {
+      "id": "SUB-VERIFY",
+      "title": "Subscription verification endpoint",
+      "prd_ref": "OT-P0-028",
+      "criticality": "P0",
+      "description": "Each landing page exposes GET /api/subscription/verify accepting user identity, returning active/inactive/trial/canceled",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go:TestVerifySubscription"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service.go:VerifySubscription"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_handlers.go:handleSubscriptionVerify"
+        },
+        {
+          "type": "api",
+          "phase": "business",
+          "status": "implemented",
+          "ref": ".vrooli/endpoints.json:subscription-verify"
+        }
+      ],
+      "status": "complete",
+      "notes": "GET /api/subscription/verify endpoint implemented with user identity lookup (email or customer ID)"
+    },
+    {
+      "id": "SUB-CACHE",
+      "title": "Verification caching",
+      "prd_ref": "OT-P0-029",
+      "criticality": "P0",
+      "description": "Subscription verification responses cacheable (short TTL) with max 60s lag from webhook changes",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go:TestVerifySubscription_CacheWarning"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service.go:VerifySubscription"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "SUB-VERIFY"
+      ],
+      "notes": "Cache metadata (cached_at, cache_age_ms) included in response. Warning logged if cache > 60s old"
+    },
+    {
+      "id": "SUB-CANCEL",
+      "title": "Subscription cancellation endpoint",
+      "prd_ref": "OT-P0-030",
+      "criticality": "P0",
+      "description": "API exposes POST /api/subscription/cancel validating user and returning status",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service_test.go:TestCancelSubscription"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_service.go:CancelSubscription"
+        },
+        {
+          "type": "code",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "api/stripe_handlers.go:handleSubscriptionCancel"
+        },
+        {
+          "type": "api",
+          "phase": "business",
+          "status": "implemented",
+          "ref": ".vrooli/endpoints.json:subscription-cancel"
+        }
+      ],
+      "status": "complete",
+      "dependencies": [
+        "SUB-VERIFY"
+      ],
+      "notes": "POST /api/subscription/cancel endpoint implemented with user validation and status update"
     }
   ],
   "_metadata": {}

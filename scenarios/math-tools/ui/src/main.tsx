@@ -22,7 +22,12 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__mathT
     console.warn('[math-tools-ui] Failed to parse parent origin for iframe bridge', error)
   }
 
-  initIframeBridgeChild({ parentOrigin, appId: 'math-tools' })
+  initIframeBridgeChild({
+    parentOrigin,
+    appId: 'math-tools',
+    captureLogs: true,
+    captureNetwork: true,
+  })
   window.__mathToolsBridgeInitialized = true
 }
 

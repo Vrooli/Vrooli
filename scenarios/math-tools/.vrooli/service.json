@@ -179,7 +179,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
+          "run": "cd ui && node server.cjs",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {

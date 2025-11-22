@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "reset": "full"
+  },
+  "flow_definition": {
+    "metadata": {
+      "name": "Customization UX - Split Layout and Live Preview",
+      "description": "Validates customization interface requirements: split layout with form and preview, live preview updates within 300ms. Tests requirements CUSTOM-SPLIT, CUSTOM-LIVE.",
+      "reset": "full",
+      "requirements": [
+        "CUSTOM-SPLIT",
+        "CUSTOM-LIVE"
+      ],
+      "tags": ["customization", "ux", "preview"],
+      "notes": [
+        "NOTE: This playbook currently validates that the split layout and live preview features are documented in the admin home TODO section.",
+        "Once the customization interface is fully implemented (Phase 4 of admin portal implementation), this playbook should be updated to test:",
+        "1. Actual split layout rendering (form on one side, preview on other)",
+        "2. Responsive stacking on mobile viewports",
+        "3. Live preview updates with debounced 300ms timing",
+        "4. Form field changes reflecting in preview without page reload"
+      ]
+    },
+    "nodes": [
+      {
+        "id": "navigate-1",
+        "type": "navigate",
+        "data": {
+          "label": "Navigate to admin login",
+          "destinationType": "url",
+          "url": "${BASE_URL}/admin/login",
+          "waitForMs": 1000,
+          "timeoutMs": 10000
+        }
+      },
+      {
+        "id": "type-1",
+        "type": "type",
+        "data": {
+          "label": "Login as admin - email",
+          "selector": "@selector/admin.login.email",
+          "text": "admin@localhost"
+        }
+      },
+      {
+        "id": "type-2",
+        "type": "type",
+        "data": {
+          "label": "Enter password",
+          "selector": "@selector/admin.login.passwordField",
+          "text": "changeme123"
+        }
+      },
+      {
+        "id": "click-1",
+        "type": "click",
+        "data": {
+          "label": "Submit login",
+          "selector": "@selector/admin.login.submit",
+          "waitForMs": 2000,
+          "timeoutMs": 10000
+        }
+      },
+      {
+        "id": "click-2",
+        "type": "click",
+        "data": {
+          "label": "Navigate to Customization mode",
+          "selector": "@selector/admin.mode.customization",
+          "waitForMs": 1000,
+          "timeoutMs": 5000
+        }
+      },
+      {
+        "id": "assert-1",
+        "type": "assert",
+        "data": {
+          "label": "[REQ:CUSTOM-SPLIT,CUSTOM-LIVE] Verify split layout with live preview is mentioned",
+          "assertMode": "exists",
+          "selector": "text=Split layout with live preview",
+          "timeoutMs": 3000
+        }
+      }
+    ],
+    "edges": [
+      {"id": "e1", "source": "navigate-1", "target": "type-1", "type": "smoothstep"},
+      {"id": "e2", "source": "type-1", "target": "type-2", "type": "smoothstep"},
+      {"id": "e3", "source": "type-2", "target": "click-1", "type": "smoothstep"},
+      {"id": "e4", "source": "click-1", "target": "click-2", "type": "smoothstep"},
+      {"id": "e5", "source": "click-2", "target": "assert-1", "type": "smoothstep"}
+    ]
+  }
+}
