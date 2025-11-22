@@ -1,0 +1,54 @@
+{
+  "name": "Scenario Detail - File Table",
+  "description": "[REQ:TM-UI-003,TM-UI-004] Verify scenario detail view shows sortable file table",
+  "requirements": ["TM-UI-003", "TM-UI-004"],
+  "metadata": {
+    "phase": "business",
+    "surface": "ui",
+    "capability": "01-light-scanning",
+    "reset": "none"
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "http://localhost:{{UI_PORT}}/scenario/tidiness-manager",
+      "description": "Navigate to scenario detail page"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/fileTable",
+      "timeout": 5000,
+      "description": "Wait for file table to load"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/fileTableHeader.path",
+      "description": "Verify file path column exists"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/fileTableHeader.lines",
+      "description": "Verify line count column exists"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/fileTableHeader.issues",
+      "description": "Verify issue count column exists"
+    },
+    {
+      "action": "click",
+      "selector": "@selector/fileTableHeader.lines",
+      "description": "Click to sort by line count"
+    },
+    {
+      "action": "wait",
+      "timeout": 1000,
+      "description": "Wait for sort to complete"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/fileTableRow",
+      "description": "Verify table rows exist after sort"
+    }
+  ]
+}

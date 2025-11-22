@@ -1,0 +1,49 @@
+{
+  "name": "Global Dashboard - Scenario Table",
+  "description": "[REQ:TM-UI-001] Verify global dashboard displays scenario table with key metrics",
+  "requirements": ["TM-UI-001"],
+  "metadata": {
+    "phase": "business",
+    "surface": "ui",
+    "capability": "01-light-scanning",
+    "reset": "none"
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "http://localhost:{{UI_PORT}}/dashboard",
+      "description": "Navigate to global dashboard"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/scenarioTable",
+      "timeout": 5000,
+      "description": "Wait for scenario table to load"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/scenarioTableHeader.name",
+      "description": "Verify scenario name column header exists"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/scenarioTableHeader.lightIssues",
+      "description": "Verify light issues column header exists"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/scenarioTableHeader.aiIssues",
+      "description": "Verify AI issues column header exists"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/scenarioTableHeader.longFiles",
+      "description": "Verify long files column header exists"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/scenarioTableRow",
+      "description": "Verify at least one scenario row exists"
+    }
+  ]
+}

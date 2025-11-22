@@ -10,7 +10,7 @@
     "preview": "node server.js",
     "lint": "eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",
@@ -39,6 +39,7 @@
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.11",
+    "jsdom": "^27.1.0",
     "postcss": "^8.4.44",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.3",

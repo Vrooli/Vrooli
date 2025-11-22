@@ -28,10 +28,10 @@
 ### 🔴 P0 – Must ship for viability
 
 #### Template Management & Generation
-- [ ] OT-P0-001 | Template availability | Expose at least one template (`saas-landing-page`) via CLI/API for listing, inspection, and generation
-- [ ] OT-P0-002 | Template metadata | Include required sections, optional sections, and metrics hooks in template metadata
-- [ ] OT-P0-003 | Single-command generation | Create new landing-page scenario with one CLI command without manual file editing
-- [ ] OT-P0-004 | Runnable locally | Generated landing-page scenario runs locally (frontend + Go API) with single startup command
+- [x] OT-P0-001 | Template availability | Expose at least one template (`saas-landing-page`) via CLI/API for listing, inspection, and generation
+- [x] OT-P0-002 | Template metadata | Include required sections, optional sections, and metrics hooks in template metadata
+- [x] OT-P0-003 | Single-command generation | Create new landing-page scenario with one CLI command without manual file editing
+- [x] OT-P0-004 | Runnable locally | Generated landing-page scenario runs locally (frontend + Go API) with single startup command
 
 #### Admin Portal Core
 - [ ] OT-P0-005 | Agent integration trigger | Trigger "agent customization run" for a specific landing page from factory scenario
@@ -47,29 +47,29 @@
 - [ ] OT-P0-013 | Live preview updates | Form field changes update preview within 300ms (debounced) without page reload
 
 #### A/B Testing Core
-- [ ] OT-P0-014 | URL variant selection | If `variant_slug` in URL, force that variant regardless of localStorage
-- [ ] OT-P0-015 | localStorage persistence | If no URL slug and localStorage has variant ID, reuse that variant
-- [ ] OT-P0-016 | API weight-based selection | If neither URL nor localStorage, API selects variant by weight and frontend stores it in localStorage
-- [ ] OT-P0-017 | Variant CRUD operations | Admin can create, update weights, disable/archive, and hard delete variants (with confirmation)
-- [ ] OT-P0-018 | Archived variant handling | Archived variants remain queryable for analytics but ineligible for random selection
+- [x] OT-P0-014 | URL variant selection | If `variant_slug` in URL, force that variant regardless of localStorage
+- [x] OT-P0-015 | localStorage persistence | If no URL slug and localStorage has variant ID, reuse that variant
+- [x] OT-P0-016 | API weight-based selection | If neither URL nor localStorage, API selects variant by weight and frontend stores it in localStorage
+- [x] OT-P0-017 | Variant CRUD operations | Admin can create, update weights, disable/archive, and hard delete variants (with confirmation)
+- [x] OT-P0-018 | Archived variant handling | Archived variants remain queryable for analytics but ineligible for random selection
 
 #### Metrics Core
-- [ ] OT-P0-019 | Event variant tagging | All events (page view, scroll, clicks, forms, conversions) include variant_id in payload
-- [ ] OT-P0-020 | Analytics variant filtering | Admin analytics view filters stats by variant and time range
-- [ ] OT-P0-021 | Minimum event coverage | System emits events for: page_view, scroll_depth (bands), click (element ID), form_submit, conversion (Stripe success)
-- [ ] OT-P0-022 | Metrics idempotency | Metrics ingestion is idempotent or deduplicated to avoid double-counting on retries
+- [x] OT-P0-019 | Event variant tagging | All events (page view, scroll, clicks, forms, conversions) include variant_id in payload
+- [x] OT-P0-020 | Analytics variant filtering | Admin analytics view filters stats by variant and time range
+- [x] OT-P0-021 | Minimum event coverage | System emits events for: page_view, scroll_depth (bands), click (element ID), form_submit, conversion (Stripe success)
+- [x] OT-P0-022 | Metrics idempotency | Metrics ingestion is idempotent or deduplicated to avoid double-counting on retries
 
 #### Payments Core
-- [ ] OT-P0-023 | Analytics summary | Analytics home shows total visitors, conversion rate per variant, top CTAs by CTR
-- [ ] OT-P0-024 | Variant detail view | Variant detail page shows views, CTA clicks, conversions, conversion rate, basic trend
-- [ ] OT-P0-025 | Stripe environment config | Each landing page includes Stripe keys from environment variables
-- [ ] OT-P0-026 | Stripe routes | Each landing page includes routes for creating checkout sessions and handling webhook events
+- [x] OT-P0-023 | Analytics summary | Analytics home shows total visitors, conversion rate per variant, top CTAs by CTR
+- [x] OT-P0-024 | Variant detail view | Variant detail page shows views, CTA clicks, conversions, conversion rate, basic trend
+- [x] OT-P0-025 | Stripe environment config | Each landing page includes Stripe keys from environment variables
+- [x] OT-P0-026 | Stripe routes | Each landing page includes routes for creating checkout sessions and handling webhook events
 
 #### Security & Verification
-- [ ] OT-P0-027 | Webhook signature verification | All webhook endpoints verify Stripe signature before processing
-- [ ] OT-P0-028 | Subscription verification endpoint | Each landing page exposes GET /api/subscription/verify accepting user identity, returning active/inactive/trial/canceled
-- [ ] OT-P0-029 | Verification caching | Subscription verification responses cacheable (short TTL) with max 60s lag from webhook changes
-- [ ] OT-P0-030 | Subscription cancellation endpoint | API exposes POST /api/subscription/cancel validating user and returning status
+- [x] OT-P0-027 | Webhook signature verification | All webhook endpoints verify Stripe signature before processing
+- [x] OT-P0-028 | Subscription verification endpoint | Each landing page exposes GET /api/subscription/verify accepting user identity, returning active/inactive/trial/canceled
+- [x] OT-P0-029 | Verification caching | Subscription verification responses cacheable (short TTL) with max 60s lag from webhook changes
+- [x] OT-P0-030 | Subscription cancellation endpoint | API exposes POST /api/subscription/cancel validating user and returning status
 
 ### 🟠 P1 – Should have post-launch
 

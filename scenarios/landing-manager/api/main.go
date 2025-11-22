@@ -31,6 +31,10 @@ type Server struct {
 	db              *sql.DB
 	router          *mux.Router
 	templateService *TemplateService
+	variantService  *VariantService
+	metricsService  *MetricsService
+	stripeService   *StripeService
+	contentService  *ContentService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -59,7 +63,14 @@ func NewServer() (*Server, error) {
 		db:              db,
 		router:          mux.NewRouter(),
 		templateService: NewTemplateService(),
+		variantService:  NewVariantService(db),
+		metricsService:  NewMetricsService(db),
+		stripeService:   NewStripeService(db),
+		contentService:  NewContentService(db),
 	}
+
+	// Initialize session store for authentication
+	initSessionStore()
 
 	srv.setupRoutes()
 	return srv, nil
@@ -70,10 +81,44 @@ func (s *Server) setupRoutes() {
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", s.handleHealth).Methods("GET")
+
+	// Template management endpoints
 	s.router.HandleFunc("/api/v1/templates", s.handleTemplateList).Methods("GET")
 	s.router.HandleFunc("/api/v1/templates/{id}", s.handleTemplateShow).Methods("GET")
 	s.router.HandleFunc("/api/v1/generate", s.handleGenerate).Methods("POST")
 	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
+
+	// Admin authentication endpoints (OT-P0-008)
+	s.router.HandleFunc("/api/v1/admin/login", s.handleAdminLogin).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/logout", s.handleAdminLogout).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/session", s.handleAdminSession).Methods("GET")
+
+	// A/B Testing variant endpoints (OT-P0-014 through OT-P0-018)
+	s.router.HandleFunc("/api/v1/variants/select", handleVariantSelect(s.variantService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants", handleVariantsList(s.variantService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants", handleVariantCreate(s.variantService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/variants/{slug}", handleVariantBySlug(s.variantService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants/{slug}", handleVariantUpdate(s.variantService)).Methods("PATCH")
+	s.router.HandleFunc("/api/v1/variants/{slug}/archive", handleVariantArchive(s.variantService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/variants/{slug}", handleVariantDelete(s.variantService)).Methods("DELETE")
+
+	// Metrics & Analytics endpoints (OT-P0-019 through OT-P0-024)
+	s.router.HandleFunc("/api/v1/metrics/track", handleMetricsTrack(s.metricsService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/metrics/summary", handleMetricsSummary(s.metricsService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/metrics/variants", handleMetricsVariantStats(s.metricsService)).Methods("GET")
+
+	// Stripe Payment endpoints (OT-P0-025 through OT-P0-030)
+	s.router.HandleFunc("/api/v1/checkout/create", handleCheckoutCreate(s.stripeService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/webhooks/stripe", handleStripeWebhook(s.stripeService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/subscription/verify", handleSubscriptionVerify(s.stripeService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/subscription/cancel", handleSubscriptionCancel(s.stripeService)).Methods("POST")
+
+	// Content Customization endpoints (OT-P0-012, OT-P0-013: CUSTOM-SPLIT, CUSTOM-LIVE)
+	s.router.HandleFunc("/api/v1/variants/{variant_id}/sections", handleGetSections(s.contentService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/sections/{id}", handleGetSection(s.contentService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/sections/{id}", handleUpdateSection(s.contentService)).Methods("PATCH")
+	s.router.HandleFunc("/api/v1/sections", handleCreateSection(s.contentService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/sections/{id}", handleDeleteSection(s.contentService)).Methods("DELETE")
 }
 
 // Start launches the HTTP server with graceful shutdown
@@ -243,6 +288,15 @@ func logStructured(msg string, fields map[string]interface{}) {
 	}
 	fieldsJSON, _ := json.Marshal(fields)
 	log.Printf(`{"level":"info","message":"%s","fields":%s,"timestamp":"%s"}`, msg, fieldsJSON, time.Now().UTC().Format(time.RFC3339))
+}
+
+func logStructuredError(msg string, fields map[string]interface{}) {
+	if len(fields) == 0 {
+		log.Printf(`{"level":"error","message":"%s","timestamp":"%s"}`, msg, time.Now().UTC().Format(time.RFC3339))
+		return
+	}
+	fieldsJSON, _ := json.Marshal(fields)
+	log.Printf(`{"level":"error","message":"%s","fields":%s,"timestamp":"%s"}`, msg, fieldsJSON, time.Now().UTC().Format(time.RFC3339))
 }
 
 func requireEnv(key string) string {

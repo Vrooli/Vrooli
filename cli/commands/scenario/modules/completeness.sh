@@ -30,12 +30,21 @@ scenario::completeness::score() {
 Usage: vrooli scenario completeness <scenario-name> [--format json|human] [--json]
 
 Calculate objective completeness score based on:
-  • Requirement pass rates (30% weight)
-  • Operational target pass rates (20% weight)
-  • Test pass rates (20% weight)
-  • Test coverage ratio (10% weight)
-  • Requirement depth (10% weight)
-  • Absolute counts vs category thresholds (10% weight)
+  Quality (50%):
+    • Requirement pass rates (20%)
+    • Operational target pass rates (15%)
+    • Test pass rates (15%)
+  Coverage (15%):
+    • Test coverage ratio (8%)
+    • Requirement depth (7%)
+  Quantity (10%):
+    • Absolute counts vs category thresholds (10%)
+  UI Completeness (25%):
+    • Template detection (10%)
+    • Component complexity (5%)
+    • API integration depth (5%)
+    • Routing complexity (2.5%)
+    • Code volume (2.5%)
 
 Options:
   --format <type>    Output format: json (machine-readable) or human (default)

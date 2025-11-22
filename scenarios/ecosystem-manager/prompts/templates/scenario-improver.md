@@ -7,11 +7,13 @@ You are executing a **scenario improvement** task for the Ecosystem Manager.
 ## Quick Validation Loop (repeat until green)
 1. `vrooli scenario status {{TARGET}}`
    - Shows failing checks, missing files, stale ports, and remediation hints. Use it to prioritize work and verify progress before handoff.
-2. `scenario-auditor audit {{TARGET}} --timeout 240`
+2. `vrooli scenario completeness {{TARGET}}`
+   - Shows objective quality score (0-100) with breakdown of quality, coverage, quantity, and UI metrics. Review recommendations to identify gaps (missing tests, template UI, low routing complexity, etc.). Re-run after changes to verify improvements. Target 80+ for production readiness.
+3. `scenario-auditor audit {{TARGET}} --timeout 240`
    - Capture the JSON (or summary) and explain any remaining security/standards violations.
-3. Scenario test runner (document the exact command).
+4. Scenario test runner (document the exact command).
    - Tests must pass after your change, or you must clearly explain why they remain failing. Phase scripts automatically sync requirement coverage when tests run.
-4. `vrooli scenario ui-smoke {{TARGET}}`
+5. `vrooli scenario ui-smoke {{TARGET}}`
    - Ensures the production UI bundle loads, the iframe bridge is ready, and Browserless captures artifacts (screenshot, console, network).
 
 ## Working with PRD & Requirements
@@ -53,7 +55,7 @@ Always fix regressions you introduce before starting a new target.
 - For integration testing, resolve other scenarios’ ports dynamically via `vrooli scenario port <name> API_PORT`.
 
 ## Final Handoff (Required Format)
-1. **Validation Evidence** – Re-run the Quick Validation Loop (status, auditor, tests) and list the exact commands plus where logs/output are stored.
+1. **Validation Evidence** – Re-run the Quick Validation Loop (status, completeness, auditor, tests, ui-smoke) and list the exact commands plus where logs/output are stored. Include the completeness score before/after your changes and highlight which metrics improved.
 2. **Changes & Files** – Enumerate the operational targets/requirements you advanced and which files you touched (PRD notes, README, requirements modules, docs/PROGRESS.md, code/tests).
 3. **Current Scenario Health** – State what now works, what still fails, and any regressions you observed.
 4. **Next Steps / Risks** – Capture follow-up tasks, blockers, or recommendations so the next agent can pick up instantly.

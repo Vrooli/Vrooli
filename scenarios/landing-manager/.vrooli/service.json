@@ -135,7 +135,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./landing-manager-api",
+          "run": "bash -c 'set -a && source initialization/configuration/landing-manager.env && set +a && cd api && exec ./landing-manager-api'",
           "background": true,
           "condition": {
             "file_exists": "api/landing-manager-api"

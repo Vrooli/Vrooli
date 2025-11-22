@@ -7,7 +7,9 @@ You are executing a **scenario generation** task for the Ecosystem Manager.
 ## Quick Validation Loop (after scaffolding)
 1. `vrooli scenario status {{TARGET}}`
    - Confirms scenario is set up correctly. Re-run at the end and capture notable warnings in your summary.
-2. `scenario-auditor audit {{TARGET}} --timeout 240`
+2. `vrooli scenario completeness {{TARGET}}`
+   - Shows objective quality score (0-100) with breakdown of quality, coverage, quantity, and UI metrics. Expect low scores initially (no code exists yet), but review recommendations to understand what future iterations should prioritize. Include the score and key metrics in your final handoff.
+3. `scenario-auditor audit {{TARGET}} --timeout 240`
    - Expect failures (no code exists yet). Capture the summary-focused output (severity counts, top violations, artifact path) for your final handoff.
 
 ## Generator Deliverables
@@ -98,13 +100,14 @@ Future agents append to these files; call that out in README.md so progress rema
 - Stay inside `{{PROJECT_PATH}}/scenarios/{{TARGET}}/`. Mention any repo-wide issues in your summary.
 - At the end, run:
   1. `vrooli scenario status {{TARGET}}` – confirm lifecycle metadata loads without schema errors.
-  2. `scenario-auditor audit {{TARGET}} --timeout 240` – capture the output path or summarize the gaps for improvers.
+  2. `vrooli scenario completeness {{TARGET}}` – capture the score and key recommendations for improvers.
+  3. `scenario-auditor audit {{TARGET}} --timeout 240` – capture the output path or summarize the gaps for improvers.
 - Include the command outputs (or summaries) in your final handoff so the next agent knows the exact starting point.
 
 ## Final Handoff (Required Format)
-1. **Validation Evidence** – Re-run the Quick Validation Loop (status + scenario-auditor) and list any important information/tips/links/findings.
+1. **Validation Evidence** – Re-run the Quick Validation Loop (status + completeness + scenario-auditor) and list any important information/tips/links/findings. Include the completeness score and top recommendations.
 2. **Deliverables & Files** – Enumerate the docs/configs you created or edited (PRD, README, `requirements/index.json`, `docs/PROGRESS.md`, etc.). Mention any template steps you intentionally skipped.
-3. **Scenario Status** – Summarize what’s complete (research, scaffold, requirements), what remains open, and any known failures or blockers.
+3. **Scenario Status** – Summarize what's complete (research, scaffold, requirements), what remains open, and any known failures or blockers.
 4. **Next Iteration Notes** – Capture learnings, open questions, or prioritized recommendations so the next agent can continue seamlessly.
 
 Use this block as your final response structure; ecosystem-manager parses it to gauge readiness and queue the next iteration.

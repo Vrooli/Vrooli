@@ -4,4 +4,18 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: './',
   plugins: [react()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    coverage: {
+      reporter: ['json-summary', 'text'],
+      reportOnFailure: true,
+      thresholds: {
+        lines: 0,
+        functions: 0,
+        branches: 0,
+        statements: 0,
+      },
+    },
+  },
 });

@@ -266,12 +266,21 @@ const createSelectorRegistry = <
 };
 
 const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
+  scenarioTable: 'scenario-table',
+  scenarioTableHeader: {
+    name: 'scenario-table-header-name',
+    lightIssues: 'scenario-table-header-light-issues',
+    aiIssues: 'scenario-table-header-ai-issues',
+    longFiles: 'scenario-table-header-long-files',
   },
-  */
+  scenarioTableRow: 'scenario-table-row',
+  fileTable: 'file-table',
+  fileTableHeader: {
+    path: 'file-table-header-path',
+    lines: 'file-table-header-lines',
+    issues: 'file-table-header-issues',
+  },
+  fileTableRow: 'file-table-row',
 };
 
 const dynamicSelectorDefinitions: DynamicSelectorTree = {

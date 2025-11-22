@@ -25,6 +25,7 @@ type CompletenessDetails struct {
 	Quality  QualityMetrics  `json:"quality"`
 	Coverage CoverageMetrics `json:"coverage"`
 	Quantity QuantityMetrics `json:"quantity"`
+	UI       UIMetrics       `json:"ui"`
 }
 
 // QualityMetrics tracks pass rates
@@ -78,6 +79,53 @@ type QuantityItem struct {
 	Count     int    `json:"count"`
 	Threshold string `json:"threshold"`
 	Points    int    `json:"points"`
+}
+
+// UIMetrics tracks user interface completeness
+type UIMetrics struct {
+	Score               int                 `json:"score"`
+	Max                 int                 `json:"max"`
+	TemplateCheck       TemplateCheck       `json:"template_check"`
+	ComponentComplexity ComponentComplexity `json:"component_complexity"`
+	APIIntegration      APIIntegration      `json:"api_integration"`
+	Routing             Routing             `json:"routing"`
+	CodeVolume          CodeVolume          `json:"code_volume"`
+}
+
+// TemplateCheck verifies UI is not template boilerplate
+type TemplateCheck struct {
+	IsTemplate bool `json:"is_template"`
+	Penalty    int  `json:"penalty"`
+	Points     int  `json:"points"`
+}
+
+// ComponentComplexity tracks UI component depth
+type ComponentComplexity struct {
+	FileCount      int    `json:"file_count"`
+	ComponentCount int    `json:"component_count"`
+	PageCount      int    `json:"page_count"`
+	Threshold      string `json:"threshold"`
+	Points         int    `json:"points"`
+}
+
+// APIIntegration tracks UI-to-API integration
+type APIIntegration struct {
+	EndpointCount  int `json:"endpoint_count"`
+	TotalEndpoints int `json:"total_endpoints"`
+	Points         int `json:"points"`
+}
+
+// Routing tracks UI routing complexity
+type Routing struct {
+	HasRouting bool `json:"has_routing"`
+	RouteCount int  `json:"route_count"`
+	Points     int  `json:"points"`
+}
+
+// CodeVolume tracks total lines of UI code
+type CodeVolume struct {
+	TotalLOC int     `json:"total_loc"`
+	Points   float64 `json:"points"`
 }
 
 // Warning represents a completeness warning
@@ -200,6 +248,24 @@ func formatBreakdown(result CompletenessResult) string {
 		result.Breakdown.Quantity.Targets.Threshold,
 		result.Breakdown.Quantity.Tests.Count,
 		result.Breakdown.Quantity.Tests.Threshold,
+	))
+
+	// UI summary
+	templateWarning := ""
+	if result.Breakdown.UI.TemplateCheck.IsTemplate {
+		templateWarning = fmt.Sprintf(", ⚠️ Template penalty: -%dpts", result.Breakdown.UI.TemplateCheck.Penalty)
+	}
+	lines = append(lines, fmt.Sprintf("**UI:** %d/%d pts (%d files [%s], %d components, %d routes, %d/%d API endpoints, %d LOC%s)",
+		result.Breakdown.UI.Score,
+		result.Breakdown.UI.Max,
+		result.Breakdown.UI.ComponentComplexity.FileCount,
+		result.Breakdown.UI.ComponentComplexity.Threshold,
+		result.Breakdown.UI.ComponentComplexity.ComponentCount,
+		result.Breakdown.UI.Routing.RouteCount,
+		result.Breakdown.UI.APIIntegration.EndpointCount,
+		result.Breakdown.UI.APIIntegration.TotalEndpoints,
+		result.Breakdown.UI.CodeVolume.TotalLOC,
+		templateWarning,
 	))
 
 	return strings.Join(lines, "\n")

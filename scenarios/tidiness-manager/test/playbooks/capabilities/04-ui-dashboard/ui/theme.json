@@ -1,0 +1,36 @@
+{
+  "name": "Dark Theme Styling",
+  "description": "[REQ:TM-UI-006] Verify dark theme is applied consistently",
+  "requirements": ["TM-UI-006"],
+  "metadata": {
+    "phase": "business",
+    "surface": "ui",
+    "capability": "04-ui-dashboard",
+    "reset": "none"
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "http://localhost:{{UI_PORT}}/dashboard",
+      "description": "Navigate to dashboard"
+    },
+    {
+      "action": "wait",
+      "selector": "body",
+      "timeout": 3000,
+      "description": "Wait for page to load"
+    },
+    {
+      "action": "assertStyle",
+      "selector": "body",
+      "property": "background-color",
+      "expectedPattern": "rgb\\(\\d+,\\s*\\d+,\\s*\\d+\\)",
+      "description": "Verify body has dark background color"
+    },
+    {
+      "action": "assert",
+      "selector": "@selector/scenarioTable",
+      "description": "Verify table exists in dark theme"
+    }
+  ]
+}

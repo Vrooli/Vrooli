@@ -1,0 +1,43 @@
+{
+  "name": "Keyboard Navigation",
+  "description": "[REQ:TM-UI-007] Verify keyboard navigation works for tables and filters",
+  "requirements": ["TM-UI-007"],
+  "metadata": {
+    "phase": "business",
+    "surface": "ui",
+    "capability": "04-ui-dashboard",
+    "reset": "none"
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "http://localhost:{{UI_PORT}}/dashboard",
+      "description": "Navigate to dashboard"
+    },
+    {
+      "action": "wait",
+      "selector": "@selector/scenarioTable",
+      "timeout": 5000,
+      "description": "Wait for table to load"
+    },
+    {
+      "action": "keyPress",
+      "key": "Tab",
+      "description": "Press Tab to move focus"
+    },
+    {
+      "action": "assertFocus",
+      "description": "Verify an element received focus"
+    },
+    {
+      "action": "keyPress",
+      "key": "Enter",
+      "description": "Press Enter to activate focused element"
+    },
+    {
+      "action": "wait",
+      "timeout": 1000,
+      "description": "Wait for action to complete"
+    }
+  ]
+}
