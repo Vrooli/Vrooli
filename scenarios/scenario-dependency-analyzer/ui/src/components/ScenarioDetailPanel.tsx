@@ -6,9 +6,11 @@ import type {
 } from "../types";
 import { OptimizationPanel } from "./OptimizationPanel";
 import { DeploymentInsightsPanel } from "./DeploymentInsightsPanel";
+import { MetadataGapsPanel } from "./deployment/MetadataGapsPanel";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 interface ScenarioDetailPanelProps {
   detail: ScenarioDetailResponse | null;
@@ -146,56 +148,75 @@ export function ScenarioDetailPanel({ detail, loading, scanning, optimizing, onS
           </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card className="border border-border/40 bg-background/40">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Resource drift</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <DiffList title="Missing" entries={detail.resource_diff?.missing ?? []} tone="warning" />
-              <DiffList title="Declared only" entries={detail.resource_diff?.extra ?? []} tone="info" />
-            </CardContent>
-          </Card>
-          <Card className="border border-border/40 bg-background/40">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Scenario drift</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <DiffList title="Missing" entries={detail.scenario_diff?.missing ?? []} tone="warning" />
-              <DiffList title="Declared only" entries={detail.scenario_diff?.extra ?? []} tone="info" />
-            </CardContent>
-          </Card>
-        </div>
+        <Tabs defaultValue="dependencies" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="dependencies">Dependencies</TabsTrigger>
+            <TabsTrigger value="deployment">Deployment</TabsTrigger>
+            <TabsTrigger value="optimization">Optimization</TabsTrigger>
+          </TabsList>
 
-        {detail.deployment_report ? (
-          <DeploymentInsightsPanel report={detail.deployment_report} />
-        ) : (
-          <Card className="border border-border/40 bg-background/40">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Deployment readiness</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">
-                Run a scan to generate deployment metadata for this scenario.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+          <TabsContent value="dependencies" className="mt-6 space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="border border-border/40 bg-background/40">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Resource drift</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <DiffList title="Missing" entries={detail.resource_diff?.missing ?? []} tone="warning" />
+                  <DiffList title="Declared only" entries={detail.resource_diff?.extra ?? []} tone="info" />
+                </CardContent>
+              </Card>
+              <Card className="border border-border/40 bg-background/40">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Scenario drift</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <DiffList title="Missing" entries={detail.scenario_diff?.missing ?? []} tone="warning" />
+                  <DiffList title="Declared only" entries={detail.scenario_diff?.extra ?? []} tone="info" />
+                </CardContent>
+              </Card>
+            </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <DependencySection
-            title="Resource dependencies"
-            dependencies={detail.stored_dependencies?.resources ?? []}
-            emptyLabel="No resources detected yet."
-          />
-          <DependencySection
-            title="Scenario dependencies"
-            dependencies={detail.stored_dependencies?.scenarios ?? []}
-            emptyLabel="No scenario interactions detected yet."
-          />
-        </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <DependencySection
+                title="Resource dependencies"
+                dependencies={detail.stored_dependencies?.resources ?? []}
+                emptyLabel="No resources detected yet."
+              />
+              <DependencySection
+                title="Scenario dependencies"
+                dependencies={detail.stored_dependencies?.scenarios ?? []}
+                emptyLabel="No scenario interactions detected yet."
+              />
+            </div>
+          </TabsContent>
 
-        <OptimizationPanel recommendations={detail.optimization_recommendations ?? []} />
+          <TabsContent value="deployment" className="mt-6 space-y-6">
+            {detail.deployment_report ? (
+              <>
+                <DeploymentInsightsPanel report={detail.deployment_report} />
+                {detail.deployment_report.metadata_gaps && (
+                  <MetadataGapsPanel gaps={detail.deployment_report.metadata_gaps} />
+                )}
+              </>
+            ) : (
+              <Card className="border border-border/40 bg-background/40">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Deployment readiness</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">
+                    Run a scan to generate deployment metadata for this scenario.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="optimization" className="mt-6 space-y-6">
+            <OptimizationPanel recommendations={detail.optimization_recommendations ?? []} />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

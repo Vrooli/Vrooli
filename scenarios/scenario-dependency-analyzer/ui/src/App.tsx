@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 
 import { ControlPanel } from "./components/ControlPanel";
@@ -7,13 +7,17 @@ import { SelectedNodePanel } from "./components/SelectedNodePanel";
 import { StatsPanel } from "./components/StatsPanel";
 import { ScenarioCatalogPanel } from "./components/ScenarioCatalogPanel";
 import { ScenarioDetailPanel } from "./components/ScenarioDetailPanel";
+import { DeploymentDashboard } from "./components/deployment/DeploymentDashboard";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { useGraphData } from "./hooks/useGraphData";
 import { useScenarioCatalog } from "./hooks/useScenarioCatalog";
 import type { DependencyGraphNode } from "./types";
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState("graph");
+
   const {
     analyzeAll,
     apiHealthy,
@@ -33,6 +37,7 @@ export default function App() {
     setSelectedNode,
     stats
   } = useGraphData();
+
   const {
     summaries,
     loadingSummaries,
@@ -48,6 +53,13 @@ export default function App() {
   } = useScenarioCatalog();
 
   const handleScenarioScan = useCallback(
+    (scenarioName: string, apply?: boolean) => {
+      void scanScenario(scenarioName, { apply });
+    },
+    [scanScenario]
+  );
+
+  const handleScenarioScanForDetail = useCallback(
     (options?: { apply?: boolean }) => {
       if (!selectedScenario) return;
       void scanScenario(selectedScenario, options);
@@ -112,6 +124,14 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const handleSelectScenarioForDeployment = useCallback(
+    (scenarioName: string) => {
+      selectScenario(scenarioName);
+      setActiveTab("catalog");
+    },
+    [selectScenario]
+  );
+
   return (
     <div className="min-h-screen bg-transparent text-foreground">
       <div className="relative overflow-hidden">
@@ -129,8 +149,8 @@ export default function App() {
                 Systems-level intelligence for the Vrooli ecosystem
               </h1>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                Explore how scenarios, resources, and workflows interlock. Run holistic analysis, assess
-                impact, and unlock optimized deployment strategies with a responsive, accessible, and beautiful interface.
+                Explore dependency graphs, assess deployment readiness, and manage scenario metadata with
+                a responsive, accessible interface designed for compound intelligence.
               </p>
             </div>
             <div className="rounded-xl border border-border/40 bg-background/60 px-4 py-3 text-right text-xs text-muted-foreground">
@@ -155,91 +175,116 @@ export default function App() {
           </Card>
         ) : null}
 
-        <section className="grid flex-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
-          <aside className="space-y-6">
-            <ControlPanel
-              graphType={graphType}
-              layout={layout}
-              filter={filter}
-              driftFilter={driftFilter}
-              onGraphTypeChange={(value) => setGraphType(value)}
-              onLayoutChange={(value) => setLayout(value)}
-              onFilterChange={setFilter}
-              onDriftFilterChange={setDriftFilter}
-              onRefresh={() => fetchGraph(graphType)}
-              onAnalyzeAll={analyzeAll}
-              onExport={handleExport}
-              loading={loading}
-            />
-            <Card className="glass border border-border/40">
-              <CardContent className="space-y-3 py-5 text-sm text-muted-foreground">
-                <p className="text-foreground">Why this matters</p>
-                <p>
-                  Every visualization crystallizes how Vrooli deploys compound intelligence across the local
-                  ecosystem. Use these insights to prioritize engineering investment, derisk launches, and
-                  unlock new business capabilities.
-                </p>
-              </CardContent>
-            </Card>
-          </aside>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-6 grid w-full max-w-[600px] grid-cols-3">
+            <TabsTrigger value="graph">Dependency Graph</TabsTrigger>
+            <TabsTrigger value="deployment">Deployment Readiness</TabsTrigger>
+            <TabsTrigger value="catalog">Scenario Catalog</TabsTrigger>
+          </TabsList>
 
-          <div className="relative min-h-[540px] overflow-hidden rounded-3xl border border-border/50 bg-background/40 shadow-2xl shadow-black/40">
-            {loading ? (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/70 backdrop-blur">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
-                <p className="text-sm text-muted-foreground">Compiling live dependency intelligence…</p>
+          {/* Tab 1: Dependency Graph */}
+          <TabsContent value="graph" className="space-y-6">
+            <section className="grid flex-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
+              <aside className="space-y-6">
+                <ControlPanel
+                  graphType={graphType}
+                  layout={layout}
+                  filter={filter}
+                  driftFilter={driftFilter}
+                  onGraphTypeChange={(value) => setGraphType(value)}
+                  onLayoutChange={(value) => setLayout(value)}
+                  onFilterChange={setFilter}
+                  onDriftFilterChange={setDriftFilter}
+                  onRefresh={() => fetchGraph(graphType)}
+                  onAnalyzeAll={analyzeAll}
+                  onExport={handleExport}
+                  loading={loading}
+                />
+                <Card className="glass border border-border/40">
+                  <CardContent className="space-y-3 py-5 text-sm text-muted-foreground">
+                    <p className="text-foreground">Why this matters</p>
+                    <p>
+                      Every visualization crystallizes how Vrooli deploys compound intelligence across the local
+                      ecosystem. Use these insights to prioritize engineering investment, derisk launches, and
+                      unlock new business capabilities.
+                    </p>
+                  </CardContent>
+                </Card>
+              </aside>
+
+              <div className="relative min-h-[540px] overflow-hidden rounded-3xl border border-border/50 bg-background/40 shadow-2xl shadow-black/40">
+                {loading ? (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/70 backdrop-blur">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+                    <p className="text-sm text-muted-foreground">Compiling live dependency intelligence…</p>
+                  </div>
+                ) : null}
+                <GraphCanvas
+                  graph={graph}
+                  layout={layout}
+                  filter={filter}
+                  driftFilter={driftFilter}
+                  selectedNodeId={selectedNode?.id}
+                  onSelectNode={(node) => setSelectedNode(node)}
+                  className="h-full"
+                />
               </div>
-            ) : null}
-            <GraphCanvas
-              graph={graph}
-              layout={layout}
-              filter={filter}
-              driftFilter={driftFilter}
-              selectedNodeId={selectedNode?.id}
-              onSelectNode={(node) => setSelectedNode(node)}
-              className="h-full"
-            />
-          </div>
 
-          <aside className="space-y-6">
-            <StatsPanel
-              stats={stats}
-              apiHealthy={apiHealthy}
-              influentialNodes={influentialNodes}
-            />
-            {selectedNode ? (
-              <SelectedNodePanel node={selectedNode} connections={selectedConnections} />
-            ) : (
-              <Card className="glass border border-border/40">
-                <CardContent className="space-y-3 py-6 text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">Select a node to inspect dependencies</p>
-                  <p>
-                    Hover or click any scenario or resource to surface its purpose, relationships, and
-                    contextual metadata. Keyboard users can use <kbd className="rounded border border-border/60 bg-background/50 px-1">Tab</kbd> to focus nodes.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </aside>
-        </section>
+              <aside className="space-y-6">
+                <StatsPanel
+                  stats={stats}
+                  apiHealthy={apiHealthy}
+                  influentialNodes={influentialNodes}
+                />
+                {selectedNode ? (
+                  <SelectedNodePanel node={selectedNode} connections={selectedConnections} />
+                ) : (
+                  <Card className="glass border border-border/40">
+                    <CardContent className="space-y-3 py-6 text-sm text-muted-foreground">
+                      <p className="font-medium text-foreground">Select a node to inspect dependencies</p>
+                      <p>
+                        Hover or click any scenario or resource to surface its purpose, relationships, and
+                        contextual metadata. Keyboard users can use <kbd className="rounded border border-border/60 bg-background/50 px-1">Tab</kbd> to focus nodes.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </aside>
+            </section>
+          </TabsContent>
 
-        <section className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <ScenarioCatalogPanel
-            scenarios={summaries}
-            selected={selectedScenario}
-            loading={loadingSummaries}
-            onSelect={selectScenario}
-            onRefresh={refreshSummaries}
-          />
-          <ScenarioDetailPanel
-            detail={detail}
-            loading={detailLoading}
-            scanning={scanLoading}
-            optimizing={optimizeLoading}
-            onScan={handleScenarioScan}
-            onOptimize={handleOptimize}
-          />
-        </section>
+          {/* Tab 2: Deployment Readiness */}
+          <TabsContent value="deployment" className="space-y-6">
+            <DeploymentDashboard
+              scenarios={summaries}
+              loading={loadingSummaries}
+              onRefresh={refreshSummaries}
+              onScanScenario={handleScenarioScan}
+              onSelectScenario={handleSelectScenarioForDeployment}
+            />
+          </TabsContent>
+
+          {/* Tab 3: Scenario Catalog */}
+          <TabsContent value="catalog" className="space-y-6">
+            <section className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+              <ScenarioCatalogPanel
+                scenarios={summaries}
+                selected={selectedScenario}
+                loading={loadingSummaries}
+                onSelect={selectScenario}
+                onRefresh={refreshSummaries}
+              />
+              <ScenarioDetailPanel
+                detail={detail}
+                loading={detailLoading}
+                scanning={scanLoading}
+                optimizing={optimizeLoading}
+                onScan={handleScenarioScanForDetail}
+                onOptimize={handleOptimize}
+              />
+            </section>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

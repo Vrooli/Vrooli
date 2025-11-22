@@ -121,6 +121,7 @@ export interface DeploymentAnalysisReport {
   dependencies: DeploymentDependencyNode[];
   aggregates?: Record<string, DeploymentTierAggregate>;
   bundle_manifest?: BundleManifest;
+  metadata_gaps?: DeploymentMetadataGaps;
 }
 
 export interface DeploymentDependencyNode {
@@ -192,4 +193,23 @@ export interface BundleDependencyEntry {
   resource_type?: string;
   tier_support?: Record<string, TierSupportSummary>;
   alternatives?: string[];
+}
+
+export interface ScenarioGapInfo {
+  scenario_name: string;
+  scenario_path: string;
+  has_deployment_block: boolean;
+  missing_dependency_catalog: boolean;
+  missing_tier_definitions?: string[];
+  missing_resource_metadata?: string[];
+  missing_scenario_metadata?: string[];
+  suggested_actions?: string[];
+}
+
+export interface DeploymentMetadataGaps {
+  total_gaps: number;
+  scenarios_missing_all: number;
+  gaps_by_scenario?: Record<string, ScenarioGapInfo>;
+  missing_tiers?: string[];
+  recommendations?: string[];
 }
