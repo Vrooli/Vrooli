@@ -161,12 +161,16 @@ export function DraftEditorPane({
     selectionStart,
     selectionEnd,
     hasSelection,
+    aiIncludeExistingContent,
+    aiReferencePRDs,
     openAIDialog,
     closeAIDialog,
     setAISection,
     setAIContext,
     setAIAction,
     setAIModel,
+    setAIIncludeExistingContent,
+    setAIReferencePRDs,
     handleAIGenerate,
     handleQuickAction,
     applyAIResult,
@@ -353,6 +357,8 @@ export function DraftEditorPane({
         result={aiResult}
         error={aiError}
         hasSelection={hasSelection}
+        includeExistingContent={aiIncludeExistingContent}
+        referencePRDs={aiReferencePRDs}
         originalContent={editorContent}
         selectionStart={selectionStart}
         selectionEnd={selectionEnd}
@@ -360,6 +366,8 @@ export function DraftEditorPane({
         onContextChange={setAIContext}
         onActionChange={setAIAction}
         onModelChange={setAIModel}
+        onIncludeExistingContentChange={setAIIncludeExistingContent}
+        onReferencePRDsChange={setAIReferencePRDs}
         onGenerate={handleAIGenerate}
         onQuickAction={handleQuickAction}
         onInsert={applyAIResult}

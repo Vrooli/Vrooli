@@ -448,6 +448,13 @@ export interface QualitySummary {
 export interface AIGenerateRequest {
   section: string
   context?: string
+  include_existing_content?: boolean
+  reference_prds?: ReferencePRD[]
+}
+
+export interface ReferencePRD {
+  name: string
+  content: string
 }
 
 export interface AIGenerateResponse {

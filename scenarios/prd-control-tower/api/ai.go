@@ -14,11 +14,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// ReferencePRD represents a reference PRD for AI generation
+type ReferencePRD struct {
+	Name    string `json:"name"`
+	Content string `json:"content"`
+}
+
 // AIGenerateRequest represents an AI generation request
 type AIGenerateRequest struct {
-	Section string `json:"section"` // Section to generate (e.g., "Executive Summary", "Technical Architecture")
-	Context string `json:"context"` // Additional context for generation
-	Action  string `json:"action"`  // Quick action type (improve, expand, simplify, grammar)
+	Section                string         `json:"section"`                   // Section to generate (e.g., "Executive Summary", "Technical Architecture", "Full PRD")
+	Context                string         `json:"context"`                   // Additional context for generation
+	Action                 string         `json:"action"`                    // Quick action type (improve, expand, simplify, grammar)
+	IncludeExistingContent *bool          `json:"include_existing_content"`  // Whether to include existing PRD content in the prompt (default: true)
+	ReferencePRDs          []ReferencePRD `json:"reference_prds,omitempty"`  // Reference PRD examples
+	Model                  string         `json:"model,omitempty"`           // Override model (e.g., "openrouter/x-ai/grok-code-fast-1")
 }
 
 // AIGenerateResponse represents the AI generation result
@@ -42,8 +51,8 @@ func handleAIGenerateSection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Section == "" {
-		respondBadRequest(w, "Section is required")
+	if req.Section == "" && req.Action == "" {
+		respondBadRequest(w, "Section or Action is required")
 		return
 	}
 
@@ -53,8 +62,14 @@ func handleAIGenerateSection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Default include_existing_content to true if not specified
+	includeExisting := true
+	if req.IncludeExistingContent != nil {
+		includeExisting = *req.IncludeExistingContent
+	}
+
 	// Generate AI content
-	generatedText, model, err := generateAIContent(draft, req.Section, req.Context, req.Action)
+	generatedText, model, err := generateAIContent(draft, req.Section, req.Context, req.Action, includeExisting, req.ReferencePRDs, req.Model)
 	if err != nil {
 		response := AIGenerateResponse{
 			DraftID: draftID,
@@ -77,7 +92,7 @@ func handleAIGenerateSection(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, response)
 }
 
-func generateAIContent(draft Draft, section string, context string, action string) (string, string, error) {
+func generateAIContent(draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string) (string, string, error) {
 	// Use OpenRouter API directly (resource-openrouter is just a thin wrapper)
 	openrouterURL := os.Getenv("RESOURCE_OPENROUTER_URL")
 	if openrouterURL == "" {
@@ -85,23 +100,34 @@ func generateAIContent(draft Draft, section string, context string, action strin
 		openrouterURL = "https://openrouter.ai/api/v1"
 	}
 
-	return generateAIContentHTTP(openrouterURL, draft, section, context, action)
+	return generateAIContentHTTP(openrouterURL, draft, section, context, action, includeExisting, referencePRDs, modelOverride)
 }
 
-func generateAIContentHTTP(baseURL string, draft Draft, section string, context string, action string) (string, string, error) {
+func generateAIContentHTTP(baseURL string, draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD, modelOverride string) (string, string, error) {
 	// Construct prompt
-	prompt := buildPrompt(draft, section, context, action)
+	prompt := buildPrompt(draft, section, context, action, includeExisting, referencePRDs)
+
+	// Determine which model to use
+	model := "anthropic/claude-3.5-sonnet"
+	if modelOverride != "" && modelOverride != "default" {
+		// Remove "openrouter/" prefix if present
+		if strings.HasPrefix(modelOverride, "openrouter/") {
+			model = strings.TrimPrefix(modelOverride, "openrouter/")
+		} else {
+			model = modelOverride
+		}
+	}
 
 	// Call OpenRouter API
 	payload := map[string]any{
-		"model": "anthropic/claude-3.5-sonnet",
+		"model": model,
 		"messages": []map[string]string{
 			{
 				"role":    "user",
 				"content": prompt,
 			},
 		},
-		"max_tokens": 2000,
+		"max_tokens": 4000,
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -174,15 +200,15 @@ func generateAIContentHTTP(baseURL string, draft Draft, section string, context 
 		return "", "", fmt.Errorf("invalid content format in response")
 	}
 
-	model := "anthropic/claude-3.5-sonnet"
+	usedModel := model
 	if m, ok := result["model"].(string); ok {
-		model = m
+		usedModel = m
 	}
 
-	return content, model, nil
+	return content, usedModel, nil
 }
 
-func generateAIContentCLI(draft Draft, section string, context string, action string) (string, string, error) {
+func generateAIContentCLI(draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD) (string, string, error) {
 	// Check if resource-openrouter CLI is available
 	_, err := exec.LookPath("resource-openrouter")
 	if err != nil {
@@ -190,7 +216,7 @@ func generateAIContentCLI(draft Draft, section string, context string, action st
 	}
 
 	// Construct prompt
-	prompt := buildPrompt(draft, section, context, action)
+	prompt := buildPrompt(draft, section, context, action, includeExisting, referencePRDs)
 
 	// Run resource-openrouter
 	cmd := exec.Command("resource-openrouter", "chat", "--model", "anthropic/claude-3.5-sonnet", "--message", prompt)
@@ -207,42 +233,73 @@ func generateAIContentCLI(draft Draft, section string, context string, action st
 	return stdout.String(), "anthropic/claude-3.5-sonnet", nil
 }
 
-func buildPrompt(draft Draft, section string, context string, action string) string {
+func buildPrompt(draft Draft, section string, context string, action string, includeExisting bool, referencePRDs []ReferencePRD) string {
 	// If action is specified, use action-based prompt
 	if action != "" {
 		return buildActionPrompt(action, context)
 	}
 
 	// Otherwise, use section-based prompt
-	prompt := fmt.Sprintf(`You are an expert technical writer helping to create a Product Requirements Document (PRD).
+	var prompt strings.Builder
 
-Entity Type: %s
-Entity Name: %s
+	prompt.WriteString("You are an expert technical writer helping to create a Product Requirements Document (PRD).\n\n")
+	prompt.WriteString(fmt.Sprintf("Entity Type: %s\n", draft.EntityType))
+	prompt.WriteString(fmt.Sprintf("Entity Name: %s\n\n", draft.EntityName))
 
-Current PRD Content:
-%s
-
-Task: Generate the "%s" section for this PRD.
-
-`, draft.EntityType, draft.EntityName, draft.Content, section)
-
-	if context != "" {
-		prompt += fmt.Sprintf(`Additional Context:
-%s
-
-`, context)
+	// Include reference PRDs if provided
+	if len(referencePRDs) > 0 {
+		prompt.WriteString("Reference PRD Examples (for style and structure guidance):\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
+		for i, ref := range referencePRDs {
+			prompt.WriteString(fmt.Sprintf("Reference PRD %d: %s\n", i+1, ref.Name))
+			prompt.WriteString(strings.Repeat("-", 70) + "\n")
+			prompt.WriteString(ref.Content)
+			prompt.WriteString("\n\n")
+		}
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
 	}
 
-	prompt += fmt.Sprintf(`Requirements:
-- Follow Vrooli PRD standards and structure
-- Be specific and actionable
-- Include measurable criteria where applicable
-- Use markdown formatting
-- Focus on business value and technical clarity
+	// Include existing PRD content if requested
+	if includeExisting && draft.Content != "" {
+		prompt.WriteString("Current PRD Content:\n")
+		prompt.WriteString(draft.Content)
+		prompt.WriteString("\n\n")
+	}
 
-Generate only the content for the "%s" section. Do not include the section header itself.`, section)
+	// Determine task description based on section
+	isFullPRD := section == "Full PRD" || section == "🎯 Full PRD"
+	if isFullPRD {
+		prompt.WriteString("Task: Generate a complete, comprehensive PRD for this entity.\n\n")
+	} else {
+		prompt.WriteString(fmt.Sprintf("Task: Generate the \"%s\" section for this PRD.\n\n", section))
+	}
 
-	return prompt
+	// Include additional context if provided
+	if context != "" {
+		prompt.WriteString("Additional Context:\n")
+		prompt.WriteString(context)
+		prompt.WriteString("\n\n")
+	}
+
+	// Add requirements
+	prompt.WriteString("Requirements:\n")
+	prompt.WriteString("- Follow Vrooli PRD standards and structure\n")
+	prompt.WriteString("- Be specific and actionable\n")
+	prompt.WriteString("- Include measurable criteria where applicable\n")
+	prompt.WriteString("- Use markdown formatting\n")
+	prompt.WriteString("- Focus on business value and technical clarity\n")
+	if len(referencePRDs) > 0 {
+		prompt.WriteString("- Use the reference PRD examples above as inspiration for style, structure, and level of detail\n")
+	}
+	prompt.WriteString("\n")
+
+	if isFullPRD {
+		prompt.WriteString("Generate a complete PRD including all standard sections (Overview, Operational Targets, Tech Direction, Dependencies, UX & Branding, etc.). Do not include markdown headers for the document title.")
+	} else {
+		prompt.WriteString(fmt.Sprintf("Generate only the content for the \"%s\" section. Do not include the section header itself.", section))
+	}
+
+	return prompt.String()
 }
 
 func buildActionPrompt(action string, selectedText string) string {

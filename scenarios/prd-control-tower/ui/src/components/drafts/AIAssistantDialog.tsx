@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react'
-import { Loader2, Sparkles, Eye, EyeOff, Wand2, Maximize2, Minimize2, CheckCircle, Lightbulb, WrapText } from 'lucide-react'
+import { Loader2, Sparkles, Eye, EyeOff, Wand2, Maximize2, Minimize2, CheckCircle, Lightbulb, WrapText, Info } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Input } from '../ui/input'
 import { DiffViewer } from './DiffViewer'
+import { ReferencePRDSelector } from './ReferencePRDSelector'
 import type { AIAction } from '../../hooks/useAIAssistant'
+import { extractSectionContent } from '../../utils/prdStructure'
 
 const DEFAULT_SECTIONS = [
+  { value: '🎯 Full PRD', label: '🎯 Full PRD' },
   { value: '🎯 Overview', label: '🎯 Overview' },
   { value: '🎯 Operational Targets', label: '🎯 Operational Targets' },
   { value: '🧱 Tech Direction Snapshot', label: '🧱 Tech Direction Snapshot' },
@@ -29,25 +32,41 @@ interface TemplateDefinition {
   label: string
   description: string
   section: string
-  contextText: string
+  template: string
 }
 
-// Section-specific templates
+// Section-specific templates with placeholders
 const TEMPLATES_BY_SECTION: Record<string, TemplateDefinition[]> = {
+  '🎯 Full PRD': [
+    {
+      id: 'full-prd-comprehensive',
+      label: 'Comprehensive PRD',
+      description: 'Generate a complete PRD with all sections',
+      section: '🎯 Full PRD',
+      template: 'Generate a comprehensive PRD for this scenario, including all standard sections (Overview, Operational Targets, Tech Direction, Dependencies, UX & Branding, etc.).\n\n[INSERT HIGH-LEVEL REQUIREMENTS AND GOALS HERE]',
+    },
+    {
+      id: 'full-prd-from-idea',
+      label: 'From Idea',
+      description: 'Transform a rough idea into a full PRD',
+      section: '🎯 Full PRD',
+      template: 'Transform this rough idea into a comprehensive PRD:\n\n[INSERT YOUR IDEA OR CONCEPT HERE]',
+    },
+  ],
   '🎯 Overview': [
     {
       id: 'overview-problem-statement',
       label: 'Problem Statement',
       description: 'Articulate the core problem this scenario solves',
       section: '🎯 Overview',
-      contextText: 'Define the problem statement for this scenario, focusing on what user pain points or business needs it addresses.',
+      template: 'Define the problem statement for this scenario, focusing on what user pain points or business needs it addresses.\n\n[INSERT PROBLEM DETAILS HERE]',
     },
     {
       id: 'overview-success-criteria',
       label: 'Success Criteria',
       description: 'Define measurable success metrics',
       section: '🎯 Overview',
-      contextText: 'Define 3-5 key success criteria that will indicate this scenario has achieved its goals.',
+      template: 'Define 3-5 key success criteria that will indicate this scenario has achieved its goals.\n\n[INSERT SUCCESS METRICS HERE]',
     },
   ],
   '🎯 Operational Targets': [
@@ -56,21 +75,21 @@ const TEMPLATES_BY_SECTION: Record<string, TemplateDefinition[]> = {
       label: 'P0 Targets',
       description: 'Generate critical P0 targets',
       section: '🎯 Operational Targets',
-      contextText: 'List the absolutely critical (P0) features that must be delivered for this scenario to be viable.',
+      template: 'List the absolutely critical (P0) features that must be delivered for this scenario to be viable.\n\n[INSERT CRITICAL FEATURES HERE]',
     },
     {
       id: 'targets-p1',
       label: 'P1 Targets',
       description: 'Generate important P1 targets',
       section: '🎯 Operational Targets',
-      contextText: 'List the high-priority (P1) features that should be delivered soon after initial launch.',
+      template: 'List the high-priority (P1) features that should be delivered soon after initial launch.\n\n[INSERT HIGH-PRIORITY FEATURES HERE]',
     },
     {
       id: 'targets-p2',
       label: 'P2 Targets',
       description: 'Generate nice-to-have P2 targets',
       section: '🎯 Operational Targets',
-      contextText: 'List the nice-to-have (P2) features that can be deferred but add significant value.',
+      template: 'List the nice-to-have (P2) features that can be deferred but add significant value.\n\n[INSERT NICE-TO-HAVE FEATURES HERE]',
     },
   ],
   '🧱 Tech Direction Snapshot': [
@@ -79,21 +98,21 @@ const TEMPLATES_BY_SECTION: Record<string, TemplateDefinition[]> = {
       label: 'Tech Stack',
       description: 'Suggest appropriate technologies',
       section: '🧱 Tech Direction Snapshot',
-      contextText: 'Recommend an appropriate tech stack (frontend, backend, database, etc.) for this scenario.',
+      template: 'Recommend an appropriate tech stack (frontend, backend, database, etc.) for this scenario.\n\n[INSERT TECH REQUIREMENTS OR PREFERENCES HERE]',
     },
     {
       id: 'tech-architecture',
       label: 'Architecture',
       description: 'Design system architecture',
       section: '🧱 Tech Direction Snapshot',
-      contextText: 'Describe the high-level architecture pattern (monolith, microservices, etc.) and key components.',
+      template: 'Describe the high-level architecture pattern (monolith, microservices, etc.) and key components.\n\n[INSERT ARCHITECTURE REQUIREMENTS HERE]',
     },
     {
       id: 'tech-integrations',
       label: 'Integrations',
       description: 'List required integrations',
       section: '🧱 Tech Direction Snapshot',
-      contextText: 'List external services, APIs, or scenarios this scenario needs to integrate with.',
+      template: 'List external services, APIs, or scenarios this scenario needs to integrate with.\n\n[INSERT INTEGRATION REQUIREMENTS HERE]',
     },
   ],
   '🤝 Dependencies & Launch Plan': [
@@ -102,14 +121,14 @@ const TEMPLATES_BY_SECTION: Record<string, TemplateDefinition[]> = {
       label: 'Dependencies',
       description: 'Identify scenario dependencies',
       section: '🤝 Dependencies & Launch Plan',
-      contextText: 'List all scenarios, resources, or external dependencies required for this scenario to function.',
+      template: 'List all scenarios, resources, or external dependencies required for this scenario to function.\n\n[INSERT DEPENDENCY DETAILS HERE]',
     },
     {
       id: 'launch-phases',
       label: 'Launch Phases',
       description: 'Create phased rollout plan',
       section: '🤝 Dependencies & Launch Plan',
-      contextText: 'Create a 3-4 phase launch plan with milestones and deliverables for each phase.',
+      template: 'Create a 3-4 phase launch plan with milestones and deliverables for each phase.\n\n[INSERT TIMELINE OR PHASE DETAILS HERE]',
     },
   ],
   '🎨 UX & Branding': [
@@ -118,21 +137,21 @@ const TEMPLATES_BY_SECTION: Record<string, TemplateDefinition[]> = {
       label: 'User Flows',
       description: 'Design core user flows',
       section: '🎨 UX & Branding',
-      contextText: 'Describe the primary user flows and interactions for this scenario.',
+      template: 'Describe the primary user flows and interactions for this scenario.\n\n[INSERT USER FLOW DETAILS HERE]',
     },
     {
       id: 'ux-accessibility',
       label: 'Accessibility',
       description: 'Define accessibility requirements',
       section: '🎨 UX & Branding',
-      contextText: 'Outline accessibility standards and requirements (WCAG compliance, keyboard navigation, etc.).',
+      template: 'Outline accessibility standards and requirements (WCAG compliance, keyboard navigation, etc.).\n\n[INSERT ACCESSIBILITY REQUIREMENTS HERE]',
     },
     {
       id: 'ux-design-system',
       label: 'Design System',
       description: 'Define design patterns and components',
       section: '🎨 UX & Branding',
-      contextText: 'Describe the design system, UI components, and styling approach for this scenario.',
+      template: 'Describe the design system, UI components, and styling approach for this scenario.\n\n[INSERT DESIGN PREFERENCES HERE]',
     },
   ],
   '📎 Appendix': [
@@ -141,16 +160,21 @@ const TEMPLATES_BY_SECTION: Record<string, TemplateDefinition[]> = {
       label: 'Glossary',
       description: 'Create terms glossary',
       section: '📎 Appendix',
-      contextText: 'Generate a glossary of key terms and concepts used in this PRD.',
+      template: 'Generate a glossary of key terms and concepts used in this PRD.\n\n[INSERT TERMS TO INCLUDE HERE]',
     },
     {
       id: 'appendix-references',
       label: 'References',
       description: 'Add reference links',
       section: '📎 Appendix',
-      contextText: 'List relevant documentation, research, or reference materials for this scenario.',
+      template: 'List relevant documentation, research, or reference materials for this scenario.\n\n[INSERT REFERENCE MATERIALS HERE]',
     },
   ],
+}
+
+interface ReferencePRDData {
+  name: string
+  content: string
 }
 
 interface AIAssistantDialogProps {
@@ -163,6 +187,8 @@ interface AIAssistantDialogProps {
   result: string | null
   error: string | null
   hasSelection: boolean
+  includeExistingContent: boolean
+  referencePRDs: ReferencePRDData[]
   originalContent?: string
   selectionStart?: number
   selectionEnd?: number
@@ -170,6 +196,8 @@ interface AIAssistantDialogProps {
   onContextChange: (value: string) => void
   onActionChange: (action: AIAction) => void
   onModelChange: (model: string) => void
+  onIncludeExistingContentChange: (value: boolean) => void
+  onReferencePRDsChange: (prds: ReferencePRDData[]) => void
   onGenerate: () => void
   onQuickAction: (action: AIAction) => void
   onInsert: (mode: 'insert' | 'replace') => void
@@ -195,12 +223,16 @@ export function AIAssistantDialog({
   result,
   error,
   hasSelection,
+  includeExistingContent,
+  referencePRDs,
   originalContent = '',
   selectionStart = 0,
   selectionEnd = 0,
   onSectionChange,
   onContextChange,
   onModelChange,
+  onIncludeExistingContentChange,
+  onReferencePRDsChange,
   onGenerate,
   onQuickAction,
   onInsert,
@@ -223,7 +255,7 @@ export function AIAssistantDialog({
 
   const handleTemplateSelect = (template: TemplateDefinition) => {
     onSectionChange(template.section)
-    onContextChange(template.contextText)
+    onContextChange(template.template)
   }
 
   const handleSectionDropdownChange = (value: string) => {
@@ -253,6 +285,14 @@ export function AIAssistantDialog({
   const selectedText = useMemo(() => {
     return originalContent.slice(selectionStart, selectionEnd)
   }, [originalContent, selectionStart, selectionEnd])
+
+  // Extract current section content for preview
+  const currentSectionContent = useMemo(() => {
+    if (!effectiveSection || effectiveSection === '🎯 Full PRD' || effectiveSection === 'Full PRD') {
+      return null
+    }
+    return extractSectionContent(originalContent, effectiveSection)
+  }, [originalContent, effectiveSection])
 
   if (!open) {
     return null
@@ -304,6 +344,26 @@ export function AIAssistantDialog({
               )}
             </div>
 
+            {/* Current Section Preview */}
+            {currentSectionContent && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-blue-900 mb-2">
+                  <Info size={14} />
+                  <span>Current section content</span>
+                </div>
+                <p className="text-xs text-blue-700 mb-2">
+                  This section will be replaced with AI-generated content:
+                </p>
+                <div className="max-h-32 overflow-auto rounded border border-blue-300 bg-white p-2">
+                  <pre className="text-xs text-slate-700 whitespace-pre-wrap">
+                    {currentSectionContent.content.length > 300
+                      ? currentSectionContent.content.substring(0, 300) + '...'
+                      : currentSectionContent.content || '(Empty section)'}
+                  </pre>
+                </div>
+              </div>
+            )}
+
             {/* Quick Templates - shown below section selection */}
             {availableTemplates.length > 0 && (
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
@@ -343,6 +403,29 @@ export function AIAssistantDialog({
                 <p className="text-xs text-muted-foreground">Select which AI model to use for generation</p>
               </label>
             </div>
+
+            {/* Include Existing Content Toggle */}
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <input
+                type="checkbox"
+                id="include-existing"
+                checked={includeExistingContent}
+                onChange={event => onIncludeExistingContentChange(event.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              <label htmlFor="include-existing" className="flex-1 cursor-pointer">
+                <div className="font-medium text-sm text-slate-700">Include existing PRD content</div>
+                <div className="text-xs text-slate-600 mt-0.5">
+                  When enabled, the AI will see your current PRD content for context
+                </div>
+              </label>
+            </div>
+
+            {/* Reference PRDs Section */}
+            <ReferencePRDSelector
+              selectedPRDs={referencePRDs}
+              onSelectionChange={onReferencePRDsChange}
+            />
 
             {/* Quick Actions */}
             {hasSelection && context.trim() && (

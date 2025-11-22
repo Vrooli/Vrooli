@@ -9,6 +9,11 @@ interface UseAIAssistantOptions {
 
 export type AIAction = 'improve' | 'expand' | 'simplify' | 'grammar' | 'technical' | 'clarify' | ''
 
+interface ReferencePRDData {
+  name: string
+  content: string
+}
+
 interface UseAIAssistantResult {
   textareaRef: React.RefObject<HTMLTextAreaElement>
   aiDialogOpen: boolean
@@ -16,6 +21,8 @@ interface UseAIAssistantResult {
   aiContext: string
   aiAction: AIAction
   aiModel: string
+  aiIncludeExistingContent: boolean
+  aiReferencePRDs: ReferencePRDData[]
   aiResult: string | null
   aiGenerating: boolean
   aiError: string | null
@@ -28,6 +35,8 @@ interface UseAIAssistantResult {
   setAIContext: (context: string) => void
   setAIAction: (action: AIAction) => void
   setAIModel: (model: string) => void
+  setAIIncludeExistingContent: (value: boolean) => void
+  setAIReferencePRDs: (prds: ReferencePRDData[]) => void
   handleAIGenerate: () => Promise<void>
   handleQuickAction: (action: AIAction) => Promise<void>
   applyAIResult: (mode: 'insert' | 'replace') => void
@@ -40,10 +49,12 @@ interface UseAIAssistantResult {
 export function useAIAssistant({ draftId, editorContent, onContentChange }: UseAIAssistantOptions): UseAIAssistantResult {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [aiDialogOpen, setAIDialogOpen] = useState(false)
-  const [aiSection, setAISection] = useState('Executive Summary')
+  const [aiSection, setAISection] = useState('🎯 Full PRD')
   const [aiContext, setAIContext] = useState('')
   const [aiAction, setAIAction] = useState<AIAction>('')
   const [aiModel, setAIModel] = useState<string>('default')
+  const [aiIncludeExistingContent, setAIIncludeExistingContent] = useState<boolean>(true)
+  const [aiReferencePRDs, setAIReferencePRDs] = useState<ReferencePRDData[]>([])
   const [aiResult, setAIResult] = useState<string | null>(null)
   const [aiGenerating, setAIGenerating] = useState(false)
   const [aiError, setAIError] = useState<string | null>(null)
@@ -78,10 +89,16 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     setAIGenerating(true)
     setAIError(null)
     try {
-      const payload: Record<string, string> = {
+      const payload: Record<string, unknown> = {
         section: aiSection,
         context: aiContext,
-        action: aiAction
+        action: aiAction,
+        include_existing_content: aiIncludeExistingContent,
+      }
+
+      // Include reference PRDs if any
+      if (aiReferencePRDs.length > 0) {
+        payload.reference_prds = aiReferencePRDs
       }
 
       // Only include model if it's not 'default'
@@ -108,7 +125,7 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     } finally {
       setAIGenerating(false)
     }
-  }, [draftId, aiSection, aiContext, aiAction, aiModel])
+  }, [draftId, aiSection, aiContext, aiAction, aiModel, aiIncludeExistingContent, aiReferencePRDs])
 
   const handleQuickAction = useCallback(async (action: AIAction) => {
     if (!aiContext.trim()) {
@@ -119,10 +136,11 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     setAIGenerating(true)
     setAIError(null)
     try {
-      const payload: Record<string, string> = {
+      const payload: Record<string, unknown> = {
         section: '',
         context: aiContext,
-        action
+        action,
+        include_existing_content: false, // Quick actions don't need existing content
       }
 
       // Only include model if it's not 'default'
@@ -184,6 +202,8 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     aiContext,
     aiAction,
     aiModel,
+    aiIncludeExistingContent,
+    aiReferencePRDs,
     aiResult,
     aiGenerating,
     aiError,
@@ -196,6 +216,8 @@ export function useAIAssistant({ draftId, editorContent, onContentChange }: UseA
     setAIContext,
     setAIAction,
     setAIModel,
+    setAIIncludeExistingContent,
+    setAIReferencePRDs,
     handleAIGenerate,
     handleQuickAction,
     applyAIResult,
