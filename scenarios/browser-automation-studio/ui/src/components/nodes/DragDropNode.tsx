@@ -1,4 +1,4 @@
-import { memo, FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, FC, useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
 import { Hand } from 'lucide-react';
 import ResiliencePanel from './ResiliencePanel';
@@ -27,6 +27,7 @@ const normalizeOffset = (value: number): number => {
 };
 
 const DragDropNode: FC<NodeProps> = ({ data, selected, id }) => {
+  const nodeRef = useRef<HTMLDivElement>(null);
   const nodeData = (data ?? {}) as Record<string, unknown>;
   const { getNodes, setNodes } = useReactFlow();
 
@@ -125,8 +126,18 @@ const DragDropNode: FC<NodeProps> = ({ data, selected, id }) => {
     updateNodeData({ [axis]: normalized });
   }, [updateNodeData]);
 
+  // Add data-type attribute to React Flow wrapper div for test automation
+  useEffect(() => {
+    if (nodeRef.current) {
+      const reactFlowNode = nodeRef.current.closest('.react-flow__node');
+      if (reactFlowNode) {
+        reactFlowNode.setAttribute('data-type', 'dragDrop');
+      }
+    }
+  }, []);
+
   return (
-    <div className={`workflow-node ${selected ? 'selected' : ''}`}>
+    <div ref={nodeRef} className={`workflow-node ${selected ? 'selected' : ''}`}>
       <Handle type="target" position={Position.Top} className="node-handle" />
 
       <div className="flex items-center gap-2 mb-3">

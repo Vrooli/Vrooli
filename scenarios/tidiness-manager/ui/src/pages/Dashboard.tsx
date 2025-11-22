@@ -228,7 +228,7 @@ export default function Dashboard() {
                         <td className="p-4">
                           <div>
                             <div className="font-medium text-slate-100">{scenario.scenario}</div>
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-slate-400">
                               {scenario.total_files} files · {scenario.total_lines.toLocaleString()} lines
                             </div>
                           </div>

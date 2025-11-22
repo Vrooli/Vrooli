@@ -56,7 +56,7 @@ export function AppShell({ children }: AppShellProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="text-xs text-slate-500">v1.0.0</div>
+              <div className="text-xs text-slate-400">v1.0.0</div>
             </div>
           </div>
         </div>
@@ -70,7 +70,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Footer */}
       <footer className="border-t border-white/10 bg-black/20 mt-auto">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center justify-between text-xs text-slate-400">
             <p>Continuous tidiness prevents emergencies</p>
             <p>Comprehensive coverage, zero redundancy</p>
           </div>

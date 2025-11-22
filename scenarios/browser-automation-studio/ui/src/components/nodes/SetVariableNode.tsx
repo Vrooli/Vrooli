@@ -1,4 +1,4 @@
-import { memo, FC, useState, useEffect, useMemo, useCallback } from 'react';
+import { memo, FC, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Handle, NodeProps, Position, useReactFlow } from 'reactflow';
 import { Variable, Settings2, Target } from 'lucide-react';
 import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
@@ -36,6 +36,7 @@ function coerceBoolean(value: unknown): boolean {
 }
 
 const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
+  const nodeRef = useRef<HTMLDivElement>(null);
   const nodeData = (data ?? {}) as Record<string, unknown>;
   const upstreamUrl = useUpstreamUrl(id);
   const { getNodes, setNodes } = useReactFlow();
@@ -276,9 +277,19 @@ const SetVariableNode: FC<NodeProps> = ({ data, selected, id }) => {
     );
   };
 
+  // Add data-type attribute to React Flow wrapper div for test automation
+  useEffect(() => {
+    if (nodeRef.current) {
+      const reactFlowNode = nodeRef.current.closest('.react-flow__node');
+      if (reactFlowNode) {
+        reactFlowNode.setAttribute('data-type', 'setVariable');
+      }
+    }
+  }, []);
+
   return (
     <>
-      <div className={`workflow-node ${selected ? 'selected' : ''}`}>
+      <div ref={nodeRef} className={`workflow-node ${selected ? 'selected' : ''}`}>
         <Handle type="target" position={Position.Top} className="node-handle" />
 
         <div className="flex items-center gap-2 mb-2">

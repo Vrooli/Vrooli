@@ -120,7 +120,7 @@
       "type": "wait",
       "data": {
         "label": "Wait for project detail page to load",
-        "selector": "@selector/header.title.text",
+        "selector": "@selector/workflows.newButton",
         "timeoutMs": 10000,
         "waitForMs": 1500,
         "waitType": "element"

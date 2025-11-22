@@ -190,9 +190,30 @@ const MOCK_SCENARIOS: ScenarioStats[] = [
 ];
 
 export async function fetchScenarioStats(): Promise<ScenarioStats[]> {
-  // TODO: Replace with real API call when backend ready
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return MOCK_SCENARIOS;
+  const res = await fetch(buildApiUrl("/agent/scenarios", { baseUrl: API_BASE }), {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch scenario stats: ${res.status}`);
+  }
+
+  const data = await res.json();
+
+  // Transform API response to match UI expectations
+  // API returns: { scenarios: [{ scenario, total, lint, type, long_files }], count }
+  // UI expects: ScenarioStats[] with light_issues, ai_issues, etc.
+  return (data.scenarios || []).map((s: any) => ({
+    scenario: s.scenario,
+    light_issues: s.lint || 0,
+    ai_issues: s.type || 0,
+    long_files: s.long_files || 0,
+    visit_percent: 0, // TODO: Calculate from visited-tracker integration
+    campaign_status: "none" as const, // TODO: Join with campaigns table
+    total_files: 0, // TODO: Join with file_metrics table
+    total_lines: 0, // TODO: Join with file_metrics table
+  }));
 }
 
 export async function fetchScenarioDetail(scenarioName: string): Promise<{ stats: ScenarioStats; files: FileStats[] }> {

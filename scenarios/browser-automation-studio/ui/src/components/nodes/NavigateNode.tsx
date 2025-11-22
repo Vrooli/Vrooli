@@ -35,6 +35,7 @@ const clampViewportDimension = (value: number): number => {
 };
 
 const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
+  const nodeRef = useRef<HTMLDivElement>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(true);
   const [isFetchingPreview, setIsFetchingPreview] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -502,9 +503,19 @@ const NavigateNode: FC<NodeProps> = ({ data = {}, selected, id }) => {
     ? scenarioDialog
     : createPortal(scenarioDialog, document.body);
 
+  // Add data-type attribute to React Flow wrapper div for test automation
+  useEffect(() => {
+    if (nodeRef.current) {
+      const reactFlowNode = nodeRef.current.closest('.react-flow__node');
+      if (reactFlowNode) {
+        reactFlowNode.setAttribute('data-type', 'navigate');
+      }
+    }
+  }, []);
+
   return (
     <>
-      <div className={`workflow-node ${selected ? 'selected' : ''} w-80`}>
+      <div ref={nodeRef} className={`workflow-node ${selected ? 'selected' : ''} w-80`}>
         <Handle type="target" position={Position.Top} className="node-handle" />
 
         <div className="flex items-center gap-2 mb-2">
