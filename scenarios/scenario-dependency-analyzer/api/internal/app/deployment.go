@@ -29,6 +29,33 @@ func buildDeploymentReport(scenarioName, scenarioPath, scenariosDir string, cfg 
 	aggregates := computeTierAggregates(nodes)
 	manifest := buildBundleManifest(scenarioName, scenarioPath, generatedAt, nodes)
 
+	// Extract known tiers from aggregates
+	knownTiers := make([]string, 0, len(aggregates))
+	for tier := range aggregates {
+		knownTiers = append(knownTiers, tier)
+	}
+	// Also check the config for tier definitions
+	if cfg.Deployment != nil && cfg.Deployment.Tiers != nil {
+		for tier := range cfg.Deployment.Tiers {
+			found := false
+			for _, kt := range knownTiers {
+				if kt == tier {
+					found = true
+					break
+				}
+			}
+			if !found {
+				knownTiers = append(knownTiers, tier)
+			}
+		}
+	}
+	// Add standard tiers if none found
+	if len(knownTiers) == 0 {
+		knownTiers = []string{"desktop", "server", "mobile", "saas"}
+	}
+
+	gaps := analyzeDeploymentGaps(scenarioName, scenariosDir, nodes, knownTiers)
+
 	return &types.DeploymentAnalysisReport{
 		Scenario:       scenarioName,
 		ReportVersion:  deploymentReportVersion,
@@ -36,6 +63,7 @@ func buildDeploymentReport(scenarioName, scenarioPath, scenariosDir string, cfg 
 		Dependencies:   nodes,
 		Aggregates:     aggregates,
 		BundleManifest: manifest,
+		MetadataGaps:   gaps,
 	}
 }
 
@@ -503,4 +531,155 @@ func dedupeStrings(values []string) []string {
 		set[value] = struct{}{}
 	}
 	return mapKeys(set)
+}
+
+// analyzeDeploymentGaps crawls the dependency tree and identifies missing deployment metadata.
+func analyzeDeploymentGaps(scenarioName, scenariosDir string, nodes []types.DeploymentDependencyNode, knownTiers []string) *types.DeploymentMetadataGaps {
+	gapsByScenario := make(map[string]types.ScenarioGapInfo)
+	tierSet := make(map[string]struct{})
+	for _, tier := range knownTiers {
+		tierSet[tier] = struct{}{}
+	}
+
+	// Walk the tree recursively
+	var walk func(node types.DeploymentDependencyNode, depth int)
+	walk = func(node types.DeploymentDependencyNode, depth int) {
+		if node.Type != "scenario" {
+			return
+		}
+
+		// Load the scenario's service.json to check for deployment metadata
+		scenarioPath := node.Path
+		if scenarioPath == "" {
+			scenarioPath = filepath.Join(scenariosDir, node.Name)
+		}
+
+		cfg, err := loadServiceConfigFromFile(scenarioPath)
+		if err != nil {
+			// Can't analyze if we can't load the config
+			return
+		}
+
+		gap := types.ScenarioGapInfo{
+			ScenarioName:            node.Name,
+			ScenarioPath:            scenarioPath,
+			HasDeploymentBlock:      cfg.Deployment != nil,
+			MissingTierDefinitions:  []string{},
+			MissingResourceMetadata: []string{},
+			MissingScenarioMetadata: []string{},
+			SuggestedActions:        []string{},
+		}
+
+		if cfg.Deployment == nil {
+			gap.SuggestedActions = append(gap.SuggestedActions, "Add deployment block to .vrooli/service.json")
+		} else {
+			// Check if dependency catalog exists
+			hasResourceCatalog := cfg.Deployment.Dependencies.Resources != nil && len(cfg.Deployment.Dependencies.Resources) > 0
+			hasScenarioCatalog := cfg.Deployment.Dependencies.Scenarios != nil && len(cfg.Deployment.Dependencies.Scenarios) > 0
+			gap.MissingDependencyCatalog = !hasResourceCatalog && !hasScenarioCatalog
+
+			if gap.MissingDependencyCatalog {
+				gap.SuggestedActions = append(gap.SuggestedActions, "Add deployment.dependencies catalog for resources/scenarios")
+			}
+
+			// Check tier definitions
+			if cfg.Deployment.Tiers == nil || len(cfg.Deployment.Tiers) == 0 {
+				for tier := range tierSet {
+					gap.MissingTierDefinitions = append(gap.MissingTierDefinitions, tier)
+				}
+				gap.SuggestedActions = append(gap.SuggestedActions, "Define deployment.tiers with fitness scores")
+			} else {
+				for tier := range tierSet {
+					if _, exists := cfg.Deployment.Tiers[tier]; !exists {
+						gap.MissingTierDefinitions = append(gap.MissingTierDefinitions, tier)
+					}
+				}
+			}
+
+			// Check which declared resources are missing metadata
+			resources := resolvedResourceMap(cfg)
+			for resName := range resources {
+				if cfg.Deployment.Dependencies.Resources == nil {
+					gap.MissingResourceMetadata = append(gap.MissingResourceMetadata, resName)
+				} else if _, exists := cfg.Deployment.Dependencies.Resources[resName]; !exists {
+					gap.MissingResourceMetadata = append(gap.MissingResourceMetadata, resName)
+				}
+			}
+
+			// Check which declared scenarios are missing metadata
+			if cfg.Dependencies.Scenarios != nil {
+				for scenName := range cfg.Dependencies.Scenarios {
+					if cfg.Deployment.Dependencies.Scenarios == nil {
+						gap.MissingScenarioMetadata = append(gap.MissingScenarioMetadata, scenName)
+					} else if _, exists := cfg.Deployment.Dependencies.Scenarios[scenName]; !exists {
+						gap.MissingScenarioMetadata = append(gap.MissingScenarioMetadata, scenName)
+					}
+				}
+			}
+		}
+
+		// Only add if there are actual gaps
+		if !gap.HasDeploymentBlock || gap.MissingDependencyCatalog ||
+		   len(gap.MissingTierDefinitions) > 0 ||
+		   len(gap.MissingResourceMetadata) > 0 ||
+		   len(gap.MissingScenarioMetadata) > 0 {
+			gapsByScenario[node.Name] = gap
+		}
+
+		// Recurse into children
+		for _, child := range node.Children {
+			walk(child, depth+1)
+		}
+	}
+
+	// Walk all top-level nodes
+	for _, node := range nodes {
+		walk(node, 0)
+	}
+
+	// Compute summary statistics
+	totalGaps := 0
+	scenariosMissingAll := 0
+	missingTiersSet := make(map[string]struct{})
+	recommendations := []string{}
+
+	for _, gap := range gapsByScenario {
+		if !gap.HasDeploymentBlock {
+			totalGaps += 10 // Weight heavily
+			scenariosMissingAll++
+		} else {
+			if gap.MissingDependencyCatalog {
+				totalGaps++
+			}
+			totalGaps += len(gap.MissingTierDefinitions)
+			totalGaps += len(gap.MissingResourceMetadata)
+			totalGaps += len(gap.MissingScenarioMetadata)
+		}
+
+		for _, tier := range gap.MissingTierDefinitions {
+			missingTiersSet[tier] = struct{}{}
+		}
+	}
+
+	// Generate recommendations
+	if scenariosMissingAll > 0 {
+		recommendations = append(recommendations,
+			fmt.Sprintf("%d scenario(s) missing deployment blocks entirely - run scan --apply to initialize", scenariosMissingAll))
+	}
+	if len(missingTiersSet) > 0 {
+		recommendations = append(recommendations,
+			fmt.Sprintf("Add tier definitions for: %v", mapKeys(missingTiersSet)))
+	}
+	if totalGaps > 0 {
+		recommendations = append(recommendations,
+			"Review gaps_by_scenario for detailed per-scenario action items")
+	}
+
+	return &types.DeploymentMetadataGaps{
+		TotalGaps:           totalGaps,
+		ScenariosMissingAll: scenariosMissingAll,
+		GapsByScenario:      gapsByScenario,
+		MissingTiers:        mapKeys(missingTiersSet),
+		Recommendations:     recommendations,
+	}
 }

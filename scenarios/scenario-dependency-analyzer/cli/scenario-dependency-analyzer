@@ -57,7 +57,10 @@ usage() {
     echo "Commands:"
     echo -e "  ${GREEN}analyze${NC}    Analyze dependencies for a scenario"
     echo -e "  ${GREEN}scan${NC}       Scan + optionally apply dependencies"
+    echo -e "  ${GREEN}dag${NC}        Export recursive dependency DAG"
     echo -e "  ${GREEN}graph${NC}      Generate dependency graph visualization"
+    echo -e "  ${GREEN}cycles${NC}     Detect circular dependencies in graph"
+    echo -e "  ${GREEN}impact${NC}     Analyze impact of removing a dependency"
     echo -e "  ${GREEN}propose${NC}    Analyze dependencies for a proposed scenario"
     echo -e "  ${GREEN}optimize${NC}   Get optimization recommendations"
     echo -e "  ${GREEN}list${NC}       List dependencies for a scenario"
@@ -67,7 +70,10 @@ usage() {
     echo ""
     echo "Examples:"
     echo "  scenario-dependency-analyzer analyze ecosystem-manager"
+    echo "  scenario-dependency-analyzer dag export ecosystem-manager --recursive"
     echo "  scenario-dependency-analyzer graph --type combined --format dot"
+    echo "  scenario-dependency-analyzer cycles --type combined"
+    echo "  scenario-dependency-analyzer impact postgres"
     echo "  scenario-dependency-analyzer propose --name 'ai-chatbot' --requirements 'nlp,database'"
     echo "  scenario-dependency-analyzer optimize ecosystem-manager --type resource"
     echo "  scenario-dependency-analyzer list ecosystem-manager --type resources"
@@ -223,6 +229,154 @@ api_request() {
 ################################################################################
 # Command Implementations - All delegated to API
 ################################################################################
+
+# DAG export command
+cmd_dag() {
+    local subcommand="${1:-}"
+    shift || true
+
+    case "$subcommand" in
+        export)
+            cmd_dag_export "$@"
+            ;;
+        --help|-h|help|"")
+            echo "Usage: scenario-dependency-analyzer dag <subcommand> [OPTIONS]"
+            echo ""
+            echo "Subcommands:"
+            echo "  export     Export recursive dependency DAG for a scenario"
+            echo ""
+            echo "Examples:"
+            echo "  scenario-dependency-analyzer dag export ecosystem-manager"
+            echo "  scenario-dependency-analyzer dag export api-manager --recursive=false"
+            echo "  scenario-dependency-analyzer dag export my-scenario --json"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown dag subcommand: $subcommand${NC}" >&2
+            echo "   Run: scenario-dependency-analyzer dag --help" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_dag_export() {
+    local scenario=""
+    local recursive=true
+    local json_output=false
+    local output_file=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --recursive)
+                recursive=true
+                shift
+                ;;
+            --recursive=*)
+                recursive="${1#*=}"
+                shift
+                ;;
+            --no-recursive)
+                recursive=false
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --output|-o)
+                output_file="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: scenario-dependency-analyzer dag export <scenario> [OPTIONS]"
+                echo ""
+                echo "Export the full recursive dependency DAG for a scenario"
+                echo ""
+                echo "Options:"
+                echo "  --recursive         Include full recursive tree (default: true)"
+                echo "  --no-recursive      Only top-level dependencies"
+                echo "  --json              Output raw JSON"
+                echo "  --output <file>     Save to file"
+                echo ""
+                echo "Examples:"
+                echo "  scenario-dependency-analyzer dag export ecosystem-manager"
+                echo "  scenario-dependency-analyzer dag export api-manager --no-recursive"
+                echo "  scenario-dependency-analyzer dag export my-app --output deps.json"
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}❌ Scenario name required${NC}" >&2
+        echo "   Usage: scenario-dependency-analyzer dag export <scenario>" >&2
+        return 1
+    fi
+
+    echo -e "${BLUE}📊 Exporting DAG for: $scenario (recursive=${recursive})${NC}"
+
+    local response
+    response=$(api_request "GET" "/api/v1/scenarios/${scenario}/dag/export?recursive=${recursive}&format=json")
+
+    if [[ -n "$output_file" ]]; then
+        echo "$response" | format_json > "$output_file"
+        echo -e "${GREEN}✅ DAG exported to: $output_file${NC}"
+
+        # Show summary
+        if command -v jq >/dev/null 2>&1; then
+            local dep_count=$(echo "$response" | jq -r '.dag | length')
+            local gaps=$(echo "$response" | jq -r '.metadata_gaps.total_gaps // 0')
+            echo "   Dependencies: $dep_count"
+            if [[ "$gaps" -gt 0 ]]; then
+                echo -e "   ${YELLOW}⚠️  Metadata gaps: $gaps${NC}"
+            fi
+        fi
+        return 0
+    fi
+
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+        return 0
+    fi
+
+    # Pretty print the DAG
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "$response"
+        return 0
+    fi
+
+    echo -e "${GREEN}✅ DAG exported${NC}"
+    echo ""
+
+    # Show tree structure
+    echo -e "${CYAN}Dependency Tree:${NC}"
+    echo "$response" | jq -r '
+        .dag[] |
+        "  - \(.type): \(.name)" +
+        (if .children and (.children | length) > 0 then
+            " (\(.children | length) children)"
+         else "" end)
+    '
+
+    # Show metadata gaps if present
+    local gaps=$(echo "$response" | jq -r '.metadata_gaps.total_gaps // 0')
+    if [[ "$gaps" -gt 0 ]]; then
+        echo ""
+        echo -e "${YELLOW}⚠️  Metadata Gaps Detected:${NC}"
+        echo "$response" | jq -r '
+            .metadata_gaps.recommendations[]? | "  • " + .
+        '
+    fi
+}
 
 # Analyze scenario command
 cmd_analyze() {
@@ -816,6 +970,220 @@ cmd_status() {
     fi
 }
 
+# Impact command (analyze dependency removal impact)
+cmd_impact() {
+    local dependency=""
+    local json_output=false
+
+    if [[ $# -eq 0 ]]; then
+        echo "Usage: scenario-dependency-analyzer impact <dependency> [--json]" >&2
+        return 1
+    fi
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: scenario-dependency-analyzer impact <dependency> [--json]"
+                echo ""
+                echo "Analyze the impact of removing a dependency"
+                echo ""
+                echo "Options:"
+                echo "  --json   Raw JSON output"
+                echo ""
+                echo "Examples:"
+                echo "  scenario-dependency-analyzer impact postgres"
+                echo "  scenario-dependency-analyzer impact ecosystem-manager --json"
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$dependency" ]]; then
+                    dependency="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$dependency" ]]; then
+        echo -e "${RED}❌ Dependency name required${NC}" >&2
+        return 1
+    fi
+
+    echo -e "${BLUE}🔍 Analyzing impact of removing: $dependency${NC}"
+    local response
+    response=$(api_request "GET" "/api/v1/dependencies/${dependency}/impact")
+
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+        return 0
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "$response"
+        return 0
+    fi
+
+    local severity=$(echo "$response" | jq -r '.severity')
+    local summary=$(echo "$response" | jq -r '.impact_summary')
+    local total_affected=$(echo "$response" | jq -r '.total_affected')
+
+    # Color-code by severity
+    case "$severity" in
+        critical)
+            echo -e "${RED}🔴 CRITICAL IMPACT${NC}"
+            ;;
+        high)
+            echo -e "${RED}⚠️  HIGH IMPACT${NC}"
+            ;;
+        medium)
+            echo -e "${YELLOW}⚠️  MEDIUM IMPACT${NC}"
+            ;;
+        low)
+            echo -e "${YELLOW}ℹ️  LOW IMPACT${NC}"
+            ;;
+        *)
+            echo -e "${GREEN}✅ MINIMAL IMPACT${NC}"
+            ;;
+    esac
+
+    echo ""
+    echo "$summary"
+
+    if [[ "$total_affected" -gt 0 ]]; then
+        echo ""
+        echo -e "${CYAN}Direct Dependents:${NC}"
+        echo "$response" | jq -r '.direct_dependents[] |
+            "  - " + .scenario_name +
+            (if .required then " (REQUIRED)" else "" end) +
+            "\n    Purpose: " + (.purpose // "n/a")'
+
+        local indirect_count=$(echo "$response" | jq -r '.indirect_dependents | length')
+        if [[ "$indirect_count" -gt 0 ]]; then
+            echo ""
+            echo -e "${CYAN}Indirect Dependents (${indirect_count}):${NC}"
+            echo "$response" | jq -r '.indirect_dependents[] | "  - " + .scenario_name'
+        fi
+
+        echo ""
+        echo -e "${CYAN}Recommendations:${NC}"
+        echo "$response" | jq -r '.recommendations[] | "  • " + .'
+    fi
+}
+
+# Cycles command (detect circular dependencies)
+cmd_cycles() {
+    local graph_type="combined"
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --type)
+                graph_type="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: scenario-dependency-analyzer cycles [OPTIONS]"
+                echo ""
+                echo "Detect circular dependencies in the dependency graph"
+                echo ""
+                echo "Options:"
+                echo "  --type <type>    Graph type (resource, scenario, combined) [default: combined]"
+                echo "  --json           Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  scenario-dependency-analyzer cycles --type combined"
+                echo "  scenario-dependency-analyzer cycles --type scenario --json"
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+            *)
+                if [[ -z "$graph_type" || "$graph_type" == "combined" ]]; then
+                    graph_type="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Map user-friendly names to API types if needed
+    local api_type="$graph_type"
+    case "$graph_type" in
+        resources) api_type="resource" ;;
+        scenarios) api_type="scenario" ;;
+        all|combined) api_type="combined" ;;
+        resource|scenario) api_type="$graph_type" ;;
+        *)
+            echo -e "${RED}❌ Invalid graph type: $graph_type${NC}" >&2
+            echo "   Valid types: resource, scenario, combined" >&2
+            return 1
+            ;;
+    esac
+
+    echo -e "${BLUE}🔍 Detecting circular dependencies in ${graph_type} graph...${NC}"
+
+    local response
+    response=$(api_request "GET" "/api/v1/graph/${api_type}/cycles")
+
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+        return 0
+    fi
+
+    # Pretty print cycle detection results
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "$response"
+        return 0
+    fi
+
+    local has_cycles=$(echo "$response" | jq -r '.has_cycles')
+    local severity=$(echo "$response" | jq -r '.severity')
+    local message=$(echo "$response" | jq -r '.message')
+
+    if [[ "$has_cycles" == "false" ]]; then
+        echo -e "${GREEN}✅ ${message}${NC}"
+        return 0
+    fi
+
+    # Cycles detected - show details
+    if [[ "$severity" == "critical" ]]; then
+        echo -e "${RED}🔴 ${message}${NC}"
+    else
+        echo -e "${YELLOW}⚠️  ${message}${NC}"
+    fi
+
+    echo ""
+    echo -e "${CYAN}Detected Cycles:${NC}"
+    echo "$response" | jq -r '.cycles[] |
+        "  • " + .description +
+        "\n    Type: " + .cycle_type +
+        " | Length: " + (.length | tostring) + " hops" +
+        (if .required then " | ⚠️  ALL REQUIRED" else "" end)'
+
+    echo ""
+    echo -e "${CYAN}Affected Dependencies:${NC}"
+    echo "$response" | jq -r '.affected_dependencies[] | "  - " + .'
+
+    # Return non-zero if critical
+    if [[ "$severity" == "critical" ]]; then
+        return 1
+    fi
+}
+
 # Optimize command (get optimization recommendations)
 cmd_optimize() {
     local scenario=""
@@ -940,8 +1308,17 @@ main() {
         scan)
             cmd_scan "$@"
             ;;
+        dag)
+            cmd_dag "$@"
+            ;;
         graph)
             cmd_graph "$@"
+            ;;
+        cycles)
+            cmd_cycles "$@"
+            ;;
+        impact)
+            cmd_impact "$@"
             ;;
         propose)
             cmd_propose "$@"

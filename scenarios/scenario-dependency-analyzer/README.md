@@ -41,6 +41,9 @@ scenario-dependency-analyzer analyze chart-generator
 # Show deployment readiness for a scenario
 scenario-dependency-analyzer deployment chart-generator
 
+# Export recursive dependency DAG (NEW!)
+scenario-dependency-analyzer dag export chart-generator --recursive
+
 # Scan and optionally apply inferred dependencies
 scenario-dependency-analyzer scan chart-generator --apply
 
@@ -95,6 +98,15 @@ curl http://localhost:20400/api/v1/graph/combined
 curl -X POST http://localhost:20400/api/v1/analyze/proposed \
   -H "Content-Type: application/json" \
   -d '{"name":"test","description":"Database-driven AI scenario","requirements":["postgres"]}'
+
+# Export recursive DAG (NEW!)
+curl "http://localhost:20400/api/v1/scenarios/chart-generator/dag/export?recursive=true"
+```
+
+**NEW Features (2025-01-22)**:
+- **📊 Recursive DAG Export**: Full dependency tree with metadata gaps via `/dag/export` endpoint and `dag export` CLI command
+- **🔍 Metadata Gap Analysis**: Automatic detection of missing deployment metadata across dependency trees
+- **📚 Comprehensive Documentation**: See `docs/api.md` and `docs/integration.md` for full API reference and integration patterns
 ```
 
 ## 🔧 Architecture

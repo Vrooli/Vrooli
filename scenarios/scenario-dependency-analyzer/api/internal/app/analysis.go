@@ -10,13 +10,14 @@ import (
 
 	"github.com/google/uuid"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
-func analyzeScenario(scenarioName string) (*types.DependencyAnalysisResponse, error) {
-	cfg := appconfig.Load()
-	scenarioPath := filepath.Join(cfg.ScenariosDir, scenarioName)
+func (a *Analyzer) AnalyzeScenario(scenarioName string) (*types.DependencyAnalysisResponse, error) {
+	if a == nil {
+		return nil, fmt.Errorf("analyzer not initialized")
+	}
+	scenarioPath := filepath.Join(a.cfg.ScenariosDir, scenarioName)
 	serviceConfig, err := loadServiceConfigFromFile(scenarioPath)
 	if err != nil {
 		return nil, err
@@ -38,21 +39,25 @@ func analyzeScenario(scenarioName string) (*types.DependencyAnalysisResponse, er
 	response.Resources = declaredResources
 	response.DeclaredScenarioSpecs = normalizeScenarioSpecs(serviceConfig.Dependencies.Scenarios)
 
-	detectedResources, err := scanForResourceUsageWithConfig(scenarioPath, scenarioName, serviceConfig)
+	if a.detector == nil {
+		return nil, fmt.Errorf("detector not initialized")
+	}
+
+	detectedResources, err := a.detector.ScanResources(scenarioPath, scenarioName, serviceConfig)
 	if err != nil {
 		log.Printf("Warning: failed to scan for resource usage: %v", err)
 	} else {
 		response.DetectedResources = detectedResources
 	}
 
-	scenarioDeps, err := scanForScenarioDependencies(scenarioPath, scenarioName)
+	scenarioDeps, err := a.detector.ScanScenarioDependencies(scenarioPath, scenarioName)
 	if err != nil {
 		log.Printf("Warning: failed to scan for scenario dependencies: %v", err)
 	} else {
 		response.Scenarios = append(response.Scenarios, scenarioDeps...)
 	}
 
-	workflowDeps, err := scanForSharedWorkflows(scenarioPath, scenarioName)
+	workflowDeps, err := a.detector.ScanSharedWorkflows(scenarioPath, scenarioName)
 	if err != nil {
 		log.Printf("Warning: failed to scan for shared workflows: %v", err)
 	} else {
@@ -63,15 +68,21 @@ func analyzeScenario(scenarioName string) (*types.DependencyAnalysisResponse, er
 	response.ResourceDiff = buildResourceDiff(resolvedResourceMap(serviceConfig), response.DetectedResources)
 	response.ScenarioDiff = buildScenarioDiff(response.DeclaredScenarioSpecs, response.Scenarios)
 
-	if err := storeDependencies(response, declaredScenarioDeps); err != nil {
-		log.Printf("Warning: failed to store dependencies in database: %v", err)
+	if a.store != nil {
+		if err := a.store.StoreDependencies(response, declaredScenarioDeps); err != nil {
+			log.Printf("Warning: failed to store dependencies in database: %v", err)
+		}
+	} else {
+		log.Printf("Warning: store not initialized; dependency metadata not persisted")
 	}
 
-	if err := updateScenarioMetadata(scenarioName, serviceConfig, scenarioPath); err != nil {
-		log.Printf("Warning: failed to update scenario metadata: %v", err)
+	if a.store != nil {
+		if err := a.store.UpdateScenarioMetadata(scenarioName, serviceConfig, scenarioPath); err != nil {
+			log.Printf("Warning: failed to update scenario metadata: %v", err)
+		}
 	}
 
-	if deploymentReport := buildDeploymentReport(scenarioName, scenarioPath, cfg.ScenariosDir, serviceConfig); deploymentReport != nil {
+	if deploymentReport := buildDeploymentReport(scenarioName, scenarioPath, a.cfg.ScenariosDir, serviceConfig); deploymentReport != nil {
 		response.DeploymentReport = deploymentReport
 		if err := persistDeploymentReport(scenarioPath, deploymentReport); err != nil {
 			log.Printf("Warning: failed to persist deployment report: %v", err)
@@ -81,11 +92,12 @@ func analyzeScenario(scenarioName string) (*types.DependencyAnalysisResponse, er
 	return response, nil
 }
 
-func analyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error) {
+func (a *Analyzer) AnalyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error) {
+	if a == nil {
+		return nil, fmt.Errorf("analyzer not initialized")
+	}
 	results := make(map[string]*types.DependencyAnalysisResponse)
-
-	envCfg := appconfig.Load()
-	scenariosDir := envCfg.ScenariosDir
+	scenariosDir := a.cfg.ScenariosDir
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read scenarios directory: %w", err)
@@ -102,7 +114,7 @@ func analyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error)
 			continue
 		}
 
-		analysis, err := analyzeScenario(scenarioName)
+		analysis, err := a.AnalyzeScenario(scenarioName)
 		if err != nil {
 			log.Printf("Warning: failed to analyze scenario %s: %v", scenarioName, err)
 			continue
@@ -112,6 +124,22 @@ func analyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error)
 	}
 
 	return results, nil
+}
+
+func analyzeScenario(scenarioName string) (*types.DependencyAnalysisResponse, error) {
+	analyzer := analyzerInstance()
+	if analyzer == nil {
+		return nil, fmt.Errorf("analyzer not initialized")
+	}
+	return analyzer.AnalyzeScenario(scenarioName)
+}
+
+func analyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error) {
+	analyzer := analyzerInstance()
+	if analyzer == nil {
+		return nil, fmt.Errorf("analyzer not initialized")
+	}
+	return analyzer.AnalyzeAllScenarios()
 }
 
 func extractDeclaredResources(scenarioName string, cfg *types.ServiceConfig) []types.ScenarioDependency {

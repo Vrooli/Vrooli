@@ -240,6 +240,7 @@ type DeploymentAnalysisReport struct {
 	Dependencies   []DeploymentDependencyNode         `json:"dependencies"`
 	Aggregates     map[string]DeploymentTierAggregate `json:"aggregates"`
 	BundleManifest BundleManifest                     `json:"bundle_manifest"`
+	MetadataGaps   *DeploymentMetadataGaps            `json:"metadata_gaps,omitempty"`
 }
 
 // DeploymentDependencyNode is a node in the recursive dependency DAG.
@@ -305,6 +306,27 @@ type BundleDependencyEntry struct {
 	ResourceType string                        `json:"resource_type,omitempty"`
 	TierSupport  map[string]TierSupportSummary `json:"tier_support,omitempty"`
 	Alternatives []string                      `json:"alternatives,omitempty"`
+}
+
+// DeploymentMetadataGaps reports missing deployment metadata across the dependency tree.
+type DeploymentMetadataGaps struct {
+	TotalGaps           int                        `json:"total_gaps"`
+	ScenariosMissingAll int                        `json:"scenarios_missing_all"`
+	GapsByScenario      map[string]ScenarioGapInfo `json:"gaps_by_scenario"`
+	MissingTiers        []string                   `json:"missing_tiers"`
+	Recommendations     []string                   `json:"recommendations"`
+}
+
+// ScenarioGapInfo describes metadata gaps for a single scenario in the tree.
+type ScenarioGapInfo struct {
+	ScenarioName             string   `json:"scenario_name"`
+	ScenarioPath             string   `json:"scenario_path,omitempty"`
+	HasDeploymentBlock       bool     `json:"has_deployment_block"`
+	MissingDependencyCatalog bool     `json:"missing_dependency_catalog"`
+	MissingTierDefinitions   []string `json:"missing_tier_definitions,omitempty"`
+	MissingResourceMetadata  []string `json:"missing_resource_metadata,omitempty"`
+	MissingScenarioMetadata  []string `json:"missing_scenario_metadata,omitempty"`
+	SuggestedActions         []string `json:"suggested_actions,omitempty"`
 }
 
 // OptimizationRequest represents a CLI/API optimization request payload.

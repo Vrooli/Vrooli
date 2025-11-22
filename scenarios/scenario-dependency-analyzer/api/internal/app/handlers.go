@@ -40,7 +40,7 @@ func (h *handler) analysisService() services.AnalysisService {
 	if h != nil && h.services.Analysis != nil {
 		return h.services.Analysis
 	}
-	return analysisService{}
+	return &analysisService{analyzer: analyzerInstance()}
 }
 
 func (h *handler) scanService() services.ScanService {
@@ -245,6 +245,42 @@ func (h *handler) getGraph(c *gin.Context) {
 	c.JSON(http.StatusOK, graph)
 }
 
+func (h *handler) detectCycles(c *gin.Context) {
+	graphType := c.Param("type")
+
+	if !contains([]string{"resource", "scenario", "combined"}, graphType) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid graph type. Use: resource, scenario, or combined"})
+		return
+	}
+
+	graphSvc := h.graphService()
+	graph, err := graphSvc.GenerateGraph(graphType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate graph: " + err.Error()})
+		return
+	}
+
+	result := detectCycles(graph)
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *handler) getDependencyImpact(c *gin.Context) {
+	dependencyName := c.Param("name")
+
+	if dependencyName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dependency name is required"})
+		return
+	}
+
+	report, err := analyzeDependencyImpact(dependencyName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to analyze impact: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, report)
+}
+
 func (h *handler) analyzeProposed(c *gin.Context) {
 	var req types.ProposedScenarioRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -337,4 +373,43 @@ func (h *handler) scanScenario(c *gin.Context) {
 		"applied":       result.Applied,
 		"apply_summary": result.ApplySummary,
 	})
+}
+
+func (h *handler) exportDAG(c *gin.Context) {
+	scenarioName := c.Param("scenario")
+	recursive := c.DefaultQuery("recursive", "true") == "true"
+	format := c.DefaultQuery("format", "json")
+
+	if format != "json" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only JSON format is currently supported"})
+		return
+	}
+
+	deploymentSvc := h.deploymentService()
+	report, err := deploymentSvc.GetDeploymentReport(scenarioName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// If not recursive, flatten the tree to top-level only
+	if !recursive {
+		for i := range report.Dependencies {
+			report.Dependencies[i].Children = nil
+		}
+	}
+
+	response := gin.H{
+		"scenario":     scenarioName,
+		"recursive":    recursive,
+		"generated_at": report.GeneratedAt,
+		"dag":          report.Dependencies,
+	}
+
+	// Include metadata gaps if present
+	if report.MetadataGaps != nil {
+		response["metadata_gaps"] = report.MetadataGaps
+	}
+
+	c.JSON(http.StatusOK, response)
 }

@@ -1,4 +1,3 @@
-
 package app
 
 import (
@@ -20,7 +19,7 @@ import (
 var errScenarioNotFound = errors.New("scenario not found")
 
 func newServices(analyzer *Analyzer) services.Registry {
-	analysis := &analysisService{}
+	analysis := &analysisService{analyzer: analyzer}
 	scan := &scanService{analysis: analysis}
 	optimization := &optimizationService{analysis: analysis}
 	scenarios := &scenarioService{cfg: analyzer.cfg, store: analyzer.store}
@@ -39,14 +38,22 @@ func newServices(analyzer *Analyzer) services.Registry {
 	}
 }
 
-type analysisService struct{}
-
-func (analysisService) AnalyzeScenario(name string) (*types.DependencyAnalysisResponse, error) {
-	return analyzeScenario(name)
+type analysisService struct {
+	analyzer *Analyzer
 }
 
-func (analysisService) AnalyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error) {
-	return analyzeAllScenarios()
+func (s *analysisService) AnalyzeScenario(name string) (*types.DependencyAnalysisResponse, error) {
+	if s == nil || s.analyzer == nil {
+		return nil, fmt.Errorf("analysis service not initialized")
+	}
+	return s.analyzer.AnalyzeScenario(name)
+}
+
+func (s *analysisService) AnalyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error) {
+	if s == nil || s.analyzer == nil {
+		return nil, fmt.Errorf("analysis service not initialized")
+	}
+	return s.analyzer.AnalyzeAllScenarios()
 }
 
 type scanService struct {
