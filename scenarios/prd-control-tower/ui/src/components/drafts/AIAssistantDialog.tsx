@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
-import { Loader2, Sparkles, Eye, EyeOff, Wand2, Maximize2, Minimize2, CheckCircle, Lightbulb, WrapText, Info } from 'lucide-react'
+import { Loader2, Sparkles, Eye, EyeOff, Wand2, Maximize2, Minimize2, CheckCircle, Lightbulb, WrapText, FileCode, AlertTriangle } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Input } from '../ui/input'
 import { DiffViewer } from './DiffViewer'
 import { ReferencePRDSelector } from './ReferencePRDSelector'
 import type { AIAction } from '../../hooks/useAIAssistant'
+import { buildPrompt } from '../../hooks/useAIAssistant'
 import { extractSectionContent } from '../../utils/prdStructure'
+import type { Draft } from '../../types'
 
 const DEFAULT_SECTIONS = [
   { value: '🎯 Full PRD', label: '🎯 Full PRD' },
@@ -179,6 +181,7 @@ interface ReferencePRDData {
 
 interface AIAssistantDialogProps {
   open: boolean
+  draft: Draft
   section: string
   context: string
   action: AIAction
@@ -215,6 +218,7 @@ const QUICK_ACTIONS: Array<{ action: AIAction; label: string; icon: typeof Wand2
 
 export function AIAssistantDialog({
   open,
+  draft,
   section,
   context,
   action,
@@ -239,6 +243,7 @@ export function AIAssistantDialog({
   onClose,
 }: AIAssistantDialogProps) {
   const [showDiff, setShowDiff] = useState(false)
+  const [showPromptPreview, setShowPromptPreview] = useState(false)
   const [customSection, setCustomSection] = useState('')
 
   // Determine if current section is "custom"
@@ -288,11 +293,29 @@ export function AIAssistantDialog({
 
   // Extract current section content for preview
   const currentSectionContent = useMemo(() => {
-    if (!effectiveSection || effectiveSection === '🎯 Full PRD' || effectiveSection === 'Full PRD') {
+    if (!effectiveSection) {
       return null
     }
-    return extractSectionContent(originalContent, effectiveSection)
+
+    // For Full PRD, show the entire content
+    if (effectiveSection === '🎯 Full PRD' || effectiveSection === 'Full PRD') {
+      return {
+        content: originalContent,
+        startLine: 0,
+        endLine: originalContent.split('\n').length,
+        isFullDocument: true
+      }
+    }
+
+    const extracted = extractSectionContent(originalContent, effectiveSection)
+    return extracted ? { ...extracted, isFullDocument: false } : null
   }, [originalContent, effectiveSection])
+
+  // Generate full prompt preview
+  const promptPreview = useMemo(() => {
+    if (!effectiveSection) return ''
+    return buildPrompt(draft, effectiveSection, context, action, includeExistingContent, referencePRDs)
+  }, [draft, effectiveSection, context, action, includeExistingContent, referencePRDs])
 
   if (!open) {
     return null
@@ -344,23 +367,56 @@ export function AIAssistantDialog({
               )}
             </div>
 
-            {/* Current Section Preview */}
+            {/* Current Section Preview - What Will Be Replaced */}
             {currentSectionContent && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                <div className="flex items-center gap-2 text-sm font-medium text-blue-900 mb-2">
-                  <Info size={14} />
-                  <span>Current section content</span>
+              <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-amber-700" />
+                    <span className="text-sm font-semibold text-amber-900">
+                      {currentSectionContent.isFullDocument ? 'Entire Document Will Be Replaced' : 'Section To Be Replaced'}
+                    </span>
+                  </div>
+                  <span className="text-xs text-amber-700 font-mono">
+                    Lines {currentSectionContent.startLine + 1}–{currentSectionContent.endLine}
+                  </span>
                 </div>
-                <p className="text-xs text-blue-700 mb-2">
-                  This section will be replaced with AI-generated content:
+
+                <p className="text-xs text-amber-800 mb-3 font-medium">
+                  {currentSectionContent.isFullDocument
+                    ? '⚠️ AI will replace your ENTIRE PRD content. Make sure this is what you want!'
+                    : `⚠️ AI will replace the "${effectiveSection}" section with new generated content.`
+                  }
                 </p>
-                <div className="max-h-32 overflow-auto rounded border border-blue-300 bg-white p-2">
-                  <pre className="text-xs text-slate-700 whitespace-pre-wrap">
-                    {currentSectionContent.content.length > 300
-                      ? currentSectionContent.content.substring(0, 300) + '...'
-                      : currentSectionContent.content || '(Empty section)'}
-                  </pre>
+
+                <div className="rounded-lg border border-amber-400 bg-white">
+                  {/* Section header indicator */}
+                  <div className="bg-amber-100 px-3 py-2 border-b border-amber-300">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-amber-900">
+                        {currentSectionContent.isFullDocument ? 'Current Full Document' : `Current: ${effectiveSection}`}
+                      </span>
+                      <span className="text-amber-700">
+                        {currentSectionContent.content.length} chars
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Content preview */}
+                  <div className="max-h-40 overflow-auto p-3">
+                    <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
+                      {currentSectionContent.content.length > 500
+                        ? currentSectionContent.content.substring(0, 500) + '\n\n... [truncated] ...'
+                        : currentSectionContent.content || '(Empty - will be created)'}
+                    </pre>
+                  </div>
                 </div>
+
+                {!currentSectionContent.content && (
+                  <p className="text-xs text-amber-700 mt-2 italic">
+                    ℹ️ This section doesn't exist yet. AI will create it in the correct position.
+                  </p>
+                )}
               </div>
             )}
 
@@ -453,12 +509,30 @@ export function AIAssistantDialog({
               </div>
             )}
 
-            {/* Generate Button */}
-            <div className="flex items-center gap-3">
-              <Button onClick={onGenerate} disabled={generating || !effectiveSection} className="flex items-center gap-2">
-                {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Generate with AI
-              </Button>
-              {error && <span className="text-sm text-amber-700">{error}</span>}
+            {/* Generate Button with Action Summary */}
+            <div className="space-y-3">
+              {effectiveSection && !generating && (
+                <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+                  <p className="text-xs text-blue-900">
+                    <strong>Action:</strong>{' '}
+                    {currentSectionContent?.isFullDocument
+                      ? 'Replace entire document'
+                      : currentSectionContent?.content
+                        ? `Replace "${effectiveSection}" section`
+                        : `Create new "${effectiveSection}" section`
+                    }
+                    {' '}&middot;{' '}
+                    <strong>Model:</strong> {model === 'default' ? 'Default (scenario setting)' : model.replace('openrouter/', '')}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <Button onClick={onGenerate} disabled={generating || !effectiveSection} className="flex items-center gap-2">
+                  {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} Generate with AI
+                </Button>
+                {error && <span className="text-sm text-amber-700">{error}</span>}
+              </div>
             </div>
           </div>
 
@@ -476,6 +550,27 @@ export function AIAssistantDialog({
                 Provide context, requirements, or existing content to guide the AI generation
               </p>
             </label>
+
+            {/* Prompt Preview */}
+            <details className="rounded-lg border border-slate-200 bg-slate-50" open={showPromptPreview} onToggle={(e) => setShowPromptPreview((e.target as HTMLDetailsElement).open)}>
+              <summary className="cursor-pointer p-3 text-sm font-medium text-slate-700 hover:bg-slate-100 flex items-center gap-2">
+                <FileCode size={14} />
+                Preview Full AI Prompt
+                <span className="ml-auto text-xs text-slate-500">
+                  {promptPreview.length.toLocaleString()} characters
+                </span>
+              </summary>
+              <div className="p-3 pt-0">
+                <p className="text-xs text-slate-600 mb-2">
+                  This is the exact prompt that will be sent to the AI model:
+                </p>
+                <div className="max-h-80 overflow-auto rounded border border-slate-300 bg-white p-3">
+                  <pre className="text-xs text-slate-800 whitespace-pre-wrap font-mono">
+                    {promptPreview || '(No prompt generated yet - select a section)'}
+                  </pre>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
 

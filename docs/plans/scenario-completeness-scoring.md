@@ -26,17 +26,25 @@ The ecosystem-manager recycler uses an AI classifier (Ollama) to determine scena
 ## 🎯 Proposed Solution
 
 ### Core Concept
-**Ground the AI classifier with objective metrics** from the existing, validated requirement/operational target sync system. Use a **dual-classifier approach** where the final classification is the **more pessimistic** of:
+**Replace AI-based classification with objective metrics** from the existing, validated requirement/operational target sync system.
 
-1. **AI Classifier** (existing): Ollama analyzes final agent response
-2. **Metrics Classifier** (new): Calculate completeness score from test results, requirement states, and operational target states
+**Old approach** (current):
+- Ollama analyzes final agent response → generates classification + note
+- Classification drives recycler behavior (finalization, requeue)
+- Prone to hallucination and false positives
 
-### Conservative Approach
+**New approach**:
+- **Metrics system** calculates completeness score → generates classification + note prefix
+- **Ollama** summarizes agent output → generates note content only (no classification)
+- **Metrics classification** drives recycler behavior exclusively
+
+### Why This is Better
 ```
-final_classification = worse_of(ai_classification, metrics_classification)
+OLD: AI hallucinates "significant_progress" → misleading note → agent wastes time polishing
+NEW: Metrics show 45% complete → clear gaps identified → agent focuses on missing features
 ```
 
-This prevents false positives from either method while allowing either to catch real issues.
+This eliminates false positives entirely by grounding classification in test results, requirement status, and operational target completion.
 
 ---
 
@@ -88,7 +96,52 @@ function calculateQuantityScore(counts, category) {
 
 Scenarios have different completion expectations based on their `category` field in `.vrooli/service.json`.
 
-### Threshold Definitions
+### Threshold Configuration
+
+**Location**: `scripts/scenarios/lib/completeness-thresholds.json`
+
+This separate config file makes threshold tuning easy without touching core logic.
+
+```json
+{
+  "version": "1.0.0",
+  "default_category": "utility",
+  "categories": {
+    "utility": {
+      "description": "Simple tools (picker-wheel, math-tools)",
+      "requirements": { "ok": 10, "good": 15, "excellent": 25 },
+      "targets": { "ok": 8, "good": 12, "excellent": 20 },
+      "tests": { "ok": 15, "good": 25, "excellent": 40 }
+    },
+    "business-application": {
+      "description": "SaaS apps (chore-tracking, invoice-generator)",
+      "requirements": { "ok": 25, "good": 40, "excellent": 60 },
+      "targets": { "ok": 15, "good": 25, "excellent": 35 },
+      "tests": { "ok": 40, "good": 60, "excellent": 100 }
+    },
+    "automation": {
+      "description": "Orchestration (deployment-manager, tidiness-manager)",
+      "requirements": { "ok": 15, "good": 25, "excellent": 40 },
+      "targets": { "ok": 12, "good": 18, "excellent": 28 },
+      "tests": { "ok": 25, "good": 40, "excellent": 70 }
+    },
+    "platform": {
+      "description": "Infrastructure (token-economy, notification-hub)",
+      "requirements": { "ok": 30, "good": 50, "excellent": 80 },
+      "targets": { "ok": 20, "good": 30, "excellent": 45 },
+      "tests": { "ok": 50, "good": 80, "excellent": 120 }
+    },
+    "developer_tools": {
+      "description": "Dev tooling (scenario-auditor, browser-automation-studio)",
+      "requirements": { "ok": 20, "good": 30, "excellent": 50 },
+      "targets": { "ok": 12, "good": 20, "excellent": 30 },
+      "tests": { "ok": 30, "good": 50, "excellent": 80 }
+    }
+  }
+}
+```
+
+### Threshold Summary Table
 
 | Category | Type | Req (Ok/Good/Excellent) | Targets (Ok/Good/Excellent) | Tests (Ok/Good/Excellent) |
 |----------|------|------------------------|----------------------------|---------------------------|
@@ -100,58 +153,58 @@ Scenarios have different completion expectations based on their `category` field
 
 **Default**: Use `utility` thresholds for unknown categories
 
-### Rationale
-- **Utility tools** (picker-wheel, math-tools): Small, focused scope = fewer requirements
-- **Business applications** (chore-tracking, invoice-generator): Complex UIs and business logic = more requirements
-- **Automation** (deployment-manager): Orchestration logic = moderate requirements but high test needs
-- **Platform** (token-economy, notification-hub): Core infrastructure = highest standards
-- **Developer tools** (scenario-auditor, tidiness-manager): Specialized tooling = moderate complexity
+### Adjusting Thresholds
+
+To recalibrate:
+1. Edit `scripts/scenarios/lib/completeness-thresholds.json`
+2. No code changes needed - values are loaded at runtime
+3. Test with `vrooli scenario completeness <name>` to validate
+4. Commit threshold changes separately from logic changes
 
 ---
 
 ## 📈 Classification Mapping
 
-Map completeness scores to classification levels that align with AI classifier output:
+Map completeness scores to classification levels that **replace** the AI-based classifications:
 
-| Score Range | Classification | Recycler Note Prefix | Meaning |
-|-------------|----------------|---------------------|---------|
-| **0-20** | `early_stage` | "Just starting - needs significant development" | Scaffolding only, minimal tests |
-| **21-40** | `foundation_laid` | "Foundation laid - core features in progress" | Some features working, many gaps |
-| **41-60** | `functional_incomplete` | "Functional but incomplete - needs more features/tests" | Core working, missing P1/P2 features |
-| **61-80** | `mostly_complete` | "Mostly complete - needs refinement and validation" | Most features done, test gaps remain |
-| **81-95** | `nearly_ready` | "Nearly ready - final polish and edge cases" | High quality, minor gaps |
-| **96-100** | `production_ready` | "Production ready - excellent validation coverage" | Exceptional quality |
+| Score Range | Classification | Recycler Note Prefix | Recycler Behavior | Meaning |
+|-------------|----------------|---------------------|-------------------|---------|
+| **0-20** | `early_stage` | "**Score: {score}/100** - Just starting, needs significant development" | Reset completion claims to 0 | Scaffolding only, minimal tests |
+| **21-40** | `foundation_laid` | "**Score: {score}/100** - Foundation laid, core features in progress" | Reset completion claims to 0 | Some features working, many gaps |
+| **41-60** | `functional_incomplete` | "**Score: {score}/100** - Functional but incomplete, needs more features/tests" | Reset completion claims to 0 | Core working, missing P1/P2 features |
+| **61-80** | `mostly_complete` | "**Score: {score}/100** - Mostly complete, needs refinement and validation" | Reset completion claims to 0 | Most features done, test gaps remain |
+| **81-95** | `nearly_ready` | "**Score: {score}/100** - Nearly ready, final polish and edge cases" | **+0.5 to completion claims** (6 consecutive → finalize) | High quality, minor gaps |
+| **96-100** | `production_ready` | "**Score: {score}/100** - Production ready, excellent validation coverage" | **+1 to completion claims** (3 consecutive → finalize) | Exceptional quality |
 
-### Mapping to AI Classifications
+### Recycler Logic Changes
 
-When combining with AI classifier, use this equivalence:
-
-| AI Classification | Equivalent Metric Classification | Pessimism Level |
-|-------------------|----------------------------------|-----------------|
-| `full_complete` | `production_ready` (96-100) | Most optimistic |
-| `significant_progress` | `mostly_complete` (61-80) | Moderately optimistic |
-| `some_progress` | `functional_incomplete` (41-60) | Neutral |
-| `uncertain` | `early_stage` (0-20) | Most pessimistic |
-
-**Conservative logic**:
-```javascript
-function combineClassifications(aiClass, metricsClass) {
-  const pessimismOrder = [
-    'early_stage',           // Most pessimistic
-    'foundation_laid',
-    'functional_incomplete',
-    'mostly_complete',
-    'nearly_ready',
-    'production_ready'       // Most optimistic
-  ];
-
-  const aiIndex = pessimismOrder.indexOf(mapAItoMetrics(aiClass));
-  const metricsIndex = pessimismOrder.indexOf(metricsClass);
-
-  // Return whichever is more pessimistic (lower index)
-  return pessimismOrder[Math.min(aiIndex, metricsIndex)];
+**OLD** (broken binary logic):
+```go
+switch classification {
+case "full_complete":
+    task.ConsecutiveCompletionClaims++
+default:
+    task.ConsecutiveCompletionClaims = 0
 }
 ```
+
+**NEW** (graduated progress with fractional increments):
+```go
+switch classification {
+case "production_ready":
+    task.ConsecutiveCompletionClaims++       // 96-100: full credit (3x → finalize)
+case "nearly_ready":
+    task.ConsecutiveCompletionClaims += 0.5  // 81-95: half credit (6x → finalize)
+default:
+    task.ConsecutiveCompletionClaims = 0     // <81: no progress toward finalization
+}
+```
+
+**Why fractional increments?**
+- Scenarios at 85% complete are genuinely close to done - should get partial credit
+- Prevents frustration of "reset to 0" when making real progress
+- Still requires sustained high quality (6 consecutive 81-95 scores = finalized)
+- Incentivizes pushing to 96+ for faster finalization (3x vs 6x)
 
 ---
 
@@ -309,60 +362,91 @@ Next Focus: Increase test pass rate (84% → 90%+) and add 7 more operational ta
 }
 ```
 
-### Phase 2: Integration with ecosystem-manager Recycler
+### Phase 2: Update Ollama Prompt to Remove Classification
+
+**Location**: `scenarios/ecosystem-manager/api/pkg/summarizer/prompt_template.txt`
+
+**Changes**: Remove classification requirement from prompt. New prompt should only extract structured notes without making completion judgments.
+
+**Location**: `scenarios/ecosystem-manager/api/pkg/summarizer/summarizer.go`
+
+Update `parseResult()` and `decorateNote()` to extract note sections without classification. The note should be raw facts only - completeness scoring will add the classification prefix.
+
+### Phase 3: Integration with ecosystem-manager Recycler
 
 **Location**: `scenarios/ecosystem-manager/api/pkg/recycler/recycler.go`
 
-**Changes**:
-
-1. **Add completeness check** alongside AI summarizer:
+**Changes**: Replace AI classification with metrics classification as the source of truth:
 
 ```go
-// In processCompletedTask(), before calling summarizer
+// In processCompletedTask()
 func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.RecyclerSettings) error {
     output := extractOutput(task.Results)
+    now := timeutil.NowRFC3339()
 
-    // Get AI classification (existing)
-    aiResult, err := summarizer.GenerateNote(context.Background(), summarizer.Config{
-        Provider: cfg.ModelProvider,
-        Model:    cfg.ModelName,
-    }, summarizer.Input{Output: output})
-    if err != nil {
-        aiResult = summarizer.DefaultResult()
-    }
-
-    // Get metrics classification (NEW)
-    metricsResult, err := getCompletenessClassification(task.Name)
-    if err != nil {
-        log.Printf("Completeness check failed for %s: %v", task.Name, err)
-        metricsResult = CompletenessResult{
-            Classification: "uncertain",
-            Score: 0,
-            Breakdown: "Completeness check unavailable",
+    // Get AI summary (notes only, NO classification)
+    var aiNote string
+    if strings.TrimSpace(output) != "" {
+        result, err := summarizer.GenerateNote(context.Background(), summarizer.Config{
+            Provider: cfg.ModelProvider,
+            Model:    cfg.ModelName,
+        }, summarizer.Input{Output: output})
+        if err != nil {
+            log.Printf("Recycler summarizer error for task %s: %v", task.ID, err)
+            aiNote = "Unable to generate summary"
+        } else {
+            aiNote = result.Note
         }
     }
 
-    // Combine classifications (take more pessimistic)
-    finalClassification := combineClassifications(
-        aiResult.Classification,
-        metricsResult.Classification,
-    )
+    // Get metrics classification (NEW - this is the source of truth)
+    metricsResult, err := getCompletenessClassification(task.Name)
+    if err != nil {
+        log.Printf("Completeness check failed for %s: %v", task.Name, err)
+        // Fallback: treat as early stage if metrics unavailable
+        metricsResult = CompletenessResult{
+            Classification: "early_stage",
+            Score: 0,
+            Breakdown: "⚠️  Completeness check unavailable - metrics could not be calculated",
+            Recommendations: []string{"Check that requirements are defined", "Verify test results are not stale"},
+        }
+    }
 
-    // Build combined note
-    combinedNote := buildCompositeNote(aiResult, metricsResult, finalClassification)
+    // Build composite note with metrics prefix
+    compositeNote := buildCompositeNote(metricsResult, aiNote)
 
     // Store in task results
     taskResults := tasks.FromMap(task.Results)
-    taskResults.SetRecyclerInfo(finalClassification, now)
-    taskResults.SetCompletenessInfo(metricsResult) // NEW
+    taskResults.SetRecyclerInfo(metricsResult.Classification, now)  // Store new classification
+    taskResults.SetCompletenessInfo(metricsResult)
     task.Results = taskResults.ToMap()
-    task.Notes = combinedNote
 
-    // ... rest of existing logic
+    // NEW: Use metrics classification directly (no legacy mapping)
+    classification := strings.ToLower(metricsResult.Classification)
+    switch classification {
+    case "production_ready":
+        task.ConsecutiveCompletionClaims++       // 96-100: full increment
+    case "nearly_ready":
+        task.ConsecutiveCompletionClaims += 0.5  // 81-95: partial increment
+    default:
+        task.ConsecutiveCompletionClaims = 0     // <81: reset
+    }
+    task.ConsecutiveFailures = 0
+
+    task.Notes = compositeNote
+    task.UpdatedAt = now
+
+    // Check finalization threshold (unchanged)
+    if shouldFinalize(task.ConsecutiveCompletionClaims, cfg.CompletionThreshold) {
+        // ... finalize task
+    }
+
+    // Otherwise requeue (unchanged)
+    // ... requeue logic
 }
 ```
 
-2. **Add helper function**:
+**Helper functions**:
 
 ```go
 func getCompletenessClassification(scenarioName string) (CompletenessResult, error) {
@@ -383,73 +467,69 @@ func getCompletenessClassification(scenarioName string) (CompletenessResult, err
     return result, nil
 }
 
-func combineClassifications(aiClass, metricsClass string) string {
-    pessimismOrder := []string{
-        "early_stage",
-        "foundation_laid",
-        "functional_incomplete",
-        "mostly_complete",
-        "nearly_ready",
-        "production_ready",
-    }
-
-    aiMapped := mapAIClassification(aiClass)
-
-    aiIndex := indexOf(pessimismOrder, aiMapped)
-    metricsIndex := indexOf(pessimismOrder, metricsClass)
-
-    if aiIndex < 0 { aiIndex = 0 }  // Default to most pessimistic
-    if metricsIndex < 0 { metricsIndex = 0 }
-
-    return pessimismOrder[min(aiIndex, metricsIndex)]
-}
-
-func mapAIClassification(aiClass string) string {
-    switch strings.ToLower(aiClass) {
-    case "full_complete":
-        return "production_ready"
-    case "significant_progress":
-        return "mostly_complete"
-    case "some_progress":
-        return "functional_incomplete"
-    default:
-        return "early_stage"
-    }
-}
-
-func buildCompositeNote(aiResult summarizer.Result, metricsResult CompletenessResult, finalClass string) string {
+func buildCompositeNote(metricsResult CompletenessResult, aiNote string) string {
     var builder strings.Builder
 
-    // Classification header
-    builder.WriteString(getClassificationPrefix(finalClass))
+    // Metrics-driven classification prefix (replaces old AI prefix)
+    builder.WriteString(getClassificationPrefix(metricsResult.Classification, metricsResult.Score))
     builder.WriteString("\n\n")
 
-    // Metrics summary
-    builder.WriteString(fmt.Sprintf("**Completeness Score**: %d/100\n", metricsResult.Score))
+    // Completeness breakdown
     builder.WriteString(metricsResult.Breakdown)
     builder.WriteString("\n\n")
 
-    // AI notes
-    builder.WriteString("**AI Analysis**:\n")
-    builder.WriteString(aiResult.Note)
+    // Recommendations (actionable next steps from metrics)
+    if len(metricsResult.Recommendations) > 0 {
+        builder.WriteString("**Priority Actions:**\n")
+        for _, rec := range metricsResult.Recommendations {
+            builder.WriteString("- ")
+            builder.WriteString(rec)
+            builder.WriteString("\n")
+        }
+        builder.WriteString("\n")
+    }
+
+    // AI notes from last run (factual summary only, no completion judgment)
+    builder.WriteString("**Notes from Last Run:**\n")
+    builder.WriteString(aiNote)
 
     return builder.String()
 }
+
+func getClassificationPrefix(classification string, score int) string {
+    switch classification {
+    case "production_ready":
+        return fmt.Sprintf("**Score: %d/100** - Production ready, excellent validation coverage", score)
+    case "nearly_ready":
+        return fmt.Sprintf("**Score: %d/100** - Nearly ready, final polish and edge cases", score)
+    case "mostly_complete":
+        return fmt.Sprintf("**Score: %d/100** - Mostly complete, needs refinement and validation", score)
+    case "functional_incomplete":
+        return fmt.Sprintf("**Score: %d/100** - Functional but incomplete, needs more features/tests", score)
+    case "foundation_laid":
+        return fmt.Sprintf("**Score: %d/100** - Foundation laid, core features in progress", score)
+    case "early_stage":
+        return fmt.Sprintf("**Score: %d/100** - Just starting, needs significant development", score)
+    default:
+        return fmt.Sprintf("**Score: %d/100** - Status unclear", score)
+    }
+}
 ```
 
-### Phase 3: Data Structures
+### Phase 4: Data Structures
 
 **New types** in `scenarios/ecosystem-manager/api/pkg/recycler/completeness.go`:
 
 ```go
 type CompletenessResult struct {
-    Scenario       string              `json:"scenario"`
-    Category       string              `json:"category"`
-    Score          int                 `json:"score"`
-    Classification string              `json:"classification"`
-    Breakdown      CompletenessDetails `json:"breakdown"`
-    Warnings       []Warning           `json:"warnings"`
-    Recommendations []string           `json:"recommendations"`
+    Scenario         string              `json:"scenario"`
+    Category         string              `json:"category"`
+    Score            int                 `json:"score"`
+    Classification   string              `json:"classification"`        // production_ready, nearly_ready, mostly_complete, etc.
+    Breakdown        string              `json:"breakdown"`             // Human-readable summary
+    BreakdownDetails CompletenessDetails `json:"breakdown_details"`     // Structured data
+    Warnings         []Warning           `json:"warnings"`
+    Recommendations  []string            `json:"recommendations"`
 }
 
 type CompletenessDetails struct {
@@ -555,39 +635,220 @@ Before deploying to ecosystem-manager:
 
 ---
 
-## 📝 Open Questions
+## 📝 Implementation Decisions
 
-1. **Should we factor in PRD complexity?** You mentioned README might be better than PRD sections since PRD structure is standardized. How should we measure PRD/README complexity?
-   - **Proposed**: Count operational targets in PRD.md as a proxy for scope. More targets = more complex scenario.
+### 1. Scenario Complexity Estimation
 
-2. **What about scenarios without UIs?** (e.g., CLI-only tools, libraries)
-   - **Proposed**: Category thresholds already handle this. CLI tools likely fall under "utility" or "developer_tools" with lower thresholds.
+**Question**: How do we estimate expected scope for a scenario to calibrate thresholds?
 
-3. **How to handle cross-scenario validations?** (e.g., BAS workflows testing deployment-manager)
-   - **Proposed**: External validations already tracked in requirement schema via `scenario` field. Include in test counts.
+**Decision**: Use **operational target count** from PRD.md as the primary complexity signal.
 
-4. **Should we penalize stale test results?** Currently we warn but don't reduce score.
-   - **Decision**: No penalty. Warning is sufficient. Agents are already instructed to run tests regularly.
+**Rationale**:
+- Operational targets (OT-P0-001, OT-P1-002, etc.) represent concrete deliverables
+- More targets = more complex scenario
+- PRD structure is standardized, making parsing reliable
+- Already exists for all scenarios (required by standards)
+
+**Alternative considered**: README analysis (word count, section depth)
+- **Rejected**: README content varies too much in quality and completeness
+- Early-stage scenarios may have minimal READMEs
+- PRD operational targets are more reliable
+
+**Usage**:
+- This is for **future Phase 5** (adaptive thresholds)
+- Current implementation uses static category-based thresholds
+- When ready to make thresholds adaptive, parse `## 🎯 Operational Targets` section from PRD.md
+
+### 2. Scenarios Without UIs
+
+**Question**: How do we handle CLI-only tools, libraries, APIs without UIs?
+
+**Decision**: Category thresholds already account for this.
+
+**Mapping**:
+- CLI utilities → `utility` category (lower thresholds)
+- Developer libraries → `developer_tools` category
+- APIs/microservices → `automation` or `platform` (depending on scope)
+
+No special handling needed.
+
+### 3. Cross-Scenario Validations
+
+**Question**: How to count BAS workflows that test other scenarios (e.g., BAS testing deployment-manager)?
+
+**Decision**: Include in test counts via `scenario` field in requirement validation entries.
+
+**Current schema support**:
+```json
+{
+  "type": "automation",
+  "scenario": "browser-automation-studio",
+  "workflow_id": "test-deployment-manager",
+  "status": "implemented"
+}
+```
+
+These are already parsed and counted as validations. No changes needed.
+
+### 4. Stale Test Result Penalty
+
+**Question**: Should we reduce the score if test results are stale (>48h old)?
+
+**Decision**: **No penalty**. Warning only.
+
+**Rationale**:
+- Agents are already instructed to run tests regularly
+- Penalizing would create false negatives during legitimate long-running work
+- Warning is sufficient to surface the issue
+- If truly stale, the agent will see the warning and run tests
 
 ---
 
 ## ✅ Implementation Checklist
 
+### Phase 1: CLI Command Foundation
+- [ ] Create `scripts/scenarios/lib/completeness-thresholds.json` config file
 - [ ] Create `scripts/scenarios/lib/completeness.js` with scoring algorithm
-- [ ] Add category threshold definitions to new config file
+  - [ ] Implement `loadThresholds()` to read config file
+  - [ ] Implement `calculateQualityScore()` (requirement/target/test pass rates)
+  - [ ] Implement `calculateCoverageScore()` (test coverage ratio + depth)
+  - [ ] Implement `calculateQuantityScore()` (threshold-based scaling)
+  - [ ] Implement `calculateCompletenessScore()` (combines all 3)
+  - [ ] Implement `classifyScore()` (maps score → classification)
+  - [ ] Implement `checkStaleness()` (reuse drift-check logic)
+  - [ ] Implement `generateRecommendations()` (actionable next steps)
 - [ ] Implement `vrooli scenario completeness` CLI command
-- [ ] Add unit tests for scoring logic
-- [ ] Add integration tests for CLI command
-- [ ] Create `CompletenessResult` types in ecosystem-manager
-- [ ] Implement `getCompletenessClassification()` helper
-- [ ] Implement `combineClassifications()` logic
-- [ ] Update `processCompletedTask()` to use dual-classifier approach
-- [ ] Update recycler note formatting to include completeness breakdown
-- [ ] Test on 5 real scenarios and validate output
-- [ ] Deploy to ecosystem-manager and monitor behavior
-- [ ] Document in ecosystem-manager README
-- [ ] Add to `vrooli help` output
+  - [ ] Add to `scripts/scenarios/index.sh` or equivalent
+  - [ ] Support `--format json|human` flag
+  - [ ] Human output: color-coded, readable, includes breakdown
+  - [ ] JSON output: structured, machine-parseable
+- [ ] Add unit tests for scoring logic (`scripts/scenarios/lib/completeness.test.js`)
+  - [ ] Test score calculation accuracy for all 6 metrics
+  - [ ] Test category threshold lookup
+  - [ ] Test classification mapping (score → classification)
+  - [ ] Test edge cases (empty scenario, 100% pass rate, etc.)
+- [ ] Add integration test (`test/cli/completeness.bats`)
+  - [ ] Test on a real scenario (deployment-manager)
+  - [ ] Verify JSON output structure
+  - [ ] Verify human output readability
+
+### Phase 2: Simplify Ollama Summarizer
+- [ ] Update `scenarios/ecosystem-manager/api/pkg/summarizer/prompt_template.txt`
+  - [ ] Remove classification requirement from prompt
+  - [ ] Focus on extracting factual summaries only (accomplished, status, issues, next actions, evidence)
+  - [ ] Remove completion judgment language
+- [ ] Update `scenarios/ecosystem-manager/api/pkg/summarizer/summarizer.go`
+  - [ ] Modify `parseResult()` to parse structured sections instead of classification
+  - [ ] Remove `decorateNote()` function (metrics will handle prefixes)
+  - [ ] Update `Result` struct to remove `Classification` field
+  - [ ] Update `DefaultResult()` to return notes-only result
+
+### Phase 3: ecosystem-manager Recycler Integration
+- [ ] Create `scenarios/ecosystem-manager/api/pkg/recycler/completeness.go`
+  - [ ] Define `CompletenessResult` struct (no legacy field needed)
+  - [ ] Implement `getCompletenessClassification(scenarioName)` (calls CLI)
+  - [ ] Implement `buildCompositeNote(metricsResult, aiNote)`
+  - [ ] Implement `getClassificationPrefix(classification, score)`
+- [ ] Update `scenarios/ecosystem-manager/api/pkg/recycler/recycler.go`
+  - [ ] Import completeness package
+  - [ ] Modify `processCompletedTask()` to:
+    - [ ] Get AI note (no classification)
+    - [ ] Get metrics classification (source of truth)
+    - [ ] Build composite note with metrics prefix
+    - [ ] **Replace switch statement** to use new classifications directly
+    - [ ] **Add fractional increment logic** for `nearly_ready` (+0.5)
+  - [ ] Store completeness result in task results
+  - [ ] Update `SetRecyclerInfo()` call to store new classification (not legacy)
+- [ ] Update `scenarios/ecosystem-manager/api/pkg/tasks/results.go`
+  - [ ] Add `SetCompletenessInfo()` method
+  - [ ] Add completeness fields to results map
+
+### Phase 4: Testing & Validation
+- [ ] Test completeness CLI on 5 diverse scenarios:
+  - [ ] 1 utility (math-tools or picker-wheel)
+  - [ ] 1 business-application (chore-tracking or invoice-generator)
+  - [ ] 1 automation (deployment-manager or tidiness-manager)
+  - [ ] 1 platform (token-economy or notification-hub)
+  - [ ] 1 developer_tools (scenario-auditor or browser-automation-studio)
+- [ ] Validate scores correlate with human assessment (≥0.8 correlation)
+- [ ] Test ecosystem-manager integration end-to-end
+  - [ ] Create test task, run through recycler
+  - [ ] Verify completeness check runs successfully
+  - [ ] Verify metrics classification drives recycler behavior directly
+  - [ ] Verify composite note format (score prefix + breakdown + recommendations + AI notes)
+  - [ ] Verify fractional increments work for `nearly_ready` (0.5 per iteration)
+  - [ ] Verify finalization occurs after 3x `production_ready` or 6x `nearly_ready`
+- [ ] Monitor agent behavior changes (do agents focus on right priorities?)
+
+### Phase 5: Documentation & Deployment
+- [ ] Document completeness scoring in `scripts/scenarios/README.md`
+- [ ] Document CLI command in `vrooli help` output
+- [ ] Document recycler changes in `scenarios/ecosystem-manager/README.md`
+- [ ] Add example output to documentation
+- [ ] Deploy to ecosystem-manager production
+- [ ] Monitor first 3-5 tasks for unexpected behavior
+
+### Future Phases (Documented but Not Implemented Yet)
+- [ ] **Phase 5**: Adaptive thresholds based on PRD operational target count
+- [ ] **Phase 6**: Progress velocity tracking (score deltas over time)
+- [ ] **Phase 7**: Requirement quality scoring (detect trivial requirements)
 
 ---
 
-**Next Steps**: Review this plan, provide feedback on open questions, then proceed with Phase 1 implementation.
+## 🚀 Key Architecture Changes
+
+### **What Changed from Original Plan**
+
+**Before** (dual-classifier approach):
+- AI classifier generates classification + note
+- Metrics classifier generates classification + breakdown
+- Combine both using pessimistic selection
+- Both influence final behavior
+
+**After** (metrics-only classification):
+- **Metrics system** generates classification + breakdown (source of truth)
+- **AI summarizer** generates note content only (no classification)
+- Classification driven **entirely by objective metrics**
+- Cleaner separation of concerns
+
+### **Why This Is Better**
+
+1. **Simpler Logic**: No need to combine classifications or map between AI/metrics formats
+2. **Eliminates Confusion**: Only one source of truth for classification
+3. **Clearer Responsibilities**:
+   - Metrics: "What is the objective completeness score?"
+   - AI: "What happened in the last run?"
+4. **Easier to Tune**: Change threshold config without touching AI prompts
+5. **More Reliable**: Can't have AI hallucinate "significant_progress" when tests are failing
+
+### **Breaking Changes to Recycler**
+
+This implementation **completely replaces** the existing classification system:
+
+**Removed**:
+- AI-based classifications (`full_complete`, `significant_progress`, `some_progress`, `uncertain`)
+- Binary completion logic (only `full_complete` counted)
+- Misleading note decoration ("Already pretty good..." prefix)
+
+**Added**:
+- 6 metrics-based classifications tied to objective scores
+- Graduated completion logic (full credit at 96+, partial at 81-95)
+- Actionable note format (score + breakdown + recommendations + AI summary)
+
+**Impact**:
+- Tasks in queue will get re-classified on next recycler pass
+- Existing `ConsecutiveCompletionClaims` counters remain valid (may need adjustment based on new classifications)
+- No migration needed - new system takes over immediately
+
+## 🚀 Ready to Implement
+
+The plan is complete and addresses all requirements:
+
+✅ **Weighting**: 70% quality, 20% coverage, 10% quantity
+✅ **Category thresholds**: Separate JSON config for easy tuning
+✅ **Complexity metric**: Operational target count (for future adaptive thresholds)
+✅ **Staleness**: Warning only, no penalty
+✅ **Single source of truth**: Metrics classification drives all behavior
+✅ **AI role simplified**: Factual summarization only, no completion judgment
+
+**Next step**: Begin Phase 1 implementation starting with threshold config file and core scoring algorithm.

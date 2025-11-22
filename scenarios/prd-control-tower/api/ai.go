@@ -254,7 +254,8 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 			prompt.WriteString(fmt.Sprintf("Reference PRD %d: %s\n", i+1, ref.Name))
 			prompt.WriteString(strings.Repeat("-", 70) + "\n")
 			prompt.WriteString(ref.Content)
-			prompt.WriteString("\n\n")
+			prompt.WriteString("\n")
+			prompt.WriteString(strings.Repeat("-", 70) + "\n\n")
 		}
 		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
 	}
@@ -262,8 +263,10 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 	// Include existing PRD content if requested
 	if includeExisting && draft.Content != "" {
 		prompt.WriteString("Current PRD Content:\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n")
 		prompt.WriteString(draft.Content)
-		prompt.WriteString("\n\n")
+		prompt.WriteString("\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
 	}
 
 	// Determine task description based on section
@@ -277,8 +280,10 @@ func buildPrompt(draft Draft, section string, context string, action string, inc
 	// Include additional context if provided
 	if context != "" {
 		prompt.WriteString("Additional Context:\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n")
 		prompt.WriteString(context)
-		prompt.WriteString("\n\n")
+		prompt.WriteString("\n")
+		prompt.WriteString("=" + strings.Repeat("=", 70) + "\n\n")
 	}
 
 	// Add requirements

@@ -50,6 +50,7 @@ SUBCOMMANDS:
     template [cmd]          Manage scenario templates (list/show)
     generate <template>     Scaffold a scenario from a template
     requirements <subcommand> Manage scenario requirements (run `vrooli scenario requirements help`)
+    completeness <name> [--format json|human] Calculate objective completeness score
 
 OPTIONS FOR START:
     --clean-stale           Clean stale port locks before starting
@@ -143,6 +144,9 @@ main() {
             ;;
         generate)
             scenario::template::generate "$@"
+            ;;
+        completeness)
+            scenario::completeness::score "$@"
             ;;
         # Removed: convert, convert-all, validate, enable, disable
         *)

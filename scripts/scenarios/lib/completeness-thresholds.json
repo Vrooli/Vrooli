@@ -1,0 +1,36 @@
+{
+  "version": "1.0.0",
+  "default_category": "utility",
+  "categories": {
+    "utility": {
+      "description": "Simple tools (picker-wheel, math-tools)",
+      "requirements": { "ok": 10, "good": 15, "excellent": 25 },
+      "targets": { "ok": 8, "good": 12, "excellent": 20 },
+      "tests": { "ok": 15, "good": 25, "excellent": 40 }
+    },
+    "business-application": {
+      "description": "SaaS apps (chore-tracking, invoice-generator)",
+      "requirements": { "ok": 25, "good": 40, "excellent": 60 },
+      "targets": { "ok": 15, "good": 25, "excellent": 35 },
+      "tests": { "ok": 40, "good": 60, "excellent": 100 }
+    },
+    "automation": {
+      "description": "Orchestration (deployment-manager, tidiness-manager)",
+      "requirements": { "ok": 15, "good": 25, "excellent": 40 },
+      "targets": { "ok": 12, "good": 18, "excellent": 28 },
+      "tests": { "ok": 25, "good": 40, "excellent": 70 }
+    },
+    "platform": {
+      "description": "Infrastructure (token-economy, notification-hub)",
+      "requirements": { "ok": 30, "good": 50, "excellent": 80 },
+      "targets": { "ok": 20, "good": 30, "excellent": 45 },
+      "tests": { "ok": 50, "good": 80, "excellent": 120 }
+    },
+    "developer_tools": {
+      "description": "Dev tooling (scenario-auditor, browser-automation-studio)",
+      "requirements": { "ok": 20, "good": 30, "excellent": 50 },
+      "targets": { "ok": 12, "good": 20, "excellent": 30 },
+      "tests": { "ok": 30, "good": 50, "excellent": 80 }
+    }
+  }
+}

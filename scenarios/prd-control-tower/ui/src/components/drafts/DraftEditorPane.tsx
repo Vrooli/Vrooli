@@ -174,7 +174,7 @@ export function DraftEditorPane({
     handleAIGenerate,
     handleQuickAction,
     applyAIResult,
-  } = useAIAssistant({ draftId: draft.id, editorContent, onContentChange })
+  } = useAIAssistant({ draftId: draft.id, draft, editorContent, onContentChange })
 
   return (
     <section className="space-y-4" aria-labelledby="draft-editor-heading">
@@ -349,6 +349,7 @@ export function DraftEditorPane({
       <DraftMetaDialog draft={draft} metrics={draftMetrics} open={metaDialogOpen} onClose={onCloseMeta} />
       <AIAssistantDialog
         open={aiDialogOpen}
+        draft={draft}
         section={aiSection}
         context={aiContext}
         action={aiAction}
