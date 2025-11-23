@@ -10,8 +10,7 @@
       "prd_ref": "OT-P0-035",
       "title": "Interactive Dependency Graph",
       "description": "Render dependency tree as interactive graph (React Flow or d3-force) with color-coded fitness scores",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "visualization",
         "ui"
@@ -20,8 +19,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/dependency-visualization.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-035] tags"
         }
       ]
     },
@@ -31,8 +31,7 @@
       "prd_ref": "OT-P0-036",
       "title": "Table View Alternative",
       "description": "Provide sortable table view with columns: name, type, fitness score, issues, suggested swaps",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "visualization",
         "accessibility"
@@ -41,8 +40,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/dependency-visualization.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-036] tags"
         }
       ]
     },
@@ -52,8 +52,7 @@
       "prd_ref": "OT-P0-037",
       "title": "Graph Rendering Performance",
       "description": "Render dependency graph within 3 seconds for scenarios with ≤100 dependencies",
-      "status": "pending",
-      "criticality": "P0",
+      "status": "complete",
       "tags": [
         "visualization",
         "performance"
@@ -62,8 +61,9 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "not_implemented",
-          "ref": "test/phases/test-integration.sh"
+          "status": "implemented",
+          "ref": "test/cli/dependency-visualization.bats",
+          "notes": "CLI integration tests with [REQ:DM-P0-037] tags"
         }
       ]
     }

@@ -146,7 +146,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./deployment-manager-api",
+          "run": "cd api && POSTGRES_DB=deployment_manager ./deployment-manager-api",
           "background": true,
           "description": "Start Go API server",
           "condition": {
@@ -174,7 +174,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "cd test && ./run-tests.sh",
+          "run": "./test/run-tests.sh",
           "description": "Run structure/unit/integration/business/performance phases"
         }
       ]
@@ -204,11 +204,11 @@
         "purpose": "Deployment profile storage, audit logs, fitness rules database, swap suggestion database",
         "initialization": [
           {
-            "file": "initialization/storage/postgres/schema.sql",
+            "file": "initialization/postgres/schema.sql",
             "type": "schema"
           },
           {
-            "file": "initialization/storage/postgres/seed.sql",
+            "file": "initialization/postgres/seed.sql",
             "type": "seed"
           }
         ]

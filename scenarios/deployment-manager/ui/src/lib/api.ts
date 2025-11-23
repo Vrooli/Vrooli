@@ -5,7 +5,7 @@ let API_BASE_URL: string | null = null;
 const getApiBaseUrl = () => {
   if (API_BASE_URL === null) {
     API_BASE_URL = resolveApiBase({
-      appendSuffix: false,
+      appendSuffix: true,
     });
   }
   return API_BASE_URL;
@@ -151,7 +151,7 @@ export async function fetchHealth(): Promise<HealthResponse> {
 
 export async function analyzeDependencies(scenario: string): Promise<DependencyAnalysisResponse> {
   const res = await fetch(
-    buildApiUrl(`/api/v1/dependencies/analyze/${scenario}`, { baseUrl: getApiBaseUrl() }),
+    buildApiUrl(`/dependencies/analyze/${scenario}`, { baseUrl: getApiBaseUrl() }),
     {
       headers: { "Content-Type": "application/json" },
       cache: "no-store"
@@ -168,7 +168,7 @@ export async function analyzeDependencies(scenario: string): Promise<DependencyA
 
 export async function scoreFitness(request: FitnessScoreRequest): Promise<FitnessScoreResponse> {
   const res = await fetch(
-    buildApiUrl("/api/v1/fitness/score", { baseUrl: getApiBaseUrl() }),
+    buildApiUrl("/fitness/score", { baseUrl: getApiBaseUrl() }),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -187,7 +187,7 @@ export async function scoreFitness(request: FitnessScoreRequest): Promise<Fitnes
 
 export async function listProfiles(): Promise<DeploymentProfile[]> {
   const res = await fetch(
-    buildApiUrl("/api/v1/profiles", { baseUrl: getApiBaseUrl() }),
+    buildApiUrl("/profiles", { baseUrl: getApiBaseUrl() }),
     {
       headers: { "Content-Type": "application/json" },
       cache: "no-store"
@@ -203,7 +203,7 @@ export async function listProfiles(): Promise<DeploymentProfile[]> {
 
 export async function createProfile(request: CreateProfileRequest): Promise<CreateProfileResponse> {
   const res = await fetch(
-    buildApiUrl("/api/v1/profiles", { baseUrl: getApiBaseUrl() }),
+    buildApiUrl("/profiles", { baseUrl: getApiBaseUrl() }),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -222,7 +222,7 @@ export async function createProfile(request: CreateProfileRequest): Promise<Crea
 
 export async function getProfile(id: string): Promise<DeploymentProfile> {
   const res = await fetch(
-    buildApiUrl(`/api/v1/profiles/${id}`, { baseUrl: getApiBaseUrl() }),
+    buildApiUrl(`/profiles/${id}`, { baseUrl: getApiBaseUrl() }),
     {
       headers: { "Content-Type": "application/json" },
       cache: "no-store"
@@ -238,7 +238,7 @@ export async function getProfile(id: string): Promise<DeploymentProfile> {
 
 export async function updateProfile(id: string, updates: Partial<DeploymentProfile>): Promise<DeploymentProfile> {
   const res = await fetch(
-    buildApiUrl(`/api/v1/profiles/${id}`, { baseUrl: getApiBaseUrl() }),
+    buildApiUrl(`/profiles/${id}`, { baseUrl: getApiBaseUrl() }),
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -257,7 +257,7 @@ export async function updateProfile(id: string, updates: Partial<DeploymentProfi
 
 export async function deployProfile(profileId: string): Promise<DeployResponse> {
   const res = await fetch(
-    buildApiUrl(`/api/v1/deploy/${profileId}`, { baseUrl: getApiBaseUrl() }),
+    buildApiUrl(`/deploy/${profileId}`, { baseUrl: getApiBaseUrl() }),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -275,7 +275,7 @@ export async function deployProfile(profileId: string): Promise<DeployResponse> 
 
 export async function getDeploymentStatus(deploymentId: string): Promise<DeploymentStatus> {
   const res = await fetch(
-    buildApiUrl(`/api/v1/deployments/${deploymentId}`, { baseUrl: getApiBaseUrl() }),
+    buildApiUrl(`/deployments/${deploymentId}`, { baseUrl: getApiBaseUrl() }),
     {
       headers: { "Content-Type": "application/json" },
       cache: "no-store"
@@ -291,7 +291,7 @@ export async function getDeploymentStatus(deploymentId: string): Promise<Deploym
 
 export async function analyzeSwap(from: string, to: string): Promise<SwapAnalysis> {
   const res = await fetch(
-    buildApiUrl(`/api/v1/swaps/analyze/${from}/${to}`, { baseUrl: getApiBaseUrl() }),
+    buildApiUrl(`/swaps/analyze/${from}/${to}`, { baseUrl: getApiBaseUrl() }),
     {
       headers: { "Content-Type": "application/json" },
       cache: "no-store"
@@ -308,7 +308,7 @@ export async function analyzeSwap(from: string, to: string): Promise<SwapAnalysi
 
 export async function analyzeSwapCascade(from: string, to: string): Promise<SwapCascade> {
   const res = await fetch(
-    buildApiUrl(`/api/v1/swaps/cascade/${from}/${to}`, { baseUrl: getApiBaseUrl() }),
+    buildApiUrl(`/swaps/cascade/${from}/${to}`, { baseUrl: getApiBaseUrl() }),
     {
       headers: { "Content-Type": "application/json" },
       cache: "no-store"

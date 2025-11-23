@@ -1,15 +1,15 @@
 # Deployment Manager Scenario Makefile
 #
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
-# NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
+# NEVER run scenarios directly (./api/deployment-manager-api). ALWAYS use these commands.
 #
 # Usage:
-#   make           - Show this help message
-#   make start     - Start this scenario (uses Vrooli lifecycle)
-#   make stop      - Stop this scenario
-#   make test      - Run all tests (API, UI, CLI)
-#   make logs      - Show recent logs for this scenario
-#   make clean     - Clean build artifacts
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
 
 .PHONY: help start stop test logs clean run dev status build build-api build-ui test-api test-ui test-cli logs-follow db-reset db-migrate validate install-deps fmt fmt-go fmt-ui lint lint-go lint-ui check r s d t l c b f
 
@@ -27,21 +27,15 @@ RED := \033[1;31m
 RESET := \033[0m
 
 help: ## Show this help message
-	@echo "$(BLUE)🏗️  $(SCENARIO_NAME) Scenario$(RESET)"
+	@echo "$(BLUE)📋 $(SCENARIO_NAME) Scenario Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
-	@echo "  make            Show this help message"
-	@echo "  make start      Start the scenario"
-	@echo "  make stop       Stop the scenario"
-	@echo "  make test       Run all tests"
-	@echo "  make logs       Show scenario logs"
-	@echo "  make clean      Clean build artifacts"
+	@echo "  make <command>"
 	@echo ""
-	@echo "$(YELLOW)Scenario Commands$(RESET)"
+	@echo "$(YELLOW)Commands:$(RESET)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET)"
-	@echo "    Never run ./api/$(SCENARIO_NAME)-api directly!"
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME)-api directly!"
 	@echo "    Always use 'make start' or 'vrooli scenario start $(SCENARIO_NAME)'"
 
 start: ## Start this scenario (uses Vrooli lifecycle)

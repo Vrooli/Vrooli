@@ -1,7 +1,7 @@
 {
   "scenario": "deployment-manager",
   "report_version": 1,
-  "generated_at": "2025-11-22T05:48:12.197331784Z",
+  "generated_at": "2025-11-22T11:31:55.803654506Z",
   "dependencies": [
     {
       "name": "claude-code",
@@ -572,7 +572,7 @@
   },
   "bundle_manifest": {
     "scenario": "deployment-manager",
-    "generated_at": "2025-11-22T05:48:12.197331784Z",
+    "generated_at": "2025-11-22T11:31:55.803654506Z",
     "files": [
       {
         "path": ".vrooli/service.json",
