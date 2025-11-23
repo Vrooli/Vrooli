@@ -577,3 +577,13 @@ func (e *ExecutionEngine) IsAutoSteerActive(taskID string) (bool, error) {
 
 	return state != nil, nil
 }
+
+// DeleteExecutionState removes any active execution state for a task.
+// Useful for temporary preview flows to avoid lingering state.
+func (e *ExecutionEngine) DeleteExecutionState(taskID string) error {
+	query := `DELETE FROM profile_execution_state WHERE task_id = $1`
+	if _, err := e.db.Exec(query, taskID); err != nil {
+		return fmt.Errorf("failed to delete execution state for task %s: %w", taskID, err)
+	}
+	return nil
+}

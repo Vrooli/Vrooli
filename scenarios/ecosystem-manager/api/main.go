@@ -292,7 +292,7 @@ func initializeComponents() error {
 	processor.SetAutoSteerIntegration(autoSteerIntegration)
 
 	// Initialize handlers
-	taskHandlers = handlers.NewTaskHandlers(storage, assembler, processor, wsManager)
+	taskHandlers = handlers.NewTaskHandlers(storage, assembler, processor, wsManager, autoSteerProfileService)
 	queueHandlers = handlers.NewQueueHandlers(processor, wsManager, storage)
 	discoveryHandlers = handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers = handlers.NewHealthHandlers(processor)

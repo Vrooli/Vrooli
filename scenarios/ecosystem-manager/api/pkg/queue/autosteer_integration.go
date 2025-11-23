@@ -21,6 +21,11 @@ func NewAutoSteerIntegration(executionEngine *autosteer.ExecutionEngine) *AutoSt
 	}
 }
 
+// ExecutionEngine exposes the underlying execution engine for advanced workflows.
+func (a *AutoSteerIntegration) ExecutionEngine() *autosteer.ExecutionEngine {
+	return a.executionEngine
+}
+
 // InitializeAutoSteer initializes Auto Steer execution for a task if needed
 // Should be called before executing a task for the first time
 func (a *AutoSteerIntegration) InitializeAutoSteer(task *tasks.TaskItem, scenarioName string) error {

@@ -979,3 +979,8 @@ func getScenarioNameFromTask(task *tasks.TaskItem) string {
 	// Fallback: try to extract from title or use task ID
 	return task.Target
 }
+
+// GetScenarioNameFromTask is an exported helper to ensure consistent scenario name derivation.
+func GetScenarioNameFromTask(task *tasks.TaskItem) string {
+	return getScenarioNameFromTask(task)
+}

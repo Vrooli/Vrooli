@@ -77,10 +77,12 @@ export interface QueueStatus {
   active: boolean;
   slots_used: number;
   max_concurrent: number;
+  available_slots?: number;
   tasks_remaining: number;
   next_refresh_in?: number;
   rate_limited?: boolean;
   rate_limit_retry_after?: number;
+  rate_limit_pause_until?: string;
 }
 
 export interface RunningProcess {
@@ -358,13 +360,16 @@ export interface PromptPreviewConfig {
   title: string;
   priority: Priority;
   notes?: string;
-  target?: string[];
+  target?: string;
+  targets?: string[];
+  auto_steer_profile_id?: string;
+  auto_steer_phase_index?: number;
 }
 
 export interface PromptPreviewResult {
   prompt: string;
   token_count?: number;
-  sections?: Record<string, string>;
+  sections?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }
 

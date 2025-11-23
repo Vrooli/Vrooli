@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/internal/slices"
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/prompts"
@@ -25,10 +26,11 @@ var (
 
 // TaskHandlers contains handlers for task-related endpoints
 type TaskHandlers struct {
-	storage   *tasks.Storage
-	assembler *prompts.Assembler
-	processor *queue.Processor
-	wsManager *websocket.Manager
+	storage           *tasks.Storage
+	assembler         *prompts.Assembler
+	processor         *queue.Processor
+	wsManager         *websocket.Manager
+	autoSteerProfiles *autosteer.ProfileService
 }
 
 func (h *TaskHandlers) handleMultiTargetCreate(w http.ResponseWriter, baseTask tasks.TaskItem) {
@@ -165,12 +167,13 @@ func operationDisplayName(operation string) string {
 }
 
 // NewTaskHandlers creates a new task handlers instance
-func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, processor *queue.Processor, wsManager *websocket.Manager) *TaskHandlers {
+func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, processor *queue.Processor, wsManager *websocket.Manager, autoSteerProfiles *autosteer.ProfileService) *TaskHandlers {
 	return &TaskHandlers{
-		storage:   storage,
-		assembler: assembler,
-		processor: processor,
-		wsManager: wsManager,
+		storage:           storage,
+		assembler:         assembler,
+		processor:         processor,
+		wsManager:         wsManager,
+		autoSteerProfiles: autoSteerProfiles,
 	}
 }
 
@@ -863,4 +866,3 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 
 	writeJSON(w, *task, http.StatusOK)
 }
-

@@ -106,7 +106,7 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	wsManager := websocket.NewManager()
 	testRecycler := &recycler.Recycler{}
 
-	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager)
+	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil)
 	queueHandlers := NewQueueHandlers(processor, wsManager, storage)
 	healthHandlers := NewHealthHandlers(processor)
 	discoveryHandlers := NewDiscoveryHandlers(assembler)

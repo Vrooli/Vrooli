@@ -133,6 +133,11 @@ func (qp *Processor) SetAutoSteerIntegration(integration *AutoSteerIntegration) 
 	systemlog.Info("Auto Steer integration enabled")
 }
 
+// AutoSteerIntegration returns the configured Auto Steer integration, if any.
+func (qp *Processor) AutoSteerIntegration() *AutoSteerIntegration {
+	return qp.autoSteerIntegration
+}
+
 // Start begins the queue processing loop
 func (qp *Processor) Start() {
 	qp.mu.Lock()

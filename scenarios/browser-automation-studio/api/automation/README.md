@@ -46,6 +46,12 @@ Key invariants:
 - `executor/` — Orchestration (`SimpleExecutor`) that drives engines, emits heartbeats/telemetry, and enforces capability checks. `plan_builder.go` compiles workflows into the contract plan shape.
 - `recorder/` — Persists normalized outcomes/telemetry into the DB (`DBRecorder`) while owning IDs/dedupe and storage uploads.
 - `events/` — Event sinks and sequencing/backpressure helpers. `ws_sink` bridges to the websocket hub; `memory_sink` supports tests.
+- See also:
+  - [contracts/README.md](contracts/README.md)
+  - [engine/README.md](engine/README.md)
+  - [executor/README.md](executor/README.md)
+  - [recorder/README.md](recorder/README.md)
+  - [events/README.md](events/README.md)
 
 ## Feature Flags / Selection
 - `ENGINE` sets the default engine (e.g., `browserless`).

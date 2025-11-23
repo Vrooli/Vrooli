@@ -184,6 +184,11 @@ const normalizeQueueStatus = (raw: any): QueueStatus => {
     raw?.maxConcurrent ??
     0;
 
+  const availableSlots =
+    raw?.available_slots ??
+    raw?.availableSlots ??
+    maxConcurrent - slotsUsed;
+
   const pendingCount = raw?.pending_count ?? 0;
   const readyInProgress = raw?.ready_in_progress ?? 0;
 
@@ -198,6 +203,10 @@ const normalizeQueueStatus = (raw: any): QueueStatus => {
       rateInfo.remaining_secs ??
       raw?.rate_limit_retry_after ??
       0,
+    rate_limit_pause_until:
+      rateInfo.pause_until ??
+      raw?.rate_limit_pause_until,
+    available_slots: Number(availableSlots) || 0,
   };
 };
 

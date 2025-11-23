@@ -16,8 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { usePromptPreview } from '@/hooks/usePromptTester';
-import type { TaskType, OperationType, Priority } from '@/types/api';
+import type { TaskType, OperationType, Priority, AutoSteerProfile } from '@/types/api';
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
 
@@ -27,9 +28,21 @@ export function PromptTesterTab() {
   const [title, setTitle] = useState('Test Task');
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
+  const [target, setTarget] = useState('');
+  const [autoSteerProfileId, setAutoSteerProfileId] = useState('');
+  const [autoSteerPhaseKey, setAutoSteerPhaseKey] = useState('none');
   const [copied, setCopied] = useState(false);
 
   const { mutate: previewPrompt, data: promptData, isPending } = usePromptPreview();
+  const { data: profiles = [], isLoading: profilesLoading } = useAutoSteerProfiles();
+
+  const currentProfile: AutoSteerProfile | undefined = profiles.find(p => p.id === autoSteerProfileId);
+  const selectedPhaseIndex = autoSteerPhaseKey === 'none' ? undefined : parseInt(autoSteerPhaseKey, 10);
+
+  const promptText = promptData?.prompt || '';
+  const characterCount = promptText.length;
+  const wordCount = promptText.trim() ? promptText.trim().split(/\s+/).length : 0;
+  const lineCount = promptText ? promptText.split(/\r?\n/).length : 0;
 
   const handlePreview = () => {
     previewPrompt({
@@ -38,6 +51,10 @@ export function PromptTesterTab() {
       title,
       priority,
       notes: notes || undefined,
+      target: type === 'scenario' ? target.trim() || undefined : undefined,
+      targets: type === 'scenario' && target.trim() ? [target.trim()] : undefined,
+      auto_steer_profile_id: type === 'scenario' && selectedPhaseIndex !== undefined ? autoSteerProfileId : undefined,
+      auto_steer_phase_index: type === 'scenario' ? selectedPhaseIndex : undefined,
     });
   };
 
@@ -61,7 +78,17 @@ export function PromptTesterTab() {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="pt-type">Type</Label>
-            <Select value={type} onValueChange={(val: string) => setType(val as TaskType)}>
+            <Select
+              value={type}
+              onValueChange={(val: string) => {
+                setType(val as TaskType);
+                if (val !== 'scenario') {
+                  setTarget('');
+                  setAutoSteerProfileId('');
+                  setAutoSteerPhaseKey('none');
+                }
+              }}
+            >
               <SelectTrigger id="pt-type">
                 <SelectValue />
               </SelectTrigger>
@@ -85,6 +112,65 @@ export function PromptTesterTab() {
             </Select>
           </div>
         </div>
+
+        {type === 'scenario' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="pt-target">Scenario Target</Label>
+              <Input
+                id="pt-target"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                placeholder="e.g. system-monitor"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pt-autosteer">Auto Steer Profile</Label>
+              <Select
+                value={autoSteerProfileId || 'none'}
+                onValueChange={(val: string) => {
+                  const normalized = val === 'none' ? '' : val;
+                  setAutoSteerProfileId(normalized);
+                  setAutoSteerPhaseKey('none');
+                }}
+                disabled={profilesLoading || profiles.length === 0}
+              >
+              <SelectTrigger id="pt-autosteer">
+                <SelectValue placeholder={profilesLoading ? 'Loading...' : 'None'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {profiles.map(profile => (
+                  <SelectItem key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+            <div className="space-y-2">
+              <Label htmlFor="pt-autosteer-phase">Steer Phase</Label>
+              <Select
+                value={autoSteerPhaseKey}
+                onValueChange={(val: string) => setAutoSteerPhaseKey(val)}
+                disabled={!currentProfile || !currentProfile.phases?.length}
+              >
+                <SelectTrigger id="pt-autosteer-phase">
+                  <SelectValue placeholder="Select a phase" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No steer</SelectItem>
+                  {currentProfile?.phases?.map((phase, idx) => (
+                    <SelectItem key={phase.id || `${phase.mode}-${idx}`} value={String(idx)}>
+                      Phase {idx + 1}: {phase.mode}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="pt-title">Title</Label>
@@ -137,7 +223,7 @@ export function PromptTesterTab() {
               variant="outline"
               size="sm"
               onClick={handleCopy}
-              disabled={!promptData.prompt}
+              disabled={!promptText}
             >
               {copied ? (
                 <>
@@ -156,50 +242,30 @@ export function PromptTesterTab() {
           {/* Metadata */}
           <div className="grid grid-cols-3 gap-4 text-xs">
             <div className="bg-slate-900 border border-white/10 rounded-md px-3 py-2">
-              <div className="text-slate-400">Token Count</div>
-              <div className="text-lg font-semibold text-slate-100">
-                {promptData.token_count?.toLocaleString() || 'N/A'}
-              </div>
-            </div>
-            <div className="bg-slate-900 border border-white/10 rounded-md px-3 py-2">
-              <div className="text-slate-400">Sections</div>
-              <div className="text-lg font-semibold text-slate-100">
-                {promptData.sections ? Object.keys(promptData.sections).length : 0}
-              </div>
-            </div>
-            <div className="bg-slate-900 border border-white/10 rounded-md px-3 py-2">
               <div className="text-slate-400">Character Count</div>
               <div className="text-lg font-semibold text-slate-100">
-                {promptData.prompt?.length || 0}
+                {characterCount.toLocaleString()}
+              </div>
+            </div>
+            <div className="bg-slate-900 border border-white/10 rounded-md px-3 py-2">
+              <div className="text-slate-400">Word Count</div>
+              <div className="text-lg font-semibold text-slate-100">
+                {wordCount.toLocaleString()}
+              </div>
+            </div>
+            <div className="bg-slate-900 border border-white/10 rounded-md px-3 py-2">
+              <div className="text-slate-400">Line Count</div>
+              <div className="text-lg font-semibold text-slate-100">
+                {lineCount.toLocaleString()}
               </div>
             </div>
           </div>
-
-          {/* Section Breakdown */}
-          {promptData.sections && Object.keys(promptData.sections).length > 0 && (
-            <div className="space-y-2">
-              <h5 className="text-xs font-medium text-slate-400">Section Breakdown</h5>
-              <div className="space-y-1">
-                {Object.entries(promptData.sections).map(([name, content]) => (
-                  <div
-                    key={name}
-                    className="flex items-center justify-between text-xs bg-slate-900 border border-white/10 rounded px-3 py-2"
-                  >
-                    <span className="text-slate-300">{name}</span>
-                    <span className="text-slate-500">
-                      {typeof content === 'string' ? content.length : 0} chars
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Prompt Preview */}
           <div className="space-y-2">
             <h5 className="text-xs font-medium text-slate-400">Full Prompt</h5>
             <div className="border border-white/10 rounded-md p-4 max-h-96 overflow-y-auto bg-slate-900 font-mono text-xs whitespace-pre-wrap">
-              {promptData.prompt || 'No prompt generated'}
+              {promptText || 'No prompt generated'}
             </div>
           </div>
         </div>

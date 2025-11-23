@@ -144,7 +144,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             </TabsContent>
 
             <TabsContent value="rate-limits" className="space-y-4">
-              <RateLimitsTab />
+              <RateLimitsTab
+                settings={localSettings.processor}
+                onChange={(updates) => updateLocalSettings('processor', updates)}
+              />
             </TabsContent>
 
             <TabsContent value="recycler" className="space-y-4">
